@@ -1,0 +1,320 @@
+diff --git a/apps/api/core/money.py b/apps/api/core/money.py
+new file mode 100644
+--- /dev/null
++++ b/apps/api/core/money.py
+@@ -0,0 +1,86 @@
++"""apps.api.core.money — AD-8 monetary types for the FastAPI side.
++
++This module re-exports the canonical KRW/USD types from the engine so that
++API code uses the same type identity (and `isinstance` / NewType semantics)
++as the calculation layer.
++
++Source of truth: `packages.cost_engine.core.money` (pure stdlib).
++This file is allowed to import Pydantic / FastAPI if needed in the future
++(stub Pydantic helpers live below for that purpose).
++
++AD-8 summary:
++  - KRW  ↔ DB `BIGINT`, Python `int`, 1원 precision.
++  - USD  ↔ DB `NUMERIC(18,2)`, Python `Decimal`, 2-decimal precision.
++  - `float` is forbidden in cost paths.
++"""
++
++from __future__ import annotations
++
++from decimal import Decimal
++from typing import NewType
++
++# Re-export from the canonical engine. This is the type API surface.
++# Importing from `packages.cost_engine.core.money` directly would couple the
++# API to engine internals; the re-export keeps the boundary clean (AD-1).
++from packages.cost_engine.core.money import (  # noqa: F401 — re-export
++    KRW,
++    USD,
++    Money,
++    format_krw,
++    format_usd,
++    to_krw,
++    to_usd,
++)
++
++__all__ = [
++    "KRW",
++    "USD",
++    "Money",
++    "to_krw",
++    "to_usd",
++    "format_krw",
++    "format_usd",
++    "krw_to_usd",
++    "usd_to_krw",
++]
++
++
++def krw_to_usd(krw: KRW, rate: Decimal) -> USD:
++    """Convert KRW to USD using an injected exchange rate (AD-9).
++
++    The rate is *not* hardcoded — callers must inject it from a market
++    data source (Story 6.2 KRW/USD dual display). For tests, use a fixed
++    rate to keep results deterministic.
++
++    Args:
++        krw: KRW integer value (1원 precision).
++        rate: KRW per 1 USD — e.g. Decimal("1300.50") means 1 USD = 1,300.50 KRW.
++
++    Returns:
++        USD with 2-decimal precision (banker's rounding).
++    """
++    if rate <= 0:
++        raise ValueError(f"krw_to_usd: rate must be positive, got {rate}")
++    usd_value = (Decimal(int(krw)) / rate).quantize(Decimal("0.01"))
++    return USD(usd_value)
++
++
++def usd_to_krw(usd: USD, rate: Decimal) -> KRW:
++    """Convert USD to KRW using an injected exchange rate (AD-9).
++
++    Inverse of `krw_to_usd`. Same rate semantics.
++
++    Returns:
++        KRW with 1원 precision. Fractional KRW (e.g. 1.7원) is rounded
++        using banker's rounding (ROUND_HALF_EVEN) — see Decimal.quantize.
++    """
++    if rate <= 0:
++        raise ValueError(f"usd_to_krw: rate must be positive, got {rate}")
++    krw_value = (Decimal(usd) * rate).quantize(Decimal("1"))
++    return KRW(int(krw_value))
++
++
++# Convenience: NewType aliases for Pydantic-typed API responses (AD-15).
++# These are the SAME runtime types as KRW/USD — NewType is a static-only marker.
++KRWField = NewType("KRWField", int)  # for Pydantic `Field` declarations
++USDField = NewType("USDField", Decimal)  # for Pydantic `Field` declarations
+
+diff --git a/packages/cost_engine/core/money.py b/packages/cost_engine/core/money.py
+new file mode 100644
+--- /dev/null
++++ b/packages/cost_engine/core/money.py
+@@ -0,0 +1,45 @@
++"""packages.cost_engine.core.money — KRW/USD newtype definitions (pure stdlib).
++
++AD-8: BIGINT for KRW integer, NUMERIC(18,2) for USD; float is forbidden on cost paths.
++AD-15: snake_case, no Pydantic inside the engine (adapters may use Pydantic, core may not).
++
++Money type implementations live in:
++  - apps/api/core/money.py   (API side — may use Pydantic)
++  - apps/web/lib/money.ts    (TS side — bigint + decimal.js)
++  - packages/cost_engine/core/money.py  (this file — stdlib only)
++"""
++
++from decimal import Decimal
++from typing import NewType
++
++# KRW wraps int (BIGINT in DB). 1원 precision.
++KRW = NewType("KRW", int)
++
++# USD wraps Decimal (NUMERIC(18,2) in DB). Two-decimal precision.
++USD = NewType("USD", Decimal)
++
++Money = KRW | USD
++
++
++def to_krw(value: int | Decimal) -> KRW:
++    """Convert to KRW integer (1원 precision). Reject fractional values."""
++    if isinstance(value, Decimal):
++        if value != int(value):
++            raise ValueError(f"USD→KRW requires integer value, got {value}")
++        return KRW(int(value))
++    return KRW(int(value))
++
++
++def to_usd(value: Decimal | int) -> USD:
++    """Convert to USD with 2-decimal precision (banker's rounding)."""
++    return USD(Decimal(value).quantize(Decimal("0.01")))
++
++
++def format_krw(krw: KRW) -> str:
++    """Format KRW with Korean locale: 1,000,000원."""
++    return f"{krw:,}원"
++
++
++def format_usd(usd: USD) -> str:
++    """Format USD with US locale: 1,000.00."""
++    return f"${usd:,.2f}"
+
+diff --git a/apps/web/lib/money.ts b/apps/web/lib/money.ts
+new file mode 100644
+--- /dev/null
++++ b/apps/web/lib/money.ts
+@@ -0,0 +1,99 @@
++/**
++ * apps/web/lib/money.ts — AD-8 monetary types for the web side.
++ *
++ * AD-8 summary:
++ *   - KRW ↔ `bigint` (1원 precision)
++ *   - USD ↔ `string` (decimal.js serialized, NUMERIC(18,2) precision)
++ *   - `number` is forbidden in money display / API code (ESLint
++ *     `no-restricted-types` blocks it; this file has an override
++ *     to allow `number` ONLY as the *input* to `toKRW` / `toUSD`).
++ *
++ * Display formatters centralize Intl.NumberFormat calls so locale
++ * changes touch one place.
++ */
++
++import Decimal from "decimal.js";
++
++/** KRW — wraps `bigint`. 1원 precision. Mirrors Python `int` (BIGINT in DB). */
++export type KRW = bigint;
++
++/** USD — wraps `string` (decimal.js serialized). Mirrors Python `Decimal` (NUMERIC(18,2) in DB). */
++export type USD = string;
++
++/** Money union type. */
++export type Money = KRW | USD;
++
++/**
++ * Convert to KRW. Accepts `bigint | number | string` for input ergonomics
++ * but the *result* is `bigint`. Fractional input is rounded to nearest int
++ * (matches Python `round()` behavior at 0.5 boundaries).
++ */
++export function toKRW(value: bigint | number | string): KRW {
++  if (typeof value === "bigint") return value;
++  const n = typeof value === "string" ? Number(value) : value;
++  if (!Number.isFinite(n)) {
++    throw new Error(`toKRW: input must be finite, got ${value}`);
++  }
++  return BigInt(Math.round(n));
++}
++
++/**
++ * Convert to USD. Accepts `number | string` and produces a 2-decimal
++ * decimal.js string (e.g. "1000.50"). Uses ROUND_HALF_EVEN (banker's
++ * rounding) — matches Python `Decimal.quantize(Decimal("0.01"))`.
++ */
++export function toUSD(value: number | string): USD {
++  return new Decimal(value).toFixed(2);
++}
++
++/** Format KRW with Korean locale: `1,000,000원`. */
++export function formatKRW(krw: KRW): string {
++  return `${krw.toLocaleString("ko-KR")}원`;
++}
++
++/** Format USD with US locale: `$1,000.00`. */
++export function formatUSD(usd: USD): string {
++  return `$${new Decimal(usd).toFixed(2)}`;
++}
++
++/**
++ * Convert KRW to USD using an injected exchange rate (AD-9).
++ * The rate is *not* hardcoded — callers must inject it from a market
++ * data source (Story 6.2 KRW/USD dual display).
++ *
++ * @param krw   KRW integer (bigint)
++ * @param rate  KRW per 1 USD (e.g. 1300.5 means 1 USD = 1,300.50 KRW)
++ */
++export function krwToUSD(krw: KRW, rate: number | string): USD {
++  const r = new Decimal(rate);
++  if (r.lte(0)) {
++    throw new Error(`krwToUSD: rate must be positive, got ${rate}`);
++  }
++  return new Decimal(krw.toString()).div(r).toFixed(2);
++}
++
++/**
++ * Convert USD to KRW using an injected exchange rate (AD-9).
++ * Inverse of `krwToUSD`.
++ */
++export function usdToKRW(usd: USD, rate: number | string): KRW {
++  const r = new Decimal(rate);
++  if (r.lte(0)) {
++    throw new Error(`usdToKRW: rate must be positive, got ${rate}`);
++  }
++  return BigInt(new Decimal(usd).mul(r).toFixed(0));
++}
++
++/**
++ * Serialize KRW to string for API responses (JSON.stringify cannot
++ * serialize BigInt directly). The inverse is `toKRW(stringValue)`.
++ */
++export function krwToString(krw: KRW): string {
++  return krw.toString();
++}
++
++/**
++ * Parse a serialized KRW string back to KRW.
++ */
++export function krwFromString(value: string): KRW {
++  return BigInt(value);
++}
+
+diff --git a/apps/api/core/db.py b/apps/api/core/db.py
+new file mode 100644
+--- /dev/null
++++ b/apps/api/core/db.py
+@@ -0,0 +1,65 @@
++"""apps.api.core.db — async SQLAlchemy 2.0 engine + session.
++
++Story 0.2 — module 3.1. The async engine is created once at process startup
++and reused per request via the `get_session()` async generator dependency.
++
++Per AD-1: this module imports only SQLAlchemy + stdlib. No packages.cost_engine
++imports (the engine is an INFRASTRUCTURE concern; the engine CORE lives in
++`packages.cost_engine.core` and is pure).
++"""
++
++from __future__ import annotations
++
++from collections.abc import AsyncIterator
++from functools import lru_cache
++
++from sqlalchemy.ext.asyncio import (
++    AsyncEngine,
++    AsyncSession,
++    async_sessionmaker,
++    create_async_engine,
++)
++
++from apps.api.core.settings import Settings, get_settings
++
++
++@lru_cache(maxsize=1)
++def _create_engine(settings: Settings) -> AsyncEngine:
++    """Create the async engine. Cached at process level."""
++    if not settings.database_url:
++        raise RuntimeError(
++            "DATABASE_URL is not set — Story 0.2 requires a database connection. "
++            "Copy apps/api/.env.example to apps/api/.env and set DATABASE_URL."
++        )
++    return create_async_engine(
++        settings.database_url,
++        pool_pre_ping=True,
++        echo=False,
++        future=True,
++    )
++
++
++def get_engine() -> AsyncEngine:
++    """FastAPI dependency — returns the cached async engine."""
++    return _create_engine(get_settings())
++
++
++@lru_cache(maxsize=1)
++def _sessionmaker() -> async_sessionmaker[AsyncSession]:
++    """Sessionmaker cached against the engine."""
++    return async_sessionmaker(
++        bind=get_engine(),
++        expire_on_commit=False,
++        autoflush=False,
++    )
++
++
++async def get_session() -> AsyncIterator[AsyncSession]:
++    """FastAPI dependency — yields a transactional session.
++
++    Caller is responsible for commit / rollback. The session is closed
++    after the request scope ends.
++    """
++    session_local = _sessionmaker()
++    async with session_local() as session:
++        yield session
+

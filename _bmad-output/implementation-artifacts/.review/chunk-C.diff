@@ -1,0 +1,973 @@
+diff --git a/scripts/check_money_types.py b/scripts/check_money_types.py
+new file mode 100644
+--- /dev/null
++++ b/scripts/check_money_types.py
+@@ -0,0 +1,172 @@
++#!/usr/bin/env python3
++"""check_money_types.py — AD-8 monetary-type linter.
++
++AD-8 violation scanner for Python cost paths.
++
++Walks `.py` files under:
++  - `packages/cost_engine/` (pure engine, stdlib only)
++  - `apps/api/modules/m3_calculate/` (calculate module, when present)
++
++Flags:
++  - `float` annotations in function signatures, class attributes, or top-level
++    variable annotations (these are the canonical "money" cost paths).
++  - `numpy.float64` (drift source — AD-8 only permits `Decimal`/`int`).
++  - `Decimal` *used* without an `import decimal` / `from decimal import Decimal`
++    in the same file (catches copy-paste drift; ensures stdlib source).
++
++Exits 0 if clean, 1 with file + line + AD-8 violation message otherwise.
++
++Usage:
++    uv run python scripts/check_money_types.py
++    uv run python scripts/check_money_types.py --verbose
++
++Lesson reference: Story 0.4 — ruff `N806`/`PD` cannot express
++"float is forbidden in money paths". This AST-based checker fills the gap.
++"""
++from __future__ import annotations
++
++import argparse
++import ast
++import sys
++from pathlib import Path
++
++
++# ── AD-8: where money cost paths live ────────────────────────────────────────
++COST_PATH_ROOTS: tuple[Path, ...] = (
++    Path("packages/cost_engine"),
++    Path("apps/api/modules/m3_calculate"),
++)
++
++
++def _iter_python_files(root: Path) -> list[Path]:
++    """Yield .py files under `root`, skip missing/empty dirs gracefully."""
++    if not root.exists():
++        return []
++    if root.is_file() and root.suffix == ".py":
++        return [root]
++    return sorted(p for p in root.rglob("*.py") if p.is_file())
++
++
++def _is_float_annotation(node: ast.AST) -> bool:
++    """True if `node` is the AST representation of `float`."""
++    return (
++        isinstance(node, ast.Name)
++        and node.id == "float"
++        and isinstance(node.ctx, ast.Load)
++    )
++
++
++def _file_has_decimal_import(tree: ast.Module) -> bool:
++    """True if the file imports `decimal.Decimal` (any form)."""
++    for node in ast.walk(tree):
++        if isinstance(node, ast.ImportFrom) and node.module in ("decimal", "decimal.Decimal"):
++            return any(alias.name == "Decimal" for alias in node.names)
++        if isinstance(node, ast.Import):
++            for alias in node.names:
++                if alias.name == "decimal" or alias.name.startswith("decimal."):
++                    if alias.name == "decimal" or alias.asname == "Decimal":
++                        return True
++    return False
++
++
++def _check_file(path: Path) -> list[str]:
++    """Return AD-8 violation messages for `path`, empty if clean."""
++    try:
++        source = path.read_text(encoding="utf-8")
++    except (OSError, UnicodeDecodeError) as e:
++        return [f"{path}:{0}:0: E999 cannot read file ({e})"]
++
++    try:
++        tree = ast.parse(source, filename=str(path))
++    except SyntaxError as e:
++        return [f"{path}:{e.lineno}:{e.offset or 0}: E999 syntax error ({e.msg})"]
++
++    violations: list[str] = []
++
++    # 1) `float` annotations on function args, returns, and AnnAssign.
++    for node in ast.walk(tree):
++        if isinstance(node, ast.arg) and node.annotation and _is_float_annotation(node.annotation):
++            violations.append(
++                f"{path}:{node.lineno}: AD-8 forbids `float` in money cost path "
++                f"(arg `{node.arg}`). Use `int` (KRW) or `Decimal` (USD)."
++            )
++        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
++            if node.returns and _is_float_annotation(node.returns):
++                violations.append(
++                    f"{path}:{node.lineno}: AD-8 forbids `float` return annotation. "
++                    f"Use `int` (KRW) or `Decimal` (USD)."
++                )
++        if isinstance(node, ast.AnnAssign) and _is_float_annotation(node.annotation):
++            target = ast.unparse(node.target) if hasattr(ast, "unparse") else "<var>"
++            violations.append(
++                f"{path}:{node.lineno}: AD-8 forbids `float` annotation on `{target}`. "
++                f"Use `int` (KRW) or `Decimal` (USD)."
++            )
++
++    # 2) `numpy.float64` references — drift source.
++    # Detect any `.float64` attribute on a Name that points to numpy (any alias).
++    # The user wrote `import numpy as np` → `np.float64`. We can't reliably
++    # know the alias without scope analysis; flag any `*.float64` reference
++    # in cost paths and let the developer confirm it isn't numpy's float64.
++    for node in ast.walk(tree):
++        if isinstance(node, ast.Attribute) and node.attr == "float64":
++            # If parent context is an annotation or call arg on a money path,
++            # this is almost certainly numpy.float64 — flag it.
++            violations.append(
++                f"{path}:{node.lineno}: AD-8 forbids `.float64` (likely `numpy.float64`) "
++                f"in money cost path. Use `Decimal` (USD) or `int` (KRW)."
++            )
++
++    # 3) `Decimal(...)` usage without an import — copy-paste drift detector.
++    decimal_used = any(
++        isinstance(node, ast.Call)
++        and isinstance(node.func, ast.Name)
++        and node.func.id == "Decimal"
++        for node in ast.walk(tree)
++    )
++    if decimal_used and not _file_has_decimal_import(tree):
++        violations.append(
++            f"{path}:1: AD-8 sanity check: `Decimal(...)` used without importing "
++            f"`from decimal import Decimal`. stdlib-only engine requires explicit import."
++        )
++
++    return violations
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser(description="AD-8 monetary-type linter")
++    parser.add_argument("--verbose", action="store_true", help="Print pass/fail per file")
++    args = parser.parse_args()
++
++    files: list[Path] = []
++    for root in COST_PATH_ROOTS:
++        files.extend(_iter_python_files(root))
++
++    if not files:
++        if args.verbose:
++            print(f"[money-types] no cost-path files found under {[str(r) for r in COST_PATH_ROOTS]}")
++        return 0
++
++    all_violations: list[str] = []
++    for f in files:
++        violations = _check_file(f)
++        if args.verbose:
++            status = "OK" if not violations else "FAIL"
++            print(f"[money-types] {status} {f}")
++        all_violations.extend(violations)
++
++    if all_violations:
++        # Header so CR/IDE can surface the AD ref.
++        print(
++            "CONVENTION_VIOLATION: AD-8 monetary types. "
++            "Use `int` for KRW (BIGINT) or `Decimal` for USD (NUMERIC(18,2)).",
++            file=sys.stderr,
++        )
++        for v in all_violations:
++            print(v, file=sys.stderr)
++        return 1
++
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+
+diff --git a/scripts/ruff_check_money.py b/scripts/ruff_check_money.py
+new file mode 100644
+--- /dev/null
++++ b/scripts/ruff_check_money.py
+@@ -0,0 +1,42 @@
++#!/usr/bin/env python3
++"""ruff_check_money.py — thin wrapper for ruff integration.
++
++Acts as a ruff-style plugin entry point that delegates to the canonical
++`check_money_types.py` AST checker. The Makefile and any CI hook can call
++this script directly; the canonical implementation lives in
++`scripts/check_money_types.py`.
++
++Why two scripts?
++  - `check_money_types.py` is the AST-based source of truth (handles float,
++    numpy.float64, Decimal-import drift).
++  - `ruff_check_money.py` is a stable wrapper name kept for AD-15 conformance
++    (the rule names live alongside ruff's standard set).
++
++Exit codes:
++    0  — clean
++    1  — AD-8 violation(s) found
++    2  — script failure (missing files, etc.)
++"""
++from __future__ import annotations
++
++import subprocess
++import sys
++from pathlib import Path
++
++
++def main() -> int:
++    here = Path(__file__).resolve().parent
++    canonical = here / "check_money_types.py"
++    if not canonical.exists():
++        print(f"ERROR: {canonical} not found", file=sys.stderr)
++        return 2
++
++    # Delegate — keep this thin so all logic lives in one place.
++    result = subprocess.run(
++        [sys.executable, str(canonical), *sys.argv[1:]],
++        check=False,
++    )
++    return result.returncode
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+
+diff --git a/scripts/check_migration_money.py b/scripts/check_migration_money.py
+new file mode 100644
+--- /dev/null
++++ b/scripts/check_migration_money.py
+@@ -0,0 +1,152 @@
++#!/usr/bin/env python3
++"""check_migration_money.py — AD-8 migration monetary-type linter.
++
++Walks every Alembic migration under `apps/api/alembic/versions/` and flags
++violations of AD-8 monetary types:
++
++  - `sa.Column(..., type=sa.Float)`        — forbidden (float is lossy)
++  - `sa.Float` as a column type            — forbidden
++  - `sa.Numeric(precision=18, scale=2)`     — allowed (USD)
++  - `sa.BigInteger`                        — allowed (KRW)
++  - `sa.Numeric(precision != 18 | scale != 2)` — warning (non-standard)
++
++Exits 0 if clean, 1 with file + line + AD-8 violation message otherwise.
++
++Usage:
++    uv run python scripts/check_migration_money.py
++"""
++from __future__ import annotations
++
++import argparse
++import ast
++import sys
++from pathlib import Path
++
++
++MIGRATIONS_DIR = Path("apps/api/alembic/versions")
++ALLOWED_NUMERIC_PRECISION = 18
++ALLOWED_NUMERIC_SCALE = 2
++
++
++def _is_float_type_expr(node: ast.AST) -> bool:
++    """True if `node` is `sa.Float` or `sa.Float(...)` or `Float` (any form).
++
++    Covers both bare class references (`sa.Column("cost", sa.Float)`) and
++    instantiated calls (`sa.Column("cost", sa.Float())`).
++    """
++    # sa.Float (Attribute access, no Call)
++    if isinstance(node, ast.Attribute) and node.attr == "Float":
++        return True
++    # sa.Float(...) (Call)
++    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "Float":
++        return True
++    # Bare Float (Name reference — unusual but valid in some contexts)
++    if isinstance(node, ast.Name) and node.id == "Float":
++        return True
++    return False
++
++
++def _check_file(path: Path) -> list[str]:
++    """Return AD-8 violation messages for migration `path`."""
++    try:
++        source = path.read_text(encoding="utf-8")
++    except (OSError, UnicodeDecodeError) as e:
++        return [f"{path}:0: E999 cannot read file ({e})"]
++
++    try:
++        tree = ast.parse(source, filename=str(path))
++    except SyntaxError as e:
++        return [f"{path}:{e.lineno}:{e.offset or 0}: E999 syntax error ({e.msg})"]
++
++    violations: list[str] = []
++
++    # We walk all Call nodes and inspect for sa.Column / sa.Float / sa.Numeric / sa.BigInteger.
++    for node in ast.walk(tree):
++        if not isinstance(node, ast.Call):
++            continue
++
++        func = node.func
++
++        # sa.Float(...) — standalone float column type
++        if isinstance(func, ast.Attribute) and func.attr == "Float":
++            violations.append(
++                f"{path}:{node.lineno}: AD-8 forbids `sa.Float` (line `{ast.unparse(node) if hasattr(ast, 'unparse') else '<expr>'}`). "
++                f"Use `sa.BigInteger` for KRW or `sa.Numeric(18,2)` for USD."
++            )
++            continue
++
++        # sa.Numeric(...) — check precision/scale
++        if isinstance(func, ast.Attribute) and func.attr == "Numeric":
++            for kw in node.keywords:
++                if kw.arg == "precision" and isinstance(kw.value, ast.Constant):
++                    if kw.value.value != ALLOWED_NUMERIC_PRECISION:
++                        violations.append(
++                            f"{path}:{node.lineno}: AD-8 prefers `sa.Numeric(18,2)` for USD "
++                            f"(got precision={kw.value.value}). Use NUMERIC(18,2) for USD columns."
++                        )
++                elif kw.arg == "scale" and isinstance(kw.value, ast.Constant):
++                    if kw.value.value != ALLOWED_NUMERIC_SCALE:
++                        violations.append(
++                            f"{path}:{node.lineno}: AD-8 prefers `sa.Numeric(18,2)` for USD "
++                            f"(got scale={kw.value.value}). Use NUMERIC(18,2) for USD columns."
++                        )
++
++        # sa.Column(..., type=...) OR sa.Column("name", sa.Float) — flag Float as money column.
++        if isinstance(func, ast.Attribute) and func.attr == "Column":
++            # (a) keyword: type=sa.Float() or type=sa.Float
++            for kw in node.keywords:
++                if kw.arg != "type":
++                    continue
++                if _is_float_type_expr(kw.value):
++                    violations.append(
++                        f"{path}:{node.lineno}: AD-8 forbids `type=sa.Float` in money columns. "
++                        f"Use `type=sa.BigInteger` (KRW) or `type=sa.Numeric(18,2)` (USD)."
++                    )
++            # (b) positional: sa.Column("name", sa.Float) — second arg is class/type ref
++            if len(node.args) >= 2 and _is_float_type_expr(node.args[1]):
++                col_name = ast.unparse(node.args[0]) if hasattr(ast, "unparse") else "<name>"
++                violations.append(
++                    f"{path}:{node.lineno}: AD-8 forbids `sa.Float` as column type for `{col_name}`. "
++                    f"Use `sa.BigInteger` (KRW) or `sa.Numeric(18,2)` (USD)."
++                )
++
++    return violations
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser(description="AD-8 migration monetary-type linter")
++    parser.add_argument("--verbose", action="store_true", help="Print pass/fail per file")
++    args = parser.parse_args()
++
++    if not MIGRATIONS_DIR.exists():
++        print(f"[migration-money] no migrations dir at {MIGRATIONS_DIR}", file=sys.stderr)
++        return 0  # missing dir is not a violation; nothing to lint
++
++    files = sorted(p for p in MIGRATIONS_DIR.rglob("*.py") if p.is_file())
++    if not files:
++        if args.verbose:
++            print(f"[migration-money] no migrations in {MIGRATIONS_DIR}")
++        return 0
++
++    all_violations: list[str] = []
++    for f in files:
++        v = _check_file(f)
++        if args.verbose:
++            status = "OK" if not v else "FAIL"
++            print(f"[migration-money] {status} {f}")
++        all_violations.extend(v)
++
++    if all_violations:
++        print(
++            "CONVENTION_VIOLATION: AD-8 monetary types in migrations. "
++            "Use `sa.BigInteger` (KRW) or `sa.Numeric(18,2)` (USD).",
++            file=sys.stderr,
++        )
++        for v in all_violations:
++            print(v, file=sys.stderr)
++        return 1
++
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+
+diff --git a/scripts/check_migration_naming.py b/scripts/check_migration_naming.py
+new file mode 100644
+--- /dev/null
++++ b/scripts/check_migration_naming.py
+@@ -0,0 +1,137 @@
++#!/usr/bin/env python3
++"""check_migration_naming.py — AD-15 migration naming linter.
++
++Walks every Alembic migration under `apps/api/alembic/versions/` and flags
++violations of AD-15 cross-language naming conventions:
++
++  - `sa.Column("camelCase", ...)`  — column names must be `snake_case`
++  - Table names inside raw SQL CREATE TABLE statements must also be `snake_case`.
++
++Exits 0 if clean, 1 with file + line + AD-15 violation message otherwise.
++
++Note: this script is for migrations only. Application code uses
++Python-side `snake_case` enforced by ruff `N` rules.
++
++Usage:
++    uv run python scripts/check_migration_naming.py
++"""
++from __future__ import annotations
++
++import argparse
++import ast
++import re
++import sys
++from pathlib import Path
++
++
++MIGRATIONS_DIR = Path("apps/api/alembic/versions")
++
++# Snake-case: lowercase letters, digits, underscores. Must start with letter/underscore.
++_SNAKE_CASE_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
++
++
++def _is_snake_case(name: str) -> bool:
++    return bool(_SNAKE_CASE_RE.match(name))
++
++
++def _check_sa_column_string_args(node: ast.Call, path: Path) -> list[str]:
++    """Inspect sa.Column(...) positional args for snake_case strings."""
++    violations: list[str] = []
++    for arg in node.args:
++        if not isinstance(arg, ast.Constant) or not isinstance(arg.value, str):
++            continue
++        name = arg.value
++        if not _is_snake_case(name):
++            violations.append(
++                f"{path}:{arg.lineno}: AD-15 forbids `camelCase` column name `{name}` "
++                f"in sa.Column(). Use snake_case."
++            )
++    return violations
++
++
++def _check_create_table_statements(source: str, path: Path) -> list[str]:
++    """Find raw SQL `CREATE TABLE [IF NOT EXISTS] <name>` lines; verify snake_case.
++
++    Handles both direct `CREATE TABLE foo (...)` lines and embedded SQL
++    inside `op.execute("CREATE TABLE foo (...)")` calls — the regex finds
++    `CREATE TABLE` anywhere in the line.
++    """
++    violations: list[str] = []
++    for i, line in enumerate(source.splitlines(), start=1):
++        lower = line.lower()
++        if "create table" not in lower:
++            continue
++        # Find the first occurrence of CREATE TABLE [IF NOT EXISTS] and capture the name.
++        m = re.search(
++            r"CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+(?:\"([^\"]+)\"|([a-zA-Z_][a-zA-Z0-9_]*))",
++            line,
++            re.IGNORECASE,
++        )
++        if not m:
++            continue
++        name = m.group(1) or m.group(2)
++        if not _is_snake_case(name):
++            violations.append(
++                f"{path}:{i}: AD-15 forbids `camelCase` table name `{name}` "
++                f"in CREATE TABLE. Use snake_case."
++            )
++    return violations
++
++
++def _check_file(path: Path) -> list[str]:
++    try:
++        source = path.read_text(encoding="utf-8")
++    except (OSError, UnicodeDecodeError) as e:
++        return [f"{path}:0: E999 cannot read file ({e})"]
++
++    try:
++        tree = ast.parse(source, filename=str(path))
++    except SyntaxError as e:
++        return [f"{path}:{e.lineno}:{e.offset or 0}: E999 syntax error ({e.msg})"]
++
++    violations: list[str] = []
++    for node in ast.walk(tree):
++        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "Column":
++            violations.extend(_check_sa_column_string_args(node, path))
++
++    violations.extend(_check_create_table_statements(source, path))
++    return violations
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser(description="AD-15 migration naming linter")
++    parser.add_argument("--verbose", action="store_true", help="Print pass/fail per file")
++    args = parser.parse_args()
++
++    if not MIGRATIONS_DIR.exists():
++        print(f"[migration-naming] no migrations dir at {MIGRATIONS_DIR}", file=sys.stderr)
++        return 0
++
++    files = sorted(p for p in MIGRATIONS_DIR.rglob("*.py") if p.is_file())
++    if not files:
++        if args.verbose:
++            print(f"[migration-naming] no migrations in {MIGRATIONS_DIR}")
++        return 0
++
++    all_violations: list[str] = []
++    for f in files:
++        v = _check_file(f)
++        if args.verbose:
++            status = "OK" if not v else "FAIL"
++            print(f"[migration-naming] {status} {f}")
++        all_violations.extend(v)
++
++    if all_violations:
++        print(
++            "CONVENTION_VIOLATION: AD-15 naming in migrations. "
++            "Use snake_case for column and table names.",
++            file=sys.stderr,
++        )
++        for v in all_violations:
++            print(v, file=sys.stderr)
++        return 1
++
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+
+diff --git a/tests/integration/test_conventions_lint.py b/tests/integration/test_conventions_lint.py
+new file mode 100644
+--- /dev/null
++++ b/tests/integration/test_conventions_lint.py
+@@ -0,0 +1,227 @@
++#!/usr/bin/env python3
++"""Integration tests for AD-8 / AD-15 convention linters (Story 0.4).
++
++Verifies:
++- Ruff passes on the current repo (clean baseline).
++- check_money_types.py flags `float` annotations in cost-engine paths.
++- check_migration_naming.py flags `camelCase` column names.
++- check_migration_money.py flags `sa.Float` money columns.
++- Ruff per-file-ignores do not flag known FastAPI idioms (B008, ARG001).
++
++These are end-to-end tests that invoke the actual scripts (no mocks).
++Each test creates a synthetic bad file in a temp dir, runs the script,
++asserts exit code, then cleans up. The synthetic files do NOT touch the
++repo's actual source tree.
++"""
++from __future__ import annotations
++
++import shutil
++import subprocess
++import sys
++from pathlib import Path
++
++import pytest
++
++REPO_ROOT = Path(__file__).resolve().parents[2]
++MONEY_CHECK = REPO_ROOT / "scripts" / "check_money_types.py"
++RUFF = REPO_ROOT / ".venv" / "Scripts" / "ruff.exe"  # Windows path
++RUFF_FALLBACK = REPO_ROOT / ".venv" / "bin" / "ruff"  # POSIX path
++MIGRATION_NAMING_CHECK = REPO_ROOT / "scripts" / "check_migration_naming.py"
++MIGRATION_MONEY_CHECK = REPO_ROOT / "scripts" / "check_migration_money.py"
++
++COST_ENGINE_DIR = REPO_ROOT / "packages" / "cost_engine"
++MIGRATIONS_DIR = REPO_ROOT / "apps" / "api" / "alembic" / "versions"
++
++
++def _resolve_ruff() -> Path:
++    """Find the ruff executable — Windows or POSIX."""
++    if RUFF.exists():
++        return RUFF
++    if RUFF_FALLBACK.exists():
++        return RUFF_FALLBACK
++    # Fall back to PATH lookup via subprocess (e.g. when CI uses system ruff).
++    which = shutil.which("ruff")
++    if which:
++        return Path(which)
++    pytest.skip("ruff executable not found in .venv or PATH")
++
++
++# ───────────────────────────────────────────────────────────────
++# Baseline tests
++# ───────────────────────────────────────────────────────────────
++
++
++def test_ruff_passes_on_clean_repo() -> None:
++    """ruff check exits 0 on the current repo."""
++    ruff = _resolve_ruff()
++    result = subprocess.run(
++        [str(ruff), "check", "apps", "packages"],
++        cwd=REPO_ROOT,
++        capture_output=True,
++        text=True,
++        check=False,
++    )
++    assert result.returncode == 0, (
++        f"ruff check failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
++    )
++
++
++def test_money_types_passes_on_clean_repo() -> None:
++    """check_money_types.py exits 0 on the current repo."""
++    result = subprocess.run(
++        [sys.executable, str(MONEY_CHECK), "--verbose"],
++        cwd=REPO_ROOT,
++        capture_output=True,
++        text=True,
++        check=False,
++    )
++    assert result.returncode == 0, (
++        f"check_money_types.py failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
++    )
++
++
++def test_migration_naming_passes_on_clean_repo() -> None:
++    """check_migration_naming.py exits 0 on the current migrations."""
++    result = subprocess.run(
++        [sys.executable, str(MIGRATION_NAMING_CHECK), "--verbose"],
++        cwd=REPO_ROOT,
++        capture_output=True,
++        text=True,
++        check=False,
++    )
++    assert result.returncode == 0, (
++        f"check_migration_naming.py failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
++    )
++
++
++def test_migration_money_passes_on_clean_repo() -> None:
++    """check_migration_money.py exits 0 on the current migrations."""
++    result = subprocess.run(
++        [sys.executable, str(MIGRATION_MONEY_CHECK), "--verbose"],
++        cwd=REPO_ROOT,
++        capture_output=True,
++        text=True,
++        check=False,
++    )
++    assert result.returncode == 0, (
++        f"check_migration_money.py failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
++    )
++
++
++# ───────────────────────────────────────────────────────────────
++# Money type linter — float violations
++# ───────────────────────────────────────────────────────────────
++
++
++def test_custom_money_check_blocks_float_in_engine(tmp_path: Path) -> None:
++    """AST-based check catches `float` annotation in cost-engine paths."""
++    # Create a synthetic cost-engine file with a float annotation.
++    bad_subdir = COST_ENGINE_DIR / "_lint_test_subdir"
++    bad_file = bad_subdir / "bad.py"
++    bad_subdir.mkdir(exist_ok=True)
++    try:
++        bad_file.write_text(
++            "def calc(price: float, qty: int) -> float:\n"
++            "    return price * qty\n",
++            encoding="utf-8",
++        )
++        result = subprocess.run(
++            [sys.executable, str(MONEY_CHECK)],
++            cwd=REPO_ROOT,
++            capture_output=True,
++            text=True,
++            check=False,
++        )
++        assert result.returncode == 1, (
++            f"expected exit 1 on float violation, got {result.returncode}\n"
++            f"stderr:\n{result.stderr}"
++        )
++        assert "AD-8" in result.stderr
++        assert "float" in result.stderr
++    finally:
++        shutil.rmtree(bad_subdir, ignore_errors=True)
++
++
++def test_custom_money_check_blocks_numpy_float64(tmp_path: Path) -> None:
++    """AST check catches `numpy.float64` references."""
++    bad_subdir = COST_ENGINE_DIR / "_lint_test_numpy"
++    bad_file = bad_subdir / "np_bad.py"
++    bad_subdir.mkdir(exist_ok=True)
++    try:
++        bad_file.write_text(
++            "import numpy as np\n"
++            "def bad(x: np.float64) -> np.float64:\n"
++            "    return x\n",
++            encoding="utf-8",
++        )
++        result = subprocess.run(
++            [sys.executable, str(MONEY_CHECK)],
++            cwd=REPO_ROOT,
++            capture_output=True,
++            text=True,
++            check=False,
++        )
++        assert result.returncode == 1, (
++            f"expected exit 1 on numpy.float64, got {result.returncode}\n"
++            f"stderr:\n{result.stderr}"
++        )
++        assert "numpy.float64" in result.stderr
++    finally:
++        shutil.rmtree(bad_subdir, ignore_errors=True)
++
++
++# ───────────────────────────────────────────────────────────────
++# Migration linters
++# ───────────────────────────────────────────────────────────────
++
++
++def test_migration_naming_fails_on_camelcase_column(tmp_path: Path) -> None:
++    """check_migration_naming.py flags sa.Column('firstName', ...)."""
++    bad_subdir = MIGRATIONS_DIR / "_lint_test_naming"
++    bad_file = bad_subdir / "0002_bad.py"
++    bad_subdir.mkdir(exist_ok=True)
++    try:
++        bad_file.write_text(
++            "from alembic import op\n"
++            "import sqlalchemy as sa\n"
++            "def upgrade() -> None:\n"
++            "    op.add_column('users', sa.Column('firstName', sa.Text))\n",
++            encoding="utf-8",
++        )
++        result = subprocess.run(
++            [sys.executable, str(MIGRATION_NAMING_CHECK)],
++            cwd=REPO_ROOT,
++            capture_output=True,
++            text=True,
++            check=False,
++        )
++        assert result.returncode == 1
++        assert "camelCase" in result.stderr
++        assert "firstName" in result.stderr
++    finally:
++        shutil.rmtree(bad_subdir, ignore_errors=True)
++
++
++def test_migration_money_fails_on_float_money(tmp_path: Path) -> None:
++    """check_migration_money.py flags sa.Float() for money columns."""
++    bad_subdir = MIGRATIONS_DIR / "_lint_test_money"
++    bad_file = bad_subdir / "0002_bad.py"
++    bad_subdir.mkdir(exist_ok=True)
++    try:
++        bad_file.write_text(
++            "from alembic import op\n"
++            "import sqlalchemy as sa\n"
++            "def upgrade() -> None:\n"
++            "    op.add_column('users', sa.Column('cost', sa.Float))\n",
++            encoding="utf-8",
++        )
++        result = subprocess.run(
++            [sys.executable, str(MIGRATION_MONEY_CHECK)],
++            cwd=REPO_ROOT,
++            capture_output=True,
++            text=True,
++            check=False,
++        )
++        assert result.returncode == 1
++        assert "sa.Float" in result.stderr or "Float" in result.stderr
++    finally:
++        shutil.rmtree(bad_subdir, ignore_errors=True)
+
+diff --git a/tests/integration/test_money_types.py b/tests/integration/test_money_types.py
+new file mode 100644
+--- /dev/null
++++ b/tests/integration/test_money_types.py
+@@ -0,0 +1,201 @@
++#!/usr/bin/env python3
++"""Unit tests for AD-8 money type definitions (Story 0.4).
++
++Verifies:
++- format_krw / formatUSD produce locale-correct strings.
++- to_krw rejects fractional Decimal inputs (per AD-8 KRW=1원 precision).
++- to_usd quantizes to 2 decimals (banker's rounding).
++- KRW/USD type identity preserved across API + engine imports.
++- Conversion helpers (krw_to_usd, usd_to_krw) respect injected rate.
++- Engine module is stdlib-only (no Pydantic, no FastAPI).
++"""
++from __future__ import annotations
++
++import sys
++from decimal import Decimal
++from pathlib import Path
++
++import pytest
++
++# Ensure imports work: `apps.api.core.money` requires PYTHONPATH=apps:packages:.
++REPO_ROOT = Path(__file__).resolve().parents[2]
++for p in ("apps", "packages", "."):
++    pth = str(REPO_ROOT / p)
++    if pth not in sys.path:
++        sys.path.insert(0, pth)
++
++from apps.api.core.money import (  # noqa: E402 — after sys.path manipulation
++    KRW,
++    USD,
++    format_krw,
++    format_usd,
++    krw_to_usd,
++    to_krw,
++    to_usd,
++    usd_to_krw,
++)
++from packages.cost_engine.core.money import (  # noqa: E402 — after sys.path manipulation
++    KRW as EngineKRW,
++    USD as EngineUSD,
++)
++
++
++# ── Formatters ────────────────────────────────────────────────
++
++
++def test_format_krw_basic() -> None:
++    assert format_krw(KRW(1_000_000)) == "1,000,000원"
++
++
++def test_format_krw_zero() -> None:
++    assert format_krw(KRW(0)) == "0원"
++
++
++def test_format_krw_negative() -> None:
++    """Negative values format with a leading minus (accounting context)."""
++    assert format_krw(KRW(-1_500_000)) == "-1,500,000원"
++
++
++def test_format_usd_basic() -> None:
++    assert format_usd(USD(Decimal("1000.5"))) == "$1,000.50"
++
++
++def test_format_usd_zero() -> None:
++    assert format_usd(USD(Decimal("0"))) == "$0.00"
++
++
++# ── Converters ────────────────────────────────────────────────
++
++
++def test_to_krw_from_int() -> None:
++    assert to_krw(1_500_000) == KRW(1_500_000)
++
++
++def test_to_krw_from_int_value() -> None:
++    assert to_krw(int(1_500_000)) == KRW(1_500_000)
++
++
++def test_to_krw_rejects_fractional_decimal() -> None:
++    """KRW has 1원 precision — fractional Decimal must raise."""
++    with pytest.raises(ValueError, match="integer"):
++        to_krw(Decimal("1000.5"))
++
++
++def test_to_krw_accepts_integer_decimal() -> None:
++    assert to_krw(Decimal("1500")) == KRW(1500)
++
++
++def test_to_usd_quantizes_two_decimals() -> None:
++    """Quantizes to exactly 2 decimal places (banker's rounding).
++
++    Python's Decimal default is ROUND_HALF_EVEN (banker's).
++    1000.555 → 1000.55 (5 is at last digit, round-half-even → nearest even = 0).
++    """
++    result = to_usd(1000.555)
++    assert Decimal(result) == Decimal("1000.55"), f"got {result}"
++
++
++def test_to_usd_from_int() -> None:
++    """Integer input becomes a USD with 2 decimal places."""
++    result = to_usd(1500)
++    assert Decimal(result) == Decimal("1500.00")
++
++
++# ── Conversion helpers (krw_to_usd / usd_to_krw) ──────────────
++
++
++def test_krw_to_usd_basic() -> None:
++    """At rate 1300, 1,300,000 KRW = 1000 USD."""
++    result = krw_to_usd(KRW(1_300_000), Decimal("1300"))
++    assert Decimal(result) == Decimal("1000.00")
++
++
++def test_krw_to_usd_rejects_zero_rate() -> None:
++    with pytest.raises(ValueError, match="positive"):
++        krw_to_usd(KRW(1_000_000), Decimal("0"))
++
++
++def test_krw_to_usd_rejects_negative_rate() -> None:
++    with pytest.raises(ValueError, match="positive"):
++        krw_to_usd(KRW(1_000_000), Decimal("-100"))
++
++
++def test_usd_to_krw_basic() -> None:
++    """At rate 1300, 1000 USD = 1,300,000 KRW."""
++    result = usd_to_krw(USD("1000.00"), Decimal("1300"))
++    assert int(result) == 1_300_000
++
++
++def test_usd_to_krw_fractional_rounds() -> None:
++    """Fractional KRW is rounded (banker's). 1000.5 USD * 1000 = 1,000,500."""
++    result = usd_to_krw(USD("1000.5"), Decimal("1000"))
++    assert int(result) == 1_000_500
++
++
++def test_krw_usd_roundtrip_preserves_value() -> None:
++    """Round-trip KRW → USD → KRW should preserve value (subject to rate)."""
++    rate = Decimal("1300")
++    original = KRW(1_300_000)
++    usd_value = krw_to_usd(original, rate)  # 1000.00
++    back = usd_to_krw(USD(usd_value), rate)  # 1,300,000
++    assert int(back) == int(original)
++
++
++# ── Type identity ─────────────────────────────────────────────
++
++
++def test_krw_usd_types_match_across_layers() -> None:
++    """apps.api.core.money and packages.cost_engine.core.money use the same NewType.
++
++    NewType identity is lost across module reloads (Python quirk), so we
++    verify they wrap the SAME underlying type (int / Decimal).
++    """
++    # Both KRW values must be plain int at runtime.
++    api_krw = KRW(1_000)
++    eng_krw = EngineKRW(1_000)
++    assert isinstance(api_krw, int)
++    assert isinstance(eng_krw, int)
++    assert type(api_krw) is type(eng_krw) is int
++
++    api_usd = USD(Decimal("100.5"))
++    eng_usd = EngineUSD(Decimal("100.5"))
++    assert isinstance(api_usd, Decimal)
++    assert isinstance(eng_usd, Decimal)
++
++
++# ── Engine purity (AD-1 hexagonal core) ───────────────────────
++
++
++def test_engine_money_module_is_stdlib_only() -> None:
++    """packages.cost_engine.core.money must NOT import Pydantic / FastAPI / SQLAlchemy."""
++    import packages.cost_engine.core.money as engine_money
++
++    source_path = engine_money.__file__
++    assert source_path is not None
++    source = Path(source_path).read_text(encoding="utf-8")
++
++    forbidden = ["pydantic", "fastapi", "starlette", "sqlalchemy"]
++    for forbidden_module in forbidden:
++        # `from pydantic import X` or `import pydantic` or `from fastapi import X`
++        assert forbidden_module not in source, (
++            f"engine money module must be stdlib-only, but imports {forbidden_module!r}"
++        )
++
++
++# ── Display helpers (Korean locale correctness) ───────────────
++
++
++def test_format_krw_uses_korean_locale() -> None:
++    """1,000,000원 uses comma grouping (ko-KR locale)."""
++    result = format_krw(KRW(1_234_567_890))
++    assert result == "1,234,567,890원"
++
++
++def test_format_usd_uses_us_locale() -> None:
++    """1,000,000.50 USD uses period grouping (en-US locale)."""
++    assert format_usd(USD(Decimal("1234567.89"))) == "$1,234,567.89"
++
++
++def test_usd_constructor_accepts_string() -> None:
++    """USD accepts string input (decimal.js serialized form)."""
++    result = USD("1234.56")
++    assert Decimal(result) == Decimal("1234.56")
+

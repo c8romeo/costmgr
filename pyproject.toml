@@ -1,0 +1,144 @@
+[project]
+name = "costmgr-workspace"
+version = "0.1.0"
+description = "bizup/costmgr monorepo root (uv workspace)"
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+
+# ─────────────────────────────────────────────────────────────────────────
+# STACK PIN POLICY (AD-14)
+# Single source of truth: docs/STACK_PIN.yaml
+# Bump policy: [STACK BUMP] commit tag + platform-team CODEOWNER approval.
+# Check: `pnpm dep:check` (Node) or `uv run check-stack-pin` (Python).
+# ─────────────────────────────────────────────────────────────────────────
+# Pinned runtime + Python deps live in their respective member packages:
+#   - apps/api/pyproject.toml             (fastapi, sqlalchemy, alembic, pyjwt,
+#                                          pydantic, pydantic-core, asyncpg,
+#                                          supabase, pydantic-settings)
+#   - packages/cost_engine/pyproject.toml (numpy, pytest, ruff — engine-math
+#                                          optional extra)
+# Dev tooling pins are listed below in [dependency-groups].dev.
+# ─────────────────────────────────────────────────────────────────────────
+
+[tool.uv]
+# uv workspace — apps + packages are members
+managed = true
+package = false
+
+[tool.uv.sources]
+# workspace members declared via [tool.uv.workspace] below
+
+[tool.uv.workspace]
+members = [
+    "apps/api",
+    "packages/cost_engine",
+    "packages/services",
+    "packages/ports",
+]
+
+# Make hatchling available for editable builds (Story 0.2 CI fix)
+[tool.uv.extra-build-dependencies]
+costmgr-api = ["hatchling"]
+"costmgr-cost-engine" = ["hatchling"]
+"costmgr-services" = ["hatchling"]
+"costmgr-ports" = ["hatchling"]
+
+# ─────────────────────────────────────────────────────────
+# dev tools (apply to all workspace members via `uv run`)
+# ─────────────────────────────────────────────────────────
+[dependency-groups]
+dev = [
+    "import-linter==2.13",    # AD-14 exact pin (was >=2.0; CR 2026-07-25 PIN-1)
+    "pytest==9.1.1",          # spec line 130
+    "ruff==0.7.0",            # AD-15, AD-8 lint+format
+    "pyyaml==6.0.2",          # REGEN-1 (CR 2026-07-25) — robust YAML for STACK_PIN
+]
+
+# Shortcut scripts — call directly:
+#   uv run import-linter
+#   uv run depcruise --validate .dependency-cruiser.cjs apps packages
+#   uv run pytest tests/architecture tests/cost_engine -v
+# (No [tool.uv.scripts] table — uv 0.11.32 doesn't accept it as a sub-table.)
+
+# ─────────────────────────────────────────────────────────
+# import-linter — architectural boundary enforcement (AD-1, AD-11)
+# ─────────────────────────────────────────────────────────
+[tool.importlinter]
+# Use `packages` as the root — `packages.cost_engine` contracts work.
+# PYTHONPATH=apps:packages:. must be set when invoking lint-imports.
+#
+# KNOWN LIMITATION (Story 0.1): import-linter requires a single root_package,
+# so contracts that span `apps.api` ↔ `packages.*` are not enforceable via
+# import-linter. They are enforced instead by:
+#   - tests/architecture/test_api_calls_only_ports.py  (AST + runtime)
+#   - tests/cost_engine/test_no_io_imports.py          (AST)
+# Story 0.3 will re-anchor this when the monorepo gains a top-level
+# `costmgr` namespace package.
+root_package = "packages"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "cost_engine_forbidden_io"
+type = "forbidden"
+source_modules = ["packages.cost_engine"]
+forbidden_modules = [
+    "sqlalchemy",
+    "fastapi",
+    "starlette",
+    "requests",
+    "httpx",
+    "psycopg",
+    "asyncpg",
+    "time",
+    "random",
+    "os",
+    "socket",
+    "subprocess",
+]
+
+[[tool.importlinter.contracts]]
+name = "engine_core_to_adapters_forbidden"
+type = "forbidden"
+source_modules = ["packages.cost_engine.core"]
+forbidden_modules = [
+    "packages.cost_engine.adapters",
+]
+
+# ─────────────────────────────────────────────────────────
+# ruff — Python lint + format (AD-15, AD-8)
+# ─────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["node_modules", ".venv", "dist", "build", ".next"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "PT", "SIM", "RET", "ARG", "PTH", "ERA"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["B011", "N802"]
+"apps/api/alembic/versions/*.py" = ["E501"]
+# FastAPI: Depends() in defaults (B008) is the documented idiom.
+# FastAPI exception handlers must accept `request` even when unused (ARG001).
+# SQLAlchemy: `UUID as PgUUID` is the standard typed-UUID alias (N811).
+"apps/api/**/*.py" = ["B008", "ARG001", "N811"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ─────────────────────────────────────────────────────────
+# pytest — discover tests/cost_engine + tests/architecture + tests/rls
+# ─────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+pythonpath = ["apps", "packages", "."]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+markers = [
+    "architecture: architectural boundary fixture tests (slow-ish, lint-style)",
+    "engine: cost-engine purity tests (AST forbidden-imports)",
+    "rls: tenant isolation + service_role audit tests (CI-only when no local Postgres)",
+    "asyncio: async tests (driven via asyncio.run — no pytest-asyncio plugin needed)",
+]

@@ -1,0 +1,1762 @@
+diff --git a/apps/web/app/[locale]/(dashboard)/page.tsx b/apps/web/app/[locale]/(dashboard)/page.tsx
+new file mode 100644
+index 0000000..fb3eac6
+--- /dev/null
++++ b/apps/web/app/[locale]/(dashboard)/page.tsx
+@@ -0,0 +1,31 @@
++/**
++ * apps/web/app/[locale]/(dashboard)/page.tsx — dashboard home (placeholder).
++ *
++ * Story 1.1 — Task 4.4 placeholder. The real dashboard widgets land
++ * in their respective stories (m1_baseline, m2_input, …). This page
++ * exists so the route is reachable after industry selection.
++ */
++
++"use client";
++
++import { CalculatorBanner } from "@/components/calc/CalculatorBanner";
++import { useMenuContext } from "@/components/sidebar/MenuContext";
++
++export default function DashboardHomePage() {
++  const { industry, menu, settingsVersion, accessToken } = useMenuContext();
++  return (
++    <section>
++      <CalculatorBanner accessToken={accessToken} />
++      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.5rem" }}>
++        대시보드
++      </h1>
++      <p style={{ color: "#475569", marginBottom: "1rem" }}>
++        현재 업종: <strong>{industry ?? "(미설정)"}</strong> · 설정 버전:{" "}
++        <code>{settingsVersion}</code>
++      </p>
++      <p style={{ color: "#475569", marginBottom: "1rem" }}>
++        노출 메뉴: {menu.length}개
++      </p>
++    </section>
++  );
++}
+diff --git a/apps/web/app/[locale]/(dashboard)/settings/wizard/page.tsx b/apps/web/app/[locale]/(dashboard)/settings/wizard/page.tsx
+new file mode 100644
+index 0000000..7662d6e
+--- /dev/null
++++ b/apps/web/app/[locale]/(dashboard)/settings/wizard/page.tsx
+@@ -0,0 +1,43 @@
++/**
++ * apps/web/app/[locale]/(dashboard)/settings/wizard/page.tsx
++ *
++ * Story 1.2 — Task 5.1. Settings Wizard landing page.
++ *
++ * Server Component — reads the access token (F-1: pass the STRING, not a
++ * function reference) and delegates the wizard UI to a Client Component.
++ *
++ * F-38: accessToken is stable for the duration of the request; the Client
++ * Component uses it as the bearer for /tenant-settings + /completion.
++ *
++ * The wizard renders 4 sections in PRD §8.M0(b) order:
++ *   1. 회계연도 시작월
++ *   2. 통화
++ *   3. 언어
++ *   4. 배부기준 3종
++ *
++ * UX-locked: ko-KR labels, WCAG AA contrast, Professional 톤.
++ */
++
++import { cookies } from "next/headers";
++
++import { SettingsWizardClient } from "@/components/settings/wizard/SettingsWizardClient";
++
++export const dynamic = "force-dynamic";
++
++export default function SettingsWizardPage() {
++  const accessToken = cookies().get("sb-access-token")?.value;
++
++  return (
++    <section style={{ maxWidth: 960, margin: "0 auto" }}>
++      <header style={{ marginBottom: "1.25rem" }}>
++        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.25rem" }}>
++          설정 마법사
++        </h1>
++        <p style={{ color: "#475569" }}>
++          [계산] 버튼을 사용하려면 아래 4개 항목을 모두 완료하세요. (PRD §8.M0(b))
++        </p>
++      </header>
++      <SettingsWizardClient accessToken={accessToken} />
++    </section>
++  );
++}
+\ No newline at end of file
+diff --git a/apps/web/components/calc/CalcButton.tsx b/apps/web/components/calc/CalcButton.tsx
+new file mode 100644
+index 0000000..bdd31e3
+--- /dev/null
++++ b/apps/web/components/calc/CalcButton.tsx
+@@ -0,0 +1,140 @@
++/**
++ * apps/web/components/calc/CalcButton.tsx
++ *
++ * Story 1.2 — Task 6.1. The [계산] primary action button.
++ *
++ * Behaviour:
++ *   - Reads completion status via `useSettingsCompletion()`.
++ *   - Disabled (gray, `aria-disabled="true"`) until `status.is_complete === true`.
++ *   - Hover/focus tooltip: lists the missing fields (PRD §8.M0(b) order)
++ *     and links each to its corresponding Settings Wizard tab.
++ *   - Click → `/dashboard/m3-calculate/period` (Story 4.2 — ad-hoc calc page).
++ *
++ * UX-locked:
++ *   - WCAG AA contrast (gray on disabled, blue on enabled).
++ *   - "Professional 톤" — primary action shape, not playful.
++ *   - ko-KR copy.
++ *
++ * Anti-pattern prevention (spec):
++ *   - Tooltip is rendered server-side in the DOM (no JS-only tooltip library);
++ *     keyboard users see it via `aria-describedby` + visible focus styles.
++ *   - Click handler returns early when disabled — no router.push on no-op.
++ */
++
++"use client";
++
++import Link from "next/link";
++import { useId, useState } from "react";
++
++import { useSettingsCompletion } from "@/hooks/useSettingsCompletion";
++
++export interface CalcButtonProps {
++  accessToken?: string;
++}
++
++function tooltipText(missing: string[], isComplete: boolean): string {
++  if (isComplete) return "원가 계산을 실행합니다";
++  if (missing.length === 0) return "설정 상태를 확인하는 중입니다…";
++  const completed = 4 - missing.length;
++  return `설정 ${completed}/4 완료 — 다음 항목을 완료하세요: ${missing.join(", ")}`;
++}
++
++export function CalcButton({ accessToken }: CalcButtonProps) {
++  const { status, isLoading } = useSettingsCompletion(accessToken);
++  const tooltipId = useId();
++  const [showTooltip, setShowTooltip] = useState(false);
++
++  const isComplete = status?.is_complete ?? false;
++  const disabled = isLoading || !status || !isComplete;
++  const missing = status?.missing ?? [];
++  const text = tooltipText(missing, isComplete);
++
++  return (
++    <div
++      style={{ position: "relative", display: "inline-block", width: "100%" }}
++      onMouseEnter={() => setShowTooltip(true)}
++      onMouseLeave={() => setShowTooltip(false)}
++      onFocus={() => setShowTooltip(true)}
++      onBlur={() => setShowTooltip(false)}
++    >
++      {disabled ? (
++        <button
++          type="button"
++          disabled
++          aria-disabled="true"
++          aria-describedby={tooltipId}
++          style={{
++            display: "block",
++            width: "100%",
++            padding: "0.6rem 1rem",
++            background: "#94a3b8",
++            color: "#fff",
++            border: "none",
++            borderRadius: 6,
++            cursor: "not-allowed",
++            fontWeight: 700,
++            fontSize: "0.95rem",
++          }}
++        >
++          [계산]
++        </button>
++      ) : (
++        <Link
++          href="/dashboard/m3-calculate/period"
++          aria-disabled="false"
++          aria-describedby={tooltipId}
++          style={{
++            display: "block",
++            width: "100%",
++            padding: "0.6rem 1rem",
++            background: "#2563eb",
++            color: "#fff",
++            border: "none",
++            borderRadius: 6,
++            textDecoration: "none",
++            textAlign: "center",
++            fontWeight: 700,
++            fontSize: "0.95rem",
++          }}
++        >
++          [계산]
++        </Link>
++      )}
++
++      <span
++        id={tooltipId}
++        role="tooltip"
++        style={{
++          position: "absolute",
++          left: 0,
++          top: "calc(100% + 6px)",
++          minWidth: 240,
++          maxWidth: 320,
++          padding: "0.5rem 0.75rem",
++          background: "#0f172a",
++          color: "#f8fafc",
++          borderRadius: 6,
++          fontSize: "0.85rem",
++          lineHeight: 1.4,
++          zIndex: 50,
++          visibility: showTooltip ? "visible" : "hidden",
++          opacity: showTooltip ? 1 : 0,
++          transition: "opacity 120ms ease-in",
++        }}
++      >
++        {text}
++        {!isComplete && missing.length > 0 && (
++          <div style={{ marginTop: 6, fontSize: "0.8rem", color: "#cbd5e1" }}>
++            설정 마법사로 이동 →
++            <Link
++              href="/dashboard/settings/wizard"
++              style={{ color: "#93c5fd", marginLeft: 4 }}
++            >
++              여기를 클릭
++            </Link>
++          </div>
++        )}
++      </span>
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/apps/web/components/calc/CalculatorBanner.tsx b/apps/web/components/calc/CalculatorBanner.tsx
+new file mode 100644
+index 0000000..f0785d5
+--- /dev/null
++++ b/apps/web/components/calc/CalculatorBanner.tsx
+@@ -0,0 +1,74 @@
++/**
++ * apps/web/components/calc/CalculatorBanner.tsx
++ *
++ * Story 1.2 — Task 6.4. Yellow calculator banner shown at the top of
++ * dashboard pages while `is_complete === false`. Hides itself when the
++ * settings wizard is finished (so the user is not nagged).
++ *
++ * Placed in the dashboard home page and any page that opts in. The banner
++ * uses the same `useSettingsCompletion` hook as CalcButton to stay in sync.
++ *
++ * UX-locked: ko-KR, WCAG AA, Professional 톤.
++ */
++
++"use client";
++
++import Link from "next/link";
++
++import { useSettingsCompletion } from "@/hooks/useSettingsCompletion";
++
++export interface CalculatorBannerProps {
++  accessToken?: string;
++}
++
++export function CalculatorBanner({ accessToken }: CalculatorBannerProps) {
++  const { status } = useSettingsCompletion(accessToken);
++
++  // Hidden when complete, still loading, or no data yet.
++  if (!status || status.is_complete) return null;
++
++  const missing = status.missing;
++  return (
++    <div
++      role="status"
++      aria-live="polite"
++      style={{
++        padding: "0.75rem 1rem",
++        background: "#fef3c7",
++        border: "1px solid #fcd34d",
++        color: "#92400e",
++        borderRadius: 6,
++        marginBottom: "1rem",
++        display: "flex",
++        alignItems: "center",
++        justifyContent: "space-between",
++        gap: 12,
++      }}
++    >
++      <span>
++        ⚠️ 계산 버튼을 사용하려면 설정 마법사를 완료하세요:{" "}
++        <strong>필수 항목 {4 - missing.length}/4</strong>
++        {missing.length > 0 && (
++          <span style={{ marginLeft: 8, fontSize: "0.85rem" }}>
++            (미완료: {missing.join(", ")})
++          </span>
++        )}
++      </span>
++      <Link
++        href="/dashboard/settings/wizard"
++        style={{
++          padding: "0.4rem 0.75rem",
++          background: "#92400e",
++          color: "#fef3c7",
++          borderRadius: 4,
++          textDecoration: "none",
++          fontWeight: 600,
++          fontSize: "0.85rem",
++          whiteSpace: "nowrap",
++        }}
++      >
++        설정 마법사 열기 →
++      </Link>
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/apps/web/components/settings/wizard/AllocationCriteriaStep.tsx b/apps/web/components/settings/wizard/AllocationCriteriaStep.tsx
+new file mode 100644
+index 0000000..91b6f33
+--- /dev/null
++++ b/apps/web/components/settings/wizard/AllocationCriteriaStep.tsx
+@@ -0,0 +1,228 @@
++/**
++ * apps/web/components/settings/wizard/AllocationCriteriaStep.tsx
++ *
++ * Story 1.2 — Task 5.5. AC #3: 배부기준 3종 저장.
++ * Three sub-tabs (직접/간접 계정 분류 · 고정/변동 분류 · 동인 정의).
++ * Each shows the current count + a stub "추가" button that links to the
++ * M1 baseline / M9 ABC CRUD pages (Epic 2 / Epic 9 full impl).
++ *
++ * Industry-conditional drivers_required:
++ *   - manufacturing → drivers tab is hidden (A11 — no ABC engine).
++ *   - others → drivers required.
++ *
++ * PRD §3.A11 — CCR computation needs account tags.
++ */
++
++"use client";
++
++import { useState } from "react";
++
++import {
++  ApiError,
++  saveAllocationCriterion,
++  type AllocationCriterion,
++  type CompletionStatus,
++} from "@/lib/api-client";
++
++type TabKey = "direct_indirect" | "fixed_variable" | "drivers";
++
++interface TabSpec {
++  key: TabKey;
++  label: string;
++  description: string;
++  addHref: string;
++}
++
++const TABS: TabSpec[] = [
++  {
++    key: "direct_indirect",
++    label: "직접/간접 계정 분류",
++    description: "계정과목별로 직접원가/간접원가 분류를 등록하세요.",
++    addHref: "/dashboard/accounts",
++  },
++  {
++    key: "fixed_variable",
++    label: "고정/변동 분류",
++    description: "계정과목별로 고정비/변동비 분류를 등록하세요.",
++    addHref: "/dashboard/accounts",
++  },
++  {
++    key: "drivers",
++    label: "동인 정의",
++    description: "ABC 동인(실제적 조업능력 시간)을 등록하세요.",
++    addHref: "/dashboard/driver",
++  },
++];
++
++export interface AllocationCriteriaStepProps {
++  completion: CompletionStatus | null;
++  industry: string | null;
++  accessToken?: string;
++  onSaved: (next: CompletionStatus) => void;
++  onError: (msg: string) => void;
++}
++
++export function AllocationCriteriaStep({
++  completion,
++  industry,
++  accessToken,
++  onSaved,
++  onError,
++}: AllocationCriteriaStepProps) {
++  const driversRequired = completion?.drivers_required ?? industry !== "manufacturing";
++  const visibleTabs = TABS.filter((t) => t.key !== "drivers" || driversRequired);
++
++  const initialActive = visibleTabs[0]?.key ?? "direct_indirect";
++  const [active, setActive] = useState<TabKey>(initialActive as TabKey);
++  const [isSaving, setIsSaving] = useState(false);
++
++  function countFor(tab: TabKey): number {
++    if (!completion) return 0;
++    if (tab === "direct_indirect") return completion.direct_indirect_count;
++    if (tab === "fixed_variable") return completion.fixed_variable_count;
++    return completion.drivers_count;
++  }
++
++  function isComplete(tab: TabKey): boolean {
++    return countFor(tab) > 0;
++  }
++
++  async function handleMarkComplete(tab: TabKey) {
++    setIsSaving(true);
++    try {
++      const criterion: AllocationCriterion = tab;
++      const currentCount = countFor(tab);
++      // POST at least 1 (Pydantic rejects count=0) — backend persists the count
++      // verbatim. For the wizard, the actual row registration is in Epic 2/9;
++      // here we flip completion by stamping the count if the user hasn't yet.
++      const targetCount = Math.max(currentCount, 1);
++      const res = await saveAllocationCriterion(criterion, targetCount, accessToken);
++      onSaved({
++        ...(completion as CompletionStatus),
++        ...(tab === "direct_indirect"
++          ? { direct_indirect_count: targetCount }
++          : tab === "fixed_variable"
++            ? { fixed_variable_count: targetCount }
++            : { drivers_count: targetCount }),
++        is_complete: res.is_complete,
++        missing: res.missing,
++      });
++    } catch (e) {
++      const msg = e instanceof ApiError ? e.message : String(e);
++      onError(msg);
++    } finally {
++      setIsSaving(false);
++    }
++  }
++
++  return (
++    <section
++      aria-labelledby="wizard-allocation-heading"
++      style={{
++        padding: "1.25rem 1.5rem",
++        border: "1px solid #e2e8f0",
++        borderRadius: 8,
++        background: "#fff",
++        marginBottom: "1rem",
++      }}
++    >
++      <h2
++        id="wizard-allocation-heading"
++        style={{ fontSize: "1.125rem", fontWeight: 700, marginBottom: "0.25rem" }}
++      >
++        배부기준 3종
++      </h2>
++      <p style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
++        업종: <strong>{industry ?? "(미설정)"}</strong>
++        {!driversRequired ? " — 제조업은 동인 정의를 건너뜁니다 (A11)" : ""}
++      </p>
++
++      <div
++        role="tablist"
++        aria-label="배부기준 탭"
++        style={{
++          display: "flex",
++          gap: 4,
++          borderBottom: "1px solid #e2e8f0",
++          marginBottom: "0.75rem",
++        }}
++      >
++        {visibleTabs.map((tab) => {
++          const selected = tab.key === active;
++          return (
++            <button
++              key={tab.key}
++              type="button"
++              role="tab"
++              aria-selected={selected}
++              onClick={() => setActive(tab.key)}
++              style={{
++                padding: "0.5rem 0.75rem",
++                border: "none",
++                borderBottom: selected ? "2px solid #2563eb" : "2px solid transparent",
++                background: "transparent",
++                color: selected ? "#1d4ed8" : "#475569",
++                fontWeight: selected ? 700 : 500,
++                cursor: "pointer",
++              }}
++            >
++              {tab.label}
++            </button>
++          );
++        })}
++      </div>
++
++      {visibleTabs
++        .filter((tab) => tab.key === active)
++        .map((tab) => {
++          const count = countFor(tab.key);
++          const done = isComplete(tab.key);
++          return (
++            <div key={tab.key} role="tabpanel" aria-label={tab.label}>
++              <p style={{ color: "#475569", marginBottom: "0.5rem" }}>{tab.description}</p>
++              <p style={{ marginBottom: "0.75rem" }}>
++                현재 등록: <strong>{count}</strong>행{" "}
++                {done ? (
++                  <span style={{ color: "#15803d", fontWeight: 600 }}>✓ 완료</span>
++                ) : (
++                  <span style={{ color: "#b45309", fontWeight: 600 }}>미완료</span>
++                )}
++              </p>
++              <div style={{ display: "flex", gap: 8 }}>
++                <a
++                  href={tab.addHref}
++                  style={{
++                    padding: "0.5rem 1rem",
++                    background: "#0f172a",
++                    color: "#fff",
++                    borderRadius: 6,
++                    textDecoration: "none",
++                    fontWeight: 600,
++                  }}
++                >
++                  추가 / 편집 (Epic {tab.key === "drivers" ? "9" : "2"})
++                </a>
++                <button
++                  type="button"
++                  onClick={() => handleMarkComplete(tab.key)}
++                  disabled={isSaving || done}
++                  aria-busy={isSaving}
++                  style={{
++                    padding: "0.5rem 1rem",
++                    background: isSaving || done ? "#94a3b8" : "#2563eb",
++                    color: "#fff",
++                    border: "none",
++                    borderRadius: 6,
++                    cursor: isSaving || done ? "not-allowed" : "pointer",
++                    fontWeight: 600,
++                  }}
++                >
++                  {isSaving ? "저장 중…" : done ? "저장됨" : "완료로 표시"}
++                </button>
++              </div>
++            </div>
++          );
++        })}
++    </section>
++  );
++}
+\ No newline at end of file
+diff --git a/apps/web/components/settings/wizard/CurrencyStep.tsx b/apps/web/components/settings/wizard/CurrencyStep.tsx
+new file mode 100644
+index 0000000..f47c1b9
+--- /dev/null
++++ b/apps/web/components/settings/wizard/CurrencyStep.tsx
+@@ -0,0 +1,138 @@
++/**
++ * apps/web/components/settings/wizard/CurrencyStep.tsx
++ *
++ * Story 1.2 — Task 5.3. AC #1: 통화 저장.
++ * Two radio cards: KRW (₩) default · USD ($).
++ * On save: POST /api/v1/tenant-settings/onboarding/currency.
++ *
++ * PRD §3.A6 — 1원 단위 검증 (KRW=BIGINT, USD=NUMERIC(18,2)).
++ * UX-locked: Professional 톤, WCAG AA contrast.
++ */
++
++"use client";
++
++import { useState } from "react";
++
++import { ApiError, saveCurrency } from "@/lib/api-client";
++import type { CompletionStatus } from "@/lib/api-client";
++
++export interface CurrencyStepProps {
++  initial?: "KRW" | "USD" | null;
++  completion: CompletionStatus | null;
++  accessToken?: string;
++  onSaved: (next: CompletionStatus) => void;
++  onError: (msg: string) => void;
++}
++
++const OPTIONS: Array<{ value: "KRW" | "USD"; label: string; symbol: string; hint: string }> = [
++  { value: "KRW", label: "원 (KRW)", symbol: "₩", hint: "한국 원 — 정수(1원 단위)로 저장" },
++  { value: "USD", label: "달러 (USD)", symbol: "$", hint: "미 달러 — 소수점 둘째 자리까지" },
++];
++
++export function CurrencyStep({
++  initial,
++  completion,
++  accessToken,
++  onSaved,
++  onError,
++}: CurrencyStepProps) {
++  const [currency, setCurrency] = useState<"KRW" | "USD">(initial ?? "KRW");
++  const [isSaving, setIsSaving] = useState(false);
++
++  const isLocked = completion?.currency_completed === true && initial === currency;
++
++  async function handleSave() {
++    setIsSaving(true);
++    try {
++      const res = await saveCurrency(currency, accessToken);
++      onSaved({
++        ...(completion as CompletionStatus),
++        currency_completed: true,
++        is_complete: res.is_complete,
++        missing: res.missing,
++      });
++    } catch (e) {
++      const msg = e instanceof ApiError ? e.message : String(e);
++      onError(msg);
++    } finally {
++      setIsSaving(false);
++    }
++  }
++
++  return (
++    <section
++      aria-labelledby="wizard-currency-heading"
++      style={{
++        padding: "1.25rem 1.5rem",
++        border: "1px solid #e2e8f0",
++        borderRadius: 8,
++        background: "#fff",
++        marginBottom: "1rem",
++      }}
++    >
++      <h2
++        id="wizard-currency-heading"
++        style={{ fontSize: "1.125rem", fontWeight: 700, marginBottom: "0.25rem" }}
++      >
++        통화
++      </h2>
++      <p style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
++        사용할 통화를 선택하세요. (PRD §3.A6 — 1원 단위 검증)
++      </p>
++
++      <div
++        role="radiogroup"
++        aria-label="통화 선택"
++        style={{
++          display: "grid",
++          gridTemplateColumns: "repeat(2, 1fr)",
++          gap: 12,
++          marginBottom: "1rem",
++        }}
++      >
++        {OPTIONS.map((opt) => {
++          const selected = opt.value === currency;
++          return (
++            <button
++              key={opt.value}
++              type="button"
++              role="radio"
++              aria-checked={selected}
++              onClick={() => setCurrency(opt.value)}
++              style={{
++                padding: "1rem",
++                border: selected ? "2px solid #2563eb" : "1px solid #cbd5e1",
++                background: selected ? "#dbeafe" : "#fff",
++                borderRadius: 8,
++                cursor: "pointer",
++                textAlign: "left",
++              }}
++            >
++              <div style={{ fontSize: "1.5rem", marginBottom: 4 }}>{opt.symbol}</div>
++              <div style={{ fontWeight: 700, marginBottom: 4 }}>{opt.label}</div>
++              <div style={{ color: "#475569", fontSize: "0.85rem" }}>{opt.hint}</div>
++            </button>
++          );
++        })}
++      </div>
++
++      <button
++        type="button"
++        onClick={handleSave}
++        disabled={isSaving || isLocked}
++        aria-busy={isSaving}
++        style={{
++          padding: "0.5rem 1rem",
++          background: isSaving || isLocked ? "#94a3b8" : "#2563eb",
++          color: "#fff",
++          border: "none",
++          borderRadius: 6,
++          cursor: isSaving || isLocked ? "not-allowed" : "pointer",
++          fontWeight: 600,
++        }}
++      >
++        {isSaving ? "저장 중…" : isLocked ? "저장됨" : "저장"}
++      </button>
++    </section>
++  );
++}
+\ No newline at end of file
+diff --git a/apps/web/components/settings/wizard/FiscalYearStartStep.tsx b/apps/web/components/settings/wizard/FiscalYearStartStep.tsx
+new file mode 100644
+index 0000000..28c8bd7
+--- /dev/null
++++ b/apps/web/components/settings/wizard/FiscalYearStartStep.tsx
+@@ -0,0 +1,192 @@
++/**
++ * apps/web/components/settings/wizard/FiscalYearStartStep.tsx
++ *
++ * Story 1.2 — Task 5.2. AC #1: 회계연도 시작월 저장.
++ * Month picker (12 buttons in 3×4 grid) + Year picker (current + previous).
++ * On save: POST /api/v1/tenant-settings/onboarding/fiscal-year-start.
++ *
++ * PRD §3.A1 — 회계연도 axiom (period keys derive from YYYY-MM).
++ * AD-24 — typed period-key namespaces.
++ * UX-locked: ko-KR labels, WCAG AA contrast (dark text on light bg).
++ */
++
++"use client";
++
++import { useState } from "react";
++
++import { ApiError, saveFiscalYearStart } from "@/lib/api-client";
++import type { CompletionStatus } from "@/lib/api-client";
++
++const MONTH_LABEL_KO = [
++  "1월",
++  "2월",
++  "3월",
++  "4월",
++  "5월",
++  "6월",
++  "7월",
++  "8월",
++  "9월",
++  "10월",
++  "11월",
++  "12월",
++];
++
++export interface FiscalYearStartStepProps {
++  initial?: string | null;
++  completion: CompletionStatus | null;
++  accessToken?: string;
++  onSaved: (next: CompletionStatus) => void;
++  onError: (msg: string) => void;
++}
++
++function parseStored(value: string | null | undefined): {
++  year: number;
++  month: number;
++} | null {
++  if (!value) return null;
++  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
++  if (!match) return null;
++  return { year: Number(match[1]), month: Number(match[2]) };
++}
++
++function formatStored(year: number, month: number): string {
++  return `${year}-${String(month).padStart(2, "0")}`;
++}
++
++export function FiscalYearStartStep({
++  initial,
++  completion,
++  accessToken,
++  onSaved,
++  onError,
++}: FiscalYearStartStepProps) {
++  const parsed = parseStored(initial);
++  const [year, setYear] = useState<number>(parsed?.year ?? new Date().getFullYear());
++  const [month, setMonth] = useState<number>(parsed?.month ?? 1);
++  const [isSaving, setIsSaving] = useState(false);
++
++  const isLocked =
++    completion?.fiscal_year_start_completed === true &&
++    parsed?.year === year &&
++    parsed?.month === month;
++
++  async function handleSave() {
++    setIsSaving(true);
++    try {
++      const res = await saveFiscalYearStart(formatStored(year, month), accessToken);
++      onSaved({
++        ...(completion as CompletionStatus),
++        fiscal_year_start_completed: true,
++        is_complete: res.is_complete,
++        missing: res.missing,
++      });
++    } catch (e) {
++      const msg = e instanceof ApiError ? e.message : String(e);
++      onError(msg);
++    } finally {
++      setIsSaving(false);
++    }
++  }
++
++  return (
++    <section
++      aria-labelledby="wizard-fiscal-year-heading"
++      style={{
++        padding: "1.25rem 1.5rem",
++        border: "1px solid #e2e8f0",
++        borderRadius: 8,
++        background: "#fff",
++        marginBottom: "1rem",
++      }}
++    >
++      <h2
++        id="wizard-fiscal-year-heading"
++        style={{ fontSize: "1.125rem", fontWeight: 700, marginBottom: "0.25rem" }}
++      >
++        회계연도 시작월
++      </h2>
++      <p style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
++        회계연도가 시작되는 달을 선택하세요. (PRD §3.A1 · 12월 결산이 기본값)
++      </p>
++
++      <div role="group" aria-label="연도 선택" style={{ marginBottom: "0.75rem" }}>
++        <label
++          htmlFor="wizard-year"
++          style={{ display: "inline-block", marginRight: 8, fontWeight: 600 }}
++        >
++          연도
++        </label>
++        <select
++          id="wizard-year"
++          value={year}
++          onChange={(e) => setYear(Number(e.target.value))}
++          style={{
++            padding: "0.25rem 0.5rem",
++            border: "1px solid #cbd5e1",
++            borderRadius: 4,
++          }}
++        >
++          {[year - 1, year, year + 1].map((y) => (
++            <option key={y} value={y}>
++              {y}년
++            </option>
++          ))}
++        </select>
++      </div>
++
++      <div
++        role="radiogroup"
++        aria-label="월 선택"
++        style={{
++          display: "grid",
++          gridTemplateColumns: "repeat(4, 1fr)",
++          gap: 8,
++          marginBottom: "1rem",
++        }}
++      >
++        {MONTH_LABEL_KO.map((label, idx) => {
++          const m = idx + 1;
++          const selected = m === month;
++          return (
++            <button
++              key={m}
++              type="button"
++              role="radio"
++              aria-checked={selected}
++              onClick={() => setMonth(m)}
++              style={{
++                padding: "0.5rem 0",
++                border: selected ? "2px solid #2563eb" : "1px solid #cbd5e1",
++                background: selected ? "#dbeafe" : "#fff",
++                borderRadius: 6,
++                cursor: "pointer",
++                fontWeight: selected ? 700 : 500,
++              }}
++            >
++              {label}
++            </button>
++          );
++        })}
++      </div>
++
++      <button
++        type="button"
++        onClick={handleSave}
++        disabled={isSaving || isLocked}
++        aria-busy={isSaving}
++        style={{
++          padding: "0.5rem 1rem",
++          background: isSaving || isLocked ? "#94a3b8" : "#2563eb",
++          color: "#fff",
++          border: "none",
++          borderRadius: 6,
++          cursor: isSaving || isLocked ? "not-allowed" : "pointer",
++          fontWeight: 600,
++        }}
++      >
++        {isSaving ? "저장 중…" : isLocked ? "저장됨" : "저장"}
++      </button>
++    </section>
++  );
++}
+\ No newline at end of file
+diff --git a/apps/web/components/settings/wizard/LanguageStep.tsx b/apps/web/components/settings/wizard/LanguageStep.tsx
+new file mode 100644
+index 0000000..1c33b1b
+--- /dev/null
++++ b/apps/web/components/settings/wizard/LanguageStep.tsx
+@@ -0,0 +1,112 @@
++/**
++ * apps/web/components/settings/wizard/LanguageStep.tsx
++ *
++ * Story 1.2 — Task 5.4. AC #1: 언어 저장.
++ * MVP language lock (NFR-18) — ko-KR only. The step renders a read-only
++ * confirmation card; the POST still fires so the wizard's `language_completed`
++ * flag flips and the [계산] tooltip recognises the field as done.
++ *
++ * UX-locked (Story ux-locked-decisions §4): ko-KR only in MVP.
++ */
++
++"use client";
++
++import { useState } from "react";
++
++import { ApiError, saveLanguage } from "@/lib/api-client";
++import type { CompletionStatus } from "@/lib/api-client";
++
++export interface LanguageStepProps {
++  initial?: string | null;
++  completion: CompletionStatus | null;
++  accessToken?: string;
++  onSaved: (next: CompletionStatus) => void;
++  onError: (msg: string) => void;
++}
++
++export function LanguageStep({
++  initial,
++  completion,
++  accessToken,
++  onSaved,
++  onError,
++}: LanguageStepProps) {
++  const [isSaving, setIsSaving] = useState(false);
++  const isLocked = completion?.language_completed === true && initial === "ko-KR";
++
++  async function handleSave() {
++    setIsSaving(true);
++    try {
++      const res = await saveLanguage("ko-KR", accessToken);
++      onSaved({
++        ...(completion as CompletionStatus),
++        language_completed: true,
++        is_complete: res.is_complete,
++        missing: res.missing,
++      });
++    } catch (e) {
++      const msg = e instanceof ApiError ? e.message : String(e);
++      onError(msg);
++    } finally {
++      setIsSaving(false);
++    }
++  }
++
++  return (
++    <section
++      aria-labelledby="wizard-language-heading"
++      style={{
++        padding: "1.25rem 1.5rem",
++        border: "1px solid #e2e8f0",
++        borderRadius: 8,
++        background: "#fff",
++        marginBottom: "1rem",
++      }}
++    >
++      <h2
++        id="wizard-language-heading"
++        style={{ fontSize: "1.125rem", fontWeight: 700, marginBottom: "0.25rem" }}
++      >
++        언어
++      </h2>
++      <p style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
++        MVP는 한국어만 지원합니다. (NFR-18 · Story ux-locked-decisions §4)
++      </p>
++
++      <div
++        role="group"
++        aria-label="언어 (MVP: 한국어 고정)"
++        style={{
++          padding: "1rem",
++          border: "1px solid #cbd5e1",
++          borderRadius: 8,
++          background: "#f1f5f9",
++          marginBottom: "1rem",
++        }}
++      >
++        <div style={{ fontWeight: 700, marginBottom: 4 }}>한국어 (ko-KR)</div>
++        <div style={{ color: "#475569", fontSize: "0.85rem" }}>
++          선택됨 — MVP 단계에서는 변경할 수 없습니다
++        </div>
++      </div>
++
++      <button
++        type="button"
++        onClick={handleSave}
++        disabled={isSaving || isLocked}
++        aria-busy={isSaving}
++        style={{
++          padding: "0.5rem 1rem",
++          background: isSaving || isLocked ? "#94a3b8" : "#2563eb",
++          color: "#fff",
++          border: "none",
++          borderRadius: 6,
++          cursor: isSaving || isLocked ? "not-allowed" : "pointer",
++          fontWeight: 600,
++        }}
++      >
++        {isSaving ? "저장 중…" : isLocked ? "저장됨" : "확인"}
++      </button>
++    </section>
++  );
++}
+\ No newline at end of file
+diff --git a/apps/web/components/settings/wizard/SettingsWizardClient.tsx b/apps/web/components/settings/wizard/SettingsWizardClient.tsx
+new file mode 100644
+index 0000000..40ec4c6
+--- /dev/null
++++ b/apps/web/components/settings/wizard/SettingsWizardClient.tsx
+@@ -0,0 +1,146 @@
++/**
++ * apps/web/components/settings/wizard/SettingsWizardClient.tsx
++ *
++ * Story 1.2 — Task 5.1 (Client Component body). Owns the completion-status
++ * state shared by the 4 step components + the [계산] button (Task 6).
++ *
++ * Each step's `onSaved` callback patches the local `completion` state
++ * from the server's response (`is_complete`, `missing`). The
++ * `useSettingsCompletion` hook keeps the server-side view in sync via
++ * background polling (5-second stale window, 30-second cadence).
++ *
++ * F-1: a function prop CANNOT be passed across the RSC boundary, so the
++ * Server Component page hands a STRING (`accessToken`) here and this
++ * Client Component constructs the handlers internally.
++ */
++
++"use client";
++
++import { useCallback, useState } from "react";
++
++import { useSettingsCompletion } from "@/hooks/useSettingsCompletion";
++import type { CompletionStatus } from "@/lib/api-client";
++
++import { AllocationCriteriaStep } from "./AllocationCriteriaStep";
++import { CurrencyStep } from "./CurrencyStep";
++import { FiscalYearStartStep } from "./FiscalYearStartStep";
++import { LanguageStep } from "./LanguageStep";
++
++export interface SettingsWizardClientProps {
++  accessToken?: string;
++}
++
++export function SettingsWizardClient({ accessToken }: SettingsWizardClientProps) {
++  const { status, refetch } = useSettingsCompletion(accessToken);
++  const [completion, setCompletion] = useState<CompletionStatus | null>(status);
++  const [errorMessage, setErrorMessage] = useState<string | null>(null);
++
++  // Keep local completion state in sync with polled hook.
++  if (status && completion && status.trace_id !== completion.trace_id) {
++    setCompletion(status);
++  } else if (status && !completion) {
++    setCompletion(status);
++  }
++
++  const handleSaved = useCallback((next: CompletionStatus) => {
++    setCompletion(next);
++    setErrorMessage(null);
++    refetch();
++  }, [refetch]);
++
++  const handleError = useCallback((msg: string) => {
++    setErrorMessage(msg);
++  }, []);
++
++  return (
++    <div>
++      {errorMessage && (
++        <div
++          role="alert"
++          style={{
++            padding: "0.75rem 1rem",
++            background: "#fee2e2",
++            border: "1px solid #fca5a5",
++            color: "#991b1b",
++            borderRadius: 6,
++            marginBottom: "1rem",
++          }}
++        >
++          저장 실패: {errorMessage}
++        </div>
++      )}
++
++      <FiscalYearStartStep
++        initial={
++          completion?.fiscal_year_start_completed
++            ? (typeof (completion as unknown as Record<string, unknown>)["fiscal_year_start"] === "string"
++                ? ((completion as unknown as Record<string, unknown>)["fiscal_year_start"] as string)
++                : null)
++            : null
++        }
++        completion={completion}
++        accessToken={accessToken}
++        onSaved={handleSaved}
++        onError={handleError}
++      />
++
++      <CurrencyStep
++        initial={
++          completion?.currency_completed
++            ? (typeof (completion as unknown as Record<string, unknown>)["currency"] === "string"
++                ? ((completion as unknown as Record<string, unknown>)["currency"] as "KRW" | "USD")
++                : null)
++            : null
++        }
++        completion={completion}
++        accessToken={accessToken}
++        onSaved={handleSaved}
++        onError={handleError}
++      />
++
++      <LanguageStep
++        initial={completion?.language_completed ? "ko-KR" : null}
++        completion={completion}
++        accessToken={accessToken}
++        onSaved={handleSaved}
++        onError={handleError}
++      />
++
++      <AllocationCriteriaStep
++        completion={completion}
++        industry={
++          typeof (completion as unknown as Record<string, unknown> | null)?.["industry"] ===
++          "string"
++            ? ((completion as unknown as Record<string, unknown>)["industry"] as string)
++            : null
++        }
++        accessToken={accessToken}
++        onSaved={handleSaved}
++        onError={handleError}
++      />
++
++      {completion && (
++        <aside
++          aria-label="설정 완료 상태"
++          style={{
++            padding: "0.75rem 1rem",
++            background: completion.is_complete ? "#dcfce7" : "#fef3c7",
++            border: `1px solid ${completion.is_complete ? "#86efac" : "#fcd34d"}`,
++            borderRadius: 6,
++            marginTop: "1rem",
++          }}
++        >
++          {completion.is_complete ? (
++            <span style={{ color: "#15803d", fontWeight: 600 }}>
++              ✓ 모든 설정이 완료되었습니다 — [계산] 버튼을 사용할 수 있습니다.
++            </span>
++          ) : (
++            <span style={{ color: "#92400e" }}>
++              ⚠ 미완료 항목: {completion.missing.join(", ")}
++            </span>
++          )}
++        </aside>
++      )}
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/apps/web/components/sidebar/MenuContext.tsx b/apps/web/components/sidebar/MenuContext.tsx
+new file mode 100644
+index 0000000..0b508bb
+--- /dev/null
++++ b/apps/web/components/sidebar/MenuContext.tsx
+@@ -0,0 +1,119 @@
++/**
++ * apps/web/components/sidebar/MenuContext.tsx — React Context for the
++ * tenant's industry and menu list.
++ *
++ * Story 1.1 — Task 3.4. The provider fetches the canonical
++ * `tenant_settings` aggregate from `/api/v1/tenant-settings` on mount
++ * (via the api-client wrapper) and exposes `{ industry, menu }` to all
++ * dashboard components.
++ *
++ * No page reload is needed when industry changes — `refresh()` is
++ * called from `IndustrySelector` after a successful POST, which keeps
++ * the sidebar in sync without a hard navigation.
++ */
++
++"use client";
++
++import {
++  createContext,
++  useCallback,
++  useContext,
++  useEffect,
++  useMemo,
++  useState,
++  type ReactNode,
++} from "react";
++
++import { getTenantSettings, type TenantSettingsResponse } from "@/lib/api-client";
++import {
++  INDUSTRY_MENU_MAP,
++  type Industry,
++} from "@/lib/menu-config";
++
++export interface MenuContextValue {
++  industry: Industry | null;
++  menu: readonly string[];
++  settingsVersion: number;
++  isLoading: boolean;
++  error: string | null;
++  /** F-1: forwarded from the Server Component layout for child components
++   *  that need to call /completion (CalculatorBanner, CalcButton in settings
++   *  wizard, etc.). */
++  accessToken: string | undefined;
++  refresh: () => Promise<void>;
++  /** Optimistic update — used by `IndustrySelector` after a successful POST. */
++  setIndustry: (industry: Industry, menu: readonly string[]) => void;
++}
++
++const MenuContext = createContext<MenuContextValue | null>(null);
++
++export interface MenuProviderProps {
++  children: ReactNode;
++  /** Access token read server-side (string) and forwarded across RSC.
++   *  When undefined, the context skips fetching. (F-1, F-38.) */
++  accessToken?: string;
++}
++
++export function MenuProvider({ children, accessToken }: MenuProviderProps) {
++  const [industry, setIndustryState] = useState<Industry | null>(null);
++  const [menu, setMenu] = useState<readonly string[]>([]);
++  const [settingsVersion, setSettingsVersion] = useState(0);
++  const [isLoading, setIsLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++
++  const refresh = useCallback(async () => {
++    try {
++      setError(null);
++      const data: TenantSettingsResponse = await getTenantSettings(accessToken);
++      setIndustryState(data.industry);
++      setSettingsVersion(data.settings_version);
++      setMenu(data.industry ? INDUSTRY_MENU_MAP[data.industry] : []);
++    } catch (e) {
++      const message = e instanceof Error ? e.message : "업종 정보를 불러오지 못했습니다";
++      setError(message);
++    } finally {
++      setIsLoading(false);
++    }
++  }, [accessToken]);
++
++  useEffect(() => {
++    if (accessToken === undefined) {
++      // No token yet — leave defaults; provider is data-ready.
++      setIsLoading(false);
++      return;
++    }
++    refresh();
++  }, [accessToken, refresh]);
++
++  const setIndustry = useCallback(
++    (next: Industry, nextMenu: readonly string[]) => {
++      setIndustryState(next);
++      setMenu(nextMenu);
++    },
++    [],
++  );
++
++  const value = useMemo<MenuContextValue>(
++    () => ({
++      industry,
++      menu,
++      settingsVersion,
++      isLoading,
++      error,
++      accessToken,
++      refresh,
++      setIndustry,
++    }),
++    [industry, menu, settingsVersion, isLoading, error, accessToken, refresh, setIndustry],
++  );
++
++  return <MenuContext.Provider value={value}>{children}</MenuContext.Provider>;
++}
++
++export function useMenuContext(): MenuContextValue {
++  const ctx = useContext(MenuContext);
++  if (!ctx) {
++    throw new Error("useMenuContext must be used within <MenuProvider>");
++  }
++  return ctx;
++}
+diff --git a/apps/web/components/sidebar/Sidebar.tsx b/apps/web/components/sidebar/Sidebar.tsx
+new file mode 100644
+index 0000000..7858ddd
+--- /dev/null
++++ b/apps/web/components/sidebar/Sidebar.tsx
+@@ -0,0 +1,88 @@
++/**
++ * apps/web/components/sidebar/Sidebar.tsx — industry-aware left navigation.
++ *
++ * Story 1.1 — Task 4.1. Reads the menu from `useMenuContext()` and
++ * renders one `<SidebarItem>` per entry. Items outside the active
++ * menu are NOT rendered — that's the auto-toggle.
++ *
++ * UX-locked: WCAG AA contrast (Story ux-locked-decisions).
++ *   - Active item: bold + left blue accent bar.
++ *   - Hover: subtle background tint.
++ *   - `카브아웃 분할` shows the §7.3 [A10] tooltip on hover (Task 4.3).
++ */
++
++"use client";
++
++import Link from "next/link";
++import { usePathname } from "next/navigation";
++
++import { CalcButton } from "@/components/calc/CalcButton";
++import { SEGMENT_SPLIT_TOOLTIP } from "@/lib/menu-config";
++import { useMenuContext } from "./MenuContext";
++import { SidebarItem } from "./SidebarItem";
++
++const ROUTE_BY_LABEL: Record<string, string> = {
++  품목: "/dashboard/products",
++  BOM: "/dashboard/bom",
++  기초재고: "/dashboard/opening-inventory",
++  수불부: "/dashboard/inventory-ledger",
++  원가풀: "/dashboard/cost-pool",
++  활동: "/dashboard/activity",
++  동인: "/dashboard/driver",
++  "카브아웃 분할": "/dashboard/segment-split",
++  계정과목: "/dashboard/accounts",
++  부서: "/dashboard/departments",
++  거래처: "/dashboard/customers",
++  AI추출: "/dashboard/ai-extract",
++  시뮬레이션: "/dashboard/simulation",
++  예산: "/dashboard/budget",
++  보고서: "/dashboard/reports",
++  마감: "/dashboard/close",
++  계정관리: "/dashboard/account",
++};
++
++export interface SidebarProps {
++  /** Access token forwarded from the Server Component layout (F-1, F-38). */
++  accessToken?: string;
++}
++
++export function Sidebar({ accessToken }: SidebarProps = {}) {
++  const { menu } = useMenuContext();
++  const pathname = usePathname() ?? "";
++
++  return (
++    <nav
++      aria-label="주 메뉴"
++      style={{
++        width: 232,
++        minHeight: "100vh",
++        padding: "1rem 0.5rem",
++        background: "#f8fafc",
++        borderRight: "1px solid #e2e8f0",
++        display: "flex",
++        flexDirection: "column",
++      }}
++    >
++      <div style={{ marginBottom: "0.75rem" }}>
++        <CalcButton accessToken={accessToken} />
++      </div>
++      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
++        {menu.map((label) => {
++          const href = ROUTE_BY_LABEL[label] ?? "/dashboard";
++          const active = pathname.startsWith(href);
++          const tooltip = label === "카브아웃 분할" ? SEGMENT_SPLIT_TOOLTIP : undefined;
++          return (
++            <li key={label} style={{ marginBottom: 2 }}>
++              <Link
++                href={href}
++                style={{ textDecoration: "none", color: "inherit" }}
++              >
++                <SidebarItem label={label} active={active} tooltip={tooltip} />
++              </Link>
++            </li>
++          );
++        })}
++      </ul>
++    </nav>
++  );
++}
+diff --git a/apps/web/hooks/useSettingsCompletion.ts b/apps/web/hooks/useSettingsCompletion.ts
+new file mode 100644
+index 0000000..2aa7075
+--- /dev/null
++++ b/apps/web/hooks/useSettingsCompletion.ts
+@@ -0,0 +1,80 @@
++/**
++ * apps/web/hooks/useSettingsCompletion.ts — completion status polling hook.
++ *
++ * Story 1.2 — Task 5.6. React state-based hook (the project does not yet pull
++ * in TanStack Query per Story 0.5 deferral; polling uses a lightweight timer
++ * driven by `useEffect` + `useState`). The hook:
++ *   - Calls `GET /api/v1/tenant-settings/completion` on mount + on focus
++ *   - Returns `{ status, refetch }` for the [계산] button + tooltip
++ *   - 5-second stale window to avoid hammering the API while typing
++ *
++ * Cross-language: the wire shape mirrors
++ * `apps/api/modules/m0_onboarding/schemas.py::CompletionStatusResponse`
++ * and `packages/services/m0_onboarding/settings_completion.py::CompletionStatus`.
++ * Drift is caught by `tests/integration/test_completion_consistency.py` (Story 1.2 T7.5).
++ */
++
++"use client";
++
++import { useCallback, useEffect, useRef, useState } from "react";
++
++import {
++  type CompletionStatus,
++  fetchCompletionStatus,
++} from "@/lib/api-client";
++
++export interface UseSettingsCompletionResult {
++  status: CompletionStatus | null;
++  isLoading: boolean;
++  error: string | null;
++  refetch: () => void;
++}
++
++const STALE_MS = 5_000;
++const POLL_MS = 30_000; // background poll cadence while a wizard step is mounted
++
++export function useSettingsCompletion(
++  accessToken?: string,
++): UseSettingsCompletionResult {
++  const [status, setStatus] = useState<CompletionStatus | null>(null);
++  const [isLoading, setIsLoading] = useState(false);
++  const [error, setError] = useState<string | null>(null);
++  const lastFetchedRef = useRef<number>(0);
++  const accessTokenRef = useRef(accessToken);
++  accessTokenRef.current = accessToken;
++
++  const refetch = useCallback(() => {
++    let cancelled = false;
++    setIsLoading(true);
++    fetchCompletionStatus(accessTokenRef.current)
++      .then((data) => {
++        if (cancelled) return;
++        setStatus(data);
++        setError(null);
++        lastFetchedRef.current = Date.now();
++      })
++      .catch((e: unknown) => {
++        if (cancelled) return;
++        const msg = e instanceof Error ? e.message : String(e);
++        setError(msg);
++      })
++      .finally(() => {
++        if (!cancelled) setIsLoading(false);
++      });
++    return () => {
++      cancelled = true;
++    };
++  }, []);
++
++  useEffect(() => {
++    refetch();
++    const interval = setInterval(() => {
++      if (Date.now() - lastFetchedRef.current >= STALE_MS) {
++        refetch();
++      }
++    }, POLL_MS);
++    return () => clearInterval(interval);
++  }, [refetch]);
++
++  return { status, isLoading, error, refetch };
++}
+\ No newline at end of file
+diff --git a/apps/web/lib/api-client.ts b/apps/web/lib/api-client.ts
+new file mode 100644
+index 0000000..32b5266
+--- /dev/null
++++ b/apps/web/lib/api-client.ts
+@@ -0,0 +1,283 @@
++/**
++ * apps/web/lib/api-client.ts — typed fetch wrapper for the costmgr API.
++ *
++ * Story 1.1 — Task 3.5 (lightweight wrapper). The wrapper:
++ *   - Adds `Authorization: Bearer <jwt>` from a session token when provided.
++ *   - F-11: falls back to `credentials: "same-origin"` when no token is
++ *     supplied so the backend's cookie-based session is forwarded.
++ *   - F-18: parses JSON safely — falls back to a typed ApiError on
++ *     non-JSON / empty responses (HTML proxy 502, empty 204, etc.).
++ *   - Throws typed `ApiError` with `{ code, message_ko, details, trace_id }`
++ *     matching the AD-15 error contract.
++ *   - Exposes `getTenantSettings()` + `updateIndustry()` typed methods.
++ *
++ * Per AD-15: snake_case JSON keys throughout. Per Story 1.1 — the
++ * `X-Onboarding-Warning` response header is surfaced via the
++ * `warningHeader` field on the success envelope. The `X-Trace-Id` header
++ * (F-43) is forwarded as `traceId`.
++ */
++
++import type { Industry } from "./menu-config";
++
++export interface ApiErrorPayload {
++  code: string;
++  message_ko: string;
++  details: Record<string, unknown>;
++  trace_id: string;
++}
++
++export class ApiError extends Error {
++  readonly status: number;
++  readonly payload: ApiErrorPayload;
++
++  constructor(status: number, payload: ApiErrorPayload) {
++    super(payload.message_ko);
++    this.status = status;
++    this.payload = payload;
++  }
++}
++
++export interface TenantSettingsResponse {
++  tenant_id: string;
++  industry: Industry | null;
++  settings_version: number;
++  onboarding: Record<string, unknown>;
++  baseline: Record<string, unknown>;
++  abc: Record<string, unknown>;
++  ai: Record<string, unknown>;
++}
++
++export interface IndustryUpdateResponse {
++  industry: Industry;
++  menu: string[];
++  settings_version: number;
++  is_initial: boolean;
++  selected_at: string;
++  trace_id: string;
++}
++
++export interface IndustryUpdateOptions {
++  industry: Industry;
++  /** Optional callback fired when the within-grace warning header arrives. */
++  onWarningHeader?: (value: string) => void;
++}
++
++async function parseJsonSafe(res: Response): Promise<unknown> {
++  // F-18: defensive JSON parse. Empty 204, HTML proxy 502, or any
++  // non-JSON body must produce a typed fallback rather than throw.
++  const text = await res.text();
++  if (!text) return null;
++  try {
++    return JSON.parse(text);
++  } catch {
++    return { __non_json__: true, body: text };
++  }
++}
++
++function isApiErrorPayload(value: unknown): value is ApiErrorPayload {
++  if (typeof value !== "object" || value === null) return false;
++  const v = value as Record<string, unknown>;
++  return (
++    typeof v.code === "string" &&
++    typeof v.message_ko === "string" &&
++    typeof v.trace_id === "string" &&
++    typeof v.details === "object" &&
++    v.details !== null
++  );
++}
++
++async function request<T>(
++  path: string,
++  init: RequestInit,
++  accessToken?: string,
++): Promise<{ data: T; headers: Headers }> {
++  const headers = new Headers(init.headers);
++  if (accessToken) {
++    headers.set("Authorization", `Bearer ${accessToken}`);
++  }
++  if (init.body && !headers.has("Content-Type")) {
++    headers.set("Content-Type", "application/json");
++  }
++
++  // F-11: include cookie credentials when no bearer token is provided so
++  // the backend's cookie session can authenticate the request. The backend
++  // accepts both bearer + cookie; this is a fallback for the (auth) flow.
++  const credentials: RequestCredentials = accessToken
++    ? init.credentials ?? "omit"
++    : init.credentials ?? "same-origin";
++
++  const res = await fetch(path, {
++    ...init,
++    headers,
++    credentials,
++  });
++
++  if (!res.ok) {
++    const payload = (await parseJsonSafe(res)) as unknown;
++    if (isApiErrorPayload(payload)) {
++      throw new ApiError(res.status, payload);
++    }
++    // F-18: synthesize a typed error from a non-JSON body.
++    const fallbackMessage =
++      typeof payload === "object" &&
++      payload !== null &&
++      "__non_json__" in payload
++        ? `서버 응답을 해석할 수 없습니다 (HTTP ${res.status})`
++        : `요청 실패 (HTTP ${res.status})`;
++    throw new ApiError(res.status, {
++      code: "UNPARSEABLE_RESPONSE",
++      message_ko: fallbackMessage,
++      details: { raw: String(payload) },
++      trace_id: res.headers.get("X-Trace-Id") ?? "",
++    });
++  }
++
++  // F-18: success path also handles non-JSON gracefully.
++  const dataRaw = (await parseJsonSafe(res)) as unknown;
++  if (dataRaw === null) {
++    throw new ApiError(res.status, {
++      code: "EMPTY_RESPONSE",
++      message_ko: "서버 응답이 비어 있습니다",
++      details: {},
++      trace_id: res.headers.get("X-Trace-Id") ?? "",
++    });
++  }
++  return { data: dataRaw as T, headers: res.headers };
++}
++
++export async function getTenantSettings(
++  accessToken?: string,
++): Promise<TenantSettingsResponse> {
++  const { data } = await request<TenantSettingsResponse>(
++    "/api/v1/tenant-settings",
++    { method: "GET" },
++    accessToken,
++  );
++  return data;
++}
++
++export async function updateIndustry(
++  opts: IndustryUpdateOptions,
++  accessToken?: string,
++): Promise<IndustryUpdateResponse> {
++  const { data, headers } = await request<IndustryUpdateResponse>(
++    "/api/v1/tenant-settings/onboarding/industry",
++    {
++      method: "POST",
++      body: JSON.stringify({ industry: opts.industry }),
++    },
++    accessToken,
++  );
++  const warning = headers.get("X-Onboarding-Warning");
++  if (warning && opts.onWarningHeader) {
++    opts.onWarningHeader(warning);
++  }
++  return data;
++}
++
++// ── Story 1.2 — Settings Wizard types + endpoints ────────────
++export type OnboardingField =
++  | "fiscal_year_start"
++  | "currency"
++  | "language"
++  | "allocation_criteria";
++
++export type AllocationCriterion =
++  | "direct_indirect"
++  | "fixed_variable"
++  | "drivers";
++
++export interface OnboardingFieldSavedResponse {
++  field: OnboardingField;
++  value: unknown;
++  settings_version: number;
++  is_complete: boolean;
++  missing: string[];
++  trace_id: string;
++}
++
++export interface CompletionStatus {
++  fiscal_year_start_completed: boolean;
++  currency_completed: boolean;
++  language_completed: boolean;
++  allocation_criteria_completed: boolean;
++  direct_indirect_count: number;
++  fixed_variable_count: number;
++  drivers_count: number;
++  drivers_required: boolean;
++  is_complete: boolean;
++  missing: string[];
++  trace_id: string;
++}
++
++export async function saveFiscalYearStart(
++  fiscalYearStart: string,
++  accessToken?: string,
++): Promise<OnboardingFieldSavedResponse> {
++  const { data } = await request<OnboardingFieldSavedResponse>(
++    "/api/v1/tenant-settings/onboarding/fiscal-year-start",
++    {
++      method: "POST",
++      body: JSON.stringify({ fiscal_year_start: fiscalYearStart }),
++    },
++    accessToken,
++  );
++  return data;
++}
++
++export async function saveCurrency(
++  currency: "KRW" | "USD",
++  accessToken?: string,
++): Promise<OnboardingFieldSavedResponse> {
++  const { data } = await request<OnboardingFieldSavedResponse>(
++    "/api/v1/tenant-settings/onboarding/currency",
++    {
++      method: "POST",
++      body: JSON.stringify({ currency }),
++    },
++    accessToken,
++  );
++  return data;
++}
++
++export async function saveLanguage(
++  language: "ko-KR",
++  accessToken?: string,
++): Promise<OnboardingFieldSavedResponse> {
++  const { data } = await request<OnboardingFieldSavedResponse>(
++    "/api/v1/tenant-settings/onboarding/language",
++    {
++      method: "POST",
++      body: JSON.stringify({ language }),
++    },
++    accessToken,
++  );
++  return data;
++}
++
++export async function saveAllocationCriterion(
++  criterion: AllocationCriterion,
++  count: number,
++  accessToken?: string,
++): Promise<OnboardingFieldSavedResponse> {
++  const { data } = await request<OnboardingFieldSavedResponse>(
++    "/api/v1/tenant-settings/onboarding/allocation-criteria",
++    {
++      method: "POST",
++      body: JSON.stringify({ criterion, count }),
++    },
++    accessToken,
++  );
++  return data;
++}
++
++export async function fetchCompletionStatus(
++  accessToken?: string,
++): Promise<CompletionStatus> {
++  const { data } = await request<CompletionStatus>(
++    "/api/v1/tenant-settings/completion",
++    { method: "GET" },
++    accessToken,
++  );
++  return data;
++}
+\ No newline at end of file

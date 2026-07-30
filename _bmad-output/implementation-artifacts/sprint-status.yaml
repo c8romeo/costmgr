@@ -1,0 +1,183 @@
+# generated: 2026-07-25
+# last_updated: 2026-07-25
+# updated_note: 0-1~0-4 + 1-1 stories created → ready-for-dev; epic-0, epic-1 → in-progress
+# project: costmgr (bizup)
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+# decisions_2026-07-25: stack-pin=[STACK BUMP]-accept; docker=ci-only; supabase=defer-to-pilot; story-0.1=review-now
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; sprint-status surfaces open ones
+#
+# PROJECT NOTES (bizup / costmgr):
+# ================================
+# - 13 Epic · 43 Story · 30 FR · 25 AD · 20 NFR · 10 Non-Goal
+# - PRD v2.0 final (Excellent 19/20) · Architecture spine final (25 ADs) · IR ✅ READY
+# - MVP critical path: Epic 0→1→2→3→4→5→6→11 (월 마감 E2E)
+# - Supplementary parallel: Epic 7 (sim) · 8 (budget) · 9 (ABC) · 10 (AI) · 12 (account)
+# - All stories start at 'backlog' (no story files exist yet in stories/ folder)
+# - Suggested Sprint 0 = Epic 0+1+2 (10 stories, ~3-4 weeks) for first milestone (사용자 입력 가능 상태)
+
+generated: 2026-07-25
+last_updated: 2026-07-29
+project: costmgr
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+last_updated_note: 2026-07-29 — Story 1.1 → in-progress (post code-review patches). Code review surfaced 36 actionable findings (14 high · 13 medium · 9 low); 34 patches applied in batch on 2026-07-29. 3 decision-needed (F-39/F-40/F-41) resolved to option 1. 5 defer items routed to Story 0.5 (F-30/F-31/F-32/F-33/F-37 + F-42). Deferred-work.md appended. Re-review deferred until Story 0.5 fixtures wire so DB-backed tests can flip from xfail → pass.
+2026-07-29 follow-on: Story 1.2 (settings wizard + calculation block) → in-progress. bmad-dev-story kicked off; baseline_commit = bd58c18.
+2026-07-30 session halt: Story 1.2 — T1/T2/T3/T4 백엔드 코어 + 32/32 도메인/검증 테스트 완료. T5/T6/T7-frontend/T8/T9 미작성. status in-progress 유지 (review 승격 보류). 다음 세션에서 이어서.
+
+development_status:
+  # ==========================================
+  # Epic 0: Platform Foundation & Multi-Tenancy
+  # ==========================================
+  epic-0: in-progress
+  0-1-modular-monolith-hexagonal-core-skeleton: done
+  0-2-supabase-multi-tenancy-schema-rls-policies: done
+  0-3-stack-pin-lockfile-build-pipeline: done
+  0-4-cross-language-conventions-monetary-types-foundation: review
+  epic-0-retrospective: optional
+
+  # ==========================================
+  # Epic 1: User Onboarding & Settings
+  # ==========================================
+  epic-1: in-progress
+  1-1-industry-selector-menu-auto-toggle: in-progress
+  1-2-settings-wizard-calculation-block: in-progress
+  1-3-ai-document-extraction-confidence-badge: ready-for-dev
+  epic-1-retrospective: optional
+
+  # ==========================================
+  # Epic 2: Master Data & BOM
+  # ==========================================
+  epic-2: backlog
+  2-1-product-item-master-type-tags: backlog
+  2-2-bom-matrix-100-validation: backlog
+  2-3-item-type-change-integrity-guard: backlog
+  epic-2-retrospective: optional
+
+  # ==========================================
+  # Epic 3: Monthly Input Capture
+  # ==========================================
+  epic-3: backlog
+  3-1-six-stream-monthly-input-ui-month-total-default: backlog
+  3-2-fte-conversion-daily-labor: backlog
+  3-3-negative-inventory-overcapacity-real-time-warning: backlog
+  epic-3-retrospective: optional
+
+  # ==========================================
+  # Epic 4: Cost Calculation & Verification
+  # ==========================================
+  epic-4: backlog
+  4-1-pure-cost-engine-no-i-o-no-clock: backlog
+  4-2-single-calculation-endpoint-repeatable-read-transaction: backlog
+  4-3-verification-v1-v4-v7-v8-order: backlog
+  4-4-v8-regression-ci-gate: backlog
+  epic-4-retrospective: optional
+
+  # ==========================================
+  # Epic 5: Inventory & Stock Control
+  # ==========================================
+  epic-5: backlog
+  5-1-opening-inventory-auto-carry-chain: backlog
+  5-2-inventory-ledger-append-only-events: backlog
+  5-3-negative-closing-inventory-guard: backlog
+  epic-5-retrospective: optional
+
+  # ==========================================
+  # Epic 6: Reporting & Export
+  # ==========================================
+  epic-6: backlog
+  6-1-21-report-library-view-toggle: backlog
+  6-2-krw-usd-dual-display-rate-source: backlog
+  6-3-pdf-a4-export-print-optimization: backlog
+  epic-6-retrospective: optional
+
+  # ==========================================
+  # Epic 7: CVP/BEP Simulation
+  # ==========================================
+  epic-7: backlog
+  7-1-bep-slider-1-second-recompute: backlog
+  7-2-next-month-projection-4-required-parameters: backlog
+  epic-7-retrospective: optional
+
+  # ==========================================
+  # Epic 8: Budget vs Actual
+  # ==========================================
+  epic-8: backlog
+  8-1-virtual-budget-period-key-scenario-lock-one: backlog
+  8-2-budget-vs-actual-variance-table-abcd-gray-badge: backlog
+  8-3-budget-pre-standard-cost-preview: backlog
+  epic-8-retrospective: optional
+
+  # ==========================================
+  # Epic 9: ABC / TDABC Engine (Service Business)
+  # ==========================================
+  epic-9: backlog
+  9-1-cost-pool-activity-driver-100-validation: backlog
+  9-2-abc-allocation-engine-single-ccr-1-won-precision: backlog
+  9-3-abc-calculation-routed-via-m3-endpoint: backlog
+  9-4-abc-report-21-cost-object-breakdown: backlog
+  epic-9-retrospective: optional
+
+  # ==========================================
+  # Epic 10: AI Assistance
+  # ==========================================
+  epic-10: backlog
+  10-1-ai-document-extraction-input-drafts: backlog
+  10-2-three-insight-cache-policy: backlog
+  10-3-ai-reference-vs-auto-analysis-badge-separation: backlog
+  10-4-ai-promotion-port-idempotency: backlog
+  epic-10-retrospective: optional
+
+  # ==========================================
+  # Epic 11: Monthly Close & Audit
+  # ==========================================
+  epic-11: backlog
+  11-1-close-sequence-lock-divisions-manufacturing-abc-common: backlog
+  11-2-snapshot-persistence-close: backlog
+  11-3-reversal-sequence-sign-negating-corrected: backlog
+  epic-11-retrospective: optional
+
+  # ==========================================
+  # Epic 12: Account & Security Operations
+  # ==========================================
+  epic-12: backlog
+  12-1-2fa-mandatory-gate-m2-entry: backlog
+  12-2-daily-auto-backup-json-self-download: backlog
+  12-3-account-deletion-retention-consent: backlog
+  epic-12-retrospective: optional

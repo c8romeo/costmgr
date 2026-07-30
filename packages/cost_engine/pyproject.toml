@@ -1,0 +1,21 @@
+[project]
+name = "costmgr-cost-engine"
+version = "0.1.0"
+description = "bizup cost engine — pure Python hexagonal core (AD-1, AD-5)"
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+
+# CRITICAL: This package may ONLY depend on Python stdlib (+ optional numpy for math).
+# No DB drivers, no web frameworks, no clock, no random. Enforced by import-linter.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "ruff==0.7.0"]
+engine-math = ["numpy==2.0"]  # spec Task 4.1: "gated by `[engine-math]` extra"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core", "ports", "adapters"]

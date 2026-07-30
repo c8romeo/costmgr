@@ -1,0 +1,51 @@
+# Supabase local config — Story 0.2
+# `supabase start` uses this to boot the local stack on localhost:54322.
+# Per AD-9: region pinned to ap-northeast-2 (Seoul). Local stack ignores
+# region; this is informational for documentation.
+
+project_id = "costmgr-local"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = false          # tenant invite-only (Story 1.1)
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.hook.custom_access_token]
+# Wired in Epic 1 Story 1.3 — injects tenant_id into app_metadata at JWT mint.
+enabled = false
+uri = "pg-functions://postgres/public/custom_access_token_hook"

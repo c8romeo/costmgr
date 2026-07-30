@@ -1,0 +1,385 @@
+diff --git a/docs/README.md b/docs/README.md
+new file mode 100644
+--- /dev/null
++++ b/docs/README.md
+@@ -0,0 +1,30 @@
++# costmgr Documentation Index
++
++이 폴더는 프로젝트의 canonical 문서를 보관한다.
++
++## Conventions (필수)
++
++- [`conventions.md`](./conventions.md) — **모든 언어의 명명·시간·통화·ID·에러·포맷 규칙**
++  - 새 코드를 작성하기 전에 반드시 읽는다.
++  - 이 문서에 명시되지 않은 컨벤션은 사용하지 않는다.
++  - 변경은 PR 리뷰 + 최소 1명 승인을 요구한다.
++
++## Architecture Decisions
++
++- [`STACK_PIN.md`](./STACK_PIN.md) — AD-14 스택 핀 정책 + 현재 핀 표 (single source of truth)
++- [`STACK_PIN.yaml`](./STACK_PIN.yaml) — 자동 검증용 YAML 미러
++- [`architecture-decisions/AD-15-tenant-id-variance.md`](./architecture-decisions/AD-15-tenant-id-variance.md) — `tenant_id`는 UUID v4 (Supabase Auth 호환)
++- [`architecture-decisions/AD-8-money-types-decision.md`](./architecture-decisions/AD-8-money-types-decision.md) — `Decimal` (Python) + `decimal.js` (TS) 결정 근거
++
++## Lint 강제
++
++컨벤션은 자동으로 강제된다:
++
++- Python: `uv run ruff check` + `uv run python scripts/check_money_types.py`
++- TypeScript: `pnpm lint:conventions` (apps/web)
++- 통합: `make lint-conventions` (Story 0.4)
++- CI: `.github/workflows/ci.yml` `lint-conventions` 잡
++
++## CI / Dev
++
++- [`DEPENDABOT.md`](./DEPENDABOT.md) — Dependabot 설정 (Story 0.3)
++- [`../.github/CODEOWNERS`](../.github/CODEOWNERS) — 리뷰 책임자 매트릭스
+
+diff --git a/docs/conventions.md b/docs/conventions.md
+new file mode 100644
+--- /dev/null
++++ b/docs/conventions.md
+@@ -0,0 +1,206 @@
++# costmgr Conventions — Canonical Rules
++
++> 모든 언어·모든 레이어에서 따라야 할 단일 규칙 표. PR 머지 전 `make lint-conventions`가 통과해야 한다.
++>
++> 출처: ARCHITECTURE-SPINE §AD-1 (Modular Monolith), §AD-8 (Monetary Types), §AD-15 (Cross-language Conventions), §AD-24 (Period Keys), §AD-2 (Append-only Ledger).
++>
++> 위반 시 CI 단계가 명확한 메시지로 실패한다:
++> `CONVENTION_VIOLATION: <file>:<line> uses <violation> which violates AD-<N>. Use <expected> instead.`
++
++---
++
++## §1 Naming
++
++| 위치 | 규칙 | 예시 | 비고 |
++|---|---|---|---|
++| SQL (테이블·컬럼·인덱스) | `snake_case` | `tenant_settings`, `audit_logs` | Alembic 마이그레이션 포함 |
++| Python (모듈·함수·변수) | `snake_case` | `format_krw`, `tenant_id` | Pydantic 모델 필드도 snake_case |
++| Python (클래스·Pydantic 모델·타입 별칭) | `PascalCase` | `class AuditLog(BaseModel)` | NewType도 PascalCase |
++| Next.js 라우트 (URL) | `kebab-case` | `/api/v1/cost-reports` | `app/<route>/page.tsx` |
++| React/TS 컴포넌트 타입 (interface/type) | `PascalCase` | `interface MoneyFormatter` | ESLint `naming-convention`이 강제 |
++| TS 변수·함수 | `camelCase` | `formatKRW`, `tenantId` | `formatKRW`처럼 약어는 모두 대문자 |
++| TS boolean 변수 | `is/has/can/should` 접두 | `isLoading`, `hasPermission` | |
++
++### 위반 예시
++
++```python
++# ❌ AD-15 violation: camelCase 컬럼
++op.add_column("users", sa.Column("firstName", sa.Text))
++
++# ✅ AD-15 compliant: snake_case
++op.add_column("users", sa.Column("first_name", sa.Text))
++```
++
++```typescript
++// ❌ AD-15 violation: snake_case 인터페이스
++interface money_formatter { format(krw: KRW): string }
++
++// ✅ AD-15 compliant: PascalCase 인터페이스
++interface MoneyFormatter { format(krw: KRW): string }
++```
++
++---
++
++## §2 Time
++
++| 위치 | 규칙 | 비고 |
++|---|---|---|
++| DB (TIMESTAMPTZ) | UTC, ISO-8601 | `TIMESTAMPTZ NOT NULL DEFAULT now()` |
++| Python (datetime) | `datetime` aware, UTC | `datetime.now(UTC)` 사용 |
++| TS 표시 | KST, `next-intl` `ko-KR` | UI에 표시될 때만 KST 변환 |
++| API 응답 | ISO-8601 UTC 문자열 | `"2026-07-25T14:32:11.523Z"` |
++| 마이크로초 정밀도 | 옵션, 필요 시 `TIMESTAMPTZ(6)` | audit 로그 등 |
++
++### 위반 예시
++
++```typescript
++// ❌ AD-15 violation: time/datetime import
++import time from "time";
++import { Datetime } from "datetime";
++
++// ✅ AD-15 compliant: ISO-8601 string or Temporal
++const now = new Date().toISOString();
++```
++
++---
++
++## §3 Identity
++
++| 엔티티 | 규칙 | 비고 |
++|---|---|---|
++| 비즈니스 엔티티 (products, BOM rows, …) | UUID v7 | 시간 정렬 가능, 분산 환경 친화 |
++| `tenant_id` | **UUID v4** | **AD-15 variance** — Supabase Auth 호환 (자세한 결정은 [`AD-15-tenant-id-variance.md`](./architecture-decisions/AD-15-tenant-id-variance.md)) |
++| `user_id` | UUID v4 | Supabase Auth `auth.users.id` |
++| 마이그레이션 revision | `NNNN_descriptive_slug` | `0001_tenants_users_memberships_settings` |
++
++### ID 생성
++
++- Python: `uuid.uuid7()` (Python 3.12+) 또는 `uuid.uuid4()` for `tenant_id`/`user_id`
++- DB: `gen_random_uuid()` (pgcrypto) — 현재 일관되게 v4. v7 도입 시 마이그레이션 추가
++- TS: `crypto.randomUUID()` (브라우저/Node 19+)
++
++---
++
++## §4 Errors
++
++모든 에러 응답은 다음 구조를 따른다 (AD-2 audit, AD-15):
++
++```python
++from pydantic import BaseModel
++
++class ErrorResponse(BaseModel):
++    code: str              # 안정된 머신 코드: "TENANT_NOT_FOUND", "RLS_DENIED"
++    message_ko: str        # 한국어 사용자 메시지 (UX locked: ko-KR)
++    details: dict          # 추가 컨텍스트 (선택)
++    trace_id: str          # OpenTelemetry / structlog 추적 ID
++```
++
++| 규칙 | 설명 |
++|---|---|
++| `code` | 대문자 스네이크, 변경 시 deprecation |
++| `message_ko` | 사용자에게 그대로 노출 — UX 팀이 승인한 한국어만 |
++| `trace_id` | structlog 컨텍스트의 `trace_id`와 동일 |
++| `details` | PII 금지 (tenant_id, user_id 정도만 허용) |
++
++### 로그
++
++- Python: `structlog` JSON 출력 (KR: `code`, `message_ko`, `trace_id`)
++- TS: `pino` JSON 출력 (client-side은 `pino/browser`)
++
++---
++
++## §5 Money (AD-8 — 매우 엄격)
++
++### 저장
++
++| 통화 | DB 타입 | 예시 |
++|---|---|---|
++| KRW | `BIGINT` (1원 정밀도) | `unit_cost_krw BIGINT NOT NULL` |
++| USD | `NUMERIC(18,2)` | `unit_cost_usd NUMERIC(18,2) NOT NULL` |
++
++### 코드
++
++| 언어 | KRW | USD |
++|---|---|---|
++| Python | `int` (`NewType("KRW", int)`) | `Decimal` (`NewType("USD", Decimal)`) |
++| TypeScript | `bigint` (`type KRW = bigint`) | `string` (decimal.js serialized) |
++
++**절대 금지:**
++- Python: `float` (cost path에서) — `Decimal` 또는 `int`만
++- TS: `number` (display code에서) — `bigint` 또는 `string`만
++- 마이그레이션: `sa.Float` (money 컬럼) — `BigInteger` 또는 `Numeric(18,2)`
++
++### 변환
++
++```python
++from apps.api.core.money import KRW, USD, to_krw, to_usd
++
++krw: KRW = to_krw(1_500_000)         # KRW(1500000)
++usd: USD = to_usd(Decimal("1234.5"))  # USD('1234.50')
++```
++
++```typescript
++import { type KRW, type USD, toKRW, toUSD, formatKRW } from "@/lib/money";
++
++const krw: KRW = toKRW(1_500_000);          // 1500000n
++const usd: USD = toUSD("1234.5");            // "1234.50"
++formatKRW(krw);                              // "1,500,000원"
++```
++
++자세한 결정 근거는 [`AD-8-money-types-decision.md`](./architecture-decisions/AD-8-money-types-decision.md).
++
++---
++
++## §6 Period Keys (AD-24)
++
++| 종류 | 형식 | 예시 |
++|---|---|---|
++| Real (실측 월) | `YYYY-MM` | `2026-07` |
++| Virtual (예산 시뮬레이션) | `YYYY-MM#B<n>` | `2026-07#B1`, `2026-07#B2` |
++
++- `#B<n>`은 같은 real 월 안에서 여러 가상 예산을 구분할 때 사용 (Story 8.1).
++- 비교 시 `period_key` 전체를 문자열로 비교.
++
++---
++
++## §7 Money Formatting (Display only)
++
++| 헬퍼 | 입력 | 출력 |
++|---|---|---|
++| `format_krw(KRW(1_000_000))` | Python `int` | `"1,000,000원"` |
++| `format_usd(USD("1000.5"))` | Python `Decimal` | `"$1,000.50"` |
++| `formatKRW(1_000_000n)` | TS `bigint` | `"1,000,000원"` |
++| `formatUSD("1000.5")` | TS `string` | `"$1,000.50"` |
++
++**규칙:**
++- display 로직에서는 `Intl.NumberFormat` 인라인 사용 금지 — `formatKRW`/`formatUSD`를 통해서만 (locale 변경 시 단일 진입점).
++- TS는 `BigInt` 산술을 사용 (Number 오버플로 방지).
++
++---
++
++## §8 Forbidden Patterns (요약)
++
++| 패턴 | 금지 이유 |
++|---|---|
++| `float` (Python cost path) | IEEE 754 정밀도 손실 |
++| `number` (TS money) | `2^53 - 1` 오버플로, 반올림 손실 |
++| `import time` / `from datetime import datetime as Datetime` (TS) | AD-15 시간 규칙 위반 |
++| `camelCase` SQL 컬럼 | AD-15 명명 위반 |
++| `sa.Float` (money column) | AD-8 위반 — `BigInteger`/`Numeric` 사용 |
++| `Intl.NumberFormat` 인라인 (display) | §7 위반 — `formatKRW`/`formatUSD` 사용 |
++| Pydantic in `packages/cost_engine/core/` | AD-1 위반 — 순수 Python stdlib only |
++| `import-linter` 회피 (예: `cost_engine`이 `apps.api` import) | AD-11 위반 |
++
++---
++
++## §9 Enforcement
++
++| 검사 | 위치 | 실행 |
++|---|---|---|
++| Python 명명/import/style | `ruff` (root `pyproject.toml`) | `uv run ruff check` |
++| Python `float` money (engine) | `scripts/check_money_types.py` | `make lint-conventions` |
++| 마이그레이션 `camelCase` | `scripts/check_migration_naming.py` | `make lint-conventions` |
++| 마이그레이션 `Float` (money) | `scripts/check_migration_money.py` | `make lint-conventions` |
++| TS 명명/restricted types | ESLint (root `.eslintrc.cjs`) | `pnpm lint:conventions` |
++| TS `number` (money) | ESLint `no-restricted-types` (apps/web override) | `pnpm lint:conventions` |
++
++**PR 머지 차단:** `lint-conventions` 잡 실패 → merge 차단 (Story 0.4 §8).
+
+diff --git a/docs/architecture-decisions/AD-15-tenant-id-variance.md b/docs/architecture-decisions/AD-15-tenant-id-variance.md
+new file mode 100644
+--- /dev/null
++++ b/docs/architecture-decisions/AD-15-tenant-id-variance.md
+@@ -0,0 +1,41 @@
++# AD-15 Variance — `tenant_id`는 UUID v4 (Supabase Auth 호환)
++
++> **상태:** Accepted (2026-07-28, Story 0.4 §1 §3)
++> **관련 AD:** AD-15 (Cross-language Conventions), AD-3 (Multi-tenancy)
++> **참조:** [conventions.md §3 Identity](../conventions.md#3-identity)
++
++## Context
++
++ARCHITECTURE-SPINE §AD-15는 "비즈니스 엔티티 ID는 UUID v7"로 명시한다. 시간 정렬 가능, 분산 ID 생성에 강하다.
++
++그러나 `tenant_id`는 **Supabase Auth**의 `auth.users.id`를 직접 참조해야 한다. Supabase Auth는:
++- v4 UUID만 발급한다 (`gen_random_uuid()` = `uuid_generate_v4`).
++- Auth 사용자가 생성될 때 `auth.uid()` (UUID v4)를 반환한다.
++- v7을 발급하는 옵션이 **없다** (2026-07 기준).
++
++## Decision
++
++`tenant_id`는 **UUID v4**로 고정한다.
++
++| 엔티티 | ID 종류 | 근거 |
++|---|---|---|
++| `tenant_id` (모든 테이블 FK) | UUID v4 | Supabase Auth 호환 (필수) |
++| `user_id` | UUID v4 | `auth.users.id` 직접 참조 |
++| 비즈니스 엔티티 (products, BOM rows, …) | UUID v7 (또는 v4) | AD-15 기본 |
++| Audit log (`audit_logs.id`) | UUID v4 | FK-less, 무관 |
++
++## Consequences
++
++**Positive:**
++- Supabase Auth 통합이 깨지지 않는다 (RLS 정책이 `auth.uid()`로 직접 매칭).
++- Story 0.2의 모든 RLS 정책이 추가 변환 없이 작동한다.
++
++**Negative / Trade-offs:**
++- `tenant_id`는 시간 정렬 불가 — 인덱스만으로 최신 tenant 정렬 불가.
++- 마이그레이션 시 `tenant_id`는 항상 `gen_random_uuid()` (v4). v7 도입 시 DB 마이그레이션 필요.
++
++**Mitigations:**
++- 검색 패턴은 대부분 `tenant_id = :current` (equality). 정렬은 `created_at` 기준이므로 v4여도 무관.
++
++## Notes
++
++이 variance는 `conventions.md §3 Identity` 표에도 명시되어 있다. 새 코드를 작성할 때 `tenant_id` 자리에 v7을 쓰면 lint가 잡지는 못하지만, RLS가 동작하지 않으므로 CI 테스트가 잡는다 (`tests/rls`).
+
+diff --git a/docs/architecture-decisions/AD-8-money-types-decision.md b/docs/architecture-decisions/AD-8-money-types-decision.md
+new file mode 100644
+--- /dev/null
++++ b/docs/architecture-decisions/AD-8-money-types-decision.md
+@@ -0,0 +1,80 @@
++# AD-8 Money Types — Decimal (Python) + decimal.js (TS)
++
++> **상태:** Accepted (2026-07-28, Story 0.4 §1 §5)
++> **관련 AD:** AD-8 (Monetary Types), AD-1 (Modular Monolith), AD-2 (Append-only Ledger)
++> **참조:** [conventions.md §5 Money](../conventions.md#5-money-ad-8--매우-엄격)
++
++## Context
++
++원가/예산/매출은 절대 정밀도를 가져야 한다. `float` (IEEE 754)은:
++- `0.1 + 0.2 ≠ 0.3` 같은 비교 실패
++- `1_000_000_000 + 0.01`에서 소수부 손실
++- 합계·환산 누적 시 "왜 1원이 모자르지?" 디버깅 불가
++
++KRW는 정수 통화(1원 단위)이므로 `int`로 충분하다. USD는 센트 단위(2자리)이므로 `Decimal`/`Numeric`이 필수.
++
++## Decision
++
++| 통화 | DB | Python | TypeScript |
++|---|---|---|---|
++| KRW | `BIGINT` (1원 단위 정수) | `int` (`NewType("KRW", int)`) | `bigint` (`type KRW = bigint`) |
++| USD | `NUMERIC(18,2)` | `Decimal` (`NewType("USD", Decimal)`) | `string` (decimal.js serialized) |
++
++### 라이브러리 선택
++
++| 언어 | 라이브러리 | 근거 |
++|---|---|---|
++| Python | **`decimal.Decimal` (stdlib)** | Python 3.12+ 표준, 의존성 0, Psycopg가 asyncpg를 통해 자동으로 `Numeric` ↔ `Decimal` 매핑. `Decimal`의 `quantize(Decimal("0.01"))`로 USD 반올림 결정성 보장. |
++| TypeScript | **`decimal.js` (10.x)** | 브라우저+Node 호환, `toFixed(2)`로 결정성 있는 직렬화, IEEE 754 회피. 대안 `big.js`는 1.0/2.0 정수만 정밀 (소수 3자리부터 손실). `bignumber.js`는 너무 무거움. |
++
++### 왜 `float` 금지인가
++
++```python
++>>> 0.1 + 0.2
++0.30000000000000004
++
++>>> Decimal("0.1") + Decimal("0.2")
++Decimal('0.3')
++
++>>> sum([0.01] * 100)
++9.999999999999831
++
++>>> sum([Decimal("0.01")] * 100)
++Decimal('1.00')
++```
++
++원가 계산은 같은 금액을 수천 번 합산한다 (Epic 4 §4.1 pure cost engine). `float` 누적 오차는 **반복 계산의 deterministic regression fixture** (Story 4.4 §v8)를 깨뜨린다.
++
++### 왜 TS는 `bigint` + `string`인가
++
++- `number`는 IEEE 754 double — 2^53 - 1 ≈ 9,007,199,254,740,991까지 정확.
++  - KRW 1조 = 10^12. 9000조까지 안전하지만, 더 큰 금액이나 환율 변환에서 위험.
++  - 환율 변환 × 합산 = `Number.MAX_SAFE_INTEGER` 초과 쉬움.
++- `bigint`는 정수 정밀, 임의 크기.
++- USD는 2자리 소수 — TS native에 없음. `decimal.js`의 `toFixed(2)`가 결정성 있는 문자열 직렬화.
++
++## Consequences
++
++**Positive:**
++- 결정성 있는 계산 → `v8_regression` (Story 4.4) 안정.
++- DB ↔ Python ↔ TS 간 직렬화 손실 없음.
++- Display용 locale formatter를 단일 진입점 (`format_krw`/`formatKRW`)으로 관리 가능.
++
++**Negative / Trade-offs:**
++- TS `bigint`은 `JSON.stringify`가 그대로 직렬화 불가 → API 응답 시 `string` 변환 필요 (`toKRWString(krw)`).
++- `decimal.js`는 `~30KB` gzipped — 프론트엔드 번들 사이즈 약간 증가 (허용 범위).
++
++**Mitigations:**
++- API 응답은 ISO-8601 + KRW/USD 문자열로 통일. 클라이언트는 `BigInt(krwString)`로 받으면 됨.
++
++## Alternatives Considered
++
++| 후보 | 기각 이유 |
++|---|---|
++| Python `numpy.float64` | numpy는 cost_engine 의존 아님 + float 위험 재현 |
++| TS `bignumber.js` | `decimal.js` 대비 무거움 + API 유사 |
++| TS `number` (KST 정수만) | 환율 변환 시 오버플로 + USD 정밀도 0 |
++| DB `NUMERIC` for KRW | `BIGINT` 대비 16바이트 → row size 증가, 정수 연산 느림 |
++
++## Notes
++
++`packages/cost_engine/core/money.py`는 **순수 Python stdlib only** (AD-1 hexagonal core purity). Pydantic/FastAPI 의존 없음. `apps/api/core/money.py`는 동일 타입을 re-export + FastAPI 의존성 가능.
+

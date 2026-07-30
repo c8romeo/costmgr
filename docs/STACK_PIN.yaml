@@ -1,0 +1,194 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docs/STACK_PIN.yaml — Canonical stack pin (single source of truth)
+# ─────────────────────────────────────────────────────────────────────────────
+# DO NOT EDIT BY HAND FOR ROUTINE BUMPS — use `scripts/bump_stack_pin.sh`
+#
+# This file is the machine-readable single source of truth for the cold-start
+# stack pin (AD-14). Both `scripts/check_stack_pin.mjs` (Node) and
+# `scripts/check_stack_pin.py` (Python) read this file and compare it against
+# the actual files in the repo:
+#   - .nvmrc                       (node)
+#   - .python-version              (python)
+#   - package.json                 (pnpm, engines.node, packageManager)
+#   - pnpm-lock.yaml               (next, react, typescript, tailwind)
+#   - apps/api/pyproject.toml      (fastapi, pydantic, sqlalchemy, alembic, ...)
+#   - apps/web/package.json        (next, react, typescript)
+#   - packages/cost_engine/pyproject.toml (engine pins)
+#   - Dockerfile                   (base image digests)
+#
+# Bump policy: requires [STACK BUMP] commit tag + platform-team CODEOWNER
+# approval. CI guard fails any drift without the tag.
+# Regenerated from ARCHITECTURE-SPINE.md §Stack by scripts/regenerate_stack_pin.py.
+# ─────────────────────────────────────────────────────────────────────────────
+
+stack_pin:
+  # ── Runtime versions ──
+  node: "24.18.0"           # .nvmrc + engines.node in package.json
+  python: "3.12"            # .python-version + requires-python = ">=3.12,<3.13"
+  pnpm: "9.15.4"            # package.json packageManager
+  uv: "0.11.32"             # .github/workflows/ci.yml pip install uv==0.11.32
+
+  # ── Frontend (apps/web) ──
+  next: "15.5.4"            # exact pin (no caret)
+  react: "19.1.1"
+  react_dom: "19.1.1"
+  typescript: "5.9.3"
+  tailwind: "4.x"           # NOT YET INSTALLED — install during Story 1.1+
+
+  # ── Backend (apps/api) ──
+  fastapi: "0.139.2"
+  pydantic: "2.11.9"        # RANGE-1 (CR 2026-07-25) — last 2.11.x before PYD-1
+  pydantic_core: "2.27.2"   # last known-good wheel (CR 2026-07-25 PYD-1)
+  sqlalchemy: "2.0.36"
+  alembic: "1.18.5"
+  asyncpg: "0.30.0"
+  pyjwt: "2.10.1"
+  supabase: "2.10.0"
+  pydantic_settings: "2.6.1"
+  uvicorn: "0.32.0"
+  httpx: "0.27.0"
+
+  # ── Cost engine (packages/cost_engine) ──
+  pytest: "9.1.1"
+  ruff: "0.7.0"
+  numpy: "2.0"              # optional extra [engine-math]
+  hatchling: "1.27.0"       # HATCH-1 (CR 2026-07-25) — was "latest"
+
+  # ── Dev tooling (root dev-dependency group) ──
+  import_linter: "2.13"     # CR 2026-07-25 PIN-1
+  dependency_cruiser: "16.10.4"
+
+  # ── Infrastructure (Docker base images — digests locked DOCKER-1/5) ──
+  postgresql: "15"          # CI service image (postgres:15). Target: 17.
+  python_slim: "3.12-slim"  # Dockerfile stage 2/3
+  node_alpine: "24.18.0-alpine"  # Dockerfile stage 1
+  nginx_alpine: "1.27-alpine"    # Dockerfile stage 4 (frontend runtime)
+  # ── Docker image digests (captured 2026-07-28 via registry API) ──
+  python_slim_digest: "sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de"
+  node_alpine_digest: "sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd"
+  nginx_alpine_digest: "sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10"
+  uv_digest: "sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c"
+  postgresql_digest: "sha256:74e110c41804365e3915fcc09d5e7a1eff50161aaa94d5da0e58e0cd75ae509c"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# notes — Legacy informational context for HANDOFF L3 variance (preserved
+# for historical trace; actionable items live in `exceptions` below).
+# ─────────────────────────────────────────────────────────────────────────────
+notes:
+  next:
+    current: "15.5.4"
+    spec: "16.2.11"
+    reason: "App Router upgrade deferred — depends on TS 7.x compat check."
+  react:
+    current: "19.1.1"
+    spec: "19.2.8"
+    reason: "Paired with Next 15.x; bump together when Next advances."
+  typescript:
+    current: "5.9.3"
+    spec: "7.0.2"
+    reason: "Major jump; needs ESLint/Next type-check dry run first."
+  pydantic:
+    current: "2.11.9"
+    spec: "2.13.4"
+    reason: "Pydantic 2.13+ ships broken pydantic-core 2.46.4 wheel (PYD-1)."
+  sqlalchemy:
+    current: "2.0.36"
+    spec: "2.0.51"
+    reason: "Bump with pydantic migration to avoid cross-dep breakage."
+  postgresql:
+    current: "15"
+    spec: "17"
+    reason: "Supabase deployment target is pilot; bump at pilot kickoff."
+  tailwind:
+    current: "NOT INSTALLED"
+    spec: "4.3.3"
+    reason: "Story 1.1 introduces UI; install at that point."
+  structlog:
+    current: "NOT INSTALLED"
+    spec: "26.1.0"
+    reason: "Introduced in M1 (Structured Logging). Deferred to that story."
+  opentelemetry_api:
+    current: "NOT INSTALLED"
+    spec: "1.44.0"
+    reason: "Introduced in M1 (Observability). Deferred to that story."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# exceptions — SCHEMA-1 (CR 2026-07-25): tracked deviations from
+# ARCHITECTURE-SPINE.md §Stack with owner + deadline. CI does NOT fail on
+# these (they are authorized), but `pnpm dep:check` (NOTES-1) emits a
+# warning per item and a summary count, so drift is visible.
+#
+# Fields:
+#   spec:        architecture spine target value
+#   current:     current pinned value (matches `stack_pin.<key>` or
+#                "NOT INSTALLED" if absent)
+#   reason:      why the deviation exists
+#   owner:       GitHub handle responsible for resolution
+#   deadline:    ISO date — by when the deviation must be resolved or
+#                re-justified
+#   tracking:    story / spike / epic reference (when work is filed)
+# ─────────────────────────────────────────────────────────────────────────────
+exceptions:
+  next:
+    spec: "16.2.11"
+    current: "15.5.4"
+    reason: "App Router + TS 7.x compat dependency."
+    owner: "@platform-team"
+    deadline: "2026-09-30"
+    tracking: "epic-1 onboarding (Story 1.1+) — Story 1.1 unblocks install"
+  react:
+    spec: "19.2.8"
+    current: "19.1.1"
+    reason: "Paired with Next 15.x — bump together when Next advances."
+    owner: "@platform-team"
+    deadline: "2026-09-30"
+    tracking: "tracks `next` resolution"
+  typescript:
+    spec: "7.0.2"
+    current: "5.9.3"
+    reason: "Major jump — ESLint/Next type-check dry run required first."
+    owner: "@platform-team"
+    deadline: "2026-10-31"
+    tracking: "spike required before Sprint 2"
+  pydantic:
+    spec: "2.13.4"
+    current: "2.11.9"
+    reason: "Pydantic 2.13+ ships broken pydantic-core wheel (PYD-1)."
+    owner: "@platform-team"
+    deadline: "2026-12-31"
+    tracking: "upstream watch — re-test when 2.14+ releases"
+  sqlalchemy:
+    spec: "2.0.51"
+    current: "2.0.36"
+    reason: "Bump with pydantic migration to avoid cross-dep breakage."
+    owner: "@platform-team"
+    deadline: "2026-11-30"
+    tracking: "tracks pydantic migration"
+  postgresql:
+    spec: "17"
+    current: "15"
+    reason: "Supabase deployment target is pilot; bump at pilot kickoff."
+    owner: "@platform-team"
+    deadline: "2026-12-15"
+    tracking: "pilot kickoff (OQ-3)"
+  tailwind:
+    spec: "4.3.3"
+    current: "NOT INSTALLED"
+    reason: "Story 1.1 introduces UI — install at that point."
+    owner: "@platform-team"
+    deadline: "2026-09-15"
+    tracking: "Story 1.1 industry selector"
+  structlog:
+    spec: "26.1.0"
+    current: "NOT INSTALLED"
+    reason: "Introduced in M1 (Structured Logging)."
+    owner: "@platform-team"
+    deadline: "2026-10-15"
+    tracking: "Epic 0/Story 0.4 logging foundation"
+  opentelemetry_api:
+    spec: "1.44.0"
+    current: "NOT INSTALLED"
+    reason: "Introduced in M1 (Observability)."
+    owner: "@platform-team"
+    deadline: "2026-10-15"
+    tracking: "Epic 0/Story 0.4 observability foundation"

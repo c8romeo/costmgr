@@ -1,0 +1,49 @@
+# CODEOWNERS — Stack-pin file ownership (Story 0.3)
+#
+# Files that change the cold-start stack pin require platform-team review
+# (per AD-14, AD-1). Dependabot PRs touching these files get auto-labeled
+# `stack-pin` and require a CODEOWNER review before merge.
+#
+# Branch protection rule (recommended):
+#   - Require 1 approval from CODEOWNERS for PRs labeled `stack-pin`
+#   - Require status check `stack-pin-check` to pass
+
+# Default: platform-team owns everything unless overridden below.
+# (Replace @platform-team with the real GitHub team handle once the
+# organization is provisioned.)
+
+# Stack pin source of truth
+/docs/STACK_PIN.yaml @platform-team
+/docs/STACK_PIN.md @platform-team
+
+# Lockfiles + manifests
+/package.json @platform-team
+/pnpm-lock.yaml @platform-team
+/pnpm-workspace.yaml @platform-team
+/pyproject.toml @platform-team
+/uv.lock @platform-team
+
+# Per-app manifests
+/apps/web/package.json @platform-team
+/apps/api/pyproject.toml @platform-team
+/packages/cost_engine/pyproject.toml @platform-team
+/packages/services/pyproject.toml @platform-team
+/packages/ports/pyproject.toml @platform-team
+
+# Build pipeline
+/Dockerfile @platform-team
+/.dockerignore @platform-team
+
+# CI / Dependabot
+/.github/workflows/ci.yml @platform-team
+/.github/dependabot.yml @platform-team
+/.github/CODEOWNERS @platform-team
+
+# Pin check scripts
+/scripts/check_stack_pin.mjs @platform-team
+/scripts/check_stack_pin.py @platform-team
+/scripts/regenerate_stack_pin.py @platform-team
+/scripts/bump_stack_pin.sh @platform-team
+
+# Cost engine purity contracts
+/packages/cost_engine/tests/regression_v8/ @platform-team

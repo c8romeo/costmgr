@@ -1,0 +1,152 @@
+# Dependabot config — weekly gated updates for stack-pinned packages
+# (Story 0.3, AD-14 enforcement)
+#
+# Pinned packages live in docs/STACK_PIN.yaml. The CI guard
+# (`.github/workflows/ci.yml` `stack-pin-check` job) fails any PR that
+# bumps a pinned version WITHOUT the literal `[STACK BUMP]` commit tag.
+#
+# Schedule: weekly, business hours (Monday/Tuesday 09:00 KST = 00:00 UTC).
+# Day-of-week avoids weekend PRs (operator is solo — no weekend coverage).
+#
+# Labels: `stack-pin` triggers CODEOWNER review on stack-pinned files.
+
+version: 2
+
+# DEPEND-2 (CR 2026-07-25): cap concurrent PRs per ecosystem to keep the
+# platform-team review queue bounded.
+updates:
+  # ── npm (workspace root + apps/web) ────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    open-pull-requests-limit: 5
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "stack-pin"
+      - "dependencies"
+    groups:
+      pinned-dependencies:
+        # Match package names (not paths). Dependabot groups all updates to
+        # these into a single weekly PR, which is easier to review than N
+        # separate PRs.
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "@types/node"
+          - "typescript"
+          - "tailwindcss"
+          - "dependency-cruiser"
+      non-pinned-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "@types/node"
+          - "typescript"
+          - "tailwindcss"
+          - "dependency-cruiser"
+
+  # ── pip (uv workspace — apps/api + packages/*) ────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/"
+    open-pull-requests-limit: 5
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "stack-pin"
+      - "dependencies"
+    groups:
+      pinned-dependencies:
+        patterns:
+          - "fastapi"
+          - "pydantic"
+          - "pydantic-core"
+          - "pydantic-settings"
+          - "sqlalchemy"
+          - "alembic"
+          - "asyncpg"
+          - "pyjwt"
+          - "supabase"
+          - "structlog"
+          - "opentelemetry-api"
+          - "opentelemetry-sdk"
+          - "pytest"
+          - "numpy"
+          - "uvicorn"
+          - "httpx"
+          - "import-linter"
+          - "ruff"
+      non-pinned-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "fastapi"
+          - "pydantic"
+          - "pydantic-core"
+          - "pydantic-settings"
+          - "sqlalchemy"
+          - "alembic"
+          - "asyncpg"
+          - "pyjwt"
+          - "supabase"
+          - "structlog"
+          - "opentelemetry-api"
+          - "opentelemetry-sdk"
+          - "pytest"
+          - "numpy"
+          - "uvicorn"
+          - "httpx"
+          - "import-linter"
+          - "ruff"
+
+  # ── Docker (base image digest refresh) ────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/"
+    open-pull-requests-limit: 5
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "stack-pin"
+      - "docker"
+    # No groups — each base image is reviewed independently.
+
+  # DEPEND-1 (CR 2026-07-25): monitor GitHub Actions versions so the
+  # SHA-pinned actions in .github/workflows/ci.yml do not silently rot.
+  # Dependabot emits a single PR per week listing all available updates;
+  # platform-team rebases onto the next SHA and re-validates.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    open-pull-requests-limit: 5
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "stack-pin"
+      - "github-actions"
+    groups:
+      ci-actions:
+        patterns:
+          - "actions/checkout"
+          - "actions/setup-node"
+          - "actions/setup-python"
+          - "actions/cache"
+          - "actions/upload-artifact"
+          - "actions/github-script"

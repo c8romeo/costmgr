@@ -1,0 +1,2056 @@
+warning: in the working copy of '.dependency-cruiser.cjs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.github/workflows/ci.yml', LF will be replaced by CRLF the next time Git touches it
+diff --git a/.dependency-cruiser.cjs b/.dependency-cruiser.cjs
+new file mode 100644
+index 0000000..4a43414
+--- /dev/null
++++ b/.dependency-cruiser.cjs
+@@ -0,0 +1,91 @@
++/**
++ * dependency-cruiser config — enforce AD-1, AD-11 dependency direction.
++ *
++ * Direction: ui → api → services → ports → engine
++ *  - apps/web  (UI)  → may NOT import apps/api, packages/*
++ *  - apps/api  (TS)  → may import packages/ports types only
++ *  - packages/services → may import packages/ports, packages/cost_engine/ports
++ *  - packages/ports  → stdlib/typing only
++ *  - packages/cost_engine/core → no I/O, no DB/web/clock/random
++ */
++
++/** @type {import('dependency-cruiser').IConfiguration} */
++module.exports = {
++  forbidden: [
++    {
++      name: 'no-circular',
++      severity: 'error',
++      comment: 'No circular dependencies',
++      type: 'cycle',
++    },
++    {
++      name: 'no-orphans',
++      severity: 'warn',
++      comment: 'No orphaned files (unreferenced)',
++      type: 'unreachable',
++    },
++    {
++      name: 'no-deprecated-core',
++      severity: 'warn',
++      comment: 'No deprecated core packages',
++      from: { path: '^apps' },
++      to: { path: '^packages/cost_engine/core' },
++    },
++    {
++      name: 'ui-cannot-reach-server-or-engine',
++      severity: 'error',
++      comment: 'apps/web may not import apps/api or packages/* (AD-1)',
++      from: { path: '^apps/web' },
++      to: { path: '^(apps/api|packages/.*)' },
++    },
++    {
++      name: 'api-calls-only-ports',
++      severity: 'error',
++      comment: 'apps/api may only import packages/ports types, never packages/cost_engine/* internals (AD-1/AD-11)',
++      from: { path: '^apps/api' },
++      to: {
++        path: '^packages/cost_engine',
++        pathNot: '^packages/cost_engine/ports',
++      },
++    },
++    {
++      name: 'services-only-via-ports',
++      severity: 'error',
++      comment: 'packages/services may import only packages/ports and packages/cost_engine/ports (AD-11)',
++      from: { path: '^packages/services' },
++      to: {
++        path: '^packages/cost_engine',
++        pathNot: '^packages/cost_engine/ports',
++      },
++    },
++    {
++      name: 'engine-core-no-adapters',
++      severity: 'error',
++      comment: 'packages/cost_engine/core must not import packages/cost_engine/adapters (AD-1/AD-11)',
++      from: { path: '^packages/cost_engine/core' },
++      to: { path: '^packages/cost_engine/adapters' },
++    },
++    {
++      name: 'ports-stdlib-only',
++      severity: 'error',
++      comment: 'packages/ports may import only stdlib/typing (AD-11)',
++      from: { path: '^packages/ports' },
++      to: {
++        path: '^(?!(\.|node:)).+',
++        pathNot: '^@?[a-z0-9-]+$', // bare specifiers only — checked separately
++      },
++    },
++  ],
++  options: {
++    doNotFollow: { path: 'node_modules' },
++    tsConfig: { fileName: 'tsconfig.base.json' },
++    enhancedResolveOptions: {
++      exportsFields: ['exports'],
++      conditionNames: ['import', 'require', 'node', 'default'],
++    },
++    moduleSystems: ['amd', 'cjs', 'es6', 'tsd'],
++    reporterOptions: {
++      dot: { collapsePattern: 'node_modules/(@[^/]+/[^/]+|[^/]+)' },
++    },
++  },
++};
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+new file mode 100644
+index 0000000..347ac70
+--- /dev/null
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,85 @@
++name: ci
++
++on:
++  push:
++    branches: [main]
++  pull_request:
++    branches: [main]
++
++concurrency:
++  group: ${{ github.workflow }}-${{ github.ref }}
++  cancel-in-progress: true
++
++jobs:
++  # ─────────────────────────────────────────────────────────
++  # 1. setup (shared cache)
++  # ─────────────────────────────────────────────────────────
++  setup:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-node@v4
++        with:
++          warning: in the working copy of '.npmrc', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.nvmrc', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.python-version', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+node-version-file: ".nvmrc"
++      - uses: actions/setup-python@v5
++        with:
++          python-version-file: ".python-version"
++      - name: Install uv
++        run: pip install uv==0.11.32
++      - name: Cache uv
++        uses: actions/cache@v4
++        with:
++          path: ~/.cache/uv
++          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
++      - name: Cache pnpm
++        uses: actions/cache@v4
++        with:
++          path: ~/.local/share/pnpm/store
++          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
++      - name: Install JS deps
++        run: pnpm install --frozen-lockfile
++      - name: Install Python deps
++        run: uv sync --frozen
++
++  # ─────────────────────────────────────────────────────────
++  # 2. lint-deps (dependency-cruiser, Story 0.1)
++  # ─────────────────────────────────────────────────────────
++  lint-deps:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-node@v4
++        with: { node-version-file: ".nvmrc" }
++      - run: pnpm install --frozen-lockfile
++      - run: pnpm lint:deps
++
++  # ─────────────────────────────────────────────────────────
++  # 3. lint-imports (import-linter, Story 0.1)
++  # ─────────────────────────────────────────────────────────
++  lint-imports:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-python@v5
++        with: { python-version-file: ".python-version" }
++      - run: pip install uv==0.11.32
++      - run: uv sync --frozen
++      - name: Run import-linter
++        run: uv run import-linter
++
++  # ─────────────────────────────────────────────────────────
++  # 4. test-architecture (Story 0.1 — pytest fixture tests)
++  # ─────────────────────────────────────────────────────────
++  test-architecture:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-python@v5
++        with: { python-version-file: ".python-version" }
++      - run: pip install uv==0.11.32
++      - run: uv sync --frozen
++      - name: Run architecture + engine-purity tests
++        run: uv run pytest tests/architecture tests/cost_engine -v
+diff --git a/.npmrc b/.npmrc
+new file mode 100644
+index 0000000..7e648b3
+--- /dev/null
++++ b/.npmrc
+@@ -0,0 +1,4 @@
++engine-strict=true
++save-exact=true
++strict-peer-dependencies=false
++auto-install-peers=true
+diff --git a/.nvmrc b/.nvmrc
+new file mode 100644
+index 0000000..ca5c350
+--- /dev/null
++++ b/.nvmrc
+@@ -0,0 +1 @@
++24.18.0
+diff --git a/.python-version b/.python-version
+new file mode 100644
+index 0000000..e4fba21
+--- /dev/null
++++ b/.python-version
+@@ -0,0 +1 @@
++3.12
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..0b3f481
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,127 @@
++# bizup / costmgr
++
++> **원가 관리 SaaS** — modular monolith + hexagonal core (AD-1, AD-5, AD-11)
++> 
++> - PRD: `_bmad-output/planning-artifacts/prd.md` (v2.0 final)
++> - Architecture: `_bmad-output/planning-artifacts/architecture/architecture-costmgr-2026-07-24/ARCHITECTURE-SPINE.md`
++> - Epics: `_bmad-output/planning-artifacts/epics.md` (13 Epic · 42 Story)
++> - Sprint status: `_bmad-output/implementation-artifacts/sprint-status.yaml`
++> - Handoff: `_bmad-output/implementation-artifacts/HANDOFF.md`
++
++---
++
++## Quick start (Story 0.1 in place)
++
++```bash
++# 1) Toolchain
++nvm use                                  # Node 24.18.0 (per .nvmrc)
++py -3.12 -m uv --version                 # uv 0.11.32
++
++# 2) Install
++pnpm install --frozen-lockfile
++py -3.12 -m uv sync
++
++# 3) Lint (architecture boundaries)
++pnpm lint:deps                           # dependency-cruiser (TS layer rules)
++py -3.12 -m uv run import-linter         # import-linter (Python layer rules)
++
++# 4) Tests (architecture + engine purity)
++py -3.12 -m uv run pytest tests/architecture tests/cost_engine -v
++```
++
++If any of these fails, the boundary has been broken. The build blocks PRs on failure.
++
++---
++
++## Architecture at a glance
++
++```
++apps/web   (Next.js App Router)  ─┐
++                                  ├─→ ports (typed contracts)
++apps/api   (FastAPI monolith)    ─┤
++                                  ├─→ services (orchestration)
++                                  │
++                                  └─→ packages.cost_engine
++                                       ├─ ports      (Protocol types)
++                                       ├─ core       (pure: no I/O, no DB, no clock)
++                                       └─ adapters   (DB, REST, CSV/Excel — empty in 0.1)
++```
++
++**Direction is enforced by CI**:
++
++- `dependency-cruiser` (`.dependency-cruiser.cjs`) for TypeScript / Next.js
++- `import-linter` (`pyproject.toml [tool.importlinter]`) for Python
++
++**Engine purity is enforced by AST tests**:
++
++- `tests/cost_engine/test_no_io_imports.py` — no `sqlalchemy`, `fastapi`, `requests`, `time`, `random`, `os`, etc. inside `packages/cost_engine/`
++- `tests/cost_engine/test_money_purity.py` — KRW/USD type sanity (AD-8)
++
++**API↔engine boundary is enforced at runtime**:
++
++- `tests/architecture/test_api_calls_only_ports.py` — `apps.api` may only import `packages.cost_engine.ports`, never `core` or `adapters` directly
++
++---
++
++## Source tree (Story 0.1)
++
++```
++costmgr/
++├── apps/
++│   ├── web/                          Next.js 15.5 App Router (stub: landing page)
++│   │   ├── app/{layout,page}.tsx
++│   │   ├── package.json              (pinned: next 15.5, react 19.1)
++│   │   └── tsconfig.json
++│   └── api/                          FastAPI (stub: /health)
++│       ├── main.py
++│       ├── core/                     (settings/security/db/audit land in Story 0.2)
++│       ├── modules/                  13 module folders (m0_onboarding…m12_account)
++│       └── pyproject.toml
++├── packages/
++│   ├── cost_engine/                  PURE Python — hexagonal core
++│   │   ├── core/money.py             (KRW/USD, AD-8)
++│   │   ├── ports/                    (calc_port, ccr_port, reversal_port)
++│   │   ├── adapters/                 (empty — Story 0.2+ populates)
++│   │   └── tests/regression_v8/      (placeholder — Story 4.4)
++│   ├── services/                     (orchestration — empty in 0.1)
++│   └── ports/                        (cross-module contracts — empty in 0.1)
++├── tests/
++│   ├── architecture/                 (API↔engine boundary tests)
++│   └── cost_engine/                  (engine-purity tests)
++├── scripts/
++│   └── check_stack_pin.mjs           (stack pin drift check — Story 0.3 expands)
++├── .github/workflows/ci.yml          (lint-deps, lint-imports, test-architecture)
++├── .dependency-cruiser.cjs
++├── .nvmrc · .python-version · .npmrc
++├── package.json · pnpm-workspace.yaml
++├── pyproject.toml                    (uv workspace + import-linter + ruff + pytest)
++└── README.md
++```
++
++---
++
++## Status (as of 2026-07-25)
++
++| | |
++|---|---|
++| Story 0.1 | ✅ Scaffolded (this commit) |
++| Story 0.2 | ⏳ Pending — Supabase migration + RLS |
++| Story 0.3 | ⏳ Pending — full stack-pin script + dependabot |
++| Story 0.4 | ⏳ Pending — conventions doc + ruff/eslint config |
++| Epiwarning: in the working copy of 'apps/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/core/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/main.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m0_onboarding/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m10_ai/__init__.py', LF will be replaced by CRLF the next time Git touches it
+c 1 | ⏳ Pending |
++
++See `_bmad-output/implementation-artifacts/sprint-status.yaml` for the full tracker.
++
++---
++
++## Anti-pattern checklist (do NOT do these)
++
++- ❌ `import sqlalchemy` inside `packages/cost_engine/` (AD-1, AD-5)
++- ❌ `import fastapi` inside `packages/cost_engine/` (AD-5)
++- ❌ `from packages.cost_engine.core import ...` inside `apps/api/` (use `packages.cost_engine.ports`)
++- ❌ `from packages.cost_engine.adapters import ...` inside `packages/cost_engine/core/` (AD-11)
++- ❌ `import time` / `import random` inside `packages/cost_engine/` (AD-5)
++- ❌ `import os` / `os.environ` inside `packages/cost_engine/` (config flows via constructor)
++- ❌ `float` for KRW/USD values (use `int` for KRW, `Decimal` for USD — AD-8)
++- ❌ `^` or `~` in pinned package versions (use exact — AD-14)
++- ❌ Celery, Kafka, Redis as persistent queue (1-operator constraint)
+diff --git a/apps/__init__.py b/apps/__init__.py
+new file mode 100644
+index 0000000..5be2ae8
+--- /dev/null
++++ b/apps/__init__.py
+@@ -0,0 +1 @@
++# apps/ — uv workspace marker
+diff --git a/apps/api/__init__.py b/apps/api/__init__.py
+new file mode 100644
+index 0000000..8692e73
+--- /dev/null
++++ b/apps/api/__init__.py
+@@ -0,0 +1,9 @@
++"""apps.api — FastAPI modular monolith (AD-1).
++
++Story 0.1 lands only the entry point and module folders. The 13 module
++implementations (m0_onboarding … m12_account) populate in Epic 1+.
++
++The package is a regular (non-namespace) package so import-linter can
++discover `apps.api` as a concrete module.
++"""
++__version__ = "0.1.0"
+diff --git a/apps/api/core/__init__.py b/apps/api/core/__init__.py
+new file mode 100644
+index 0000000..c51f0bf
+--- /dev/null
++++ b/apps/api/core/__init__.py
+@@ -0,0 +1,10 @@
++"""apps/api/core — API-side shared core (settings, security, db, audit).
++
++This package is a sibling of apps/api/modules/ and is intentionally minimal
++in Story 0.1. Future stories will add:
++  - settings.py   (Pydantic Settings, AD-9 env var reading)
++  - db.py         (SQLAlchemy 2.0 async, Story 0.2)
++  - security.py   (JWT decoder, Story 0.2)
++  - tenant_context.py (Story 0.2)
++  - audit.py / service_role.py (Story 0.2)
++"""
+diff --git a/apps/api/main.py b/apps/api/main.py
+new file mode 100644
+index 0000000..6ecc995
+--- /dev/null
++++ b/apps/api/main.py
+@@ -0,0 +1,24 @@
++"""
++apps/api/main.py — FastAPI entry (Story 0.1 stub).
++
++Only a single /health route in this story. Domain endpoints are added in Epic 4+.
++
++AD-1, AD-11 compliance:
++  - This module imports only stdlib + FastAPI/uvicorn
++  - It does NOT import packages.cost_engine.core directly
++  - It MAY import packages.cost_engine.ports (via apps.api.core.ports_bridge — added in later stories)
++"""
++
++from fastapi import FastAPI
++
++app = FastAPI(
++    title="bizup/costmgr API",
++    version="0.1.0",
++    description="원가 관리 SaaS — FastAPI modular monolith (AD-1)",
++)
++
++
++@app.get("/health")
++async def health() -> dict[str, str]:
++    """Health check endpoint — used by Railway / Vercel / CI smoke tests."""
++    return {"status": "ok", "service": "costmgr-api", "version": "0.1.0"}
+diff --git a/apps/api/modules/__init__.py b/apps/api/modules/__init__.py
+new file mode 100644
+index 0000000..818f8da
+--- /dev/null
++++ b/apps/api/modules/__init__.py
+@@ -0,0 +1,8 @@
++"""apps/api/modules — 13 module folders, one per M0~M12 capability.
++
++This is the modular monolith's module layer (AD-1). Each module is a
++self-contained vertical slice with its own router, schemas, and service
++adapters. Modules communicate only through packages.ports interfaces.
++
++Story 0.1: empty stubs only. Module code lands in Epic 1+ (M0 onboarding) onward.
++"""
+diff --git a/apps/api/modules/m0_onboarding/__init__.py b/apps/api/modules/m0_onboarding/__init__.py
+new file mode 100644
+index 0000000..32a2be6
+--- /dev/null
++++ b/apps/api/modules/m0_onboarding/__init__.py
+@@ -0,0 +1 @@
++"""M0 Onboarding module — Epic 1 stories 1.1~1.3 will populate this."""
+diff --git a/apps/api/modules/m10_ai/__init__.py b/apps/api/modules/m10_ai/__init__.py
+new file mode 100644
+index 0000warning: in the working copy of 'apps/api/modules/m11_close/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m12_account/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m1_baseline/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m2_input/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m3_calculate/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m4_inventory/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m5_reports/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m6_verification/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m7_simulation/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m8_budget/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m9_abc/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/web/app/layout.tsx', LF will be replaced by CRLF the next time Git touches it
+000..ae9e89a
+--- /dev/null
++++ b/apps/api/modules/m10_ai/__init__.py
+@@ -0,0 +1 @@
++"""M10 AI Assistance module — Epic 10 stories 10.1~10.4 will populate this."""
+diff --git a/apps/api/modules/m11_close/__init__.py b/apps/api/modules/m11_close/__init__.py
+new file mode 100644
+index 0000000..e418a55
+--- /dev/null
++++ b/apps/api/modules/m11_close/__init__.py
+@@ -0,0 +1 @@
++"""M11 Close & Audit module — Epic 11 stories 11.1~11.3 will populate this."""
+diff --git a/apps/api/modules/m12_account/__init__.py b/apps/api/modules/m12_account/__init__.py
+new file mode 100644
+index 0000000..a978ab5
+--- /dev/null
++++ b/apps/api/modules/m12_account/__init__.py
+@@ -0,0 +1 @@
++"""M12 Account & Security Operations — Epic 12 stories 12.1~12.3 will populate this."""
+diff --git a/apps/api/modules/m1_baseline/__init__.py b/apps/api/modules/m1_baseline/__init__.py
+new file mode 100644
+index 0000000..413a615
+--- /dev/null
++++ b/apps/api/modules/m1_baseline/__init__.py
+@@ -0,0 +1 @@
++"""M1 Baseline / BOM module — Epic 2 stories 2.1~2.3 will populate this."""
+diff --git a/apps/api/modules/m2_input/__init__.py b/apps/api/modules/m2_input/__init__.py
+new file mode 100644
+index 0000000..1416304
+--- /dev/null
++++ b/apps/api/modules/m2_input/__init__.py
+@@ -0,0 +1 @@
++"""M2 Monthly Input module — Epic 3 stories 3.1~3.3 will populate this."""
+diff --git a/apps/api/modules/m3_calculate/__init__.py b/apps/api/modules/m3_calculate/__init__.py
+new file mode 100644
+index 0000000..779c8f0
+--- /dev/null
++++ b/apps/api/modules/m3_calculate/__init__.py
+@@ -0,0 +1 @@
++"""M3 Cost Calculation module — Epic 4 stories 4.1~4.4 will populate this."""
+diff --git a/apps/api/modules/m4_inventory/__init__.py b/apps/api/modules/m4_inventory/__init__.py
+new file mode 100644
+index 0000000..b632e04
+--- /dev/null
++++ b/apps/api/modules/m4_inventory/__init__.py
+@@ -0,0 +1 @@
++"""M4 Inventory module — Epic 5 stories 5.1~5.3 will populate this."""
+diff --git a/apps/api/modules/m5_reports/__init__.py b/apps/api/modules/m5_reports/__init__.py
+new file mode 100644
+index 0000000..600d616
+--- /dev/null
++++ b/apps/api/modules/m5_reports/__init__.py
+@@ -0,0 +1 @@
++"""M5 Reports module — Epic 6 stories 6.1~6.3 will populate this."""
+diff --git a/apps/api/modules/m6_verification/__init__.py b/apps/api/modules/m6_verification/__init__.py
+new file mode 100644
+index 0000000..db81dd8
+--- /dev/null
++++ b/apps/api/modules/m6_verification/__init__.py
+@@ -0,0 +1 @@
++"""M6 Verification module — folded into Epic 4 (per architecture file-churn decision)."""
+diff --git a/apps/api/modules/m7_simulation/__init__.py b/apps/api/modules/m7_simulation/__init__.py
+new file mode 100644
+index 0000000..4e151aa
+--- /dev/null
++++ b/apps/api/modules/m7_simulation/__init__.py
+@@ -0,0 +1 @@
++"""M7 CVP/BEP Simulation module — Epic 7 stories 7.1~7.2 will populate this."""
+diff --git a/apps/api/modules/m8_budget/__init__.py b/apps/api/modules/m8_budget/__init__.py
+new file mode 100644
+index 0000000..dfe1f11
+--- /dev/null
++++ b/apps/api/modules/m8_budget/__init__.py
+@@ -0,0 +1 @@
++"""M8 Budget vs Actual module — Epic 8 stories 8.1~8.3 will populate this."""
+diff --git a/apps/api/modules/m9_abc/__init__.py b/apps/api/modules/m9_abc/__init__.py
+new file mode 100644
+index 0000000..de89c2a
+--- /dev/null
++++ b/apps/api/modules/m9_abc/__init__.py
+@@ -0,0 +1 @@
++"""M9 ABC / TDABC module — Epic 9 stories 9.1~9.4 will populate this."""
+diff --git a/apps/api/pyproject.toml b/apps/api/pyproject.toml
+new file mode 100644
+index 0000000..20ecd3d
+--- /dev/null
++++ b/apps/api/pyproject.toml
+@@ -0,0 +1,24 @@
++[project]
++name = "costmgr-api"
++version = "0.1.0"
++description = "bizup API — FastAPI modular monolith"
++requires-python = ">=3.12,<3.13"
++readme = "README.md"
++
++dependencies = []
++
++[project.optional-dependencies]
++dev = [
++    "fastapi>=0.115.0",
++    "uvicorn>=0.32.0",
++    "pydantic>=2.9.0",
++    "pytest>=8.3.0",
++    "httpx>=0.27.0",
++]
++
++[build-system]
++requires = ["hatchling"]
++build-backend = "hatchling.build"
++
++[tool.hatch.build.targets.wheel]
++packages = ["modules", "core"]
+diff --git a/appwarning: in the working copy of 'apps/web/app/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/web/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/web/tsconfig.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/cost_engine/__init__.py', LF will be replaced by CRLF the next time Git touches it
+s/web/app/layout.tsx b/apps/web/app/layout.tsx
+new file mode 100644
+index 0000000..218414d
+--- /dev/null
++++ b/apps/web/app/layout.tsx
+@@ -0,0 +1,25 @@
++// apps/web/app/layout.tsx — Next.js App Router root layout (Story 0.1 stub)
++// Locale: ko-KR (AD-15), Pretendard font fallback (deferred to bmad-ux).
++
++import type { ReactNode } from 'react';
++
++export const metadata = {
++  title: 'bizup/costmgr',
++  description: '원가 관리 SaaS (modular monolith + hexagonal core)',
++};
++
++export default function RootLayout({ children }: { children: ReactNode }) {
++  return (
++    <html lang="ko">
++      <head>
++        <link
++          rel="stylesheet"
++          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
++        />
++      </head>
++      <body style={{ fontFamily: 'Pretendard Variable, Pretendard, -apple-system, system-ui, sans-serif' }}>
++        {children}
++      </body>
++    </html>
++  );
++}
+diff --git a/apps/web/app/page.tsx b/apps/web/app/page.tsx
+new file mode 100644
+index 0000000..1f25c50
+--- /dev/null
++++ b/apps/web/app/page.tsx
+@@ -0,0 +1,15 @@
++// apps/web/app/page.tsx — minimal landing page (Story 0.1 stub)
++
++export default function Home() {
++  return (
++    <main style={{ padding: '2rem', maxWidth: 720, margin: '0 auto' }}>
++      <h1>bizup/costmgr</h1>
++      <p>원가 관리 SaaS — 모놀리스 + 헥사고날 코어 골격 (Story 0.1)</p>
++      <ul>
++        <li>아키텍처: AD-1 modular monolith + hexagonal core</li>
++        <li>엔진 순수성: AD-5 (no I/O, no DB, no clock, no random)</li>
++        <li>의존성 방향: AD-11 (ui → api → services → ports → engine)</li>
++      </ul>
++    </main>
++  );
++}
+diff --git a/apps/web/package.json b/apps/web/package.json
+new file mode 100644
+index 0000000..988fcab
+--- /dev/null
++++ b/apps/web/package.json
+@@ -0,0 +1,23 @@
++{
++  "name": "@costmgr/web",
++  "version": "0.1.0",
++  "private": true,
++  "type": "module",
++  "scripts": {
++    "dev": "next dev -p 3000",
++    "build": "next build",
++    "start": "next start -p 3000",
++    "lint:tsc": "tsc --noEmit"
++  },
++  "dependencies": {
++    "next": "15.5.4",
++    "react": "19.1.1",
++    "react-dom": "19.1.1"
++  },
++  "devDependencies": {
++    "@types/node": "22.10.5",
++    "@types/react": "19.1.10",
++    "@types/react-dom": "19.1.7",
++    "typescript": "5.9.3"
++  }
++}
+diff --git a/apps/web/tsconfig.json b/apps/web/tsconfig.json
+new file mode 100644
+index 0000000..9568752
+--- /dev/null
++++ b/apps/web/tsconfig.json
+@@ -0,0 +1,13 @@
++{
++  "extends": "../../tsconfig.base.json",
++  "compilerOptions": {
++    "jsx": "preserve",
++    "allowJs": true,
++    "incremental": true,
++    "noEmit": true,
++    "plugins": [{ "name": "next" }],
++    "paths": { "@/*": ["./*"] }
++  },
++  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
++  "exclude": ["node_modules"]
++}
+diff --git a/package.json b/package.json
+new file mode 100644
+index 0000000..a4cec40
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1,22 @@
++{
++  "name": "costmgr",
++  "version": "0.1.0",
++  "private": true,
++  "description": "bizup/costmgr — modular monolith + hexagonal core (AD-1)",
++  "packageManager": "pnpm@9.15.4",
++  "engines": {
++    "node": ">=24.18.0",
++    "pnpm": ">=9.15.0"
++  },
++  "scripts": {
++    "dep:check": "node scripts/check_stack_pin.mjs",
++    "lint:deps": "depcruise --validate .dependency-cruiser.cjs apps packages",
++    "lint:imports": "cd . && py -3.12 -m importlinter",
++    "lint:all": "pnpm lint:deps && pnpm lint:imports",
++    "test:architecture": "py -3.12 -m pytest tests/architecture tests/cost_engine -q",
++    "test:all": "pnpm test:architecture"
++  },
++  "devDependencies": {
++    "dependency-cruiser": "16.10.4"
++  }
++}
+diff --git a/packages/__init__.py b/packages/__init__.py
+new file mode 100644
+index 0000000..f6e01eb
+--- /dev/null
++++ b/packages/__init__.py
+@@ -0,0 +1 @@
++# packages/ — uv workspace marker
+diff --git a/packages/cost_engine/__init__.py b/packages/cost_engine/__init__.py
+new file mode 100644
+index 0000000..15ef228
+--- /dev/nulwarning: in the working copy of 'packages/cost_engine/adapters/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/cost_engine/core/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/cost_engine/core/money.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/cost_engine/ports/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/cost_engine/ports/calc_port.py', LF will be replaced by CRLF the next time Git touches it
+l
++++ b/packages/cost_engine/__init__.py
+@@ -0,0 +1,8 @@
++"""bizup cost engine — pure Python hexagonal core.
++
++AD-1:  Hexagonal core. Pure domain logic; ports for inbound/outbound; adapters at boundary.
++AD-5:  Engine purity — no I/O, no DB, no clock, no randomness, no global state, no logs.
++AD-11: Dependency direction — `core` may NOT import `adapters`. Enforced by import-linter.
++
++This package is the source of truth for the 1원 reconciliation (V8 regression).
++"""
+diff --git a/packages/cost_engine/adapters/__init__.py b/packages/cost_engine/adapters/__init__.py
+new file mode 100644
+index 0000000..6864b60
+--- /dev/null
++++ b/packages/cost_engine/adapters/__init__.py
+@@ -0,0 +1,12 @@
++"""packages.cost_engine.adapters — I/O boundary implementations.
++
++This is where DB drivers, HTTP clients, file readers, etc. live. AD-11 forbids
++core → adapters. Adapters may depend on core; core may not depend on adapters.
++
++Subpackages created by later stories:
++  - adapters/db        (SQLAlchemy, Story 0.2+)
++  - adapters/rest      (FastAPI integration, Epic 4+)
++  - adapters/csv_excel (Excel upload, Epic 3+)
++
++Story 0.1 leaves these empty by design.
++"""
+diff --git a/packages/cost_engine/core/__init__.py b/packages/cost_engine/core/__init__.py
+new file mode 100644
+index 0000000..af0f710
+--- /dev/null
++++ b/packages/cost_engine/core/__init__.py
+@@ -0,0 +1,12 @@
++"""packages.cost_engine.core — pure domain logic.
++
++AD-1 + AD-5:
++  - No imports of sqlalchemy, fastapi, requests, datetime.now, time, random.
++  - All inputs are explicit parameters (no globals, no env reads).
++  - All outputs are deterministic dataclasses.
++
++AD-11:
++  - core MUST NOT import packages.cost_engine.adapters. Enforced by import-linter.
++
++The first concrete function lands in Story 4.1 (`compute_period_cost`).
++"""
+diff --git a/packages/cost_engine/core/money.py b/packages/cost_engine/core/money.py
+new file mode 100644
+index 0000000..11a8f28
+--- /dev/null
++++ b/packages/cost_engine/core/money.py
+@@ -0,0 +1,45 @@
++"""packages.cost_engine.core.money — KRW/USD newtype definitions (pure stdlib).
++
++AD-8: BIGINT for KRW integer, NUMERIC(18,2) for USD; float is forbidden on cost paths.
++AD-15: snake_case, no Pydantic inside the engine (adapters may use Pydantic, core may not).
++
++Money type implementations live in:
++  - apps/api/core/money.py   (API side — may use Pydantic)
++  - apps/web/lib/money.ts    (TS side — bigint + decimal.js)
++  - packages/cost_engine/core/money.py  (this file — stdlib only)
++"""
++
++from decimal import Decimal
++from typing import NewType
++
++# KRW wraps int (BIGINT in DB). 1원 precision.
++KRW = NewType("KRW", int)
++
++# USD wraps Decimal (NUMERIC(18,2) in DB). Two-decimal precision.
++USD = NewType("USD", Decimal)
++
++Money = KRW | USD
++
++
++def to_krw(value: int | Decimal) -> KRW:
++    """Convert to KRW integer (1원 precision). Reject fractional values."""
++    if isinstance(value, Decimal):
++        if value != int(value):
++            raise ValueError(f"USD→KRW requires integer value, got {value}")
++        return KRW(int(value))
++    return KRW(int(value))
++
++
++def to_usd(value: Decimal | int) -> USD:
++    """Convert to USD with 2-decimal precision (banker's rounding)."""
++    return USD(Decimal(value).quantize(Decimal("0.01")))
++
++
++def format_krw(krw: KRW) -> str:
++    """Format KRW with Korean locale: 1,000,000원."""
++    return f"{krw:,}원"
++
++
++def format_usd(usd: USD) -> str:
++    """Format USD with US locale: 1,000.00."""
++    return f"${usd:,.2f}"
+diff --git a/packages/cost_engine/ports/__init__.py b/packages/cost_engine/ports/__init__.py
+new file mode 100644
+index 0000000..d07241f
+--- /dev/null
++++ b/packages/cost_engine/ports/__init__.py
+@@ -0,0 +1,6 @@
++"""packages.cost_engine.ports — Protocol interfaces (no I/O).
++
++The engine exposes its capabilities through these Protocol types. Adapters
++implement them; the API layer consumes them. Core logic does not import
++ports (it only defines them as input/output types for service callers).
++"""
+diff --git a/packages/cost_engine/ports/calc_port.py b/packagwarning: in the working copy of 'packages/cost_engine/ports/ccr_port.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/cost_engine/ports/reversal_port.py', LF will be replaced by CRLF the next time Git touches it
+es/cost_engine/ports/calc_port.py
+new file mode 100644
+index 0000000..90d3f83
+--- /dev/null
++++ b/packages/cost_engine/ports/calc_port.py
+@@ -0,0 +1,54 @@
++"""packages.cost_engine.ports.calc_port — calculation entry point protocol.
++
++AD-19: One calculation entry point and owner. The single POST /api/v1/calc endpoint
++dispatches this port for traditional costing and (Epic 9) M9 ABC costing.
++
++AD-4:  The implementer MUST run inside a REPEATABLE READ transaction.
++AD-5:  The CORE of this port is a pure function. Adapters wire I/O around it.
++"""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from decimal import Decimal
++from typing import Protocol
++from uuid import UUID
++
++from packages.cost_engine.core.money import KRW, USD
++
++
++@dataclass(frozen=True)
++class MonthlyInput:
++    """Pure input value object — no DB, no clock."""
++
++    tenant_id: UUID
++    period_key: str  # YYYY-MM (AD-24)
++    direct_material_krw: KRW
++    direct_labor_krw: KRW
++    indirect_krw: KRW
++    fte_headcount: Decimal  # FTE 환산 (Story 3.2)
++
++
++@dataclass(frozen=True)
++class CalcResult:
++    """Pure output value object — deterministic hash for V8 regression."""
++
++    tenant_id: UUID
++    period_key: str
++    material_cost: KRW
++    labor_cost: KRW
++    overhead_cost: KRW
++    manufacturing_cost: KRW
++    inventory_adjustment: KRW
++    result_hash: str  # deterministic, AD-16
++    state: str  # draft | verified | committed | reversed (AD-20)
++
++
++class CalcPort(Protocol):
++    """The single port for cost calculation. Implemented by the engine core."""
++
++    def compute_period_cost(
++        self, monthly_input: MonthlyInput
++    ) -> CalcResult:
++        """Pure compute. Same input → same output (AD-5, AD-16)."""
++        ...
+diff --git a/packages/cost_engine/ports/ccr_port.py b/packages/cost_engine/ports/ccr_port.py
+new file mode 100644
+index 0000000..c4c81e6
+--- /dev/null
++++ b/packages/cost_engine/ports/ccr_port.py
+@@ -0,0 +1,37 @@
++"""packages.cost_engine.ports.ccr_port — TDABC Capacity Cost Rate port (AD-21).
++
++AD-21: Single CCR definition.
++  CCR = department_indirect_cost / practical_capacity_hours
++  CCR is computed in 1원 units. Unused capacity is reported separately.
++"""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from decimal import Decimal
++from typing import Protocol
++from uuid import UUID
++
++from packages.cost_engine.core.money import KRW
++
++
++@dataclass(frozen=True)
++class CCRResult:
++    """Capacity Cost Rate calculation result."""
++
++    tenant_id: UUID
++    period_key: str
++    department_id: UUID
++    ccr_per_hour: KRW  # 1원 precision
++    practical_capacity_hours: Decimal
++    unused_capacity_hours: Decimal
++    unused_capacity_cost: KRW
++
++
++class CCRPort(Protocol):
++    """The single owner of CCR computation (AD-21). M3 calls this; never recomputes."""
++
++    def compute(
++        self, tenant_id: UUID, period_key: str, department_id: UUID
++    ) -> CCRResult:
++        ...
+diff --git a/packages/cost_engine/ports/reversal_port.py b/packages/cost_engine/ports/reversal_port.py
+new file mode 100644
+index 0000000..d021a68
+--- /dev/null
++++ b/packages/cost_engine/ports/reversal_port.py
+@@ -0,0 +1,32 @@
++"""packages.cost_engine.ports.reversal_port — reversal sequence port (AD-22).
++
++AD-22: Reversal construction and ownership.
++  - Sign-negating reversal row + corrected business row share a correction_group_id.
++  - (tenant_id, reverses_event_id) is unique.
++  - M4 calls request_reversal; M11 authorizes and writes the sequence.
++"""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from typing import Protocol
++from uuid import UUID
++
++
++@dataclass(frozen=True)
++class ReversalRequest:
++    tenant_id: UUID
++    period_key: str
++    target_event_id: UUID
++    reason: str
++    actor_id: UUID
++
++
++class ReversalPort(Protocol):
++    def request_reversal(self, req: ReversalRequest) -> UUID:
++        """Request a reversal. Returns the new correction_group_id.
++
++        M11 (Epic 11) owns authorization. M4 invokes this; the engine warning: in the working copy of 'packages/cost_engine/pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/cost_engine/tests/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/cost_engine/tests/regression_v8/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/ports/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/ports/pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/services/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'packages/services/pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+never
++        performs authorization itself.
++        """
++        ...
+diff --git a/packages/cost_engine/pyproject.toml b/packages/cost_engine/pyproject.toml
+new file mode 100644
+index 0000000..883ab6a
+--- /dev/null
++++ b/packages/cost_engine/pyproject.toml
+@@ -0,0 +1,21 @@
++[project]
++name = "costmgr-cost-engine"
++version = "0.1.0"
++description = "bizup cost engine — pure Python hexagonal core (AD-1, AD-5)"
++requires-python = ">=3.12,<3.13"
++readme = "README.md"
++
++# CRITICAL: This package may ONLY depend on Python stdlib (+ optional numpy for math).
++# No DB drivers, no web frameworks, no clock, no random. Enforced by import-linter.
++dependencies = []
++
++[project.optional-dependencies]
++dev = ["pytest>=8.3.0", "ruff>=0.7.0"]
++math = ["numpy>=2.0"]
++
++[build-system]
++requires = ["hatchling"]
++build-backend = "hatchling.build"
++
++[tool.hatch.build.targets.wheel]
++packages = ["core", "ports", "adapters"]
+diff --git a/packages/cost_engine/tests/__init__.py b/packages/cost_engine/tests/__init__.py
+new file mode 100644
+index 0000000..bfc57a6
+--- /dev/null
++++ b/packages/cost_engine/tests/__init__.py
+@@ -0,0 +1,5 @@
++"""packages.cost_engine.tests — V8 regression & engine purity tests.
++
++Story 0.1: empty placeholder. Story 4.4 adds the full V8 regression suite
++(12 scenarios, 1원 unit golden files per 분기 마감).
++"""
+diff --git a/packages/cost_engine/tests/regression_v8/__init__.py b/packages/cost_engine/tests/regression_v8/__init__.py
+new file mode 100644
+index 0000000..f23d707
+--- /dev/null
++++ b/packages/cost_engine/tests/regression_v8/__init__.py
+@@ -0,0 +1,4 @@
++"""packages.cost_engine.tests.regression_v8 — V8 1원 단위 회귀 테스트.
++
++Placed by Story 0.1, populated by Story 4.4 (12 시나리오, 분기 마감 골든 파일).
++"""
+diff --git a/packages/ports/__init__.py b/packages/ports/__init__.py
+new file mode 100644
+index 0000000..12f74ab
+--- /dev/null
++++ b/packages/ports/__init__.py
+@@ -0,0 +1,11 @@
++"""packages.ports — cross-cutting interface contracts.
++
++This package defines Protocol types and dataclasses that the UI, API, and
++services all share. It must remain stdlib + typing only (AD-11).
++
++Future contents:
++  - settings_port.py       (typed settings aggregate, AD-23)
++  - tenant_context_port.py (Story 0.2)
++  - report_view_port.py    (Epic 6)
++  - ai_insight_port.py     (Epic 10)
++"""
+diff --git a/packages/ports/pyproject.toml b/packages/ports/pyproject.toml
+new file mode 100644
+index 0000000..bc6740c
+--- /dev/null
++++ b/packages/ports/pyproject.toml
+@@ -0,0 +1,20 @@
++[project]
++name = "costmgr-ports"
++version = "0.1.0"
++description = "bizup ports — cross-module interface contracts (UI/API/services)"
++requires-python = ">=3.12,<3.13"
++readme = "README.md"
++
++# IMPORTANT: ports package may import only stdlib + typing.
++# No DB, no web, no clock, no random.
++dependencies = []
++
++[project.optional-dependencies]
++dev = ["pytest>=8.3.0", "ruff>=0.7.0"]
++
++[build-system]
++requires = ["hatchling"]
++build-backend = "hatchling.build"
++
++[tool.hatch.build.targets.wheel]
++packages = ["."]
+diff --git a/packages/services/__init__.py b/packages/services/__init__.py
+new file mode 100644
+index 0000000..66e3a74
+--- /dev/null
++++ b/packages/services/__init__.py
+@@ -0,0 +1,12 @@
++"""packages.services — orchestration layer.
++
++AD-11: services may import packages.ports and packages.cost_engine.ports.
++services may NOT import packages.cost_engine.core directly.
++services may NOT import apps.api.
++
++Future services:
++  - month_input_adapter    (AD-13: only caller of engine input ports)
++  - calc_orchestrator      (M3 dispatch, AD-19)
++  - verification_runner    (V1→V4→V7→V8, AD-12)
++  - reversal_handler       (Epic 11)
++"""
+diff --git a/packages/services/pyproject.toml b/packages/services/pyproject.toml
+new file mode 100644
+index 0000000..e56fb40
+--- /dev/null
++++ b/packages/services/pyproject.toml
+@@ -0,0 +1,18 @@
++[project]
++name = "costmgr-services"
++version = "0.1.0"
++description = "bizup services — orchestration layer between API and engine"
++requires-python = ">=3.12,<3.13"
++readme = "READMEwarning: in the working copy of 'pnpm-workspace.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+.md"
++
++dependencies = []
++
++[project.optional-dependencies]
++dev = ["pytest>=8.3.0", "ruff>=0.7.0"]
++
++[build-system]
++requires = ["hatchling"]
++build-backend = "hatchling.build"
++
++[tool.hatch.build.targets.wheel]
++packages = ["."]
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+new file mode 100644
+index 0000000..3ff5faa
+--- /dev/null
++++ b/pnpm-workspace.yaml
+@@ -0,0 +1,3 @@
++packages:
++  - "apps/*"
++  - "packages/*"
+diff --git a/pyproject.toml b/pyproject.toml
+new file mode 100644
+index 0000000..4ae94f9
+--- /dev/null
++++ b/pyproject.toml
+@@ -0,0 +1,99 @@
++[project]
++name = "costmgr-workspace"
++version = "0.1.0"
++description = "bizup/costmgr monorepo root (uv workspace)"
++requires-python = ">=3.12,<3.13"
++readme = "README.md"
++
++[tool.uv]
++# uv workspace — apps + packages are members
++managed = true
++package = false
++
++[tool.uv.sources]
++# workspace members declared via [tool.uv.workspace] below
++
++[tool.uv.workspace]
++members = [
++    "apps/api",
++    "packages/cost_engine",
++    "packages/services",
++    "packages/ports",
++]
++
++# ─────────────────────────────────────────────────────────
++# import-linter — architectural boundary enforcement (AD-1, AD-11)
++# ─────────────────────────────────────────────────────────
++[tool.importlinter]
++# Use `packages` as the root — `packages.cost_engine` contracts work.
++# PYTHONPATH=apps:packages:. must be set when invoking lint-imports.
++#
++# KNOWN LIMITATION (Story 0.1): import-linter requires a single root_package,
++# so contracts that span `apps.api` ↔ `packages.*` are not enforceable via
++# import-linter. They are enforced instead by:
++#   - tests/architecture/test_api_calls_only_ports.py  (AST + runtime)
++#   - tests/cost_engine/test_no_io_imports.py          (AST)
++# Story 0.3 will re-anchor this when the monorepo gains a top-level
++# `costmgr` namespace package.
++root_package = "packages"
++include_external_packages = true
++
++[[tool.importlinter.contracts]]
++name = "cost_engine_forbidden_io"
++type = "forbidden"
++source_modules = ["packages.cost_engine"]
++forbidden_modules = [
++    "sqlalchemy",
++    "fastapi",
++    "starlette",
++    "requests",
++    "httpx",
++    "psycopg",
++    "asyncpg",
++    "time",
++    "random",
++    "os",
++    "socket",
++    "subprocess",
++]
++
++[[tool.importlinter.contracts]]
++name = "engine_core_to_adapters_forbidden"
++type = "forbidden"
++source_modules = ["packages.cost_engine.core"]
++forbidden_modules = [
++    "packages.cost_engine.adapters",
++]
++
++# ─────────────────────────────────────────────────────────
++# ruff — Python lint + format (AD-15, AD-8)
++# ─────────────────────────────────────────────────────────
++[tool.ruff]
++line-length = 100
++target-version = "py312"
++extend-exclude = ["node_modules", ".venv", "dist", "build", ".next"]
++
++[tool.ruff.lint]
++select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "PT", "SIM", "RET", "ARG", "PTH", "ERA"]
++ignore = ["E501"]
++
++[tool.ruff.lint.per-file-ignores]
++"tests/**/*.py" = ["B011", "N802"]
++"apps/api/alembic/versions/*.py" = ["E501"]
++
++[tool.ruff.format]
++quote-style = "double"
++indent-style = "space"
++
++# ─────────────────────────────────────────────────────────
++# pytest — discover tests/cost_engine + tests/architecture
++# ─────────────────────────────────────────────────────────
++[tool.pytest.ini_options]
++minversion = "9.0"
++testpaths = ["tests"]
++pythonpath = ["apps", "packages", "."]
++addopts = ["-warning: in the working copy of 'scripts/check_stack_pin.mjs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/architecture/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/architecture/test_api_calls_only_ports.py', LF will be replaced by CRLF the next time Git touches it
+ra", "--strict-markers", "--strict-config"]
++markers = [
++    "architecture: architectural boundary fixture tests (slow-ish, lint-style)",
++    "engine: cost-engine purity tests (AST forbidden-imports)",
++]
+diff --git a/scripts/check_stack_pin.mjs b/scripts/check_stack_pin.mjs
+new file mode 100644
+index 0000000..5352a1e
+--- /dev/null
++++ b/scripts/check_stack_pin.mjs
+@@ -0,0 +1,38 @@
++#!/usr/bin/env node
++// scripts/check_stack_pin.mjs — minimal stack pin check stub (Story 0.3 will expand)
++import { readFileSync, existsSync } from 'node:fs';
++import { exit } from 'node:process';
++
++const pin = {
++  node: '24.18.0',
++  python: '3.12',
++  pnpm: '9.15.0',
++};
++
++let ok = true;
++
++const nvmrc = existsSync('.nvmrc') ? readFileSync('.nvmrc', 'utf8').trim() : null;
++if (nvmrc !== pin.node) {
++  console.error(`[STACK_PIN] node drift: .nvmrc=${nvmrc} expected=${pin.node}`);
++  ok = false;
++} else {
++  console.log(`[STACK_PIN] node OK (${pin.node})`);
++}
++
++const pyver = existsSync('.python-version') ? readFileSync('.python-version', 'utf8').trim() : null;
++if (pyver !== pin.python) {
++  console.error(`[STACK_PIN] python drift: .python-version=${pyver} expected=${pin.python}`);
++  ok = false;
++} else {
++  console.log(`[STACK_PIN] python OK (${pin.python})`);
++}
++
++const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
++if (pkg.packageManager && !pkg.packageManager.startsWith(`pnpm@`)) {
++  console.error(`[STACK_PIN] packageManager drift: ${pkg.packageManager}`);
++  ok = false;
++} else {
++  console.log(`[STACK_PIN] pnpm OK (${pkg.packageManager || 'unspecified'})`);
++}
++
++exit(ok ? 0 : 1);
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..09cdbd4
+--- /dev/null
++++ b/tests/__init__.py
+@@ -0,0 +1 @@
++# tests/ — top-level pytest marker
+diff --git a/tests/architecture/__init__.py b/tests/architecture/__init__.py
+new file mode 100644
+index 0000000..fe71bd9
+--- /dev/null
++++ b/tests/architecture/__init__.py
+@@ -0,0 +1 @@
++"""tests.architecture — architectural boundary fixture tests."""
+diff --git a/tests/architecture/test_api_calls_only_ports.py b/tests/architecture/test_api_calls_only_ports.py
+new file mode 100644
+index 0000000..3083fce
+--- /dev/null
++++ b/tests/architecture/test_api_calls_only_ports.py
+@@ -0,0 +1,120 @@
++"""API-calls-only-ports boundary test.
++
++AD-1, AD-11:
++  - apps.api may import packages.cost_engine.ports (typed contracts).
++  - apps.api MUST NOT import packages.cost_engine.core (engine internals).
++
++The test parses every .py under apps/api/ and ensures no import walks into
++packages.cost_engine.core. imports into packages.cost_engine.ports ARE allowed.
++"""
++
++from __future__ import annotations
++
++import ast
++from pathlib import Path
++
++import pytest
++
++ROOT = Path(__file__).resolve().parents[2]
++API_ROOT = ROOT / "apps" / "api"
++FORBIDDEN_PATTERNS = (
++    "packages.cost_engine.core",
++    "packages.cost_engine.adapters",
++)
++
++
++def _iter_python_files(root: Path) -> list[Path]:
++    return sorted(p for p in root.rglob("*.py") if p.is_file())
++
++
++def _imports_in_file(path: Path) -> list[tuple[int, str]]:
++    src = path.read_text(encoding="utf-8")
++    try:
++        tree = ast.parse(src, filename=str(path))
++    except SyntaxError as e:  # pragma: no cover
++        return [(e.lineno or 0, f"<SYNTAX_ERROR:{e.msg}>")]
++    out: list[tuple[int, str]] = []
++    for node in ast.walk(tree):
++        if isinstance(node, ast.Import):
++            for alias in node.names:
++                out.append((node.lineno, alias.name))
++        elif isinstance(node, ast.ImportFrom):
++            if node.module is None:
++                continue
++            out.append((node.lineno, node.module))
++    return out
++
++
++@pytest.mark.architecture
++def test_api_does_not_import_engine_core_or_adapters() -> None:
++    """apps.api MUST call engine only through packages.cost_engine.ports (AD-11)."""
++    assert API_ROOT.is_dir(), f"Missing API root: {API_ROOT}"
++
++    violations: list[str] = []
++    for py_file in _iter_python_files(API_ROOT):
++        for lineno, module in _imports_in_filewarning: in the working copy of 'tests/cost_engine/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/cost_engine/test_money_purity.py', LF will be replaced by CRLF the next time Git touches it
+(py_file):
++            for forbidden in FORBIDDEN_PATTERNS:
++                if module == forbidden or module.startswith(forbidden + "."):
++                    rel = py_file.relative_to(ROOT)
++                    violations.append(
++                        f"{rel}:{lineno} imports `{module}` — "
++                        f"forbidden (AD-1/AD-11). Use `packages.cost_engine.ports` instead."
++                    )
++
++    assert not violations, (
++        "apps/api must not import packages.cost_engine.core or .adapters directly.\n"
++        "Use packages.cost_engine.ports (typed Protocol contracts) only.\n\n"
++        + "\n".join(violations)
++    )
++
++
++@pytest.mark.architecture
++def test_api_root_does_not_import_services() -> None:
++    """apps.api MUST NOT import packages.services (wrong direction, AD-11)."""
++    violations: list[str] = []
++    for py_file in _iter_python_files(API_ROOT):
++        for lineno, module in _imports_in_file(py_file):
++            if module == "packages.services" or module.startswith("packages.services."):
++                rel = py_file.relative_to(ROOT)
++                violations.append(
++                    f"{rel}:{lineno} imports `{module}` — "
++                    f"services are an internal layer; API talks to engine through ports."
++                )
++    assert not violations, "apps.api must not import packages.services directly.\n\n" + "\n".join(violations)
++
++
++@pytest.mark.architecture
++def test_apps_api_has_no_unintended_dunder_imports_at_module_load() -> None:
++    """Smoke check: importing apps.api.main does not pull in packages.cost_engine.core.
++
++    This is a runtime check, complementing the AST checks above. It validates
++    that the actual import graph (not just static analysis) keeps the boundary.
++    """
++    import importlib
++    import sys
++
++    # Pre-clean any cached engine imports
++    for mod_name in list(sys.modules):
++        if mod_name.startswith("packages.cost_engine"):
++            del sys.modules[mod_name]
++
++    if "apps.api.main" in sys.modules:
++        del sys.modules["apps.api.main"]
++
++    # If FastAPI is unavailable (very minimal env), skip rather than fail
++    try:
++        importlib.import_module("apps.api.main")
++    except ModuleNotFoundError as e:
++        if "fastapi" in str(e):
++            pytest.skip(f"FastAPI not installed in this environment: {e}")
++        raise
++
++    core_imports = [
++        name for name in sys.modules
++        if name.startswith("packages.cost_engine.core")
++    ]
++    # Note: ports are allowed; core is not.
++    # If a developer (or AI) breaks the boundary, this list will be non-empty.
++    assert not core_imports, (
++        "Importing apps.api.main pulled in engine internals: " + ", ".join(core_imports)
++    )
+diff --git a/tests/cost_engine/__init__.py b/tests/cost_engine/__init__.py
+new file mode 100644
+index 0000000..f352e8d
+--- /dev/null
++++ b/tests/cost_engine/__init__.py
+@@ -0,0 +1 @@
++"""tests.cost_engine — engine-purity tests (AST-based forbidden imports)."""
+diff --git a/tests/cost_engine/test_money_purity.py b/tests/cost_engine/test_money_purity.py
+new file mode 100644
+index 0000000..def98ae
+--- /dev/null
++++ b/tests/cost_engine/test_money_purity.py
+@@ -0,0 +1,45 @@
++"""Engine money type sanity tests (AD-8)."""
++
++from __future__ import annotations
++
++from decimal import Decimal
++
++import pytest
++
++from packages.cost_engine.core.money import (
++    KRW,
++    USD,
++    format_krw,
++    format_usd,
++    to_krw,
++    to_usd,
++)
++
++
++@pytest.mark.engine
++def test_krw_to_int() -> None:
++    assert to_krw(1000) == 1000
++    assert isinstance(to_krw(1000), int)
++
++
++@pytest.mark.engine
++def test_krw_rejects_fractional_decimal() -> None:
++    with pytest.raises(ValueError):
++        to_krw(Decimal("1000.5"))
++
++
++@pytest.mark.engine
++def test_usd_quantizes_to_two_decimals() -> None:
++    assert to_usd(Decimal("1000.555")) == Decimal("1000.56")  # banker's rounding via quantize
++    assert to_usd(1000) == Decimal("1000.00")
++
++
++@pytest.mark.engine
++def test_format_krw_ko_locale() -> None:
++    assert formatwarning: in the working copy of 'tests/cost_engine/test_no_io_imports.py', LF will be replaced by CRLF the next time Git touches it
+_krw(KRW(1_000_000)) == "1,000,000원"
++    assert format_krw(KRW(0)) == "0원"
++
++
++@pytest.mark.engine
++def test_format_usd_two_decimals() -> None:
++    assert format_usd(USD(Decimal("1000.50"))) == "$1,000.50"
+diff --git a/tests/cost_engine/test_no_io_imports.py b/tests/cost_engine/test_no_io_imports.py
+new file mode 100644
+index 0000000..2cc90e1
+--- /dev/null
++++ b/tests/cost_engine/test_no_io_imports.py
+@@ -0,0 +1,130 @@
++"""AST-based forbidden-import guard for packages.cost_engine.
++
++AD-1, AD-5, AD-11 enforcement at the engine boundary.
++
++This test parses every .py under packages/cost_engine/ and asserts that no
++forbidden module is imported. Violations produce a clear file:line:module
++message that the CI lint step surfaces as a build failure.
++
++Forbidden (any appearance in any .py under packages/cost_engine/):
++  - sqlalchemy, fastapi, starlette, requests, httpx
++  - psycopg, asyncpg
++  - time (the module — not the built-in), random, os.environ
++  - socket, subprocess, datetime.datetime.now
++
++Allowed (engine may import):
++  - decimal (stdlib), typing, uuid, dataclasses, enum
++  - protocols.Protocol (from typing)
++  - collections.abc
++  - packages.cost_engine.ports (internal — typed contracts only)
++"""
++
++from __future__ import annotations
++
++import ast
++from pathlib import Path
++
++import pytest
++
++ROOT = Path(__file__).resolve().parents[2]
++ENGINE_ROOT = ROOT / "packages" / "cost_engine"
++
++FORBIDDEN_TOP_LEVEL = {
++    "sqlalchemy",
++    "fastapi",
++    "starlette",
++    "requests",
++    "httpx",
++    "psycopg",
++    "asyncpg",
++    "time",          # the module — `import time` is forbidden (use explicit datetime)
++    "random",        # AD-5: no randomness
++    "socket",
++    "subprocess",
++    "pydantic",      # AD-5: no Pydantic inside engine (allowed in adapters)
++}
++
++# `os.environ` is forbidden as a bare `os.environ` attribute access.
++# We can't easily AST-detect attribute access patterns; we forbid `import os` too
++# because the engine must receive config via constructor injection.
++FORBIDDEN_TOP_LEVEL.add("os")
++
++
++def _iter_python_files(root: Path) -> list[Path]:
++    return sorted(p for p in root.rglob("*.py") if p.is_file())
++
++
++def _imports_in_file(path: Path) -> list[tuple[int, str]]:
++    """Return a list of (line_no, top_level_module) for every import in the file."""
++    src = path.read_text(encoding="utf-8")
++    try:
++        tree = ast.parse(src, filename=str(path))
++    except SyntaxError as e:  # pragma: no cover
++        return [(e.lineno or 0, f"<SYNTAX_ERROR:{e.msg}>")]
++
++    found: list[tuple[int, str]] = []
++    for node in ast.walk(tree):
++        if isinstance(node, ast.Import):
++            for alias in node.names:
++                top = alias.name.split(".")[0]
++                found.append((node.lineno, top))
++        elif isinstance(node, ast.ImportFrom):
++            if node.module is None:
++                # relative import: from .x import y — root is ""; allowed
++                continue
++            top = node.module.split(".")[0]
++            found.append((node.lineno, top))
++    return found
++
++
++@pytest.mark.engine
++def test_no_forbidden_imports_in_engine() -> None:
++    violations: list[str] = []
++    for py_file in _iter_python_files(ENGINE_ROOT):
++        for lineno, top in _imports_in_file(py_file):
++            if top in FORBIDDEN_TOP_LEVEL:
++                rel = py_file.relative_to(ROOT)
++                violations.append(
++                    f"{rel}:{lineno} imports forbidden top-level `{top}` "
++                    f"(violates AD-1/AD-5/AD-11 — engine is pure)"
++                )
++
++    assert not violations, (
++        "packages.cost_engine contains forbidden imports.\n"
++        "Engine must be pure: no I/O, no DB, no web, no clock, no random.\n\n"
++        + "\n".join(violations)
++    )
++
++
++@pytest.mark.engine
++def test_engine_core_does_not_import_adapters() -> None:
++    """AD-11: core MUST NOT import adapters (the reverse direction is fine)."""
++    core_root = ENGINE_ROOT / "core"
++    assert core_root.is_dir(), f"Missing engine core dir: warning: in the working copy of 'tsconfig.base.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'uv.lock', LF will be replaced by CRLF the next time Git touches it
+{core_root}"
++
++    violations: list[str] = []
++    for py_file in _iter_python_files(core_root):
++        for lineno, top in _imports_in_file(py_file):
++            # Any import path that walks through the adapters package
++            if top == "adapters" or ".adapters" in top or "adapters" in top:
++                rel = py_file.relative_to(ROOT)
++                violations.append(f"{rel}:{lineno} imports `{top}` — forbidden (AD-11)")
++
++    assert not violations, (
++        "packages.cost_engine.core must NOT import packages.cost_engine.adapters.\n\n"
++        + "\n".join(violations)
++    )
++
++
++@pytest.mark.engine
++def test_engine_money_module_is_stdlib_only() -> None:
++    """The canonical money types file uses only decimal + typing (AD-5)."""
++    money_file = ENGINE_ROOT / "core" / "money.py"
++    assert money_file.is_file(), "packages/cost_engine/core/money.py must exist"
++
++    allowed = {"decimal", "typing"}
++    for lineno, top in _imports_in_file(money_file):
++        assert top in allowed, (
++            f"packages/cost_engine/core/money.py:{lineno} imports `{top}` "
++            f"— only {sorted(allowed)} are allowed (AD-5 pure stdlib)"
++        )
+diff --git a/tsconfig.base.json b/tsconfig.base.json
+new file mode 100644
+index 0000000..15e7e1b
+--- /dev/null
++++ b/tsconfig.base.json
+@@ -0,0 +1,15 @@
++{
++  "compilerOptions": {
++    "target": "ES2022",
++    "module": "ESNext",
++    "moduleResolution": "Bundler",
++    "lib": ["ES2022", "DOM", "DOM.Iterable"],
++    "strict": true,
++    "esModuleInterop": true,
++    "skipLibCheck": true,
++    "forceConsistentCasingInFileNames": true,
++    "resolveJsonModule": true,
++    "isolatedModules": true,
++    "noEmit": true
++  }
++}
+diff --git a/uv.lock b/uv.lock
+new file mode 100644
+index 0000000..0e89e2b
+--- /dev/null
++++ b/uv.lock
+@@ -0,0 +1,410 @@
++version = 1
++revision = 3
++requires-python = "==3.12.*"
++
++[manifest]
++members = [
++    "costmgr-api",
++    "costmgr-cost-engine",
++    "costmgr-ports",
++    "costmgr-services",
++    "costmgr-workspace",
++]
++
++[[package]]
++name = "annotated-doc"
++version = "0.0.4"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/57/ba/046ceea27344560984e26a590f90bc7f4a75b06701f653222458922b558c/annotated_doc-0.0.4.tar.gz", hash = "sha256:fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4", size = 7288, upload-time = "2025-11-10T22:07:42.062Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/1e/d3/26bf1008eb3d2daa8ef4cacc7f3bfdc11818d111f7e2d0201bc6e3b49d45/annotated_doc-0.0.4-py3-none-any.whl", hash = "sha256:571ac1dc6991c450b25a9c2d84a3705e2ae7a53467b5d111c24fa8baabbed320", size = 5303, upload-time = "2025-11-10T22:07:40.673Z" },
++]
++
++[[package]]
++name = "annotated-types"
++version = "0.8.0"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/5f/56/a8120250d128bed162cd73c76d45f6ef9991f3e068f62a8ee060afa3104a/annotated_types-0.8.0.tar.gz", hash = "sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7", size = 15893, upload-time = "2026-07-23T20:16:13.995Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/99/91/8acff4f5e50511b911bbccb72b8628a49c68ce14148cd9f6431094859a90/annotated_types-0.8.0-py3-none-any.whl", hash = "sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0", size = 13427, upload-time = "2026-07-23T20:16:12.938Z" },
++]
++
++[[package]]
++name = "anyio"
++version = "4.14.2"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "idna" },
++    { name = "typing-extensions" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/61/cc/a381afa6efea9f496eff839d4a6a1aed3bfafc7b3ab4b0d1b243a12573dd/anyio-4.14.2.tar.gz", hash = "sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f", size = 260176, upload-time = "2026-07-12T20:29:07.082Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/da/35/f2287558c17e29fafc8ef3daf819bb9834061cfa43bff8014f7df7f63bdc/anyio-4.14.2-py3-none-any.whl", hash = "sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494", size = 125813, upload-time = "2026-07-12T20:29:05.763Z" },
++]
++
++[[package]]
++name = "certifi"
++version = "2026.7.22"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/a3/c2/24167ea9858356b47a87a50d39908bfdb72ceeefe0041586e704e5376b3a/certifi-2026.7.22.tar.gz", hash = "sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55", size = 138112, upload-time = "2026-07-22T03:35:12.644Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl", hash = "sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775", size = 136983, upload-time = "2026-07-22T03:35:11.276Z" },
++]
++
++[[package]]
++name = "click"
++version = "8.4.2"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "colorama", marker = "sys_platform == 'win32'" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/76/d4/81420972a676e8ffea40450d8c8c92943e7218a78fe9b64359836cc9876b/click-8.4.2.tar.gz", hash = "sha256:9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6", size = 338000, upload-time = "2026-06-24T17:45:15.148Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/fb/e2/79c688af8b210d232694e31e59da9f6ec747bae31c3f5946e4e9b98860d5/click-8.4.2-py3-none-any.whl", hash = "sha256:e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76", size = 119243, upload-time = "2026-06-24T17:45:13.73Z" },
++]
++
++[[package]]
++name = "colorama"
++version = "0.4.6"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697, upload-time = "2022-10-25T02:36:22.414Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
++]
++
++[[package]]
++name = "costmgr-api"
++version = "0.1.0"
++source = { editable = "apps/api" }
++
++[package.optional-dependencies]
++dev = [
++    { name = "fastapi" },
++    { name = "httpx" },
++    { name = "pydantic" },
++    { name = "pytest" },
++    { name = "uvicorn" },
++]
++
++[package.metadata]
++requires-dist = [
++    { name = "fastapi", marker = "extra == 'dev'", specifier = ">=0.115.0" },
++    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
++    { name = "pydantic", marker = "extra == 'dev'", specifier = ">=2.9.0" },
++    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
++    { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.32.0" },
++]
++provides-extras = ["dev"]
++
++[[package]]
++name = "costmgr-cost-engine"
++version = "0.1.0"
++source = { editable = "packages/cost_engine" }
++
++[package.optional-dependencies]
++dev = [
++    { name = "pytest" },
++    { name = "ruff" },
++]
++math = [
++    { name = "numpy" },
++]
++
++[package.metadata]
++requires-dist = [
++    { name = "numpy", marker = "extra == 'math'", specifier = ">=2.0" },
++    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
++    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7.0" },
++]
++provides-extras = ["dev", "math"]
++
++[[package]]
++name = "costmgr-ports"
++version = "0.1.0"
++source = { editable = "packages/ports" }
++
++[package.optional-dependencies]
++dev = [
++    { name = "pytest" },
++    { name = "ruff" },
++]
++
++[package.metadata]
++requires-dist = [
++    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
++    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7.0" },
++]
++provides-extras = ["dev"]
++
++[[package]]
++name = "costmgr-services"
++version = "0.1.0"
++source = { editable = "packages/services" }
++
++[package.optional-dependencies]
++dev = [
++    { name = "pytest" },
++    { name = "ruff" },
++]
++
++[package.metadata]
++requires-dist = [
++    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
++    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7.0" },
++]
++provides-extras = ["dev"]
++
++[[package]]
++name = "costmgr-workspace"
++version = "0.1.0"
++source = { virtual = "." }
++
++[[package]]
++name = "fastapi"
++version = "0.140.0"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "annotated-doc" },
++    { name = "pydantic" },
++    { name = "starlette" },
++    { name = "typing-extensions" },
++    { name = "typing-inspection" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/0d/fb/fd7671137d9fa3df1d93a2f5111eb982709201724b29f211e4beb2d58688/fastapi-0.140.0.tar.gz", hash = "sha256:f338951b82fd74ca8f843163aec43ea1a1ce84d515415a50fa98fa25572a5544", size = 420968, upload-time = "2026-07-24T21:16:41.187Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/eb/76/6d9e25ad88da9d3ff744bcdbec4736e38c2288611d43f673a5d9bfa27c07/fastapi-0.140.0-py3-none-any.whl", hash = "sha256:e951c0a0d9540bf5d9a2a9e078fd415da2ab7e312d435139e7d9e2e7fe9f0b23", size = 130863, upload-time = "2026-07-24T21:16:42.89Z" },
++]
++
++[[package]]
++name = "h11"
++version = "0.16.0"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1", size = 101250, upload-time = "2025-04-24T03:35:25.427Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86", size = 37515, upload-time = "2025-04-24T03:35:24.344Z" },
++]
++
++[[package]]
++name = "httpcore"
++version = "1.0.9"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "certifi" },
++    { name = "h11" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/06/94/82699a10bca87a5556c9c59b5963f2d039dbd239f25bc2a63907a05a14cb/httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8", size = 85484, upload-time = "2025-04-24T22:06:22.219Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55", size = 78784, upload-time = "2025-04-24T22:06:20.566Z" },
++]
++
++[[package]]
++name = "httpx"
++version = "0.28.1"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "anyio" },
++    { name = "certifi" },
++    { name = "httpcore" },
++    { name = "idna" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406, upload-time = "2024-12-06T15:37:23.222Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad", size = 73517, upload-time = "2024-12-06T15:37:21.509Z" },
++]
++
++[[package]]
++name = "idna"
++version = "3.18"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/cd/63/9496c57188a2ee585e0f1db071d75089a11e98aa86eb99d9d7618fc1edce/idna-3.18.tar.gz", hash = "sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848", size = 196711, upload-time = "2026-06-02T14:34:07.794Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/1e/5e/d4e9f1a599fb8e573b7b87160658329fbf28d19eac2718f51fc3def3aa5a/idna-3.18-py3-none-any.whl", hash = "sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2", size = 65455, upload-time = "2026-06-02T14:34:06.319Z" },
++]
++
++[[package]]
++name = "iniconfig"
++version = "2.3.0"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc35312d08ba8bf51fdd999c576889fc2c24cb97f4f10/iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730", size = 20503, upload-time = "2025-10-18T21:55:43.219Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
++]
++
++[[package]]
++name = "numpy"
++version = "2.5.1"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/22/fd/89965aa4ac08c74998539fcbf24fa3540f3e15237fbeb6bcf9c908f4aade/numpy-2.5.1.tar.gz", hash = "sha256:a48a113e6afea91f5608793bafa7ef2ad481fefbda87ec5069f483de61cb9fa3", size = 20755553, upload-time = "2026-07-04T17:08:00.933Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/62/7b/14687aa674250e5e546f616f486b0d56d3631cd5b2415739141ce40bdcea/numpy-2.5.1-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:2c889b56fe48b1018f764b0eec8df59ab654e9148aa91faa12596043500de277", size = 16801574, upload-time = "2026-07-04T17:06:12.423Z" },
++    { url = "https://files.pythonhosted.org/packages/e1/19/cc5bb2a3f2913d27d6dbb2c78d25921fabaedc6741d4a5a615a11f3c5bf3/numpy-2.5.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:ab451b59c5643c570974c43aef780703ef1d3b4965d2be07afd530615a9358d1", size = 11772250, upload-time = "2026-07-04T17:06:15.726Z" },
++    { url = "https://files.pythonhosted.org/packages/42/77/fdf34a71dd30f54979b18603bee915e0aaf825b07afe79acd60b04b691e2/numpy-2.5.1-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:78798bd5b9ad744056af8efa90e3b9ddaa53272a0848a483084a1cc0a13b2dc0", size = 5331516, upload-time = "2026-07-04T17:06:17.913Z" },
++    { url = "https://files.pythonhosted.org/packages/ce/e2/eb7efa015b4cce41e2517bf182a7fce0d7d5b9d9ed76a29bfa0f4fe4505c/numpy-2.5.1-cp312-cp312-macosx_14_0_x86_64.whl", hash = "sha256:2ae0ca40bcb22d6ba59c1dfd5446f49940b0f2d821fde133f10dda11f816b84e", size = 6664863, upload-time = "2026-07-04T17:06:20.02Z" },
++    { url = "https://files.pythonhosted.org/packages/a9/4b/a2b32dd94ee9ffbeecb28152240042a3949db33b1c834d44090b80e1b3b8/numpy-2.5.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:61ac47e772e6b8ea489e1d2f441a34c5c3ac17327e7ce294cbdf535795ad4e75", size = 15167977, upload-time = "2026-07-04T17:06:21.621Z" },
++    { url = "https://files.pythonhosted.org/packages/b8/a9/6e73d68500f80773f65f0654ea932019d6694329a0eb0ed0533de38df376/numpy-2.5.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:59fda5e192b570217ec2580c96f00e9a7e12ef6866a900eb089b62c1a32545ca", size = 16672469, upload-time = "2026-07-04T17:06:24.064Z" },
++    { url = "https://files.pythonhosted.org/packages/24/7d/ad3e59015135f5261c95fd4cafeff159c955febd83a99a1d9250c4233815/numpy-2.5.1-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:f7119ebff1a9829e9f431a4f9d28e703023bb6b9fe7c8f724467dbfc27c94ab3", size = 16527531, upload-time = "2026-07-04T17:06:26.69Z" },
++    { url = "https://files.pythonhosted.org/packages/83/d0/a39b2fbcde9cb17a1dac678f254b33a6336298af9df338824c685425d5e8/numpy-2.5.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:e824c2acf8862052246be5a44c15da1777940c60d010dd2aab897824d9c430f9", size = 18431940, upload-time = "2026-07-04T17:06:29.521Z" },
++    { url = "https://files.pythonhosted.org/packages/04/12/cff070947791c1ed425ff76413189adbdc2fbe215eba7ce7fa454a03c7f8/numpy-2.5.1-cp312-cp312-win32.whl", hash = "sha256:08d60c810432eb83360958dea0999ac4cfb94531ea8efcbf0b7f277c2068aeb2", size = 6066764, upload-time = "2026-07-04T17:06:32.571Z" },
++    { url = "https://files.pythonhosted.org/packages/65/66/53f31807a48a750f9d748da273bc3fcedd12b27ff1f3e373bfec55ef2dc0/numpy-2.5.1-cp312-cp312-win_amd64.whl", hash = "sha256:f7d60026c0bdb1380e83bfa7a0419c4577ee4b9a08880afcb6dadeb74c649fa2", size = 12430966, upload-time = "2026-07-04T17:06:34.926Z" },
++    { url = "https://files.pythonhosted.org/packages/2b/2a/d1a88066b1c14186f5d3c0d18c94f17b064511982bab0578d49ee9d43c29/numpy-2.5.1-cp312-cp312-win_arm64.whl", hash = "sha256:17a25e09640602e10bc8de0e6fa2b3fd68eedd84ba6d7842dc8f32f9ab87bd0b", size = 10350488, upload-time = "2026-07-04T17:06:37.785Z" },
++]
++
++[[package]]
++name = "packaging"
++version = "26.2"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/d7/f1/e7a6dd94a8d4a5626c03e4e99c87f241ba9e350cd9e6d75123f992427270/packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661", size = 228134, upload-time = "2026-04-24T20:15:23.917Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e", size = 100195, upload-time = "2026-04-24T20:15:22.081Z" },
++]
++
++[[package]]
++name = "pluggy"
++version = "1.6.0"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
++]
++
++[[package]]
++name = "pydantic"
++version = "2.13.4"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "annotated-types" },
++    { name = "pydantic-core" },
++    { name = "typing-extensions" },
++    { name = "typing-inspection" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/18/a5/b60d21ac674192f8ab0ba4e9fd860690f9b4a6e51ca5df118733b487d8d6/pydantic-2.13.4.tar.gz", hash = "sha256:c40756b57adaa8b1efeeced5c196f3f3b7c435f90e84ea7f443901bec8099ef6", size = 844775, upload-time = "2026-05-06T13:43:05.343Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/fd/7b/122376b1fd3c62c1ed9dc80c931ace4844b3c55407b6fb2d199377c9736f/pydantic-2.13.4-py3-none-any.whl", hash = "sha256:45a282cde31d808236fd7ea9d919b128653c8b38b393d1c4ab335c62924d9aba", size = 472262, upload-time = "2026-05-06T13:43:02.641Z" },
++]
++
++[[package]]
++name = "pydantic-core"
++version = "2.46.4"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "typing-extensions" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/9d/56/921726b776ace8d8f5db44c4ef961006580d91dc52b803c489fafd1aa249/pydantic_core-2.46.4.tar.gz", hash = "sha256:62f875393d7f270851f20523dd2e29f082bcc82292d66db2b64ea71f64b6e1c1", size = 471464, upload-time = "2026-05-06T13:37:06.98Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/ce/8c/af022f0af448d7747c5154288d46b5f2bc5f17366eaa0e23e9aa04d59f3b/pydantic_core-2.46.4-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:3245406455a5d98187ec35530fd772b1d799b26667980872c8d4614991e2c4a2", size = 2106158, upload-time = "2026-05-06T13:38:57.215Z" },
++    { url = "https://files.pythonhosted.org/packages/19/95/6195171e385007300f0f5574592e467c568becce2d937a0b6804f218bc49/pydantic_core-2.46.4-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:962ccbab7b642487b1d8b7df90ef677e03134cf1fd8880bf698649b22a69371f", size = 1951724, upload-time = "2026-05-06T13:37:02.697Z" },
++    { url = "https://files.pythonhosted.org/packages/8e/bc/f47d1ff9cbb1620e1b5b697eef06010035735f07820180e74178226b27b3/pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8233f2947cf85404441fd7e0085f53b10c93e0ee78611099b5c7237e36aacbf7", size = 1975742, upload-time = "2026-05-06T13:37:09.448Z" },
++    { url = "https://files.pythonhosted.org/packages/5b/11/9b9a5b0306345664a2da6410877af6e8082481b5884b3ddd78d47c6013ce/pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:3a233125ac121aa3ffba9a2b59edfc4a985a76092dc8279586ab4b71390875e7", size = 2052418, upload-time = "2026-05-06T13:37:38.234Z" },
++    { url = "https://files.pythonhosted.org/packages/f1/b7/a65fec226f5d78fc39f4a13c4cc0c768c22b113438f60c14adc9d2865038/pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:5b712b53160b79a5850310b912a5ef8e57e56947c8ad690c227f5c9d7e561712", size = 2232274, upload-time = "2026-05-06T13:38:27.753Z" },
++    { url = "https://files.pythonhosted.org/packages/68/f0/92039db98b907ef49269a8271f67db9cb78ae2fc68062ef7e4e77adb5f61/pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:9401557acd873c3a7f3eb9383edef8ac4968f9510e340f4808d427e75667e7b4", size = 2309940, upload-time = "2026-05-06T13:38:05.353Z" },
++    { url = "https://files.pythonhosted.org/packages/5f/97/2aab507d3d00ca626e8e57c1eac6a79e4e5fbcc63eb99733ff55d1717f65/pydantic_core-2.46.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:926c9541b14b12b1681dca8a0b75feb510b06c6341b70a8e500c2fdcff837cce", size = 2094516, upload-time = "2026-05-06T13:39:10.577Z" },
++    { url = "https://files.pythonhosted.org/packages/22/37/a8aca44d40d737dde2bc05b3c6c07dff0de07ce6f82e9f3167aeaf4d5dea/pydantic_core-2.46.4-cp312-cp312-manylinux_2_31_riscv64.whl", hash = "sha256:56cb4851bcaf3d117eddcef4fe66afd750a50274b0da8e22be256d10e5611987", size = 2136854, upload-time = "2026-05-06T13:40:22.59Z" },
++    { url = "https://files.pythonhosted.org/packages/24/99/fcef1b79238c06a8cbec70819ac722ba76e02bc8ada9b0fd66eba40da01b/pydantic_core-2.46.4-cp312-cp312-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:c68fcd102d71ea85c5b2dfac3f4f8476eff42a9e078fd5faefff6d145063536b", size = 2180306, upload-time = "2026-05-06T13:40:10.666Z" },
++    { url = "https://files.pythonhosted.org/packages/ae/6c/fc44000918855b42779d007ae63b0532794739027b2f417321cddbc44f6a/pydantic_core-2.46.4-cp312-cp312-musllinux_1_1_aarch64.whl", hash = "sha256:b2f69dec1725e79a012d920df1707de5caf7ed5e08f3be4435e25803efc47458", size = 2190044, upload-time = "2026-05-06T13:40:43.231Z" },
++    { url = "https://files.pythonhosted.org/packages/6b/65/d9cadc9f1920d7a127ad2edba16c1db7916e59719285cd6c94600b0080ba/pydantic_core-2.46.4-cp312-cp312-musllinux_1_1_armv7l.whl", hash = "sha256:8d0820e8192167f80d88d64038e609c31452eeca865b4e1d9950a27a4609b00b", size = 2329133, upload-time = "2026-05-06T13:39:57.365Z" },
++    { url = "https://files.pythonhosted.org/packages/d0/cf/c873d91679f3a30bcf5e7ac280ce5573483e72295307685120d0d5ad3416/pydantic_core-2.46.4-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:fbdb89b3e1c94a30cc5edfce477c6e6a5dc4d8f84665b455c27582f211a1c72c", size = 2374464, upload-time = "2026-05-06T13:38:06.976Z" },
++    { url = "https://files.pythonhosted.org/packages/47/bd/6f2fc8188f31bf10590f1e98e7b306336161fac930a8c514cd7bd828c7dc/pydantic_core-2.46.4-cp312-cp312-win32.whl", hash = "sha256:9aa768456404a8bf48a4406685ac2bec8e72b62c69313734fa3b73cf33b3a894", size = 1974823, upload-time = "2026-05-06T13:40:47.985Z" },
++    { url = "https://files.pythonhosted.org/packages/40/8c/985c1d41ea1107c2534abd9870e4ed5c8e7669b5c308297835c001e7a1c4/pydantic_core-2.46.4-cp312-cp312-win_amd64.whl", hash = "sha256:e9c26f834c65f5752f3f06cb08cb86a913ceb7274d0db6e267808a708b46bc89", size = 2072919, upload-time = "2026-05-06T13:39:21.153Z" },
++    { url = "https://files.pythonhosted.org/packages/c4/ba/f463d006e0c47373ca7ec5e1a261c59dc01ef4d62b2657af925fb0deee3a/pydantic_core-2.46.4-cp312-cp312-win_arm64.whl", hash = "sha256:4fc73cb559bdb54b1134a706a2802a4cddd27a0633f5abb7e53056268751ac6a", size = 2027604, upload-time = "2026-05-06T13:39:03.753Z" },
++    { url = "https://files.pythonhosted.org/packages/9d/1d/8987ad40f65ae1432753072f214fb5c74fe47ffbd0698bb9cbbb585664f8/pydantic_core-2.46.4-graalpy312-graalpy250_312_native-macosx_10_12_x86_64.whl", hash = "sha256:1d8ba486450b14f3b1d63bc521d410ec7565e52f887b9fb671791886436a42f7", size = 2095527, upload-time = "2026-05-06T13:39:52.283Z" },
++    { url = "https://files.pythonhosted.org/packages/64/d3/84c282a7eee1d3ac4c0377546ef5a1ea436ce26840d9ac3b7ed54a377507/pydantic_core-2.46.4-graalpy312-graalpy250_312_native-macosx_11_0_arm64.whl", hash = "sha256:3009f12e4e90b7f88b4f9adb1b0c4a3d58fe7820f3238c190047209d148026df", size = 1936024, upload-time = "2026-05-06T13:40:15.671Z" },
++    { url = "https://files.pythonhosted.org/packages/d7/ca/eac61596cdeb4d7e174d3dc0bd8a6238f14f75f97a24e7b7db4c7e7340a0/pydantic_core-2.46.4-graalpy312-graalpy250_312_native-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ad785e92e6dc634c21555edc8bd6b64957ab844541bcb96a1366c202951ae526", size = 1990696, upload-time = "2026-05-06T13:38:34.717Z" },
++    { url = "https://files.pythonhosted.org/packages/fa/c3/7c8b240552251faf6b3a957db200fcfbbcec36763c050428b601e0c9b83b/pydantic_core-2.46.4-graalpy312-graalpy250_312_native-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:00c603d540afdd6b80eb39f078f33ebd46211f02f33e34a32d9f053bba711de0", size = 2147590, upload-time = "2026-05-06T13:39:29.883Z" },
++]
++
++[[package]]
++name = "pygments"
++version = "2.20.0"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/c3/b2/bc9c9196916376152d655522fdcebac55e66de6603a76a02bca1b6414f6c/pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f", size = 4955991, upload-time = "2026-03-29T13:29:33.898Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176", size = 1231151, upload-time = "2026-03-29T13:29:30.038Z" },
++]
++
++[[package]]
++name = "pytest"
++version = "9.1.1"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "colorama", marker = "sys_platform == 'win32'" },
++    { name = "iniconfig" },
++    { name = "packaging" },
++    { name = "pluggy" },
++    { name = "pygments" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313", size = 1636369, upload-time = "2026-06-19T10:58:32.857Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c", size = 386536, upload-time = "2026-06-19T10:58:31.347Z" },
++]
++
++[[package]]
++name = "ruff"
++version = "0.16.0"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/4d/94/1e5e4967626faf12fa56999cd6222dff6992ceb086ad7945756baf70c7a7/ruff-0.16.0.tar.gz", hash = "sha256:e460aafd5495ec89efaa6ced2e4a9a581116451e1c88b9d37ef497e0f8e93982", size = 4790557, upload-time = "2026-07-23T19:11:30.981Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/4b/81/1c8818fee7ce1a04cd7d1b3172e0a8f8e4f1dc4feb7fc390e16daa8af323/ruff-0.16.0-py3-none-linux_armv6l.whl", hash = "sha256:e5115729eb08c585e5121978ba5d5b60caeae394ce21b9fb5e6cd33a1c6c9b1e", size = 10754633, upload-time = "2026-07-23T19:10:46.415Z" },
++    { url = "https://files.pythonhosted.org/packages/23/df/beaf59c09d68db84304d555f188b276a77132a5d5b0b67a5c762aa143628/ruff-0.16.0-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:3c954b1d580bfa035b41654f7858cc7e71d5fc3ac5b723dd62bd9133830ed522", size = 10969164, upload-time = "2026-07-23T19:10:50.271Z" },
++    { url = "https://files.pythonhosted.org/packages/42/ce/741cd197496a1abbf51352710fd15ed995d2a2be87189c1da26a450d6e83/ruff-0.16.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:e01c21d10eb1b29f47b7454e1f4056db9a3f0260c646aa88457c610291db9f81", size = 10488846, upload-time = "2026-07-23T19:10:52.639Z" },
++    { url = "https://files.pythonhosted.org/packages/52/2a/a2db8e88cade358f5cdcb05674a917751074109315d014eb6352d9a893f7/ruff-0.16.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6e364e5ed22ed8dc05082fd78e35308618260907ac2d3c1d637b2e682415b6c9", size = 10889729, upload-time = "2026-07-23T19:10:54.89Z" },
++    { url = "https://files.pythonhosted.org/packages/42/65/62a771694ebd63029dc953e27dbad40e1588bd4860ff9fe881018fddaa49/ruff-0.16.0-py3-none-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:d327b8fc113a1d4421a04f3839d3752057c8dd1ee320223a6f3f52d04ada462a", size = 10568275, upload-time = "2026-07-23T19:10:56.993Z" },
++    { url = "https://files.pythonhosted.org/packages/3f/e2/ced249fe8af5f086c5c58cc21cc3356d50f32f7401c5df87050c999620a7/ruff-0.16.0-py3-none-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:a9b50c55e263103586b3dcf5f73d479eb8cb5fdb6098fec59a62891dab653717", size = 11385112, upload-time = "2026-07-23T19:10:59.615Z" },
++    { url = "https://files.pythonhosted.org/packages/87/0b/05154977a8fd69eeb6c103271f55403bfd8711f5c0f8ed07489d95a504e7/ruff-0.16.0-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:0ff4a79ce3ec0172f3241943835de1c4cb4e2dcd07f0f8c2d02603dbbbee4b17", size = 12207008, upload-time = "2026-07-23T19:11:02.154Z" },
++    { url = "https://files.pythonhosted.org/packages/fb/29/98225831a3a1eab0e02f4acc6ca6559a98611dcc68b6965ff4b7234627c1/ruff-0.16.0-py3-none-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:e95c448fca1fb2a18372a9440926c5a6ee789639bb975c72e7ae6d0b04218ab4", size = 11650842, upload-time = "2026-07-23T19:11:04.557Z" },
++    { url = "https://files.pythonhosted.org/packages/91/66/6bd3cf90500653d55dc0ffc8507aa8300bd49d0214b2e8cb4d3fef2943ba/ruff-0.16.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4f11a8d11010301d0a398a2fdef67691feca7294da6aef55e2150e8fa2cd520b", size = 11400718, upload-time = "2026-07-23T19:11:09.233Z" },
++    { url = "https://files.pythonhosted.org/packages/8e/a2/a54eb4eae05d66364050a5d3b8a9c5ef88196531b3cbe7109d873f87f819/ruff-0.16.0-py3-none-manylinux_2_31_riscv64.whl", hash = "sha256:48044c678e9cb8698246c99b14aaccfa6601dea7379eb48a6f8f73f7a6d86cd0", size = 11426177, upload-time = "2026-07-23T19:11:11.994Z" },
++    { url = "https://files.pythonhosted.org/packages/1a/be/16e3eea4b2a478a496919f5e36f17c4559e54620bd3bbac5d6affa068006/ruff-0.16.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:7aa0959bad8eb8bef50340154fc9b58678dae31fa4293afa38b44b6e552c0213", size = 10856126, upload-time = "2026-07-23T19:11:14.221Z" },
++    { url = "https://files.pythonhosted.org/packages/a2/84/252eb8b868a16eec7257c14f504f77537e734b2d69c762e639e588e304a3/ruff-0.16.0-py3-none-musllinux_1_2_armv7l.whl", hash = "sha256:28ea2b7df8ebf7f9da6b7d47b230ab48f387c0a29be3b474c4d0740e197bb9af", size = 10571208, upload-time = "2026-07-23T19:11:16.378Z" },
++    { url = "https://files.pythonhosted.org/packages/21/09/817a482f542f7570cbb4554b26e896610c7114f539b1d9e2d2145bf6bef6/ruff-0.16.0-py3-none-musllinux_1_2_i686.whl", hash = "sha256:33a3dfac8c35f81498dea9181bccc2f4c4bc8f1521a1dd9406e77643e0f0fb09", size = 11063329, upload-time = "2026-07-23T19:11:19.173Z" },
++    { url = "https://files.pythonhosted.org/packages/2e/23/9403c180ca1cb9b1f7335f5c3e5305c09d49ea5b345196682a36028bde4a/ruff-0.16.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:a5237a0bda500d30d81b8e07a6973a5cbc772864cbf746ae2f4e8a2e01c9f4ed", size = 11489751, upload-time = "2026-07-23T19:11:21.74Z" },
++    { url = "https://files.pythonhosted.org/packages/b2/1d/1b2ef7bcde851c78d7f17f1cca13fd6dc695fc4b3d6197941e72cae5b132/ruff-0.16.0-py3-none-win32.whl", hash = "sha256:7fab76fa065c873f41ff744347c6e77bcc3dfec4bcc754dc26b63d23c0f7f5fb", size = 10785885, upload-time = "2026-07-23T19:11:23.947Z" },
++    { url = "https://files.pythonhosted.org/packages/b2/a3/d5e4ef7a56be3f928ffb90b94c25ba7d3cb9c7fe0736aeaaedf361770712/ruff-0.16.0-py3-none-win_amd64.whl", hash = "sha256:429c117f022bf481fabd9d551e7a3952b24c65e6ef44337ea09d90bebef14472", size = 11923141, upload-time = "2026-07-23T19:11:26.409Z" },
++    { url = "https://files.pythonhosted.org/packages/cb/9a/8415f2657cbe200f41a4531ccededf135505a92d4a012229121f885b26f9/ruff-0.16.0-py3-none-win_arm64.whl", hash = "sha256:14296fedcd2705c77ab8235439278bbb38f285cf7da5528b00b3e330c3d4872d", size = 11273407, upload-time = "2026-07-23T19:11:28.705Z" },
++]
++
++[[package]]
++name = "starlette"
++version = "1.3.1"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "anyio" },
++    { name = "typing-extensions" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/eb/e3/7c1dc7381d9f8ab7d854328ebfa884e62cb3f3d8549ddfd37c7814f42afa/starlette-1.3.1.tar.gz", hash = "sha256:05d0213193f2fbaae60e2ecb593b4add4262ad4e46536b54abe36f11a71724e0", size = 2703240, upload-time = "2026-06-12T09:23:11.602Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/ec/bb/2799cc2ede3ed41131f8975621e7213dfc7ef4acbbaadfa440f32500c370/starlette-1.3.1-py3-none-any.whl", hash = "sha256:c7372aae11c3c3f26a42df7bd626cec2f47d03483d261d369516a615a53714c6", size = 73632, upload-time = "2026-06-12T09:23:10.017Z" },
++]
++
++[[package]]
++name = "typing-extensions"
++version = "4.16.0"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/f6/cc/6253133b5bb138fc3306cebfbda2c520f545d36b5be2c7255cc528bb45d6/typing_extensions-4.16.0.tar.gz", hash = "sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5", size = 113555, upload-time = "2026-07-02T08:40:05.92Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl", hash = "sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8", size = 45571, upload-time = "2026-07-02T08:40:04.659Z" },
++]
++
++[[package]]
++name = "typing-inspection"
++version = "0.4.2"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "typing-extensions" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/55/e3/70399cb7dd41c10ac53367ae42139cf4b1ca5f36bb3dc6c9d33acdb43655/typing_inspection-0.4.2.tar.gz", hash = "sha256:ba561c48a67c5958007083d386c3295464928b01faa735ab8547c5692e87f464", size = 75949, upload-time = "2025-10-01T02:14:41.687Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl", hash = "sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7", size = 14611, upload-time = "2025-10-01T02:14:40.154Z" },
++]
++
++[[package]]
++name = "uvicorn"
++version = "0.51.0"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "click" },
++    { name = "h11" },
++]
++sdist = { url = "https://files.pythonhosted.org/packages/a2/65/b7c6c443ccc58678c91e1e973bbe2a878591538655d6e1d47f24ba1c51f3/uvicorn-0.51.0.tar.gz", hash = "sha256:f6f4b69b657c312f516dd2d268ab9ae6f254b11e4bac504f37b2ab58b24dd0b0", size = 94412, upload-time = "2026-07-08T10:59:05.962Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/45/ec/dbb7e5a6b91f86bfb9eb7d2988a2730907b6a729875b949c7f022e8b88fa/uvicorn-0.51.0-py3-none-any.whl", hash = "sha256:5d38af6cd620f2ae3849fb44fd4879e0890aa1febe8d47eb355fb45d93fe6a5b", size = 73219, upload-time = "2026-07-08T10:59:04.44Z" },
++]

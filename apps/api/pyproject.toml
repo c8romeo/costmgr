@@ -1,0 +1,50 @@
+[project]
+name = "costmgr-api"
+version = "0.1.0"
+description = "bizup API — FastAPI modular monolith"
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+
+# ─────────────────────────────────────────────────────────────────────────
+# FASTAPI-1 (CR 2026-07-25): fastapi moved from [dev] extras to production
+# deps — the runtime image imports it, so a production install without
+# [dev] extras would otherwise break. Pydantic stays pinned (RANGE-1:
+# pydantic==2.11.9, last 2.11.x before PYD-1 broken 2.13.x wheel).
+# ─────────────────────────────────────────────────────────────────────────
+dependencies = [
+    # Story 0.2 — Supabase + Postgres + JWT
+    "sqlalchemy==2.0.36",       # AD-14 exact pin
+    "asyncpg==0.30.0",          # async Postgres driver
+    "alembic==1.18.5",          # migrations
+    "pyjwt==2.10.1",            # HS256 JWT decoder
+    "pydantic-settings==2.6.1", # settings.py base
+    "supabase==2.10.0",         # auth.admin.* helpers (used in tests)
+    # FastAPI is a runtime dependency (main:app = uvicorn target).
+    "fastapi==0.139.2",         # spec line 125 (AD-14 exact pin)
+    "uvicorn==0.32.0",          # ASGI server (CMD entrypoint in Dockerfile)
+    "httpx==0.27.0",            # used by core clients + tests
+    # pydantic/pydantic-core: pinned to 2.11.x (RANGE-1) — last known-good
+    # before broken pydantic-core==2.46.4 wheel that ships with 2.13+ (PYD-1).
+    "pydantic==2.11.9",         # AD-14 exact pin (was range >=2.10,<2.12)
+    "pydantic-core==2.27.2",    # last known-good wheel
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",     # spec line 130
+]
+
+[build-system]
+# HATCH-1 (CR 2026-07-25): hatchling pinned to a specific version (1.27.0),
+# not "latest" — guarantees reproducible builds per AD-14.
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# Production wheel needs the whole package, not just subpackages.
+# apps/api/{__init__,main}.py + apps/api/{core,modules}/ together form the package.
+# Editable install (uv workspace) doesn't read this; production does.
+packages = ["."]
+
+[tool.hatch.metadata]
+allow-direct-references = true

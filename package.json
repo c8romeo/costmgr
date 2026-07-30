@@ -1,0 +1,26 @@
+{
+  "name": "costmgr",
+  "version": "0.1.0",
+  "private": true,
+  "description": "bizup/costmgr — modular monolith + hexagonal core (AD-1)",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": "9.15.4"
+  },
+  "scripts": {
+    "dep:check": "node scripts/check_stack_pin.mjs",
+    "dep:check:verbose": "VERBOSE=1 node scripts/check_stack_pin.mjs",
+    "lint:deps": "depcruise --validate .dependency-cruiser.cjs apps packages",
+    "lint:imports": "uv run import-linter lint --config pyproject.toml",
+    "lint:all": "pnpm lint:deps && pnpm lint:imports && pnpm dep:check",
+    "test:architecture": "uv run pytest tests/architecture tests/cost_engine -q",
+    "test:rls": "uv run pytest tests/rls/test_service_role_audit.py -v",
+    "test:stack-pin": "uv run python scripts/check_stack_pin.py",
+    "test:all": "pnpm test:architecture && pnpm test:rls"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "16.10.4",
+    "js-yaml": "4.1.0"
+  }
+}

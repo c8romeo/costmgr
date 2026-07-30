@@ -1,0 +1,674 @@
+diff --git a/Makefile b/Makefile
+new file mode 100644
+--- /dev/null
++++ b/Makefile
+@@ -0,0 +1,132 @@
++# costmgr — unified Makefile for lint + test entry points.
++#
++# Story 0.4 — `lint-conventions` target composes ruff + ESLint + custom
++# money-type / migration linters. Each story adds its own target below.
++#
++# Usage:
++#   make help                # show available targets
++#   make lint-all            # run every linter
++#   make test-all            # run the full test suite (excluding CI-only jobs)
++#   make lint-conventions    # AD-8 + AD-15 conventions (Story 0.4)
++#
++# On Windows, GNU Make is required (choco install make). The targets also
++# run via direct bash invocation when `make` is not available.
++
++# ─────────────────────────────────────────────────────────────────
++# Tooling — resolve to .venv binaries so paths are repo-local.
++# ─────────────────────────────────────────────────────────────────
++VENV_BIN := .venv/bin
++VENV_SCRIPTS := .venv/Scripts
++ifeq ($(OS),Windows_NT)
++	PYTHON := $(VENV_SCRIPTS)/python.exe
++	RUFF := $(VENV_SCRIPTS)/ruff.exe
++	PYTEST := $(VENV_SCRIPTS)/pytest.exe
++	PYTHONPATH := apps;packages;.
++	SHELL := bash
++else
++	PYTHON := $(VENV_BIN)/python
++	RUFF := $(VENV_BIN)/ruff
++	PYTEST := $(VENV_BIN)/pytest
++	PYTHONPATH := apps:packages:.
++endif
++
++export PYTHONPATH
++export PYTHONIOENCODING := utf-8
++
++# ─────────────────────────────────────────────────────────────────
++# help — list available targets
++# ─────────────────────────────────────────────────────────────────
++.PHONY: help
++help:
++	@echo "costmgr Makefile targets:"
++	@echo ""
++	@echo "  make lint-deps         dependency-cruiser (Story 0.1)"
++	@echo "  make lint-imports      import-linter (Story 0.1)"
++	@echo "  make lint-conventions  ruff + ESLint + money-type + migration (Story 0.4)"
++	@echo "  make dep-check         pnpm dep:check + check_stack_pin (Story 0.3)"
++	@echo "  make lint-all          all of the above"
++	@echo ""
++	@echo "  make test-architecture architecture fixture tests (Story 0.1)"
++	@echo "  make test-rls          RLS unit tests (no DB; CI runs full RLS)"
++	@echo "  make test-conventions  convention linter tests (Story 0.4)"
++	@echo "  make test-stack-pin    stack-pin check tests (Story 0.3)"
++	@echo "  make test-all          all of the above (excluding live Postgres jobs)"
++	@echo ""
++	@echo "Tooling:"
++	@echo "  PYTHON = $(PYTHON)"
++	@echo "  RUFF   = $(RUFF)"
++
++# ─────────────────────────────────────────────────────────────────
++# Story 0.1 — dependency-cruiser + import-linter
++# ─────────────────────────────────────────────────────────────────
++.PHONY: lint-deps
++lint-deps:
++	pnpm lint:deps
++
++.PHONY: lint-imports
++lint-imports:
++	pnpm lint:imports
++
++# ─────────────────────────────────────────────────────────────────
++# Story 0.4 — AD-8 monetary types + AD-15 cross-language conventions
++# ─────────────────────────────────────────────────────────────────
++.PHONY: lint-conventions
++lint-conventions:
++	@echo "▶ ruff check (Python AD-15 naming + style)"
++	$(RUFF) check apps/api packages
++	@echo "▶ ruff format --check"
++	$(RUFF) format --check apps/api packages
++	@echo "▶ check_money_types.py (AD-8 float-free money cost paths)"
++	$(PYTHON) scripts/check_money_types.py
++	@echo "▶ check_migration_money.py (AD-8 sa.Float / sa.Numeric guard)"
++	$(PYTHON) scripts/check_migration_money.py
++	@echo "▶ check_migration_naming.py (AD-15 snake_case migrations)"
++	$(PYTHON) scripts/check_migration_naming.py
++	@echo "▶ ESLint AD-15 (TS naming + AD-8 no-restricted-types)"
++	./node_modules/.bin/eslint --config .eslint.config.mjs apps/web --ext .ts,.tsx
++
++# ─────────────────────────────────────────────────────────────────
++# Story 0.3 — stack-pin check (pin lockfile + manifest)
++# ─────────────────────────────────────────────────────────────────
++.PHONY: dep-check
++dep-check:
++	pnpm dep:check
++	$(PYTHON) scripts/check_stack_pin.py
++
++# ─────────────────────────────────────────────────────────────────
++# Composite — all linters in order
++# ─────────────────────────────────────────────────────────────────
++.PHONY: lint-all
++lint-all: lint-deps lint-imports lint-conventions dep-check
++	@echo "✅ All linters passed"
++
++# ─────────────────────────────────────────────────────────────────
++# Tests
++# ─────────────────────────────────────────────────────────────────
++.PHONY: test-architecture
++test-architecture:
++	$(PYTEST) tests/architecture tests/cost_engine -v
++
++.PHONY: test-rls
++test-rls:
++	$(PYTEST) tests/rls/test_service_role_audit.py -v
++
++.PHONY: test-conventions
++test-conventions:
++	$(PYTEST) tests/integration/test_conventions_lint.py tests/integration/test_money_types.py -v
++
++.PHONY: test-stack-pin
++test-stack-pin:
++	$(PYTEST) tests/integration/test_stack_pin_check.py -v
++
++.PHONY: test-all
++test-all: test-architecture test-rls test-conventions test-stack-pin
++	@echo "✅ All tests passed (excluding live Postgres jobs)"
++
++# ─────────────────────────────────────────────────────────────────
++# Convenience targets
++# ─────────────────────────────────────────────────────────────────
++.PHONY: clean
++clean:
++	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
++	find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
++	rm -rf .next .ruff_cache
+
+diff --git a/pyproject.toml b/pyproject.toml
+new file mode 100644
+--- /dev/null
++++ b/pyproject.toml
+@@ -0,0 +1,144 @@
++[project]
++name = "costmgr-workspace"
++version = "0.1.0"
++description = "bizup/costmgr monorepo root (uv workspace)"
++requires-python = ">=3.12,<3.13"
++readme = "README.md"
++
++# ─────────────────────────────────────────────────────────────────────────
++# STACK PIN POLICY (AD-14)
++# Single source of truth: docs/STACK_PIN.yaml
++# Bump policy: [STACK BUMP] commit tag + platform-team CODEOWNER approval.
++# Check: `pnpm dep:check` (Node) or `uv run check-stack-pin` (Python).
++# ─────────────────────────────────────────────────────────────────────────
++# Pinned runtime + Python deps live in their respective member packages:
++#   - apps/api/pyproject.toml             (fastapi, sqlalchemy, alembic, pyjwt,
++#                                          pydantic, pydantic-core, asyncpg,
++#                                          supabase, pydantic-settings)
++#   - packages/cost_engine/pyproject.toml (numpy, pytest, ruff — engine-math
++#                                          optional extra)
++# Dev tooling pins are listed below in [dependency-groups].dev.
++# ─────────────────────────────────────────────────────────────────────────
++
++[tool.uv]
++# uv workspace — apps + packages are members
++managed = true
++package = false
++
++[tool.uv.sources]
++# workspace members declared via [tool.uv.workspace] below
++
++[tool.uv.workspace]
++members = [
++    "apps/api",
++    "packages/cost_engine",
++    "packages/services",
++    "packages/ports",
++]
++
++# Make hatchling available for editable builds (Story 0.2 CI fix)
++[tool.uv.extra-build-dependencies]
++costmgr-api = ["hatchling"]
++"costmgr-cost-engine" = ["hatchling"]
++"costmgr-services" = ["hatchling"]
++"costmgr-ports" = ["hatchling"]
++
++# ─────────────────────────────────────────────────────────
++# dev tools (apply to all workspace members via `uv run`)
++# ─────────────────────────────────────────────────────────
++[dependency-groups]
++dev = [
++    "import-linter==2.13",    # AD-14 exact pin (was >=2.0; CR 2026-07-25 PIN-1)
++    "pytest==9.1.1",          # spec line 130
++    "ruff==0.7.0",            # AD-15, AD-8 lint+format
++    "pyyaml==6.0.2",          # REGEN-1 (CR 2026-07-25) — robust YAML for STACK_PIN
++]
++
++# Shortcut scripts — call directly:
++#   uv run import-linter
++#   uv run depcruise --validate .dependency-cruiser.cjs apps packages
++#   uv run pytest tests/architecture tests/cost_engine -v
++# (No [tool.uv.scripts] table — uv 0.11.32 doesn't accept it as a sub-table.)
++
++# ─────────────────────────────────────────────────────────
++# import-linter — architectural boundary enforcement (AD-1, AD-11)
++# ─────────────────────────────────────────────────────────
++[tool.importlinter]
++# Use `packages` as the root — `packages.cost_engine` contracts work.
++# PYTHONPATH=apps:packages:. must be set when invoking lint-imports.
++#
++# KNOWN LIMITATION (Story 0.1): import-linter requires a single root_package,
++# so contracts that span `apps.api` ↔ `packages.*` are not enforceable via
++# import-linter. They are enforced instead by:
++#   - tests/architecture/test_api_calls_only_ports.py  (AST + runtime)
++#   - tests/cost_engine/test_no_io_imports.py          (AST)
++# Story 0.3 will re-anchor this when the monorepo gains a top-level
++# `costmgr` namespace package.
++root_package = "packages"
++include_external_packages = true
++
++[[tool.importlinter.contracts]]
++name = "cost_engine_forbidden_io"
++type = "forbidden"
++source_modules = ["packages.cost_engine"]
++forbidden_modules = [
++    "sqlalchemy",
++    "fastapi",
++    "starlette",
++    "requests",
++    "httpx",
++    "psycopg",
++    "asyncpg",
++    "time",
++    "random",
++    "os",
++    "socket",
++    "subprocess",
++]
++
++[[tool.importlinter.contracts]]
++name = "engine_core_to_adapters_forbidden"
++type = "forbidden"
++source_modules = ["packages.cost_engine.core"]
++forbidden_modules = [
++    "packages.cost_engine.adapters",
++]
++
++# ─────────────────────────────────────────────────────────
++# ruff — Python lint + format (AD-15, AD-8)
++# ─────────────────────────────────────────────────────────
++[tool.ruff]
++line-length = 100
++target-version = "py312"
++extend-exclude = ["node_modules", ".venv", "dist", "build", ".next"]
++
++[tool.ruff.lint]
++select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "PT", "SIM", "RET", "ARG", "PTH", "ERA"]
++ignore = ["E501"]
++
++[tool.ruff.lint.per-file-ignores]
++"tests/**/*.py" = ["B011", "N802"]
++"apps/api/alembic/versions/*.py" = ["E501"]
++# FastAPI: Depends() in defaults (B008) is the documented idiom.
++# FastAPI exception handlers must accept `request` even when unused (ARG001).
++# SQLAlchemy: `UUID as PgUUID` is the standard typed-UUID alias (N811).
++"apps/api/**/*.py" = ["B008", "ARG001", "N811"]
++
++[tool.ruff.format]
++quote-style = "double"
++indent-style = "space"
++
++# ─────────────────────────────────────────────────────────
++# pytest — discover tests/cost_engine + tests/architecture + tests/rls
++# ─────────────────────────────────────────────────────────
++[tool.pytest.ini_options]
++minversion = "9.0"
++testpaths = ["tests"]
++pythonpath = ["apps", "packages", "."]
++addopts = ["-ra", "--strict-markers", "--strict-config"]
++markers = [
++    "architecture: architectural boundary fixture tests (slow-ish, lint-style)",
++    "engine: cost-engine purity tests (AST forbidden-imports)",
++    "rls: tenant isolation + service_role audit tests (CI-only when no local Postgres)",
++    "asyncio: async tests (driven via asyncio.run — no pytest-asyncio plugin needed)",
++]
+
+diff --git a/apps/web/package.json b/apps/web/package.json
+new file mode 100644
+--- /dev/null
++++ b/apps/web/package.json
+@@ -0,0 +1,30 @@
++{
++  "name": "@costmgr/web",
++  "version": "0.1.0",
++  "private": true,
++  "type": "module",
++  "scripts": {
++    "dev": "next dev -p 3000",
++    "build": "next build",
++    "start": "next start -p 3000",
++    "lint:tsc": "tsc --noEmit",
++    "lint:conventions": "eslint . --ext .ts,.tsx"
++  },
++  "dependencies": {
++    "decimal.js": "10.4.3",
++    "next": "15.5.4",
++    "react": "19.1.1",
++    "react-dom": "19.1.1"
++  },
++  "devDependencies": {
++    "@types/node": "22.10.5",
++    "@types/react": "19.1.10",
++    "@types/react-dom": "19.1.7",
++    "@typescript-eslint/eslint-plugin": "8.40.0",
++    "@typescript-eslint/parser": "8.40.0",
++    "eslint": "9.32.0",
++    "eslint-import-resolver-typescript": "4.4.4",
++    "eslint-plugin-import": "2.32.0",
++    "typescript": "5.9.3"
++  }
++}
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+new file mode 100644
+--- /dev/null
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,332 @@
++name: ci
++
++on:
++  push:
++    branches: [main]
++  pull_request:
++    branches: [main]
++
++# CI-3 (CR 2026-07-25): do NOT cancel in-progress on PR builds — the
++# stack-pin-check must complete to record drift annotations. On push to
++# main, cancellation is fine (only the latest commit matters).
++concurrency:
++  group: ${{ github.workflow }}-${{ github.ref }}
++  cancel-in-progress: ${{ github.event_name != 'pull_request' }}
++
++jobs:
++  # ─────────────────────────────────────────────────────────
++  # 1. setup (shared cache)
++  # ─────────────────────────────────────────────────────────
++  setup:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
++        with:
++          node-version-file: ".nvmrc"
++      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
++        with:
++          python-version-file: ".python-version"
++      - name: Install uv
++        run: pip install uv==0.11.32
++      - name: Cache uv
++        uses: actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed # v4.2.1
++        with:
++          path: ~/.cache/uv
++          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
++      - name: Cache pnpm
++        uses: actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed # v4.2.1
++        with:
++          path: ~/.local/share/pnpm/store
++          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
++      - name: Install JS deps
++        run: pnpm install --frozen-lockfile
++      - name: Install Python deps
++        run: uv sync --frozen
++
++  # ─────────────────────────────────────────────────────────
++  # 2. lint-deps (dependency-cruiser, Story 0.1)
++  # ─────────────────────────────────────────────────────────
++  lint-deps:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
++        with: { node-version-file: ".nvmrc" }
++      - run: pnpm install --frozen-lockfile
++      - run: pnpm lint:deps
++
++  # ─────────────────────────────────────────────────────────
++  # 3. lint-imports (import-linter, Story 0.1)
++  # ─────────────────────────────────────────────────────────
++  lint-imports:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
++        with: { python-version-file: ".python-version" }
++      - run: pip install uv==0.11.32
++      - run: uv sync --frozen
++      - name: Run import-linter
++        run: uv run import-linter lint
++
++  # ─────────────────────────────────────────────────────────
++  # 4. lint-conventions (Story 0.4 — AD-8 monetary + AD-15 naming)
++  # ─────────────────────────────────────────────────────────
++  # Runs ruff (Python) + ESLint (TypeScript) + custom money-type linter +
++  # migration linters. Failure message includes violated AD reference.
++  lint-conventions:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++      - uses: actions/setup-node@0a44ba7841725637a19e28ba30b79a866c81b0a6 # v6.1.0
++        with: { node-version-file: ".nvmrc" }
++      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
++        with: { python-version-file: ".python-version" }
++      - run: pip install uv==0.11.32
++      - run: pnpm install --frozen-lockfile
++      - run: uv sync --frozen
++      - name: Run lint-conventions (ruff + custom money + migration linters)
++        run: make lint-conventions
++        env:
++          PYTHONIOENCODING: utf-8
++      - name: Annotate convention violation on PR
++        if: failure() && github.event_name == 'pull_request'
++        uses: actions/github-script@60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15 # v7.0.1
++        with:
++          script: |
++            const msg = 'CONVENTION_VIOLATION detected. Check ruff / ESLint / money-type / migration linter output for the violated AD reference (AD-8 or AD-15).';
++            github.rest.issues.createComment({
++              issue_number: context.issue.number,
++              owner: context.repo.owner,
++              repo: context.repo.repo,
++              body: msg,
++            });
++
++  # ─────────────────────────────────────────────────────────
++  # 5. stack-pin-check (Story 0.3 — AD-14 lockfile guard)
++  # ─────────────────────────────────────────────────────────
++  stack-pin-check:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++        with:
++          # fetch-depth: 0 so `git log -1` sees the full commit message
++          fetch-depth: 0
++      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
++        with: { node-version-file: ".nvmrc" }
++      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
++        with: { python-version-file: ".python-version" }
++      - run: pip install uv==0.11.32
++      - name: Install JS deps (frozen)
++        run: pnpm install --frozen-lockfile
++      - name: Install Python deps (frozen)
++        run: uv sync --frozen
++      # CI-1 (CR 2026-07-25): For PR builds, the HEAD commit is the merge
++      # commit (squash-merge workflow). The `[STACK BUMP]` tag lives on the
++      # PR's actual head commit. Pass it via env var so the check scripts
++      # can authorize drift using the PR commit, not the merge commit.
++      - name: Compute PR head commit (for [STACK BUMP] authorization)
++        if: github.event_name == 'pull_request'
++        id: pr_head
++        run: |
++          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
++          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
++      - name: Node pin check
++        id: node_check
++        run: |
++          set +e
++          if [ -n "${{ steps.pr_head.outputs.head_sha }}" ]; then
++            node scripts/check_stack_pin.mjs
++            exit_code=$?
++          else
++            node scripts/check_stack_pin.mjs
++            exit_code=$?
++          fi
++          echo "exit=$exit_code"
++          exit $exit_code
++        env:
++          PYTHONIOENCODING: utf-8
++          # When on a PR, prefer the PR head commit for the bump-tag check.
++          STACK_BUMP_PR_HEAD_SHA: ${{ steps.pr_head.outputs.head_sha }}
++      - name: Python pin check
++        id: py_check
++        run: |
++          set +e
++          uv run python scripts/check_stack_pin.py
++          exit_code=$?
++          echo "exit=$exit_code"
++          exit $exit_code
++        env:
++          PYTHONIOENCODING: utf-8
++          STACK_BUMP_PR_HEAD_SHA: ${{ steps.pr_head.outputs.head_sha }}
++      - name: Annotate drift on PR
++        if: failure() && github.event_name == 'pull_request'
++        uses: actions/github-script@60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15 # v7.0.1
++        with:
++          script: |
++            const drift = 'STACK_PIN_VIOLATION detected. Add `[STACK BUMP]` to the PR commit message to authorize this drift.';
++            github.rest.issues.createComment({
++              issue_number: context.issue.number,
++              owner: context.repo.owner,
++              repo: context.repo.repo,
++              body: drift,
++            });
++      # LABEL-1 (CR 2026-07-25): auto-apply `stack-pin-violation` label when
++      # the check fails, so branch protection can block merge per spec AC #3.
++      - name: Apply stack-pin-violation label
++        if: failure() && github.event_name == 'pull_request'
++        uses: actions/github-script@60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15 # v7.0.1
++        with:
++          script: |
++            try {
++              await github.rest.issues.addLabels({
++                owner: context.repo.owner,
++                repo: context.repo.repo,
++                issue_number: context.issue.number,
++                labels: ['stack-pin-violation'],
++              });
++            } catch (e) {
++              core.warning(`Failed to apply label: ${e.message}`);
++            }
++
++  # ─────────────────────────────────────────────────────────
++  # 5. test-architecture (Story 0.1 — pytest fixture tests)
++  # ─────────────────────────────────────────────────────────
++  test-architecture:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
++        with: { python-version-file: ".python-version" }
++      - run: pip install uv==0.11.32
++      - run: uv sync --frozen
++      - name: Run architecture + engine-purity tests
++        run: uv run pytest tests/architecture tests/cost_engine -v
++
++  # ─────────────────────────────────────────────────────────
++  # 6. test-service-role-guard (Story 0.2 — pure unit tests)
++  # ─────────────────────────────────────────────────────────
++  test-service-role-guard:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
++        with: { python-version-file: ".python-version" }
++      - run: pip install uv==0.11.32
++      - run: uv sync --frozen
++      - name: Service-role audit-first unit tests (no DB required)
++        run: uv run pytest tests/rls/test_service_role_audit.py -v
++
++  # ─────────────────────────────────────────────────────────
++  # 7. service-role-guard-lint (Story 0.2 — Task 7.4)
++  # ─────────────────────────────────────────────────────────
++  service-role-guard-lint:
++    needs: setup
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++      - name: Fail if `service_role` is invoked outside the guard module
++        run: |
++          # Operational references: function calls to with_service_role or
++          # run_with_service_role, or the JWT role string "service_role"
++          # used as a value. These indicate a caller is bypassing the guard.
++          # Doc/env-var/module-path/comment references are exempt.
++          PATTERN='with_service_role\(|run_with_service_role\(|\bservice_role\b\s*[=)]|"\s*service_role\s*"'
++          HITS=$(grep -rEn "$PATTERN" apps/api/ --include="*.py" || true)
++          # Strip comments and docstrings (lines whose first non-ws char
++          # is # or lines that look like docstring text inside module
++          # headers) — the migration file's bullet list lives inside a
++          # triple-quoted module docstring.
++          NON_DOC=$(echo "$HITS" | grep -v -E ':\s*#' || true)
++          # Allow-list: the guard module, env-var name, audit helper, tenant
++          # context, manifest, and the migration file (which documents
++          # AD-2 audit policy references in its docstring).
++          BAD=$(echo "$NON_DOC" \
++              | grep -v 'apps/api/core/service_role.py' \
++              | grep -v 'apps/api/core/settings.py' \
++              | grep -v 'apps/api/core/audit.py' \
++              | grep -v 'apps/api/core/tenant_context.py' \
++              | grep -v 'apps/api/core/__init__.py' \
++              | grep -v 'apps/api/alembic/versions/' \
++              || true)
++          if [ -n "$BAD" ]; then
++            echo "❌ service_role invoked outside the guard module:"
++            echo "$BAD"
++            exit 1
++          fi
++          echo "✅ service_role only invoked in apps/api/core/service_role.py"
++
++  # ─────────────────────────────────────────────────────────
++  # 8. rls-tests (Story 0.2 — tenant isolation, CI-only)
++  # ─────────────────────────────────────────────────────────
++  rls-tests:
++    needs: setup
++    runs-on: ubuntu-latest
++    # Per Decision 2 (2026-07-25): Docker CI-only. Local dev is skipped.
++    # DOCKER-2 (CR 2026-07-25): postgres:15 is pinned by digest to lock the
++    # CI service image against silent drift.
++    services:
++      postgres:
++        image: postgres:15@sha256:74e110c41804365e3915fcc09d5e7a1eff50161aaa94d5da0e58e0cd75ae509c
++        env:
++          POSTGRES_USER: postgres
++          POSTGRES_PASSWORD: postgres
++          POSTGRES_DB: postgres
++        ports:
++          - 54322:5432
++        options: >-
++          --health-cmd pg_isready
++          --health-interval 10s
++          --health-timeout 5s
++          --health-retries 5
++    env:
++      CI: "true"
++      # alembic env.py reads DATABASE_URL (RLS-CI-1). Use the asyncpg
++      # driver so async_engine_from_config works (RLS-CI-2).
++      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:54322/postgres"
++      # Tenant isolation tests run as costmgr_test (NOBYPASSRLS) so
++      # RLS actually filters rows (RLS-CI-4).
++      RLS_TEST_DATABASE_URL: "postgresql://costmgr_test:costmgr_test@localhost:54322/postgres"
++      RLS_BOOTSTRAP_DATABASE_URL: "postgresql://postgres:postgres@localhost:54322/postgres"
++    steps:
++      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
++      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
++        with: { python-version-file: ".python-version" }
++      - run: pip install uv==0.11.32
++      - run: uv sync --frozen
++      - name: Install psql
++        run: apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null
++      - name: Apply Alembic migration
++        run: uv run alembic -c apps/api/alembic.ini upgrade head
++      - name: Apply Supabase CI shim (auth.jwt() stub + service_role + costmgr_test roles)
++        run: |
++          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
++            -h localhost -p 54322 -U postgres -d postgres \
++            -f supabase/policies/0000_supabase_ci_shim.sql
++      - name: Apply RLS policies
++        run: |
++          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
++            -h localhost -p 54322 -U postgres -d postgres \
++            -f supabase/policies/0001_rls_policies.sql
++      - name: RLS smoke test
++        run: |
++          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
++            -h localhost -p 54322 -U postgres -d postgres \
++            -f supabase/policies/0002_rls_smoke_test.sql
++      - name: Run RLS tests
++        run: uv run pytest tests/rls -v --tb=short --junitxml=pytest-rls.xml
++      - name: Upload test results
++        if: always()
++        uses: actions/upload-artifact@5d5cc99d66b86fc1631cb4e6c5e34ba1da8e4887 # v4.4.0
++        with:
++          name: rls-test-results
++          path: |
++            pytest-rls.xml
++            .pytest_cache/
++          if-no-files-found: ignore
+
+diff --git a/.npmrc b/.npmrc
+new file mode 100644
+--- /dev/null
++++ b/.npmrc
+@@ -0,0 +1,4 @@
++engine-strict=false
++save-exact=true
++strict-peer-dependencies=false
++auto-install-peers=true
+
