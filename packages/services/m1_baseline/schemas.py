@@ -1,0 +1,95 @@
+"""packages.services.m1_baseline.schemas — M1 baseline canonical enums (Story 2.1).
+
+Pure-Python module — **no Pydantic, no DB, no web** (AD-1/AD-5).
+
+Defines the canonical product-type vocabulary (PRD §4.1 + §8.M1) that flows
+through every layer:
+
+    API Pydantic schemas  ──┐
+    ProductService         ──┼──> ProductType (this module, AD-15 §0.5 mirror)
+    Capability gate        ──┘
+    Frontend (TS mirror)  ────> test_product_type_consistency.py
+
+AD binds enforced here:
+- AD-15 — snake_case enum values, PascalCase class names. Korean labels are
+  user-facing strings, not code identifiers.
+- AD-23 — `ProductType` is per-row enum, NOT a JSONB namespace. Each row in
+  `products` carries its own `product_type` value.
+- AD-18 — single product identity: `products.id` (UUID v7) is the sole key.
+  `code` (PRD §8.M1 "코드") is a per-tenant per-type sequence number used
+  for human-readable display, not the primary identifier.
+"""
+
+from __future__ import annotations
+
+from enum import Enum
+from typing import Final
+
+
+class ProductType(str, Enum):
+    """PRD §4.1 / §8.M1 — 제품·반제품·원자재·상품·서비스 5지선다.
+
+    Backend canonical enum values (snake_case). Mapped to a Korean label via
+    `PRODUCT_TYPE_LABEL_KO` for UI display, and to a code prefix via
+    `PRODUCT_TYPE_PREFIX` for the auto-generated code (e.g. `MAT-0042`).
+
+    Codes:
+    - `product`        = ① 제품      prefix PRD
+    - `semi_product`   = ② 반제품     prefix SEM
+    - `material`       = ③ 원자재     prefix MAT
+    - `goods`          = ④ 상품      prefix GDS
+    - `service`        = ⑤ 서비스     prefix SVC
+
+    Note: industry gate (PRODUCT + PRODUCT_MATERIAL capabilities) is enforced
+    separately at write time — see `apps.api.core.capability`.
+    """
+
+    PRODUCT = "product"
+    SEMI_PRODUCT = "semi_product"
+    MATERIAL = "material"
+    GOODS = "goods"
+    SERVICE = "service"
+
+
+# ── Type → Code prefix map (PRD §8.M1 "코드") ─────────────────
+# 3-letter uppercase prefix (Korean romanization / English initials).
+# The prefix is intentionally NOT equal to the enum literal value because
+# Snake_case (`material`, `semi_product`) → noisy prefix. Shorter codes
+# improve readability in lists & spreadsheets.
+PRODUCT_TYPE_PREFIX: Final[dict[ProductType, str]] = {
+    ProductType.PRODUCT: "PRD",
+    ProductType.SEMI_PRODUCT: "SEM",
+    ProductType.MATERIAL: "MAT",
+    ProductType.GOODS: "GDS",
+    ProductType.SERVICE: "SVC",
+}
+
+
+# ── Type → Korean label map (UI-facing) ───────────────────────
+# PRD §4.1 / §8.M1 user-facing labels. Used by:
+# - `ProductTypeBadge` (TS) for the colored badges in the list.
+# - The form's product_type radio grid.
+# - Tooltip copy for the industry-conditional gating.
+PRODUCT_TYPE_LABEL_KO: Final[dict[ProductType, str]] = {
+    ProductType.PRODUCT: "제품",
+    ProductType.SEMI_PRODUCT: "반제품",
+    ProductType.MATERIAL: "원자재",
+    ProductType.GOODS: "상품",
+    ProductType.SERVICE: "서비스",
+}
+
+
+# ── Bidirectional prefix ↔ type helpers ──────────────────────
+# Used by `product_code.py` for code parsing (MAT-0042 → ('material', 42)).
+# Exposed here so both sides use the same source-of-truth (no drift).
+def prefix_to_type(prefix: str) -> ProductType:
+    """Resolve a 3-letter prefix to its ProductType. Raises KeyError."""
+    for pt, pfx in PRODUCT_TYPE_PREFIX.items():
+        if pfx == prefix:
+            return pt
+    raise KeyError(f"unknown product prefix: {prefix}")
+
+
+def type_to_prefix(product_type: ProductType) -> str:
+    """Return the 3-letter code prefix for the given type."""
+    return PRODUCT_TYPE_PREFIX[product_type]

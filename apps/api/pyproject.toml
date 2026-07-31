@@ -26,7 +26,7 @@ dependencies = [
     # pydantic/pydantic-core: pinned to 2.11.x (RANGE-1) — last known-good
     # before broken pydantic-core==2.46.4 wheel that ships with 2.13+ (PYD-1).
     "pydantic==2.11.9",         # AD-14 exact pin (was range >=2.10,<2.12)
-    "pydantic-core==2.27.2",    # last known-good wheel
+    "pydantic-core==2.33.2",    # pydantic 2.11.9 resolves core≥2.33.2; 2.27.2 was incorrect (resolver runtime pick)
 ]
 
 [project.optional-dependencies]

@@ -12,6 +12,10 @@ AD-1, AD-11 compliance:
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from apps.api.core.capability import (
+    ForbiddenRoleError,
+    IndustryCapabilityError,
+)
 from apps.api.core.security import AuthError
 from apps.api.modules.m0_onboarding import router as m0_onboarding_router
 from apps.api.modules.m1_baseline import router as m1_baseline_router
@@ -44,6 +48,49 @@ async def _auth_error_handler(request: Request, exc: AuthError) -> JSONResponse:
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# H5 / AD-15 §4 + AC #6: typed envelope for IndustryCapabilityError.
+# Without this, FastAPI returns HTTP 500 for capability mismatches —
+# violating the `{code, message_ko, details, trace_id}` contract.
+@app.exception_handler(IndustryCapabilityError)
+async def _industry_capability_handler(
+    request: Request, exc: IndustryCapabilityError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "INDUSTRY_NOT_SUPPORTED",
+            "message_ko": "현재 업종에서 지원하지 않는 기능입니다",
+            "details": {
+                "current_industry": (
+                    exc.current_industry.value if exc.current_industry else None
+                ),
+                "requested_capability": exc.capability.value,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# H3 / AD-10 / T4.2: typed envelope for ForbiddenRoleError.
+# Without this, FastAPI returns HTTP 500 for role gate failures.
+@app.exception_handler(ForbiddenRoleError)
+async def _forbidden_role_handler(
+    request: Request, exc: ForbiddenRoleError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "FORBIDDEN_ROLE",
+            "message_ko": "소유자(Owner) 권한이 필요합니다",
+            "details": {
+                "role": exc.role,
+                "required_role": exc.required_role,
+            },
             "trace_id": exc.trace_id,
         },
     )

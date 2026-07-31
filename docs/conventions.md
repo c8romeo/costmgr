@@ -57,6 +57,31 @@
 
 자세한 도메인 의미는 `docs/onboarding-schema.md` + `docs/onboarding-flow.md`.
 
+### §0.5 ProductType (PRD §8.M1 — Story 2.1)
+
+`products.product_type` 컬럼의 단일 진실 공급원은
+`packages/services/m1_baseline/schemas.py::ProductType` 와 그 TypeScript 미러
+`apps/web/lib/menu-config.ts::PRODUCT_TYPE_VALUES` 이다.
+
+| enum value (snake_case) | 한국어 라벨 | 코드 prefix | 비고 |
+|---|---|---|---|
+| `product` | ① 제품 | `PRD-` | 전통 개별원가 — BOM·수불부 기반 |
+| `semi_product` | ② 반제품 | `SEM-` | BOM 중간 단계 |
+| `material` | ③ 원자재 | `MAT-` | BOM 최하위 투입 요소 |
+| `goods` | ④ 상품 | `GDS-` | 매매 대상 (제조 X) |
+| `service` | ⑤ 서비스 | `SVC-` | ABC 원가 객체 |
+
+**Industry-conditional subset (AC #6 / F-44)** — `service` 업종은 `material`/`semi_product` 등록
+시 403 `INDUSTRY_NOT_SUPPORTED`로 거부된다. PRODUCT_MATERIAL capability 게이트.
+세부 matrix: `docs/product-item-master.md#4-업종--유형-capability-gate-ac-6--f-44`.
+
+**규칙:**
+- `product_type` enum value는 snake_case (AD-15). 한글 라벨은 `PRODUCT_TYPE_LABEL_KO` dict.
+- 코드 prefix는 enum value와 다르다 (snake_case → noisy prefix). 3글자 대문자.
+- `code` 포맷: `^[A-Z]{3}-\d{4,}$`. 자동 생성은 `product_code.generate_next_code()` (pure).
+- `code` / `product_type` 은 생성 후 immutable (AC #4 — BOM·수불부 FK 보존).
+- TS mirror의 드리프트는 `tests/integration/test_product_type_consistency.py`로 강제 차단.
+
 ---
 
 ## §1 Naming
@@ -125,7 +150,7 @@ const now = new Date().toISOString();
 
 ### ID 생성
 
-- Python: `uuid.uuid7()` (Python 3.12+) 또는 `uuid.uuid4()` for `tenant_id`/`user_id`
+- Python: `uuid.uuid7()` (Python 3.14+, 현재 미도입) → 현 타겟 3.12에서는 `uuid.uuid4()` (또는 `uuid6/7` backport 라이브러리). **`tenant_id`/`user_id`는 v4 고정** (AD-15 variance참조).
 - DB: `gen_random_uuid()` (pgcrypto) — 현재 일관되게 v4. v7 도입 시 마이그레이션 추가
 - TS: `crypto.randomUUID()` (브라우저/Node 19+)
 
@@ -199,6 +224,18 @@ formatKRW(krw);                              // "1,500,000원"
 
 자세한 결정 근거는 [`AD-8-money-types-decision.md`](./architecture-decisions/AD-8-money-types-decision.md).
 
+### 사용처 — `products` 테이블 (Story 2.1, PRD §8.M1)
+
+| 컬럼 | 통화 | DB 타입 | Python | TS wire |
+|---|---|---|---|---|
+| `products.unit_cost_krw` | KRW | `BIGINT NULL` (CHECK `>= 0`) | `int \| None` | `string \| null` |
+| `products.unit_cost_usd` | USD | `NUMERIC(18,2) NULL` (CHECK `>= 0`) | `Decimal \| None` | `string \| null` |
+
+- **NULL 허용** — 한 통화만 등록된 테넌트 (KRW만 또는 USD만). `tenant_settings.onboarding.currency` 와 무관하게 두 컬럼 모두 보유 (A2 회계 단위 일치).
+- **CHECK `>= 0`** — 음수 단가 거부. 0은 허용 (무료 원자재 / 시식용 반제품).
+- **TS wire shape** — JSON.stringify가 BigInt를 직접 직렬화하지 못해 `string`으로 보낸다. 클라이언트는 `BigInt(value)` 로 복원.
+- 자세한 사용 예시: `docs/product-item-master.md`.
+
 ---
 
 ## §6 Period Keys (AD-24)
@@ -251,7 +288,7 @@ formatKRW(krw);                              // "1,500,000원"
 | Python `float` money (engine) | `scripts/check_money_types.py` | `make lint-conventions` |
 | 마이그레이션 `camelCase` | `scripts/check_migration_naming.py` | `make lint-conventions` |
 | 마이그레이션 `Float` (money) | `scripts/check_migration_money.py` | `make lint-conventions` |
-| TS 명명/restricted types | ESLint (root `.eslintrc.cjs`) | `pnpm lint:conventions` |
+| TS 명명/restricted types | ESLint (root `.eslint.config.mjs`, flat config) | `pnpm lint:conventions` |
 | TS `number` (money) | ESLint `no-restricted-types` (apps/web override) | `pnpm lint:conventions` |
 
 **PR 머지 차단:** `lint-conventions` 잡 실패 → merge 차단 (Story 0.4 §8).

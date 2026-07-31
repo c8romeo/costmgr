@@ -30,6 +30,15 @@
  *          discriminates cleanly in call sites.
  */
 
+/* eslint-disable @typescript-eslint/no-restricted-types --
+ * AD-8 deferred: this file uses `number` for `status` (HTTP code),
+ * `settings_version` (monotonic counter), `*_count` (counts), and
+ * other non-money fields. AD-8 forbids `number` only on money paths.
+ * A per-call-site rule (no-restricted-syntax identifier-aware) is
+ * deferred to Story 0.5+ per the 0.4 review. Until then, file-level
+ * disable is the pragmatic realization.
+ */
+
 import type { Industry } from "./menu-config";
 
 export interface ApiErrorPayload {
@@ -352,6 +361,134 @@ export async function fetchCompletionStatus(
   const { data } = await request<CompletionStatus>(
     "/api/v1/tenant-settings/completion",
     { method: "GET" },
+    accessToken,
+  );
+  return data;
+}
+
+// ── Story 2.1 — Product / Item Master ─────────────────────────
+//
+// Wire shape mirrors `apps/api/modules/m1_baseline/schemas.py`:
+// - ProductType (5 values: product | semi_product | material | goods | service)
+// - KRW / USD as TS string (decimal.js for USD; bigint for KRW).
+//
+// `unit_cost_krw` arrives as a JSON string (the API serializes BIGINT to
+// decimal-safe string per AD-15). The list/response layer leaves it as
+// string so the formatters in `lib/money.ts` can decode + display.
+
+export type ProductType =
+  | "product"
+  | "semi_product"
+  | "material"
+  | "goods"
+  | "service";
+
+export interface ProductResponse {
+  id: string;
+  tenant_id: string;
+  product_type: ProductType;
+  code: string;
+  name: string;
+  unit: string | null;
+  unit_cost_krw: string | null;
+  unit_cost_usd: string | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductListResponse {
+  items: ProductResponse[];
+  total: number;
+}
+
+export interface ProductCreateRequest {
+  product_type: ProductType;
+  name: string;
+  code?: string | null;
+  unit?: string | null;
+  unit_cost_krw?: string | null;
+  unit_cost_usd?: string | null;
+  description?: string | null;
+}
+
+export interface ProductUpdateRequest {
+  name?: string;
+  unit?: string | null;
+  unit_cost_krw?: string | null;
+  unit_cost_usd?: string | null;
+  description?: string | null;
+  is_active?: boolean;
+}
+
+export interface ProductListQuery {
+  product_type?: ProductType;
+  /** `null` (omitted) means "no filter applied". Pass `true` / `false`
+   *  explicitly to scope. */
+  is_active?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+function buildProductListQuery(query: ProductListQuery | undefined): string {
+  if (!query) return "";
+  const params = new URLSearchParams();
+  if (query.product_type) params.set("product_type", query.product_type);
+  if (typeof query.is_active === "boolean") {
+    params.set("is_active", String(query.is_active));
+  }
+  if (query.limit != null) params.set("limit", String(query.limit));
+  if (query.offset != null) params.set("offset", String(query.offset));
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export async function fetchProducts(
+  query?: ProductListQuery,
+  accessToken?: string,
+): Promise<ProductListResponse> {
+  const qs = buildProductListQuery(query);
+  const { data } = await request<ProductListResponse>(
+    `/api/v1/baseline/products${qs}`,
+    { method: "GET" },
+    accessToken,
+  );
+  return data;
+}
+
+export async function getProduct(
+  id: string,
+  accessToken?: string,
+): Promise<ProductResponse> {
+  const { data } = await request<ProductResponse>(
+    `/api/v1/baseline/products/${id}`,
+    { method: "GET" },
+    accessToken,
+  );
+  return data;
+}
+
+export async function createProduct(
+  body: ProductCreateRequest,
+  accessToken?: string,
+): Promise<ProductResponse> {
+  const { data } = await request<ProductResponse>(
+    "/api/v1/baseline/products",
+    { method: "POST", body: JSON.stringify(body) },
+    accessToken,
+  );
+  return data;
+}
+
+export async function updateProduct(
+  id: string,
+  body: ProductUpdateRequest,
+  accessToken?: string,
+): Promise<ProductResponse> {
+  const { data } = await request<ProductResponse>(
+    `/api/v1/baseline/products/${id}`,
+    { method: "PATCH", body: JSON.stringify(body) },
     accessToken,
   );
   return data;

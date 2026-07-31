@@ -29,6 +29,12 @@
  *          "0 rows — go add some" and "completed".
  */
 
+/* eslint-disable @typescript-eslint/no-restricted-types --
+ * AD-8 deferred: this file uses `number` for `count` (직접/간접, 고정/변동,
+ * 동인 row counts). AD-8 forbids `number` only on money paths. A per-call-site
+ * rule is deferred to Story 0.5+ per the 0.4 review.
+ */
+
 "use client";
 
 import Link from "next/link";

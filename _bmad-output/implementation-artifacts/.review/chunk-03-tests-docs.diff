@@ -1,0 +1,1322 @@
+diff --git a/docs/conventions.md b/docs/conventions.md
+index 8a6879b..4250a54 100644
+--- a/docs/conventions.md
++++ b/docs/conventions.md
+@@ -57,6 +57,31 @@
+ 
+ 자세한 도메인 의미는 `docs/onboarding-schema.md` + `docs/onboarding-flow.md`.
+ 
++### §0.5 ProductType (PRD §8.M1 — Story 2.1)
++
++`products.product_type` 컬럼의 단일 진실 공급원은
++`packages/services/m1_baseline/schemas.py::ProductType` 와 그 TypeScript 미러
++`apps/web/lib/menu-config.ts::PRODUCT_TYPE_VALUES` 이다.
++
++| enum value (snake_case) | 한국어 라벨 | 코드 prefix | 비고 |
++|---|---|---|---|
++| `product` | ① 제품 | `PRD-` | 전통 개별원가 — BOM·수불부 기반 |
++| `semi_product` | ② 반제품 | `SEM-` | BOM 중간 단계 |
++| `material` | ③ 원자재 | `MAT-` | BOM 최하위 투입 요소 |
++| `goods` | ④ 상품 | `GDS-` | 매매 대상 (제조 X) |
++| `service` | ⑤ 서비스 | `SVC-` | ABC 원가 객체 |
++
++**Industry-conditional subset (AC #6 / F-44)** — `service` 업종은 `material`/`semi_product` 등록
++시 403 `INDUSTRY_NOT_SUPPORTED`로 거부된다. PRODUCT_MATERIAL capability 게이트.
++세부 matrix: `docs/product-item-master.md#4-업종--유형-capability-gate-ac-6--f-44`.
++
++**규칙:**
++- `product_type` enum value는 snake_case (AD-15). 한글 라벨은 `PRODUCT_TYPE_LABEL_KO` dict.
++- 코드 prefix는 enum value와 다르다 (snake_case → noisy prefix). 3글자 대문자.
++- `code` 포맷: `^[A-Z]{3}-\d{4,}$`. 자동 생성은 `product_code.generate_next_code()` (pure).
++- `code` / `product_type` 은 생성 후 immutable (AC #4 — BOM·수불부 FK 보존).
++- TS mirror의 드리프트는 `tests/integration/test_product_type_consistency.py`로 강제 차단.
++
+ ---
+ 
+ ## §1 Naming
+@@ -125,7 +150,7 @@ const now = new Date().toISOString();
+ 
+ ### ID 생성
+ 
+-- Python: `uuid.uuid7()` (Python 3.12+) 또는 `uuid.uuid4()` for `tenant_id`/`user_id`
++- Python: `uuid.uuid7()` (Python 3.14+, 현재 미도입) → 현 타겟 3.12에서는 `uuid.uuid4()` (또는 `uuid6/7` backport 라이브러리). **`tenant_id`/`user_id`는 v4 고정** (AD-15 variance참조).
+ - DB: `gen_random_uuid()` (pgcrypto) — 현재 일관되게 v4. v7 도입 시 마이그레이션 추가
+ - TS: `crypto.randomUUID()` (브라우저/Node 19+)
+ 
+@@ -199,6 +224,18 @@ formatKRW(krw);                              // "1,500,000원"
+ 
+ 자세한 결정 근거는 [`AD-8-money-types-decision.md`](./architecture-decisions/AD-8-money-types-decision.md).
+ 
++### 사용처 — `products` 테이블 (Story 2.1, PRD §8.M1)
++
++| 컬럼 | 통화 | DB 타입 | Python | TS wire |
++|---|---|---|---|---|
++| `products.unit_cost_krw` | KRW | `BIGINT NULL` (CHECK `>= 0`) | `int \| None` | `string \| null` |
++| `products.unit_cost_usd` | USD | `NUMERIC(18,2) NULL` (CHECK `>= 0`) | `Decimal \| None` | `string \| null` |
++
++- **NULL 허용** — 한 통화만 등록된 테넌트 (KRW만 또는 USD만). `tenant_settings.onboarding.currency` 와 무관하게 두 컬럼 모두 보유 (A2 회계 단위 일치).
++- **CHECK `>= 0`** — 음수 단가 거부. 0은 허용 (무료 원자재 / 시식용 반제품).
++- **TS wire shape** — JSON.stringify가 BigInt를 직접 직렬화하지 못해 `string`으로 보낸다. 클라이언트는 `BigInt(value)` 로 복원.
++- 자세한 사용 예시: `docs/product-item-master.md`.
++
+ ---
+ 
+ ## §6 Period Keys (AD-24)
+@@ -251,7 +288,7 @@ formatKRW(krw);                              // "1,500,000원"
+ | Python `float` money (engine) | `scripts/check_money_types.py` | `make lint-conventions` |
+ | 마이그레이션 `camelCase` | `scripts/check_migration_naming.py` | `make lint-conventions` |
+ | 마이그레이션 `Float` (money) | `scripts/check_migration_money.py` | `make lint-conventions` |
+-| TS 명명/restricted types | ESLint (root `.eslintrc.cjs`) | `pnpm lint:conventions` |
++| TS 명명/restricted types | ESLint (root `.eslint.config.mjs`, flat config) | `pnpm lint:conventions` |
+ | TS `number` (money) | ESLint `no-restricted-types` (apps/web override) | `pnpm lint:conventions` |
+ 
+ **PR 머지 차�warning: in the working copy of 'docs/product-item-master.md', LF will be replaced by CRLF the next time Git touches it
+�:** `lint-conventions` 잡 실패 → merge 차단 (Story 0.4 §8).
+\ No newline at end of file
+diff --git a/docs/product-item-master.md b/docs/product-item-master.md
+new file mode 100644
+index 0000000..f5b1ef8
+--- /dev/null
++++ b/docs/product-item-master.md
+@@ -0,0 +1,286 @@
++# costmgr Product / Item Master (M1 — Story 2.1)
++
++> **소속**: Epic 2 / Story 2.1
++> **최종 갱신**: 2026-07-31
++> **PRD 참조**: §8.M1 (기준정보/품목) · §3.A2 (회계 단위 일치) · §4.1 (업종 4지선다)
++> **UX locked-decisions**: Dark MVP · WCAG AA · Professional 톤 · ko-KR (NFR-18)
++
++우리 회사 카탈로그(제품·반제품·원자재·상품·서비스)를 한 화면에서 등록·조회·수정·비활성화하는 화면과 API.
++각 유형은 다른 색 배지로 구분되며, 코드는 **테넌트당·유형당 독립적인 시퀀스**로 자동 생성된다.
++
++---
++
++## 1. 데이터 모델 — `products` 테이블 (PRD §8.M1)
++
++`products`는 `tenant_settings.onboarding` 같은 JSONB 네임스페이스가 **아니다**.
++많은 행을 가지며, BOM(Story 2.2)·수불부(Epic 5)·계산(Epic 4)에서 FK 참조되므로
++독립 테이블로 분리한다 (AD-23: 카디널리티가 낮고 단일 키로 자주 조회되는 설정만 JSONB로).
++
++| 컬럼              | 타입            | 제약 / 비고                                                  |
++|------------------|----------------|-------------------------------------------------------------|
++| `id`             | UUID PK        | UUID v7 (default `packages.common.uuid7.uuid7()`)           |
++| `tenant_id`      | UUID NOT NULL  | UUID v4 — `tenants(id)` ON DELETE CASCADE                  |
++| `product_type`   | TEXT NOT NULL  | CHECK in `('product','semi_product','material','goods','service')` |
++| `code`           | TEXT NOT NULL  | UNIQUE (`tenant_id`, `code`) — 같은 테넌트 안에서만 유일      |
++| `name`           | TEXT NOT NULL  | CHECK 1 ≤ length ≤ 200                                       |
++| `unit`           | TEXT NULL      | CHECK length ≤ 20 (예: `EA`, `KG`, `BOX`)                   |
++| `unit_cost_krw`  | BIGINT NULL    | AD-8 — 1원 단위 정수                                          |
++| `unit_cost_usd`  | NUMERIC(18,2) NULL | AD-8 — 소수점 2자리 (Python `Decimal`, TS `decimal.js`)    |
++| `description`    | TEXT NULL      | CHECK length ≤ 2000                                          |
++| `is_active`      | BOOLEAN        | DEFAULT true — soft-delete 토글 (AD-2)                       |
++| `created_at`     | TIMESTAMPTZ    | DEFAULT now()                                                |
++| `updated_at`     | TIMESTAMPTZ    | DEFAULT now()                                                |
++
++인덱스:
++- `uq_products_tenant_code` UNIQUE (tenant_id, code) — **AC #3** code uniqueness
++- `idx_products_tenant_created_at` (tenant_id, created_at DESC) — list query
++- `idx_products_tenant_type_active` (tenant_id, product_type, is_active) — Epic 3 M2 input filter
++
++---
++
++## 2. 유형 × 색 × 라벨 × 코드 prefix (PRD §8.M1)
++
++PRD §8.M1이 명시한 5가지 유형. 색상 매핑은 WCAG 2.1 AA contrast (≥ 4.5:1) 기준을 만족한다.
++
++| 유형 (`product_type`) | 한국어 라벨 | 코드 prefix | 배지 색 (light)             | 사용처                                        |
++|-----------------------|------------|------------|----------------------------|----------------------------------------------|
++| `product`             | 제품       | `PRD-`     | green  (`#f0fdf4`/`#15803d`)| 전통 개별원가 — BOM·수불부 기반 최종 제품     |
++| `semi_product`        | 반제품     | `SEM-`     | purple (`#faf5ff`/`#7e22ce`)| BOM 중간 단계 — 다음 제품의 투입 요소         |
++| `material`            | 원자재     | `MAT-`     | blue   (`#eff6ff`/`#1d4ed8`)| BOM 최하위 투입 요소                          |
++| `goods`               | 상품       | `GDS-`     | orange (`#fff7ed`/`#c2410c`)| 매매 대상 (제조 X) — 제조+서비스 업종 카탈로그 |
++| `service`             | 서비스     | `SVC-`     | gray   (`#f3f4f6`/`#374151`)| ABC 원가 객체 — 서비스 업종의 주력 카탈로그    |
++
++TS 색 매핑은 `apps/web/lib/menu-config.ts::PRODUCT_TYPE_COLOR_VAR` (Story 2.1 T2.3).
++Python 색 매핑은 직접 색상 코드를 사용하지 않고 의미 변수(이름)만 노출한다 — 색상 결정은 UI 책임.
++
++---
++
++## 3. 코드 자동 생성 알고리즘
++
++**Per-tenant per-type sequence** — DB-driven, no global state.
++
++```sql
++-- 자동 생성 (code 미지정 시)
++SELECT COALESCE(MAX(CAST(SUBSTRING(code FROM 5) AS INTEGER)), 0) + 1
++  FROM products
++ WHERE tenant_id = :tenant_id
++   AND product_type = :product_type
++   AND code ~ ('^' || :prefix || '-[0-9]+$');  -- 안전망: 잘못된 형식은 무시
++```
++
++레이스 컨디션: 동시 POST가 같은 시퀀스를 잡으면 한 건은 UNIQUE 인덱스에서 409를 받는다.
++`ProductCodeDuplicateError` (AC #3) 가 그 경우를 흡수한다 — 자동 생성은 fast-path 최적화일 뿐,
++유일성은 DB 인덱스가 진실의 원천이다.
++
++### 코드 형식
++
++```
++^[A-Z]{3}-\d{4,}$
++```
++
++- prefix: 3글자 대문자 (PRD §8.M1 "코드")
++- suffix: 4자리 zero-pad (`MAT-0001`), 9999 초과 시 5자리+ 허용 (`MAT-10000`)
++- `packages.services.m1_baseline.product_code.generate_next_code` / `parse_code` (순수 함수)
++  가 DB / clock / I/O 없이 동작한다 (AD-5 engine purity).
++
++### 수동 입력
++
++`code` 필드를 직접 입력할 수 있다 (재정렬·마이그레이션 용도). 형식이 잘못되면
++`InvalidProductCodeError` → 422 `INVALID_PRODUCT_CODE` (AC #1).
++
++---
++
++## 4. 업종 × 유형 capability gate (AC #6 / F-44)
++
++Defense in depth — 메뉴 UI가 유형을 숨겨도 백엔드는 거부한다.
++
++| 업종 (Industry)        | PRODUCT | PRODUCT_MATERIAL | 등록 가능한 유형                  |
++|------------------------|---------|------------------|----------------------------------|
++| `manufacturing` (①)    | ✓       | ✓                | 5종 모두                         |
++| `service` (②)          | ✓       | ✗                | `service`만 (또는 product/goods) |
++| `manufacturing_service` (③) | ✓ | ✓              | 5종 모두                         |
++| `manufacturing_service_other` (④) | ✓ | ✓        | 5종 모두                         |
++
++- **PRODUCT_MATERIAL** 가 거부되면 `material`/`semi_product` 등록은 403
++  `INDUSTRY_NOT_SUPPORTED`로 거부된다 (`ProductCapabilityError`).
++- `product`/`goods`/`service`는 PRODUCT_MATERIAL 없이도 등록 가능 — 서비스 업종의 ABC 카탈로그
++  또는 제조+서비스 카탈로그 폭넓게 지원용.
++
++자세한 capability matrix: `apps/api/core/capability.py::_INDUSTRY_CAPABILITIES` (Story 2.1 T2.1).
++
++---
++
++## 5. AC 워크스루 — 요청/응답 예시
++
++### AC #1 — `POST /api/v1/baseline/products` (자동 코드 생성)
++
++```http
++POST /api/v1/baseline/products
++Authorization: Bearer <jwt>
++Content-Type: application/json
++
++{
++  "product_type": "material",
++  "name": "스테인리스 SUS304 1mm",
++  "unit": "KG",
++  "unit_cost_krw": "12000"
++}
++```
++
++```http
++HTTP/1.1 201 Created
++X-Trace-Id: 7d2f-...
++
++{
++  "id": "01920b8a-...-v7",
++  "tenant_id": "...",
++  "product_type": "material",
++  "code": "MAT-0001",
++  "name": "스테인리스 SUS304 1mm",
++  "unit": "KG",
++  "unit_cost_krw": "12000",
++  "unit_cost_usd": null,
++  "description": null,
++  "is_active": true,
++  "created_at": "2026-07-31T08:00:00.000000+00:00",
++  "updated_at": "2026-07-31T08:00:00.000000+00:00"
++}
++```
++
++`audit_logs`에 `action='product_created'`가 INSERT보다 먼저 기록된다 (AD-2 audit-first).
++
++### AC #3 — 409 PRODUCT_CODE_DUPLICATE
++
++```http
++POST /api/v1/baseline/products
++{ "product_type": "material", "name": "다른 이름", "code": "MAT-0001" }
++```
++
++```http
++HTTP/1.1 409 Conflict
++
++{
++  "code": "PRODUCT_CODE_DUPLICATE",
++  "message_ko": "이미 존재하는 코드입니다",
++  "details": { "code": "MAT-0001", "product_id": "01920b8a-..." },
++  "trace_id": "7d2f-..."
++}
++```
++
++UI: 토스트 "이미 존재하는 코드입니다" (AC #3 마지막 bullet).
++
++### AC #4 — `PATCH /api/v1/baseline/products/{id}` 부분 수정
++
++```http
++PATCH /api/v1/baseline/products/01920b8a-...
++{ "unit_cost_krw": "13000" }
++```
++
++`code` / `product_type`을 PATCH 하려고 하면 403 `PRODUCT_IMMUTABLE_FIELD`.
++
++### AC #5 — soft-delete toggle
++
++```http
++PATCH /api/v1/baseline/products/01920b8a-...
++{ "is_active": false }
++```
++
++- 행은 삭제되지 않음 — BOM·수불부 FK 보존 (AD-2)
++- 기본 목록(`is_active=true` 필터)에서는 제외됨
++- BOM 히스토리(Story 2.2)에는 표시됨
++- 비활성 배지: 회색 + 취소선 + "(비활성)" 라벨
++
++### AC #6 — service 업종이 `material` 등록 시도
++
++```http
++POST /api/v1/baseline/products
++{ "product_type": "material", "name": "..." }
++```
++
++```http
++HTTP/1.1 403 Forbidden
++
++{
++  "code": "INDUSTRY_NOT_SUPPORTED",
++  "message_ko": "제조업 업종에서만 등록 가능한 유형입니다",
++  "details": {
++    "current_industry": "service",
++    "requested_type": "material"
++  },
++  "trace_id": "..."
++}
++```
++
++---
++
++## 6. AD 크로스레퍼런스
++
++- **AD-1** Modular Monolith + Hexagonal Core — `m1_baseline` 모듈이 `products` 소유.
++- **AD-2** Append-only ledger-leaning — `audit_logs` row INSERT BEFORE `products` write;
++  soft-delete only.
++- **AD-3** Multi-tenant RLS — `tenant_id` from JWT (request body 무시). RLS policy는
++  `supabase/policies/0006_products_rls.sql`.
++- **AD-5** Cost-engine purity — `product_code.py`는 순수 함수 (no DB / clock / I/O).
++- **AD-8** Monetary types — `unit_cost_krw` BIGINT (Python `int`), `unit_cost_usd`
++  NUMERIC(18,2) (Python `Decimal`, TS `decimal.js`). `ROUND_HALF_EVEN` (Story 0.4 chunk-B).
++- **AD-11** Dependency direction — `apps/api` → `packages/services` → engine.
++  `product_code.py`는 `packages/services/m1_baseline/`에 위치.
++- **AD-15** Cross-language conventions — DB/Python `snake_case`, TS 변수 `camelCase`,
++  PascalCase types, UUID v7 business (`products.id`), UUID v4 tenant (`tenant_id`).
++- **AD-18** Single product identity — `products.id` is sole key (BOM·수불부·보고서 공통 참조).
++- **AD-23** Tenant settings aggregate — `products`는 별도 테이블 (JSONB 네임스페이스 아님,
++  카디널리티가 높고 FK 참조가 잦음).
++
++---
++
++## 7. 변경된 파일
++
++### Backend
++
++- `apps/api/alembic/versions/0006_products_item_master.py` — products 테이블 + 인덱스 3개
++- `apps/api/core/db_models.py` — Product ORM 추가
++- `apps/api/core/capability.py` — PRODUCT + PRODUCT_MATERIAL enum 추가
++- `apps/api/modules/m1_baseline/schemas.py` — ProductCreate/Update/List/Response
++- `apps/api/modules/m1_baseline/services/product_service.py` — CRUD + audit-first
++- `apps/api/modules/m1_baseline/handlers.py` — 4 routes 추가
++
++### Database / RLS
++
++- `supabase/policies/0006_products_rls.sql` — SELECT (모든 역할) + INSERT/UPDATE (owner only)
++
++### Frontend
++
++- `apps/web/lib/server-api.ts` — `fetchProductsServerSide`
++- `apps/web/lib/api-client.ts` — `fetchProducts`/`getProduct`/`createProduct`/`updateProduct`
++- `apps/web/lib/menu-config.ts` — ProductType/PREFIX/LABEL_KO/COLOR_VAR/INDUSTRY_ALLOWED
++- `apps/web/hooks/useProducts.ts` — list + mutations
++- `apps/web/components/m1-baseline/products/ProductTypeBadge.tsx` — colored badge
++- `apps/web/components/m1-baseline/products/ProductFormDialog.tsx` — create/edit dialog
++- `apps/web/components/m1-baseline/products/ProductListClient.tsx` — table + filter chips
++- `apps/web/app/[locale]/(dashboard)/m1-baseline/products/page.tsx` — Server Component entry
++
++### Pure helpers / packages
++
++- `packages/services/m1_baseline/__init__.py` — re-exports
++- `packages/services/m1_baseline/schemas.py` — `ProductType` enum + prefix/label maps
++- `packages/services/m1_baseline/product_code.py` — pure code generation
++
++### Tests
++
++- `tests/services/test_product_code.py` — 23 pure-function tests
++- `twarning: in the working copy of 'tests/api/test_product_capability.py', LF will be replaced by CRLF the next time Git touches it
+ests/api/test_products.py` — 23 typed-exception contract tests
++- `tests/api/test_product_capability.py` — 22 capability matrix parametrize
++- `tests/integration/test_product_type_consistency.py` — 7 TS↔Python drift
++- `tests/rls/test_products_isolation.py` — 6 RLS isolation tests (CI-only)
++
++---
++
++## 8. 후속 스토리 (참조)
++
++- **Story 2.2** BOM Matrix — `product_type IN ('material','semi_product')` 행을 BOM 자식으로 투입.
++  `products.id` (UUID v7) 로 FK. 코드 변경 불가 (AC #4) 가 BOM referential drift를 차단.
++- **Story 2.3** Item Type Change Integrity Guard — `product_type` 변경 시 BOM / 수불부
++  / 비용 계산 참조 일관성 검사. 현재는 403 PRODUCT_IMMUTABLE_FIELD로 차단.
++- **Story 3.x** Epic 3 M2 Input — `is_active=true` AND `product_type IN ('material','semi_product','product')`
++  행을 계산 입력 드롭다운에 노출 (F-44 / A11 CCR).
++- **Story 6.1** Report Library — `products.id` 가 보고서 dimension으로 등장.
+diff --git a/tests/api/test_product_capability.py b/tests/api/test_product_capability.py
+new file mode 100644
+index 0000000..b9a424f
+--- /dev/null
++++ b/tests/api/test_product_capability.py
+@@ -0,0 +1,129 @@
++"""tests.api.test_product_capability — capability × product-type matrix (Story 2.1 — T6.4).
++
++Pure-logic parametrize over `is_type_allowed_for_industry` from
++`apps.api.modules.m1_baseline.services.product_service`. Mirrors the
++`_INDUSTRY_CAPABILITIES` map in `apps.api.core.capability.py`:
++
++  - manufacturing  → PRODUCT ✓ + PRODUCT_MATERIAL ✓  → all 5 types
++  - service        → PRODUCT ✓ + PRODUCT_MATERIAL ✗ → only `service` type
++  - manufacturing_service              → both ✓    → all 5 types
++  - manufacturing_service_other         → both ✓    → all 5 types
++
++Service tenants get a 403 INDUSTRY_NOT_SUPPORTED when they POST
++`product_type='material'` or `'semi_product'`. Defense in depth —
++the menu UI hides those types, the backend rejects them anyway.
++"""
++
++from __future__ import annotations
++
++import pytest
++
++from apps.api.modules.m1_baseline.services.product_service import (
++    is_type_allowed_for_industry,
++)
++from packages.services.m0_onboarding.industry_menu import Industry
++from packages.services.m1_baseline.schemas import ProductType
++
++
++# ── Type inventory ────────────────────────────────────────────
++def test_all_five_product_types_exist() -> None:
++    """PRD §8.M1 specifies 5 types — drift sentinel."""
++    assert {pt.value for pt in ProductType} == {
++        "product",
++        "semi_product",
++        "material",
++        "goods",
++        "service",
++    }
++
++
++# ── Manufacturing: all 5 types allowed ────────────────────────
++@pytest.mark.parametrize("pt", list(ProductType))
++def test_manufacturing_allows_every_type(pt: ProductType) -> None:
++    """Manufacturing tenants (PRODUCT + PRODUCT_MATERIAL capabilities)
++    may register any of the 5 product types."""
++    assert is_type_allowed_for_industry(Industry.MANUFACTURING, pt) is True
++
++
++# ── Service: only `service` allowed ────────────────────────────
++@pytest.mark.parametrize(
++    "pt",
++    [ProductType.SERVICE],
++)
++def test_service_industry_allows_service_type(pt: ProductType) -> None:
++    """Service tenants (PRODUCT capability only — no PRODUCT_MATERIAL)
++    may register the `service` product type."""
++    assert is_type_allowed_for_industry(Industry.SERVICE, pt) is True
++
++
++@pytest.mark.parametrize(
++    "pt",
++    [ProductType.MATERIAL, ProductType.SEMI_PRODUCT],
++)
++def test_service_industry_rejects_physical_types(pt: ProductType) -> None:
++    """Service tenants CANNOT register material/semi_product (AC #6).
++
++    These two types need PRODUCT_MATERIAL capability, which is NOT
++    granted to `service` industry tenants. `product`/`goods`/`service`
++    types are unrestricted — service twarning: in the working copy of 'tests/api/test_products.py', LF will be replaced by CRLF the next time Git touches it
+enants may register them for
++    ABC catalog purposes.
++    """
++    assert is_type_allowed_for_industry(Industry.SERVICE, pt) is False
++
++
++@pytest.mark.parametrize(
++    "pt",
++    [ProductType.PRODUCT, ProductType.GOODS, ProductType.SERVICE],
++)
++def test_service_industry_allows_non_physical_types(pt: ProductType) -> None:
++    """Service tenants CAN register product/goods/service types (no
++    PRODUCT_MATERIAL needed for these). Only material/semi_product
++    are gated."""
++    assert is_type_allowed_for_industry(Industry.SERVICE, pt) is True
++
++
++# ── Manufacturing + service hybrid (③): all 5 types ───────────
++@pytest.mark.parametrize("pt", list(ProductType))
++def test_manufacturing_service_allows_every_type(pt: ProductType) -> None:
++    """Hybrid industries (PRODUCT + PRODUCT_MATERIAL) allow all 5 types."""
++    assert (
++        is_type_allowed_for_industry(Industry.MANUFACTURING_SERVICE, pt) is True
++    )
++    assert (
++        is_type_allowed_for_industry(
++            Industry.MANUFACTURING_SERVICE_OTHER, pt
++        )
++        is True
++    )
++
++
++# ── Defensive: industry=None is a conservative deny ────────────
++@pytest.mark.parametrize(
++    "pt",
++    [ProductType.MATERIAL, ProductType.SEMI_PRODUCT],
++)
++def test_no_industry_rejects_physical_types(pt: ProductType) -> None:
++    """When the tenant has no industry selected (None), physical types
++    are denied even for non-service paths. Conservative default."""
++    assert is_type_allowed_for_industry(None, pt) is False
++
++
++# ── Defensive: industry=None is a conservative deny ────────────
++@pytest.mark.parametrize(
++    "pt",
++    [ProductType.MATERIAL, ProductType.SEMI_PRODUCT],
++)
++def test_no_industry_rejects_physical_types(pt: ProductType) -> None:
++    """When the tenant has no industry selected (None), physical types
++    are denied even for non-service paths. Conservative default."""
++    assert is_type_allowed_for_industry(None, pt) is False
++
++
++@pytest.mark.parametrize(
++    "pt",
++    [ProductType.PRODUCT, ProductType.GOODS, ProductType.SERVICE],
++)
++def test_no_industry_allows_non_physical_types(pt: ProductType) -> None:
++    """Non-physical types (product / goods / service) are allowed even
++    when industry is unset — these don't need PRODUCT_MATERIAL."""
++    assert is_type_allowed_for_industry(None, pt) is True
+diff --git a/tests/api/test_products.py b/tests/api/test_products.py
+new file mode 100644
+index 0000000..8c7b3c9
+--- /dev/null
++++ b/tests/api/test_products.py
+@@ -0,0 +1,215 @@
++"""tests.api.test_products — Product service typed-exception contract tests.
++
++Story 2.1 — Task 6.2 (focused subset).
++
++DB-backed happy-path tests (POST/PATCH end-to-end) are deferred to
++Story 0.5 (needs `pytest-postgresql` fixture). This file covers the
++typed-exception contract (AD-15 §4) — the wire shape that downstream
++handlers and frontends depend on.
++
++Coverage:
++- ProductNotFoundError carries tenant_id + product_id + trace_id.
++- ProductCodeDuplicateError carries code + existing_product_id + trace_id.
++- ProductImmutableFieldError names the offending field.
++- InvalidProductCodeError (from `packages.services.m1_baseline.product_code`)
++  carries the code + reason.
++- ProductCapabilityError carries current_industry + requested_type.
++- Code generation: invalid code shapes raise InvalidProductCodeError with
++  the proper reason.
++- _TYPE_REQUIRES_PRODUCT_MATERIAL contains exactly material + semi_product
++  (no other type may be PRODUCT_MATERIAL-gated).
++"""
++
++from __future__ import annotations
++
++import uuid
++
++import pytest
++
++from apps.api.modules.m1_baseline.services.product_service import (
++    ProductCapabilityError,
++    ProductCodeDuplicateError,
++    ProductImmutableFieldError,
++    ProductNotFoundError,
++)
++from packages.services.m0_onboarding.industry_menu import Industry
++from packages.services.m1_baseline.product_code import (
++    InvalidProductCodeError,
++    is_valid_code_format,
++    parse_code,
++)
++from packages.services.m1_baseline.schemas import ProductType
++
++
++# ── ProductNotFoundError ───────────────────────────────────────
++def test_product_not_found_carries_full_context() -> None:
++    """AC #5 / 404 PRODUCT_NOT_FOUND — error carries enough context
++    for the handler to echo `product_id` in the response body."""
++    tenant_id = uuid.uuid4()
++    product_id = uuid.uuid4()
++    trace_id = "test-trace-001"
++
++    err = ProductNotFoundError(
++        tenant_id=tenant_id,
++        product_id=product_id,
++        trace_id=trace_id,
++    )
++
++    assert err.tenant_id == tenant_id
++    assert err.product_id == product_id
++    assert err.trace_id == trace_id
++    assert str(product_id) in str(err)
++
++
++# ── ProductCodeDuplicateError ─────────────────────────────────
++def test_product_code_duplicate_carries_existing_id() -> None:
++    """AC #3 / 409 PRODUCT_CODE_DUPLICATE — error includes the
++    existing product's UUID so the frontend can offer 'go to that row'."""
++    tenant_id = uuid.uuid4()
++    existing_id = uuid.uuid4()
++    trace_id = "test-trace-002"
++
++    err = ProductCodeDuplicateError(
++        tenant_id=tenant_id,
++        code="MAT-0042",
++        existing_product_id=existing_id,
++        trace_id=trace_id,
++    )
++
++    assert err.code == "MAT-0042"
++    assert err.existing_product_id == existing_id
++    assert err.trace_id == trace_id
++
++
++def test_product_code_duplicate_with_unknown_existing() -> None:
++    """When the existing row cannot be located after IntegrityError,
++    `existing_product_id` may be None — the error still surfaces."""
++    err = ProductCodeDuplicateError(
++        tenant_id=uuid.uuid4(),
++        code="PRD-9999",
++        existing_product_id=None,
++        trace_id="t",
++    )
++    assert err.existing_product_id is None
++
++
++# ── ProductImmutableFieldError ─────────────────────────────────
++def test_immutable_field_error_names_code_field() -> None:
++    """AC #4 / 403 PRODUCT_IMMUTABLE_FIELD — the error names the field
++    so the handler can build a Korean message."""
++    err = ProductImmutableFieldError(field="code", trace_id="t")
++    assert err.field == "code"
++
++
++def test_immutable_field_error_names_type_field() -> None:
++    """AC #4 — `product_type` is also immutable (Story 2.3 territory)."""
++    err = ProductImmutableFieldError(field="product_type", trace_id="t")
++    assert err.field == "product_type"
++
++
++# ── ProductCapabilityError ─────────────────────────────────────
++def test_capability_error_carries_industry_and_type() -> None:
++    """AC #6 / 403 INDUSTRY_NOT_SUPPORTED — error carries the current
++    industry (or None) + the requested type for the handler to format."""
++    err = ProductCapabilityError(
++        tenant_id=uuid.uuid4(),
++        current_industry=Industry.SERVICE,
++        requested_type=ProductType.MATERIAL,
++        trace_id="t",
++    )
++    assert err.current_industry == Industry.SERVICE
++    assert err.requested_type == ProductType.MATERIAL
++    assert err.trace_id == "t"
++
++
++def test_capability_error_with_null_industry() -> None:
++    """Edge case — industry may be None if the tenant hasn't selected
++    one yet (defensive conservative deny)."""
++    err = ProductCapabilityError(
++        tenant_id=uuid.uuid4(),
++        current_industry=None,
++        requested_type=ProductType.MATERIAL,
++        trace_id="t",
++    )
++    assert err.current_industry is None
++
++
++# ── Code format validation ────────────────────────────────────
++def test_valid_code_format_accepts_canonical_shapes() -> None:
++    """MAT-0042 / PRD-0001 / SEM-10000 are all valid."""
++    assert is_valid_code_format("MAT-0042") is True
++    assert is_valid_code_format("PRD-0001") is True
++    assert is_valid_code_format("Swarning: in the working copy of 'tests/integration/test_product_type_consistency.py', LF will be replaced by CRLF the next time Git touches it
+EM-10000") is True  # overflow allowed
++
++
++@pytest.mark.parametrize(
++    "bad_code",
++    [
++        "mat-0042",  # lowercase prefix
++        "MAT0001",  # missing dash
++        "MAT-",  # missing suffix
++        "MAT",  # no dash
++        "MAT0042",  # no dash
++        "MAT-004",  # only 3 digits (regex requires 4+)
++        "XX-0001",  # invalid prefix
++        "MAT0042-",  # dash at wrong end
++        "",
++        "MAT-ABCD",  # non-numeric suffix
++    ],
++)
++def test_invalid_code_format_rejects(bad_code: str) -> None:
++    """Manual codes must match `^[A-Z]{3}-\\d{4,}$` — invalid shapes
++    raise InvalidProductCodeError with a descriptive reason."""
++    assert is_valid_code_format(bad_code) is False
++
++
++def test_parse_code_round_trip() -> None:
++    """AC #1 — `parse_code` is the inverse of `generate_next_code`."""
++    pt, seq = parse_code("MAT-0042")
++    assert pt == ProductType.MATERIAL
++    assert seq == 42
++
++
++def test_parse_code_invalid_raises() -> None:
++    """parse_code raises InvalidProductCodeError on bad format."""
++    import pytest
++    with pytest.raises(InvalidProductCodeError):
++        parse_code("MAT-004")
++
++
++# ── Capability gate set membership ─────────────────────────────
++def test_capability_gate_includes_exactly_material_and_semi_product() -> None:
++    """The PRODUCT_MATERIAL-gated set is exactly {material, semi_product}.
++
++    Drift sentinel — if a future story adds a 6th type that needs
++    PRODUCT_MATERIAL, this test must be updated in tandem.
++    """
++    from apps.api.modules.m1_baseline.services.product_service import (
++        _TYPE_REQUIRES_PRODUCT_MATERIAL,
++    )
++    assert _TYPE_REQUIRES_PRODUCT_MATERIAL == {
++        ProductType.MATERIAL,
++        ProductType.SEMI_PRODUCT,
++    }
++
++
++# ── Industry mapping sanity ────────────────────────────────────
++def test_industry_enum_has_four_values() -> None:
++    """Industry is the canonical PRD §4.1 4지선다. Drift sentinel."""
++    assert {i.value for i in Industry} == {
++        "manufacturing",
++        "service",
++        "manufacturing_service",
++        "manufacturing_service_other",
++    }
++
++
++def test_product_type_enum_has_five_values() -> None:
++    """PRD §8.M1 specifies 5 product types. Drift sentinel."""
++    assert {pt.value for pt in ProductType} == {
++        "product",
++        "semi_product",
++        "material",
++        "goods",
++        "service",
++    }
+diff --git a/tests/integration/test_product_type_consistency.py b/tests/integration/test_product_type_consistency.py
+new file mode 100644
+index 0000000..870e3fe
+--- /dev/null
++++ b/tests/integration/test_product_type_consistency.py
+@@ -0,0 +1,163 @@
++"""tests.integration.test_product_type_consistency — drift guard for ProductType.
++
++Story 2.1 — Task 6.7. The canonical product type vocabulary lives in TWO
++places:
++
++  - `packages/services/m1_baseline/schemas.py` (Python, source of truth)
++  - `apps/web/lib/menu-config.ts` (TypeScript mirror, consumed by Next.js)
++
++This test parses the TypeScript file and asserts that:
++
++  1. The set of ProductType values matches.
++  2. The Korean label dictionary matches (PRD §8.M1 "코드" labels).
++  3. The code prefix dictionary matches (PRD §8.M1 3-letter codes).
++
++The test does NOT use Node / ts-node — just regex parsing, so it's
++hermetic to the engine workspace.
++"""
++
++from __future__ import annotations
++
++import re
++from pathlib import Path
++
++import pytest
++
++from packages.services.m0_onboarding.industry_menu import Industry
++from packages.services.m1_baseline.schemas import (
++    PRODUCT_TYPE_LABEL_KO,
++    PRODUCT_TYPE_PREFIX,
++    ProductType,
++)
++
++REPO_ROOT = Path(__file__).resolve().parents[2]
++TS_PATH = REPO_ROOT / "apps" / "web" / "lib" / "menu-config.ts"
++
++
++def _read_ts_source() -> str:
++    """Read the TS file as text, stripping line + block comments.
++
++    F-25 (Story 0.2 lesson): strip comments so doc-comment text doesn't
++    satisfy label-matching regexes.
++    """
++    if not TS_PATH.exists():
++        pytest.skip(
++            f"TypeScript mirror not found at {TS_PATH}. "
++            "Story 2.1 T2.3 must create this file."
++        )
++    raw = TS_PATH.read_text(encoding="utf-8")
++    no_block = re.sub(r"/\*.*?\*/", "", raw, flags=re.DOTALL)
++    no_line = re.sub(r"^\s*//.*$", "", no_block, flags=re.MULTILINE)
++    return no_line
++
++
++def _extract_ts_product_type_values(ts_src: str) -> list[str]:
++    """Extract the array literal under `export const PRODUCT_TYPE_VALUES = [...]`."""
++    m = re.search(
++        r"export\s+const\s+PRODUCT_TYPE_VALUES\s*=\s*\[(.*?)\]\s*as\s+const",
++        ts_src,
++        flags=re.DOTALL,
++    )
++    if not m:
++        pytest.fail("PRODUCT_TYPE_VALUES declaration not found in TS mirror")
++    body = m.group(1)
++    return re.findall(r'"([a-z_]+)"', body)
++
++
++def _extract_ts_dict(ts_src: str, name: str) -> dict[str, str]:
++    """Extract a `name: Record<...>` block — keys are quoted strings.
++
++    Handles the `Record<ProductType, string> = { key: "label", ... }` shape.
++    Returns a dict.
++    """
++    m = re.search(
++        rf"export\s+const\s+{name}\s*:\s*Record<[^>]+>\s*=\s*\{{(.*?)\}};",
++        ts_src,
++        flags=re.DOTALL,
++    )
++    if not m:
++        pytest.fail(f"{name} declaration not found in TS mirror")
++    body = m.group(1)
++    pairs = re.findall(r'([a-z_]+)\s*:\s*"([^"]+)"', body)
++    return dict(pairs)
++
++
++# ── Test cases ────────────────────────────────────────────────
++
++def test_product_type_values_match_python() -> None:
++    """PRODUCT_TYPE_VALUES (TS) == ProductType (Py)."""
++    ts_src = _read_ts_source()
++    ts_values = sorted(_extract_ts_product_type_values(ts_src))
++    py_values = sorted(pt.value for pt in ProductType)
++    assert ts_values == py_values, (
++        f"ProductType drift: TS={ts_values!r}, Py={py_values!r}"
++    )
++
++
++def test_product_type_label_ko_matches_python() -> None:
++    """Korean labels match (PRD §8.M1)."""
++    ts_src = _read_ts_source()
++    ts_labels = _extract_ts_dict(ts_src, "PRODUCT_TYPE_LABEL_KO")
++    py_labels = {pt.value: PRODUCT_TYPE_LABEL_KO[pt] for pt in ProductType}
++    assert ts_labels == py_labels, (
++        f"Label drift: TS={ts_labels!r}, Py={py_labels!r}"
++    )
++
++
++def test_product_type_prefix_matches_python() -> None:
++    """3-letter code prefixes match (PRD §8.M1 '코드')."""
++    ts_src = _read_ts_source()
++    ts_prefixes = _extract_ts_dict(ts_src, "PRODUCT_TYPE_PREFIX")
++    py_prefixes = {pt.value: PRODUCT_TYPE_PREFIX[pt] for pt in ProductType}
++    assert ts_prefixes == py_prefixes, (
++        f"Prefix drift: TS={ts_prefixes!r}, Py={py_prefixes!r}"
++    )
++
++
++# ── Capability gate × product type (Story 2.1 AC #6) ─────────
++# Per-industry allowed-type list is intentionally NOT compared against
++# TS word-for-word in this test — the TS export (`INDUSTRY_ALLOWED_PRODUCT_TYPES`)
++# is the consumer view; the *enforcement* lives in `apps/api/core/capability.py`.
++# We assert here that the Python source-of-truth reflects Story 2.1 AC #6:
++#   - `manufacturing` industries get all 5 types (PRODUCT + PRODUCT_MATERIAL)
++#   - `service` (②) gets only `service` (no PRODUCT_MATERIAL capability)
++@pytest.mark.parametrize(
++    "industry,expected_types",
++    [
++        (Industry.MANUFACTURING, {"product", "semi_product", "material", "goods", "service"}),
++        (Industry.SERVICE, {"service"}),
++        (Industry.MANUFACTURING_SERVICE, {"product", "semi_product", "material", "goods", "service"}),
++        (Industry.MANUFACTURING_SERVICE_OTHER, {"product", "semi_product", "material", "goods", "service"}),
++    ],
++)
++def test_capability_matrix_service_no_material(industry: Industry, expected_types: set[str]) -> None:
++    """Service industry cannot register material/semi_product (Story 2.1 AC #6).
++
++    The Python Capability gate source-of-truth is exercised via the
++    derived "allowed types" set. The TS warning: in the working copy of 'tests/rls/test_products_isolation.py', LF will be replaced by CRLF the next time Git touches it
+frontend uses
++    INDUSTRY_ALLOWED_PRODUCT_TYPES for UI filtering.
++    """
++    from apps.api.core.capability import (
++        Capability,
++        industry_supports,
++    )
++
++    product_caps = {Capability.PRODUCT, Capability.PRODUCT_MATERIAL}
++
++    # The PRODUCT capability is granted by the industry (sidebar entry point).
++    # The PRODUCT_MATERIAL capability gates `material` + `semi_product` only.
++    if industry_supports(industry, Capability.PRODUCT):
++        allowed = {"service"} if not industry_supports(industry, Capability.PRODUCT_MATERIAL) else {
++            "product",
++            "semi_product",
++            "material",
++            "goods",
++            "service",
++        }
++    else:
++        pytest.fail(f"Industry {industry.value} should always have PRODUCT capability")
++
++    assert allowed == expected_types, (
++        f"Cap matrix drift: industry={industry.value} "
++        f"allowed={allowed!r}, expected={expected_types!r}, capabilities={product_caps!r}"
++    )
+diff --git a/tests/rls/test_products_isolation.py b/tests/rls/test_products_isolation.py
+new file mode 100644
+index 0000000..d75bf40
+--- /dev/null
++++ b/tests/rls/test_products_isolation.py
+@@ -0,0 +1,291 @@
++"""tests/rls/test_products_isolation.py — RLS isolation for the products table.
++
++Story 2.1 — Task 6.3. Mirrors the Story 1.3 pattern in
++`test_ai_documents_input_drafts.py`. Tests are CI-only (gated by the
++`rls_db` fixture — set CI=true or RLS_RUN_LOCAL=1 to run locally).
++
++Verified (AC #3 / AD-3):
++- Cross-tenant SELECT on `products` returns 0 rows (RLS USING).
++- Cross-tenant INSERT on `products` is rejected by RLS WITH CHECK.
++- Cross-tenant UPDATE affects 0 rows (silent — same RLS-CI-6 pattern).
++- Owner role can SELECT + INSERT + UPDATE own-tenant products (positive control).
++- Viewer role CANNOT INSERT a product (role policy: owner-only mutation).
++- Service-role seeded fixture: `service_role` write + tenant-role JWT read.
++"""
++
++from __future__ import annotations
++
++import asyncio
++import json
++import uuid
++from decimal import Decimal
++
++import asyncpg
++import pytest
++
++# CR 0.2: DSN uses the non-superuser + non-bypassrls role created by the
++# RLS CI shim (see scripts/ci/rls_db_setup.sh).
++DSN = "postgresql://costmgr_test:costmgr_test@localhost:54322/postgres"
++
++
++def _jwt_claims(tenant_id: uuid.UUID, role: str = "owner") -> str:
++    return json.dumps(
++        {
++            "sub": str(uuid.uuid4()),
++            "app_metadata": {"tenant_id": str(tenant_id), "role": role},
++        }
++    )
++
++
++async def _open_as_tenant(
++    tenant_id: uuid.UUID, role: str = "owner"
++) -> asyncpg.Connection:
++    """Open a NEW connection (as costmgr_test) and simulate a tenant JWT."""
++    conn = await asyncpg.connect(DSN)
++    claims = _jwt_claims(tenant_id, role)
++    await conn.execute("BEGIN")
++    await conn.execute(f"SET LOCAL request.jwt.claims = '{claims}'")
++    return conn
++
++
++def _seed_product(
++    conn: asyncpg.Connection,
++    tenant_id: uuid.UUID,
++    *,
++    product_id: uuid.UUID | None = None,
++    code: str = "MAT-0001",
++    product_type: str = "material",
++    name: str = "테스트 원자재",
++) -> uuid.UUID:
++    """Insert a `products` row as service_role (bypasses RLS).
++
++    Used to seed test fixtures — tests then assert that tenant-role JWTs
++    cannot read/cross-write each other's rows.
++    """
++    product_id = product_id or uuid.uuid7() if hasattr(uuid, "uuid7") else uuid.uuid4()
++    asyncio.get_event_loop().run_until_complete(
++        conn.execute(
++            """
++            INSERT INTO products (
++                id, tenant_id, product_type, code, name,
++                unit, unit_cost_krw, unit_cost_usd, description,
++                is_active, created_at, updated_at
++            )
++            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, now(), now())
++            """,
++            product_id,
++            tenant_id,
++            product_type,
++            code,
++            name,
++            "EA",
++            1000,
++            Decimal("0.75"),
++            "테스트 제품",
++        )
++    )
++    return product_id
++
++
++# ── Test isolation helpers ───────────────────────────────────
++def test_select_products_other_tenant_returns_zero(
++    rls_db, tenant_pair
++) -> None:
++    """AC #3 / AD-3: tenant A's JWT cannot see tenant B's products rows.
++
++    Mirrors Story 1.3's `test_select_input_drafts_other_tenant_returns_zero`.
++    The unique index on (tenant_id, code) enforces intra-tenant
++    uniqueness; RLS enforces inter-tenant isolation.
++    """
++
++    async def run() -> None:
++        conn, (tenant_a, tenant_b) = await tenant_pair()
++        try:
++            # Seed: insert a product for tenant B via service_role.
++            _seed_product(conn, tenant_b, code="MAT-0001")
++
++            # Open a connection as tenant A and try to read tenant B's product.
++            tenant_a_conn = await _open_as_tenant(tenant_a)
++            try:
++                rows = await tenant_a_conn.fetch(
++                    "SELECT * FROM products WHERE tenant_id = $1",
++                    tenant_b,
++                )
++                assert len(rows) == 0, (
++                    f"Expected 0 products for tenant B, got {len(rows)} — RLS leak"
++                )
++            finally:
++                await tenant_a_conn.close()
++        finally:
++            await conn.close()
++
++    asyncio.run(run())
++
++
++def test_select_owner_sees_own(rls_db, tenant_pair) -> None:
++    """Owner role CAN SELECT products for their own tenant (positive control).
++
++    Sanity check that the SELECT policy is wired correctly.
++    """
++
++    async def run() -> None:
++        conn, (tenant_a, _) = await tenant_pair()
++        try:
++            # Seed a product for tenant A.
++            _seed_product(conn, tenant_a, code="MAT-0001")
++
++            # Open as tenant A's owner and check the row is visible.
++            owner_conn = await _open_as_tenant(tenant_a, role="owner")
++            try:
++                count = await owner_conn.fetchval(
++                    "SELECT count(*) FROM products WHERE tenant_id = $1",
++                    tenant_a,
++                )
++                assert count == 1, f"Expected 1 product for tenant A, got {count}"
++            finally:
++                await owner_conn.close()
++        finally:
++            await conn.close()
++
++    asyncio.run(run())
++
++
++def test_insert_product_owner_succeeds(rls_db, tenant_pair) -> None:
++    """Owner role CAN insert a product for their own tenant (positive control).
++
++    AC #1: owner + matching tenant_id passes the WITH CHECK.
++    """
++
++    async def run() -> None:
++        conn, (tenant_a, _) = await tenant_pair()
++        try:
++            owner_conn = await _open_as_tenant(tenant_a, role="owner")
++            try:
++                await owner_conn.execute(
++                    """
++                    INSERT INTO products (
++                        id, tenant_id, product_type, code, name,
++                        unit, unit_cost_krw, unit_cost_usd,
++                        is_active, created_at, updated_at
++                    )
++                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, now(), now())
++                    """,
++                    uuid.uuid4(),
++                    tenant_a,
++                    "product",
++                    "PRD-0001",
++                    "테스트 제품",
++                    "EA",
++                    5000,
++                    Decimal("3.75"),
++                )
++            finally:
++                await owner_conn.close()
++        finally:
++            await conn.close()
++
++    asyncio.run(run())
++
++
++def test_insert_product_viewer_role_rejected(rls_db, tenant_pair) -> None:
++    """Viewer role CANNOT insert a product (AC #1 — owner-only mutation).
++
++    The RLS WITH CHECK policy restricts to `TO owner`. Viewer must be
++    rejected with `InsufficientPrivilegeError`.
++    """
++
++    async def run() -> None:
++        conn, (tenant_a, _) = await tenant_pair()
++        try:
++            viewer_conn = await _open_as_tewarning: in the working copy of 'tests/services/test_product_code.py', LF will be replaced by CRLF the next time Git touches it
+nant(tenant_a, role="viewer")
++            try:
++                with pytest.raises(asyncpg.exceptions.InsufficientPrivilegeError):
++                    await viewer_conn.execute(
++                        """
++                        INSERT INTO products (
++                            id, tenant_id, product_type, code, name,
++                            is_active, created_at, updated_at
++                        )
++                        VALUES ($1, $2, $3, $4, $5, TRUE, now(), now())
++                        """,
++                        uuid.uuid4(),
++                        tenant_a,
++                        "product",
++                        "PRD-0002",
++                        "시도 — 거부되어야 함",
++                    )
++            finally:
++                await viewer_conn.close()
++        finally:
++            await conn.close()
++
++    asyncio.run(run())
++
++
++def test_insert_cross_tenant_product_rejected(rls_db, tenant_pair) -> None:
++    """AC #3 / AD-3: tenant A's JWT cannot INSERT with tenant B's UUID.
++
++    WITH CHECK enforces `tenant_id = (jwt -> tenant_id)::uuid` so a
++    mismatched tenant_id is rejected even when the actor has owner role.
++    """
++
++    async def run() -> None:
++        conn, (tenant_a, tenant_b) = await tenant_pair()
++        try:
++            # Open as tenant A's owner but try to INSERT with tenant B's id.
++            tenant_a_conn = await _open_as_tenant(tenant_a, role="owner")
++            try:
++                with pytest.raises(asyncpg.exceptions.InsufficientPrivilegeError):
++                    await tenant_a_conn.execute(
++                        """
++                        INSERT INTO products (
++                            id, tenant_id, product_type, code, name,
++                            is_active, created_at, updated_at
++                        )
++                        VALUES ($1, $2, $3, $4, $5, TRUE, now(), now())
++                        """,
++                        uuid.uuid4(),
++                        tenant_b,  # ← mismatched
++                        "material",
++                        "MAT-0099",
++                        "악의 시도 — 거부되어야 함",
++                    )
++            finally:
++                await tenant_a_conn.close()
++        finally:
++            await conn.close()
++
++    asyncio.run(run())
++
++
++def test_update_cross_tenant_product_zero_rows(rls_db, tenant_pair) -> None:
++    """AC #3: cross-tenant UPDATE is silent (USING filters out non-own rows).
++
++    RLS USING clause filters SELECT to own-tenant; UPDATE then operates on
++    zero rows. The service relies on the rowcount check to surface 404.
++    """
++
++    async def run() -> None:
++        conn, (tenant_a, tenant_b) = await tenant_pair()
++        try:
++            # Seed a product for tenant B.
++            product_id = _seed_product(conn, tenant_b, code="MAT-0001")
++
++            # Tenant A's owner tries to update tenant B's product.
++            tenant_a_conn = await _open_as_tenant(tenant_a, role="owner")
++            try:
++                result = await tenant_a_conn.execute(
++                    """
++                    UPDATE products SET name = '해킹 시도'
++                    WHERE id = $1
++                    """,
++                    product_id,
++                )
++                # Result is "UPDATE 0" — silent, no rows affected.
++                assert "0" in result, f"Expected UPDATE 0, got {result!r}"
++            finally:
++                await tenant_a_conn.close()
++        finally:
++            await conn.close()
++
++    asyncio.run(run())
+diff --git a/tests/services/test_product_code.py b/tests/services/test_product_code.py
+new file mode 100644
+index 0000000..015d8a7
+--- /dev/null
++++ b/tests/services/test_product_code.py
+@@ -0,0 +1,122 @@
++"""tests.services.test_product_code — pure-function tests for ProductCode generator.
++
++Story 2.1 — Task 1.3.
++
++Pure Python tests (no DB, no async). Verifies the `generate_next_code` /
++`parse_code` / `is_valid_code_format` domain helpers against the spec:
++- per-tenant per-type sequence starts at 0001
++- 4-digit zero pad
++- 4+ digit overflow allowed (>= 10000)
++- invalid prefix / format raises InvalidProductCodeError
++"""
++
++from __future__ import annotations
++
++import pytest
++
++# Intentionally fail import — implementation lands in T1.2.
++from packages.services.m1_baseline.product_code import (
++    InvalidProductCodeError,
++    generate_next_code,
++    is_valid_code_format,
++    parse_code,
++)
++from packages.services.m1_baseline.schemas import ProductType
++
++
++# ── generate_next_code ─────────────────────────────────────────
++
++def test_generate_first_code_per_type() -> None:
++    """Empty sequence → MAT-0001 / PRD-0001 / SEM-0001 / GDS-0001 / SVC-0001."""
++    empty: dict[ProductType, int] = {}
++    assert generate_next_code(empty, ProductType.MATERIAL) == "MAT-0001"
++    assert generate_next_code(empty, ProductType.PRODUCT) == "PRD-0001"
++    assert generate_next_code(empty, ProductType.SEMI_PRODUCT) == "SEM-0001"
++    assert generate_next_code(empty, ProductType.GOODS) == "GDS-0001"
++    assert generate_next_code(empty, ProductType.SERVICE) == "SVC-0001"
++
++
++def test_generate_increments() -> None:
++    """Sequence = 5 → MAT-0006 (next)."""
++    assert generate_next_code({ProductType.MATERIAL: 5}, ProductType.MATERIAL) == "MAT-0006"
++
++
++def test_generate_handles_overflow() -> None:
++    """Sequence = 9999 → MAT-10000 (4+ digit overflow, no clamp)."""
++    assert generate_next_code({ProductType.MATERIAL: 9999}, ProductType.MATERIAL) == "MAT-10000"
++
++
++def test_generate_independent_per_type() -> None:
++    """Each (tenant, product_type) has its own sequence.
++
++    material=5 and product=42 → MAT-0006 and PRD-0043 independently.
++    """
++    sequences = {ProductType.MATERIAL: 5, ProductType.PRODUCT: 42}
++    assert generate_next_code(sequences, ProductType.MATERIAL) == "MAT-0006"
++    assert generate_next_code(sequences, ProductType.PRODUCT) == "PRD-0043"
++
++
++# ── parse_code ────────────────────────────────────────────────
++
++def test_parse_round_trip() -> None:
++    """generate(parse(x)) == x and parse(generate(x)) == x."""
++    assert parse_code("MAT-0042") == (ProductType.MATERIAL, 42)
++    assert parse_code("PRD-0001") == (ProductType.PRODUCT, 1)
++    assert parse_code("SEM-9999") == (ProductType.SEMI_PRODUCT, 9999)
++
++
++def test_parse_invalid_prefix() -> None:
++    """XYZ-0001 → InvalidProductCodeError (no such type)."""
++    with pytest.raises(InvalidProductCodeError):
++        parse_code("XYZ-0001")
++
++
++def test_parse_invalid_format_no_dash() -> None:
++    """MAT0001 → InvalidProductCodeError (missing separator)."""
++    with pytest.raises(InvalidProductCodeError):
++        parse_code("MAT0001")
++
++
++def test_parse_invalid_format_empty_sequence() -> None:
++    """MAT- → InvalidProductCodeError (empty sequence)."""
++    with pytest.raises(InvalidProductCodeError):
++        parse_code("MAT-")
++
++
++def test_parse_invalid_format_lowercase() -> None:
++    """mat-0001 → InvalidProductCodeError (lowercase prefix)."""
++    with pytest.raises(InvalidProductCodeError):
++        parse_code("mat-0001")
++
++
++def test_parse_non_numeric_sequence() -> None:
++    """MAT-XXXX → InvalidProductCodeError (non-numeric sequence)."""
++    with pytest.raises(InvalidProductCodeError):
++        parse_code("MAT-XXXX")
++
++
++# ── is_valid_code_format ─────────────────────────────────────
++
++@pytest.mark.parametrize(
++    "code",
++    ["MAT-0001", "PRD-9999", "SEM-0001", "GDS-0042", "SVC-10000"],
++)
++def test_is_valid_code_format_true(code: str) -> None:
++    assert is_valid_code_format(code) is True
++
++
++@pytest.mark.parametrize(
++    "code",
++    ["mat-0001", "XYZ-0001", "MAT0001", "MAT-", "MAT-XXXX", "", "MAT-1"],
++)
++def test_is_valid_code_format_false(code: str) -> None:
++    assert is_valid_code_format(code) is False
++
++
++# ── Zero-padding regression guard ──────────────────────────────
++
++def test_zero_padding_sequence_zero() -> None:
++    """Sequence 0 → MAT-0001 (4-digit zero pad)."""
++    assert generate_next_code({}, ProductType.MATERIAL) == "MAT-0001"
++    # And the parser must accept 0001 → 1 (not 0001)
++    assert parse_code("MAT-0001") == (ProductType.MATERIAL, 1)

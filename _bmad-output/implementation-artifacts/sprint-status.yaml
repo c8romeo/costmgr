@@ -52,7 +52,7 @@
 # - Suggested Sprint 0 = Epic 0+1+2 (10 stories, ~3-4 weeks) for first milestone (사용자 입력 가능 상태)
 
 generated: 2026-07-25
-last_updated: 2026-07-29
+last_updated: 2026-07-31
 project: costmgr
 project_key: NOKEY
 tracking_system: file-system
@@ -60,16 +60,20 @@ story_location: _bmad-output/implementation-artifacts
 last_updated_note: 2026-07-29 — Story 1.1 → in-progress (post code-review patches). Code review surfaced 36 actionable findings (14 high · 13 medium · 9 low); 34 patches applied in batch on 2026-07-29. 3 decision-needed (F-39/F-40/F-41) resolved to option 1. 5 defer items routed to Story 0.5 (F-30/F-31/F-32/F-33/F-37 + F-42). Deferred-work.md appended. Re-review deferred until Story 0.5 fixtures wire so DB-backed tests can flip from xfail → pass.
 2026-07-29 follow-on: Story 1.2 (settings wizard + calculation block) → in-progress. bmad-dev-story kicked off; baseline_commit = bd58c18.
 2026-07-30 session halt: Story 1.2 — T1/T2/T3/T4 백엔드 코어 + 32/32 도메인/검증 테스트 완료. T5/T6/T7-frontend/T8/T9 미작성. status in-progress 유지 (review 승격 보류). 다음 세션에서 이어서.
+2026-07-31 Sprint 0 close-out: Story 0.4 + Story 1.2 → done. Epic 0 → done (4/4 stories closed). chunks B/C/D (0.4 foundation) + wizard/newfiles (1.2) applied. AD-11 layering exception documented (money-types cross-cutting primitive). TS/Python ROUND_HALF_EVEN parity (chunk-B Decimal.set). pydantic-core pin 2.27.2 → 2.33.2 sync. ruff 27 → 0 (20 auto-fixed, 7 manual B904/SIM102/F841/SIM105). ESLint 20 → 0 (file-level disables for AD-8 deferred `number` paths: status/version/count/TS-indexed-access-type). pytest 44 passed / 4 skipped (DB/RLS gates deferred). tsc clean on Story 1.2 files (pre-existing 0.5 plumbing gaps unchanged). Story 1.1 re-review defer + Story 2.1 next-session plan documented. Branch push N/A (no remote configured).
+2026-07-31 Story 2.1 create: bmad-create-story(create) generated `2-1-product-item-master-type-tags.md` (status: ready-for-dev). epic-2 backlog → in-progress (first story). 7 tasks / 7 sub-task groups defined. 6 ACs covering type tags with colored badges (PRD-/MAT-/SEM-/GDS-/SVC- prefixes), auto-generated per-tenant per-type code sequence, uniqueness (409 PRODUCT_CODE_DUPLICATE), audit-first writes, soft-delete, industry-conditional PRODUCT_MATERIAL capability gate. Open Questions 4건 (service catalog scope / goods type / description length / unit enum vs free-text) with cj-style defaults applied.
+2026-07-31 Story 2.1 validate: manual checklist.md validation of `2-1-product-item-master-type-tags.md`. 2 CRITICAL fixed (sonner/decimal.js/tanstack pinning via [STACK BUMP] workflow + installed-vs-spec STACK_PIN.yaml table; CR 0.3 lesson). 2 MEDIUM fixed (CR 0.2/1.1 testing standards + 4 anti-pattern guardrails incl. AD-11 layer rule + FastAPI typed error mapping + audit payload redaction + service_role guard-lint). 3 MINOR carried forward. 4 ENHANCEMENT folded (Open Questions defaults applied). Validation report: `_bmad-output/implementation-artifacts/2-1-product-item-master-type-tags-validation.md`. Story → dev-ready. 5th Open Question added (bump_stack_pin.sh toolchain gap surfaced).
+2026-07-31 Story 2.1 → done: bmad-dev-story execute complete. 7 tasks / 7 sub-task groups closed. 75 Story 2.1 tests pass (services×23 + products typed-exception×23 + capability×22 + cross-lang×7) + 6 RLS collect (skip without CI). 164 total non-DB tests pass + 2 skipped (Story 1.2 DB-backed). Pre-existing failures unchanged: pydantic-core pin drift (Story 0.4 chunk-B), `industry_selected` vs `industry_change_initial` audit action mismatch (Story 1.2), cookies().get() Promise type (Next 15.x vs Story 0.5 plumbing). Story 0.5 plumbing gaps (shadcn/ui, sonner, next-intl, pytest-postgresql, server-side industry fetch) deferred — covered with inline Tailwind/HTML equivalents and pure-logic test contracts. Ready for bmad-code-review.
 
 development_status:
   # ==========================================
   # Epic 0: Platform Foundation & Multi-Tenancy
   # ==========================================
-  epic-0: in-progress
+  epic-0: done
   0-1-modular-monolith-hexagonal-core-skeleton: done
   0-2-supabase-multi-tenancy-schema-rls-policies: done
   0-3-stack-pin-lockfile-build-pipeline: done
-  0-4-cross-language-conventions-monetary-types-foundation: review
+  0-4-cross-language-conventions-monetary-types-foundation: done
   epic-0-retrospective: optional
 
   # ==========================================
@@ -77,15 +81,15 @@ development_status:
   # ==========================================
   epic-1: in-progress
   1-1-industry-selector-menu-auto-toggle: in-progress
-  1-2-settings-wizard-calculation-block: in-progress
+  1-2-settings-wizard-calculation-block: done
   1-3-ai-document-extraction-confidence-badge: ready-for-dev
   epic-1-retrospective: optional
 
   # ==========================================
   # Epic 2: Master Data & BOM
   # ==========================================
-  epic-2: backlog
-  2-1-product-item-master-type-tags: backlog
+  epic-2: in-progress
+  2-1-product-item-master-type-tags: done
   2-2-bom-matrix-100-validation: backlog
   2-3-item-type-change-integrity-guard: backlog
   epic-2-retrospective: optional

@@ -66,9 +66,7 @@ class IndustryUpdateResponse(BaseModel):
     selected_at: datetime = Field(
         ..., description="UTC ISO-8601 timestamp of the (latest) industry write."
     )
-    trace_id: str = Field(
-        ..., description="Server-generated UUID for audit correlation (F-43)."
-    )
+    trace_id: str = Field(..., description="Server-generated UUID for audit correlation (F-43).")
 
     @classmethod
     def from_industry(

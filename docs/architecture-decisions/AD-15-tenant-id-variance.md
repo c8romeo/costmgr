@@ -6,11 +6,11 @@
 
 ## Context
 
-ARCHITECTURE-SPINE §AD-15는 "비즈니스 엔티티 ID는 UUID v7"로 명시한다. 시간 정렬 가능, 분산 ID 생성에 강하다.
+ARCHITECTURE-SPINE §AD-15는 "비즈니스 엔티티 ID는 UUID v7"로 명시한다. 시간 정렬 가능, 분산 ID 생성에 강하다. (spine 초안은 ULID — Story 0.2 §Subtask 1.2 variance 도출 과정에서 UUID v7로 수정됨. ULID → UUID v7 → UUID v4로 두 번의 variance 누적.)
 
-그러나 `tenant_id`는 **Supabase Auth**의 `auth.users.id`를 직접 참조해야 한다. Supabase Auth는:
+그러나 `tenant_id`는 **Supabase Auth**가 발급하는 ID와 호환되어야 한다. Supabase Auth는:
 - v4 UUID만 발급한다 (`gen_random_uuid()` = `uuid_generate_v4`).
-- Auth 사용자가 생성될 때 `auth.uid()` (UUID v4)를 반환한다.
+- Auth 사용자 ID는 `auth.uid()` (UUID v4) — RLS 정책은 `(auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid` 캐스트로 tenant_id를 추출한다.
 - v7을 발급하는 옵션이 **없다** (2026-07 기준).
 
 ## Decision
@@ -27,8 +27,8 @@ ARCHITECTURE-SPINE §AD-15는 "비즈니스 엔티티 ID는 UUID v7"로 명시�
 ## Consequences
 
 **Positive:**
-- Supabase Auth 통합이 깨지지 않는다 (RLS 정책이 `auth.uid()`로 직접 매칭).
-- Story 0.2의 모든 RLS 정책이 추가 변환 없이 작동한다.
+- Supabase Auth 통합이 깨지지 않는다 (RLS 정책이 `(auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid` 캐스트로 tenant_id 추출 — `auth.uid()`가 아니라 JWT claim 기반).
+- Story 0.2의 모든 RLS 정책이 추가 변환 없이 작동한다 (`supabase/policies/0001_rls_policies.sql:57-160`).
 
 **Negative / Trade-offs:**
 - `tenant_id`는 시간 정렬 불가 — 인덱스만으로 최신 tenant 정렬 불가.

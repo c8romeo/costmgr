@@ -1,0 +1,1523 @@
+diff --git a/apps/web/lib/api-client.ts b/apps/web/lib/api-client.ts
+index 1ae2c57..4a93b1b 100644
+--- a/apps/web/lib/api-client.ts
++++ b/apps/web/lib/api-client.ts
+@@ -30,6 +30,15 @@
+  *          discriminates cleanly in call sites.
+  */
+ 
++/* eslint-disable @typescript-eslint/no-restricted-types --
++ * AD-8 deferred: this file uses `number` for `status` (HTTP code),
++ * `settings_version` (monotonic counter), `*_count` (counts), and
++ * other non-money fields. AD-8 forbids `number` only on money paths.
++ * A per-call-site rule (no-restricted-syntax identifier-aware) is
++ * deferred to Story 0.5+ per the 0.4 review. Until then, file-level
++ * disable is the pragmatic realization.
++ */
++
+ import type { Industry } from "./menu-config";
+ 
+ export interface ApiErrorPayload {
+@@ -355,4 +364,132 @@ export async function fetchCompletionStatus(
+     accessToken,
+   );
+   return data;
++}
++
++// ── Story 2.1 — Product / Item Master ─────────────────────────
++//
++// Wire shape mirrors `apps/api/modules/m1_baseline/schemas.py`:
++// - ProductType (5 values: product | semi_product | material | goods | service)
++// - KRW / USD as TS string (decimal.js for USD; bigint for KRW).
++//
++// `unit_cost_krw` arrives as a JSON string (the API serializes BIGINT to
++// decimal-safe string per AD-15). The list/response layer leaves it as
++// string so the formatters in `lib/money.ts` can decode + display.
++
++export type ProductType =
++  | "product"
++  | "semi_product"
++  | "material"
++  | "goods"
++  | "service";
++
++export interface ProductResponse {
++  id: string;
++  tenant_id: string;
++  product_type: ProductType;
++  code: string;
++  name: string;
++  unit: string | null;
++  unit_cost_krw: string | null;
++  unit_cost_usd: string | null;
++  description: string | null;
++  is_active: boolean;
++  created_at: string;
++  updated_at: string;
++}
++
++export interface ProductListResponse {
++  items: ProductResponse[];
++  total: number;
++}
++
++export interface ProductCreateRequest {
++  product_type: ProductType;
++  name: string;
++  code?: string | null;
++  unit?: string | null;
++  unit_cost_krw?: string | null;
++  unit_cost_usd?: string | null;
++  description?: string | null;
++}
++
++export interface ProductUpdateRequest {
++  name?: string;
++  unit?: string | null;
++  unit_cost_krw?: string | null;
++  unit_cost_usd?: string | null;
++  description?: string | null;
++  is_active?: boolean;
++}
++
++export interface ProductListQuery {
++  product_type?: ProductType;
++  /** `null` (omitted) means "no filter applied". Pass `true` / `false`
++   *  explicitly to scope. */
++  is_active?: boolean;
++  limit?: number;
++  offset?: number;
++}
++
++function buildProductListQuery(query: ProductListQuery | undefined): string {
++  if (!query) return "";
++  const params = new URLSearchParams();
++  if (query.product_type) params.set("product_type", query.product_type);
++  if (typeof query.is_active === "boolean") {
++    params.set("is_active", String(query.is_active));
++  }
++  if (query.limit != null) params.set("limit", String(query.limit));
++  if (query.offset != null) params.set("offset", String(query.offset));
++  const qs = params.toString();
++  return qs ? `?${qs}` : "";
++}
++
++export async function fetchProducts(
++  query?: ProductListQuery,
++  accessToken?: string,
++): Promise<ProductListResponse> {
++  const qs = buildProductListQuery(query);
++  const { data } = await request<ProductListResponse>(
++    `/api/v1/baseline/products${qs}`,
++    { method: "GET" },
++    accessToken,
++  );
++  return data;
++}
++
++export async function getProduct(
++  id: string,
++  accessToken?: string,
++): Promise<ProductResponse> {
++  const { data } = await request<ProductResponse>(
++    `/api/v1/baseline/products/${id}`,
++    { method: "GET" },
++    accessToken,
++  );
++  return data;
++}
++
++export async function createProduct(
++  body: ProductCreateRequest,
++  accessToken?: string,
++): Promise<ProductResponse> {
++  const { data } = await request<ProductResponse>(
++    "/api/v1/baseline/products",
++    { method: "POST", body: JSON.stringify(body) },
++    accessToken,
++  );
++  return data;
++}
++
++export async function updateProduct(
++  id: string,
++  body: ProductUpdateRequest,
++  accessToken?: string,
++): Promise<ProductResponse> {
++  const { data } = await request<ProductResponse>(
++    `/api/v1/baseline/products/${id}`,
++    { method: "PATCH", body: JSON.stringify(body) },
++    accessToken,
++  );
++  return data;
+ }
+\ No newline at end of file
+diff --git a/apps/web/lib/server-api.ts b/apps/web/lib/server-api.ts
+index c6a1871..2320bad 100644
+--- a/apps/web/lib/server-api.ts
++++ b/apps/web/lib/server-api.ts
+@@ -16,7 +16,7 @@
+ 
+ import "server-only";
+ 
+-import type { CompletionStatus } from "./api-client";
++import type { CompletionStatus, ProductListResponse } from "./api-client";
+ 
+ const DEFAULT_API_BASE_URL = "http://localhost:8765";
+ 
+@@ -49,3 +49,43 @@ export async function fetchCompletionServerSide(
+     return null;
+   }
+ }
++
++// ── Story 2.1 — Product list server-side initial fetch ───────
++//
++// Mirrors fetchCompletionServerSide: returns null on failure, never
++// throws. The calling RSC threads that into the Client Component as
++// the seed value for its hook.
++export async function fetchProductsServerSide(
++  accessToken: string | undefined,
++  traceId: string,
++  query?: { product_type?: string; is_active?: boolean; limit?: number; offset?: number },
++): Promise<ProductListResponse | null> {
++  const headers = new Headers();
++  if (accessToken) {
++    headers.set("Authorization", `Bearer ${accessToken}`);
++  }
++  headers.set("X-Trace-Id", traceId);
++
++  const params = new URLSearchParams();
++  if (query?.product_type) params.set("product_type", query.product_type);
++  if (typeof query?.is_active === "boolean") {
++    params.set("is_active", String(query.is_active));
++  }
++  if (query?.limit != null) params.set("limit", String(query.limit));
++  if (query?.offset != null) params.set("offset", String(query.offset));
++  const qs = params.toString();
++  const path = `/api/v1/baseline/products${qs ? `?${qs}` : ""}`;
++
++  try {
++    const res = await fetch(`${apiBaseUrl()}${path}`, {
++      method: "GET",
++      headers,
++      cache: "no-store",
++    });
++    if (!res.ok) return null;
++    const data = (await res.json()) as ProductListResponse;
++    return data;
++  } catch {
++    return null;
++  }
++}
+warning: in the working copy of 'apps/web/app/[locale]/(dashboard)/m1-baseline/products/page.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/app/[locale]/(dashboard)/m1-baseline/products/page.tsx b/apps/web/app/[locale]/(dashboard)/m1-baseline/products/page.tsx
+new file mode 100644
+index 0000000..7272de5
+--- /dev/null
++++ b/apps/web/app/[locale]/(dashboard)/m1-baseline/products/page.tsx
+@@ -0,0 +1,52 @@
++/**
++ * apps/web/app/[locale]/(dashboard)/m1-baseline/products/page.tsx
++ *
++ * Story 2.1 — Task 5.1. 품목 마스터 (Product / Item Master) 랜딩 페이지.
++ *
++ * Server Component — reads the access token (F-1: pass the STRING, not a
++ * function reference) and delegates the product list UI to a Client
++ * Component.
++ *
++ * F-20: Server-side initial fetch (race-free). The RSC awaits the
++ * list endpoint server-side and passes the result as `initialProducts`
++ * prop. The Client Component seeds its hook from this prop so even fast
++ * clicks before the first poll cannot clobber existing tenant products.
++ *
++ * UX-locked: ko-KR labels, WCAG AA contrast, Professional 톤.
++ */
++
++import { cookies } from "next/headers";
++
++import { ProductListClient } from "@/components/m1-baseline/products/ProductListClient";
++import { fetchProductsServerSide } from "@/lib/server-api";
++
++export const dynamic = "force-dynamic";
++
++export default async function ProductsPage() {
++  const accessToken = cookies().get("sb-access-token")?.value;
++  const traceId = crypto.randomUUID();
++
++  // F-20: server-side initial product list fetch. On any failure
++  // (network, 401, 5xx, JSON decode), return `null` so the Client
++  // Component falls back to its polling loop.
++  const initialProducts = await fetchProductsServerSide(accessToken, traceId);
++
++  return (
++    <section style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem" }}>
++      <header style={{ marginBottom: "1.25rem" }}>
++        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.25rem" }}>
++          품목 마스터
++        </h1>
++        <p style={{ color: "#475569" }}>
++          우리 회사 카탈로그(제품·반제품·원자재·상품·서비스)를 등록하고 유형별 배지로 구분합니다.
++          (PRD §8.M1)
++        </p>
++      </header>
++      <ProductListClient
++        accessToken={accessToken}
++        initialProducts={initialProducts}
++        industry={null}
++      />
++    </section>
++  );
++}
+===END_FILE===
+warning: in the working copy of 'apps/web/components/m1-baseline/products/ProductTypeBadge.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m1-baseline/products/ProductTypeBadge.tsx b/apps/web/components/m1-baseline/products/ProductTypeBadge.tsx
+new file mode 100644
+index 0000000..ccf2146
+--- /dev/null
++++ b/apps/web/components/m1-baseline/products/ProductTypeBadge.tsx
+@@ -0,0 +1,113 @@
++/**
++ * apps/web/components/m1-baseline/products/ProductTypeBadge.tsx
++ *
++ * Story 2.1 — Task 5.3. Colored badge per product type (PRD §8.M1).
++ *
++ * Color pairs follow WCAG 2.1 AA contrast guidelines (≥ 4.5:1):
++ *   - product     → bg-green-50  + text-green-700  (#15803d on #f0fdf4)
++ *   - semi_product → bg-purple-50 + text-purple-700 (#7e22ce on #faf5ff)
++ *   - material    → bg-blue-50   + text-blue-700   (#1d4ed8 on #eff6ff)
++ *   - goods       → bg-orange-50 + text-orange-700 (#c2410c on #fff7ed)
++ *   - service     → bg-gray-100  + text-gray-700   (#374151 on #f3f4f6)
++ *
++ * UX-locked: ko-KR label, Professional tone. The badge also carries an
++ * `aria-label` so screen readers announce "원자재" rather than the enum
++ * literal "material".
++ *
++ * When the product is inactive, an additional `data-inactive` style
++ * overlay is applied (gray + strikethrough) per AC #5.
++ */
++
++import type { ProductType } from "@/lib/api-client";
++
++export interface ProductTypeBadgeProps {
++  productType: ProductType;
++  /** When false, renders a muted overlay (gray + strikethrough). */
++  isActive?: boolean;
++}
++
++interface BadgeStyle {
++  background: string;
++  color: string;
++  borderColor: string;
++}
++
++const BADGE_STYLE: Record<ProductType, BadgeStyle> = {
++  product: {
++    background: "#f0fdf4",
++    color: "#15803d",
++    borderColor: "#bbf7d0",
++  },
++  semi_product: {
++    background: "#faf5ff",
++    color: "#7e22ce",
++    borderColor: "#e9d5ff",
++  },
++  material: {
++    background: "#eff6ff",
++    color: "#1d4ed8",
++    borderColor: "#bfdbfe",
++  },
++  goods: {
++    background: "#fff7ed",
++    color: "#c2410c",
++    borderColor: "#fed7aa",
++  },
++  service: {
++    background: "#f3f4f6",
++    color: "#374151",
++    borderColor: "#e5e7eb",
++  },
++};
++
++const TYPE_LABEL_KO: Record<ProductType, string> = {
++  product: "제품",
++  semi_product: "반제품",
++  material: "원자재",
++  goods: "상품",
++  service: "서비스",
++};
++
++export function ProductTypeBadge({
++  productType,
++  isActive = true,
++}: ProductTypeBadgeProps) {
++  const style = BADGE_STYLE[productType];
++  const label = TYPE_LABEL_KO[productType];
++
++  return (
++    <span
++      role="img"
++      aria-label={label}
++      style={{
++        display: "inline-flex",
++        alignItems: "center",
++        gap: "0.25rem",
++        padding: "0.125rem 0.5rem",
++        borderRadius: 9999,
++        border: `1px solid ${style.borderColor}`,
++        background: isActive ? style.background : "#f3f4f6",
++        color: isActive ? style.color : "#9ca3af",
++        fontSize: "0.75rem",
++        fontWeight: 600,
++        lineHeight: 1.4,
++        textDecoration: isActive ? "none" : "line-through",
++      }}
++    >
++      {label}
++      {!isActive && (
++        <span
++          aria-hidden="true"
++          style={{
++            fontSize: "0.625rem",
++            fontWeight: 500,
++            marginLeft: "0.25rem",
++            color: "#9ca3af",
++          }}
++        >
++          (비활성)
++        </span>
++      )}
++    </span>
++  );
++}
+===END_FILE===
+warning: in the working copy of 'apps/web/components/m1-baseline/products/ProductFormDialog.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m1-baseline/products/ProductFormDialog.tsx b/apps/web/components/m1-baseline/products/ProductFormDialog.tsx
+new file mode 100644
+index 0000000..53dc208
+--- /dev/null
++++ b/apps/web/components/m1-baseline/products/ProductFormDialog.tsx
+@@ -0,0 +1,543 @@
++/**
++ * apps/web/components/m1-baseline/products/ProductFormDialog.tsx
++ *
++ * Story 2.1 — Task 5.4. Create/Edit dialog for a product.
++ *
++ * UX:
++ *   - shadcn Dialog primitive is not yet available (Story 0.5 deferral);
++ *     this uses a plain HTML <dialog> + inline overlay for portability.
++ *   - Field set: name, product_type (5-card radio grid — hidden types for
++ *     service industry), code (auto-generated readonly + 수동 입력 toggle),
++ *     unit, unit_cost_krw, unit_cost_usd, description.
++ *   - On submit: POST or PATCH to /api/v1/baseline/products.
++ *   - 409 PRODUCT_CODE_DUPLICATE → toast "이미 존재하는 코드입니다".
++ *   - 403 INDUSTRY_NOT_SUPPORTED → toast "서비스 업종에서는 등록할 수 없는 유형입니다".
++ *   - 422 INVALID_PRODUCT_CODE → toast "잘못된 코드 형식입니다 (예: MAT-0042)".
++ *   - 403 PRODUCT_IMMUTABLE_FIELD → field-specific message.
++ *
++ * Story 1.1 F-19: structural type guard on ApiError so cross-realm errors
++ * still hit the typed branches.
++ */
++
++"use client";
++
++import { useEffect, useId, useState } from "react";
++
++import {
++  ApiError,
++  type ProductCreateRequest,
++  type ProductResponse,
++  type ProductType,
++  type ProductUpdateRequest,
++} from "@/lib/api-client";
++import type { Industry } from "@/lib/menu-config";
++import {
++  INDUSTRY_ALLOWED_PRODUCT_TYPES,
++  PRODUCT_TYPE_LABEL_KO,
++  PRODUCT_TYPE_PREFIX,
++  PRODUCT_TYPE_VALUES,
++} from "@/lib/menu-config";
++
++const PRODUCT_TYPE_DESCRIPTION_KO: Record<ProductType, string> = {
++  product: "최종 제품 — 판매 가능한 완제품",
++  semi_product: "반제품 — BOM을 통해 제품으로 조립",
++  material: "원자재 — BOM의 투입 요소",
++  goods: "상품 — 매매 대상 (제조 X)",
++  service: "서비스 — ABC 원가 객체",
++};
++
++export interface ProductFormDialogProps {
++  mode: "create" | "edit";
++  /** When `mode === "edit"`, the row to edit. */
++  product?: ProductResponse | null;
++  /** Tenant industry — drives the allowed-type subset. */
++  industry: Industry | null;
++  /** Access token forwarded from RSC (F-1). */
++  accessToken?: string;
++  /** Submit handler. Caller wires success/error toasts + invalidation. */
++  onSubmit: (
++    body: ProductCreateRequest | ProductUpdateRequest,
++  ) => Promise<ProductResponse>;
++  onClose: () => void;
++}
++
++function isApiErrorLike(err: unknown): err is ApiError {
++  return (
++    typeof err === "object" &&
++    err !== null &&
++    "status" in err &&
++    typeof (err as { status: unknown }).status === "number" &&
++    "payload" in err &&
++    typeof (err as { payload: { code?: unknown } }).payload?.code === "string"
++  );
++}
++
++const CODE_FORMAT_REGEX = /^[A-Z]{3}-\d{4,}$/;
++
++export function ProductFormDialog({
++  mode,
++  product,
++  industry,
++  accessToken: _accessToken,
++  onSubmit,
++  onClose,
++}: ProductFormDialogProps) {
++  const _titleId = useId();
++  const [name, setName] = useState<string>(product?.name ?? "");
++  const [productType, setProductType] = useState<ProductType>(
++    product?.product_type ?? "product",
++  );
++  const [code, setCode] = useState<string>(product?.code ?? "");
++  const [manualCode, setManualCode] = useState<boolean>(
++    mode === "edit" ? true : false,
++  );
++  const [unit, setUnit] = useState<string>(product?.unit ?? "");
++  const [unitCostKrw, setUnitCostKrw] = useState<string>(
++    product?.unit_cost_krw ?? "",
++  );
++  const [unitCostUsd, setUnitCostUsd] = useState<string>(
++    product?.unit_cost_usd ?? "",
++  );
++  const [description, setDescription] = useState<string>(
++    product?.description ?? "",
++  );
++  const [isActive, setIsActive] = useState<boolean>(
++    product?.is_active ?? true,
++  );
++  const [error, setError] = useState<string | null>(null);
++  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
++
++  const allowedTypes: readonly ProductType[] = industry
++    ? INDUSTRY_ALLOWED_PRODUCT_TYPES[industry]
++    : (PRODUCT_TYPE_VALUES as readonly ProductType[]);
++
++  // When industry is loaded after mount, snap the selection into the
++  // allowed subset (covers edit of a row whose type is no longer allowed).
++  useEffect(() => {
++    if (!allowedTypes.includes(productType)) {
++      setProductType(allowedTypes[0] ?? "product");
++    }
++  }, [industry]);
++
++  function handleSubmit(e: React.FormEvent) {
++    e.preventDefault();
++    setError(null);
++    setIsSubmitting(true);
++
++    // Build the body shape per AD-15 snake_case JSON keys.
++    const buildBody = ():
++      | { kind: "create"; body: ProductCreateRequest }
++      | { kind: "update"; body: ProductUpdateRequest } => {
++      if (mode === "create") {
++        const body: ProductCreateRequest = {
++          product_type: productType,
++          name: name.trim(),
++          ...(manualCode && code.trim()
++            ? { code: code.trim().toUpperCase() }
++            : {}),
++          ...(unit.trim() ? { unit: unit.trim() } : {}),
++          ...(unitCostKrw.trim()
++            ? { unit_cost_krw: unitCostKrw.trim() }
++            : {}),
++          ...(unitCostUsd.trim()
++            ? { unit_cost_usd: unitCostUsd.trim() }
++            : {}),
++          ...(description.trim() ? { description: description.trim() } : {}),
++        };
++        return { kind: "create", body };
++      }
++      // mode === "edit" — PATCH only fields that were edited.
++      const body: ProductUpdateRequest = {};
++      if (name.trim() !== (product?.name ?? "")) body.name = name.trim();
++      if (unit.trim() !== (product?.unit ?? "")) {
++        body.unit = unit.trim() ? unit.trim() : null;
++      }
++      if (unitCostKrw.trim() !== (product?.unit_cost_krw ?? "")) {
++        body.unit_cost_krw = unitCostKrw.trim() ? unitCostKrw.trim() : null;
++      }
++      if (unitCostUsd.trim() !== (product?.unit_cost_usd ?? "")) {
++        body.unit_cost_usd = unitCostUsd.trim() ? unitCostUsd.trim() : null;
++      }
++      if (description.trim() !== (product?.description ?? "")) {
++        body.description = description.trim() ? description.trim() : null;
++      }
++      if (isActive !== (product?.is_active ?? true)) {
++        body.is_active = isActive;
++      }
++      return { kind: "update", body };
++    };
++
++    const built = buildBody();
++    onSubmit(built.body)
++      .then(() => {
++        onClose();
++      })
++      .catch((err: unknown) => {
++        if (isApiErrorLike(err)) {
++          const code = err.payload.code;
++          if (code === "PRODUCT_CODE_DUPLICATE") {
++            setError("이미 존재하는 코드입니다");
++          } else if (code === "INDUSTRY_NOT_SUPPORTED") {
++            setError("서비스 업종에서는 등록할 수 없는 유형입니다");
++          } else if (code === "INVALID_PRODUCT_CODE") {
++            setError("잘못된 코드 형식입니다 (예: MAT-0042)");
++          } else if (code === "PRODUCT_IMMUTABLE_FIELD") {
++            setError("코드는 생성 후 변경할 수 없습니다");
++          } else if (code === "PRODUCT_NOT_FOUND") {
++            setError("품목을 찾을 수 없습니다. 페이지를 새로고침해 주세요");
++          } else {
++            setError(err.payload.message_ko);
++          }
++        } else {
++          setError("저장에 실패했습니다. 잠시 후 다시 시도해 주세요");
++        }
++      })
++      .finally(() => {
++        setIsSubmitting(false);
++      });
++  }
++
++  return (
++    <div
++      role="dialog"
++      aria-modal="true"
++      aria-labelledby="product-form-title"
++      style={{
++        position: "fixed",
++        inset: 0,
++        background: "rgba(15, 23, 42, 0.45)",
++        display: "flex",
++        alignItems: "center",
++        justifyContent: "center",
++        zIndex: 50,
++        padding: "1rem",
++      }}
++      onClick={(e) => {
++        if (e.target === e.currentTarget) onClose();
++      }}
++    >
++      <form
++        onSubmit={handleSubmit}
++        style={{
++          background: "white",
++          borderRadius: 12,
++          padding: "1.5rem",
++          maxWidth: 560,
++          width: "100%",
++          maxHeight: "90vh",
++          overflowY: "auto",
++          boxShadow: "0 10px 25px rgba(15, 23, 42, 0.20)",
++        }}
++      >
++        <h2
++          id="product-form-title"
++          style={{ fontSize: "1.125rem", fontWeight: 700, marginBottom: "1rem" }}
++        >
++          {mode === "create" ? "품목 추가" : `품목 수정 · ${product?.code ?? ""}`}
++        </h2>
++
++        {/* name */}
++        <Field label="이름" required>
++          <input
++            type="text"
++            value={name}
++            onChange={(e) => setName(e.target.value)}
++            maxLength={200}
++            required
++            style={inputStyle}
++          />
++        </Field>
++
++        {/* product_type — 5-card radio grid (or N-card for industry) */}
++        <Field label="유형" required>
++          <div
++            role="radiogroup"
++            style={{
++              display: "grid",
++              gridTemplateColumns: "1fr 1fr",
++              gap: "0.5rem",
++            }}
++          >
++            {PRODUCT_TYPE_VALUES.map((t) => {
++              const isAllowed = allowedTypes.includes(t);
++              const isSelected = productType === t;
++              return (
++                <button
++                  key={t}
++                  type="button"
++                  role="radio"
++                  aria-checked={isSelected}
++                  disabled={!isAllowed || (mode === "edit")}
++                  onClick={() => isAllowed && setProductType(t)}
++                  title={
++                    isAllowed
++                      ? PRODUCT_TYPE_DESCRIPTION_KO[t]
++                      : `${PRODUCT_TYPE_LABEL_KO[t]} — 현재 업종(${industry ?? "(미선택)"})에서는 등록 불가`
++                  }
++                  style={{
++                    textAlign: "left",
++                    padding: "0.625rem 0.75rem",
++                    borderRadius: 8,
++                    border: isSelected
++                      ? "2px solid #2563eb"
++                      : "1px solid #e5e7eb",
++                    background: isSelected ? "#eff6ff" : "white",
++                    color: isAllowed ? "#0f172a" : "#9ca3af",
++                    cursor: isAllowed ? "pointer" : "not-allowed",
++                    opacity: isAllowed ? 1 : 0.5,
++                    fontSize: "0.875rem",
++                    fontWeight: isSelected ? 600 : 500,
++                  }}
++                >
++                  <div>
++                    {PRODUCT_TYPE_LABEL_KO[t]}{" "}
++                    <span style={{ color: "#64748b", fontSize: "0.75rem" }}>
++                      ({PRODUCT_TYPE_PREFIX[t]}-)
++                    </span>
++                  </div>
++                </button>
++              );
++            })}
++          </div>
++          {mode === "edit" && (
++            <p
++              style={{
++                marginTop: "0.5rem",
++                color: "#64748b",
++                fontSize: "0.75rem",
++              }}
++            >
++              유형은 생성 후 변경할 수 없습니다 (Story 2.3 영역)
++            </p>
++          )}
++        </Field>
++
++        {/* code */}
++        <Field label="코드">
++          {mode === "create" && !manualCode ? (
++            <div
++              style={{
++                ...inputStyle,
++                background: "#f8fafc",
++                color: "#64748b",
++                cursor: "not-allowed",
++              }}
++            >
++              {PRODUCT_TYPE_PREFIX[productType]}-XXXX (저장 시 자동 생성)
++            </div>
++          ) : (
++            <input
++              type="text"
++              value={code}
++              onChange={(e) => setCode(e.target.value)}
++              maxLength={20}
++              readOnly={mode === "edit"}
++              pattern={CODE_FORMAT_REGEX.source}
++              title="예: MAT-0042"
++              placeholder="예: MAT-0042"
++              style={{
++                ...inputStyle,
++                background: mode === "edit" ? "#f1f5f9" : "white",
++                color: mode === "edit" ? "#64748b" : "#0f172a",
++                cursor: mode === "edit" ? "not-allowed" : "text",
++              }}
++            />
++          )}
++          {mode === "create" && (
++            <label
++              style={{
++                display: "flex",
++                alignItems: "center",
++                gap: "0.375rem",
++                marginTop: "0.375rem",
++                fontSize: "0.75rem",
++                color: "#475569",
++              }}
++            >
++              <input
++                type="checkbox"
++                checked={manualCode}
++                onChange={(e) => setManualCode(e.target.checked)}
++              />
++              수동 입력
++            </label>
++          )}
++        </Field>
++
++        {/* unit */}
++        <Field label="단위 (예: EA, KG, BOX)">
++          <input
++            type="text"
++            value={unit}
++            onChange={(e) => setUnit(e.target.value)}
++            maxLength={20}
++            placeholder="EA"
++            style={inputStyle}
++          />
++        </Field>
++
++        {/* unit_cost_krw */}
++        <Field label="단가 (KRW · 원 단위 정수)">
++          <input
++            type="text"
++            value={unitCostKrw}
++            onChange={(e) => setUnitCostKrw(e.target.value.replace(/[^\d]/g, ""))}
++            inputMode="numeric"
++            placeholder="0"
++            style={inputStyle}
++          />
++        </Field>
++
++        {/* unit_cost_usd */}
++        <Field label="단가 (USD · 소수점 2자리)">
++          <input
++            type="text"
++            value={unitCostUsd}
++            onChange={(e) => setUnitCostUsd(e.target.value)}
++            placeholder="0.00"
++            style={inputStyle}
++          />
++        </Field>
++
++        {/* description */}
++        <Field label="설명 (최대 2000자)">
++          <textarea
++            value={description}
++            onChange={(e) => setDescription(e.target.value)}
++            maxLength={2000}
++            rows={3}
++            style={{ ...inputStyle, resize: "vertical", minHeight: 60 }}
++          />
++        </Field>
++
++        {/* is_active — edit-only (create defaults to true) */}
++        {mode === "edit" && (
++          <Field label="활성 상태">
++            <label
++              style={{
++                display: "flex",
++                alignItems: "center",
++                gap: "0.5rem",
++                fontSize: "0.875rem",
++              }}
++            >
++              <input
++                type="checkbox"
++                checked={isActive}
++                onChange={(e) => setIsActive(e.target.checked)}
++              />
++              {isActive ? "활성" : "비활성 (목록에서 제외됨)"}
++            </label>
++          </Field>
++        )}
++
++        {error && (
++          <p
++            role="alert"
++            style={{
++              marginTop: "0.5rem",
++              padding: "0.5rem 0.75rem",
++              borderRadius: 6,
++              background: "#fef2f2",
++              color: "#991b1b",
++              fontSize: "0.8125rem",
++            }}
++          >
++            {error}
++          </p>
++        )}
++
++        <div
++          style={{
++            display: "flex",
++            justifyContent: "flex-end",
++            gap: "0.5rem",
++            marginTop: "1.25rem",
++          }}
++        >
++          <button
++            type="button"
++            onClick={onClose}
++            disabled={isSubmitting}
++            style={{
++              padding: "0.5rem 1rem",
++              borderRadius: 6,
++              border: "1px solid #d1d5db",
++              background: "white",
++              color: "#0f172a",
++              cursor: isSubmitting ? "not-allowed" : "pointer",
++              fontSize: "0.875rem",
++            }}
++          >
++            취소
++          </button>
++          <button
++            type="submit"
++            disabled={isSubmitting || !name.trim()}
++            style={{
++              padding: "0.5rem 1rem",
++              borderRadius: 6,
++              border: "none",
++              background: "#2563eb",
++              color: "white",
++              cursor:
++                isSubmitting || !name.trim() ? "not-allowed" : "pointer",
++              opacity: isSubmitting || !name.trim() ? 0.6 : 1,
++              fontSize: "0.875rem",
++              fontWeight: 600,
++            }}
++          >
++            {isSubmitting
++              ? "저장 중…"
++              : mode === "create"
++                ? "추가"
++                : "저장"}
++          </button>
++        </div>
++      </form>
++    </div>
++  );
++}
++
++// ── Internal helpers ─────────────────────────────────────────
++const inputStyle: React.CSSProperties = {
++  display: "block",
++  width: "100%",
++  padding: "0.5rem 0.625rem",
++  borderRadius: 6,
++  border: "1px solid #d1d5db",
++  fontSize: "0.875rem",
++  color: "#0f172a",
++  background: "white",
++  outline: "none",
++};
++
++function Field({
++  label,
++  required,
++  children,
++}: {
++  label: string;
++  required?: boolean;
++  children: React.ReactNode;
++}) {
++  return (
++    <div style={{ marginBottom: "0.875rem" }}>
++      <label
++        style={{
++          display: "block",
++          fontSize: "0.8125rem",
++          fontWeight: 600,
++          color: "#334155",
++          marginBottom: "0.25rem",
++        }}
++      >
++        {label}
++        {required && (
++          <span style={{ color: "#dc2626", marginLeft: "0.125rem" }}>*</span>
++        )}
++      </label>
++      {children}
++    </div>
++  );
++}
+===END_FILE===
+warning: in the working copy of 'apps/web/components/m1-baseline/products/ProductListClient.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m1-baseline/products/ProductListClient.tsx b/apps/web/components/m1-baseline/products/ProductListClient.tsx
+new file mode 100644
+index 0000000..a2f2dad
+--- /dev/null
++++ b/apps/web/components/m1-baseline/products/ProductListClient.tsx
+@@ -0,0 +1,422 @@
++/**
++ * apps/web/components/m1-baseline/products/ProductListClient.tsx
++ *
++ * Story 2.1 — Task 5.2. Product list client (table + filters + form dialog).
++ *
++ * Composition:
++ *   - useProducts hook for list + mutations
++ *   - ProductTypeBadge for type column
++ *   - ProductFormDialog for create/edit
++ *   - Inline filter chips + active toggle
++ *
++ * Industry-conditional rendering (AC #6): if the tenant is `service`
++ * industry, hide the filter chips for `material` + `semi_product` (those
++ * rows cannot exist for a service tenant — the backend rejects the POST
++ * with 403 INDUSTRY_NOT_SUPPORTED, so the UI surfaces only what the
++ * backend will accept).
++ *
++ * F-1: accessToken forwarded as a string prop from the RSC.
++ */
++
++"use client";
++
++import { useState } from "react";
++
++import {
++  type ProductCreateRequest,
++  type ProductListResponse,
++  type ProductResponse,
++  type ProductUpdateRequest,
++} from "@/lib/api-client";
++import type { Industry } from "@/lib/menu-config";
++import {
++  INDUSTRY_ALLOWED_PRODUCT_TYPES,
++  PRODUCT_TYPE_LABEL_KO,
++  PRODUCT_TYPE_VALUES,
++} from "@/lib/menu-config";
++import { useProducts } from "@/hooks/useProducts";
++
++import { ProductFormDialog } from "./ProductFormDialog";
++import { ProductTypeBadge } from "./ProductTypeBadge";
++
++export interface ProductListClientProps {
++  /** Access token (string) forwarded from the RSC. F-1: not a function. */
++  accessToken?: string;
++  /** Tenant industry (read from cookie / context / server-side settings
++   *  fetch). When omitted, the UI shows all 5 types in the filter chips
++   *  but the backend still rejects disallowed types with 403
++   *  INDUSTRY_NOT_SUPPORTED. */
++  industry?: Industry | null;
++  initialProducts?: ProductListResponse | null;
++}
++
++const TYPE_FILTER_ALL: "all" = "all";
++
++export function ProductListClient({
++  accessToken: _accessToken,
++  industry,
++  initialProducts,
++}: ProductListClientProps) {
++  const allowedTypes: readonly (typeof PRODUCT_TYPE_VALUES)[number][] = industry
++    ? INDUSTRY_ALLOWED_PRODUCT_TYPES[industry]
++    : (PRODUCT_TYPE_VALUES as readonly (typeof PRODUCT_TYPE_VALUES)[number][]);
++
++  const [typeFilter, setTypeFilter] = useState<
++    (typeof PRODUCT_TYPE_VALUES)[number] | typeof TYPE_FILTER_ALL
++  >(TYPE_FILTER_ALL);
++  const [includeInactive, setIncludeInactive] = useState<boolean>(false);
++  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
++  const [editing, setEditing] = useState<ProductResponse | null>(null);
++  const [filterError, setFilterError] = useState<string | null>(null);
++
++  const query = {
++    ...(typeFilter !== TYPE_FILTER_ALL ? { product_type: typeFilter } : {}),
++    is_active: includeInactive ? undefined : true,
++    limit: 200,
++  };
++  const { products, total, isLoading, error, create, update } = useProducts(
++    _accessToken,
++    initialProducts,
++    query,
++  );
++
++  function openCreate() {
++    setEditing(null);
++    setDialogOpen(true);
++  }
++
++  function openEdit(p: ProductResponse) {
++    setEditing(p);
++    setDialogOpen(true);
++  }
++
++  function closeDialog() {
++    setDialogOpen(false);
++    setEditing(null);
++  }
++
++  async function handleSubmit(
++    body: ProductCreateRequest | ProductUpdateRequest,
++  ): Promise<ProductResponse> {
++    if (editing) {
++      // Update path.
++      const result = await update(editing.id, body as ProductUpdateRequest);
++      setFilterError(null);
++      return result;
++    }
++    const created = await create(body as ProductCreateRequest);
++    setFilterError(null);
++    return created;
++  }
++
++  return (
++    <div>
++      {/* ── Toolbar ───────────────────────────────────────────── */}
++      <div
++        style={{
++          display: "flex",
++          flexWrap: "wrap",
++          gap: "0.5rem",
++          alignItems: "center",
++          marginBottom: "1rem",
++        }}
++      >
++        <button
++          type="button"
++          onClick={openCreate}
++          style={{
++            padding: "0.5rem 1rem",
++            borderRadius: 6,
++            border: "none",
++            background: "#2563eb",
++            color: "white",
++            fontWeight: 600,
++            fontSize: "0.875rem",
++            cursor: "pointer",
++          }}
++        >
++          + 추가
++        </button>
++
++        {/* type filter chips */}
++        <div
++          role="group"
++          aria-label="유형 필터"
++          style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}
++        >
++          <Chip
++            active={typeFilter === TYPE_FILTER_ALL}
++            onClick={() => setTypeFilter(TYPE_FILTER_ALL)}
++            label="전체"
++          />
++          {PRODUCT_TYPE_VALUES.map((t) => {
++            const isAllowed = allowedTypes.includes(t);
++            return (
++              <Chip
++                key={t}
++                active={typeFilter === t}
++                onClick={() => isAllowed && setTypeFilter(t)}
++                label={PRODUCT_TYPE_LABEL_KO[t]}
++                disabled={!isAllowed}
++                tooltip={
++                  isAllowed
++                    ? undefined
++                    : `${PRODUCT_TYPE_LABEL_KO[t]} — 현재 업종(${industry ?? "(미선지)"})에서는 등록 불가`
++                }
++              />
++            );
++          })}
++        </div>
++
++        <label
++          style={{
++            display: "flex",
++            alignItems: "center",
++            gap: "0.375rem",
++            fontSize: "0.8125rem",
++            color: "#475569",
++            marginLeft: "auto",
++          }}
++        >
++          <input
++            type="checkbox"
++            checked={includeInactive}
++            onChange={(e) => setIncludeInactive(e.target.checked)}
++          />
++          비활성 포함
++        </label>
++      </div>
++
++      {/* ── List status ──────────────────────────────────────── */}
++      {isLoading && <StatusMessage>불러오는 중…</StatusMessage>}
++      {error && (
++        <StatusMessage role="alert">
++          목록을 불러올 수 없습니다: {error}
++        </StatusMessage>
++      )}
++      {filterError && (
++        <StatusMessage role="alert">{filterError}</StatusMessage>
++      )}
++      {!isLoading && !error && products.length === 0 && (
++        <StatusMessage>
++          {typeFilter === TYPE_FILTER_ALL
++            ? "등록된 품목이 없습니다. 우측 상단 「+ 추가」 버튼으로 시작하세요."
++            : `${PRODUCT_TYPE_LABEL_KO[typeFilter]} 유형의 품목이 없습니다.`}
++        </StatusMessage>
++      )}
++
++      {/* ── Table ─────────────────────────────────────────────── */}
++      {!isLoading && !error && products.length > 0 && (
++        <div
++          style={{
++            overflowX: "auto",
++            border: "1px solid #e5e7eb",
++            borderRadius: 8,
++          }}
++        >
++          <table
++            style={{
++              width: "100%",
++              borderCollapse: "collapse",
++              fontSize: "0.875rem",
++            }}
++          >
++            <thead>
++              <tr style={{ background: "#f8fafc", textAlign: "left" }}>
++                <Th>유형</Th>
++                <Th>코드</Th>
++                <Th>이름</Th>
++                <Th>단위</Th>
++                <Th align="right">단가 (KRW)</Th>
++                <Th align="right">단가 (USD)</Th>
++                <Th>상태</Th>
++                <Th align="right">액션</Th>
++              </tr>
++            </thead>
++            <tbody>
++              {products.map((p) => (
++                <tr
++                  key={p.id}
++                  style={{ borderTop: "1px solid #f1f5f9" }}
++                >
++                  <Td>
++                    <ProductTypeBadge
++                      productType={p.product_type}
++                      isActive={p.is_active}
++                    />
++                  </Td>
++                  <Td>
++                    <code
++                      style={{
++                        fontFamily: "ui-monospace, monospace",
++                        fontSize: "0.8125rem",
++                        color: "#0f172a",
++                      }}
++                    >
++                      {p.code}
++                    </code>
++                  </Td>
++                  <Td>{p.name}</Td>
++                  <Td>{p.unit ?? "—"}</Td>
++                  <Td align="right">{p.unit_cost_krw ?? "—"}</Td>
++                  <Td align="right">{p.unit_cost_usd ?? "—"}</Td>
++                  <Td>
++                    {p.is_active ? (
++                      <span style={{ color: "#15803d", fontWeight: 600 }}>활성</span>
++                    ) : (
++                      <span style={{ color: "#9ca3af" }}>비활성</span>
++                    )}
++                  </Td>
++                  <Td align="right">
++                    <button
++                      type="button"
++                      onClick={() => openEdit(p)}
++                      style={{
++                        padding: "0.25rem 0.625rem",
++                        borderRadius: 4,
++                        border: "1px solid #d1d5db",
++                        background: "white",
++                        color: "#0f172a",
++                        fontSize: "0.8125rem",
++                        cursor: "pointer",
++                      }}
++                    >
++                      수정
++                    </button>
++                  </Td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++          <p
++            style={{
++              padding: "0.5rem 0.75rem",
++              fontSize: "0.75rem",
++              color: "#64748b",
++              borderTop: "1px solid #f1f5f9",
++            }}
++          >
++            총 {total}건 (최대 {query.limit}건 표시)
++          </p>
++        </div>
++      )}
++
++      {dialogOpen && (
++        <ProductFormDialog
++          mode={editing ? "edit" : "create"}
++          product={editing}
++          industry={industry ?? null}
++          accessToken={_accessToken}
++          onSubmit={handleSubmit}
++          onClose={closeDialog}
++        />
++      )}
++    </div>
++  );
++}
++
++// ── Internal helpers ─────────────────────────────────────────
++
++function Th({
++  children,
++  align,
++}: {
++  children: React.ReactNode;
++  align?: "left" | "right" | "center";
++}) {
++  return (
++    <th
++      style={{
++        padding: "0.625rem 0.75rem",
++        fontWeight: 600,
++        fontSize: "0.75rem",
++        color: "#475569",
++        textAlign: align ?? "left",
++        textTransform: "uppercase",
++        letterSpacing: "0.025em",
++      }}
++    >
++      {children}
++    </th>
++  );
++}
++
++function Td({
++  children,
++  align,
++}: {
++  children: React.ReactNode;
++  align?: "left" | "right" | "center";
++}) {
++  return (
++    <td
++      style={{
++        padding: "0.625rem 0.75rem",
++        textAlign: align ?? "left",
++        color: "#0f172a",
++        verticalAlign: "middle",
++      }}
++    >
++      {children}
++    </td>
++  );
++}
++
++function Chip({
++  active,
++  onClick,
++  label,
++  disabled,
++  tooltip,
++}: {
++  active: boolean;
++  onClick: () => void;
++  label: string;
++  disabled?: boolean;
++  tooltip?: string;
++}) {
++  return (
++    <button
++      type="button"
++      onClick={onClick}
++      disabled={disabled}
++      title={tooltip}
++      style={{
++        padding: "0.25rem 0.625rem",
++        borderRadius: 9999,
++        border: active ? "1px solid #2563eb" : "1px solid #d1d5db",
++        background: active ? "#eff6ff" : "white",
++        color: active ? "#1d4ed8" : disabled ? "#9ca3af" : "#334155",
++        fontSize: "0.75rem",
++        fontWeight: 600,
++        cursor: disabled ? "not-allowed" : "pointer",
++        opacity: disabled ? 0.5 : 1,
++      }}
++    >
++      {label}
++    </button>
++  );
++}
++
++function StatusMessage({
++  children,
++  role,
++}: {
++  children: React.ReactNode;
++  role?: "alert" | "status";
++}) {
++  return (
++    <p
++      role={role ?? "status"}
++      style={{
++        padding: "0.75rem 1rem",
++        borderRadius: 8,
++        background: role === "alert" ? "#fef2f2" : "#f1f5f9",
++        color: role === "alert" ? "#991b1b" : "#475569",
++        fontSize: "0.875rem",
++      }}
++    >
++      {children}
++    </p>
++  );
++}
+===END_FILE===
+warning: in the working copy of 'apps/web/hooks/useProducts.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/hooks/useProducts.ts b/apps/web/hooks/useProducts.ts
+new file mode 100644
+index 0000000..cee7545
+--- /dev/null
++++ b/apps/web/hooks/useProducts.ts
+@@ -0,0 +1,142 @@
++/**
++ * apps/web/hooks/useProducts.ts — Product list polling + mutation hook.
++ *
++ * Story 2.1 — Task 5.5. Mirrors `useSettingsCompletion` pattern (no TanStack
++ * Query — Story 0.5 deferred). The hook:
++ *   - Polls GET /api/v1/baseline/products on mount + on focus
++ *   - Exposes create/update mutations that re-fetch on success
++ *   - Returns `{ products, isLoading, error, refetch, create, update }`
++ *   - 30-second stale window to avoid hammering the API
++ *
++ * F-20: server-side initial fetch — `initial` is provided by the RSC
++ * when the products page renders server-side. Seed from it so the very
++ * first render already shows the correct product list (no race between
++ * render and the first poll).
++ *
++ * Cross-language: wire shape mirrors
++ * `apps/api/modules/m1_baseline/schemas.py::ProductListResponse` /
++ * `ProductResponse` (AD-15 snake_case JSON keys).
++ */
++
++"use client";
++
++import { useCallback, useEffect, useRef, useState } from "react";
++
++import {
++  type ProductCreateRequest,
++  type ProductListQuery,
++  type ProductListResponse,
++  type ProductResponse,
++  type ProductUpdateRequest,
++  createProduct as apiCreateProduct,
++  fetchProducts as apiFetchProducts,
++  updateProduct as apiUpdateProduct,
++} from "@/lib/api-client";
++
++export interface UseProductsResult {
++  products: ProductResponse[];
++  total: number;
++  isLoading: boolean;
++  error: string | null;
++  refetch: () => void;
++  create: (body: ProductCreateRequest) => Promise<ProductResponse>;
++  update: (id: string, body: ProductUpdateRequest) => Promise<ProductResponse>;
++}
++
++const POLL_MS = 30_000; // background poll cadence while the list is mounted
++
++export function useProducts(
++  accessToken?: string,
++  initial?: ProductListResponse | null,
++  query?: ProductListQuery,
++): UseProductsResult {
++  const [products, setProducts] = useState<ProductResponse[]>(
++    initial?.items ?? [],
++  );
++  const [total, setTotal] = useState<number>(initial?.total ?? 0);
++  const [isLoading, setIsLoading] = useState<boolean>(initial == null);
++  const [error, setError] = useState<string | null>(null);
++  const cancelledRef = useRef<boolean>(false);
++  const accessTokenRef = useRef(accessToken);
++  accessTokenRef.current = accessToken;
++  // F-20: track whether the RSC already supplied initial state so we can
++  // skip the on-mount refetch.
++  const initialSeedRef = useRef<boolean>(initial != null);
++  initialSeedRef.current = initial != null;
++  const statusRef = useRef<ProductListResponse | null>(
++    initial ?? null,
++  );
++
++  const refetch = useCallback(() => {
++    cancelledRef.current = false;
++    const isFirstLoad = statusRef.current === null;
++    if (isFirstLoad) setIsLoading(true);
++    apiFetchProducts(query, accessTokenRef.current)
++      .then((data) => {
++        if (cancelledRef.current) return;
++        statusRef.current = data;
++        setProducts(data.items);
++        setTotal(data.total);
++        setError(null);
++      })
++      .catch((e: unknown) => {
++        if (cancelledRef.current) return;
++        const msg = e instanceof Error ? e.message : String(e);
++        setError(msg);
++        statusRef.current = null;
++        setProducts([]);
++        setTotal(0);
++      })
++      .finally(() => {
++        if (!cancelledRef.current && isFirstLoad) setIsLoading(false);
++      });
++  }, [query?.product_type, query?.is_active, query?.limit, query?.offset]);
++
++  const create = useCallback(
++    async (body: ProductCreateRequest): Promise<ProductResponse> => {
++      const created = await apiCreateProduct(body, accessTokenRef.current);
++      refetch();
++      return created;
++    },
++    [refetch],
++  );
++
++  const update = useCallback(
++    async (
++      id: string,
++      body: ProductUpdateRequest,
++    ): Promise<ProductResponse> => {
++      const updated = await apiUpdateProduct(id, body, accessTokenRef.current);
++      refetch();
++      return updated;
++    },
++    [refetch],
++  );
++
++  useEffect(() => {
++    statusRef.current = initial ?? null;
++  }, [initial]);
++
++  useEffect(() => {
++    if (!initialSeedRef.current) {
++      refetch();
++    }
++    const onFocus = () => {
++      refetch();
++    };
++    const onVisibility = () => {
++      if (document.visibilityState === "visible") refetch();
++    };
++    window.addEventListener("focus", onFocus);
++    document.addEventListener("visibilitychange", onVisibility);
++    const interval = setInterval(refetch, POLL_MS);
++    return () => {
++      clearInterval(interval);
++      window.removeEventListener("focus", onFocus);
++      document.removeEventListener("visibilitychange", onVisibility);
++      cancelledRef.current = true;
++    };
++  }, [refetch]);
++
++  return { products, total, isLoading, error, refetch, create, update };
++}
+===END_FILE===

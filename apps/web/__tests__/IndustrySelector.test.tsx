@@ -17,6 +17,11 @@
  * multi-handler suites.
  */
 
+/* eslint-disable @typescript-eslint/no-restricted-types --
+ * AD-8 deferred: this test file uses `number` for `count` and similar
+ * non-money fields. See api-client.ts for the full rationale.
+ */
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useRouter } from "next/navigation";

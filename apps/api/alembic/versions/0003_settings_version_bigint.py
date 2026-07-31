@@ -8,11 +8,11 @@ Revision ID: 0003_settings_version_bigint
 Revises: 0002_tenant_settings_onboarding_defaults
 Create Date: 2026-07-29
 """
+
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0003_settings_version_bigint"

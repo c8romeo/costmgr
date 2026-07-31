@@ -33,9 +33,9 @@ from typing import Final
 class Industry(str, Enum):
     """PRD §4.1 4지선다 — backend canonical enum values (snake_case)."""
 
-    MANUFACTURING = "manufacturing"                       # ① 제조업
-    SERVICE = "service"                                   # ② 서비스업
-    MANUFACTURING_SERVICE = "manufacturing_service"       # ③ 제조+서비스 (겸영)
+    MANUFACTURING = "manufacturing"  # ① 제조업
+    SERVICE = "service"  # ② 서비스업
+    MANUFACTURING_SERVICE = "manufacturing_service"  # ③ 제조+서비스 (겸영)
     MANUFACTURING_SERVICE_OTHER = "manufacturing_service_other"  # ④ 제조+서비스+기타
 
 

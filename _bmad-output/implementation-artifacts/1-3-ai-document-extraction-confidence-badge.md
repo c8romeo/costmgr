@@ -58,32 +58,45 @@ so that **AI가 틀린 값을 확정값으로 바로 사용하지 않고, 낮은
 
 - [ ] **Task 1 — Domain contract and persistence for document extraction** (AC: #1, #2, #3, #4, #5)
   - [ ] 1.1 — Define `InputDraft`, `ExtractionField`, `ExtractionEvidence`, `DraftState`, `ReviewStatus` contracts in the M0/M10 boundary using `snake_case` DB/Python and PascalCase TypeScript types.
-  - [ ] 1.2 — Create the story-owned migration under `supabase/migrations/` (or the repository's established Alembic location) for `uploaded_documents`/`input_drafts` only if the existing baseline does not already provide them. Use UUID v7 IDs, tenant ownership, timestamps, `state='draft'` default, confidence constrained to `[0,1]`, and indexes for `(tenant_id, created_at)` and draft lookup.
-  - [ ] 1.3 — Preserve raw AI output only in the authoritative Seoul Supabase storage/database boundary as needed for review; store a content/hash reference and normalized fields rather than opaque unbounded response JSON. Retain the original document/draft audit source; do not delete it on review.
+  - [ ] 1.2 — Create the story-owned Alembic migration **`apps/api/alembic/versions/0005_ai_documents_input_drafts.py`** for `uploaded_documents` and `input_drafts`. Use **business UUID v7 for entity IDs (`document_id`, `draft_id`, `field_id`)** and **`tenant_id` UUID v4** (per AD-15 variance — `docs/conventions.md §3`, `docs/architecture-decisions/AD-15-tenant-id-variance.md`). Schema: `tenant_id UUID NOT NULL`, `document_id UUID NOT NULL` FK to uploaded_documents, `field_name TEXT NOT NULL`, `ai_value JSONB` (typed: string/number/decimal/date), `confirmed_value JSONB NULL`, `confidence NUMERIC(4,3) CHECK (confidence >= 0 AND confidence <= 1)` NULL allowed, `state TEXT NOT NULL DEFAULT 'draft' CHECK (state IN ('draft','reviewed','superseded'))`, `evidence JSONB NOT NULL DEFAULT '{}'::jsonb`, `draft_hash BYTEA` (sha256), `version INTEGER NOT NULL DEFAULT 1`, `requested_by UUID`, `requested_at TIMESTAMPTZ NOT NULL DEFAULT now()`, `reviewed_by UUID NULL`, `reviewed_at TIMESTAMPTZ NULL`, `uploaded_document_id UUID` FK, `tenant_id` RLS-friendly, INDEXES `(tenant_id, created_at)` and `(tenant_id, document_id, field_name)` and `(tenant_id, state)`. **Companion policy**: `supabase/policies/0005_ai_documents_input_drafts.sql` adds RLS for both tables (no production cross-tenant read). **`input_drafts` is the canonical name** (architecture AD-7 supersedes ERD §8 `ai_extractions`; see new AD `docs/architecture-decisions/AD-7-ai-extraction-table-naming.md` per Task 6.5).
+  - [ ] 1.3 — Preserve raw AI output only in the authoritative Seoul Supabase storage/database boundary as needed for review. Store a content hash + Supabase Storage path reference (NOT unbounded response JSON). **Evidence policy**: `evidence.text` max **200 chars**, redacted via `apps/api/core/logging.py redact_processor` patterns (email regex `[^@\s]+@[^@\s]+`, KR phone `0\d{1,2}-\d{3,4}-\d{4}`, business_no `\d{3}-\d{2}-\d{5}`), HTML-escaped before render. Original document/draft audit source retained; never deleted on review. **Re-upload policy**: same `tenant_id` + same `sha256(document_bytes)` returns **409 `DOCUMENT_ALREADY_EXISTS`** with the existing `document_id`; do not create a duplicate. Retention: 90 days post `reviewed_at`, then a daily cron (`apps/api/jobs/document_retention.py`) soft-deletes (`deleted_at TIMESTAMPTZ`) the Storage object and marks drafts `state='superseded'`; raw bytes PII is purged in line with PIPA cross-border review.
   - [ ] 1.4 — Add RLS policies and tests for tenant isolation. Derive `tenant_id` from JWT; never accept it from form data or request body.
 
 - [ ] **Task 2 — Extraction port and provider adapter** (AC: #1, #5, #6)
   - [ ] 2.1 — Add one inbound use-case/port for document extraction under `apps/api/modules/m0_onboarding/` or the shared M10 port boundary; the UI must call the API, not the provider directly.
-  - [ ] 2.2 — Add the Claude Vision adapter under `apps/api/modules/m10_ai/` (or the project’s established AI adapter path). Keep the exact model snapshot in the M10 configuration constant; do not scatter model IDs. Use structured output/schema validation for fields, confidence, evidence, and warnings.
-  - [ ] 2.3 — Normalize provider failures, timeout, malformed JSON, unsupported document, and no-field results into the project error envelope. Never log document bytes, extracted personal data, prompts, or provider response bodies.
-  - [ ] 2.4 — Make provider calls transient in Railway Singapore. No payload logging, persistent disk writes, response caching, or tenant-data edge caching. Document the PIPA cross-border notice/consent requirement before pilot.
-  - [ ] 2.5 — Enforce the 30-second product SLO with a request timeout and explicit `processing/failed/completed` status; do not add Celery/Kafka/Redis as persistent infrastructure.
+  - [ ] 2.2 — Add the Claude Vision adapter under **`apps/api/modules/m10_ai/adapters/claude_vision.py`**. **Stack-pin add (this story, `[STACK BUMP]` tag)**: `anthropic` (Python SDK, exact pin in `apps/api/pyproject.toml` workspace member — pin the latest stable on the implementation date per claude-api skill guidance), `pdfplumber` (PDF text+tables extraction), `pillow` (image rendering for non-PDF uploads), `python-magic` (server-side MIME validation), and `python-multipart` (FastAPI upload — verify covered by `fastapi[standard]` extras before adding). Add via `uv add --package apps.api anthropic==<exact> pdfplumber==<exact> pillow==<exact> python-magic==<exact>` per the Story 0.4 lesson. Pin the **model snapshot** in **`apps/api/modules/m10_ai/config.py`** (single source) — do NOT scatter model IDs.
+
+  **Provider surface (locked 2026-07-31 by user decision)**:
+  - **Model**: `claude-opus-5` (claude-api skill default, Vision-capable, $5/$25 per 1M tokens). Config constant: `DOCUMENT_EXTRACTION_MODEL = "claude-opus-5"`.
+  - **Region/base URL**: first-party US (`api.anthropic.com`). AD-9 "Singapore transient" applies to non-model-call code paths; the model call is documented in `docs/ai-document-extraction.md` §"Provider region" as an explicit AD-9 variance — PIPA cross-border review must include this surface.
+  - **Transport**: **base64 inline** (`source={"type":"base64","media_type":...,"data":...}`), NOT Files API. Reasoning: PIPA simple (no persistent tenant bytes on Anthropic storage), 10 MB limit already enforced locally, single-region US egress is already covered by cross-border notice.
+  - **Structured output**: `client.messages.create(model=..., messages=[...], output_config={"format":{"type":"json_schema","schema":ExtractionResult.model_json_schema()}}, ...)`. Use `anthropic.Anthropic().messages.create(timeout=PROVIDER_TIMEOUT_S)`.
+  - **Supported MIME**: `application/pdf`, `image/jpeg`, `image/png`, `image/gif`, `image/webp`. **Excel is OUT of scope for MVP** (decision 2026-07-31 — Claude Vision does not natively support `.xlsx`; defer to a future story if needed). `ALLOWED_MIME = {"application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp"}`.
+  - **Determinism**: `temperature=0`, `top_p=1.0` (or lowest), `max_tokens=8192`. Required for `draft_hash = sha256(canonical_json(...))` reproducibility.
+  - **Streaming**: NOT used. Single blocking call inside `asyncio.to_thread(...)` so the FastAPI event loop is not blocked.
+
+  **Confidence semantics (locked 2026-07-31 by user decision)**: the `confidence` returned by the model is **self-rated heuristic, NOT a calibrated probability**. The prompt explicitly asks Claude to self-rate per-field confidence 0.00–1.00. The 0.70 threshold is therefore a **heuristic cutoff**, not a statistical guarantee. Document this caveat in `docs/ai-document-extraction.md` §"Confidence semantics" so users understand "✓ 자동 입력" means "model rated itself ≥70% confident", not "verified by an independent oracle".
+  - [ ] 2.3 — Normalize provider failures, timeout, malformed JSON, unsupported document, and no-field results into the project error envelope `{code, message_ko, details, trace_id}` (AD-15 §4). Never log document bytes, extracted personal data, prompts, or provider response bodies. **Extend `apps/api/core/logging.py redact_processor`** to cover the keys `value`, `ai_value`, `confirmed_value`, `evidence.text`, `extracted_text`, `prompt`, `provider_response`, `document_bytes`. Add a static test (`tests/architecture/test_logging_redaction.py`) asserting the processor scrubs those keys before any structlog event hits stdout.
+  - [ ] 2.4 — Make provider calls transient in Railway Singapore. No payload logging, persistent disk writes, response caching, or tenant-data edge caching. **PIPA cross-border gate**: add `apps/api/core/pipa_gate.py::require_pipa_review()` dependency and attach to all four M10 routes. The dependency reads `settings.PIPA_REVIEW_COMPLETED` (env flag, default `False`); if `False`, return `503 PIPA_REVIEW_PENDING` with `message_ko: "PIPA 국외이전 검토가 완료되지 않아 AI 추출 기능이 비활성화되어 있습니다."`. CI workflow `apps/api/.github/ci.yml` adds a job `pipa-gate-check` that asserts the flag is `True` for any production deployment (the operator flips it after the PIPA processor-contract review is signed). Document the PIPA cross-border notice/consent requirement before pilot.
+  - [ ] 2.5 — Enforce the 30-second product SLO with **`apps/api/modules/m10_ai/config.py::PROVIDER_TIMEOUT_S = 28`** and explicit job status `queued|processing|completed|failed` (separate from draft `state='draft|reviewed|superseded'`). Use `anthropic.Anthropic().messages.create(timeout=PROVIDER_TIMEOUT_S)`; on timeout, transition job to `failed` with `code=AI_PROVIDER_TIMEOUT` and `details={"elapsed_seconds": <int>}`. Do not add Celery/Kafka/Redis as persistent infrastructure. **Upload limits** (`apps/api/modules/m10_ai/config.py`): `MAX_UPLOAD_BYTES = 10 * 1024 * 1024` (10 MB), `ALLOWED_MIME = {"application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp"}` (Excel removed per 2026-07-31 decision — Claude Vision does not natively support `.xlsx`), `MAX_PDF_PAGES = 20`, `MAX_IMAGE_PIXELS = 4096 * 4096`. Reject above limits with `422 UPLOAD_LIMIT_EXCEEDED`. Enforce a per-tenant daily quota (50 uploads/day) via a Redis-free in-memory counter persisted to `tenant_settings.onboarding.ai.daily_upload_count` JSONB (no Redis).
 
 - [ ] **Task 3 — Backend API and review/promotion boundary** (AC: #1, #2, #3, #4, #5, #6)
-  - [ ] 3.1 — Add authenticated owner-facing endpoints, for example:
-    - `POST /api/v1/onboarding/documents` — multipart upload and extraction job creation.
-    - `GET /api/v1/onboarding/documents/{document_id}` — tenant-scoped status and normalized fields.
-    - `GET /api/v1/onboarding/drafts/{draft_id}` — one draft with confidence/evidence.
-    - `POST /api/v1/onboarding/drafts/{draft_id}/review` — user edit/confirm; request includes expected version for optimistic concurrency.
-  - [ ] 3.2 — Return a stable response shape containing `draft_id`, `field_name`, `ai_value`, `confirmed_value`, `confidence`, `badge`, `review_required`, `state`, `evidence`, and `warnings`; use `confidence < 0.70` as the single badge threshold.
+  - [ ] 3.1 — Add authenticated owner-facing endpoints under kebab-case (AD-15) prefix `onboarding/ai-documents`:
+    - `POST /api/v1/onboarding/ai-documents` — multipart upload. **Accepts `Idempotency-Key: <uuid>` header (recommended)**: same key + same body returns the existing `document_id` (200) instead of creating duplicates. Missing key → generate and return in `X-Idempotency-Key` response header. Returns `{ document_id, status: "queued", upload_url }`.
+    - `GET /api/v1/onboarding/ai-documents/{document_id}` — tenant-scoped status; returns `{ document_id, status: "queued|processing|completed|failed", error?, drafts: [{draft_id, field_name, confidence, state, badge}] }`.
+    - `GET /api/v1/onboarding/ai-drafts/{draft_id}` — one draft with confidence/evidence.
+    - `POST /api/v1/onboarding/ai-drafts/{draft_id}/review` — user edit/confirm; **request includes `If-Match: <draft_hash_b64>`** (Story 1.2 deferred F-33 lifted for this route). Mismatch returns `409 DRAFT_VERSION_CONFLICT` with `message_ko: "다른 사용자가 이미 이 초안을 수정했습니다. 새로고침 후 다시 시도해 주세요."`, `details: {"current_version": <int>, "your_version": <int>}`. Partial confirm returns `{ draft_id, confirmed_fields: ["business_registration_number"], remaining_review_count: 3, settings_version: <int> }`.
+  - [ ] 3.2 — Return a stable response shape derived from **`apps/api/core/confidence.py::REVIEW_THRESHOLD`**: `{ draft_id, field_name, ai_value, confirmed_value, confidence, badge, state, evidence, warnings, version }`. **`review_required` is NOT a separate field** — the UI derives it as `confidence IS NULL OR confidence < REVIEW_THRESHOLD`. The `badge` string is also derived (`confidence IS NULL OR confidence < REVIEW_THRESHOLD → "review_required" / red ⚠ 확인 필요`; otherwise → `"auto_input"` / gray ✓ 자동 입력). Single source of truth avoids the Story 1.2 F-7 anti-pattern of duplicating the same derived state across multiple fields.
   - [ ] 3.3 — A review/confirmation endpoint may update only the draft/review audit boundary. It must not write confirmed monthly inputs, products, accounts, or calculations directly.
-  - [ ] 3.4 — When a later M2 promotion flow is implemented, only `InputPromoter.promote(tenant_id, period_key, draft_ids)` may promote drafts to canonical confirmed input. Promotion is idempotent, retains the draft with `state='promoted'`, records actor and draft hash, and is not reimplemented in M0/M10.
-  - [ ] 3.5 — Keep settings aggregation under AD-23: if company identity fields belong in `tenant_settings.onboarding`, use the version-checked settings service and preserve unrelated JSONB namespaces; do not create a parallel settings table.
-  - [ ] 3.6 — Enforce owner/member/viewer policy explicitly. Viewer and consultant proxy are read-only; member cannot change onboarding settings unless the established role policy says otherwise.
+  - [ ] 3.4 — **Resolution of Epic Story 1.3 AC line 657 vs AD-7/AD-17 conflict (Option C — `company_subblock`)**: confirmed values from reviewed drafts flow into **`tenant_settings.onboarding.company_subblock`** (a new schema-validated JSONB subkey inside the existing `onboarding` namespace — AD-23 4-namespace rule preserved). Concretely:
+    - Extend `packages/services/m0_onboarding/settings_completion.py::compute_completion()` (Story 1.2 pure function) with a third parameter `pending_extractions: list[DraftSummary]`; the function returns `missing += [f"AI 추출 미확정: {d.field_name}" for d in pending_extractions if d.review_required]`. Mirror in TS (`apps/web/lib/menu-config.ts` or new sibling `apps/web/lib/completion.ts`) and add `tests/integration/test_completion_consistency.py` parametrized cases.
+    - M10 review endpoint, on user confirm, calls **`SettingsService.update_onboarding_field(tenant_id, "company_subblock", company_subblock_payload, actor_id)`** (the Story 1.2 2-transaction pattern: audit-first via `emit_audit` then `with_service_role` SELECT FOR UPDATE → `jsonb_set` → commit). Draft retains `state='reviewed'`; an empty (no fields) `state='promoted'` row is **NOT** created here — AD-17's `InputPromoter.promote(tenant_id, period_key, draft_ids)` is reserved exclusively for monthly-input promotion and is **not reimplemented** by M0/M10. The relationship is: AI company-identity fields (Epic 1 onboarding) live in `company_subblock`; monthly input fields (Epic 3) flow through AD-17 promotion. These are distinct paths, distinct namespaces.
+  - [ ] 3.5 — Keep settings aggregation under AD-23: company-identity fields are written into **`tenant_settings.onboarding.company_subblock`**, NOT a parallel settings table and NOT a 5th top-level namespace. JSONB schema is added to `apps/api/core/jsonb_schemas.py::validate_onboarding_schema()` (Story 1.2 helper) and to `docs/onboarding-schema.md`. The four AD-23 namespaces (`onboarding` / `baseline` / `abc` / `ai`) remain the only top-level keys. `tenant_settings.ai` keeps AD-23's reserved meaning (AI defaults / cache policy) and is NOT used for draft persistence.
+  - [ ] 3.6 — Enforce **owner-only** for `POST /api/v1/onboarding/ai-documents` and `POST /api/v1/onboarding/ai-drafts/{id}/review` (matches Story 1.2 anti-pattern line 335 + AD-10 hard rule — "unless established policy says otherwise" hedge removed). `member`, `viewer`, `consultant_proxy` receive `403 ROLE_NOT_ALLOWED`. `GET` endpoints are open to all four roles (read-only). Wrap the routes with `dependencies=[Depends(require_capability(Capability.AI_EXTRACT))]` (per `apps/api/core/capability.py`, deferred-work F-6 wiring) — AI_EXTRACT is granted to every Industry per ARCHITECTURE-SPINE capability map, so this is a defense-in-depth gate, not a tenant-kind filter.
 
 - [ ] **Task 4 — Frontend upload and confidence review UX** (AC: #1, #2, #3, #4, #5, #6)
-  - [ ] 4.1 — Add an upload/review step to the existing settings wizard without breaking Story 1.1 industry menu or Story 1.2 completion hook/button.
-  - [ ] 4.2 — Create components in the established Next.js tree, e.g. `apps/web/components/settings/wizard/DocumentExtractionStep.tsx`, `ExtractionFieldRow.tsx`, `ConfidenceBadge.tsx`, and `apps/web/hooks/useDocumentExtraction.ts`.
+  - [ ] 4.1 — Add an upload/review step to the existing settings wizard without breaking Story 1.1 industry menu or Story 1.2 completion hook/button. The new step is inserted **after** the AllocationCriteriaStep in `apps/web/app/[locale]/(dashboard)/settings/wizard/page.tsx`. Follow the **F-20 server-side initial-fetch pattern** (`apps/web/lib/server-api.ts` from Story 1.2 review patches) to avoid the render-race window where a user could click Save before the first poll. Lift `accessToken` plumbing via `MenuContext` exactly as Story 1.1/1.2 did; defer the F-32 cookie-hardening fix to a hardening sprint (consistent with Story 1.2 deferred).
+  - [ ] 4.2 — Create components in the established Next.js tree, e.g. `apps/web/components/settings/wizard/DocumentExtractionStep.tsx`, `ExtractionFieldRow.tsx`, `ConfidenceBadge.tsx`, and `apps/web/hooks/useDocumentExtraction.ts`. The hook must mirror the Story 1.2 `useSettingsCompletion` hardening: `cancelledRef`, `statusRef`, `window focus` + `document visibilitychange` listeners, `isLoading=true` only on first fetch, **exponential backoff polling** (1s, 2s, 4s, 8s, cap 10s) while job status is non-terminal, error path clears cached status. No `STALE_MS` gate.
   - [ ] 4.3 — Render `⚠ 확인 필요` in red for `<70%`, `✓ 자동 입력` in gray for `>=70%`; do not rely on color alone—include text/icon and accessible labels. Show confidence percent, editable value, evidence/source location when available, and a per-field confirm action.
   - [ ] 4.4 — Show global state: processing progress, completed review count, unresolved low-confidence count, all-fields-low-confidence manual fallback, retry/re-upload, and structured Korean errors.
   - [ ] 4.5 — Feed unresolved review state into the Story 1.2 completion calculation so [계산] remains disabled until required extracted fields are user-confirmed. Preserve completion semantics for industries where no document is required.
@@ -94,15 +107,16 @@ so that **AI가 틀린 값을 확정값으로 바로 사용하지 않고, 낮은
   - [ ] 5.2 — Backend API tests for PDF/Excel accepted types, invalid MIME/oversized/corrupt files, timeout/provider error, malformed provider output, no-field fallback, status transitions, review validation, and optimistic concurrency.
   - [ ] 5.3 — Tenant and role isolation tests: tenant A cannot read/review tenant B drafts; viewer/consultant proxy cannot mutate; request-body `tenant_id` is ignored/rejected.
   - [ ] 5.4 — Non-authoritative boundary tests: extraction/review cannot insert/update confirmed input tables or invoke `/api/v1/calc`; draft remains source-of-truth until AD-17 promotion.
-  - [ ] 5.5 — Frontend Vitest/RTL tests for red/gray badge exact labels, keyboard/focus accessible review, disabled calculation while unresolved, processing/error/fallback states, and retry.
-  - [ ] 5.6 — Playwright E2E: upload representative PDF and Excel fixtures, verify field review, edit/confirm low-confidence value, confirm no-low-confidence completion, and verify a cross-tenant access attempt fails.
-  - [ ] 5.7 — Add redaction/logging tests or static checks proving document bytes, personal data, provider prompts/responses, and tenant payloads are not logged.
+  - [ ] 5.5 — Frontend Vitest/RTL tests for red/gray badge exact labels, keyboard/focus accessible review, disabled calculation while unresolved, processing/error/fallback states, and retry. **Defer to Story 0.5** (test framework wire-up) — same deferral phrasing as Story 1.2 T7.3 + `apps/web/__tests__/IndustrySelector.test.tsx` header. Files ship as inert scaffolding; CI picks them up after Story 0.5 lands. No new test stack introduced here.
+  - [ ] 5.6 — Playwright E2E: upload representative PDF and Excel fixtures, verify field review, edit/confirm low-confidence value, confirm no-low-confidence completion, and verify a cross-tenant access attempt fails. **Defer to Story 0.5** (same as 5.5).
+  - [ ] 5.7 — Add redaction/logging tests or static checks proving document bytes, personal data, provider prompts/responses, and tenant payloads are not logged. **Required** (not deferred): `tests/architecture/test_logging_redaction.py` parametrizes structlog calls with each of the forbidden keys (`value`, `ai_value`, `confirmed_value`, `evidence.text`, `extracted_text`, `prompt`, `provider_response`, `document_bytes`) and asserts the captured stdout event has the key scrubbed. Pattern follows `tests/architecture/test_api_calls_only_ports.py` (Story 0.4 lesson — AST guard).
 
 - [ ] **Task 6 — Documentation and operational safeguards** (AC: #1, #5, #6)
-  - [ ] 6.1 — Add `docs/ai-document-extraction.md` covering user flow, field schema, confidence threshold, review rules, manual fallback, state transitions, retention, and “AI는 초안, 확정은 사람” notice.
-  - [ ] 6.2 — Document exact M10 provider model/config location, timeout, supported file types/limits, no-payload-logging rule, and how to rotate credentials.
-  - [ ] 6.3 — Document PIPA cross-border processing notice/consent and processor-contract review as a pre-pilot operational gate.
-  - [ ] 6.4 — Update onboarding/settings docs and Korean messages; explicitly state compliance/AI extraction is assistive and not accounting/legal confirmation.
+  - [ ] 6.1 — Add `docs/ai-document-extraction.md` covering user flow, field schema, confidence threshold (`REVIEW_THRESHOLD = Decimal("0.70")`), review rules, manual fallback, state transitions, retention (90 days post `reviewed_at`), and "AI는 초안, 확정은 사람" notice.
+  - [ ] 6.2 — Document exact M10 provider model/config location (`apps/api/modules/m10_ai/config.py`), timeout (`PROVIDER_TIMEOUT_S = 28`), supported file types/limits (MIME, max bytes, max pages, max rows, daily quota), no-payload-logging rule, and how to rotate credentials (`ANTHROPIC_API_KEY` env → secret manager).
+  - [ ] 6.3 — Document PIPA cross-border processing notice/consent and processor-contract review as a pre-pilot operational gate. Reference `apps/api/core/pipa_gate.py` and CI job `pipa-gate-check`.
+  - [ ] 6.4 — Update onboarding/settings docs and Korean messages; explicitly state compliance/AI extraction is assistive and not accounting/legal confirmation. Cross-link `docs/onboarding-schema.md` for `company_subblock` schema.
+  - [ ] 6.5 — **NEW** — Create `docs/architecture-decisions/AD-7-ai-extraction-table-naming.md` resolving the ERD (`ai_extractions`) vs architecture (`input_drafts`) variance. Decision: **`input_drafts` is canonical**; ERD §8 is superseded per AD-1. Document the migration mapping (any legacy `ai_extractions.pending_review`/`approved` rows map to `input_drafts.state='draft'`/`state='reviewed'`). Add to AD register.
 
 ## Dev Notes
 
@@ -133,34 +147,37 @@ Recommended normalized shape (adapt to existing schema, do not duplicate existin
 ```json
 {
   "draft_id": "uuid-v7",
-  "tenant_id": "derived-from-jwt",
+  "tenant_id": "uuid-v4-from-jwt",
   "document_id": "uuid-v7",
   "field_name": "business_registration_number",
   "ai_value": "123-45-67890",
   "confirmed_value": null,
   "confidence": 0.65,
   "badge": "review_required",
-  "review_required": true,
-  "evidence": {"page": 1, "text": "...redacted/limited..."},
   "state": "draft",
-  "reviewed_by": null,
-  "reviewed_at": null,
+  "evidence": {"page": 1, "text": "...max 200 chars, redacted..."},
+  "version": 1,
   "draft_hash": "sha256:...",
-  "version": 1
+  "requested_by": "uuid-v4",
+  "requested_at": "2026-07-31T08:00:00Z",
+  "reviewed_by": null,
+  "reviewed_at": null
 }
 ```
 
-- `confidence` is normalized to `[0,1]`; values outside that range or non-numeric provider output are invalid and must fail closed.
-- Badge mapping is deterministic: `<0.70` → `review_required` / red `⚠ 확인 필요`; `>=0.70` → `auto_input` / gray `✓ 자동 입력`. `null` → review required.
-- Do not expose unbounded source snippets or full documents to logs; evidence shown in UI must be minimized and escaped.
-- Suggested state machine: `draft → reviewed → promoted`; provider/job status separately `queued|processing|completed|failed`. Avoid mutating a promoted draft back to draft.
-- The Epic/ERD also contains `ai_extractions` with `pending_review→approved`; reconcile this legacy naming with `input_drafts`/AD-7 before coding. Do not create both as competing sources of truth. If `ai_extractions` already exists, map it as an adapter/view or document the migration decision.
+- `tenant_id` is **UUID v4** derived from JWT (`auth.jwt() ->> 'tenant_id'`) per AD-15 variance (`docs/conventions.md §3`); business IDs (`draft_id`, `document_id`, `field_id`) are **UUID v7**.
+- `confidence` is normalized to `[0,1]` via `NUMERIC(4,3) CHECK`; values outside that range or non-numeric provider output are invalid and must fail closed (record `state='draft'` with `confidence=NULL` and surface as `review_required`).
+- **Single-source badge mapping** (no duplicate `review_required` field): `confidence IS NULL OR confidence < apps.api.core.confidence.REVIEW_THRESHOLD` → `badge='review_required'` (red `⚠ 확인 필요`); otherwise → `badge='auto_input'` (gray `✓ 자동 입력`). The UI derives the same `review_required` boolean locally for aria-labels.
+- `evidence.text` max 200 chars, redacted via `apps/api/core/logging.py redact_processor` (email, KR phone, business_no patterns), HTML-escaped before render.
+- **State machine**: `draft → reviewed → superseded` (note: NOT `promoted` — `promoted` is AD-17 monthly-input semantics, not used here; user-confirmed fields write to `tenant_settings.onboarding.company_subblock` directly via `SettingsService`). Provider job status separately: `queued | processing | completed | failed`. `state` is never mutated backward.
+- `input_drafts` is the **canonical** name (AD-7 + new `docs/architecture-decisions/AD-7-ai-extraction-table-naming.md`). Legacy `ai_extractions` table (if it exists) is mapped via adapter/view; do not maintain two competing draft stores.
+- Confirmed values flow to `tenant_settings.onboarding.company_subblock` JSONB subkey (NOT a 5th top-level namespace — AD-23 preserved). Subkey schema lives in `apps/api/core/jsonb_schemas.py::validate_onboarding_schema()` and `docs/onboarding-schema.md`.
+- `draft_hash` is `sha256(canonical_json(draft_payload))` (canonical form excludes `version`); `If-Match` request header carries `base64(draft_hash)`. Mismatch → `409 DRAFT_VERSION_CONFLICT`.
 
 ### Provider and latest-technology guardrails
 
 - PRD selects Claude API with Vision, but the architecture intentionally leaves the exact model snapshot to M10 configuration. Pin the chosen snapshot in one config constant and record the date/version in docs; never hard-code it in handlers/components.
 - Use the current official Anthropic SDK/API pattern available in the repository at implementation time. Because this story is a planning artifact, the dev must verify the provider’s current structured-output/document-input API and SDK version before implementation rather than copying a stale call signature.
-- Keep the provider behind a port so tests use a fake adapter. Require schema-validated output and handle refusal, empty extraction, timeout, malformed output, and provider HTTP errors.
 - Keep the provider behind a port so tests use a fake adapter. Require schema-validated output and handle refusal, empty extraction, timeout, malformed output, and provider HTTP errors.
 - Use file type detection from content where possible, not only client MIME; enforce max size and request timeout server-side.
 - SLO: AI extraction P95 ≤ 30 seconds (PRD §14). Provide asynchronous status if the provider call exceeds the request budget; do not silently retry duplicate extraction without an idempotency key.
@@ -173,45 +190,72 @@ Expected changes, subject to actual repository verification:
 apps/api/
 ├── modules/
 │   ├── m0_onboarding/
-│   │   ├── handlers.py                         # UPDATE — upload/status/review routes, if Story 1.1/1.2 created it
-│   │   ├── schemas.py                           # UPDATE — document/draft DTOs
-│   │   └── services/settings_service.py         # UPDATE only if completion needs reviewed-draft gate
-│   └── m10_ai/
-│       ├── __init__.py                          # NEW
-│       ├── config.py                             # NEW — model/timeout/file policy constants
-│       ├── ports.py                              # NEW — provider/extraction contracts
-│       ├── adapters/claude_vision.py             # NEW
-│       ├── service.py                            # NEW — orchestration, validation, redaction
-│       └── schemas.py                             # NEW/UPDATE
-├── core/                                         # UPDATE only for existing upload/error/security helpers
-└── main.py                                       # UPDATE — router wiring
+│   │   ├── handlers.py                            # UPDATE — onboarding/ai-documents + ai-drafts routes
+│   │   ├── schemas.py                             # UPDATE — document/draft DTOs, kebab-case routes
+│   │   └── services/settings_service.py           # UPDATE — compute_completion takes pending_extractions
+│   └── m10_ai/                                    # FIRST story to populate
+│       ├── __init__.py                            # NEW
+│       ├── config.py                              # NEW — DOCUMENT_EXTRACTION_MODEL, PROVIDER_TIMEOUT_S, MAX_UPLOAD_BYTES, ALLOWED_MIME, MAX_PDF_PAGES, MAX_XLSX_ROWS_PER_SHEET
+│       ├── ports.py                               # NEW — DocumentExtractionPort, DocumentExtractionJob
+│       ├── adapters/claude_vision.py              # NEW — Anthropic SDK call, structured output
+│       ├── service.py                             # NEW — orchestration, validation, redaction
+│       ├── schemas.py                             # NEW — request/response models (Pydantic)
+│       └── handlers.py                            # NEW — FastAPI router for /api/v1/onboarding/ai-{documents,drafts}
+├── core/
+│   ├── confidence.py                              # NEW — REVIEW_THRESHOLD = Decimal("0.70")
+│   ├── pipa_gate.py                               # NEW — require_pipa_review dependency
+│   ├── logging.py                                 # UPDATE — redact_processor covers value/ai_value/confirmed_value/evidence.text/extracted_text/prompt/provider_response/document_bytes
+│   ├── jsonb_schemas.py                           # UPDATE — validate_onboarding_schema accepts company_subblock
+│   ├── capability.py                              # (existing — wiring lift per deferred-work F-6)
+│   └── jobs/document_retention.py                 # NEW — 90-day soft-delete cron
+├── main.py                                        # UPDATE — register m10_ai.router
+└── pyproject.toml                                 # UPDATE — `[STACK BUMP]` pins: anthropic, pdfplumber, openpyxl, python-magic
+
+apps/api/alembic/versions/
+└── 0005_ai_documents_input_drafts.py              # NEW — uploaded_documents + input_drafts schema
+
+supabase/policies/
+└── 0005_ai_documents_input_drafts.sql             # NEW — RLS for both tables
+
+packages/services/m10_ai/
+└── extraction_port.py                             # NEW — port interface consumed by M0
 
 apps/web/
 ├── app/[locale]/(dashboard)/settings/wizard/
-│   └── page.tsx                                  # UPDATE — add extraction step
+│   └── page.tsx                                   # UPDATE — insert DocumentExtractionStep after AllocationCriteriaStep
 ├── components/settings/wizard/
-│   ├── DocumentExtractionStep.tsx                # NEW
-│   ├── ExtractionFieldRow.tsx                   # NEW
-│   └── ConfidenceBadge.tsx                       # NEW
-├── hooks/useDocumentExtraction.ts                # NEW
-├── lib/api-client.ts                             # UPDATE — multipart/status/review calls if existing
-└── messages/ko-KR.json                            # UPDATE — Korean labels/errors
-
-supabase/
-├── migrations/                                    # NEW/UPDATE — only missing uploaded_documents/input_drafts
-└── policies/                                      # UPDATE — RLS if not created with migration
+│   ├── DocumentExtractionStep.tsx                 # NEW
+│   ├── ExtractionFieldRow.tsx                     # NEW
+│   └── ConfidenceBadge.tsx                        # NEW
+├── hooks/useDocumentExtraction.ts                 # NEW — cancelledRef + statusRef + backoff polling
+├── lib/api-client.ts                              # UPDATE — Idempotency-Key + If-Match + retry/timeout
+├── lib/server-api.ts                              # (existing — F-20 pattern reused)
+└── messages/ko-KR.json                            # UPDATE — 정확_필요 / 자동_입력 / AI_추출_폴백
 
 tests/
-├── api/test_document_extraction.py               # NEW
-├── api/test_document_extraction_isolation.py     # NEW
-├── services/test_extraction_contract.py          # NEW
-├── integration/test_draft_promotion_boundary.py  # NEW
+├── api/
+│   ├── test_document_extraction.py                # NEW — boundary + provider-error + status transitions
+│   ├── test_document_extraction_isolation.py      # NEW — tenant/role isolation, body tenant_id rejection
+│   └── test_draft_review_if_match.py              # NEW — 409 DRAFT_VERSION_CONFLICT
+├── services/
+│   ├── test_extraction_contract.py                # NEW — port contract, fake adapter
+│   └── test_settings_completion.py                # UPDATE — pending_extractions parameter cases
+├── integration/
+│   ├── test_draft_promotion_boundary.py           # NEW — extraction never writes confirmed input
+│   ├── test_badge_consistency.py                  # NEW — Python ↔ TS badge mapping parity
+│   └── test_completion_consistency.py             # UPDATE — pending_extractions mirror cases
+├── architecture/
+│   └── test_logging_redaction.py                  # NEW — AST + runtime guard for forbidden keys
 └── web/
-    ├── __tests__/ConfidenceBadge.test.tsx         # NEW
-    └── e2e/document-extraction.spec.ts            # NEW
+    ├── __tests__/ConfidenceBadge.test.tsx         # NEW (deferred to Story 0.5 — scaffolding only)
+    └── e2e/document-extraction.spec.ts            # NEW (deferred to Story 0.5 — scaffolding only)
 
 docs/
-└── ai-document-extraction.md                     # NEW
+├── ai-document-extraction.md                      # NEW — flow + threshold + state machine + retention
+├── onboarding-schema.md                           # UPDATE — company_subblock JSONB schema
+├── conventions.md                                 # UPDATE — input_drafts naming, REVIEW_THRESHOLD constant
+└── architecture-decisions/
+    └── AD-7-ai-extraction-table-naming.md         # NEW — input_drafts canonical, ai_extractions superseded
 ```
 
 ### Testing standards
@@ -229,13 +273,34 @@ docs/
 - Every user-visible string is Korean. Use text/icon plus color for badges. Red badge must have sufficient contrast, focus-visible controls, keyboard operation, and screen-reader label.
 - Clearly state "AI는 초안이며, 확정 전 반드시 확인해야 합니다" and that this is assistive, not legal/accounting confirmation.
 
-### Known ambiguities to resolve during implementation
+### Known ambiguities — resolved during validation (2026-07-31)
 
-- **Storage naming**: ERD names `ai_extractions` while architecture/epics mandate `input_drafts`. Adopt one canonical source, preferably `input_drafts` under AD-7, and document compatibility mapping.
-- **Scope of company fields**: Story AC explicitly names business registration number but does not enumerate every required field. Keep schema extensible and make required-for-calculation mapping explicit rather than hard-coding all extracted fields as mandatory.
-- **Auto-approved fields**: AC allows `>=70%` to pass without manual edit, while global PRD says “확정은 사람”. Treat `>=70%` as review-complete for the badge/calculation gate only, but do not promote to authoritative input without the future AD-17/M2 human promotion path.
-- **M0 vs M10 ownership**: M0 owns onboarding surface; M10 owns provider/AI adapter. Keep one extraction port and avoid module-to-module duplicate endpoints.
-- **Migration location**: Architecture seed says `supabase/migrations`; previous story specs mention Alembic. Inspect actual bootstrap and follow the repository’s real migration owner; do not generate duplicate migrations in both locations.
+- **Storage naming (C2/P9) — RESOLVED**: `input_drafts` is canonical (AD-7 supersedes ERD §8 per AD-1). New AD `docs/architecture-decisions/AD-7-ai-extraction-table-naming.md` documents the mapping (legacy `ai_extractions.pending_review/approved` → `input_drafts.state='draft'/'reviewed'`).
+- **Promotion target (C3) — RESOLVED (Option C: `company_subblock`)**: Epic Story 1.3 AC line 657 ("확정값은 `tenant_settings`로 승격") is honored via `tenant_settings.onboarding.company_subblock` JSONB subkey. AD-17 `InputPromoter.promote()` is reserved exclusively for monthly-input promotion (Epic 3) and is NOT reused here. AI company-identity fields (Epic 1 onboarding) flow through `SettingsService.update_onboarding_field(..., "company_subblock", ..., actor_id)` (Story 1.2 2-transaction audit-first pattern). Two distinct paths, two distinct namespaces.
+- **M0 vs M10 ownership (C4) — RESOLVED**: M10 owns the port + adapter (`apps/api/modules/m10_ai/{config,ports,adapters/claude_vision,service,schemas}.py`); M0 owns the onboarding surface and calls the M10 port via `apps/api/modules/m0_onboarding/handlers.py`. Story 1.3 is the FIRST story to populate M10 (current `__init__.py` is a one-line stub); Epic 10.1+ subsequently fill out insights + cache. No cross-module duplicate endpoints.
+- **Migration location (C5/A1) — RESOLVED**: `apps/api/alembic/versions/0005_ai_documents_input_drafts.py`. The `supabase/migrations/` path in the original spec was incorrect (directory does not exist). Companion RLS lives in `supabase/policies/0005_ai_documents_input_drafts.sql`.
+- **Completion contract change (C6/E1) — RESOLVED**: extend `packages/services/m0_onboarding/settings_completion.py::compute_completion()` with a third parameter `pending_extractions: list[DraftSummary]`. Mirror in TS and add `tests/integration/test_completion_consistency.py` parametrized cases for the new behavior. Story 1.2 status is currently `in-progress`; the signature change ships BEFORE Story 1.2 → done, ensuring the 1.2 → done promotion can use the new shape.
+- **`tenant_settings` namespace (C7) — RESOLVED**: `tenant_settings.onboarding.company_subblock` subkey. AD-23 4-namespace rule preserved (`onboarding`/`baseline`/`abc`/`ai`). JSONB schema added to `apps/api/core/jsonb_schemas.py` and `docs/onboarding-schema.md`.
+- **Duplicate `review_required` field (C8) — RESOLVED**: removed. UI derives `review_required` and `badge` from `confidence IS NULL OR confidence < REVIEW_THRESHOLD`. Single source of truth.
+- **Re-upload / retention (C9) — RESOLVED**: same `tenant_id + sha256(document_bytes)` → `409 DOCUMENT_ALREADY_EXISTS`; retention 90 days post `reviewed_at` then daily cron soft-deletes Storage + marks drafts `state='superseded'`.
+- **M10 deps pins (A2) — RESOLVED**: `[STACK BUMP]` tag added in spec; exact pins for `anthropic`, `pdfplumber`, `openpyxl`, `python-magic` recorded in dev notes section.
+- **Model snapshot constant (A3) — RESOLVED**: `apps/api/modules/m10_ai/config.py::DOCUMENT_EXTRACTION_MODEL = "<exact-snapshot>"`; same file holds `PROVIDER_TIMEOUT_S`, `MAX_UPLOAD_BYTES`, `ALLOWED_MIME`, `MAX_PDF_PAGES`, `MAX_XLSX_ROWS_PER_SHEET`.
+- **Logging redaction (A4) — RESOLVED**: `apps/api/core/logging.py` redact_processor extended; `tests/architecture/test_logging_redaction.py` enforces.
+- **PIPA gate (A5) — RESOLVED**: `apps/api/core/pipa_gate.py::require_pipa_review()` dependency; CI job `pipa-gate-check`.
+- **Router wiring (A6) — RESOLVED**: `apps/api/main.py` registration of M10 router listed in source tree.
+- **`REVIEW_THRESHOLD` constant (A7) — RESOLVED**: `apps/api/core/confidence.py::REVIEW_THRESHOLD = Decimal("0.70")`.
+- **Upload limits (A8) — RESOLVED**: 10 MB / 20 PDF pages / 5000 rows/sheet / 50 uploads/day.
+- **Idempotency header (A9) — RESOLVED**: `Idempotency-Key` header on `POST /ai-documents`.
+- **Partial confirm response (A10) — RESOLVED**: `{ draft_id, confirmed_fields[], remaining_review_count, settings_version }`.
+- **Audit pattern reuse (A11) — RESOLVED**: `SettingsService.emit_audit + with_service_role` 2-transaction pattern invoked from M10 review handler.
+- **Test framework deferral (A12) — RESOLVED**: 5.5 + 5.6 explicitly defer Vitest/RTL + Playwright E2E to Story 0.5.
+- **Scope of company fields**: still open — see Open questions below.
+- **Auto-approved fields**: still open — see Open questions below.
+
+### Open questions (require product owner confirmation before dev)
+
+- **Scope of company fields**: Story AC explicitly names business registration number but does not enumerate every required field. Keep schema extensible; the MVP set is `{business_registration_number, company_name, address, representative_name, industry}` — confirm with PM whether more fields are required-for-calc.
+- **Auto-approved fields**: AC allows `>=70%` to pass without manual edit, while global PRD says "확정은 사람". Treat `>=70%` as review-complete for the badge/calculation gate only (so the user can proceed to [계산]); do NOT promote to authoritative `company_subblock` write without explicit user confirmation click. Confirm with PM whether the `>=70%` auto-review is acceptable or whether every field requires an explicit "확인" click.
 
 ### References
 
@@ -268,11 +333,14 @@ docs/
 Before coding, the dev agent must:
 
 - [ ] Read the actual current source tree and previous story files.
-- [ ] Confirm migration owner and whether `uploaded_documents`, `ai_extractions`, or `input_drafts` already exist.
-- [ ] Resolve the ERD/architecture naming variance in a documented decision.
-- [ ] Verify current Anthropic SDK/document/structured-output API and model snapshot from official docs.
-- [ ] Confirm file limits, retention, PIPA consent copy, and required-for-calc field mapping with the product owner if not already configured.
+- [ ] **Story 1.2 dependency gate**: verify `packages/services/m0_onboarding/settings_completion.py::compute_completion()` accepts the new `pending_extractions` parameter; if not, ship the signature change FIRST (before this story's other tasks), so Story 1.2 → done can use the new shape.
+- [ ] Confirm migration owner (`apps/api/alembic/versions/0005_ai_documents_input_drafts.py` is the correct path — `supabase/migrations/` does not exist).
+- [ ] **`input_drafts` is canonical** (per AD-7 + new `docs/architecture-decisions/AD-7-ai-extraction-table-naming.md`). Confirm `ai_extractions` does NOT already exist; if it does, write an adapter/view mapping rather than maintaining two stores.
+- [ ] Verify current Anthropic SDK/document/structured-output API and model snapshot from official docs. Pin the exact snapshot in `apps/api/modules/m10_ai/config.py::DOCUMENT_EXTRACTION_MODEL`.
+- [ ] `[STACK BUMP]`-tag the dependency adds (`anthropic`, `pdfplumber`, `openpyxl`, `python-magic`) and record exact pins.
 - [ ] Run focused tests and the full existing test/lint/build suite; report failures truthfully.
+- [ ] Confirm PIPA cross-border review status (`PIPA_REVIEW_COMPLETED` env flag); routes return `503 PIPA_REVIEW_PENDING` until operator flips the flag.
+- [ ] Run `make lint-conventions` and confirm zero violations on new files.
 
 ## Dev Agent Record
 
@@ -286,6 +354,7 @@ Before coding, the dev agent must:
 
 - Story context analysis completed on 2026-07-25.
 - Story marked `ready-for-dev` for Epic 1 completion.
+- 2026-07-31 validation pass: `critical+plumbing` option applied. Resolved 9 Critical (C1–C9) + 12 Architecture Blocker (A1–A12) + 10 Plumbing packages (P1–P10). New `docs/architecture-decisions/AD-7-ai-extraction-table-naming.md` to be created in Task 6.5. Two open questions for product owner (scope of company fields, `>=70%` auto-review semantics). Ready-for-dev status preserved.
 
 ### File List
 

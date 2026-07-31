@@ -13,6 +13,7 @@ Per AD-3: tenant_id ALWAYS comes from JWT, never from request body/query string.
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from dataclasses import dataclass
 
@@ -89,10 +90,8 @@ async def get_tenant_context(request: Request) -> TenantContext:
         # F-12: clear tenant_id from the ContextVar so pooled execution
         # contexts don't carry the previous tenant into the next request.
         if engine is not None:
-            try:
+            with contextlib.suppress(Exception):  # pragma: no cover — best-effort cleanup
                 clear_tenant_local(engine)
-            except Exception:  # pragma: no cover — best-effort cleanup
-                pass
 
 
 async def current_tenant_id(

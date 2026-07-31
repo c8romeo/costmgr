@@ -14,6 +14,12 @@
 
 import Decimal from "decimal.js";
 
+// AD-8 / `conventions.md §5` parity: align `decimal.js` rounding with Python's
+// `Decimal.quantize` (banker's rounding = ROUND_HALF_EVEN). Without this, web
+// `formatUSD("1.005")` returns `"$1.01"` while API returns `"$1.00"` — would
+// break Story 4.4 v8 regression fixtures.
+Decimal.set({ rounding: Decimal.ROUND_HALF_EVEN });
+
 /** KRW — wraps `bigint`. 1원 precision. Mirrors Python `int` (BIGINT in DB). */
 export type KRW = bigint;
 

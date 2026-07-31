@@ -33,6 +33,8 @@ import {
 export interface MenuContextValue {
   industry: Industry | null;
   menu: readonly string[];
+  // AD-8 deferred: `settingsVersion` is a monotonic counter, not money.
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   settingsVersion: number;
   isLoading: boolean;
   error: string | null;

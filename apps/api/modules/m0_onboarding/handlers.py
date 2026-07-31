@@ -39,10 +39,10 @@ from apps.api.modules.m0_onboarding.schemas import (
     CurrencyLockedError,
     FiscalYearLockedError,
     FiscalYearStartField,
-    LanguageField,
-    OnboardingFieldSavedResponse,
     IndustryUpdateRequest,
     IndustryUpdateResponse,
+    LanguageField,
+    OnboardingFieldSavedResponse,
     TenantSettingsResponse,
 )
 from apps.api.modules.m0_onboarding.services.settings_service import (
@@ -80,13 +80,18 @@ async def update_industry(
     trace_id = str(uuid.uuid4())
     service = SettingsService(session, trace_id=trace_id)
     try:
-        industry, version, is_initial, selected_at, warning_header, trace_id = (
-            await service.update_industry(
-                tenant_id=ctx.tenant_id,
-                target_industry=body.industry,
-                actor_id=ctx.user_id,
-                role=ctx.role,
-            )
+        (
+            industry,
+            version,
+            is_initial,
+            selected_at,
+            warning_header,
+            trace_id,
+        ) = await service.update_industry(
+            tenant_id=ctx.tenant_id,
+            target_industry=body.industry,
+            actor_id=ctx.user_id,
+            role=ctx.role,
         )
     except ForbiddenRoleError as e:
         from fastapi.responses import JSONResponse
@@ -226,10 +231,7 @@ def _onboarding_field_error_response(exc: OnboardingValidationError) -> dict:
         "code": "JSONB_SCHEMA_VIOLATION",
         "message_ko": "온보딩 데이터 형식이 올바르지 않습니다",
         "details": {
-            "errors": [
-                {"field": e.field, "reason": e.reason, "value": e.value}
-                for e in exc.errors
-            ]
+            "errors": [{"field": e.field, "reason": e.reason, "value": e.value} for e in exc.errors]
         },
         "trace_id": exc.trace_id,
     }
@@ -434,14 +436,12 @@ async def save_allocation_criteria(
     from fastapi.responses import JSONResponse
 
     try:
-        criterion, count, version, completion, trace_id = (
-            await service.update_allocation_criteria(
-                tenant_id=ctx.tenant_id,
-                criterion=body.criterion,
-                count=body.count,
-                actor_id=ctx.user_id,
-                role=ctx.role,
-            )
+        criterion, count, version, completion, trace_id = await service.update_allocation_criteria(
+            tenant_id=ctx.tenant_id,
+            criterion=body.criterion,
+            count=body.count,
+            actor_id=ctx.user_id,
+            role=ctx.role,
         )
     except ForbiddenRoleError as e:
         return JSONResponse(
@@ -481,9 +481,7 @@ async def get_completion(
     trace_id = str(uuid.uuid4())
     service = SettingsService(session, trace_id=trace_id)
     try:
-        completion, last_calc_date = await service.get_completion(
-            tenant_id=ctx.tenant_id
-        )
+        completion, last_calc_date = await service.get_completion(tenant_id=ctx.tenant_id)
     except TenantSettingsNotFoundError as e:
         from fastapi.responses import JSONResponse
 
@@ -496,6 +494,4 @@ async def get_completion(
                 "trace_id": e.trace_id,
             },
         )
-    return _build_completion_response(
-        completion, trace_id, last_calc_date=last_calc_date
-    )
+    return _build_completion_response(completion, trace_id, last_calc_date=last_calc_date)

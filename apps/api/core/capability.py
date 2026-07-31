@@ -30,7 +30,7 @@ import uuid
 from enum import Enum
 from typing import Final
 
-from fastapi import Depends, Request
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.db import get_session
@@ -49,23 +49,54 @@ class Capability(str, Enum):
     UI filter and POST directly to /api/v1/bom.
     """
 
-    BOM = "bom"                            # manufacturing / mfg+service / mfg+service+other
+    BOM = "bom"  # manufacturing / mfg+service / mfg+service+other
     OPENING_INVENTORY = "opening_inventory"
     INVENTORY_LEDGER = "inventory_ledger"
-    COST_POOL = "cost_pool"                # service / mfg+service / mfg+service+other
+    COST_POOL = "cost_pool"  # service / mfg+service / mfg+service+other
     ACTIVITY = "activity"
     DRIVER = "driver"
-    SEGMENT_SPLIT = "segment_split"        # mfg+service / mfg+service+other only
+    SEGMENT_SPLIT = "segment_split"  # mfg+service / mfg+service+other only
+    # Story 1.3 — AI document extraction (Task 3.6). Granted to every
+    # Industry per the ARCHITECTURE-SPINE capability map (all four
+    # industries can use AI extraction). This is a defense-in-depth gate
+    # on the M10 routes, not a tenant-kind filter.
+    AI_EXTRACT = "ai_extract"
+    # Story 2.1 — product catalog. Every industry has SOME product type
+    # (service tenants register `service` products even without a BOM).
+    # The PRODUCT capability gates the catalog CRUD itself.
+    PRODUCT = "product"
+    # Story 2.1 — gated subset: only industries that own a physical
+    # bill-of-materials can register `material` / `semi_product` types.
+    # Service tenants cannot (no BOM menu → no material entries).
+    # R6: service tenants STILL register `product` + `goods` — finished
+    # products and trade goods are BOM-independent catalog rows.
+    PRODUCT_MATERIAL = "product_material"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
 _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
     Industry.MANUFACTURING: frozenset(
-        {Capability.BOM, Capability.OPENING_INVENTORY, Capability.INVENTORY_LEDGER}
+        {
+            Capability.BOM,
+            Capability.OPENING_INVENTORY,
+            Capability.INVENTORY_LEDGER,
+            Capability.AI_EXTRACT,  # Story 1.3 — all industries can use AI extraction
+            # Story 2.1 — manufacturing tenants can register all 5 product types.
+            Capability.PRODUCT,
+            Capability.PRODUCT_MATERIAL,
+        }
     ),
     Industry.SERVICE: frozenset(
-        {Capability.COST_POOL, Capability.ACTIVITY, Capability.DRIVER}
+        {
+            Capability.COST_POOL,
+            Capability.ACTIVITY,
+            Capability.DRIVER,
+            Capability.AI_EXTRACT,
+            # Story 2.1 — service tenants get PRODUCT (catalog CRUD) but
+            # NOT PRODUCT_MATERIAL (no BOM → no physical raw/semi entries).
+            Capability.PRODUCT,
+        }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
         {
@@ -76,6 +107,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.ACTIVITY,
             Capability.DRIVER,
             Capability.SEGMENT_SPLIT,
+            Capability.AI_EXTRACT,
+            # Story 2.1 — both engines → full product catalog.
+            Capability.PRODUCT,
+            Capability.PRODUCT_MATERIAL,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -87,6 +122,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.ACTIVITY,
             Capability.DRIVER,
             Capability.SEGMENT_SPLIT,
+            Capability.AI_EXTRACT,
+            # Story 2.1 — full catalog + 격리 버킷.
+            Capability.PRODUCT,
+            Capability.PRODUCT_MATERIAL,
         }
     ),
 }
@@ -142,14 +181,14 @@ def require_capability(capability: Capability):
         service = SettingsService(session, trace_id=trace_id)
         try:
             row = await service.get_tenant_settings(tenant_id=ctx.tenant_id)
-        except TenantSettingsNotFoundError:
+        except TenantSettingsNotFoundError as err:
             # Treat as no industry selected → no capabilities unlocked.
             raise IndustryCapabilityError(
                 tenant_id=ctx.tenant_id,
                 current_industry=None,
                 capability=capability,
                 trace_id=trace_id,
-            )
+            ) from err
 
         onboarding = dict(row.onboarding or {})
         industry_raw = onboarding.get("industry")
@@ -163,6 +202,64 @@ def require_capability(capability: Capability):
                 tenant_id=ctx.tenant_id,
                 current_industry=industry,
                 capability=capability,
+                trace_id=trace_id,
+            )
+        return ctx
+
+    return _dep
+
+
+# ── Role gate (AD-10) — owner-only mutations ─────────────────
+class ForbiddenRoleError(Exception):
+    """403 FORBIDDEN_ROLE — caller's role does not allow this mutation.
+
+    AD-10 + T4.2: only `owner` may run POST/PATCH. member/viewer are
+    read-only on product catalog. Mapped to HTTP 403 by main.py global
+    handler.
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        role: str,
+        required_role: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"role {role!r} forbidden; required {required_role!r}"
+        )
+        self.tenant_id = tenant_id
+        self.user_id = user_id
+        self.role = role
+        self.required_role = required_role
+        self.trace_id = trace_id
+
+
+def require_role(required_role: str):
+    """FastAPI dependency factory — enforce a minimum role on the route.
+
+    H3 / AD-10 / T4.2 — owner-only mutations. The `role` is read from
+    `TenantContext.role` (set by JWT decoding in `get_tenant_context`).
+
+    Usage:
+        @router.post(
+            "/products",
+            dependencies=[Depends(require_role("owner"))],
+        )
+    """
+
+    async def _dep(
+        ctx: TenantContext = Depends(get_tenant_context),
+    ) -> TenantContext:
+        trace_id = str(uuid.uuid4())
+        if ctx.role != required_role:
+            raise ForbiddenRoleError(
+                tenant_id=ctx.tenant_id,
+                user_id=ctx.user_id,
+                role=ctx.role,
+                required_role=required_role,
                 trace_id=trace_id,
             )
         return ctx

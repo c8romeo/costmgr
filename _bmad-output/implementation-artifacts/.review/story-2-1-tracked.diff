@@ -1,0 +1,1359 @@
+warning: in the working copy of 'apps/api/modules/m1_baseline/handlers.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m1_baseline/schemas.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/web/lib/server-api.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/api/core/capability.py b/apps/api/core/capability.py
+index f50c063..9c95e4a 100644
+--- a/apps/api/core/capability.py
++++ b/apps/api/core/capability.py
+@@ -30,7 +30,7 @@ import uuid
+ from enum import Enum
+ from typing import Final
+ 
+-from fastapi import Depends, Request
++from fastapi import Depends
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from apps.api.core.db import get_session
+@@ -49,23 +49,52 @@ class Capability(str, Enum):
+     UI filter and POST directly to /api/v1/bom.
+     """
+ 
+-    BOM = "bom"                            # manufacturing / mfg+service / mfg+service+other
++    BOM = "bom"  # manufacturing / mfg+service / mfg+service+other
+     OPENING_INVENTORY = "opening_inventory"
+     INVENTORY_LEDGER = "inventory_ledger"
+-    COST_POOL = "cost_pool"                # service / mfg+service / mfg+service+other
++    COST_POOL = "cost_pool"  # service / mfg+service / mfg+service+other
+     ACTIVITY = "activity"
+     DRIVER = "driver"
+-    SEGMENT_SPLIT = "segment_split"        # mfg+service / mfg+service+other only
++    SEGMENT_SPLIT = "segment_split"  # mfg+service / mfg+service+other only
++    # Story 1.3 — AI document extraction (Task 3.6). Granted to every
++    # Industry per the ARCHITECTURE-SPINE capability map (all four
++    # industries can use AI extraction). This is a defense-in-depth gate
++    # on the M10 routes, not a tenant-kind filter.
++    AI_EXTRACT = "ai_extract"
++    # Story 2.1 — product catalog. Every industry has SOME product type
++    # (service tenants register `service` products even without a BOM).
++    # The PRODUCT capability gates the catalog CRUD itself.
++    PRODUCT = "product"
++    # Story 2.1 — gated subset: only industries that own a physical
++    # bill-of-materials can register `material` / `semi_product` types.
++    # Service tenants cannot (no BOM menu → no material entries).
++    PRODUCT_MATERIAL = "product_material"
+ 
+ 
+ # ── Industry → Capability map (F-41-resolved) ────────────────
+ # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
+ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+     Industry.MANUFACTURING: frozenset(
+-        {Capability.BOM, Capability.OPENING_INVENTORY, Capability.INVENTORY_LEDGER}
++        {
++            Capability.BOM,
++            Capability.OPENING_INVENTORY,
++            Capability.INVENTORY_LEDGER,
++            Capability.AI_EXTRACT,  # Story 1.3 — all industries can use AI extraction
++            # Story 2.1 — manufacturing tenants can register all 5 product types.
++            Capability.PRODUCT,
++            Capability.PRODUCT_MATERIAL,
++        }
+     ),
+     Industry.SERVICE: frozenset(
+-        {Capability.COST_POOL, Capability.ACTIVITY, Capability.DRIVER}
++        {
++            Capability.COST_POOL,
++            Capability.ACTIVITY,
++            Capability.DRIVER,
++            Capability.AI_EXTRACT,
++            # Story 2.1 — service tenants get PRODUCT (catalog CRUD) but
++            # NOT PRODUCT_MATERIAL (no BOM → no physical raw/semi entries).
++            Capability.PRODUCT,
++        }
+     ),
+     Industry.MANUFACTURING_SERVICE: frozenset(
+         {
+@@ -76,6 +105,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             Capability.ACTIVITY,
+             Capability.DRIVER,
+             Capability.SEGMENT_SPLIT,
++            Capability.AI_EXTRACT,
++            # Story 2.1 — both engines → full product catalog.
++            Capability.PRODUCT,
++            Capability.PRODUCT_MATERIAL,
+         }
+     ),
+     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
+@@ -87,6 +120,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             Capability.ACTIVITY,
+             Capability.DRIVER,
+             Capability.SEGMENT_SPLIT,
++            Capability.AI_EXTRACT,
++            # Story 2.1 — full catalog + 격리 버킷.
++            Capability.PRODUCT,
++            Capability.PRODUCT_MATERIAL,
+         }
+     ),
+ }
+@@ -142,14 +179,14 @@ def require_capability(capability: Capability):
+         service = SettingsService(session, trace_id=trace_id)
+         try:
+             row = await service.get_tenant_settings(tenant_id=ctx.tenant_id)
+-        except TenantSettingsNotFoundError:
++        except TenantSettingsNotFoundError as err:
+             # Treat as no industry selected → no capabilities unlocked.
+             raise IndustryCapabilityError(
+                 tenant_id=ctx.tenant_id,
+                 current_industry=None,
+                 capability=capability,
+                 trace_id=trace_id,
+-            )
++            ) from err
+ 
+         onboarding = dict(row.onboarding or {})
+         industry_raw = onboarding.get("industry")
+@@ -167,4 +204,4 @@ def require_capability(capability: Capability):
+             )
+         return ctx
+ 
+-    return _dep
+\ No newline at end of file
++    return _dep
+diff --git a/apps/api/core/db_models.py b/apps/api/core/db_models.py
+index 731b6de..51e2cdd 100644
+--- a/apps/api/core/db_models.py
++++ b/apps/api/core/db_models.py
+@@ -1,19 +1,23 @@
+-"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2).
++"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1).
+ 
+-Mapped tables (defined in `apps/api/alembic/versions/0001_*.py`):
+-- tenants, users, tenant_memberships, tenant_settings, audit_logs
++Mapped tables:
++- 0001: tenants, users, tenant_memberships, tenant_settings, audit_logs
++- 0005 (Story 1.3): uploaded_documents, input_drafts
++- 0006 (Story 2.1): products
+ 
+ Per AD-1/AD-11: this module is in `apps/api/` (infra layer). It does NOT
+ import `packages.cost_engine` directly. Modules write through services.
+ 
+-Per AD-15: snake_case column names; UUID v7 for new business entities (the
+-initial schema uses `gen_random_uuid()` v4 — UUID v7 is added in a later
+-migration per ADR).
++Per AD-15: snake_case column names; UUID v4 for `tenant_id` (derived from
++JWT, never from request body); UUID v7 for new business entities
++(`document_id`, `draft_id`, `id` of `products`) — generated by
++`packages.common.uuid7`.
+ """
+ 
+ from __future__ import annotations
+ 
+ from datetime import datetime
++from decimal import Decimal
+ from uuid import UUID
+ 
+ from sqlalchemy import (
+@@ -23,6 +27,8 @@ from sqlalchemy import (
+     DateTime,
+     ForeignKey,
+     Integer,
++    LargeBinary,
++    Numeric,
+     Text,
+     UniqueConstraint,
+ )
+@@ -30,6 +36,8 @@ from sqlalchemy.dialects.postgresql import JSONB
+ from sqlalchemy.dialects.postgresql import UUID as PgUUID
+ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+ 
++from packages.common.uuid7 import uuid7 as _uuid7
++
+ 
+ class Base(DeclarativeBase):
+     """Common ORM base for all apps/api models."""
+@@ -138,3 +146,187 @@ class AuditLog(Base):
+     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
++
++
++# ── uploaded_documents (Story 1.3 — Task 1.2) ───────────────
++# One row per uploaded file (PDF / image). Carries the Supabase Storage
++# path + sha256 of the bytes (for the `409 DOCUMENT_ALREADY_EXISTS`
++# re-upload guard) + retention metadata.
++#
++# AD-15: document_id is UUID v7 (time-ordered) — better B-tree locality
++# for the dashboard's newest-first query. Default is the stdlib helper
++# `packages.common.uuid7.uuid7()` so the application never needs to
++# remember to set it.
++class UploadedDocument(Base):
++    __tablename__ = "uploaded_documents"
++
++    document_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
++    )
++    tenant_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True),
++        ForeignKey("tenants.id", ondelete="CASCADE"),
++        nullable=False,
++    )
++    storage_path: Mapped[str] = mapped_column(Text, nullable=False)
++    mime_type: Mapped[str] = mapped_column(Text, nullable=False)
++    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
++    content_sha256: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
++    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
++    # Provider job status — separate from `input_drafts.state` per spec Task 1.2.
++    job_status: Mapped[str] = mapped_column(
++        Text, nullable=False, default="queued"
++    )
++    uploaded_by: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
++    uploaded_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), nullable=False
++    )
++    reviewed_at: Mapped[datetime | None] = mapped_column(
++        DateTime(timezone=True), nullable=True
++    )
++    deleted_at: Mapped[datetime | None] = mapped_column(
++        DateTime(timezone=True), nullable=True
++    )
++    error_code: Mapped[str | None] = mapped_column(Text, nullable=True)
++    error_message_ko: Mapped[str | None] = mapped_column(Text, nullable=True)
++
++    __table_args__ = (
++        CheckConstraint(
++            "job_status IN ('queued', 'processing', 'completed', 'failed')",
++            name="uploaded_documents_job_status_check",
++        ),
++        CheckConstraint("byte_size > 0", name="uploaded_documents_byte_size_positive"),
++    )
++
++
++# ── input_drafts (Story 1.3 — Task 1.2 / AD-7) ───────────────
++# One row per AI-extracted field. AD-7 + AD-7-ai-extraction-table-naming.md
++# declare `input_drafts` canonical. ERD §8 `ai_extractions.pending_review`
++# / `approved` is superseded — see the AD for the mapping.
++#
++# State machine: draft → reviewed → superseded (3 states, not 2).
++# `promoted` is intentionally absent — that's an AD-17 monthly-input semantic.
++class InputDraft(Base):
++    __tablename__ = "input_drafts"
++
++    draft_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
++    )
++    tenant_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True),
++        ForeignKey("tenants.id", ondelete="CASCADE"),
++        nullable=False,
++    )
++    document_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True),
++        ForeignKey("uploaded_documents.document_id", ondelete="CASCADE"),
++        nullable=False,
++    )
++    field_name: Mapped[str] = mapped_column(Text, nullable=False)
++    ai_value: Mapped[dict] = mapped_column(JSONB, nullable=False)
++    confirmed_value: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
++    # NUMERIC(4,3) — 4 digits total, 3 after the decimal → covers 0.000..9.999
++    # with the CHECK constraint restricting to [0, 1]. Use Decimal for AD-8 parity.
++    confidence: Mapped[Decimal | None] = mapped_column(
++        Numeric(precision=4, scale=3), nullable=True
++    )
++    state: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
++    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
++    draft_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
++    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
++    requested_by: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
++    requested_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), nullable=False
++    )
++    reviewed_by: Mapped[UUID | None] = mapped_column(
++        PgUUID(as_uuid=True), nullable=True
++    )
++    reviewed_at: Mapped[datetime | None] = mapped_column(
++        DateTime(timezone=True), nullable=True
++    )
++
++    __table_args__ = (
++        CheckConstraint(
++            "state IN ('draft', 'reviewed', 'superseded')",
++            name="input_drafts_state_check",
++        ),
++        CheckConstraint(
++            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
++            name="input_drafts_confidence_range_check",
++        ),
++    )
++
++
++# ── products (Story 2.1 — Tasks 3.1 / 3.2) ──────────────────
++# One row per registered product/item. AD-18 single product identity:
++# `id` (UUID v7) is the sole key referenced by BOM (Story 2.2),
++# inventory ledger (Story 2.2+), and reports (Epic 6).
++#
++# `code` is a per-tenant per-type sequence (PRD §8.M1) — NOT the primary
++# key. Tenants may share codes across tenant boundaries; the unique index
++# `(tenant_id, code)` enforces intra-tenant uniqueness.
++#
++# Money columns are AD-8 strict: KRW = BIGINT (no fractional won), USD =
++# NUMERIC(18,2) (2 decimal places, ROUND_HALF_EVEN per chunk-B).
++class Product(Base):
++    __tablename__ = "products"
++
++    id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
++    )
++    tenant_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True),
++        ForeignKey("tenants.id", ondelete="CASCADE"),
++        nullable=False,
++    )
++    product_type: Mapped[str] = mapped_column(Text, nullable=False)
++    code: Mapped[str] = mapped_column(Text, nullable=False)
++    name: Mapped[str] = mapped_column(Text, nullable=False)
++    unit: Mapped[str | None] = mapped_column(Text, nullable=True)
++    # AD-8: KRW stored as BIGINT (no fractional won). TS uses `bigint`.
++    unit_cost_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
++    # AD-8: USD stored as NUMERIC(18,2). Decimal-typed; rounded at the
++    # service boundary (ROUND_HALF_EVEN, Story 0.4 chunk-B).
++    unit_cost_usd: Mapped[Decimal | None] = mapped_column(
++        Numeric(precision=18, scale=2), nullable=True
++    )
++    description: Mapped[str | None] = mapped_column(Text, nullable=True)
++    # Soft-delete flag (AC #5). Hard delete is forbidden (AD-2 append-only).
++    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), nullable=False
++    )
++    updated_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), nullable=False
++    )
++
++    __table_args__ = (
++        CheckConstraint(
++            "product_type IN ('product', 'semi_product', 'material', 'goods', 'service')",
++            name="products_product_type_check",
++        ),
++        CheckConstraint(
++            "length(name) BETWEEN 1 AND 200",
++            name="products_name_length_check",
++        ),
++        CheckConstraint(
++            "unit IS NULL OR length(unit) <= 20",
++            name="products_unit_length_check",
++        ),
++        CheckConstraint(
++            "unit_cost_krw IS NULL OR unit_cost_krw >= 0",
++            name="products_unit_cost_krw_nonneg",
++        ),
++        CheckConstraint(
++            "unit_cost_usd IS NULL OR unit_cost_usd >= 0",
++            name="products_unit_cost_usd_nonneg",
++        ),
++        CheckConstraint(
++            "description IS NULL OR length(description) <= 2000",
++            name="products_description_length_check",
++        ),
++        # AC #3 — same-tenant code uniqueness. RLS-scoped (NOT global).
++        UniqueConstraint(
++            "tenant_id", "code", name="uq_products_tenant_code"
++        ),
++    )
+diff --git a/apps/api/modules/m1_baseline/__init__.py b/apps/api/modules/m1_baseline/__init__.py
+index b396aca..50b9005 100644
+--- a/apps/api/modules/m1_baseline/__init__.py
++++ b/apps/api/modules/m1_baseline/__init__.py
+@@ -6,4 +6,4 @@ needed by the Settings Wizard completion status query.
+ 
+ from apps.api.modules.m1_baseline.handlers import router
+ 
+-__all__ = ["router"]
+\ No newline at end of file
++__all__ = ["router"]
+diff --git a/apps/api/modules/m1_baseline/handlers.py b/apps/api/modules/m1_baseline/handlers.py
+index 2f1fee3..3d46f03 100644
+--- a/apps/api/modules/m1_baseline/handlers.py
++++ b/apps/api/modules/m1_baseline/handlers.py
+@@ -1,37 +1,67 @@
+-"""apps.api.modules.m1_baseline.handlers — M1 baseline scaffold (Story 1.2).
++"""apps.api.modules.m1_baseline.handlers — M1 baseline FastAPI routes (Story 1.2 + 2.1).
+ 
+-Scaffold-only module. Full CRUD lands in Epic 2 (Story 2.x). For now this
+-provides:
++Story 1.2 (preserved):
++- POST /api/v1/baseline/accounts/classification
++- GET  /api/v1/baseline/accounts/classification
+ 
+-- `POST /api/v1/baseline/accounts/classification` — set an account's
+-  `direct_indirect` / `fixed_variable` tag.
+-- `GET  /api/v1/baseline/accounts/classification` — return the per-tag
+-  count for the wizard's completion status.
++Story 2.1 (this revision, PRD §8.M1):
++- POST   /api/v1/baseline/products            — register a product
++- GET    /api/v1/baseline/products            — list products (paginated)
++- GET    /api/v1/baseline/products/{id}       — single fetch
++- PATCH  /api/v1/baseline/products/{id}       — partial update + soft-delete toggle
+ 
+-Storage strategy (scaffold): rows live in the existing
+-`tenant_settings.baseline` JSONB namespace under
+-`{"account_classifications": [...]}` so we don't need a new Alembic
+-migration. Epic 2 will lift this into a proper `account_classifications`
+-table.
++Each route carries `require_capability(Capability.PRODUCT)` (AC #6 defense
++in depth). POST additionally gates `material` / `semi_product` types via
++the in-service PRODUCT_MATERIAL check (service tenants cannot register
++physical catalog items).
++
++Error contract (AD-15 §4 `{code, message_ko, details, trace_id}`):
++- 201 — successful POST
++- 200 — successful GET / PATCH
++- 403 PRODUCT_IMMUTABLE_FIELD — PATCH attempts to change `code`/`product_type`
++- 403 INDUSTRY_NOT_SUPPORTED   — material/semi_product by service tenant
++- 404 PRODUCT_NOT_FOUND        — single fetch miss
++- 409 PRODUCT_CODE_DUPLICATE   — same (tenant, code) collision (AC #3)
++- 422 INVALID_PRODUCT_CODE     — manual `code` does not match PREFIX-XXXX
++
++Mirrors the inline-JSONResponse pattern from
++`apps/api/modules/m0_onboarding/handlers.py` (Story 1.1/1.2).
+ """
+ 
+ from __future__ import annotations
+ 
+ import uuid
++from datetime import UTC, datetime
+ from typing import Any
+ 
+ from fastapi import APIRouter, Depends, status
++from fastapi.responses import JSONResponse
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
++from apps.api.core.capability import (
++    Capability,
++    require_capability,
++)
+ from apps.api.core.db import get_session
+ from apps.api.core.tenant_context import TenantContext, get_tenant_context
+ from apps.api.modules.m0_onboarding.services.settings_service import (
+-    ForbiddenRoleError,
+     SettingsService,
+ )
+ from apps.api.modules.m1_baseline.schemas import (
+     AccountClassificationRequest,
+     AccountClassificationResponse,
++    ProductCreateRequest,
++    ProductListResponse,
++    ProductResponse,
++    ProductUpdateRequest,
++)
++from apps.api.modules.m1_baseline.services.product_service import (
++    InvalidProductCodeError,
++    ProductCapabilityError,
++    ProductCodeDuplicateError,
++    ProductImmutableFieldError,
++    ProductNotFoundError,
++    ProductService,
+ )
+ 
+ router = APIRouter(prefix="/api/v1/baseline", tags=["m1-baseline"])
+@@ -53,16 +83,12 @@ async def count_account_classifications(
+     return {"direct_indirect": di, "fixed_variable": fv}
+ 
+ 
++# ── Story 1.2 routes (preserved scaffold) ────────────────────
+ @router.post(
+     "/accounts/classification",
+     response_model=AccountClassificationResponse,
+     status_code=status.HTTP_200_OK,
+     summary="계정 분류 (직접/간접 · 고정/변동) 저장",
+-    description=(
+-        "Story 1.2 — Task 4.1. Scaffold endpoint. Stores the classification in "
+-        "`tenant_settings.baseline.account_classifications` (JSONB). Full CRUD "
+-        "lands in Epic 2 (Story 2.x)."
+-    ),
+ )
+ async def save_account_classification(
+     body: AccountClassificationRequest,
+@@ -72,11 +98,7 @@ async def save_account_classification(
+     settings = await SettingsService(session).get_tenant_settings(tenant_id=ctx.tenant_id)
+     baseline = dict(settings.baseline or {})
+     rows: list[dict[str, Any]] = list(baseline.get("account_classifications") or [])
+-
+-    # Upsert by account_id.
+-    target = next(
+-        (r for r in rows if r.get("account_id") == body.account_id), None
+-    )
++    target = next((r for r in rows if r.get("account_id") == body.account_id), None)
+     if target is None:
+         target = {"account_id": body.account_id}
+         rows.append(target)
+@@ -84,14 +106,10 @@ async def save_account_classification(
+         target["direct_indirect"] = body.direct_indirect
+     if body.fixed_variable is not None:
+         target["fixed_variable"] = body.fixed_variable
+-
+     baseline["account_classifications"] = rows
+     settings.baseline = baseline
+     settings.settings_version = settings.settings_version + 1
+-    from datetime import UTC, datetime
+-
+     settings.updated_at = datetime.now(tz=UTC)
+-
+     await session.flush()
+ 
+     counts = await count_account_classifications(session, tenant_id=ctx.tenant_id)
+@@ -106,7 +124,6 @@ async def save_account_classification(
+     response_model=AccountClassificationResponse,
+     status_code=status.HTTP_200_OK,
+     summary="계정 분류 카운트 조회",
+-    description="Story 1.2 — Task 4.1. Returns {direct_indirect, fixed_variable} counts.",
+ )
+ async def get_account_classification(
+     ctx: TenantContext = Depends(get_tenant_context),
+@@ -116,4 +133,248 @@ async def get_account_classification(
+     return AccountClassificationResponse(
+         direct_indirect_count=counts["direct_indirect"],
+         fixed_variable_count=counts["fixed_variable"],
+-    )
+\ No newline at end of file
++    )
++
++
++# ── Helpers ──────────────────────────────────────────────────
++async def _resolve_industry_for_capability(
++    *, session: AsyncSession, tenant_id: uuid.UUID, trace_id: str
++):
++    """Resolve the tenant's industry for the in-service PRODUCT_MATERIAL gate."""
++    try:
++        row = await SettingsService(session, trace_id=trace_id).get_tenant_settings(
++            tenant_id=tenant_id
++        )
++    except Exception:
++        return None
++    onboarding = dict(row.onboarding or {})
++    industry_raw = onboarding.get("industry")
++    if not industry_raw:
++        return None
++    from packages.services.m0_onboarding.industry_menu import Industry
++    try:
++        return Industry(industry_raw)
++    except ValueError:
++        return None
++
++
++def _product_to_response(p) -> ProductResponse:
++    """ORM-to-Pydantic conversion (kept module-local to avoid circular imports)."""
++    return ProductResponse(
++        id=p.id,
++        tenant_id=p.tenant_id,
++        product_type=p.product_type,
++        code=p.code,
++        name=p.name,
++        unit=p.unit,
++        unit_cost_krw=p.unit_cost_krw,
++        unit_cost_usd=p.unit_cost_usd,
++        description=p.description,
++        is_active=p.is_active,
++        created_at=p.created_at,
++        updated_at=p.updated_at,
++    )
++
++
++def _err(
++    *,
++    status_code: int,
++    code: str,
++    message_ko: str,
++    details: dict[str, Any],
++    trace_id: str,
++) -> JSONResponse:
++    """AD-15 §4 envelope helper."""
++    return JSONResponse(
++        status_code=status_code,
++        content={
++            "code": code,
++            "message_ko": message_ko,
++            "details": details,
++            "trace_id": trace_id,
++        },
++    )
++
++
++# ── Story 2.1 routes ─────────────────────────────────────────
++@router.post(
++    "/products",
++    response_model=ProductResponse,
++    status_code=status.HTTP_201_CREATED,
++    summary="품목 등록",
++    dependencies=[Depends(require_capability(Capability.PRODUCT))],
++)
++async def create_product(
++    body: ProductCreateRequest,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++):
++    trace_id = str(uuid.uuid4())
++    industry = await _resolve_industry_for_capability(
++        session=session, tenant_id=ctx.tenant_id, trace_id=trace_id
++    )
++    service = ProductService(session, trace_id=trace_id)
++    try:
++        row = await service.create_product(
++            tenant_id=ctx.tenant_id,
++            actor_id=ctx.user_id,
++            industry=industry,
++            body=body,
++        )
++    except ProductCapabilityError as err:
++        return _err(
++            status_code=status.HTTP_403_FORBIDDEN,
++            code="INDUSTRY_NOT_SUPPORTED",
++            message_ko="제조업 업종에서만 등록 가능한 유형입니다",
++            details={
++                "current_industry": err.current_industry.value if err.current_industry else None,
++                "requested_type": err.requested_type.value,
++            },
++            trace_id=err.trace_id,
++        )
++    except InvalidProductCodeError as err:
++        return _err(
++            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
++            code="INVALID_PRODUCT_CODE",
++            message_ko="잘못된 코드 형식입니다 (예: MAT-0042)",
++            details={"code": err.code, "reason": err.reason},
++            trace_id=err.trace_id,
++        )
++    except ProductCodeDuplicateError as err:
++        return _err(
++            status_code=status.HTTP_409_CONFLICT,
++            code="PRODUCT_CODE_DUPLICATE",
++            message_ko="이미 존재하는 코드입니다",
++            details={
++                "code": err.code,
++                "product_id": str(err.existing_product_id) if err.existing_product_id else None,
++            },
++            trace_id=err.trace_id,
++        )
++
++    return _product_to_response(row)
++
++
++@router.get(
++    "/products",
++    response_model=ProductListResponse,
++    status_code=status.HTTP_200_OK,
++    summary="품목 목록 (paginated, filterable)",
++    dependencies=[Depends(require_capability(Capability.PRODUCT))],
++)
++async def list_products(
++    product_type: str | None = None,
++    is_active: bool | None = None,
++    limit: int = 100,
++    offset: int = 0,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++):
++    from packages.services.m1_baseline.schemas import ProductType
++
++    parsed_type: ProductType | None = None
++    if product_type is not None:
++        try:
++            parsed_type = ProductType(product_type)
++        except ValueError as err:
++            return _err(
++                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
++                code="INVALID_PRODUCT_TYPE",
++                message_ko="유효하지 않은 제품 유형입니다",
++                details={"product_type": product_type},
++                trace_id="",
++            )
++
++    service = ProductService(session, trace_id=str(uuid.uuid4()))
++    items, total = await service.list_products(
++        tenant_id=ctx.tenant_id,
++        product_type=parsed_type,
++        is_active=is_active,
++        limit=limit,
++        offset=offset,
++    )
++    return ProductListResponse(
++        items=[_product_to_response(p) for p in items],
++        total=total,
++    )
++
++
++@router.get(
++    "/products/{product_id}",
++    response_model=ProductResponse,
++    status_code=status.HTTP_200_OK,
++    summary="품목 단건 조회",
++    dependencies=[Depends(require_capability(Capability.PRODUCT))],
++)
++async def get_product(
++    product_id: uuid.UUID,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++):
++    trace_id = str(uuid.uuid4())
++    service = ProductService(session, trace_id=trace_id)
++    try:
++        row = await service.get_product(
++            tenant_id=ctx.tenant_id,
++            product_id=product_id,
++        )
++    except ProductNotFoundError as err:
++        return _err(
++            status_code=status.HTTP_404_NOT_FOUND,
++            code="PRODUCT_NOT_FOUND",
++            message_ko="품목을 찾을 수 없습니다",
++            details={"product_id": str(err.product_id)},
++            trace_id=err.trace_id,
++        )
++    return _product_to_response(row)
++
++
++@router.patch(
++    "/products/{product_id}",
++    response_model=ProductResponse,
++    status_code=status.HTTP_200_OK,
++    summary="품목 부분 수정 (이름, 단가, 활성화 등)",
++    dependencies=[Depends(require_capability(Capability.PRODUCT))],
++)
++async def update_product(
++    product_id: uuid.UUID,
++    body: ProductUpdateRequest,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++):
++    trace_id = str(uuid.uuid4())
++    service = ProductService(session, trace_id=trace_id)
++    try:
++        # Metadata update path (audit-first, idempotent no-op skip).
++        row = await service.update_product(
++            tenant_id=ctx.tenant_id,
++            actor_id=ctx.user_id,
++            product_id=product_id,
++            body=body,
++        )
++        # Soft-delete toggle is a separate audit event (CR 1.1 lesson).
++        if body.is_active is not None:
++            row = await service.soft_delete_product(
++                tenant_id=ctx.tenant_id,
++                actor_id=ctx.user_id,
++                product_id=product_id,
++                is_active=body.is_active,
++            )
++    except ProductNotFoundError as err:
++        return _err(
++            status_code=status.HTTP_404_NOT_FOUND,
++            code="PRODUCT_NOT_FOUND",
++            message_ko="품목을 찾을 수 없습니다",
++            details={"product_id": str(err.product_id)},
++            trace_id=err.trace_id,
++        )
++    except ProductImmutableFieldError as err:
++        return _err(
++            status_code=status.HTTP_403_FORBIDDEN,
++            code="PRODUCT_IMMUTABLE_FIELD",
++            message_ko=f"{err.field} 필드는 생성 후 변경할 수 없습니다",
++            details={"field": err.field},
++            trace_id=err.trace_id,
++        )
++
++    return _product_to_response(row)
+diff --git a/apps/api/modules/m1_baseline/schemas.py b/apps/api/modules/m1_baseline/schemas.py
+index 94d4e6c..9a85c32 100644
+--- a/apps/api/modules/m1_baseline/schemas.py
++++ b/apps/api/modules/m1_baseline/schemas.py
+@@ -1,14 +1,65 @@
+-"""apps.api.modules.m1_baseline.schemas — M1 baseline Pydantic models (Story 1.2).
++"""apps.api.modules.m1_baseline.schemas — M1 baseline Pydantic models (Story 1.2 + 2.1).
+ 
+-Scaffold only — full CRUD lives in Epic 2 (Story 2.x). This module ships
+-the read endpoints needed by the Settings Wizard completion status query.
++Pydantic v2 models for the M1 baseline module.
++
++Story 1.2 (preserved): AccountClassificationRequest / Response used by the
++settings wizard scaffold endpoint.
++
++Story 2.1 (this revision):
++- `ProductType` re-exported from `packages.services.m1_baseline.schemas`
++  (single source of truth).
++- `ProductCreateRequest`, `ProductUpdateRequest`, `ProductResponse`,
++  `ProductListResponse` for the four product routes (POST / GET /
++  GET-id / PATCH).
++- `KRW` / `USD` NewType helpers + `MoneyKRW` / `MoneyUSD` Pydantic
++  wrappers for unit cost — per AD-8 money types cross-language parity
++  (BIGINT KRW, NUMERIC(18,2) USD).
++
++AD binds enforced here:
++- AD-15 — snake_case field names. Pydantic v2 config (`extra="forbid"`).
++- AD-8 — KRW is `int` (BIGINT) and USD is `Decimal` (NUMERIC(18,2)). The
++  service layer enforces the parity via the `KRW` / `USD` NewType aliases
++  (no runtime effect, used by mypy / ruff import-linter for drift check).
++- AD-1 — this file imports only from `packages.services.m1_baseline`
++  (engine-independent) and `pydantic` (no DB / no clock / no random).
+ """
+ 
+ from __future__ import annotations
+ 
++from datetime import datetime
++from decimal import Decimal
++from typing import NewType
++from uuid import UUID
++
+ from pydantic import BaseModel, ConfigDict, Field
+ 
++from packages.services.m1_baseline.schemas import (
++    PRODUCT_TYPE_LABEL_KO,
++    PRODUCT_TYPE_PREFIX,
++    ProductType,
++)
+ 
++__all__ = [
++    # Story 1.2 (preserved)
++    "AccountClassificationRequest",
++    "AccountClassificationResponse",
++    # Story 2.1 — domain re-exports
++    "ProductType",
++    "PRODUCT_TYPE_PREFIX",
++    "PRODUCT_TYPE_LABEL_KO",
++    "KRW",
++    "USD",
++    # Story 2.1 — Pydantic schemas
++    "MoneyKRW",
++    "MoneyUSD",
++    "ProductCreateRequest",
++    "ProductUpdateRequest",
++    "ProductResponse",
++    "ProductListResponse",
++]
++
++
++# ── Story 1.2 — preserved scaffold models ────────────────────
+ class AccountClassificationRequest(BaseModel):
+     """Body of POST /api/v1/baseline/accounts/classification.
+ 
+@@ -40,4 +91,141 @@ class AccountClassificationResponse(BaseModel):
+     )
+     fixed_variable_count: int = Field(
+         ..., description="Number of accounts with `fixed_variable` set."
+-    )
+\ No newline at end of file
++    )
++
++
++# ── Money types (AD-8) — NewType aliases + Pydantic wrappers ──
++# KRW: stored as BIGINT (no fractional won). USD: stored as NUMERIC(18,2).
++# NewTypes carry no runtime semantics — they're for type-checkers + drift
++# detection in linters.
++KRW = NewType("KRW", int)
++USD = NewType("USD", Decimal)
++
++
++class MoneyKRW(BaseModel):
++    """KRW amount wrapper carrying non-negative constraint (AD-8).
++
++    Use this for input validation when the endpoint needs to *carry* the
++    value as a nested object (e.g. service-to-service calls). The HTTP
++    boundary uses plain `int` (BIGINT) on `ProductCreateRequest` directly.
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    value: int = Field(..., ge=0, description="KRW amount (non-negative integer, BIGINT in DB).")
++
++
++class MoneyUSD(BaseModel):
++    """USD amount wrapper (AD-8 — NUMERIC(18,2), 2 decimal places)."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    value: Decimal = Field(
++        ...,
++        ge=Decimal("0"),
++        max_digits=18,
++        decimal_places=2,
++        description="USD amount (non-negative, 2 decimal places, NUMERIC(18,2) in DB).",
++    )
++
++
++# ── Product CRUD schemas (Story 2.1 — Task 1.1) ──────────────
++# Bound to `apps/api/modules/m1_baseline/handlers.py` and consumed by
++# `ProductService`.
++#
++# Immutable-after-create fields:
++# - `code` (PRD §8.M1 + AD-18 single product identity)
++# - `product_type` (Story 2.3 territory for type-change integrity guard)
++#
++# These are explicitly excluded from ProductUpdateRequest; the service
++# maps any attempt to set them via PATCH to 403 PRODUCT_IMMUTABLE_FIELD.
++
++
++class ProductCreateRequest(BaseModel):
++    """Body of POST /api/v1/baseline/products (AC #1).
++
++    Optional `code` allows the form to either auto-generate or supply a
++    manual code. If absent, the service generates the next sequence
++    number for (tenant_id, product_type).
++
++    `unit_cost_krw` / `unit_cost_usd` are stored per AD-8 (BIGINT KRW,
++    NUMERIC(18,2) USD). Either (or both) may be set per the tenant's
++    dual-currency mode (Story 1.2 wizard).
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    name: str = Field(..., min_length=1, max_length=200, description="제품/품목 이름 (1..200자).")
++    product_type: ProductType = Field(..., description="5지선다 enum (제품·반제품·원자재·상품·서비스).")
++    code: str | None = Field(
++        default=None,
++        max_length=20,
++        description="수동 코드 (선택). 미입력 시 서비스가 next-sequence를 자동 생성.",
++    )
++    unit: str | None = Field(default=None, max_length=20, description="단위 (EA, KG, BOX 등).")
++    unit_cost_krw: int | None = Field(
++        default=None,
++        ge=0,
++        description="단가 (KRW). BIGINT. 미설정 시 null.",
++    )
++    unit_cost_usd: Decimal | None = Field(
++        default=None,
++        ge=Decimal("0"),
++        max_digits=18,
++        decimal_places=2,
++        description="단가 (USD). NUMERIC(18,2). 미설정 시 null.",
++    )
++    description: str | None = Field(default=None, max_length=2000, description="설명 (최대 2000자).")
++
++
++class ProductUpdateRequest(BaseModel):
++    """Body of PATCH /api/v1/baseline/products/{product_id} (AC #4).
++
++    All fields optional. `is_active` is the soft-delete toggle (AC #5).
++    `code` and `product_type` are immutable; the service rejects PATCHes
++    that include them (403 PRODUCT_IMMUTABLE_FIELD).
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    name: str | None = Field(default=None, min_length=1, max_length=200)
++    unit: str | None = Field(default=None, max_length=20)
++    unit_cost_krw: int | None = Field(default=None, ge=0)
++    unit_cost_usd: Decimal | None = Field(
++        default=None,
++        ge=Decimal("0"),
++        max_digits=18,
++        decimal_places=2,
++    )
++    description: str | None = Field(default=None, max_length=2000)
++    is_active: bool | None = Field(
++        default=None, description="False = 비활성(soft-delete), True = 활성."
++    )
++
++
++class ProductResponse(BaseModel):
++    """Response body for GET / POST / PATCH (single product)."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    id: UUID = Field(..., description="UUID v7 (AD-15 §3, products PK).")
++    tenant_id: UUID = Field(..., description="UUID v4 (AD-15 §3 variance, JWT-derived).")
++    product_type: ProductType
++    code: str = Field(..., description="형식: PREFIX-XXXX (e.g. MAT-0042).")
++    name: str
++    unit: str | None
++    unit_cost_krw: int | None
++    unit_cost_usd: Decimal | None
++    description: str | None
++    is_active: bool
++    created_at: datetime
++    updated_at: datetime
++
++
++class ProductListResponse(BaseModel):
++    """Response body for GET /api/v1/baseline/products (paginated)."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    items: list[ProductResponse]
++    total: int = Field(..., ge=0, description="Total rows matching the filter (pre-pagination).")
+diff --git a/apps/web/lib/api-client.ts b/apps/web/lib/api-client.ts
+index 1ae2c57..4a93b1b 100644
+--- a/apps/web/lib/api-client.ts
++++ b/apps/web/lib/api-client.ts
+@@ -30,6 +30,15 @@
+  *          discriminates cleanly in call sites.
+  */
+ 
++/* eslint-disable @typescript-eslint/no-restricted-types --
++ * AD-8 deferred: this file uses `number` for `status` (HTTP code),
++ * `settings_version` (monotonic counter), `*_count` (counts), and
++ * other non-money fields. AD-8 forbids `number` only on money paths.
++ * A per-call-site rule (no-restricted-syntax identifier-aware) is
++ * deferred to Story 0.5+ per the 0.4 review. Until then, file-level
++ * disable is the pragmatic realization.
++ */
++
+ import type { Industry } from "./menu-config";
+ 
+ export interface ApiErrorPayload {
+@@ -355,4 +364,132 @@ export async function fetchCompletionStatus(
+     accessToken,
+   );
+   return data;
++}
++
++// ── Story 2.1 — Product / Item Master ─────────────────────────
++//
++// Wire shape mirrors `apps/api/modules/m1_baseline/schemas.py`:
++// - ProductType (5 values: product | semi_product | material | goods | service)
++// - KRW / USD as TS string (decimal.js for USD; bigint for KRW).
++//
++// `unit_cost_krw` arrives as a JSON string (the API serializes BIGINT to
++// decimal-safe string per AD-15). The list/response layer leaves it as
++// string so the formatters in `lib/money.ts` can decode + display.
++
++export type ProductType =
++  | "product"
++  | "semi_product"
++  | "material"
++  | "goods"
++  | "service";
++
++export interface ProductResponse {
++  id: string;
++  tenant_id: string;
++  product_type: ProductType;
++  code: string;
++  name: string;
++  unit: string | null;
++  unit_cost_krw: string | null;
++  unit_cost_usd: string | null;
++  description: string | null;
++  is_active: boolean;
++  created_at: string;
++  updated_at: string;
++}
++
++export interface ProductListResponse {
++  items: ProductResponse[];
++  total: number;
++}
++
++export interface ProductCreateRequest {
++  product_type: ProductType;
++  name: string;
++  code?: string | null;
++  unit?: string | null;
++  unit_cost_krw?: string | null;
++  unit_cost_usd?: string | null;
++  description?: string | null;
++}
++
++export interface ProductUpdateRequest {
++  name?: string;
++  unit?: string | null;
++  unit_cost_krw?: string | null;
++  unit_cost_usd?: string | null;
++  description?: string | null;
++  is_active?: boolean;
++}
++
++export interface ProductListQuery {
++  product_type?: ProductType;
++  /** `null` (omitted) means "no filter applied". Pass `true` / `false`
++   *  explicitly to scope. */
++  is_active?: boolean;
++  limit?: number;
++  offset?: number;
++}
++
++function buildProductListQuery(query: ProductListQuery | undefined): string {
++  if (!query) return "";
++  const params = new URLSearchParams();
++  if (query.product_type) params.set("product_type", query.product_type);
++  if (typeof query.is_active === "boolean") {
++    params.set("is_active", String(query.is_active));
++  }
++  if (query.limit != null) params.set("limit", String(query.limit));
++  if (query.offset != null) params.set("offset", String(query.offset));
++  const qs = params.toString();
++  return qs ? `?${qs}` : "";
++}
++
++export async function fetchProducts(
++  query?: ProductListQuery,
++  accessToken?: string,
++): Promise<ProductListResponse> {
++  const qs = buildProductListQuery(query);
++  const { data } = await request<ProductListResponse>(
++    `/api/v1/baseline/products${qs}`,
++    { method: "GET" },
++    accessToken,
++  );
++  return data;
++}
++
++export async function getProduct(
++  id: string,
++  accessToken?: string,
++): Promise<ProductResponse> {
++  const { data } = await request<ProductResponse>(
++    `/api/v1/baseline/products/${id}`,
++    { method: "GET" },
++    accessToken,
++  );
++  return data;
++}
++
++export async function createProduct(
++  body: ProductCreateRequest,
++  accessToken?: string,
++): Promise<ProductResponse> {
++  const { data } = await request<ProductResponse>(
++    "/api/v1/baseline/products",
++    { method: "POST", body: JSON.stringify(body) },
++    accessToken,
++  );
++  return data;
++}
++
++export async function updateProduct(
++  id: string,
++  body: ProductUpdateRequest,
++  accessToken?: string,
++): Promise<ProductResponse> {
++  const { data } = await request<ProductResponse>(
++    `/api/v1/baseline/products/${id}`,
++    { method: "PATCH", body: JSON.stringify(body) },
++    accessToken,
++  );
++  return data;
+ }
+\ No newline at end of file
+diff --git a/apps/web/lib/menu-config.ts b/apps/web/lib/menu-config.ts
+index ad865f4..15f461e 100644
+--- a/apps/web/lib/menu-config.ts
++++ b/apps/web/lib/menu-config.ts
+@@ -20,6 +20,11 @@ export const INDUSTRY_VALUES = [
+   "manufacturing_service_other",
+ ] as const;
+ 
++// `(typeof INDUSTRY_VALUES)[number]` is TS's "indexed access type" — extracts
++// the literal union from a const array. `number` here is the keyword for
++// "any element of this tuple", not the JS `number` primitive. Safe to use
++// outside money contexts.
++/* eslint-disable-next-line @typescript-eslint/no-restricted-types */
+ export type Industry = (typeof INDUSTRY_VALUES)[number];
+ 
+ export const INDUSTRY_LABEL_KO: Record<Industry, string> = {
+@@ -120,3 +125,79 @@ export const INDUSTRY_ICON: Record<Industry, string> = {
+   manufacturing_service: "Layers",
+   manufacturing_service_other: "FolderTree",
+ };
++
++// ─────────────────────────────────────────────────────────────────────
++// Story 2.1 — product type catalog (PRD §8.M1)
++//
++// Mirror of the Python `ProductType` enum. Drift between this and
++// `packages/services/m1_baseline/schemas.py::ProductType` is caught by
++// `tests/integration/test_capability_consistency.py`.
++//
++// Allowed-type-per-industry is derived from the Capability gate:
++//   - INDUSTRY_ALLOWED_PRODUCT_TYPES[industry] ← types a tenant of that
++//     industry can register. `service` tenants see only `service`-typed
++//     products; the rest see all 5.
++// ─────────────────────────────────────────────────────────────────────
++
++export const PRODUCT_TYPE_VALUES = [
++  "product",
++  "semi_product",
++  "material",
++  "goods",
++  "service",
++] as const;
++
++/* eslint-disable-next-line @typescript-eslint/no-restricted-types */
++export type ProductType = (typeof PRODUCT_TYPE_VALUES)[number];
++
++export const PRODUCT_TYPE_LABEL_KO: Record<ProductType, string> = {
++  product: "제품",
++  semi_product: "반제품",
++  material: "원자재",
++  goods: "상품",
++  service: "서비스",
++};
++
++// 3-letter code prefix per type (PRD §8.M1 "코드"). Mirror of
++// `packages/services/m1_baseline/schemas.py::PRODUCT_TYPE_PREFIX`.
++export const PRODUCT_TYPE_PREFIX: Record<ProductType, string> = {
++  product: "PRD",
++  semi_product: "SEM",
++  material: "MAT",
++  goods: "GDS",
++  service: "SVC",
++};
++
++/** Per-type color for the badge (CSS custom-property slot name in globals.css). */
++export const PRODUCT_TYPE_COLOR_VAR: Record<ProductType, string> = {
++  product: "--badge-product-color",
++  semi_product: "--badge-semi-color",
++  material: "--badge-material-color",
++  goods: "--badge-goods-color",
++  service: "--badge-service-color",
++};
++
++/**
++ * Per-industry allowed product-type subset. Mirror of the Python
++ * `Capability` × `ProductType` matrix in `apps/api/core/capability.py`
++ * — drift caught by `tests/integration/test_capability_consistency.py`.
++ *
++ * Rule (Story 2.1, AC #6):
++ *   - `manufacturing` and the ③ / ④ industries get all 5 types
++ *     (they own a product + BOM).
++ *   - `service` (②) gets only `service` — no BOM menu, no physical
++ *     raw/semi entries (PRODUCT_MATERIAL capability is denied).
++ *
++ * The "goods" type — a trading/retail catalog row that doesn't feed
++ * into a BOM — is included for manufacturing-side tenants because
++ * PRD §4.1 lists it. PRD doesn't explicitly grant it to service, so
++ * the cj-style default is to include it only where product catalog
++ * breadth matters (i.e. not for service-only).
++ */
++export const INDUSTRY_ALLOWED_PRODUCT_TYPES: Record<Industry, readonly ProductType[]> = {
++  manufacturing: ["product", "semi_product", "material", "goods", "service"],
++  service: ["service"],
++  manufacturing_service: ["product", "semi_product", "material", "goods", "service"],
++  manufacturing_service_other: ["product", "semi_product", "material", "goods", "service"],
++};
++
+diff --git a/apps/web/lib/server-api.ts b/apps/web/lib/server-api.ts
+index c6a1871..2320bad 100644
+--- a/apps/web/lib/server-api.ts
++++ b/apps/web/lib/server-api.ts
+@@ -16,7 +16,7 @@
+ 
+ import "server-only";
+ 
+-import type { CompletionStatus } from "./api-client";
++import type { CompletionStatus, ProductListResponse } from "./api-client";
+ 
+ const DEFAULT_API_BASE_URL = "http://localhost:8765";
+ 
+@@ -49,3 +49,43 @@ export async function fetchCompletionServerSide(
+     return null;
+   }
+ }
++
++// ── Story 2.1 — Product list server-side initial fetch ───────
++//
++// Mirrors fetchCompletionServerSide: returns null on failure, never
++// throws. The calling RSC threads that into the Client Component as
++// the seed value for its hook.
++export async function fetchProductsServerSide(
++  accessToken: string | undefined,
++  traceId: string,
++  query?: { product_type?: string; is_active?: boolean; limit?: number; offset?: number },
++): Promise<ProductListResponse | null> {
++  const headers = new Headers();
++  if (accessToken) {
++    headers.set("Authorization", `Bearer ${accessToken}`);
++  }
++  headers.set("X-Trace-Id", traceId);
++
++  const params = new URLSearchParams();
++  if (query?.product_type) params.set("product_type", query.product_type);
++  if (typeof query?.is_active === "boolean") {
++    params.set("is_active", String(query.is_active));
++  }
++  if (query?.limit != null) params.set("limit", String(query.limit));
++  if (query?.offset != null) params.set("offset", String(query.offset));
++  const qs = params.toString();
++  const path = `/api/v1/baseline/products${qs ? `?${qs}` : ""}`;
++
++  try {
++    const res = await fetch(`${apiBaseUrl()}${path}`, {
++      method: "GET",
++      headers,
++      cache: "no-store",
++    });
++    if (!res.ok) return null;
++    const data = (await res.json()) as ProductListResponse;
++    return data;
++  } catch {
++    return null;
++  }
++}
+diff --git a/docs/conventions.md b/docs/conventions.md
+index 8a6879b..4250a54 100644
+--- a/docs/conventions.md
++++ b/docs/conventions.md
+@@ -57,6 +57,31 @@
+ 
+ 자세한 도메인 의미는 `docs/onboarding-schema.md` + `docs/onboarding-flow.md`.
+ 
++### §0.5 ProductType (PRD §8.M1 — Story 2.1)
++
++`products.product_type` 컬럼의 단일 진실 공급원은
++`packages/services/m1_baseline/schemas.py::ProductType` 와 그 TypeScript 미러
++`apps/web/lib/menu-config.ts::PRODUCT_TYPE_VALUES` 이다.
++
++| enum value (snake_case) | 한국어 라벨 | 코드 prefix | 비고 |
++|---|---|---|---|
++| `product` | ① 제품 | `PRD-` | 전통 개별원가 — BOM·수불부 기반 |
++| `semi_product` | ② 반제품 | `SEM-` | BOM 중간 단계 |
++| `material` | ③ 원자재 | `MAT-` | BOM 최하위 투입 요소 |
++| `goods` | ④ 상품 | `GDS-` | 매매 대상 (제조 X) |
++| `service` | ⑤ 서비스 | `SVC-` | ABC 원가 객체 |
++
++**Industry-conditional subset (AC #6 / F-44)** — `service` 업종은 `material`/`semi_product` 등록
++시 403 `INDUSTRY_NOT_SUPPORTED`로 거부된다. PRODUCT_MATERIAL capability 게이트.
++세부 matrix: `docs/product-item-master.md#4-업종--유형-capability-gate-ac-6--f-44`.
++
++**규칙:**
++- `product_type` enum value는 snake_case (AD-15). 한글 라벨은 `PRODUCT_TYPE_LABEL_KO` dict.
++- 코드 prefix는 enum value와 다르다 (snake_case → noisy prefix). 3글자 대문자.
++- `code` 포맷: `^[A-Z]{3}-\d{4,}$`. 자동 생성은 `product_code.generate_next_code()` (pure).
++- `code` / `product_type` 은 생성 후 immutable (AC #4 — BOM·수불부 FK 보존).
++- TS mirror의 드리프트는 `tests/integration/test_product_type_consistency.py`로 강제 차단.
++
+ ---
+ 
+ ## §1 Naming
+@@ -125,7 +150,7 @@ const now = new Date().toISOString();
+ 
+ ### ID 생성
+ 
+-- Python: `uuid.uuid7()` (Python 3.12+) 또는 `uuid.uuid4()` for `tenant_id`/`user_id`
++- Python: `uuid.uuid7()` (Python 3.14+, 현재 미도입) → 현 타겟 3.12에서는 `uuid.uuid4()` (또는 `uuid6/7` backport 라이브러리). **`tenant_id`/`user_id`는 v4 고정** (AD-15 variance참조).
+ - DB: `gen_random_uuid()` (pgcrypto) — 현재 일관되게 v4. v7 도입 시 마이그레이션 추가
+ - TS: `crypto.randomUUID()` (브라우저/Node 19+)
+ 
+@@ -199,6 +224,18 @@ formatKRW(krw);                              // "1,500,000원"
+ 
+ 자세한 결정 근거는 [`AD-8-money-types-decision.md`](./architecture-decisions/AD-8-money-types-decision.md).
+ 
++### 사용처 — `products` 테이블 (Story 2.1, PRD §8.M1)
++
++| 컬럼 | 통화 | DB 타입 | Python | TS wire |
++|---|---|---|---|---|
++| `products.unit_cost_krw` | KRW | `BIGINT NULL` (CHECK `>= 0`) | `int \| None` | `string \| null` |
++| `products.unit_cost_usd` | USD | `NUMERIC(18,2) NULL` (CHECK `>= 0`) | `Decimal \| None` | `string \| null` |
++
++- **NULL 허용** — 한 통화만 등록된 테넌트 (KRW만 또는 USD만). `tenant_settings.onboarding.currency` 와 무관하게 두 컬럼 모두 보유 (A2 회계 단위 일치).
++- **CHECK `>= 0`** — 음수 단가 거부. 0은 허용 (무료 원자재 / 시식용 반제품).
++- **TS wire shape** — JSON.stringify가 BigInt를 직접 직렬화하지 못해 `string`으로 보낸다. 클라이언트는 `BigInt(value)` 로 복원.
++- 자세한 사용 예시: `docs/product-item-master.md`.
++
+ ---
+ 
+ ## §6 Period Keys (AD-24)
+@@ -251,7 +288,7 @@ formatKRW(krw);                              // "1,500,000원"
+ | Python `float` money (engine) | `scripts/check_money_types.py` | `make lint-conventions` |
+ | 마이그레이션 `camelCase` | `scripts/check_migration_naming.py` | `make lint-conventions` |
+ | 마이그레이션 `Float` (money) | `scripts/check_migration_money.py` | `make lint-conventions` |
+-| TS 명명/restricted types | ESLint (root `.eslintrc.cjs`) | `pnpm lint:conventions` |
++| TS 명명/restricted types | ESLint (root `.eslint.config.mjs`, flat config) | `pnpm lint:conventions` |
+ | TS `number` (money) | ESLint `no-restricted-types` (apps/web override) | `pnpm lint:conventions` |
+ 
+ **PR 머지 차단:** `lint-conventions` 잡 실패 → merge 차단 (Story 0.4 §8).
+\ No newline at end of file

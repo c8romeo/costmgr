@@ -20,6 +20,11 @@ export const INDUSTRY_VALUES = [
   "manufacturing_service_other",
 ] as const;
 
+// `(typeof INDUSTRY_VALUES)[number]` is TS's "indexed access type" — extracts
+// the literal union from a const array. `number` here is the keyword for
+// "any element of this tuple", not the JS `number` primitive. Safe to use
+// outside money contexts.
+/* eslint-disable-next-line @typescript-eslint/no-restricted-types */
 export type Industry = (typeof INDUSTRY_VALUES)[number];
 
 export const INDUSTRY_LABEL_KO: Record<Industry, string> = {
@@ -120,3 +125,75 @@ export const INDUSTRY_ICON: Record<Industry, string> = {
   manufacturing_service: "Layers",
   manufacturing_service_other: "FolderTree",
 };
+
+// ─────────────────────────────────────────────────────────────────────
+// Story 2.1 — product type catalog (PRD §8.M1)
+//
+// Mirror of the Python `ProductType` enum. Drift between this and
+// `packages/services/m1_baseline/schemas.py::ProductType` is caught by
+// `tests/integration/test_capability_consistency.py`.
+//
+// Allowed-type-per-industry is derived from the Capability gate:
+//   - INDUSTRY_ALLOWED_PRODUCT_TYPES[industry] ← types a tenant of that
+//     industry can register. `service` tenants see only `service`-typed
+//     products; the rest see all 5.
+// ─────────────────────────────────────────────────────────────────────
+
+export const PRODUCT_TYPE_VALUES = [
+  "product",
+  "semi_product",
+  "material",
+  "goods",
+  "service",
+] as const;
+
+/* eslint-disable-next-line @typescript-eslint/no-restricted-types */
+export type ProductType = (typeof PRODUCT_TYPE_VALUES)[number];
+
+export const PRODUCT_TYPE_LABEL_KO: Record<ProductType, string> = {
+  product: "제품",
+  semi_product: "반제품",
+  material: "원자재",
+  goods: "상품",
+  service: "서비스",
+};
+
+// 3-letter code prefix per type (PRD §8.M1 "코드"). Mirror of
+// `packages/services/m1_baseline/schemas.py::PRODUCT_TYPE_PREFIX`.
+export const PRODUCT_TYPE_PREFIX: Record<ProductType, string> = {
+  product: "PRD",
+  semi_product: "SEM",
+  material: "MAT",
+  goods: "GDS",
+  service: "SVC",
+};
+
+/** Per-type color for the badge (CSS custom-property slot name in globals.css). */
+export const PRODUCT_TYPE_COLOR_VAR: Record<ProductType, string> = {
+  product: "--badge-product-color",
+  semi_product: "--badge-semi-color",
+  material: "--badge-material-color",
+  goods: "--badge-goods-color",
+  service: "--badge-service-color",
+};
+
+/**
+ * Per-industry allowed product-type subset. Mirror of the Python
+ * `Capability` × `ProductType` matrix in `apps/api/core/capability.py`
+ * — drift caught by `tests/integration/test_capability_consistency.py`.
+ *
+ * Rule (Story 2.1, AC #6, R6 review patch):
+ *   - Every industry with the `PRODUCT` capability gets the catalog
+ *     trio (`product`, `goods`, `service`) — a service tenant can
+ *     still sell finished products and trade goods even without a BOM.
+ *   - `material` + `semi_product` are gated by the additional
+ *     `PRODUCT_MATERIAL` capability (only granted to industries that
+ *     own a BOM — manufacturing, mfg+service, mfg+service+other).
+ */
+export const INDUSTRY_ALLOWED_PRODUCT_TYPES: Record<Industry, readonly ProductType[]> = {
+  manufacturing: ["product", "semi_product", "material", "goods", "service"],
+  service: ["product", "goods", "service"],
+  manufacturing_service: ["product", "semi_product", "material", "goods", "service"],
+  manufacturing_service_other: ["product", "semi_product", "material", "goods", "service"],
+};
+

@@ -37,7 +37,7 @@ Defensive parsing:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -218,23 +218,17 @@ class SettingsService:
         # ── Role gate (Decision §3: owner only — F-14 normalized) ──
         try:
             normalized_role = _normalize_role(role)
-        except ValueError:
-            raise ForbiddenRoleError(role=role, trace_id=self.trace_id)
+        except ValueError as err:
+            raise ForbiddenRoleError(role=role, trace_id=self.trace_id) from err
         if normalized_role != "owner":
             raise ForbiddenRoleError(role=role, trace_id=self.trace_id)
 
         # ── Step 1: SELECT FOR UPDATE (AC #1, optimistic concurrency) ──
-        stmt = (
-            select(TenantSettings)
-            .where(TenantSettings.tenant_id == tenant_id)
-            .with_for_update()
-        )
+        stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id).with_for_update()
         result = await self.session.execute(stmt)
         settings_row = result.scalar_one_or_none()
         if settings_row is None:
-            raise TenantSettingsNotFoundError(
-                tenant_id=tenant_id, trace_id=self.trace_id
-            )
+            raise TenantSettingsNotFoundError(tenant_id=tenant_id, trace_id=self.trace_id)
 
         # Read the current onboarding namespace (JSONB).
         onboarding: dict[str, Any] = dict(settings_row.onboarding or {})
@@ -274,9 +268,7 @@ class SettingsService:
                 )
             if isinstance(selected_at_raw, str):
                 try:
-                    selected_at_dt = datetime.fromisoformat(
-                        selected_at_raw.replace("Z", "+00:00")
-                    )
+                    selected_at_dt = datetime.fromisoformat(selected_at_raw.replace("Z", "+00:00"))
                 except ValueError as e:
                     raise InconsistentSettingsError(
                         tenant_id=tenant_id,
@@ -343,13 +335,17 @@ class SettingsService:
         # F-7 invariant: if `is_initial=True`, also require the timestamp to be
         # within the grace window. This bounds the risk of a stray `is_initial=True`
         # value re-granting unlimited changes.
-        if decision.allowed and is_initial_flag and current_industry is not None:
-            if days_since >= GRACE_PERIOD_DAYS:
-                decision = IndustryChangeDecision(
-                    allowed=False,
-                    reason="locked_after_grace",
-                    days_since_selection=days_since,
-                )
+        if (
+            decision.allowed
+            and is_initial_flag
+            and current_industry is not None
+            and days_since >= GRACE_PERIOD_DAYS
+        ):
+            decision = IndustryChangeDecision(
+                allowed=False,
+                reason="locked_after_grace",
+                days_since_selection=days_since,
+            )
 
         if not decision.allowed:
             raise IndustryLockedError(
@@ -366,11 +362,7 @@ class SettingsService:
         # Only when current_industry is a real value AND equals target_industry.
         # First-time onboarding (current_industry is None) is NOT a no-op —
         # we still need to write the first record below.
-        is_change = current_industry is not None and current_industry != target_industry
-        is_noop = (
-            current_industry is not None
-            and current_industry == target_industry
-        )
+        is_noop = current_industry is not None and current_industry == target_industry
         if is_noop:
             return (
                 current_industry,
@@ -382,9 +374,7 @@ class SettingsService:
             )
 
         # ── Step 3: write audit row (BEFORE settings update) ─
-        audit_action = (
-            "industry_change_initial" if is_initial_flag else "industry_selected"
-        )
+        audit_action = "industry_change_initial" if is_initial_flag else "industry_selected"
         await emit_audit(
             self.session,
             actor_id=actor_id,
@@ -437,9 +427,7 @@ class SettingsService:
         )
 
     # ── get_tenant_settings ─────────────────────────────────
-    async def get_tenant_settings(
-        self, *, tenant_id: uuid.UUID
-    ) -> TenantSettings:
+    async def get_tenant_settings(self, *, tenant_id: uuid.UUID) -> TenantSettings:
         """Read the full aggregate row. Raises TenantSettingsNotFoundError
         if missing (should not happen after Story 0.2).
         """
@@ -447,9 +435,7 @@ class SettingsService:
         result = await self.session.execute(stmt)
         settings_row = result.scalar_one_or_none()
         if settings_row is None:
-            raise TenantSettingsNotFoundError(
-                tenant_id=tenant_id, trace_id=self.trace_id
-            )
+            raise TenantSettingsNotFoundError(tenant_id=tenant_id, trace_id=self.trace_id)
         return settings_row
 
     # ── Story 1.2 — update_onboarding_field ─────────────────
@@ -478,23 +464,17 @@ class SettingsService:
         # Role gate (AD-10 — owner only).
         try:
             normalized_role = _normalize_role(role)
-        except ValueError:
-            raise ForbiddenRoleError(role=role, trace_id=self.trace_id)
+        except ValueError as err:
+            raise ForbiddenRoleError(role=role, trace_id=self.trace_id) from err
         if normalized_role != "owner":
             raise ForbiddenRoleError(role=role, trace_id=self.trace_id)
 
         # Read row + lock.
-        stmt = (
-            select(TenantSettings)
-            .where(TenantSettings.tenant_id == tenant_id)
-            .with_for_update()
-        )
+        stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id).with_for_update()
         result = await self.session.execute(stmt)
         settings_row = result.scalar_one_or_none()
         if settings_row is None:
-            raise TenantSettingsNotFoundError(
-                tenant_id=tenant_id, trace_id=self.trace_id
-            )
+            raise TenantSettingsNotFoundError(tenant_id=tenant_id, trace_id=self.trace_id)
 
         onboarding = dict(settings_row.onboarding or {})
 
@@ -546,9 +526,7 @@ class SettingsService:
                 if days_since is not None and days_since >= GRACE_PERIOD_DAYS:
                     if field == OnboardingField.FISCAL_YEAR_START:
                         raise FiscalYearLockedError(
-                            next_fiscal_year_start=_next_fiscal_year_start(
-                                now, baseline
-                            ),
+                            next_fiscal_year_start=_next_fiscal_year_start(now, baseline),
                             trace_id=self.trace_id,
                         )
                     raise CurrencyLockedError(
@@ -624,22 +602,16 @@ class SettingsService:
         # Role gate.
         try:
             normalized_role = _normalize_role(role)
-        except ValueError:
-            raise ForbiddenRoleError(role=role, trace_id=self.trace_id)
+        except ValueError as err:
+            raise ForbiddenRoleError(role=role, trace_id=self.trace_id) from err
         if normalized_role != "owner":
             raise ForbiddenRoleError(role=role, trace_id=self.trace_id)
 
-        stmt = (
-            select(TenantSettings)
-            .where(TenantSettings.tenant_id == tenant_id)
-            .with_for_update()
-        )
+        stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id).with_for_update()
         result = await self.session.execute(stmt)
         settings_row = result.scalar_one_or_none()
         if settings_row is None:
-            raise TenantSettingsNotFoundError(
-                tenant_id=tenant_id, trace_id=self.trace_id
-            )
+            raise TenantSettingsNotFoundError(tenant_id=tenant_id, trace_id=self.trace_id)
 
         onboarding = dict(settings_row.onboarding or {})
         criteria = dict(onboarding.get("allocation_criteria") or {})
@@ -687,9 +659,7 @@ class SettingsService:
         )
 
     # ── Story 1.2 — get_completion ──────────────────────────
-    async def get_completion(
-        self, *, tenant_id: uuid.UUID
-    ) -> tuple[CompletionStatus, str | None]:
+    async def get_completion(self, *, tenant_id: uuid.UUID) -> tuple[CompletionStatus, str | None]:
         """Read current onboarding JSONB + count allocation criteria → completion.
 
         Pure orchestration: delegates the decision to the pure domain function
@@ -706,9 +676,7 @@ class SettingsService:
         result = await self.session.execute(stmt)
         settings_row = result.scalar_one_or_none()
         if settings_row is None:
-            raise TenantSettingsNotFoundError(
-                tenant_id=tenant_id, trace_id=self.trace_id
-            )
+            raise TenantSettingsNotFoundError(tenant_id=tenant_id, trace_id=self.trace_id)
 
         onboarding = dict(settings_row.onboarding or {})
         last_calc_date_raw = onboarding.get("last_calc_date")
@@ -719,17 +687,13 @@ class SettingsService:
         completion = await self._build_completion(tenant_id)
         return completion, last_calc_date
 
-    async def _build_completion(
-        self, tenant_id: uuid.UUID
-    ) -> CompletionStatus:
+    async def _build_completion(self, tenant_id: uuid.UUID) -> CompletionStatus:
         """Internal helper — fetches settings + counts and runs `compute_completion`."""
         stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         settings_row = result.scalar_one_or_none()
         if settings_row is None:
-            raise TenantSettingsNotFoundError(
-                tenant_id=tenant_id, trace_id=self.trace_id
-            )
+            raise TenantSettingsNotFoundError(tenant_id=tenant_id, trace_id=self.trace_id)
 
         onboarding = dict(settings_row.onboarding or {})
         industry_raw = onboarding.get("industry")
@@ -742,9 +706,7 @@ class SettingsService:
         counts = await self._fetch_allocation_counts(tenant_id)
         return compute_completion(industry, onboarding, counts)
 
-    async def _fetch_allocation_counts(
-        self, tenant_id: uuid.UUID
-    ) -> dict[str, int]:
+    async def _fetch_allocation_counts(self, tenant_id: uuid.UUID) -> dict[str, int]:
         """Read allocation criterion row counts.
 
         Tries the M1 baseline + M9 ABC tables. If the modules' tables don't
@@ -761,13 +723,9 @@ class SettingsService:
             )
             from apps.api.modules.m9_abc.handlers import count_drivers
 
-            baseline_counts = await count_account_classifications(
-                self.session, tenant_id=tenant_id
-            )
+            baseline_counts = await count_account_classifications(self.session, tenant_id=tenant_id)
             counts.update(baseline_counts)
-            counts["drivers"] = await count_drivers(
-                self.session, tenant_id=tenant_id
-            )
+            counts["drivers"] = await count_drivers(self.session, tenant_id=tenant_id)
         except (ImportError, RuntimeError, AttributeError):
             # Scaffold modules not wired yet → return zeros.
             counts = {"direct_indirect": 0, "fixed_variable": 0, "drivers": 0}

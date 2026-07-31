@@ -24,6 +24,7 @@ Revision ID: 0004_tenant_settings_onboarding_extend
 Revises: 0003_settings_version_bigint
 Create Date: 2026-07-30
 """
+
 from __future__ import annotations
 
 # revision identifiers, used by Alembic.

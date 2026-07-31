@@ -1,0 +1,12 @@
+apps/api/core/capability.py
+apps/api/core/db_models.py
+apps/api/modules/m1_baseline/__init__.py
+apps/api/modules/m1_baseline/handlers.py
+apps/api/modules/m1_baseline/schemas.py
+apps/api/alembic/versions/0006_products_item_master.py
+apps/api/modules/m1_baseline/services/product_service.py
+apps/api/modules/m1_baseline/services/__init__.py
+packages/services/m1_baseline/__init__.py
+packages/services/m1_baseline/schemas.py
+packages/services/m1_baseline/product_code.py
+supabase/policies/0006_products_rls.sql
