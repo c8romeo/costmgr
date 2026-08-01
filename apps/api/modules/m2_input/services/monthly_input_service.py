@@ -1,4 +1,4 @@
-"""apps.api.modules.m2_input.services.monthly_input_service — Story 3.1 + 3.2.
+"""apps.api.modules.m2_input.services.monthly_input_service — Story 3.1 + 3.2 + 3.3.
 
 Writes/reads on the ``monthly_input_periods`` + ``monthly_input_rows``
 tables (PRD §8.M2). All state-changing operations write a typed
@@ -27,6 +27,22 @@ Story 3.2 additions (Tasks 3.1 / 3.2):
   MonthlyInputFteReadOnlyError, MonthlyInputPayrollSettingsInvalidError,
   MonthlyInputCompanyBurdenRateError, MonthlyInputPayTypeMismatchError.
 
+Story 3.3 additions (Tasks 3.1 / 3.2):
+- `_compute_warnings_aggregate_for_state` — dispatcher that computes
+  inventory projection + operating rate warnings (PRD §V3·V5).
+- `_load_opening_balance` — reads `period.opening_inventory` JSONB
+  and converts to `dict[UUID, Decimal]` (MVP default 0 fallback).
+- `_load_product_map_for_period` — distinct product metadata keyed by
+  `product_id` (for `_ProductLike` protocol in `warnings.py`).
+- `_compute_operating_rate_warning_for_state` — feeds operating_rate
+  pure helpers (PRD §6.1 (2) 조업도 체인).
+- `get_state` extends its `MonthlyInputStateResponse` with the 4
+  new fields: `warnings: list[WarningResponse]`, `is_blocked: bool`,
+  `warnings_count: int`, `top_n_severity: int`.
+- 2 new typed exceptions (defense-in-depth):
+  `MonthlyInputWarningsReadOnlyError` (400) and
+  `MonthlyInputInventoryProjectionError` (422).
+
 Layering (AD-1 / AD-11):
 - Pure helpers live in ``packages/services/m2_input/``.
 - This module wires them to SQLAlchemy + FastAPI dependencies.
@@ -39,6 +55,13 @@ Concurrency:
   responses where possible.
 - Period rows are not locked at the row level here; concurrent saves
   are handled by the DB-level conflict (which surfaces as 409).
+
+Warning aggregate policy (PRD §A11):
+- Input-time (`save_row` / `update_row` / `set_mode`): return 200 OK
+  with `warnings[]` + `is_blocked`. The advisory state travels back
+  to the frontend; operator CAN proceed.
+- Close-time (Epic 4 first_calc): defer the blocking-rule policy to
+  Epic 4 — `is_blocked=true` triggers the [마감] button's hard block.
 """
 
 from __future__ import annotations
@@ -46,7 +69,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, NamedTuple
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
@@ -67,9 +90,14 @@ from apps.api.modules.m2_input.schemas import (
     MonthlyInputStateResponse,
     PayrollSettingsResponse,
     PayTypeBreakdownResponse,
+    WarningResponse,
 )
 from packages.common.uuid7 import uuid7 as _uuid7
 from packages.services.m0_onboarding.industry_menu import Industry
+from packages.services.m2_input.inventory_projection import (
+    InventoryMovement,
+    build_inventory_projection,
+)
 from packages.services.m2_input.labor_conversion import (
     DEFAULT_PAYROLL,
     PayType,
@@ -81,8 +109,21 @@ from packages.services.m2_input.labor_conversion import (
     compute_fte_wage_for_monthly,
     merge_payroll_settings,
 )
+from packages.services.m2_input.operating_rate import (
+    DEFAULT_UNIT_TIME_HOURS,
+    compute_operating_rate,
+    compute_production_required_hours,
+    compute_total_available_hours,
+)
 from packages.services.m2_input.stream_completion import (
     compute_stream_completion,
+)
+from packages.services.m2_input.warnings import (
+    SEVERITY_ORDER,
+    Warning,
+    aggregate_warnings,
+    build_inventory_warnings,
+    build_operating_rate_warning,
 )
 
 
@@ -339,6 +380,69 @@ class MonthlyInputPayTypeMismatchError(Exception):
     ) -> None:
         super().__init__(
             f"pay_type mismatch: {details}"
+        )
+        self.tenant_id = tenant_id
+        self.details = details
+        self.trace_id = trace_id
+
+
+# ── Story 3.3 typed exceptions (Tasks 3.2) ─────────────────
+class MonthlyInputWarningsReadOnlyError(Exception):
+    """400 MONTHLY_INPUT_WARNINGS_READ_ONLY — AC #7 server-side defense.
+
+    `warnings` / `is_blocked` / `warnings_count` / `top_n_severity`
+    are DERIVED. PATCH attempts against `MonthlyInputRowUpdate`
+    surface as `extra_fields_not_allowed` via Pydantic v2's
+    `extra="forbid"` config (`MonthlyInputRowUpdate` does NOT
+    declare these fields; AD-15 contract).
+
+    This typed exception fires only as defense-in-depth — raw DB
+    paths (migration bootstrap, internal scripts) that bypass
+    Pydantic. Mapped to 400 MONTHLY_INPUT_WARNINGS_READ_ONLY by
+    the handler-level exception handler (`main.py` — Task 4).
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        field: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"field {field!r} is read-only (derived from warning pipeline)"
+        )
+        self.tenant_id = tenant_id
+        self.field = field
+        self.trace_id = trace_id
+
+
+class MonthlyInputInventoryProjectionError(Exception):
+    """422 MONTHLY_INPUT_INVENTORY_PROJECTION — projection kernel failure.
+
+    Fires when `_compute_warnings_aggregate_for_state` cannot reach
+    a deterministic projection. Triggers:
+    - Negative `opening_qty` in `period.opening_inventory` JSONB
+      (defensive — pure kernel rejects `closing<0` from opening<0)
+    - Decimal overflow / type confusion (defensive — pure kernel uses
+      `QTY_QUANTUM = Decimal("0.0001")` so this only fires on
+      truly corrupt input)
+    - Missing product metadata for ALL inventory-bearing rows
+      (defensive — `_DummyProduct` fallback is in place, so this
+      only fires on internal Python errors)
+
+    Mapped to 422 by `main.py` — AD-15 §4 typed envelope.
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        details: dict[str, Any],
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"inventory projection failed: {details}"
         )
         self.tenant_id = tenant_id
         self.details = details
@@ -861,10 +965,17 @@ class MonthlyInputService:
 
     # ── State (page-mount payload) ───────────────────────────
     async def get_state(self, period_key: str) -> MonthlyInputStateResponse:
-        """Return the page-mount payload (rows + completion + fte_display).
+        """Return the page-mount payload (rows + completion + fte_display + warnings).
 
         The capability_mask is derived from the tenant's industry (no
         per-row visibility logic).
+
+        Story 3.3 — appends the 4 warning aggregate fields at the end:
+          - `warnings: list[WarningResponse]` — sorted (severity ASC +
+            closing_qty ASC for inventory)
+          - `is_blocked: bool` — `len(warnings) > 0`
+          - `warnings_count: int` — UI echo
+          - `top_n_severity: int` — most severe warning ordinal
         """
         period = await self.get_or_create_period(period_key)
         rows = (
@@ -899,6 +1010,17 @@ class MonthlyInputService:
             self._row_to_response(r, mode=period.mode, period_key=period_key)
             for r in rows
         ]
+
+        # Story 3.3 (Task 3.1) — Warning aggregate dispatcher. Read-only
+        # advisory (PRD §A11 입력 시); Epic 4 first_calc closes the
+        # `is_blocked=true` → hard block hook.
+        warnings, is_blocked, warnings_count, top_n_severity = (
+            await self._compute_warnings_aggregate_for_state(
+                period=period, rows=list(rows), fte_display=fte_display
+            )
+        )
+        warning_responses = [_warning_to_response(w) for w in warnings]
+
         return MonthlyInputStateResponse(
             period_key=period_key,
             mode=period.mode,
@@ -909,6 +1031,11 @@ class MonthlyInputService:
             missing=missing,
             capability_mask=sorted(visible),
             fte_display=fte_display,
+            # Story 3.3 — warning aggregate (PRD §A11 오류의 가시화).
+            warnings=warning_responses,
+            is_blocked=is_blocked,
+            warnings_count=warnings_count,
+            top_n_severity=top_n_severity,
         )
 
     # ── Helpers ──────────────────────────────────────────────
@@ -1260,6 +1387,220 @@ class MonthlyInputService:
             updated_at=row.updated_at,
         )
 
+    # ── Story 3.3 — warning aggregate dispatcher ────────────
+    async def _compute_warnings_aggregate_for_state(
+        self,
+        *,
+        period: MonthlyInputPeriod,
+        rows: list[MonthlyInputRow],
+        fte_display: FteDisplay | None,
+    ) -> tuple[list[Warning], bool, int, int]:
+        """Compose PRD §V3 + §V5 warnings for the period's state.
+
+        Story 3.3 (Task 3.1) — single dispatch site, called from
+        `get_state`. Returns `(warnings, is_blocked, warnings_count,
+        top_n_severity)` where:
+
+        - `warnings`: sorted list of `Warning` (severity ASC +
+          inventory closing_qty ASC)
+        - `is_blocked`: `len(warnings) > 0` (PRD §A11 input-time)
+        - `warnings_count`: UI echo
+        - `top_n_severity`: most severe warning ordinal from
+          `SEVERITY_ORDER` (e.g., `0` for an `error` warning)
+
+        Pure-kernel rules mirrored from
+        `packages.services.m2_input.warnings` and
+        `packages.services.m2_input.inventory_projection` — see
+        Story 3.3 §Task 1 for the AC mapping (AC #1, #2, #3, #5, #6,
+        #8).
+        """
+        product_map = await self._load_product_map_for_period(
+            period=period, rows=rows
+        )
+        opening_balance = self._load_opening_balance(period)
+        duck_rows = [_make_row_duck(r, product_map) for r in rows]
+        # Defensive wrap — translate any internal projection errors to
+        # the typed 422 envelope. AC #6: service-only tenants → empty
+        # projection → 0 inventory warnings (no exception).
+        try:
+            projection = build_inventory_projection(
+                rows=duck_rows, opening_balance=opening_balance
+            )
+            inventory_warnings = build_inventory_warnings(
+                projection, product_map=product_map
+            )
+        except (ValueError, TypeError, ArithmeticError) as err:
+            raise MonthlyInputInventoryProjectionError(
+                tenant_id=self.tenant_id,
+                details={"reason": str(err), "row_count": len(rows)},
+                trace_id=self.trace_id,
+            ) from err
+
+        # Operating rate needs FTE data + payroll. If no labor rows
+        # (fte_display=None), operating rate warning is None.
+        operating_rate_warning = (
+            self._compute_operating_rate_warning_for_state(
+                period=period,
+                rows=rows,
+                fte_display=fte_display,
+            )
+        )
+
+        warnings = aggregate_warnings(
+            inventory_warnings=inventory_warnings,
+            operating_rate_warning=operating_rate_warning,
+        )
+        is_blocked = len(warnings) > 0
+        warnings_count = len(warnings)
+        # top_n_severity: integer from SEVERITY_ORDER for the worst
+        # warning (lowest = most severe). 0 if no warnings.
+        top_n_severity = (
+            SEVERITY_ORDER.get(warnings[0].severity, 0) if warnings else 0
+        )
+        return warnings, is_blocked, warnings_count, top_n_severity
+
+    async def _load_product_map_for_period(
+        self,
+        *,
+        period: MonthlyInputPeriod,
+        rows: list[MonthlyInputRow],
+    ) -> dict[uuid.UUID, _ProductProjection]:
+        """Load product metadata keyed by `product_id` for inventory rows.
+
+        Only DISTINCT `product_id`s referenced by inventory-bearing
+        streams (sales / purchases / production) are queried. The map
+        is the source-of-truth for `_ProductLike` duck type
+        (`warnings.py` reads `product_id`, `product_code`, `name_ko`).
+
+        Returns an empty dict if no inventory-bearing rows.
+        """
+        # Determine distinct product_ids in inventory-bearing rows
+        inv_types = {"sales", "purchases", "production"}
+        distinct_ids = {
+            r.product_id
+            for r in rows
+            if r.stream in inv_types and r.product_id is not None
+        }
+        if not distinct_ids:
+            return {}
+        result = await self.session.execute(
+            select(Product).where(
+                Product.tenant_id == self.tenant_id,
+                Product.id.in_(distinct_ids),
+            )
+        )
+        products = result.scalars().all()
+        # Convert ORM `Product` (id/code/name) to the duck type the
+        # pure kernel expects (product_id/product_code/name_ko). Exclude
+        # inactive products so they don't appear in the projection.
+        product_map: dict[uuid.UUID, _ProductProjection] = {}
+        for p in products:
+            if not p.is_active:
+                continue
+            product_map[p.id] = _ProductProjection(
+                product_id=p.id,
+                product_code=p.code,
+                name_ko=p.name,  # ORM `name` → duck `name_ko`
+                product_type=p.product_type,
+            )
+        return product_map
+
+    def _load_opening_balance(
+        self, period: MonthlyInputPeriod
+    ) -> dict[uuid.UUID, Decimal]:
+        """Read `period.opening_inventory` JSONB → `dict[UUID, Decimal]`.
+
+        MVP shape (added by Alembic 0011, Task 2.1):
+        ```jsonc
+        {
+          "products": [
+            {"product_id": "...uuid...", "qty": 100.0},
+            ...
+          ]
+        }
+        ```
+
+        Returns empty dict on missing/empty payload (service-layer
+        fallback to 0 for all products). Epic 5 Story 5-1 will
+        auto-carry the previous period's closing balance (TODO(epic-5)).
+        """
+        return _load_opening_balance_from_period(period)
+
+    def _compute_operating_rate_warning_for_state(
+        self,
+        *,
+        period: MonthlyInputPeriod,
+        rows: list[MonthlyInputRow],
+        fte_display: FteDisplay | None,
+    ) -> Warning | None:
+        """Build OVERCAPACITY_OPERATING_RATE warning (PRD §V5).
+
+        Returns None when any precondition is missing:
+        - no labor rows (`fte_display is None`)
+        - no production rows (no required hours to compute against)
+        - zero FTE headcount (zero available hours → division)
+
+        The pure-kernel chain (`operating_rate.py`):
+          available = FTE × standard_monthly_hours
+          required = Σ(production qty × unit_time_hours)
+          rate_pct = (required / available) × 100
+          warn iff rate_pct > 100
+
+        MVP: `unit_time_hours` defaults to 1.0h per product
+        (`DEFAULT_UNIT_TIME_HOURS`). Epic 7 BEP 슬라이더 후속
+        will add a per-product override (PRD §V5 footnote).
+        """
+        if fte_display is None:
+            return None
+        # Use fte_headcount as the "FTE" input. This is the
+        # STORY 3.1/3.2 back-compat aggregate; Story 3.3 uses it for
+        # the operating-rate denominator only.
+        total_fte_headcount = fte_display.fte_headcount
+        if total_fte_headcount <= 0:
+            return None
+
+        # standard_monthly_hours from payroll settings (Story 3.2)
+        standard_monthly_hours = (
+            fte_display.payroll_settings.standard_monthly_hours
+        )
+        if standard_monthly_hours <= 0:
+            return None
+
+        # Production required hours = Σ(production qty × unit_time_hours)
+        production_rows = [r for r in rows if r.stream == "production"]
+        if not production_rows:
+            return None
+        # MVP: default unit_time_hours per row. Epic 7 will introduce
+        # a per-product override; the `unit_time_hours` arg supports
+        # both per-row and global defaults.
+        production_required_hours = compute_production_required_hours(
+            production_rows=production_rows,
+            unit_time_hours=DEFAULT_UNIT_TIME_HOURS,
+        )
+        if production_required_hours <= 0:
+            return None
+
+        total_available_hours = compute_total_available_hours(
+            total_fte_headcount=total_fte_headcount,
+            standard_monthly_hours=standard_monthly_hours,
+        )
+        if total_available_hours <= 0:
+            return None
+
+        rate_pct = compute_operating_rate(
+            available_hours=total_available_hours,
+            required_hours=production_required_hours,
+        )
+        return build_operating_rate_warning(
+            operating_rate_pct=rate_pct,
+            total_fte_headcount=total_fte_headcount,
+            standard_monthly_hours=standard_monthly_hours,
+            total_available_hours=total_available_hours,
+            production_required_hours=production_required_hours,
+            period_key=period.period_key,
+            trace_id=self.trace_id,
+        )
+
 
 def validate_payroll_override(o: dict | None) -> dict:
     """Public helper — validate a raw payroll override dict (Story 0.5 plumbing).
@@ -1305,3 +1646,114 @@ def _decimalize(d: dict[str, Any]) -> dict[str, Any]:
         else:
             out[k] = v
     return out
+
+
+# ── Story 3.3 helpers (Task 3.1) ──────────────────────────────
+def _load_opening_balance_from_period(
+    period: MonthlyInputPeriod,
+) -> dict[uuid.UUID, Decimal]:
+    """Module-level pure helper for `_load_opening_balance` (test seam).
+
+    Same JSONB → dict[UUID, Decimal] conversion as the instance method.
+    Story 3.3 (Task 3.1) — exposed at module level so unit tests can
+    cover the JSON parsing without spinning up an `AsyncSession`.
+    """
+    opening = getattr(period, "opening_inventory", None) or {}
+    if not isinstance(opening, dict):
+        return {}
+    products = opening.get("products") or []
+    out: dict[uuid.UUID, Decimal] = {}
+    for entry in products:
+        if not isinstance(entry, dict):
+            continue
+        pid_raw = entry.get("product_id")
+        qty_raw = entry.get("qty")
+        if pid_raw is None or qty_raw is None:
+            continue
+        try:
+            pid = uuid.UUID(str(pid_raw))
+            qty = Decimal(str(qty_raw))
+        except (ValueError, TypeError):
+            continue
+        if qty < 0:
+            # Defensive: opening_qty MUST be >= 0 (PRD §6.2). Don't
+            # accept negative; surface later in projection.
+            continue
+        out[pid] = qty
+    return out
+class _ProductProjection(NamedTuple):
+    """Lightweight product metadata for the inventory projection duck type.
+
+    Maps the SQLAlchemy `Product` ORM (id / code / name / product_type)
+    to the `_ProductLike` Protocol from
+    `packages.services.m2_input.warnings`. The `product_id` field name
+    matches the protocol's expected attribute.
+    """
+
+    product_id: uuid.UUID
+    product_code: str
+    name_ko: str
+    product_type: str
+
+
+class _RowDuck(NamedTuple):
+    """Duck-type for `MonthlyInputRow` — pure-kernel compatible shape.
+
+    The `inventory_projection.py` `_RowLike` Protocol reads 4 fields:
+    `stream`, `product_id`, `qty`, `product_type`. The ORM row doesn't
+    carry `product_type` directly — it lives on the `Product` table.
+    This adapter hydrates the 4 fields for the pure kernel without
+    leaking SQLAlchemy types across the engine boundary.
+    """
+
+    stream: str
+    product_id: uuid.UUID | None
+    qty: Decimal | None
+    product_type: str
+
+
+def _make_row_duck(
+    row: MonthlyInputRow,
+    product_map: dict[uuid.UUID, _ProductProjection],
+) -> _RowDuck:
+    """Wrap an ORM row + product_map into the pure-kernel duck shape."""
+    product_type = ""
+    if row.product_id is not None:
+        proj = product_map.get(row.product_id)
+        if proj is not None:
+            product_type = proj.product_type
+    return _RowDuck(
+        stream=row.stream,
+        product_id=row.product_id,
+        qty=row.qty,
+        product_type=product_type,
+    )
+
+
+def _warning_to_response(w: Warning) -> WarningResponse:
+    """Translate pure-kernel `Warning` NamedTuple to wire-format Pydantic model.
+
+    AD-15 cross-language parity: the wire shape uses snake_case (PRD §V
+    Korean messages, no transformation); the `details` dict carries
+    Decimal-stringified values per AC #1 spec literal ('100' not
+    '100.00', etc).
+
+    The `timestamp` field is `datetime` (UTC-aware); Pydantic v2
+    serializes it as ISO-8601 by default (AD-15 §2).
+    """
+    details = dict(w.details)
+    # Coerce any UUID inside details to str (defensive; pure kernel
+    # already stringifies, but service-side `period_key` or
+    # `trace_id` extension might inject UUIDs).
+    for k, v in list(details.items()):
+        if isinstance(v, uuid.UUID):
+            details[k] = str(v)
+    return WarningResponse(
+        code=w.code,
+        severity=w.severity,
+        message_ko=w.message_ko,
+        details=details,
+        stream=w.stream,
+        trace_id=w.trace_id,
+        timestamp=w.timestamp,
+    )

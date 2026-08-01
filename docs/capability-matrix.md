@@ -48,6 +48,16 @@
   `{}`은 PRD §6.1 default (`monthly_salary_basis_krw=2_500_000`,
   `workdays_in_month=22`, `standard_monthly_hours=228`,
   `company_burden_rate=0.115`)로 fallthrough.
+- **음수재고·조업도 실시간 경고 (Story 3.3)** — capability-ungated.
+  PRD §A11 오류의 가시화 정책은 입력 시 warning(200 OK + 진행 허용)
+  → 마감 시 Epic 4 first_calc hook에서 임계 위반 차단. m2_input 응답에
+  `warnings[]`, `is_blocked`, `warnings_count`, `top_n_severity` 4개
+  필드가 항상 포함됨. service-only 테넌트는 inventory projection 빈
+  결과 → 0개 경고 (예외 아님). 2개 warning code만 노출:
+  `NEGATIVE_CLOSING_INVENTORY` (PRD §V3) + `OVERCAPACITY_OPERATING_RATE`
+  (PRD §V5). Epic 5 5-1 단계에서 opening_inventory JSONB의 cj-style
+  default=0 + ledger-backed read로 자동 전월 기말 carry-chain 진입
+  (`TODO(epic-5)` marker in `inventory_projection.py`).
 - **AI_EXTRACT** is granted to every industry (PRD §4.2 AI cross-cutting
   feature). Tenant-only restriction is PIPA consent, not industry.
 
@@ -89,11 +99,15 @@
 | 2.2 — BOM matrix | `BOM` |
 | 3.1 — Six-stream monthly input | `MONTHLY_INPUT_PRODUCTION` |
 | 3.2 — FTE precision + daily labor | (no new capability; FTE precision is part of `MONTHLY_INPUT_LABOR` ungated path; per-tenant payroll override via `tenant_settings.payroll.*` JSONB sub-block) |
+| 3.3 — Negative inventory & overcapacity warning | (no new capability; warning aggregate is part of `MONTHLY_INPUT_LABOR` ungated path + PRD §V3/§V5 universal gating on inventory-bearing product types only; service tenants → 0 inventory warnings by construction) |
 | 5.x — Inventory | `OPENING_INVENTORY`, `INVENTORY_LEDGER` |
 | 9.x — ABC | `COST_POOL`, `ACTIVITY`, `DRIVER`, `SEGMENT_SPLIT` |
 
 ## Changelog
 
 - 2026-08-01 — Initial matrix (Epic 1 회고 A4 + Epic 2 회고 A3 + Epic 3 Story 3.1).
+- 2026-08-01 — Story 3.2 footnote added (payroll override + labor precision path).
+- 2026-08-01 — Story 3.3 footnote added (음수재고·조업도 실시간 경고;
+  capability-ungated; warnings aggregate on m2_input state response).
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.

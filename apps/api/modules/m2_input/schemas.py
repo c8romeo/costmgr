@@ -1,4 +1,4 @@
-"""apps.api.modules.m2_input.schemas — M2 monthly input Pydantic models (Story 3.1 + 3.2).
+"""apps.api.modules.m2_input.schemas — M2 monthly input Pydantic models (Story 3.1 + 3.2 + 3.3).
 
 Pydantic v2 models for the M2 monthly input module.
 
@@ -23,6 +23,17 @@ Story 3.2 (this revision — Task 2.3):
   and `payroll_settings` so the [인원] tab can render the PRD §6.1
   인건비 5개 항목 breakdown.
 
+Story 3.3 (Task 2.3 — this revision):
+- Adds `WarningResponse` (code, severity, message_ko, details, stream,
+  trace_id, timestamp) — mirrors the pure `Warning` NamedTuple.
+- `MonthlyInputStateResponse` extended with:
+  - `warnings: list[WarningResponse]` — sorted by severity ASC + closing_qty ASC
+  - `is_blocked: bool` — `len(warnings) > 0` (PRD §A11 close-time rule)
+  - `warnings_count: int` — `len(warnings)` (UI echo)
+  - `top_n_severity: int` — currently 1 (most severe warning)
+- `MonthlyInputRowUpdate` keeps `extra='forbid'` (Story 3.1 base) — PATCH
+  on `warnings` / `is_blocked` triggers 400 INVALID_PAYLOAD via AC #7.
+
 AD binds enforced here:
 - AD-15 — snake_case field names; `extra="forbid"` Pydantic v2 config;
   Korean labels are user-facing data (not code identifiers).
@@ -32,7 +43,7 @@ AD binds enforced here:
 - AD-1 — this file imports only from `packages.services.m2_input`
   (engine-independent) and `pydantic`.
 - AD-13 — the schema mirrors what `MonthInputAdapter` will eventually
-  normalize to `MonthlyInput`. For Story 3.1/3.2 the adapter is not
+  normalize to `MonthlyInput`. For Story 3.1/3.2/3.3 the adapter is not
   yet written (Epic 4 first_calc), so the schema is the canonical
   user-input shape.
 """
@@ -67,6 +78,8 @@ __all__ = [
     "PayType",
     "PayTypeBreakdownResponse",
     "PayrollSettingsResponse",
+    # Story 3.3 sub-schemas
+    "WarningResponse",
     # Pydantic schemas
     "MonthlyInputRowCreate",
     "MonthlyInputRowUpdate",
@@ -136,6 +149,36 @@ class PayrollSettingsResponse(BaseModel):
     company_burden_rate: Decimal
 
 
+# ── Story 3.3 — Warning response ─────────────────────────────────
+class WarningResponse(BaseModel):
+    """Single warning entry (PRD §A11 오류의 가시화 — Story 3.3).
+
+    Mirrors `packages.services.m2_input.warnings.Warning` NamedTuple
+    (pure kernel). The wire format is JSON-serializable:
+    - `code` — one of `WarningCode` values (NEGATIVE_CLOSING_INVENTORY,
+      OVERCAPACITY_OPERATING_RATE)
+    - `severity` — error | warning | info (PRD §A11 hierarchy)
+    - `message_ko` — Korean friendly message (PRD §V3·V5 literal)
+    - `details` — free-form dict (product_id, closing_qty, etc.)
+    - `stream` — the originating stream (sales, production, ...)
+    - `trace_id` — request trace_id (for support)
+    - `timestamp` — ISO-8601 UTC
+
+    AC #7: server-side defense — `warnings` is NOT in `MonthlyInputRowUpdate`
+    (which uses `extra="forbid"`). PATCH attempts return 400 INVALID_PAYLOAD.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    severity: str
+    message_ko: str
+    details: dict
+    stream: str
+    trace_id: str
+    timestamp: datetime
+
+
 # ── Create / Update ─────────────────────────────────────────
 class MonthlyInputRowCreate(BaseModel):
     """Create a new monthly input row (POST /rows).
@@ -153,6 +196,10 @@ class MonthlyInputRowCreate(BaseModel):
     is enforced by `_validate_labor_shape` in the service layer
     (Task 3.1) — these fields are all OPTIONAL at the schema level
     so the same `MonthlyInputRowCreate` covers all 6 streams.
+
+    Story 3.3 (Task 2.3): the schema retains `extra="forbid"`; the
+    `warnings` / `is_blocked` fields are NOT in this model — they're
+    only present in `MonthlyInputStateResponse` (read-only, computed).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -190,6 +237,10 @@ class MonthlyInputRowUpdate(BaseModel):
 
     Story 3.2 — adds the 7 FTE precision fields. The existing
     `*_krw` field constraint (ge=0) carries through.
+
+    Story 3.3 (AC #7): `extra="forbid"` ensures that any PATCH attempt
+    on `warnings` / `is_blocked` (computed fields) returns 400
+    INVALID_PAYLOAD via Pydantic's `extra_fields_not_allowed` error.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -298,6 +349,15 @@ class MonthlyInputStateResponse(BaseModel):
     - The [계산] button state (is_complete + missing)
     - The [인원] tab FTE display (fte_display — Story 3.1 read-only;
       Story 3.2 with full breakdown)
+    - The [마감] button state (Story 3.3 — `is_blocked`)
+    - The Korean warning toast + alert (Story 3.3 — `warnings[]`)
+
+    Story 3.3 (Task 2.3) extends the response with:
+    - `warnings: list[WarningResponse]` — sorted (severity ASC +
+      closing_qty ASC for inventory)
+    - `is_blocked: bool` — `len(warnings) > 0` (PRD §A11 close-time rule)
+    - `warnings_count: int` — UI echo
+    - `top_n_severity: int` — most severe warning ordinal (UI hint)
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -311,3 +371,8 @@ class MonthlyInputStateResponse(BaseModel):
     missing: list[str]  # Korean labels, ordered PRD §8.M2(b)
     capability_mask: list[str]  # sorted stream names visible for industry
     fte_display: FteDisplay | None = None
+    # Story 3.3 — warning aggregate (PRD §A11)
+    warnings: list[WarningResponse] = Field(default_factory=list)
+    is_blocked: bool = False
+    warnings_count: int = 0
+    top_n_severity: int = 0

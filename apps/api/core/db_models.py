@@ -436,6 +436,15 @@ class MonthlyInputPeriod(Base):
     locked_by_calculation: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
+    # Story 3.3 (Task 2.2) — per-period per-product opening inventory
+    # balance. Consumed by the inventory projection kernel
+    # (`packages.services.m2_input.inventory_projection`). MVP default
+    # `{}` — service layer falls back to 0 for all products. Epic 5
+    # Story 5-1 will auto-carry closing balances from the previous
+    # period (TODO(epic-5) marker in `inventory_projection.py`).
+    opening_inventory: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

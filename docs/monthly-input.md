@@ -201,9 +201,88 @@ Story 3.1에서 도입한 read-only FTE hook 표시는 Story 3.2에서 PRD §6.1
 - `FteDisplay` enriched: `pay_type` · `breakdown` · `source_rows` · `payroll_settings`
 - TS mirror `apps/web/lib/l2-input-fte.ts` — cross-language drift sentinel
 
+## 음수재고·조업도 실시간 경고 (Story 3.3)
+
+Story 3.1/3.2가 캡처 + FTE 정밀 계산까지 다뤘다면, Story 3.3는
+PRD §A11 (오류의 가시화) + §V3 (음수재고) + §V5 (조업도) 정책에 따라
+**입력 시점의 경고(200 OK + 진행 허용)**를 추가한다. 마감 시 임계
+위반 차단은 Epic 4 `MonthInputAdapter.first_calc` hook에서.
+
+핵심 변경:
+- `monthly_input_periods`에 신규 컬럼 `opening_inventory JSONB` (4-namespace AD-23)
+  `{products: [{product_id, qty}]}`. Story 5-1에서 ledger-backed read로
+  자동 carry-chain 진입 (`TODO(epic-5)` marker).
+- `MonthlyInputStateResponse`에 4개 read-only 필드 추가:
+  `warnings: list[WarningResponse]`, `is_blocked: bool`, `warnings_count: int`,
+  `top_n_severity: int`. **클라이언트 write 시 400 `MONTHLY_INPUT_WARNINGS_READ_ONLY`**
+  (서버 자동 계산 항목, AC #7 server-side defense).
+- 2개 신규 typed exception (서버 응답 envelope):
+  - `MONTHLY_INPUT_WARNINGS_READ_ONLY` (400) — 클라이언트가 `warnings` /
+    `is_blocked` / `warnings_count` / `top_n_severity` 필드를 쓰려고 시도
+  - `MONTHLY_INPUT_INVENTORY_PROJECTION` (422) — projection kernel 실패
+    시 `details.reason` + `details.row_count` 동봉
+- 2개 warning code (PRD §V3·§V5):
+  - `NEGATIVE_CLOSING_INVENTORY` — 기말재고 < 0 (PRD §6.2: 기초+구입-생산출고)
+  - `OVERCAPACITY_OPERATING_RATE` — 조업도 > 100% (PRD §6.1 (2): FTE × 월근무시간)
+- `MonthlyInputService.get_state()` → `_compute_warnings_aggregate_for_state`
+  → inventory projection kernel (PRD §6.2 수불부) + operating rate kernel
+  → `aggregate_warnings` (severity ASC + closing_qty ASC) → 4 필드 response
+- service-only 테넌트는 inventory-bearing product type 없음 → 0개 경고
+  (예외 아님 — capability-ungated)
+- TS mirror `apps/web/lib/l2-input-warnings.ts` — Decimal `ROUND_HALF_EVEN`
+  banker's rounding cross-language parity (AD-8)
+- 5 cross-language parity tests in
+  `tests/integration/test_m2_input_label_consistency.py` (15/15 green)
+- 18 service-layer pure helper tests in
+  `tests/services/test_m2_input_warnings_service.py` (pure helpers only)
+- 11 DB skipif handler integration tests in
+  `tests/api/test_monthly_input_warnings.py` (Story 0.4 CI shim mode)
+
+### SEVERITY_ORDER (PRD §A11)
+
+```
+error=0, warning=1, info=2
+```
+
+`top_n_severity` = min(SEVERITY_ORDER[w] for w in warnings). 빈 경고
+리스트 → `0` (sentinel for "no warnings").
+
+### 응답 예시
+
+```json
+{
+  "warnings": [
+    {
+      "code": "NEGATIVE_CLOSING_INVENTORY",
+      "severity": "error",
+      "message_ko": "PRD-0001(달걀) 기말재고 -30 → 음수 경고",
+      "details": {
+        "product_id": "...",
+        "product_code": "PRD-0001",
+        "opening_qty": "10",
+        "inbound_qty": "0",
+        "outbound_qty": "40",
+        "closing_qty": "-30",
+        "stream": "sales"
+      },
+      "stream": "sales",
+      "trace_id": "...",
+      "timestamp": "2026-08-01T12:00:00Z"
+    }
+  ],
+  "is_blocked": true,
+  "warnings_count": 1,
+  "top_n_severity": 0
+}
+```
+
+`is_blocked = warnings_count > 0` (PRD §A11 입력 시점 진행 허용).
+마감 시점 차단은 Epic 4 `first_calc` hook에서 임계 위반 시 422로 처리.
+
 ## 참조
 
 - 스펙: `_bmad-output/implementation-artifacts/3-1-six-stream-monthly-input-ui-month-total-default.md`
+- Story 3.3 스펙: `_bmad-output/implementation-artifacts/3-3-negative-inventory-overcapacity-real-time-warning.md`
 - FTE 정밀 가이드: [docs/monthly-input-fte.md](./monthly-input-fte.md)
 - Architecture: AD-13 (`MonthInputAdapter`) · AD-17 (`InputPromoter`)
 - Architecture: AD-13 (`MonthInputAdapter`) · AD-17 (`InputPromoter`)

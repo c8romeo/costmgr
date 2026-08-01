@@ -27,9 +27,11 @@ from apps.api.modules.m2_input import router as m2_input_router
 from apps.api.modules.m2_input.services.monthly_input_service import (
     MonthlyInputCompanyBurdenRateError,
     MonthlyInputFteReadOnlyError,
+    MonthlyInputInventoryProjectionError,
     MonthlyInputInvalidLaborShapeError,
     MonthlyInputPayTypeMismatchError,
     MonthlyInputPayrollSettingsInvalidError,
+    MonthlyInputWarningsReadOnlyError,
 )
 from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
@@ -210,6 +212,55 @@ async def _m2_pay_type_mismatch_handler(
         content={
             "code": "MONTHLY_INPUT_PAY_TYPE_MISMATCH",
             "message_ko": "급여유형과 입력 항목이 맞지 않습니다",
+            "details": exc.details,
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# Story 3.3 — warning / projection error envelopes (AD-15 §4).
+# Maps the 2 new typed exceptions (Task 3.2) so the frontend can
+# distinguish advisory warnings from server-side errors.
+@app.exception_handler(MonthlyInputWarningsReadOnlyError)
+async def _m2_warnings_read_only_handler(
+    request: Request, exc: MonthlyInputWarningsReadOnlyError
+) -> JSONResponse:
+    """400 MONTHLY_INPUT_WARNINGS_READ_ONLY — AC #7 server-side defense.
+
+    `warnings` / `is_blocked` / `warnings_count` / `top_n_severity`
+    are DERIVED fields (PRD §A11); PATCH attempts on them surface as
+    `extra_fields_not_allowed` via Pydantic v2's `extra="forbid"`
+    first. This handler covers the defense-in-depth path that
+    bypasses Pydantic (raw DB writes, internal scripts).
+    """
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "MONTHLY_INPUT_WARNINGS_READ_ONLY",
+            "message_ko": "경고 항목은 자동 계산 항목입니다 (직접 수정 불가)",
+            "details": {"field": exc.field},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(MonthlyInputInventoryProjectionError)
+async def _m2_inventory_projection_handler(
+    request: Request, exc: MonthlyInputInventoryProjectionError
+) -> JSONResponse:
+    """422 MONTHLY_INPUT_INVENTORY_PROJECTION — projection kernel failure.
+
+    Fires when the inventory projection kernel (PRD §6.2) cannot
+    reach a deterministic state. Mapped to 422 (PRD §V6 ENVELOPE
+    for "data not processable") — operator-facing message hints at
+    "raw balance out of range" / "missing product metadata" so the
+    user can self-correct without needing to read a trace_id.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "MONTHLY_INPUT_INVENTORY_PROJECTION",
+            "message_ko": "재고 계산에 실패했습니다 (기초재고 또는 제품정보 확인)",
             "details": exc.details,
             "trace_id": exc.trace_id,
         },

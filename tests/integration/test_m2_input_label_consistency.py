@@ -61,6 +61,7 @@ from packages.services.m2_input.stream_completion import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TS_PATH = REPO_ROOT / "apps" / "web" / "lib" / "menu-config.ts"
 TS_L2_FTE_PATH = REPO_ROOT / "apps" / "web" / "lib" / "l2-input-fte.ts"
+TS_L2_WARNINGS_PATH = REPO_ROOT / "apps" / "web" / "lib" / "l2-input-warnings.ts"
 
 
 # ── Node availability check (Story 3.2 — Task 4.2) ─────────────
@@ -432,4 +433,193 @@ console.log(JSON.stringify(out));
     assert ts_out["standardMonthlyHours"] == DEFAULT_PAYROLL.standard_monthly_hours
     assert ts_out["companyBurdenRate"] == str(
         DEFAULT_PAYROLL.company_burden_rate
+    )
+
+
+# ── Story 3.3 — Warning aggregate cross-language parity ─────────
+def _read_ts_l2_warnings_source() -> str:
+    """Read the `l2-input-warnings.ts` mirror as text (F-25: strip comments)."""
+    if not TS_L2_WARNINGS_PATH.exists():
+        pytest.fail(
+            f"Required TS mirror not found at {TS_L2_WARNINGS_PATH}. "
+            "Story 3.3 T5 must create this file alongside the Python module."
+        )
+    raw = TS_L2_WARNINGS_PATH.read_text(encoding="utf-8")
+    no_block = re.sub(r"/\*.*?\*/", "", raw, flags=re.DOTALL)
+    return re.sub(r"^\s*//.*$", "", no_block, flags=re.MULTILINE)
+
+
+def test_warning_codes_match_python() -> None:
+    """WARNING_CODE_VALUES (TS) ↔ WarningCode enum (Py). Structural check."""
+    from packages.services.m2_input.warnings import WarningCode
+
+    ts_src = _read_ts_l2_warnings_source()
+    m = re.search(
+        r"export\s+const\s+WARNING_CODE_VALUES\s*=\s*\[(.*?)\]\s*as\s+const",
+        ts_src,
+        flags=re.DOTALL,
+    )
+    if not m:
+        pytest.fail("WARNING_CODE_VALUES declaration not found in TS mirror")
+    ts_values = sorted(re.findall(r'"([A-Z_]+)"', m.group(1)))
+    py_values = sorted(c.value for c in WarningCode)
+    assert ts_values == py_values, (
+        f"WarningCode drift: TS={ts_values!r}, Py={py_values!r}"
+    )
+
+
+def test_inventory_product_types_match_python() -> None:
+    """INVENTORY_PRODUCT_TYPES (TS) ↔ Python frozenset. Structural check."""
+    from packages.services.m2_input.inventory_projection import (
+        INVENTORY_PRODUCT_TYPES,
+    )
+
+    ts_src = _read_ts_l2_warnings_source()
+    # Read the literal Set construction (Set of strings in TS).
+    m = re.search(
+        r"INVENTORY_PRODUCT_TYPES:\s*ReadonlySet<string>\s*=\s*new\s+Set\(\["
+        r"(.*?)"
+        r"\]\)",
+        ts_src,
+        flags=re.DOTALL,
+    )
+    if not m:
+        pytest.fail("INVENTORY_PRODUCT_TYPES not found in TS mirror")
+    ts_values = sorted(re.findall(r'"([a-z_]+)"', m.group(1)))
+    py_values = sorted(INVENTORY_PRODUCT_TYPES)
+    assert ts_values == py_values, (
+        f"INVENTORY_PRODUCT_TYPES drift: TS={ts_values!r}, Py={py_values!r}"
+    )
+
+
+@_skip_no_node
+def test_inventory_warning_korean_message_matches_python() -> None:
+    """PRD §V3 message: 'PRD-0001(달걀) 기말재고 -30 → 음수 경고'.
+
+    Python and TS must produce identical Korean text including
+    trailing-zero stripping (AC #1 spec literal).
+    """
+    from packages.services.m2_input.inventory_projection import InventoryMovement
+    from packages.services.m2_input.warnings import format_inventory_warning_ko
+
+    pid = "00000000-0000-0000-0000-000000000001"  # not used by formatter
+    m_py = InventoryMovement(
+        product_id=__import__("uuid").UUID(pid),
+        opening_qty=__import__("decimal").Decimal("100"),
+        inbound_qty=__import__("decimal").Decimal("0"),
+        outbound_qty=__import__("decimal").Decimal("130"),
+    )
+    product = type("P", (), {"product_code": "PRD-0001", "name_ko": "달걀"})()
+    py_msg = format_inventory_warning_ko(product, m_py)
+    assert py_msg == "PRD-0001(달걀) 기말재고 -30 → 음수 경고"
+
+    # Execute TS mirror against the same fixture
+    _read_ts_l2_warnings_source()  # ensure file exists
+    runner = f"""
+import * as lib from "./apps/web/lib/l2-input-warnings.ts";
+const product = {{ productCode: "PRD-0001", nameKo: "달걀" }};
+const m = {{
+  productId: "{pid}",
+  openingQty: "100",
+  inboundQty: "0",
+  outboundQty: "130",
+}};
+const out = lib.formatInventoryWarningKo(product, m);
+console.log(out);
+"""
+    completed = subprocess.run(
+        ["node", "--input-type=module", "-e", runner],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",  # Korean text — force UTF-8 (Windows cp949 default crashes)
+        timeout=10,
+        shell=False,
+    )
+    if completed.returncode != 0:
+        pytest.fail(f"Node execution failed: {completed.stderr}")
+    ts_msg = completed.stdout.strip()
+    assert ts_msg == py_msg, (
+        f"Korean inventory warning drift: Py={py_msg!r}, TS={ts_msg!r}"
+    )
+
+
+@_skip_no_node
+def test_operating_rate_warning_korean_matches_python() -> None:
+    """PRD §V5 message: '총작업가능시간 248.52h(1.09 × 228) < 생산요구시간 250h → 100.6% (한도 초과)'.
+
+    Trailing-zero stripping: '100.60' → '100.6' on both sides (AC #3).
+    """
+    from packages.services.m2_input.warnings import format_operating_rate_ko
+
+    py_msg = format_operating_rate_ko(
+        total_fte_headcount=__import__("decimal").Decimal("1.09"),
+        standard_monthly_hours=228,
+        total_available_hours=__import__("decimal").Decimal("248.52"),
+        production_required_hours=__import__("decimal").Decimal("250"),
+        operating_rate_pct=__import__("decimal").Decimal("100.60"),
+    )
+    assert "100.6" in py_msg
+    assert "한도 초과" in py_msg
+
+    runner = """
+import * as lib from "./apps/web/lib/l2-input-warnings.ts";
+const out = lib.formatOperatingRateKo({
+  totalFteHeadcount: "1.09",
+  standardMonthlyHours: 228,
+  totalAvailableHours: "248.52",
+  productionRequiredHours: "250",
+  operatingRatePct: "100.60",
+});
+console.log(out);
+"""
+    completed = subprocess.run(
+        ["node", "--input-type=module", "-e", runner],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",  # Korean text — force UTF-8 (Windows cp949 default crashes)
+        timeout=10,
+        shell=False,
+    )
+    if completed.returncode != 0:
+        pytest.fail(f"Node execution failed: {completed.stderr}")
+    ts_msg = completed.stdout.strip()
+    assert ts_msg == py_msg, (
+        f"Korean operating-rate warning drift: Py={py_msg!r}, TS={ts_msg!r}"
+    )
+
+
+@_skip_no_node
+def test_compute_operating_rate_rounding_matches_python() -> None:
+    """250h / 248.52h → 100.60 → 100.6% after strip.
+
+    Cross-language banker's rounding tolerance via Node.
+    """
+    from packages.services.m2_input.operating_rate import compute_operating_rate
+
+    py_rate = compute_operating_rate(
+        available_hours=__import__("decimal").Decimal("248.52"),
+        required_hours=__import__("decimal").Decimal("250"),
+    )
+    assert py_rate == __import__("decimal").Decimal("100.60")
+
+    runner = """
+import * as lib from "./apps/web/lib/l2-input-warnings.ts";
+const r = lib.computeOperatingRate("248.52", "250");
+console.log(r.toFixed(2));
+"""
+    completed = subprocess.run(
+        ["node", "--input-type=module", "-e", runner],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        shell=False,
+    )
+    if completed.returncode != 0:
+        pytest.fail(f"Node execution failed: {completed.stderr}")
+    ts_rate_str = completed.stdout.strip()
+    assert ts_rate_str == "100.60", (
+        f"TS operating rate drift: expected '100.60', got {ts_rate_str!r}"
     )
