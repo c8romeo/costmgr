@@ -54,6 +54,7 @@
 generated: 2026-07-25
 last_updated: 2026-08-01
 last_updated_note: 2026-08-01 — Story 3.1 dev-story complete (T1~T6). 3-1: ready-for-dev → done. epic-3: backlog → in-progress (첫 스토리 done 진입). Story 3.1: 5 routes registered (GET state / POST rows / PATCH rows / DELETE rows / POST mode), 5 typed exceptions + AD-15 envelope 매핑, partial unique index with COALESCE (NULL handling), audit-first + idempotent no-op (CR 1.1), Capability.MONTHLY_INPUT_PRODUCTION (제조만 grant), TS mirror parity 5 tests green, 40 pure + 16 DB-backed skipif. 5 deferrals 명시 (frontend UI / PII redaction / FTE 정밀 / 음수재고 / MonthInputAdapter 본체). 다음: bmad-create-story로 Story 3-2 (FTE Conversion & Daily Labor) spec 진입.
+last_updated_note: 2026-08-01 — Story 3.2 spec created (bmad-create-story). 3-2: backlog → ready-for-dev. 6 ACs / 7 tasks / 40+ subtasks. Story 3.1 read-only fte_display hook을 정밀 계산으로 승격 + pay_type='daily'|'monthly' 분기 + 5 breakdown fields (기본급/시간외/복리후생/상여/퇴직충당금) + tenant_settings.payroll.* JSONB override (PRD §6.1 + per-field fallback) + 730h 시나리오 (standard_monthly_hours=228). AC #5 server-side fte_* read-only defense. 5 typed exceptions + AC #6 capability unchanged (MONTHLY_INPUT_LABOR 일부). 4 deferrals (payroll UI 노출 = Story 0.5 / ABC labor pool = Epic 9 / 4대 보험 자동 = MVP 외 / PII redaction = Epic 1 retro C1).
 last_updated_note: 2026-08-01 — Epic 2 retrospective (lightweight) complete. action_items section appended with 4 items (A1: 1-1 done 마킹 / A2: 1-3 dev-story / A3: capability-matrix 문서 / A4: 0.5 plumbing 재평가). epic-2-retrospective: optional → done. epic-2 in-progress 유지 (Epic 3 진입 전 1-1/1-3 close-out 대기).
 last_updated_note: 2026-08-01 — Story 2.3 spec created (bmad-create-story). 2-3: backlog → ready-for-dev. 9 ACs / 7 tasks / 7 sub-task groups. Replaces blanket `ProductImmutableFieldError(field="product_type")` with ref-count-aware guard (BOM parent+child union). 409 PRODUCT_TYPE_HAS_REFERENCES + self-describing audit payload (CR 1.1). 수불 ledger stubbed (Epic 5 fold-in). 409 vs 403 rationale documented. Epic 2 stories: 2-1 done, 2-2 done, 2-3 ready-for-dev.
 last_updated_note: 2026-08-01 — Epic 1 retrospective (lightweight) complete + Epic 3 Story 3.1 spec created. Epic 1 회고 §6 (Epic 3 의존성) + §7 (A1+A2+A4) 모두 Story 3.1 본문에 명시 처리. 3-1: backlog → ready-for-dev. epic-3: backlog 유지 (3-1 dev-story 시작 후 in-progress). Story 3.1: 6 ACs / 7 tasks / 32+ subtasks. m2_input 모듈 신설 + monthly_input_periods/rows 테이블 (AD-23 4-namespace) + MONTHLY_INPUT_PRODUCTION capability (제조만). 노란 점/일자별 토글/FTE read-only display hooks (Story 3.2/3.3 additive). 6 Open Questions with cj-style defaults.
@@ -153,7 +154,7 @@ action_items:
   # ==========================================
   epic-3: in-progress
   3-1-six-stream-monthly-input-ui-month-total-default: done
-  3-2-fte-conversion-daily-labor: backlog
+  3-2-fte-conversion-daily-labor: ready-for-dev
   3-3-negative-inventory-overcapacity-real-time-warning: backlog
   epic-3-retrospective: optional
 
