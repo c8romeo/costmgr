@@ -1,8 +1,15 @@
-"""apps.api.modules.m1_baseline.services.product_service — product catalog CRUD (Story 2.1).
+"""apps.api.modules.m1_baseline.services.product_service — product catalog CRUD (Story 2.1 + Story 2.3).
 
 Writes/reads on the ``products`` table (PRD §8.M1). All state-changing
 operations write a typed ``audit_logs`` row BEFORE the data write (AD-2).
 Hard delete is forbidden — soft-delete via ``is_active`` (AC #5).
+
+Story 2.3 adds the **type-change integrity guard** (PRD §6.1):
+``product_type`` is now **conditionally** immutable — changing it requires
+that the product has zero references in `bom_lines` (parent + child union).
+The 수불 (inventory ledger) reference count is a stub returning 0 until
+Epic 5 / Story 5.2 lands. ``code`` remains **strictly** immutable (AD-18
+single product identity).
 
 Layering (AD-1 / AD-11):
 - Pure helpers live in ``packages/services/m1_baseline/``.
@@ -35,12 +42,12 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Final
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit import emit_audit
-from apps.api.core.db_models import Product
+from apps.api.core.db_models import BOMLine, Product
 from apps.api.modules.m1_baseline.schemas import (
     ProductCreateRequest,
     ProductUpdateRequest,
@@ -52,6 +59,11 @@ from packages.services.m1_baseline.product_code import (
     generate_next_code,
     is_valid_code_format,
     parse_code,
+)
+from packages.services.m1_baseline.product_references import (
+    count_bom_references,
+    count_ledger_references,
+    total_references,
 )
 from packages.services.m1_baseline.schemas import (
     ProductType,
@@ -102,11 +114,12 @@ class ProductCodeDuplicateError(Exception):
 
 
 class ProductImmutableFieldError(Exception):
-    """403 PRODUCT_IMMUTABLE_FIELD — attempt to change `code` or `product_type` via PATCH.
+    """403 PRODUCT_IMMUTABLE_FIELD — attempt to change `code` via PATCH.
 
-    Both fields are immutable after creation:
-    - `code` change = BOM/ledger drift (AD-18 single product identity)
-    - `product_type` change = Story 2.3 integrity guard territory
+    **Story 2.3**: ``product_type`` was REMOVED from this error class.
+    Type changes are now handled by ``ProductTypeHasReferencesError``
+    (409 Conflict) when references exist. Only ``code`` remains strictly
+    immutable here — AD-18 single product identity invariant.
     """
 
     def __init__(
@@ -117,6 +130,66 @@ class ProductImmutableFieldError(Exception):
     ) -> None:
         super().__init__(f"field {field!r} is immutable after creation")
         self.field = field
+        self.trace_id = trace_id
+
+
+class ProductTypeHasReferencesError(Exception):
+    """409 PRODUCT_TYPE_HAS_REFERENCES — type change attempted while product is referenced.
+
+    Story 2.3 / PRD §6.1 — the type-change integrity guard. The product
+    is referenced in `bom_lines` (parent + child union) and/or (future)
+    `inventory_ledger` rows. The user must create a new product with the
+    desired type, migrate references, then delete the old one.
+
+    Attributes:
+        product_id: The product whose type change was attempted.
+        requested_type: The new type the user wanted.
+        bom_count: Number of `bom_lines` referencing this product (parent + child).
+        ledger_count: Number of `inventory_ledger` rows referencing this product
+            (always 0 until Epic 5 / Story 5.2).
+        total_count: ``bom_count + ledger_count``. If > 0, the change is rejected.
+        trace_id: Request trace ID for the AD-15 §4 envelope.
+    """
+
+    def __init__(
+        self,
+        *,
+        product_id: uuid.UUID,
+        requested_type: ProductType,
+        bom_count: int,
+        ledger_count: int,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"product {product_id!s} has {bom_count} BOM + {ledger_count} ledger "
+            f"references — type change to {requested_type.value!r} rejected"
+        )
+        self.product_id = product_id
+        self.requested_type = requested_type
+        self.bom_count = bom_count
+        self.ledger_count = ledger_count
+        self.total_count = bom_count + ledger_count
+        self.trace_id = trace_id
+
+
+class InvalidProductTypeError(Exception):
+    """422 INVALID_PRODUCT_TYPE — explicit `null` in PATCH body cannot clear type.
+
+    P5 (post-review): the schema accepts `product_type: ProductType | None`
+    (omit = no change) but an explicit `null` value is meaningless — every
+    product must have a type, and the type-change flow already handles
+    actual transitions. Reject with a typed 422 instead of silently
+    ignoring (the previous behavior masked caller bugs).
+    """
+
+    def __init__(
+        self,
+        *,
+        reason: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(f"invalid product_type value (reason={reason!r})")
+        self.reason = reason
         self.trace_id = trace_id
 
 
@@ -400,11 +473,40 @@ class ProductService:
     ) -> Product:
         """Partial update with audit-first + immutable-field guards.
 
-        Per AC #4: `code` and `product_type` are immutable. Attempting to
-        set them via PATCH raises ProductImmutableFieldError (403).
+        Per AC #4 (Story 2.1): ``code`` is **strictly** immutable — any
+        attempt to PATCH it raises ``ProductImmutableFieldError`` (403
+        PRODUCT_IMMUTABLE_FIELD).
 
-        Per CR 1.1 lesson: payload is `{changed_fields, before, after}` map.
+        Per Story 2.3 / PRD §6.1: ``product_type`` is **conditionally**
+        immutable. The change is allowed iff the product has zero BOM
+        references (parent + child union). If references exist, the
+        request is rejected with ``ProductTypeHasReferencesError``
+        (409 PRODUCT_TYPE_HAS_REFERENCES). The 수불 (inventory ledger)
+        reference count is a stub returning 0 until Epic 5 / Story 5.2.
+
+        Per AC #9 (idempotent no-op): same-type PATCH is a no-op — no
+        audit row, no BOM count query.
+
+        Per CR 1.1 lesson: payload is ``{changed_fields, before, after}``
+        map; the audit row is self-describing.
+
+        Per AC #8 (atomic mixed-field PATCH): when ``product_type`` AND
+        another field change in the same PATCH, ONE audit row covers all
+        changes; ``changed_fields`` lists both.
         """
+        # Story 2.3 / D2 — TOCTOU race guard. Take an advisory lock keyed
+        # on (tenant_id, product_id) BEFORE counting references. This
+        # serializes any concurrent BOM PUT that might INSERT a new line
+        # referencing this product. Released automatically at tx commit.
+        # Cheap (single hashtext + pg_advisory_xact_lock call, ~1ms).
+        lock_key = uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"product-type-change:{tenant_id}:{product_id}",
+        )
+        await self.session.execute(
+            select(func.pg_advisory_xact_lock(int(lock_key.int >> 96)))
+        )
+
         # Lock + load.
         load_stmt = (
             select(Product)
@@ -423,14 +525,49 @@ class ProductService:
                 trace_id=self.trace_id,
             )
 
-        # Reject any attempt to PATCH `code` or `product_type`. The
-        # `model_dump(exclude_unset=True)` shows only what the caller
+        # Reject any attempt to PATCH `code` (strictly immutable).
+        # The `model_dump(exclude_unset=True)` shows only what the caller
         # actually sent (Pydantic partial-update semantics).
         sent = body.model_dump(exclude_unset=True)
         if "code" in sent:
             raise ProductImmutableFieldError(field="code", trace_id=self.trace_id)
+
+        # Story 2.3 / AC #1-#4 / #9 — type-change integrity guard.
+        # `product_type` is conditionally mutable: allowed only when
+        # BOM + ledger references total = 0. Same-type PATCH is a no-op.
+        type_changed = False
+        old_type_value: str | None = None
         if "product_type" in sent:
-            raise ProductImmutableFieldError(field="product_type", trace_id=self.trace_id)
+            new_type = body.product_type
+            # P5 (post-review): explicit null in the PATCH body is a
+            # caller bug — the schema is `ProductType | None = None`
+            # (omit = no change) but an explicit `null` value cannot
+            # clear the type (every product must have one). Reject with
+            # a typed `InvalidProductTypeError` (422 INVALID_PRODUCT_TYPE).
+            if new_type is None:
+                raise InvalidProductTypeError(
+                    reason="null",
+                    trace_id=self.trace_id,
+                )
+            if new_type.value != row.product_type:
+                # Different type → run the integrity guard.
+                bom_count, ledger_count = await self._count_product_references(
+                    tenant_id=tenant_id, product_id=row.id
+                )
+                total = total_references(bom_count, ledger_count)
+                if total > 0:
+                    # Reject — references block the change.
+                    raise ProductTypeHasReferencesError(
+                        product_id=row.id,
+                        requested_type=new_type,
+                        bom_count=bom_count,
+                        ledger_count=ledger_count,
+                        trace_id=self.trace_id,
+                    )
+                # Reference count = 0 → allow the change.
+                old_type_value = row.product_type
+                row.product_type = new_type.value
+                type_changed = True
 
         # Compute before/after for changed fields (CR 1.1 self-describing payload).
         # M5: `is_active` is intentionally excluded — soft-delete toggle has a
@@ -450,6 +587,14 @@ class ProductService:
                     after[field] = _serializable(new_value)
                 setattr(row, field, new_value)
 
+        # If product_type actually changed, append it to the changed_fields
+        # / before / after snapshots (AC #8 — single audit row covers both).
+        if type_changed and old_type_value is not None:
+            new_type_value = row.product_type
+            changed_fields.append("product_type")
+            before["product_type"] = old_type_value
+            after["product_type"] = new_type_value
+
         # CR 1.1 lesson: idempotent no-op audit skip is fine when no fields
         # actually changed. The initial-write case (where stored was null)
         # would always set changed_fields for the populated fields, so the
@@ -459,11 +604,22 @@ class ProductService:
 
         row.updated_at = datetime.now(tz=UTC)
 
+        # P1 (post-review): audit action branches on whether the PATCH
+        # was type-only or mixed. AC #2 / AC #8 require:
+        # - type-only PATCH → action='product_type_changed'
+        # - mixed PATCH (type + other fields) → action='product_updated'
+        #   with changed_fields including 'product_type'
+        audit_action = (
+            "product_type_changed"
+            if (type_changed and len(changed_fields) == 1)
+            else "product_updated"
+        )
+
         # Audit-first.
         await emit_audit(
             self.session,
             actor_id=actor_id,
-            action="product_updated",
+            action=audit_action,
             target_table="products",
             target_id=row.id,
             reason=None,
@@ -589,6 +745,61 @@ class ProductService:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def _count_product_references(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        product_id: uuid.UUID,
+    ) -> tuple[int, int]:
+        """Count BOM references and ledger references for the product.
+
+        Story 2.3 / PRD §6.1 — type-change integrity guard.
+
+        Returns:
+            ``(bom_count, ledger_count)`` tuple. The arithmetic that
+            combines them lives in ``packages.services.m1_baseline.
+            product_references.total_references``.
+
+        BOM side (real):
+            Single OR-merged `SELECT COUNT(*)` query — mirrors
+            `BOM_REFERENCE_QUERY` constant in `product_references.py`.
+            Uses the existing indexes from migration 0007:
+            - `idx_bom_lines_tenant_parent(tenant_id, parent_product_id, created_at)`
+            - `idx_bom_lines_tenant_child(tenant_id, child_product_id)`
+            Postgres plans this as an `IndexOr` (BitmapOr of two
+            index scans), giving the same result as two separate queries
+            in one round-trip — atomic snapshot at this transaction.
+
+        Ledger side (stub):
+            The `inventory_ledger` table is deferred to Epic 5 / Story 5.2.
+            ``count_ledger_references()`` returns 0 always. The Epic 5
+            developer adds kwargs + a real query here:
+                stmt = select(func.count(InventoryLedger.id)).where(
+                    InventoryLedger.tenant_id == tenant_id,
+                    InventoryLedger.product_id == product_id,
+                )
+            No other change is needed (the pure helper stays the same).
+
+        TODO(epic-5): REPLACE_LEDGER_STUB — swap the ledger_count for a real Query.
+        """
+        if tenant_id is None:
+            raise ValueError(
+                "tenant_id must not be None (AD-3 RLS pre-flight — caller bug)"
+            )
+        # BOM side — single OR-merged query. Mirrors BOM_REFERENCE_QUERY.
+        stmt = select(func.count(BOMLine.id)).where(
+            BOMLine.tenant_id == tenant_id,
+            or_(
+                BOMLine.parent_product_id == product_id,
+                BOMLine.child_product_id == product_id,
+            ),
+        )
+        bom_count = int((await self.session.execute(stmt)).scalar_one())
+
+        # Pure helper consolidates the arithmetic + raises on negative inputs.
+        ledger_count = count_ledger_references()  # Epic 5 stub → 0
+        return bom_count, ledger_count
 
 
 # ── Module-level helpers ─────────────────────────────────────

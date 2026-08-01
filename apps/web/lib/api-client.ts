@@ -366,7 +366,7 @@ export async function fetchCompletionStatus(
   return data;
 }
 
-// ── Story 2.1 — Product / Item Master ─────────────────────────
+// ── Story 2.1 / Story 2.3 — Product / Item Master ─────────────
 //
 // Wire shape mirrors `apps/api/modules/m1_baseline/schemas.py`:
 // - ProductType (5 values: product | semi_product | material | goods | service)
@@ -375,6 +375,15 @@ export async function fetchCompletionStatus(
 // `unit_cost_krw` arrives as a JSON string (the API serializes BIGINT to
 // decimal-safe string per AD-15). The list/response layer leaves it as
 // string so the formatters in `lib/money.ts` can decode + display.
+//
+// Story 2.3 (PRD §6.1 — item type change integrity guard):
+//   - PATCH `product_type` is CONDITIONAL: allowed iff BOM + ledger
+//     references = 0. Otherwise the API returns
+//     409 PRODUCT_TYPE_HAS_REFERENCES. `code` remains strictly immutable.
+//   - `product_type` is now part of the PATCH body shape (was previously
+//     not editable from the client — `code` is still NOT in the request).
+//   - 409 envelope `details` carry `bom_count` + `ledger_count` +
+//     `total_count` so the matrix UI can guide the user.
 
 export type ProductType =
   | "product"
@@ -420,6 +429,12 @@ export interface ProductUpdateRequest {
   unit_cost_usd?: string | null;
   description?: string | null;
   is_active?: boolean;
+  /** Story 2.3 — type change is conditional (refs == 0). Server returns
+   *  409 PRODUCT_TYPE_HAS_REFERENCES when BOM/ledger refs > 0.
+   *  P5 (post-review): server-side schema treats explicit `null` as
+   *  INVALID_PRODUCT_TYPE (422). Omit the field to leave unchanged.
+   *  AD-18: identifier is intentionally absent from this shape. */
+  product_type?: ProductType;
 }
 
 export interface ProductListQuery {
@@ -492,4 +507,86 @@ export async function updateProduct(
     accessToken,
   );
   return data;
+}
+
+// ── Story 2.2 — BOM Matrix (PRD §8.M1(b)) ──────────────────────
+//
+// Wire shape mirrors `apps/api/modules/m1_baseline/schemas.py`:
+// - BOMRowInput: child_product_id + ratio (Decimal as string per AD-15)
+// - BOMSetRequest: lines: BOMRowInput[] (max 500, bulk-replace)
+// - BOMResponse: parent metadata + lines + derived total_ratio / is_complete
+//
+// `ratio` is delivered as a JSON string (Pydantic serializes Decimal to
+// string). The matrix UI parses it via `decimal.js` for arithmetic.
+
+export interface BOMRowInput {
+  child_product_id: string;
+  /** Ratio (%). NUMERIC(7,4). Wire format: string. */
+  ratio: string;
+}
+
+export interface BOMSetRequest {
+  lines: BOMRowInput[];
+}
+
+export interface BOMLineResponse {
+  id: string;
+  child_product_id: string;
+  child_code: string;
+  child_name: string;
+  child_product_type: ProductType;
+  child_is_active: boolean;
+  /** Ratio (%). Wire format: string. */
+  ratio: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BOMResponse {
+  parent_product_id: string;
+  parent_code: string;
+  parent_name: string;
+  parent_product_type: ProductType;
+  parent_is_active: boolean;
+  lines: BOMLineResponse[];
+  total_ratio: string;
+  is_complete: boolean;
+  missing_ratio: string;
+  updated_at: string | null;
+}
+
+export async function fetchBom(
+  productId: string,
+  accessToken?: string,
+): Promise<BOMResponse> {
+  const { data } = await request<BOMResponse>(
+    `/api/v1/baseline/products/${productId}/bom`,
+    { method: "GET" },
+    accessToken,
+  );
+  return data;
+}
+
+export async function setBom(
+  productId: string,
+  body: BOMSetRequest,
+  accessToken?: string,
+): Promise<BOMResponse> {
+  const { data } = await request<BOMResponse>(
+    `/api/v1/baseline/products/${productId}/bom`,
+    { method: "PUT", body: JSON.stringify(body) },
+    accessToken,
+  );
+  return data;
+}
+
+export async function clearBom(
+  productId: string,
+  accessToken?: string,
+): Promise<void> {
+  await request<null>(
+    `/api/v1/baseline/products/${productId}/bom`,
+    { method: "DELETE" },
+    accessToken,
+  );
 }

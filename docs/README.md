@@ -16,6 +16,12 @@
 - [`onboarding-schema.md`](./onboarding-schema.md) — `tenant_settings.onboarding` JSONB 스키마 + 검증 함수.
 - [`PRD-외부-링크.md`](./PRD-외부-링크.md) — Story 1.2 인계용 PRD 매핑 인덱스.
 
+## M1 Baseline — Product / Item Master & BOM (Epic 2 / M1)
+
+- [`product-item-master.md`](./product-item-master.md) — Story 2.1. 5종 product_type + 코드 자동생성 + capability gate.
+- [`bom-matrix.md`](./bom-matrix.md) — Story 2.2. BOM 비중 합 100% invariant + bulk-replace PUT + 모품목/자품목 type rules.
+- [`item-type-change.md`](./item-type-change.md) — **Story 2.3 (2026-08-01)**. 품목 유형 변경 무결성 가드 — `product_type` 변경 시 BOM·수불 참조 0건 검증, 참조 존재 시 **409 PRODUCT_TYPE_HAS_REFERENCES** (RFC 7231 §6.5.8 상태 충돌). `code`는 여전히 403 PRODUCT_IMMUTABLE_FIELD (AD-18). Epic 5 수불 stub 마커 포함.
+
 ## Architecture Decisions
 
 - [`STACK_PIN.md`](./STACK_PIN.md) — AD-14 스택 핀 정책 + 현재 핀 표 (single source of truth)

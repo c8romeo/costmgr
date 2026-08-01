@@ -23,7 +23,7 @@ AD binds enforced here:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Final
+from typing import Final, FrozenSet
 
 
 class ProductType(str, Enum):
@@ -93,3 +93,52 @@ def prefix_to_type(prefix: str) -> ProductType:
 def type_to_prefix(product_type: ProductType) -> str:
     """Return the 3-letter code prefix for the given type."""
     return PRODUCT_TYPE_PREFIX[product_type]
+
+
+# ── BOM type rules (PRD §6.1(1) + §8.M1(b)) ────────────────────
+# Story 2.2 — which product types can be a BOM parent, and which can be a
+# BOM child. Mirrored on the TS side via `apps/web/lib/bom-validation.ts`
+# (drift-checked by `tests/integration/test_bom_validation_consistency.py`).
+#
+# Per PRD §6.1(1) — only `material` (and `semi_product` for multi-level
+# rollups) participate as BOM children. `product`, `goods`, `service` have
+# no sub-components.
+#
+# Per PRD §6.1 — `material` / `goods` / `service` cannot be BOM parents
+# (`material` is the BOM leaf, `goods` is trade-merchandise with no BOM,
+# `service` is an ABC cost object). Only `product` and `semi_product`
+# can be parents.
+#
+# These sets are **service-layer enforcement** — the database has no CHECK
+# constraint on these (a DB-level check would require a trigger that
+# JOINs to `products`, which is impractical). The service is the source
+# of truth.
+BOMParentType: Final[FrozenSet[ProductType]] = frozenset(
+    {
+        ProductType.PRODUCT,
+        ProductType.SEMI_PRODUCT,
+    }
+)
+
+BOMChildType: Final[FrozenSet[ProductType]] = frozenset(
+    {
+        ProductType.MATERIAL,
+        ProductType.SEMI_PRODUCT,
+    }
+)
+
+
+def is_valid_bom_parent(product_type: ProductType) -> bool:
+    """Pure helper: can `product_type` be a BOM parent?
+
+    Mirrors Story 2.2 AC #6 — only `product` and `semi_product`.
+    """
+    return product_type in BOMParentType
+
+
+def is_valid_bom_child(product_type: ProductType) -> bool:
+    """Pure helper: can `product_type` be a BOM child?
+
+    Mirrors Story 2.2 AC #5 — only `material` and `semi_product`.
+    """
+    return product_type in BOMChildType

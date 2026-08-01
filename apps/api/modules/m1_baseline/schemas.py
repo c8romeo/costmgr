@@ -56,6 +56,11 @@ __all__ = [
     "ProductUpdateRequest",
     "ProductResponse",
     "ProductListResponse",
+    # Story 2.2 — BOM schemas
+    "BOMRowInput",
+    "BOMSetRequest",
+    "BOMLineResponse",
+    "BOMResponse",
 ]
 
 
@@ -215,9 +220,15 @@ class ProductUpdateRequest(BaseModel):
         max_length=20,
         description="Immutable. Service rejects with 403 PRODUCT_IMMUTABLE_FIELD.",
     )
+    # Story 2.3 / P5 (post-review): `product_type` is **conditionally**
+    # mutable (allowed iff BOM+ledger references = 0). The schema stays
+    # optional so partial-update semantics work (omit = no change), but
+    # an explicit `null` value is rejected by the service layer with
+    # a typed `InvalidProductTypeError` (422 INVALID_PRODUCT_TYPE).
+    # Cannot "clear" the type — every product must have one.
     product_type: ProductType | None = Field(
         default=None,
-        description="Immutable. Service rejects with 403 PRODUCT_IMMUTABLE_FIELD.",
+        description="품목 유형 (omit = 변경 없음). null 명시 시 INVALID_PRODUCT_TYPE (422).",
     )
 
 
@@ -247,3 +258,111 @@ class ProductListResponse(BaseModel):
 
     items: list[ProductResponse]
     total: int = Field(..., ge=0, description="Total rows matching the filter (pre-pagination).")
+
+
+# ── BOM schemas (Story 2.2 — Task 3.3) ────────────────────────
+# Mirror `packages.services.m1_baseline.bom_validation` (pure) for the
+# wire boundary. Pydantic v2 enforces NUMERIC(7,4) precision here, before
+# the service layer runs `quantize_ratio` as defense-in-depth.
+
+
+class BOMRowInput(BaseModel):
+    """A single BOM row in the PUT payload (AC #2/AC #8).
+
+    `ratio` is `NUMERIC(7,4)` — 4 decimal places, max 100.0000, min
+    0.0001 (Pydantic `gt=0, le=100` + `max_digits=7, decimal_places=4`).
+    The Pydantic constraints surface 422 BOM_INVALID_RATIO BEFORE the
+    service runs. The service still calls `quantize_ratio` on the value
+    as defense-in-depth (Story 0.4 chunk-B Decimal.set parity).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    child_product_id: UUID = Field(
+        ...,
+        description="자식 품목 UUID (PRD §6.1 — material 또는 semi_product 만 허용).",
+    )
+    ratio: Decimal = Field(
+        ...,
+        gt=Decimal("0"),
+        le=Decimal("100"),
+        max_digits=7,
+        decimal_places=4,
+        description="비중 (%). NUMERIC(7,4) — 4 decimal places, max 100.0000.",
+    )
+
+
+class BOMSetRequest(BaseModel):
+    """Body of PUT /api/v1/baseline/products/{product_id}/bom (AC #2).
+
+    Bulk-replace semantics: the entire BOM is replaced atomically.
+    - `lines=[]` is allowed (empty BOM, `is_complete=false`).
+    - Max 500 rows per BOM (PRD §8.M1 sanity cap; real BOMs are 10-30 rows).
+    - Duplicate `child_product_id` → 422 BOM_DUPLICATE_CHILD (service-level).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # L3 (Review): named constant for TS/Python parity. Drift-checked by
+    # `tests/integration/test_bom_validation_consistency.py` (mirror suite).
+    MAX_BOM_ROWS: int = 500
+
+    lines: list[BOMRowInput] = Field(
+        default_factory=list,
+        max_length=MAX_BOM_ROWS,
+        description="BOM 행 배열 (max 500). 빈 배열은 빈 BOM (sum=0%, is_complete=false).",
+    )
+
+
+class BOMLineResponse(BaseModel):
+    """A single BOM row in the GET/PUT response (AC #1).
+
+    Carries child metadata denormalized (code/name/product_type/is_active)
+    so the matrix UI doesn't need a separate JOIN. `child_is_active=false`
+    is shown with a muted "(비활성)" overlay (AC #9).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID = Field(..., description="BOM 행 UUID v7.")
+    child_product_id: UUID
+    child_code: str
+    child_name: str
+    child_product_type: ProductType
+    child_is_active: bool
+    ratio: Decimal
+    created_at: datetime
+    updated_at: datetime
+
+
+class BOMResponse(BaseModel):
+    """Body of GET / PUT / DELETE /api/v1/baseline/products/{product_id}/bom (AC #1).
+
+    `is_complete` is a **derived** flag — computed at read time as
+    `sum_ratios(lines) == TARGET_TOTAL`. The DB does NOT store it
+    (CR 2.1 lesson: derived values invite drift).
+
+    `missing_ratio` is `max(100 - total_ratio, 0)` — the "{missing}% 부족"
+    UX message. Clamped at zero (over-100 still reports 0).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    parent_product_id: UUID
+    parent_code: str
+    parent_name: str
+    parent_product_type: ProductType
+    parent_is_active: bool
+    lines: list[BOMLineResponse]
+    total_ratio: Decimal = Field(
+        ..., description="비중 합계 (NUMERIC(7,4) precision)."
+    )
+    is_complete: bool = Field(
+        ...,
+        description="A6 invariant — True iff total_ratio == Decimal('100.0000').",
+    )
+    missing_ratio: Decimal = Field(
+        ...,
+        description="100 - total_ratio (clamped at 0). UI '{missing}% 부족' 표시용.",
+    )
+    updated_at: datetime | None

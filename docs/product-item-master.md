@@ -1,9 +1,10 @@
-# costmgr Product / Item Master (M1 — Story 2.1)
+# costmgr Product / Item Master (M1 — Story 2.1 + 2.3)
 
-> **소속**: Epic 2 / Story 2.1
-> **최종 갱신**: 2026-07-31
-> **PRD 참조**: §8.M1 (기준정보/품목) · §3.A2 (회계 단위 일치) · §4.1 (업종 4지선다)
+> **소속**: Epic 2 / Story 2.1 (CRUD) + Story 2.3 (type change guard)
+> **최종 갱신**: 2026-08-01 (Story 2.3 close-out)
+> **PRD 참조**: §6.1 (변경 가능 필드) · §8.M1 (기준정보/품목) · §8.M1(b) (BOM) · §3.A2 · §4.1
 > **UX locked-decisions**: Dark MVP · WCAG AA · Professional 톤 · ko-KR (NFR-18)
+> **관련 문서**: [`item-type-change.md`](./item-type-change.md) — 409 가드, [`bom-matrix.md`](./bom-matrix.md) — BOM 행렬, [`conventions.md`](./conventions.md)
 
 우리 회사 카탈로그(제품·반제품·원자재·상품·서비스)를 한 화면에서 등록·조회·수정·비활성화하는 화면과 API.
 각 유형은 다른 색 배지로 구분되며, 코드는 **테넌트당·유형당 독립적인 시퀀스**로 자동 생성된다.
@@ -280,10 +281,14 @@ HTTP/1.1 403 Forbidden
 
 ## 8. 후속 스토리 (참조)
 
-- **Story 2.2** BOM Matrix — `product_type IN ('material','semi_product')` 행을 BOM 자식으로 투입.
-  `products.id` (UUID v7) 로 FK. 코드 변경 불가 (AC #4) 가 BOM referential drift를 차단.
-- **Story 2.3** Item Type Change Integrity Guard — `product_type` 변경 시 BOM / 수불부
-  / 비용 계산 참조 일관성 검사. 현재는 403 PRODUCT_IMMUTABLE_FIELD로 차단.
+- ~~**Story 2.2** BOM Matrix — `product_type IN ('material','semi_product')` 행을 BOM 자식으로 투입.~~
+  `products.id` (UUID v7) 로 FK. **코드 변경 불가 (AC #4) 가 BOM referential drift를 차단.**
+  → **DONE 2026-08-01** — [`docs/bom-matrix.md`](./bom-matrix.md) 참조. `bom_lines` 테이블 + bulk-replace PUT + 100% invariant.
+- ~~**Story 2.3** Item Type Change Integrity Guard — `product_type` 변경 시 BOM·수불
+  참조 0건임을 검증하고, 참조가 있으면 409 PRODUCT_TYPE_HAS_REFERENCES로 거부.
+  `code`는 여전히 403 PRODUCT_IMMUTABLE_FIELD로 차단 (AD-18).~~
+  → **DONE 2026-08-01** — [`docs/item-type-change.md`](./item-type-change.md) 참조. `bom_lines` UNION 쿼리
+  (parent + child 양쪽) + Epic 5 수불 stub. UI는 edit 모드에서 type 라디오 그리드 활성.
 - **Story 3.x** Epic 3 M2 Input — `is_active=true` AND `product_type IN ('material','semi_product','product')`
-  행을 계산 입력 드롭다운에 노출 (F-44 / A11 CCR).
+  행을 계산 입력 드롭다운에 노출 (F-44 / A11 CCR). BOM `is_complete=true` 면 [계산] 버튼 enable.
 - **Story 6.1** Report Library — `products.id` 가 보고서 dimension으로 등장.

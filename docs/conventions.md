@@ -82,6 +82,57 @@
 - `code` / `product_type` 은 생성 후 immutable (AC #4 — BOM·수불부 FK 보존).
 - TS mirror의 드리프트는 `tests/integration/test_product_type_consistency.py`로 강제 차단.
 
+### §0.6 BOM Parent/Child Type Rules (PRD §6.1 — Story 2.2)
+
+BOM 행렬은 `packages/services/m1_baseline/schemas.py::BOMParentType` /
+`BOMChildType` frozenset (단일 진실 공급원) 으로 강제된다. TS mirror는
+`apps/web/lib/bom-validation.ts::BOMParentTypes` / `BOMChildTypes`. 두 곳 모두
+정적 const set 이라 변경하면 빌드 단계에서 컴파일 에러로 드러난다.
+
+| 역할 | 허용 `product_type` | 비고 |
+|---|---|---|
+| BOM parent (모품목) | `product`, `semi_product` | 최종 제품 / BOM 중간 단계만. `material`/`goods`/`service` 는 422 `BOM_INVALID_PARENT_TYPE` |
+| BOM child (자품목) | `material`, `semi_product` | BOM 의 최하위 투입 요소 / 중간 단계. `product`/`goods`/`service` 는 422 `BOM_INVALID_CHILD_TYPE` |
+
+`BOMParentType` / `BOMChildType` frozenset 자체에는 derived 검사만 포함된다.
+**TS mirror의 드리프트는 `tests/integration/test_bom_validation_consistency.py` 로 강제 차단**
+(13 tests — Story 2.2 T6.5).
+
+자세한 도메인 의미: `docs/bom-matrix.md`.
+
+### §0.7 품목 유형 변경 — 참조 검증 (PRD §6.1 — Story 2.3)
+
+`product_type`은 변경 가능하지만 **조건부**: BOM + 수불 참조 0건일 때만 허용. 참조가 1건이라도 있으면
+PATCH는 409 PRODUCT_TYPE_HAS_REFERENCES로 거부된다 (RFC 7231 §6.5.8 — state conflict).
+
+**엄격한 의미의 immutable**: `code`만. (AD-18 `ProductImmutableFieldError` → 403 PRODUCT_IMMUTABLE_FIELD)
+
+**조건부 가변**: `product_type`. 검증은 service 레이어에서:
+
+```python
+bom_count = (SELECT COUNT(*) FROM bom_lines
+              WHERE tenant_id = :tenant_id
+                AND (parent_product_id = :product_id OR child_product_id = :product_id))
+ledger_count = 0  # Epic 5 stub — packages.services.m1_baseline.product_references.LEDGER_REFERENCE_QUERY_STUB
+if (bom_count + ledger_count) > 0:
+    raise ProductTypeHasReferencesError(...)  # 409 envelope w/ counts in details
+```
+
+pure helper는 `packages/services/m1_baseline/product_references.py`에 위치
+(AD-5 stdlib-only). 단일 진실 공급원:
+- `BOM_REFERENCE_QUERY: Final[str]` (bind-param SQL)
+- `LEDGER_REFERENCE_QUERY_STUB: Final[str] = ""` (Epic 5 fold-in marker)
+- `count_bom_references` / `count_ledger_references` / `total_references` / `hash_references`
+
+TS 와이어 형식 (`apps/web/lib/api-client.ts::ProductUpdateRequest`)도 `product_type?` 옵셔널
+필드를 노출해 PATCH body에 포함시킬 수 있도록 한다 — 핸들러가 가드.
+
+드리프트 차단 (Story 2.3 T4.1): `tests/integration/test_product_type_change_consistency.py`
+(8 tests) — handlers.py가 409 emit, TS `ProductUpdateRequest`가 `product_type?` 노출,
+schema stable field set을 핀 고정.
+
+자세한 도메인 의미: `docs/item-type-change.md`.
+
 ---
 
 ## §1 Naming
@@ -235,6 +286,32 @@ formatKRW(krw);                              // "1,500,000원"
 - **CHECK `>= 0`** — 음수 단가 거부. 0은 허용 (무료 원자재 / 시식용 반제품).
 - **TS wire shape** — JSON.stringify가 BigInt를 직접 직렬화하지 못해 `string`으로 보낸다. 클라이언트는 `BigInt(value)` 로 복원.
 - 자세한 사용 예시: `docs/product-item-master.md`.
+
+### §5.1 Ratio (AD-8 확장 — Story 2.2)
+
+BOM 행의 `ratio` (비중 %) 는 money 가 아니지만 **Money 와 동일한 정밀도 보장**이 필요하다
+(계산 시 합 100.0000 invariant). 따라서 `NUMERIC(7,4)` + `ROUND_HALF_EVEN`과 동일한
+규약을 따른다.
+
+| 항목 | 값 |
+|---|---|
+| DB 타입 | `NUMERIC(7,4)` (확장 고려: 8,4) |
+| DB CHECK | `0 < ratio <= 100` |
+| Python | `Decimal` (NewType 권장: `NewType("Ratio", Decimal)`) |
+| TypeScript | `string` (decimal.js serialized) |
+| Wire 정규식 | `^\d{1,3}\.\d{4}$` 또는 `^\d{1,3}$` (소수점 0~4자리) |
+| TS mirror | `apps/web/lib/bom-validation.ts` — `quantizeRatio` 가 `Decimal.ROUND_HALF_EVEN` 으로 4자리 truncation |
+
+**절대 금지:**
+- Python: `float` (TS-side) — `Decimal` 만
+- TS: `number` — `string` 만 (JSON 직렬화 보존)
+- 마이그레이션: `sa.Float` — `Numeric(7,4)` 사용
+
+**드리프트 강제:** `tests/integration/test_bom_validation_consistency.py` 의
+`test_sum_ratios_python_matches_ts_quantization` 등이 Python의 `ROUND_HALF_EVEN`과
+TS의 `Decimal.ROUND_HALF_EVEN`이 동일 결과 (`33.33335 → 33.3334`) 임을 검증.
+
+자세한 도메인 의미: `docs/bom-matrix.md#3-100-불변식-a6-axiom-derived-at-read-time`.
 
 ---
 

@@ -16,7 +16,11 @@
 
 import "server-only";
 
-import type { CompletionStatus, ProductListResponse } from "./api-client";
+import type {
+  BOMResponse,
+  CompletionStatus,
+  ProductListResponse,
+} from "./api-client";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8765";
 
@@ -104,6 +108,39 @@ export async function fetchProductsServerSide(
     });
     if (!res.ok) return null;
     const data = (await res.json()) as ProductListResponse;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// ── Story 2.2 — BOM server-side initial fetch ─────────────────
+//
+// Mirrors fetchProductsServerSide. Returns null on any failure so the
+// RSC page can pass the seed through to BOMEditorClient without
+// breaking the render path.
+export async function fetchBomServerSide(
+  productId: string,
+  accessToken: string | undefined,
+  traceId: string,
+): Promise<BOMResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/baseline/products/${productId}/bom`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as BOMResponse;
     return data;
   } catch {
     return null;

@@ -1,7 +1,7 @@
 /**
  * apps/web/components/m1-baseline/products/ProductFormDialog.tsx
  *
- * Story 2.1 — Task 5.4. Create/Edit dialog for a product.
+ * Story 2.1 (Task 5.4) + Story 2.3 (Task 5 — type change in edit mode).
  *
  * UX:
  *   - shadcn Dialog primitive is not yet available (Story 0.5 deferral);
@@ -10,10 +10,19 @@
  *     service industry), code (auto-generated readonly + 수동 입력 toggle),
  *     unit, unit_cost_krw, unit_cost_usd, description.
  *   - On submit: POST or PATCH to /api/v1/baseline/products.
- *   - 409 PRODUCT_CODE_DUPLICATE → toast "이미 존재하는 코드입니다".
- *   - 403 INDUSTRY_NOT_SUPPORTED → toast "서비스 업종에서는 등록할 수 없는 유형입니다".
- *   - 422 INVALID_PRODUCT_CODE → toast "잘못된 코드 형식입니다 (예: MAT-0042)".
- *   - 403 PRODUCT_IMMUTABLE_FIELD → field-specific message.
+ *   - 409 PRODUCT_CODE_DUPLICATE       → toast "이미 존재하는 코드입니다"
+ *   - 403 INDUSTRY_NOT_SUPPORTED       → toast "서비스 업종에서는 등록할 수 없는 유형입니다"
+ *   - 422 INVALID_PRODUCT_CODE         → toast "잘못된 코드 형식입니다 (예: MAT-0042)"
+ *   - 403 PRODUCT_IMMUTABLE_FIELD      → toast for `code` (AD-18)
+ *   - 409 PRODUCT_TYPE_HAS_REFERENCES  → toast w/ BOM/ledger counts (Story 2.3)
+ *   - 404 PRODUCT_NOT_FOUND            → toast w/ reload hint
+ *
+ * Story 2.3 change: the `product_type` radio grid is now editable in edit
+ * mode — PATCH only changes it when the user picks a different type. The
+ * backend enforces a ref-count-aware guard: 0 references → allow, otherwise
+ * 409 PRODUCT_TYPE_HAS_REFERENCES. The previously disabled UI
+ * (`mode === "edit"` short-circuit on the radio) has been removed; the
+ * hint below the grid now reads as the conditional-rejection warning.
  *
  * M1 / F-25: ApiError discrimination via `err.name === "ApiError"`. The
  * F-25 discriminator (set in api-client.ts) survives cross-realm edges
@@ -200,6 +209,17 @@ export function ProductFormDialog({
       // mode === "edit" — PATCH only fields that were edited.
       const body: ProductUpdateRequest = {};
       if (name.trim() !== (product?.name ?? "")) body.name = name.trim();
+      // Story 2.3 — include `product_type` only when the user picked a
+      // different type. The backend enforces the ref-count guard: 0 refs
+      // → 200 PATCH; otherwise 409 PRODUCT_TYPE_HAS_REFERENCES with
+      // `{bom_count, ledger_count, total_count}` in `details`.
+      if (
+        mode === "edit" &&
+        product &&
+        productType !== product.product_type
+      ) {
+        body.product_type = productType;
+      }
       if (unit.trim() !== (product?.unit ?? "")) {
         body.unit = unit.trim() ? unit.trim() : null;
       }
@@ -236,6 +256,33 @@ export function ProductFormDialog({
             setError("잘못된 코드 형식입니다 (예: MAT-0042)");
           } else if (code === "PRODUCT_IMMUTABLE_FIELD") {
             setError("코드는 생성 후 변경할 수 없습니다");
+          } else if (code === "PRODUCT_TYPE_HAS_REFERENCES") {
+            // Story 2.3 — type change blocked by BOM/ledger refs.
+            // P6 (post-review): build the message from the structured
+            // `details` payload so a server-side `message_ko` bug doesn't
+            // surface as empty UI text. Fall back to `message_ko` if
+            // `details` is missing.
+            const details = err.payload.details;
+            if (
+              details &&
+              typeof details.bom_count === "number" &&
+              typeof details.ledger_count === "number"
+            ) {
+              const bomPart = `BOM ${details.bom_count}건에서 참조 중`;
+              const ledgerPart =
+                details.ledger_count > 0
+                  ? ` · 수불 ${details.ledger_count}건`
+                  : "";
+              setError(
+                `${bomPart}${ledgerPart} — 신규 품목 생성 후 참조 이관 후 삭제 (품목 유형은 참조 0건일 때만 변경 가능)`,
+              );
+            } else if (err.payload.message_ko) {
+              setError(err.payload.message_ko);
+            } else {
+              setError(
+                "참조 중인 품목이 있어 유형을 변경할 수 없습니다. 신규 품목 생성 후 참조를 이관해 주세요",
+              );
+            }
           } else if (code === "PRODUCT_NOT_FOUND") {
             setError("품목을 찾을 수 없습니다. 페이지를 새로고침해 주세요");
           } else {
@@ -320,7 +367,11 @@ export function ProductFormDialog({
                   type="button"
                   role="radio"
                   aria-checked={isSelected}
-                  disabled={!isAllowed || (mode === "edit")}
+                  // Story 2.3 — type is editable in edit mode. Industry
+                  // capability still gates `isAllowed` (e.g. service can't
+                  // pick material). The backend enforces the ref-count
+                  // guard at PATCH time (409 PRODUCT_TYPE_HAS_REFERENCES).
+                  disabled={!isAllowed}
                   onClick={() => isAllowed && setProductType(t)}
                   title={
                     isAllowed
@@ -360,7 +411,8 @@ export function ProductFormDialog({
                 fontSize: "0.75rem",
               }}
             >
-              유형은 생성 후 변경할 수 없습니다 (Story 2.3 영역)
+              유형 변경 시 참조 중인 BOM 행렬이 있으면 변경이 거부됩니다
+              (409 PRODUCT_TYPE_HAS_REFERENCES · 참조 0건일 때만 허용)
             </p>
           )}
         </Field>

@@ -55,3 +55,8 @@ GRANT USAGE ON SCHEMA public TO costmgr_test, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public
     TO costmgr_test;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO costmgr_test;
+
+-- Story 2.2 — bom_lines table mirror (mirrors 0006 products pattern).
+-- The shim does not need to mirror the data; it just needs RLS to apply
+-- cleanly. The actual bom_lines rows are seeded by the test fixture
+-- (test_bom_lines_isolation.py::_seed_bom_rows).
