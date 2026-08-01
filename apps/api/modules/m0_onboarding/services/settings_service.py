@@ -374,19 +374,34 @@ class SettingsService:
             )
 
         # ── Step 3: write audit row (BEFORE settings update) ─
-        audit_action = "industry_change_initial" if is_initial_flag else "industry_selected"
+        # AC #1 — first-time selection writes action='industry_selected'.
+        # AC #4 — subsequent change within grace window writes
+        # action='industry_change_initial'.
+        # F-36 — payload `reason` is self-describing (compound action+reason)
+        # so log analytics can distinguish the path without joining tenant_settings.
+        if is_initial_flag:
+            audit_action = "industry_selected"
+            payload_reason = "industry_selected_initial"
+        else:
+            audit_action = "industry_change_initial"
+            payload_reason = "industry_change_within_grace"
         await emit_audit(
             self.session,
             actor_id=actor_id,
             action=audit_action,
             target_table="tenant_settings",
             target_id=tenant_id,
-            reason=decision.reason,
+            reason=payload_reason,
             payload={
                 "industry": target_industry.value,
                 "prev_industry": current_industry.value if current_industry else None,
-                "version": settings_row.settings_version + 1,
-                "reason": decision.reason,
+                # F-36: pre-bump version. Audit row fires BEFORE the UPDATE
+                # below, so `settings_row.settings_version` is still the
+                # previous value here. Recording the pre-bump version makes
+                # the log a complete before/after record without joining
+                # tenant_settings.
+                "version": settings_row.settings_version,
+                "reason": payload_reason,
                 "days_since_selection": days_since,
                 "trace_id": self.trace_id,
             },
@@ -411,8 +426,13 @@ class SettingsService:
 
         await self.session.flush()
 
-        # F-39-resolved: header fires for BOTH `initial` AND `within_grace`.
-        warning_header = decision.reason in ("initial", "within_grace")
+        # Warning header fires only on `within_grace` — a subsequent change
+        # within the 7-day window. First-time onboarding (`initial`) is a
+        # fresh tenant writing for the first time; the frontend does NOT
+        # surface a warning in that case (AC #1 — no warning header in
+        # 200 OK response). The original F-39 resolution ("BOTH initial
+        # AND within_grace") was incorrect per AC #1; corrected here.
+        warning_header = decision.reason == "within_grace"
 
         # F-2 post-write is_initial: True only if this was the very first write.
         post_write_is_initial = current_industry is None

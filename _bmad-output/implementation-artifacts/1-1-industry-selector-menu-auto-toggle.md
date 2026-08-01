@@ -1,10 +1,12 @@
 ---
 baseline_commit: bd58c18
+last_close_commit: ab409bf
+last_close_date: 2026-08-01
 ---
 
 # Story 1.1: Industry Selector + Menu Auto-Toggle
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -513,6 +515,7 @@ Claude Sonnet 4.5 (claude-sonnet-4-5) — BMad `dev-story` 워크플로우 실�
 | 2026-07-29 | Story 1.1 구현 완료 (initial commit). 7-day grace, owner-only role gate, 기초재고 hiding (epics AC), PRD §4.1 라벨 셋, audit-first + SELECT FOR UPDATE, Python↔TS 드리프트 가드, pre-existing `tenant_context.py` dead-code bug 수정. status: in-progress → **review**. | kjw (Claude Sonnet 4.5) |
 | 2026-07-29 | **Code review** (bmad-code-review): 36 actionable findings (14 high · 13 medium · 9 low), 3 decision-needed, 1 defer, 3 dismiss. Decision-needed: warning-header semantic, success-path trace_id, capability enforcement boundary. status: review → **in-progress** (action items open). | kjw (Claude Sonnet 4.5) |
 | 2026-07-29 | **Code review patches applied** (bmad-code-review): all 34 patches applied in batch per PM direction (1). Resolutions: F-39/F-40/F-41 (3 decision-needed) all resolved to option 1. Spec doc fixes (F-24/F-27/F-28/F-29/F-32/F-33/F-35) annotated. Defer items (F-30/F-31/F-32/F-33/F-37) marked with Story 0.5 target. status: in-progress (deferred work still tracked). | kjw (Claude Sonnet 4.5) |
+| 2026-08-01 | **Done-status 검증 중 발견된 결함 4건 수정**: (1) `audit_action` 삼항 반전 (F-36 패치 시점에 `industry_change_initial if is_initial else industry_selected`로 잘못 기재 — AC #1은 first-time → `industry_selected`); (2) payload `reason`을 self-describing compound value로 변경 (`industry_selected_initial` / `industry_change_within_grace`); (3) `version` payload는 pre-bump 값 사용 (audit-first 이므로 +1 적용 전); (4) F-39 warning_header 의미 교정 — `within_grace`만 발화 (AC #1 first-time은 warning header 없음; 원래 F-39의 "BOTH initial AND within_grace"는 AC #1 위반). Test 1은 `first_added.payload["trace_id"]` (F-36이 `first_added.trace_id` 속성 참조했으나 AuditLog 모델에는 trace_id 컬럼 없음 — payload dict에 위치). 44 passed / 2 skipped (DB-backed CI-only) / 4 pre-existing infra failures unrelated. status: in-progress → done. | kjw (Claude Sonnet 4.5) |
 
 ### Review Findings (2026-07-29, bmad-code-review)
 

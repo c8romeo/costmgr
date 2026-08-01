@@ -197,11 +197,12 @@ def test_service_writes_audit_row_before_settings_update() -> None:
         "log is a complete before/after record."
     )
 
-    # F-36: trace_id must propagate from SettingsService into AuditLog
-    # so a support engineer can grep the audit log for the same trace_id
-    # they saw in the HTTP response header.
-    assert first_added.trace_id == "t-audit-first", (
-        "Audit row must inherit trace_id from SettingsService for log "
+    # F-36: trace_id must propagate from SettingsService into the AuditLog
+    # payload so a support engineer can grep the audit log for the same
+    # trace_id they saw in the HTTP response header. The trace_id lives
+    # inside the JSONB payload (AuditLog has no top-level trace_id column).
+    assert first_added.payload.get("trace_id") == "t-audit-first", (
+        "Audit payload must carry trace_id from SettingsService for log "
         "correlation with the HTTP response."
     )
 
@@ -278,7 +279,7 @@ def test_service_allows_change_within_grace_period() -> None:
 
     import asyncio
 
-    _, _, _, _, warning_header = asyncio.run(
+    _, _, _, _, warning_header, _ = asyncio.run(
         service.update_industry(
             tenant_id=tenant_id,
             target_industry=Industry.SERVICE,
@@ -301,7 +302,7 @@ def test_service_no_warning_for_first_selection() -> None:
 
     import asyncio
 
-    _, _, _, _, warning_header = asyncio.run(
+    _, _, _, _, warning_header, _ = asyncio.run(
         service.update_industry(
             tenant_id=tenant_id,
             target_industry=Industry.SERVICE,
