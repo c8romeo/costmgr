@@ -52,7 +52,9 @@
 # - Suggested Sprint 0 = Epic 0+1+2 (10 stories, ~3-4 weeks) for first milestone (사용자 입력 가능 상태)
 
 generated: 2026-07-25
-last_updated: 2026-07-31
+last_updated: 2026-08-01
+last_updated_note: 2026-08-01 — Epic 2 retrospective (lightweight) complete. action_items section appended with 4 items (A1: 1-1 done 마킹 / A2: 1-3 dev-story / A3: capability-matrix 문서 / A4: 0.5 plumbing 재평가). epic-2-retrospective: optional → done. epic-2 in-progress 유지 (Epic 3 진입 전 1-1/1-3 close-out 대기).
+last_updated_note: 2026-08-01 — Story 2.3 spec created (bmad-create-story). 2-3: backlog → ready-for-dev. 9 ACs / 7 tasks / 7 sub-task groups. Replaces blanket `ProductImmutableFieldError(field="product_type")` with ref-count-aware guard (BOM parent+child union). 409 PRODUCT_TYPE_HAS_REFERENCES + self-describing audit payload (CR 1.1). 수불 ledger stubbed (Epic 5 fold-in). 409 vs 403 rationale documented. Epic 2 stories: 2-1 done, 2-2 done, 2-3 ready-for-dev.
 project: costmgr
 project_key: NOKEY
 tracking_system: file-system
@@ -64,6 +66,17 @@ last_updated_note: 2026-07-29 — Story 1.1 → in-progress (post code-review pa
 2026-07-31 Story 2.1 create: bmad-create-story(create) generated `2-1-product-item-master-type-tags.md` (status: ready-for-dev). epic-2 backlog → in-progress (first story). 7 tasks / 7 sub-task groups defined. 6 ACs covering type tags with colored badges (PRD-/MAT-/SEM-/GDS-/SVC- prefixes), auto-generated per-tenant per-type code sequence, uniqueness (409 PRODUCT_CODE_DUPLICATE), audit-first writes, soft-delete, industry-conditional PRODUCT_MATERIAL capability gate. Open Questions 4건 (service catalog scope / goods type / description length / unit enum vs free-text) with cj-style defaults applied.
 2026-07-31 Story 2.1 validate: manual checklist.md validation of `2-1-product-item-master-type-tags.md`. 2 CRITICAL fixed (sonner/decimal.js/tanstack pinning via [STACK BUMP] workflow + installed-vs-spec STACK_PIN.yaml table; CR 0.3 lesson). 2 MEDIUM fixed (CR 0.2/1.1 testing standards + 4 anti-pattern guardrails incl. AD-11 layer rule + FastAPI typed error mapping + audit payload redaction + service_role guard-lint). 3 MINOR carried forward. 4 ENHANCEMENT folded (Open Questions defaults applied). Validation report: `_bmad-output/implementation-artifacts/2-1-product-item-master-type-tags-validation.md`. Story → dev-ready. 5th Open Question added (bump_stack_pin.sh toolchain gap surfaced).
 2026-07-31 Story 2.1 → done: bmad-dev-story execute complete. 7 tasks / 7 sub-task groups closed. 75 Story 2.1 tests pass (services×23 + products typed-exception×23 + capability×22 + cross-lang×7) + 6 RLS collect (skip without CI). 164 total non-DB tests pass + 2 skipped (Story 1.2 DB-backed). Pre-existing failures unchanged: pydantic-core pin drift (Story 0.4 chunk-B), `industry_selected` vs `industry_change_initial` audit action mismatch (Story 1.2), cookies().get() Promise type (Next 15.x vs Story 0.5 plumbing). Story 0.5 plumbing gaps (shadcn/ui, sonner, next-intl, pytest-postgresql, server-side industry fetch) deferred — covered with inline Tailwind/HTML equivalents and pure-logic test contracts. Ready for bmad-code-review.
+2026-08-01 Story 2.1 review patches: bmad-code-review surfaced 27 actionable findings (12 high · 9 medium · 6 low). All 27 patches applied + R6 matrix alignment (industry × type capability). Branch story-1-2-review-patches-2026-07-30 → ab409bf. Review complete; sprint-status reflects `2-1 → done` (final state after review).
+2026-08-01 Story 2.2 create: bmad-create-story(create) generated `2-2-bom-matrix-100-validation.md` (status: ready-for-dev). 7 tasks / 7 sub-task groups defined. 9 ACs covering BOM matrix 100% validation (A6 axiom — SUM(ratio)=100 → [계산] enabled), bulk-replace PUT semantics (CR 2.1 lesson: 100% invariant atomic), industry gate via Capability.BOM (manufacturing/service hybrids only; service tenants 403 INDUSTRY_NOT_SUPPORTED), parent type validation (product/semi_product only), child type validation (material/semi_product only — PRD §6.1), duplicate-child detection (422 typed before UNIQUE violation), ratio precision (NUMERIC(7,4) Decimal ROUND_HALF_EVEN), inactive-child preservation (BOM history), RLS-scoped append-only-leaning mutations. No new stack pins required — reuses Story 2.1 tools (TanStack, shadcn Dialog, Pydantic v2). baseline_commit = ab409bf. Open Questions 6건 (BOM versioning / inactive parent writes / rounding mode / empty BOM / max size 500 / concurrent PUT race) with cj-style defaults applied. Ready for bmad-dev-story.
+2026-08-01 Story 2.2 → in-progress: bmad-dev-story kicked off. baseline_commit preserved (ab409bf). 7 tasks T1-T7 to implement (T1 pure validators → T7 docs).
+2026-08-01 Story 2.2 → review: bmad-dev-story execute complete. 7 tasks / 7 sub-task groups closed. 72 Story 2.2 tests passing in 4.74s (35 pure + 24 typed-contract + 13 cross-lang); 5 RLS tests skip-gated for CI. T8 docs (`docs/bom-matrix.md` new + §0.6/§5.1 conventions + DONE link in product-item-master) + README. Capability.BOM gate matches PRD §8.M1(b) × PRD §6.1 type rules. Atomic 100% invariant via bulk-replace PUT (CR 2.1 lesson). Audit-first writes (AD-2). RLS append-only-leaning (no DELETE policy). Story 2.6/T6.7 frontend tests deferred to Story 0.5 (vitest/Playwright wiring). Story → ready-for-code-review.
+2026-08-01 Story 2.2 review close-out → done: bmad-code-review surfaced 18 actionable findings (4 high · 6 medium · 4 low) + 1 decision (M11 toast form) + 1 defer + ~15 dismissed. All 18 patches applied across 6 batches (pure logic + error semantics + write-path guards + wire-level error handler + frontend state sync + frontend dialog). M11 accepted inline `<p>` as Story 0.5-pragmatic. Verified 72/72 BOM tests passing in 1.02s post-patch + zero BOM-related TS errors (4 pre-existing `cookies().get` Next 15.x errors are Story 0.5 plumbing). Deferred-work.md appended (L4 entries on shadcn/sonner for the M11 toast swap). Story 2.2 → done.
+2026-08-01 Story 2.3 create + dev: bmad-create-story generated `2-3-item-type-change-integrity-guard.md` (status: ready-for-dev). 9 ACs / 7 tasks. bmad-dev-story kicked off immediately. Story 2.3 → in-progress. Implementation summary: T1 pure helpers (`packages/services/m1_baseline/product_references.py` + 28 unit tests); T2 service refactor (`ProductTypeHasReferencesError` + ref-count-aware `update_product` + 14 mock-session tests); T3 handler 409 mapping (`_format_type_references_message_ko` Korean-aware helper); T4 TS wire mirror (`ProductUpdateRequest.product_type?` + 8 cross-lang tests); T5 frontend edit-mode enable (radio grid + PATCH body builder + 409 error branch); T6 tests aggregated (70 Story 2.3 tests pass); T7 docs (`docs/item-type-change.md` + §0.7 conventions + product-item-master §8 DONE 2026-08-01 + README entry). 0 schema/RLS/migrations needed (Story 2.2 BOM indexes reused). Korean message handling kept in handler per AD-11 layering. Epic 5 ledger stub marker (`LEDGER_REFERENCE_QUERY_STUB: Final[str] = ""`). Frontend T6.5 unit + T6.6 E2E deferred to Story 0.5 (vitest/Playwright infra) — explicitly accepted per spec.
+2026-08-01 Story 2.3 → done: bmad-dev-story execute complete. 7 tasks T1-T7 closed (T6.5/T6.6 explicitly deferred to Story 0.5 per spec). 70/70 Story 2.3 tests passing (28 pure + 14 service + 8 cross-lang + 8 product-type regression + 12 BOM regression). 0 new Alembic / 0 new RLS / 0 new deps. Frontend `tsc --noEmit` clean on Story 2.3 files. Story file includes Dev Agent Record (Implementation Plan / Completion Notes / Debug Log / File List / Change Log / Status: DONE 2026-08-01). Ready for bmad-code-review.
+2026-08-01 Story 2.3 review patches: bmad-code-review surfaced 21 actionable findings (2 decision + 16 patch + 5 defer + 3 dismiss). All 16 patches applied across 7 batches (audit-action-branch + advisory-lock + null-defense + frontend-details + BOM-query-consolidation + dead-code-removal + tests). D1 message_ko rewritten to AC #1 literal; D2 added `pg_advisory_xact_lock(uuid5)` to close TOCTOU race on product-type-change. `BOM_REFERENCE_QUERY` now used in single OR-merged count query; `or_` import retained. `hash_references` + `LEDGER_REFERENCE_QUERY_STUB` removed (dead code → pygrep-able `TODO(epic-5)` marker). `InvalidProductTypeError` (422 INVALID_PRODUCT_TYPE) added for explicit-null PATCH bodies. Verified 47/47 Story 2.3 tests passing post-patch (24 services + 14 api + 9 integration). 9 pre-existing failures unrelated to Story 2.3 (industry_selected vs industry_change_initial, pydantic-core pin, Next 15.x cookies plumbing) left untouched per CR 1.1 lesson. Deferred-work.md appended (D-2.3-1 ~ D-2.3-5). Review complete; sprint-status reflects `2-3 → done` (final state after review).
+2026-08-01 Epic 2 retrospective (lightweight): bmad-retrospective completed. Epic 2 (Master Data & BOM) closed with 3/3 stories done, 217 backend tests, 66 CR findings patched. Document: `_bmad-output/implementation-artifacts/epic-2-retro-2026-08-01.md`. Key wins: capability-gated type subset (W1), audit-first + idempotent no-op 전사 확산 (W2), bulk-replace PUT 100% invariant (W3), cross-language drift test regex parsing (W4), `pg_advisory_xact_lock` TOCTOU 방지 (W5). Key challenges: Story 0.5 plumbing 의존 누적 (C1), Next 15.x async cookies 반복 (C2), RLS seed transaction 복잡도 (C3), Frontend 테스트 인프라 부재 (C4). Action items 4건 (A1: 1-1 done 마킹 / A2: 1-3 dev-story / A3: capability-matrix 문서화 / A4: 0.5 plumbing 우선순위 재평가). No significant discoveries — Epic 3 plan unchanged. Critical path before Epic 3: 1-1 done → 1-3 done → shadcn Tabs 설치 확인. `2-3 → done` 유지, `epic-2-retrospective: optional → done`.
+2026-08-01 Story 1.1 → done (close-out): done-status verification surfaced 3 test failures (audit-action inversion, payload reason, version pre-bump) + F-39 warning_header over-fire + F-36 `first_added.trace_id` attribute reference (no such column; moved to payload["trace_id"]). All 5 defects patched in `apps/api/modules/m0_onboarding/services/settings_service.py` + `tests/api/test_industry_selector.py`. 44 passed / 2 skipped (DB-backed CI-only) on Story 1.1 test scope. Broader suite: 357 passed / 8 skipped / 4 pre-existing infra failures unrelated (ruff, stack-pin, PyYAML). status: in-progress → done. Story 1.1 final close-out commit pending (working tree dirty).
+2026-08-01 Story 1.3 dev-story: backend core (T1/T2/T3) shipped with explicit deferrals for T4 (frontend — Story 0.5 plumbing) + real Anthropic SDK (T2.2/2.3 — [STACK BUMP] workflow) + logging redaction test (T6.3 — no structlog yet). Backend modules: `apps/api/modules/m10_ai/{__init__,config,service,schemas,handlers}.py` + `adapters/{fake_adapter,claude_vision}.py` + `apps/api/core/pipa_gate.py` + `apps/api/jobs/{__init__,document_retention}.py`. Port contract: `packages/services/m10_ai/extraction_port.py`. Alembic `0008_ai_documents_idempotency.py` (idempotency_key column + partial unique index). 8 routes registered in `apps/api/main.py` (Pydantic v2 + AD-15 envelope + 451 PIPA gate handler). Tests: 9 port-contract + 4 retention cron = 13 pass (pure). 6 DB-backed handler tests stubbed for Story 0.5 plumbing. PIPA gate implemented as typed dependency (deviation from spec §2.4 env-flag-only — reads tenant_settings.onboarding.pipa_consent + region for stronger audit chain; documented in code + docs/ai-document-extraction.md). status: in-progress.
 
 development_status:
   # ==========================================
@@ -80,19 +93,37 @@ development_status:
   # Epic 1: User Onboarding & Settings
   # ==========================================
   epic-1: in-progress
-  1-1-industry-selector-menu-auto-toggle: in-progress
+  1-1-industry-selector-menu-auto-toggle: done
   1-2-settings-wizard-calculation-block: done
-  1-3-ai-document-extraction-confidence-badge: ready-for-dev
+  1-3-ai-document-extraction-confidence-badge: in-progress  # backend core done; T4 frontend + real SDK + logging redaction deferred to Story 0.5 / [STACK BUMP]
   epic-1-retrospective: optional
+
+action_items:
+  - epic: 2
+    action: "Story 1-1 정식 done 마킹 (현재 in-progress → done). 회귀 테스트 통과 확인 후 sprint-status 업데이트."
+    owner: "Amelia (Developer)"
+    status: done
+  - epic: 2
+    action: "Story 1-3 dev-story 실행 (AI 추출 + 신뢰도 배지). Epic 3 input_drafts 토대."
+    owner: "Amelia (Developer)"
+    status: in-progress  # backend core done; frontend + real SDK + redaction deferred
+  - epic: 2
+    action: "docs/capability-matrix.md 작성 — Epic 2/3/4/5/9 capability × type 매트릭스 한 페이지 문서"
+    owner: "Alice (Product Owner)"
+    status: open
+  - epic: 2
+    action: "Story 0.5 plumbing 우선순위 재평가 — Epic 3 1번째 스토리 spec 작성 시 shadcn Tabs 설치 가능 여부 확인"
+    owner: "Amelia (Developer)"
+    status: open
 
   # ==========================================
   # Epic 2: Master Data & BOM
   # ==========================================
   epic-2: in-progress
   2-1-product-item-master-type-tags: done
-  2-2-bom-matrix-100-validation: backlog
-  2-3-item-type-change-integrity-guard: backlog
-  epic-2-retrospective: optional
+  2-2-bom-matrix-100-validation: done
+  2-3-item-type-change-integrity-guard: done
+  epic-2-retrospective: done
 
   # ==========================================
   # Epic 3: Monthly Input Capture

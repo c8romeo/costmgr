@@ -66,3 +66,21 @@ Items deferred from code review. Each entry records what was deferred, the ratio
 - **F-33 — `settings_version` optimistic concurrency: no `If-Match` header sent** — `apps/web/lib/api-client.ts:213-272` (4 save functions). Spec AC #1 mandates "settings_version increments on each save" but the client never sends the current version, so two simultaneous saves from different tabs do last-write-wins. Backend already enforces settings_version via SELECT FOR UPDATE; the client just doesn't opt in. Defer — requires backend `If-Match` / `ETag` support (Story 4.x territory) and a UX decision on how to surface conflicts.
 
 - **F-34 — `fiscal_year_start` A7 lock: UI never warns user before clicking save** — `FiscalYearStartStep.tsx:69-72`, `CurrencyStep.tsx:42`. Frontend `isLocked` only checks `completion.<field>_completed`, not `last_calc_date`. Backend rejects with 409 but UI never warns. Defer — depends on adding `last_calc_date` to `CompletionStatusResponse` (could combine with F-7 patch if approved); the warning UX ("X일 후 잠금 예정") is a separate design choice.
+
+## Deferred from: code review of 2-2-bom-matrix-100-validation (2026-08-01)
+
+- **`updated_at` no BEFORE UPDATE trigger** — `apps/api/alembic/versions/0007_bom_matrix.py:59`. Pre-existing limitation. Bulk-replace sets `updated_at` explicitly; no per-row update endpoints exist yet. Re-evaluate if per-row mutations are added in Story 2.2+ follow-up.
+
+- **M11 — AC #2 BOM_NOT_COMPLETE toast form (decision accepted inline)** — `apps/web/components/m1-baseline/products/BOMEditorClient.tsx:265`. Spec calls for a sonner toast (`'BOM 비중 합 100% 필요 (현재 95.00%)'`); implementation uses an inline `<p>` element with the same Korean message as the Story 2.2 stand-in. Sonner toast wiring is gated on Story 0.5 plumbing (shadcn/sonner install). When 0.5 lands, swap the inline `<p>` for a `toast.warning(...)` call without changing the BOM matrix API. Tracked in `2-2-bom-matrix-100-validation.md` "decision-needed" section as RESOLVED.
+
+## Deferred from: code review of 2-3-item-type-change-integrity-guard (2026-08-01)
+
+- **Two `SELECT COUNT(*)` queries instead of one OR-merged** — `apps/api/modules/m1_baseline/services/product_service.py:786-797`. Docstring justifies "clearer EXPLAIN plans and stay symmetric with pure helper". Acceptable; perf not a blocker. Revisit when Story 4.x cost engine drives a sub-ms PATCH budget.
+
+- **Spec says "PATCH body rejected before any DB query" but load query runs first** — `apps/api/modules/m1_baseline/services/product_service.py:477-499`. Spirit honored (`code` check still runs before BOM count). Refactor cost > semantic benefit.
+
+- **Race between `is_active` soft-delete and `product_type` change in same PATCH** — handler runs `update_product` then `soft_delete_product`, two audit rows. Spec silent; current behavior deterministic. Re-evaluate when Epic 11 close-sequence lands (Story 11.1 may need strict ordering).
+
+- **Mixed `code + product_type` PATCH UX** — 403 doesn't hint at split. Low-impact UX nicety; spec silent. Defer until post-MVP user feedback surfaces the confusion.
+
+- **`is_active=false` PATCH on already-soft-deleted product allows type change** — spec silent; current behavior "type change still works on inactive rows" may be intentional. Defer until Epic 11 close-sequence defines what "closed-period" product mutations look like.
