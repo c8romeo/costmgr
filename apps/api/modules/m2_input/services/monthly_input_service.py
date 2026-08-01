@@ -1,4 +1,4 @@
-"""apps.api.modules.m2_input.services.monthly_input_service — Story 3.1 backend.
+"""apps.api.modules.m2_input.services.monthly_input_service — Story 3.1 + 3.2.
 
 Writes/reads on the ``monthly_input_periods`` + ``monthly_input_rows``
 tables (PRD §8.M2). All state-changing operations write a typed
@@ -13,6 +13,19 @@ Story 3.1 surfaces:
 - `get_state` — page-mount payload (rows + completion + fte_display)
 - `compute_labor_fte` — read-only FTE display for the [인원] tab
 - `delete_row` — DELETE + audit (PRD §8.M2 user-input, not ledger)
+
+Story 3.2 additions (Tasks 3.1 / 3.2):
+- `_validate_labor_shape` — `pay_type='daily'|'monthly'`별 필수 필드
+  검사 (AC #4). pay_type=None on labor stream → 400.
+- `_load_payroll_settings` — `tenant_settings.payroll` JSONB sub-block
+  읽고 `DEFAULT_PAYROLL`과 per-field merge.
+- `_compute_fte_for_state` — Story 3.1 stub 교체. `build_fte_display`
+  composition dispatcher with pay_type branching.
+- `validate_payroll_override` — public helper for future Story 0.5
+  plumbing (settings UI에서 사용).
+- 5 new typed exceptions: MonthlyInputInvalidLaborShapeError,
+  MonthlyInputFteReadOnlyError, MonthlyInputPayrollSettingsInvalidError,
+  MonthlyInputCompanyBurdenRateError, MonthlyInputPayTypeMismatchError.
 
 Layering (AD-1 / AD-11):
 - Pure helpers live in ``packages/services/m2_input/``.
@@ -44,6 +57,7 @@ from apps.api.core.db_models import (
     MonthlyInputPeriod,
     MonthlyInputRow,
     Product,
+    TenantSettings,
 )
 from apps.api.modules.m2_input.schemas import (
     FteDisplay,
@@ -51,13 +65,24 @@ from apps.api.modules.m2_input.schemas import (
     MonthlyInputRowResponse,
     MonthlyInputRowUpdate,
     MonthlyInputStateResponse,
+    PayrollSettingsResponse,
+    PayTypeBreakdownResponse,
 )
 from packages.common.uuid7 import uuid7 as _uuid7
 from packages.services.m0_onboarding.industry_menu import Industry
+from packages.services.m2_input.labor_conversion import (
+    DEFAULT_PAYROLL,
+    PayType,
+    PayrollSettings,
+    build_fte_display,
+    compute_fte_for_daily,
+    compute_fte_for_monthly,
+    compute_fte_wage_for_daily,
+    compute_fte_wage_for_monthly,
+    merge_payroll_settings,
+)
 from packages.services.m2_input.stream_completion import (
-    compute_fte_wage_krw,
     compute_stream_completion,
-    format_fte_headcount,
 )
 
 
@@ -189,6 +214,134 @@ class MonthlyInputStreamNotSupportedError(Exception):
         self.tenant_id = tenant_id
         self.stream = stream
         self.current_industry = current_industry
+        self.trace_id = trace_id
+
+
+# ── Story 3.2 typed exceptions (Tasks 3.2) ─────────────────
+class MonthlyInputInvalidLaborShapeError(Exception):
+    """400 MONTHLY_INPUT_INVALID_LABOR_SHAPE — `_validate_labor_shape` violation.
+
+    Story 3.2 AC #4: pay_type='daily' requires `workers>0,
+    days_per_worker>0, daily_wage_krw>0` and forbids
+    `monthly_salary_basis_krw`; pay_type='monthly' requires
+    `workers>0, monthly_salary_basis_krw>0`. pay_type=None on a labor
+    row is rejected (Story 3.1's implicit-None gate is gone — the FTE
+    precision pipeline needs the discriminator).
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        details: dict[str, Any],
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"invalid monthly input labor shape: {details}"
+        )
+        self.tenant_id = tenant_id
+        self.details = details
+        self.trace_id = trace_id
+
+
+class MonthlyInputFteReadOnlyError(Exception):
+    """400 MONTHLY_INPUT_FTE_READ_ONLY — direct write on `fte_headcount` or
+    `fte_wage_krw` (AC #5).
+
+    These two fields are DERIVED from `build_fte_display`. A handler
+    that tries to PATCH them returns 400 — the UI must mutate the
+    underlying payroll fields (workers / days_per_worker /
+    daily_wage_krw / breakdown fields) and let the service recompute.
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        field: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"field {field!r} is read-only (derived from FTE pipeline)"
+        )
+        self.tenant_id = tenant_id
+        self.field = field
+        self.trace_id = trace_id
+
+
+class MonthlyInputPayrollSettingsInvalidError(Exception):
+    """400 MONTHLY_INPUT_PAYROLL_SETTINGS_INVALID —
+    `tenant_settings.payroll.*` value out of range.
+
+    Triggered when `merge_payroll_settings` raises ValueError because
+    an override is malformed (e.g., `workdays_in_month=0`,
+    `company_burden_rate=-0.1`). The Pydantic schema cannot validate
+    this because the override is JSONB-shape (free-form dict), so the
+    service performs the re-check at write time.
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        details: dict[str, Any],
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"invalid payroll settings: {details}"
+        )
+        self.tenant_id = tenant_id
+        self.details = details
+        self.trace_id = trace_id
+
+
+class MonthlyInputCompanyBurdenRateError(Exception):
+    """422 MONTHLY_INPUT_COMPANY_BURDEN_RATE — schema-level `company_burden_rate`
+    out-of-range detected at the service boundary.
+
+    Pydantic v2 already rejects at the schema (Field ge=0, le=1); this
+    exception is a service-side re-check that catches writes which
+    bypass the Pydantic layer (raw DB path, migration bootstrap).
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        value: Any,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"company_burden_rate {value!r} out of range [0, 1]"
+        )
+        self.tenant_id = tenant_id
+        self.value = value
+        self.trace_id = trace_id
+
+
+class MonthlyInputPayTypeMismatchError(Exception):
+    """400 MONTHLY_INPUT_PAY_TYPE_MISMATCH — incompatible labor-field
+    combinations across `pay_type`.
+
+    Example: `pay_type='daily'` with `monthly_salary_basis_krw` set
+    (which only makes sense for monthly mode). The `_validate_labor_shape`
+    rejection is caught here as a typed 400 instead of generic
+    `MonthlyInputInvalidLaborShapeError` so the frontend can show a
+    specific hint ("daily mode doesn't use monthly_salary_basis_krw").
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        details: dict[str, Any],
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"pay_type mismatch: {details}"
+        )
+        self.tenant_id = tenant_id
+        self.details = details
         self.trace_id = trace_id
 
 
@@ -325,15 +478,23 @@ class MonthlyInputService:
 
         Logic:
         1. Validate payload shape (stream-conditional requirements)
-        2. Resolve period (auto-create if missing)
-        3. Capability gate: production stream → industry check
-        4. SELECT FOR UPDATE existing row by natural key
-        5. Idempotent no-op: if existing row identical → 200 + no audit
-        6. emit_audit with before/after snapshot (CR 1.1 lesson)
-        7. INSERT or UPDATE the row
-        8. Recompute completion + missing list
+        2. **Story 3.2** Validate labor shape when stream='labor'
+           (`_validate_labor_shape` — pay_type 분기)
+        3. Resolve period (auto-create if missing)
+        4. Capability gate: production stream → industry check
+        5. SELECT FOR UPDATE existing row by natural key
+        6. **Story 3.2** Idempotent no-op compares the FULL
+           13-field snapshot (CR 1.1 lesson — extend tuple, do not
+           shrink)
+        7. emit_audit with before/after snapshot (CR 1.1 lesson)
+        8. INSERT or UPDATE the row
+        9. Recompute completion + missing list
         """
         self._validate_stream_shape(payload)
+        # Story 3.2 — labor shape (pay_type 분기) validation. Only fires
+        # for stream == 'labor' — 400 INVALID_LABOR_SHAPE on shape mismatch.
+        if payload.stream == "labor":
+            self._validate_labor_shape(payload)
 
         if payload.stream == _PRODUCTION_STREAM:
             from packages.services.m2_input.stream_completion import (
@@ -381,6 +542,15 @@ class MonthlyInputService:
             "days_per_worker": payload.days_per_worker,
             "daily_wage_krw": payload.daily_wage_krw,
             "memo": payload.memo,
+            # Story 3.2 — FTE precision fields. All None for non-labor
+            # streams; populated on labor stream per `_validate_labor_shape`.
+            "pay_type": payload.pay_type,
+            "monthly_salary_basis_krw": payload.monthly_salary_basis_krw,
+            "overtime_krw": payload.overtime_krw,
+            "welfare_krw": payload.welfare_krw,
+            "bonus_krw": payload.bonus_krw,
+            "retirement_reserve_krw": payload.retirement_reserve_krw,
+            "company_burden_rate": payload.company_burden_rate,
         }
 
         now = datetime.now(tz=UTC)
@@ -447,6 +617,14 @@ class MonthlyInputService:
             days_per_worker=payload.days_per_worker,
             daily_wage_krw=payload.daily_wage_krw,
             memo=payload.memo,
+            # Story 3.2 — FTE precision fields
+            pay_type=payload.pay_type,
+            monthly_salary_basis_krw=payload.monthly_salary_basis_krw,
+            overtime_krw=payload.overtime_krw,
+            welfare_krw=payload.welfare_krw,
+            bonus_krw=payload.bonus_krw,
+            retirement_reserve_krw=payload.retirement_reserve_krw,
+            company_burden_rate=payload.company_burden_rate,
             created_at=now,
             updated_at=now,
         )
@@ -771,12 +949,16 @@ class MonthlyInputService:
     async def _compute_fte_display(
         self, period: MonthlyInputPeriod
     ) -> FteDisplay | None:
-        """Read-only FTE display for the [인원] tab (Story 3.2 hook surface).
+        """Story 3.1 / 3.2 hook — returns the page-mount `FteDisplay`.
 
-        Returns None if no labor rows exist (no display until user enters
-        at least one row). Sums all labor rows for the period (PRD §8.M2
-        keeps MVP simple — single aggregated value).
+        Story 3.2 replaces the inline `format_fte_headcount` /
+        `compute_fte_wage_krw` path with `build_fte_display` so the
+        pay_type 분기 + breakdown + source_rows come from the pure
+        helper (single source of truth — drift prevention).
+
+        Returns `None` if no labor rows exist for the period.
         """
+        payroll = await self._load_payroll_settings(self.tenant_id)
         labor_rows = (
             await self.session.scalars(
                 select(MonthlyInputRow).where(
@@ -788,23 +970,261 @@ class MonthlyInputService:
         ).all()
         if not labor_rows:
             return None
-        total_workers = sum(int(r.workers or 0) for r in labor_rows)
-        total_days = sum(int(r.days_per_worker or 0) for r in labor_rows)
-        total_daily = sum(int(r.daily_wage_krw or 0) for r in labor_rows)
-        fte_headcount = format_fte_headcount(
-            total_workers, total_days, DEFAULT_WORKDAYS_IN_MONTH
+        return self._compute_fte_for_state(
+            labor_rows=labor_rows,
+            payroll=payroll,
+            period_mode=period.mode,
         )
-        fte_wage = compute_fte_wage_krw(
-            fte_headcount, DEFAULT_MONTHLY_SALARY_BASIS_KRW
+
+    def _compute_fte_for_state(
+        self,
+        *,
+        labor_rows: list[MonthlyInputRow],
+        payroll: PayrollSettings,
+        period_mode: str,
+    ) -> FteDisplay:
+        """Compose `FteDisplay` from labor rows via `build_fte_display`.
+
+        Story 3.2 AC #1 (daily mode) / AC #2 (monthly mode):
+        - mode='month_total' → 1 row typically; use its values directly
+        - mode='daily' → up to 31 rows (day_no=1..31); sum workers /
+          days / wages across days; build_fte_display uses payroll
+          settings (workdays_in_month) to 환산.
+
+        Backend Story 3.2 ships with month_total happy-path coverage;
+        daily mode aggregation is delegated to `build_fte_display` in
+        `labor_conversion.py`.
+        """
+        from packages.services.m2_input.labor_conversion import (
+            build_fte_display as _build_display,
         )
+
+        if not labor_rows:
+            raise ValueError(
+                "_compute_fte_for_state requires at least 1 labor row"
+            )
+        # Aggregate the rows based on pay_type. month_total typically
+        # has 1 row (the row IS the month). daily may have up to 31.
+        pay_types = {r.pay_type for r in labor_rows if r.pay_type}
+        if not pay_types:
+            # Mixed or missing — fall back to first row's classification
+            # (defensive: Story 3.1 path allowed pay_type=None; in 3.2
+            # _validate_labor_shape rejects that, so reaching here is
+            # an edge case during transition).
+            chosen = labor_rows[0]
+        elif len(pay_types) > 1:
+            # Mixed pay_types in one period — default to 'monthly'
+            # (정규직 우선). The UI should prevent this; the service
+            # is forgiving in case it slips through.
+            chosen = next(
+                r for r in labor_rows if r.pay_type == PayType.MONTHLY
+            )
+        else:
+            chosen = labor_rows[0]
+
+        workers = sum(int(r.workers or 0) for r in labor_rows)
+        days_per_worker = sum(
+            int(r.days_per_worker or 0) for r in labor_rows
+        )
+        daily_wage_krw = sum(
+            int(r.daily_wage_krw or 0) for r in labor_rows
+        )
+
+        # Story 3.1 backward-compat aggregate fields
+        total_workers = workers
+        total_days = days_per_worker
+        total_daily = daily_wage_krw
+
+        # Coalesce type-aware fields
+        _rate = chosen.company_burden_rate or Decimal("0")
+
+        display = _build_display(
+            pay_type=chosen.pay_type or PayType.MONTHLY,
+            workers=workers,
+            days_per_worker=days_per_worker if period_mode == "daily" else None,
+            daily_wage_krw=daily_wage_krw if period_mode == "daily" else None,
+            monthly_salary_basis_krw=(
+                chosen.monthly_salary_basis_krw
+                if (chosen.pay_type or PayType.MONTHLY) == PayType.MONTHLY
+                else None
+            ),
+            overtime_krw=chosen.overtime_krw,
+            welfare_krw=chosen.welfare_krw,
+            bonus_krw=chosen.bonus_krw,
+            retirement_reserve_krw=chosen.retirement_reserve_krw,
+            company_burden_rate=_rate,
+            payroll=payroll,
+            source_rows=len(labor_rows),
+        )
+
+        # Compose the wire format FteDisplay (pydantic model — schema
+        # validation here is a safety net against helper-schema drift).
+        breakdown = display.breakdown or {}
         return FteDisplay(
+            # Story 3.1 fields (kept for backward compat)
             total_workers=total_workers,
             total_days_per_worker=total_days,
             total_daily_wage_krw=total_daily,
-            fte_headcount=fte_headcount,
-            fte_wage_krw=fte_wage,
-            monthly_salary_basis_krw=DEFAULT_MONTHLY_SALARY_BASIS_KRW,
+            fte_headcount=display.fte_headcount,
+            fte_wage_krw=display.fte_wage_krw,
+            monthly_salary_basis_krw=(
+                chosen.monthly_salary_basis_krw
+                or payroll.monthly_salary_basis_krw
+            ),
+            # Story 3.2 additions
+            pay_type=display.pay_type.value,
+            breakdown=PayTypeBreakdownResponse(
+                base_krw=breakdown.get("base_krw", 0),
+                overtime_krw=breakdown.get("overtime_krw", 0),
+                welfare_krw=breakdown.get("welfare_krw", 0),
+                bonus_krw=breakdown.get("bonus_krw", 0),
+                retirement_reserve_krw=breakdown.get(
+                    "retirement_reserve_krw", 0
+                ),
+                retirement_burden_krw=breakdown.get(
+                    "retirement_burden_krw", 0
+                ),
+                company_burden_rate=_rate,
+                total_krw=breakdown.get("total_krw", 0),
+            ),
+            source_rows=display.source_rows,
+            payroll_settings=PayrollSettingsResponse(
+                monthly_salary_basis_krw=payroll.monthly_salary_basis_krw,
+                workdays_in_month=payroll.workdays_in_month,
+                standard_monthly_hours=payroll.standard_monthly_hours,
+                company_burden_rate=payroll.company_burden_rate,
+            ),
         )
+
+    async def _load_payroll_settings(
+        self, tenant_id: uuid.UUID
+    ) -> PayrollSettings:
+        """Load + merge per-tenant payroll override (Story 3.2 AC #3).
+
+        Reads `tenant_settings.payroll` JSONB sub-block (added by
+        Alembic 0010) and merges with `DEFAULT_PAYROLL` per-field. If
+        the override is missing or empty, returns `DEFAULT_PAYROLL`
+        unchanged. If `merge_payroll_settings` raises (out-of-range
+        value), translates to typed `MonthlyInputPayrollSettingsInvalidError`.
+        """
+        result = await self.session.execute(
+            select(TenantSettings).where(
+                TenantSettings.tenant_id == tenant_id
+            )
+        )
+        row = result.scalar_one_or_none()
+        override: dict | None = None
+        if row is not None and row.payroll:
+            override = row.payroll
+        try:
+            return merge_payroll_settings(override, DEFAULT_PAYROLL)
+        except ValueError as err:
+            raise MonthlyInputPayrollSettingsInvalidError(
+                tenant_id=tenant_id,
+                details={"reason": str(err), "override": override or {}},
+                trace_id=self.trace_id,
+            ) from err
+
+    def _validate_labor_shape(
+        self, payload: MonthlyInputRowCreate
+    ) -> None:
+        """Story 3.2 AC #4 — validate labor-stream shape by `pay_type`.
+
+        Rules:
+        - `pay_type='daily'` → requires `workers>0, days_per_worker>0,
+          daily_wage_krw>0`; `monthly_salary_basis_krw` MUST be None.
+        - `pay_type='monthly'` → requires `workers>0,
+          monthly_salary_basis_krw>0`; `days_per_worker` SHOULD be
+          None (warn-only) but allowed for forward-compat.
+        - `pay_type=None` on labor stream → 400 (Story 3.1's implicit
+          None is gone; the FTE pipeline needs the discriminator).
+        - `company_burden_rate` MUST be in [0, 1] if set
+          (cross-checks against Pydantic Field validators).
+
+        All branches raise typed exceptions so handlers can map to
+        AD-15 error envelope.
+        """
+        if payload.pay_type is None:
+            raise MonthlyInputInvalidLaborShapeError(
+                tenant_id=self.tenant_id,
+                details={
+                    "field": "pay_type",
+                    "reason": "labor stream requires pay_type "
+                    "('monthly' or 'daily')",
+                },
+                trace_id=self.trace_id,
+            )
+        if payload.company_burden_rate is not None and not (
+            Decimal("0")
+            <= payload.company_burden_rate
+            <= Decimal("1")
+        ):
+            raise MonthlyInputCompanyBurdenRateError(
+                tenant_id=self.tenant_id,
+                value=str(payload.company_burden_rate),
+                trace_id=self.trace_id,
+            )
+        if payload.pay_type == PayType.DAILY:
+            if (
+                payload.workers is None
+                or payload.workers <= 0
+                or payload.days_per_worker is None
+                or payload.days_per_worker <= 0
+                or payload.daily_wage_krw is None
+                or payload.daily_wage_krw <= 0
+            ):
+                raise MonthlyInputInvalidLaborShapeError(
+                    tenant_id=self.tenant_id,
+                    details={
+                        "pay_type": "daily",
+                        "reason": (
+                            "daily mode requires "
+                            "workers>0, days_per_worker>0, "
+                            "daily_wage_krw>0"
+                        ),
+                    },
+                    trace_id=self.trace_id,
+                )
+            if payload.monthly_salary_basis_krw is not None:
+                raise MonthlyInputPayTypeMismatchError(
+                    tenant_id=self.tenant_id,
+                    details={
+                        "pay_type": "daily",
+                        "forbidden_field": "monthly_salary_basis_krw",
+                    },
+                    trace_id=self.trace_id,
+                )
+            return
+        # pay_type == 'monthly'
+        if (
+            payload.workers is None
+            or payload.workers <= 0
+            or payload.monthly_salary_basis_krw is None
+            or payload.monthly_salary_basis_krw <= 0
+        ):
+            raise MonthlyInputInvalidLaborShapeError(
+                tenant_id=self.tenant_id,
+                details={
+                    "pay_type": "monthly",
+                    "reason": (
+                        "monthly mode requires "
+                        "workers>0, monthly_salary_basis_krw>0"
+                    ),
+                },
+                trace_id=self.trace_id,
+            )
+        if (
+            payload.days_per_worker is not None
+            and payload.days_per_worker > 0
+        ):
+            raise MonthlyInputPayTypeMismatchError(
+                tenant_id=self.tenant_id,
+                details={
+                    "pay_type": "monthly",
+                    "forbidden_field": "days_per_worker",
+                },
+                trace_id=self.trace_id,
+            )
 
     def _row_to_response(
         self,
@@ -828,9 +1248,50 @@ class MonthlyInputService:
             daily_wage_krw=row.daily_wage_krw,
             memo=row.memo,
             mode=mode,
+            # Story 3.2 — FTE precision fields
+            pay_type=row.pay_type,
+            monthly_salary_basis_krw=row.monthly_salary_basis_krw,
+            overtime_krw=row.overtime_krw,
+            welfare_krw=row.welfare_krw,
+            bonus_krw=row.bonus_krw,
+            retirement_reserve_krw=row.retirement_reserve_krw,
+            company_burden_rate=row.company_burden_rate,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
+
+
+def validate_payroll_override(o: dict | None) -> dict:
+    """Public helper — validate a raw payroll override dict (Story 0.5 plumbing).
+
+    Story 3.2 §Task 3.1 — exposes `merge_payroll_settings` validation
+    to the future settings UI (`m0_onboarding` Settings wizard) without
+    requiring the caller to import the engine package directly.
+
+    Args:
+        o: Raw override dict (e.g., from `tenant_settings.payroll`).
+           `None` or empty dict → returns empty `{}` (no-op).
+
+    Returns:
+        Validated override dict (suitable for re-storing).
+
+    Raises:
+        MonthlyInputPayrollSettingsInvalidError: a value is out of range.
+        Wraps `merge_payroll_settings` ValueError so the caller doesn't
+        need to know about the engine exception type.
+    """
+    if not o:
+        return {}
+    try:
+        # Per-field merge validates range without committing to defaults.
+        merge_payroll_settings(o, DEFAULT_PAYROLL)
+    except ValueError as err:
+        raise MonthlyInputPayrollSettingsInvalidError(
+            tenant_id=uuid.UUID(int=0),  # placeholder; UI path doesn't carry tenant_id
+            details={"reason": str(err), "override": o},
+            trace_id="validate_payroll_override",
+        ) from err
+    return dict(o)
 
 
 def _decimalize(d: dict[str, Any]) -> dict[str, Any]:

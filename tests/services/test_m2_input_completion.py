@@ -16,6 +16,8 @@ caught by `tests/integration/test_m2_input_label_consistency.py`.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pytest
 
 from packages.services.m0_onboarding.industry_menu import Industry
@@ -209,3 +211,85 @@ def test_visible_streams_count_per_industry(
     """industry별 visible stream 수 (PRD §8.M2(b) 매트릭스)."""
     visible = STREAMS_FOR_INDUSTRY[industry]
     assert len(visible) == expected_count
+
+
+# ───────────────────────────────────────────────────────────────
+# Story 3.2 — FTE display pay_type branching (Task 6.2)
+# ───────────────────────────────────────────────────────────────
+from packages.services.m2_input.labor_conversion import (
+    DEFAULT_PAYROLL,
+    PayType,
+    PayrollSettings,
+    build_fte_display,
+)
+
+
+def test_fte_display_pay_type_monthly_uses_basis() -> None:
+    """AC #2 — pay_type='monthly' uses basis 환산
+    (1명 × 2_500_000 = 2_500_000 NOT 0).
+    """
+    display = build_fte_display(
+        pay_type=PayType.MONTHLY,
+        workers=1,
+        days_per_worker=None,
+        daily_wage_krw=None,
+        monthly_salary_basis_krw=2_500_000,
+        overtime_krw=0,
+        welfare_krw=0,
+        bonus_krw=0,
+        retirement_reserve_krw=0,
+        company_burden_rate=Decimal("0.115"),
+        payroll=DEFAULT_PAYROLL,
+        source_rows=1,
+    )
+    assert display.pay_type == PayType.MONTHLY
+    assert display.fte_headcount == Decimal("1.00")
+    assert display.fte_wage_krw == 2_500_000
+    assert display.source_rows == 1
+    # Breakdown should be populated for monthly mode
+    assert display.breakdown is not None
+    assert display.breakdown["base_krw"] == 2_500_000
+
+
+def test_fte_display_pay_type_daily_uses_direct_wage() -> None:
+    """AC #1 — pay_type='daily' uses direct sum
+    (3명 × 8일 × 150_000 = 3_600_000 NOT 1.09 × 2_500_000).
+    """
+    display = build_fte_display(
+        pay_type=PayType.DAILY,
+        workers=3,
+        days_per_worker=8,
+        daily_wage_krw=150_000,
+        monthly_salary_basis_krw=None,
+        overtime_krw=0,
+        welfare_krw=0,
+        bonus_krw=0,
+        retirement_reserve_krw=0,
+        company_burden_rate=DEFAULT_PAYROLL.company_burden_rate,
+        payroll=DEFAULT_PAYROLL,
+        source_rows=1,
+    )
+    assert display.pay_type == PayType.DAILY
+    assert display.fte_headcount == Decimal("1.09")  # 3*8/22
+    assert display.fte_wage_krw == 3_600_000  # direct sum, NOT 2_725_000
+    assert display.breakdown is None  # daily mode has no breakdown
+
+
+def test_fte_display_zero_workers_all_zeros() -> None:
+    """Edge — workers=0 → fte=Decimal("0.00"), wage=0 across all modes."""
+    display = build_fte_display(
+        pay_type=PayType.MONTHLY,
+        workers=0,
+        days_per_worker=None,
+        daily_wage_krw=None,
+        monthly_salary_basis_krw=2_500_000,
+        overtime_krw=0,
+        welfare_krw=0,
+        bonus_krw=0,
+        retirement_reserve_krw=0,
+        company_burden_rate=Decimal("0.115"),
+        payroll=DEFAULT_PAYROLL,
+        source_rows=1,
+    )
+    assert display.fte_headcount == Decimal("0.00")
+    assert display.fte_wage_krw == 0

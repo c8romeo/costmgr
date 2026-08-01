@@ -128,6 +128,11 @@ class TenantSettings(Base):
     baseline: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     abc: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     ai: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # Story 3.2 — PRD §6.1 인건비 override (per-tenant payroll policy).
+    # Empty dict `{}` means "use `DEFAULT_PAYROLL`" — service layer
+    # applies per-field fallback via
+    # `packages.services.m2_input.labor_conversion.merge_payroll_settings`.
+    payroll: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -504,6 +509,25 @@ class MonthlyInputRow(Base):
     days_per_worker: Mapped[int | None] = mapped_column(Integer, nullable=True)
     daily_wage_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     memo: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── Story 3.2 FTE precision (PRD §6.1 인건비 구성) ──────────
+    # Nullable across all 6 streams — service layer enforces non-NULL
+    # only when stream == 'labor' (`_validate_labor_shape`).
+    pay_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    monthly_salary_basis_krw: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True
+    )
+    overtime_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    welfare_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    bonus_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    retirement_reserve_krw: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True
+    )
+    # 4대보험·퇴직 회사부담 비율 — AD-8 NUMERIC(5,4) (4 decimal places)
+    company_burden_rate: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=5, scale=4), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -547,5 +571,39 @@ class MonthlyInputRow(Base):
         CheckConstraint(
             "memo IS NULL OR length(memo) <= 500",
             name="monthly_input_rows_memo_length_check",
+        ),
+        # ── Story 3.2 labor precision CHECK constraints ─────────
+        # pay_type is a discriminator so we keep it string-typed at the DB
+        # layer (matches the unique-check on stream with the same style).
+        CheckConstraint(
+            "pay_type IS NULL OR pay_type IN ('monthly', 'daily')",
+            name="monthly_input_rows_pay_type_check",
+        ),
+        CheckConstraint(
+            "monthly_salary_basis_krw IS NULL OR monthly_salary_basis_krw >= 0",
+            name="monthly_input_rows_monthly_salary_basis_nonneg",
+        ),
+        CheckConstraint(
+            "overtime_krw IS NULL OR overtime_krw >= 0",
+            name="monthly_input_rows_overtime_nonneg",
+        ),
+        CheckConstraint(
+            "welfare_krw IS NULL OR welfare_krw >= 0",
+            name="monthly_input_rows_welfare_nonneg",
+        ),
+        CheckConstraint(
+            "bonus_krw IS NULL OR bonus_krw >= 0",
+            name="monthly_input_rows_bonus_nonneg",
+        ),
+        CheckConstraint(
+            "retirement_reserve_krw IS NULL OR retirement_reserve_krw >= 0",
+            name="monthly_input_rows_retirement_reserve_nonneg",
+        ),
+        # NUMERIC(5,4) → CHECK [0, 1] (4 decimal places enough for
+        # 0.0000 to 9.9999, restricted to 0..1 by CHALLENGE).
+        CheckConstraint(
+            "company_burden_rate IS NULL "
+            "OR (company_burden_rate >= 0 AND company_burden_rate <= 1)",
+            name="monthly_input_rows_company_burden_rate_range",
         ),
     )

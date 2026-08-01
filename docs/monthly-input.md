@@ -186,9 +186,26 @@ Story 3.2에서 `tenant_settings.payroll.*` JSONB override 추가 예정.
 - `audit_logs.action='monthly_input_row_created'` / `'updated'` / `'deleted'` / `'mode_changed'`로 행위 추적
 - `monthly_input_rows.memo`는 500자 truncate + `redact_processor` 후속 (defer #3)
 
+## FTE 정밀 (Story 3.2)
+
+Story 3.1에서 도입한 read-only FTE hook 표시는 Story 3.2에서 PRD §6.1
+인건비 정밀 계산으로 **승격**되었다 (`additive` 변경 — Story 3.1 호환).
+자세한 내용은 [docs/monthly-input-fte.md](./monthly-input-fte.md) 참조.
+
+핵심 변경:
+- `monthly_input_rows`에 7개 신규 컬럼 (`pay_type` + 5 breakdown + `company_burden_rate`)
+- `tenant_settings.payroll` JSONB sub-block (per-tenant override)
+- `pay_type='monthly'` (정규직, basis 환산) ↔ `pay_type='daily'` (일용직, direct sum)
+- `MonthlyInputService._validate_labor_shape()` — pay_type별 shape validation
+- 5개 typed exceptions (Task 3.2): 모두 AD-15 §4 envelope으로 응답
+- `FteDisplay` enriched: `pay_type` · `breakdown` · `source_rows` · `payroll_settings`
+- TS mirror `apps/web/lib/l2-input-fte.ts` — cross-language drift sentinel
+
 ## 참조
 
 - 스펙: `_bmad-output/implementation-artifacts/3-1-six-stream-monthly-input-ui-month-total-default.md`
+- FTE 정밀 가이드: [docs/monthly-input-fte.md](./monthly-input-fte.md)
+- Architecture: AD-13 (`MonthInputAdapter`) · AD-17 (`InputPromoter`)
 - Architecture: AD-13 (`MonthInputAdapter`) · AD-17 (`InputPromoter`)
 - Capability matrix: `docs/capability-matrix.md`
 - 이전 Epic 가이드:

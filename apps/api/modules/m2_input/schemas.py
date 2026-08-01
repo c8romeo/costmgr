@@ -1,4 +1,4 @@
-"""apps.api.modules.m2_input.schemas — M2 monthly input Pydantic models (Story 3.1).
+"""apps.api.modules.m2_input.schemas — M2 monthly input Pydantic models (Story 3.1 + 3.2).
 
 Pydantic v2 models for the M2 monthly input module.
 
@@ -12,15 +12,28 @@ Story 3.1 (this revision):
 - `FteDisplay` for the read-only [인원] tab FTE display.
 - KRW NewType alias for AD-8 money parity (BIGINT KRW).
 
+Story 3.2 (this revision — Task 2.3):
+- Adds the FTE precision sub-schemas `PayTypeBreakdownResponse` and
+  `PayrollSettingsResponse`.
+- Extends `MonthlyInputRowCreate` / `MonthlyInputRowUpdate` /
+  `MonthlyInputRowResponse` with the 7 FTE precision fields
+  (`pay_type`, `monthly_salary_basis_krw`, `overtime_krw`, `welfare_krw`,
+  `bonus_krw`, `retirement_reserve_krw`, `company_burden_rate`).
+- Upgrades `FteDisplay` with `pay_type`, `breakdown`, `source_rows`,
+  and `payroll_settings` so the [인원] tab can render the PRD §6.1
+  인건비 5개 항목 breakdown.
+
 AD binds enforced here:
 - AD-15 — snake_case field names; `extra="forbid"` Pydantic v2 config;
   Korean labels are user-facing data (not code identifiers).
-- AD-8 — KRW is `int` (BIGINT).
+- AD-8 — KRW is `int` (BIGINT); `company_burden_rate` is `Decimal`
+  (NUMERIC(5,4)). Float drift is forbidden — `company_burden_rate`
+  crosses the Python/TS boundary as a Decimal string.
 - AD-1 — this file imports only from `packages.services.m2_input`
   (engine-independent) and `pydantic`.
 - AD-13 — the schema mirrors what `MonthInputAdapter` will eventually
-  normalize to `MonthlyInput`. For Story 3.1 the adapter is not yet
-  written (Epic 4 first_calc), so the schema is the canonical
+  normalize to `MonthlyInput`. For Story 3.1/3.2 the adapter is not
+  yet written (Epic 4 first_calc), so the schema is the canonical
   user-input shape.
 """
 
@@ -50,6 +63,10 @@ __all__ = [
     "StreamCompletionStatus",
     # Money type alias (AD-8)
     "KRW",
+    # Story 3.2 sub-schemas
+    "PayType",
+    "PayTypeBreakdownResponse",
+    "PayrollSettingsResponse",
     # Pydantic schemas
     "MonthlyInputRowCreate",
     "MonthlyInputRowUpdate",
@@ -70,6 +87,55 @@ Stream = str  # Literal["orders","production","sales","purchases","expenses","la
 Mode = str  # Literal["month_total","daily"]
 
 
+# ── Story 3.2 — pay_type discriminator (PRD §6.1) ────────────────
+# Literals aligned with `packages.services.m2_input.labor_conversion.PayType`.
+PayType = str  # Literal["monthly", "daily"]
+
+
+# ── Story 3.2 sub-schemas ─────────────────────────────────────────
+class PayTypeBreakdownResponse(BaseModel):
+    """PRD §6.1 인건비 5개 항목 breakdown.
+
+    All amounts are KRW `int`. `total_krw` is the row's
+    per-worker labor cost — `base + overtime + welfare + bonus +
+    retirement_reserve × company_burden_rate`.
+
+    AD-8: `company_burden_rate` flows as `Decimal` (NUMERIC(5,4));
+    serialization on the JSONResponse layer encodes it as a string
+    to avoid float drift.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    base_krw: int
+    overtime_krw: int
+    welfare_krw: int
+    bonus_krw: int
+    retirement_reserve_krw: int
+    retirement_burden_krw: int
+    company_burden_rate: Decimal
+    total_krw: int
+
+
+class PayrollSettingsResponse(BaseModel):
+    """Resolved payroll settings for the period's labor display.
+
+    Mirrors `packages.services.m2_input.labor_conversion.PayrollSettings`
+    (Story 3.2 §Task 1.2). `merge_payroll_settings` is the source — this
+    shape is the wire format returned by `GET .../fte` (Task 3.4).
+
+    AD-8: `monthly_salary_basis_krw` is BIGINT, `company_burden_rate`
+    is NUMERIC(5,4) — Decimal across the boundary.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    monthly_salary_basis_krw: int
+    workdays_in_month: int
+    standard_monthly_hours: int
+    company_burden_rate: Decimal
+
+
 # ── Create / Update ─────────────────────────────────────────
 class MonthlyInputRowCreate(BaseModel):
     """Create a new monthly input row (POST /rows).
@@ -81,6 +147,12 @@ class MonthlyInputRowCreate(BaseModel):
     - orders / production / sales / purchases → product_id MUST be set
     - production → also requires MONTHLY_INPUT_PRODUCTION capability
       (enforced at the handler, not here)
+
+    Story 3.2 (Task 2.3) extends the labor branch with `pay_type` +
+    the 5 breakdown fields + `company_burden_rate`. Per-stream shape
+    is enforced by `_validate_labor_shape` in the service layer
+    (Task 3.1) — these fields are all OPTIONAL at the schema level
+    so the same `MonthlyInputRowCreate` covers all 6 streams.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -96,6 +168,17 @@ class MonthlyInputRowCreate(BaseModel):
     daily_wage_krw: KRW | None = None
     memo: str | None = Field(default=None, max_length=500)
 
+    # Story 3.2 — labor precision fields (Story 3.2 §Task 2.3)
+    pay_type: PayType | None = None
+    monthly_salary_basis_krw: KRW | None = None
+    overtime_krw: KRW | None = None
+    welfare_krw: KRW | None = None
+    bonus_krw: KRW | None = None
+    retirement_reserve_krw: KRW | None = None
+    company_burden_rate: Decimal | None = Field(
+        default=None, ge=Decimal("0"), le=Decimal("1")
+    )
+
 
 class MonthlyInputRowUpdate(BaseModel):
     """PATCH a row — all fields optional (CR 1.1 idempotent no-op semantics).
@@ -104,6 +187,9 @@ class MonthlyInputRowUpdate(BaseModel):
     partial-update work without sending unchanged fields. The service
     layer computes the (before, after) snapshot for the audit row from
     `exclude_unset` + the DB-loaded row.
+
+    Story 3.2 — adds the 7 FTE precision fields. The existing
+    `*_krw` field constraint (ge=0) carries through.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -116,10 +202,25 @@ class MonthlyInputRowUpdate(BaseModel):
     daily_wage_krw: KRW | None = None
     memo: str | None = Field(default=None, max_length=500)
 
+    # Story 3.2 — labor precision fields
+    pay_type: PayType | None = None
+    monthly_salary_basis_krw: KRW | None = None
+    overtime_krw: KRW | None = None
+    welfare_krw: KRW | None = None
+    bonus_krw: KRW | None = None
+    retirement_reserve_krw: KRW | None = None
+    company_burden_rate: Decimal | None = Field(
+        default=None, ge=Decimal("0"), le=Decimal("1")
+    )
+
 
 # ── Response ─────────────────────────────────────────────────
 class MonthlyInputRowResponse(BaseModel):
-    """Single row response — read shape."""
+    """Single row response — read shape.
+
+    Story 3.2: mirrors the new labor precision fields on the ORM
+    (`db_models.MonthlyInputRow` — Task 2.2).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -137,31 +238,55 @@ class MonthlyInputRowResponse(BaseModel):
     daily_wage_krw: int | None = None
     memo: str | None = None
     mode: Mode
+
+    # Story 3.2 — labor precision fields (Task 2.3)
+    pay_type: str | None = None
+    monthly_salary_basis_krw: int | None = None
+    overtime_krw: int | None = None
+    welfare_krw: int | None = None
+    bonus_krw: int | None = None
+    retirement_reserve_krw: int | None = None
+    company_burden_rate: Decimal | None = None
+
     created_at: datetime
     updated_at: datetime
 
 
 class FteDisplay(BaseModel):
-    """Read-only FTE display for the [인원] tab (Story 3.2 hook surface).
+    """FTE display for the [인원] tab (Story 3.1 surface — Story 3.2 precision).
 
-    Story 3.1 only renders this; Story 3.2 will add the full
-    labor cost calculation pipeline. The display is always populated
-    when at least one labor row exists; empty dict (no display) when
-    the tenant has no labor rows yet.
+    Story 3.1 only rendered the basis 환산 values. Story 3.2 (Task 3.4
+    — `_compute_fte_for_state`) adds the full PRD §6.1 인건비 5개 항목
+    breakdown + per-row source attribution + resolved payroll settings.
+
+    Empty dict (no display) when the tenant has no labor rows for the
+    period.
+
+    AD-8 — Decimals cross the boundary as strings; service layer (Task
+    3.3) normalizes through `Decimal.quantize(Decimal("0.0001"))`.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    # Total inputs across all labor rows for the period (sum of each
-    # row's (workers × days_per_worker)). Story 3.1 keeps it simple —
-    # a single sum.
+    # ── Story 3.1 fields (kept, still populated for backward compat) ──
     total_workers: int
     total_days_per_worker: int
     total_daily_wage_krw: int
-    # Computed
     fte_headcount: Decimal  # 2dp, ROUND_HALF_EVEN
     fte_wage_krw: int
     monthly_salary_basis_krw: int
+
+    # ── Story 3.2 additions (Task 2.3) ────────────────────────────────
+    # pay_type discriminator ('monthly' | 'daily') — source-of-truth
+    # for which formula produced the breakdown.
+    pay_type: str
+    # PRD §6.1 인건비 5개 항목 + 1 derived burden_total.
+    breakdown: PayTypeBreakdownResponse
+    # Row attribution — counts (not the row data itself; reveals whether
+    # the number is from 1 row or 20 in audit / UI debug).
+    source_rows: int
+    # Resolved payroll settings used for this period (override aware).
+    payroll_settings: PayrollSettingsResponse
 
 
 class MonthlyInputStateResponse(BaseModel):
@@ -171,7 +296,8 @@ class MonthlyInputStateResponse(BaseModel):
     - The horizontal tab strip (capability_mask)
     - The yellow dot per tab (completion.<stream>)
     - The [계산] button state (is_complete + missing)
-    - The read-only FTE display on the [인원] tab (fte_display)
+    - The [인원] tab FTE display (fte_display — Story 3.1 read-only;
+      Story 3.2 with full breakdown)
     """
 
     model_config = ConfigDict(extra="forbid")

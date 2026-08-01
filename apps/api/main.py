@@ -24,6 +24,13 @@ from apps.api.core.security import AuthError
 from apps.api.modules.m0_onboarding import router as m0_onboarding_router
 from apps.api.modules.m1_baseline import router as m1_baseline_router
 from apps.api.modules.m2_input import router as m2_input_router
+from apps.api.modules.m2_input.services.monthly_input_service import (
+    MonthlyInputCompanyBurdenRateError,
+    MonthlyInputFteReadOnlyError,
+    MonthlyInputInvalidLaborShapeError,
+    MonthlyInputPayTypeMismatchError,
+    MonthlyInputPayrollSettingsInvalidError,
+)
 from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
@@ -45,6 +52,7 @@ app.include_router(m9_abc_router)
 app.include_router(m10_ai_router)
 
 # Story 3.1 — M2 monthly input capture (6-stream tabs + 일자별 toggle + completion gate)
+# Story 3.2 — M2 labor precision (pay_type 분기 + 5 breakdown fields + tenant payroll override)
 app.include_router(m2_input_router)
 
 
@@ -116,6 +124,96 @@ async def _pipa_consent_handler(
     request: Request, exc: PipaConsentMissingError
 ) -> JSONResponse:
     return _pipa_error_response(exc)
+
+
+# Story 3.2 — labor precision error envelopes (AD-15 §4).
+# Without these, FastAPI returns HTTP 500 for the new `_validate_labor_shape`
+# + `_load_payroll_settings` failure paths. Mapped to typed codes so the
+# frontend can show specific Korean hints ("daily mode doesn't use
+# monthly_salary_basis_krw", etc).
+@app.exception_handler(MonthlyInputInvalidLaborShapeError)
+async def _m2_invalid_labor_shape_handler(
+    request: Request, exc: MonthlyInputInvalidLaborShapeError
+) -> JSONResponse:
+    """400 MONTHLY_INPUT_INVALID_LABOR_SHAPE — labor stream missing required
+    pay_type-specific fields (Task 3.1 `_validate_labor_shape` AC #4)."""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "MONTHLY_INPUT_INVALID_LABOR_SHAPE",
+            "message_ko": "인건비 입력 항목이 부족합니다",
+            "details": exc.details,
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(MonthlyInputFteReadOnlyError)
+async def _m2_fte_read_only_handler(
+    request: Request, exc: MonthlyInputFteReadOnlyError
+) -> JSONResponse:
+    """400 MONTHLY_INPUT_FTE_READ_ONLY — AC #5 direct write attempt on
+    `fte_headcount` / `fte_wage_krw` (derived fields)."""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "MONTHLY_INPUT_FTE_READ_ONLY",
+            "message_ko": "FTE 인원·인건비는 자동 계산 항목입니다 (직접 수정 불가)",
+            "details": {"field": exc.field},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(MonthlyInputPayrollSettingsInvalidError)
+async def _m2_payroll_settings_invalid_handler(
+    request: Request, exc: MonthlyInputPayrollSettingsInvalidError
+) -> JSONResponse:
+    """400 MONTHLY_INPUT_PAYROLL_SETTINGS_INVALID — out-of-range value in
+    `tenant_settings.payroll.*` (Task 3.1 `_load_payroll_settings`)."""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "MONTHLY_INPUT_PAYROLL_SETTINGS_INVALID",
+            "message_ko": "인건비 정책 값이 올바르지 않습니다",
+            "details": exc.details,
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(MonthlyInputCompanyBurdenRateError)
+async def _m2_company_burden_rate_handler(
+    request: Request, exc: MonthlyInputCompanyBurdenRateError
+) -> JSONResponse:
+    """422 MONTHLY_INPUT_COMPANY_BURDEN_RATE — service-side re-check
+    catches bypasses (Task 3.1)."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "MONTHLY_INPUT_COMPANY_BURDEN_RATE",
+            "message_ko": "회사부담임률은 0과 1 사이여야 합니다",
+            "details": {"value": exc.value},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(MonthlyInputPayTypeMismatchError)
+async def _m2_pay_type_mismatch_handler(
+    request: Request, exc: MonthlyInputPayTypeMismatchError
+) -> JSONResponse:
+    """400 MONTHLY_INPUT_PAY_TYPE_MISMATCH — pay_type별 forbidden 필드
+    사용 시 (예: daily + monthly_salary_basis_krw)."""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "MONTHLY_INPUT_PAY_TYPE_MISMATCH",
+            "message_ko": "급여유형과 입력 항목이 맞지 않습니다",
+            "details": exc.details,
+            "trace_id": exc.trace_id,
+        },
+    )
 
 
 # H3 (Review) / AD-15 §4: detect BOM ratio decimal-places violations and

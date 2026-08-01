@@ -110,3 +110,78 @@ async def test_state_fte_display_for_labor_stream() -> None:
 async def test_delete_row_writes_audit() -> None:
     """DELETE /rows/{id} → 204 + audit_logs row with action='monthly_input_row_deleted'."""
     raise NotImplementedError
+
+
+# ── Story 3.2 — DB-backed reference tests (Task 6.5) ─────────────
+@pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
+async def test_save_row_labor_pay_type_daily_201_with_fte_display() -> None:
+    """AC #1 — POST /rows with stream='labor', pay_type='daily',
+    workers=3, days_per_worker=8, daily_wage_krw=150_000
+    → 200 + state.fte_display.pay_type='daily',
+    fte_headcount=Decimal("1.09"), fte_wage_krw=3_600_000.
+    """
+    raise NotImplementedError
+
+
+@pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
+async def test_save_row_labor_pay_type_monthly_with_breakdown_201() -> None:
+    """AC #2 — POST /rows with stream='labor', pay_type='monthly',
+    workers=2, monthly_salary_basis_krw=2_500_000 (with breakdown)
+    → 200 + state.fte_display.breakdown populated,
+    fte_wage_krw = workers × breakdown.total_krw.
+    """
+    raise NotImplementedError
+
+
+@pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
+async def test_save_row_labor_pay_type_none_rejected_400() -> None:
+    """AC #4 — POST /rows with stream='labor', pay_type=None
+    → 400 MONTHLY_INPUT_INVALID_LABOR_SHAPE (Story 3.1's implicit
+    None gate is gone — pay_type is now required on labor).
+    """
+    raise NotImplementedError
+
+
+@pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
+async def test_save_row_labor_pay_type_daily_with_basis_rejected_400() -> None:
+    """AC #4 — pay_type='daily' + monthly_salary_basis_krw set
+    → 400 MONTHLY_INPUT_PAY_TYPE_MISMATCH (daily mode doesn't use
+    the basis 환산 field).
+    """
+    raise NotImplementedError
+
+
+@pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
+async def test_save_row_invalid_company_burden_rate_rejected_422() -> None:
+    """AC — POST /rows with company_burden_rate=1.5
+    → 422 MONTHLY_INPUT_COMPANY_BURDEN_RATE (Pydantic Field catches
+    at the schema; service-side re-check is defense in depth).
+    """
+    raise NotImplementedError
+
+
+@pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
+async def test_patch_fte_headcount_rejected_400_read_only() -> None:
+    """AC #5 — PATCH /rows/{id} with fte_headcount in body
+    → 400 MONTHLY_INPUT_FTE_READ_ONLY (Pydantic `extra='forbid'`
+    rejects the field before service sees it).
+    """
+    raise NotImplementedError
+
+
+@pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
+async def test_get_state_includes_payroll_settings() -> None:
+    """Story 3.2 §Task 3.3 — GET /state response includes
+    payroll_settings (effective merge of override + defaults).
+    Frontend echoes it back to the user.
+    """
+    raise NotImplementedError
+
+
+@pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
+async def test_tenant_settings_payroll_override_changes_fte() -> None:
+    """AC #3 — updating tenant_settings.payroll.workdays_in_month=20
+    changes the labor row's FTE 환산 from 1.09 (22 workdays) to
+    1.20 (20 workdays). Tests the per-tenant override hot-path.
+    """
+    raise NotImplementedError

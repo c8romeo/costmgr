@@ -39,6 +39,15 @@
 - **MONTHLY_INPUT_PRODUCTION** gates the [생산] tab in m2_input only.
   The other 5 streams (orders/sales/purchases/expenses/labor) are
   **ungated** — every industry has them.
+- **FTE 정밀 계산 (Story 3.2)** — [`MONTHLY_INPUT_LABOR` capability의 일부].
+  추가 capability 부재. PRD §6.1 인건비 구성 (기본급·시간외·복리후생·
+  상여·퇴직충당금) + `pay_type` 분기 (monthly 정규직 vs daily 일용직)
+  가 [인원] 탭에 통합됨. 직급별 capability 분기 불필요.
+- **테넌트별 payroll 정책 override** — `tenant_settings.payroll.*` JSONB
+  sub-block으로 per-tenant override (Story 3.2 신규 도입). 빈 dict
+  `{}`은 PRD §6.1 default (`monthly_salary_basis_krw=2_500_000`,
+  `workdays_in_month=22`, `standard_monthly_hours=228`,
+  `company_burden_rate=0.115`)로 fallthrough.
 - **AI_EXTRACT** is granted to every industry (PRD §4.2 AI cross-cutting
   feature). Tenant-only restriction is PIPA consent, not industry.
 
@@ -79,6 +88,7 @@
 | 2.1 — Product master | `PRODUCT`, `PRODUCT_MATERIAL` |
 | 2.2 — BOM matrix | `BOM` |
 | 3.1 — Six-stream monthly input | `MONTHLY_INPUT_PRODUCTION` |
+| 3.2 — FTE precision + daily labor | (no new capability; FTE precision is part of `MONTHLY_INPUT_LABOR` ungated path; per-tenant payroll override via `tenant_settings.payroll.*` JSONB sub-block) |
 | 5.x — Inventory | `OPENING_INVENTORY`, `INVENTORY_LEDGER` |
 | 9.x — ABC | `COST_POOL`, `ACTIVITY`, `DRIVER`, `SEGMENT_SPLIT` |
 

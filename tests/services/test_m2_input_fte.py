@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
 from packages.services.m2_input.stream_completion import (
     compute_fte_wage_krw,
     format_fte_headcount,
@@ -136,3 +138,65 @@ def test_compute_fte_wage_high_fte_count() -> None:
     fte = format_fte_headcount(10, 22, 22)
     assert fte == Decimal("10.00")
     assert compute_fte_wage_krw(fte, 2_500_000) == 25_000_000
+
+
+# ───────────────────────────────────────────────────────────────
+# Story 3.2 — Task 6.3 — payroll settings override (AC #3) + invalid
+# ───────────────────────────────────────────────────────────────
+from packages.services.m2_input.labor_conversion import (
+    DEFAULT_PAYROLL,
+    PayrollSettings,
+    merge_payroll_settings,
+)
+
+
+def test_tenant_settings_override_takes_precedence() -> None:
+    """AC #3 — override dict fully replaces default values (per-field)."""
+    override = {
+        "monthly_salary_basis_krw": 3_000_000,
+        "workdays_in_month": 20,
+        "standard_monthly_hours": 160,
+        "company_burden_rate": Decimal("0.105"),
+    }
+    settings = merge_payroll_settings(override)
+    assert settings.monthly_salary_basis_krw == 3_000_000
+    assert settings.workdays_in_month == 20
+    assert settings.standard_monthly_hours == 160
+    assert settings.company_burden_rate == Decimal("0.105")
+
+
+def test_tenant_settings_override_partial_per_field() -> None:
+    """AC #3 — partial override (only 1 field) leaves others at default."""
+    override = {"workdays_in_month": 23}
+    settings = merge_payroll_settings(override)
+    # Overridden field
+    assert settings.workdays_in_month == 23
+    # Default fallthrough
+    assert (
+        settings.monthly_salary_basis_krw
+        == DEFAULT_PAYROLL.monthly_salary_basis_krw
+    )
+    assert (
+        settings.standard_monthly_hours
+        == DEFAULT_PAYROLL.standard_monthly_hours
+    )
+    assert (
+        settings.company_burden_rate
+        == DEFAULT_PAYROLL.company_burden_rate
+    )
+
+
+def test_payroll_settings_invalid_company_burden_rate() -> None:
+    """AC — `company_burden_rate=1.5` (out of [0,1]) raises ValueError."""
+    override = {"company_burden_rate": Decimal("1.5")}
+    with pytest.raises(ValueError) as exc_info:
+        merge_payroll_settings(override)
+    assert "company_burden_rate" in str(exc_info.value)
+
+
+def test_payroll_settings_decimal_company_burden_rate() -> None:
+    """AC — `company_burden_rate=Decimal("0.115")` accepted (TS mirror)."""
+    override = {"company_burden_rate": Decimal("0.115")}
+    settings = merge_payroll_settings(override)
+    assert settings.company_burden_rate == Decimal("0.115")
+    assert isinstance(settings, PayrollSettings)

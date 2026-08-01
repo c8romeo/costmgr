@@ -154,7 +154,7 @@ action_items:
   # ==========================================
   epic-3: in-progress
   3-1-six-stream-monthly-input-ui-month-total-default: done
-  3-2-fte-conversion-daily-labor: ready-for-dev
+  3-2-fte-conversion-daily-labor: done
   3-3-negative-inventory-overcapacity-real-time-warning: backlog
   epic-3-retrospective: optional
 

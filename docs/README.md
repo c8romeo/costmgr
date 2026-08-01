@@ -22,6 +22,11 @@
 - [`bom-matrix.md`](./bom-matrix.md) — Story 2.2. BOM 비중 합 100% invariant + bulk-replace PUT + 모품목/자품목 type rules.
 - [`item-type-change.md`](./item-type-change.md) — **Story 2.3 (2026-08-01)**. 품목 유형 변경 무결성 가드 — `product_type` 변경 시 BOM·수불 참조 0건 검증, 참조 존재 시 **409 PRODUCT_TYPE_HAS_REFERENCES** (RFC 7231 §6.5.8 상태 충돌). `code`는 여전히 403 PRODUCT_IMMUTABLE_FIELD (AD-18). Epic 5 수불 stub 마커 포함.
 
+## Epic 3 — Monthly Input (M2)
+
+- [`monthly-input.md`](./monthly-input.md) — Story 3.1. 6-stream 입력 + 일자별 토글 + 완료 게이트.
+- [`monthly-input-fte.md`](./monthly-input-fte.md) — **Story 3.2 (2026-08-01)**. PRD §6.1 인건비 정밀 — `pay_type` 분기 (monthly 정규직 vs daily 일용직) + 5개 breakdown 필드 (기본급·시간외·복리후생·상여·퇴직충당금) + 회사부담임률. `tenant_settings.payroll` JSONB per-tenant override. TS mirror `apps/web/lib/l2-input-fte.ts`. Capability unchanged (FTE precision = `MONTHLY_INPUT_LABOR`의 일부).
+
 ## Architecture Decisions
 
 - [`STACK_PIN.md`](./STACK_PIN.md) — AD-14 스택 핀 정책 + 현재 핀 표 (single source of truth)
