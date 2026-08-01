@@ -1,10 +1,11 @@
-"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2).
+"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1).
 
 Mapped tables:
 - 0001: tenants, users, tenant_memberships, tenant_settings, audit_logs
 - 0005 (Story 1.3): uploaded_documents, input_drafts
 - 0006 (Story 2.1): products
 - 0007 (Story 2.2): bom_lines
+- 0009 (Story 3.1): monthly_input_periods, monthly_input_rows
 
 Per AD-1/AD-11: this module is in `apps/api/` (infra layer). It does NOT
 import `packages.cost_engine` directly. Modules write through services.
@@ -389,5 +390,162 @@ class BOMLine(Base):
         CheckConstraint(
             "ratio > 0 AND ratio <= 100",
             name="bom_lines_ratio_range_check",
+        ),
+    )
+
+
+# ── monthly_input_periods (Story 3.1 — Task 2.1) ──────────────
+# One row per (tenant, period_key, baseline_revision) triple.
+# AD-23 4-namespace: uniqueness on the triple keeps each tenant's
+# periods fully isolated. Multiple revisions of the same period can
+# coexist (Epic 4 first_calc bumps `baseline_revision` and keeps the
+# previous row for V8 regression comparison).
+#
+# `mode` carries the F2.1 일자별/월합계 toggle. Switching does NOT
+# create a new revision — it's a per-period UI preference (not a
+# baseline change). `baseline_revision` only bumps at first_calc time
+# (Story 3.4 + Epic 4).
+#
+# `locked_by_calculation`: AD-13 says MonthInputAdapter reads but
+# doesn't lock — Epic 4 M3 calc sets this true so the UI can show
+# "마감됨" badge and disable edits. Epic 3.1 only INSERTs with default
+# `false`.
+class MonthlyInputPeriod(Base):
+    __tablename__ = "monthly_input_periods"
+
+    period_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    period_key: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(
+        Text, nullable=False, default="month_total"
+    )
+    baseline_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1
+    )
+    locked_by_calculation: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "mode IN ('month_total', 'daily')",
+            name="monthly_input_periods_mode_check",
+        ),
+        CheckConstraint(
+            "baseline_revision >= 1",
+            name="monthly_input_periods_revision_positive",
+        ),
+        UniqueConstraint(
+            "tenant_id", "period_key", "baseline_revision",
+            name="uq_monthly_input_periods_tenant_period_revision",
+        ),
+    )
+
+
+# ── monthly_input_rows (Story 3.1 — Task 2.1) ──────────────────
+# One row per user-entered cell. The natural key
+# (tenant_id, period_id, stream, product_id, day_no) is enforced by
+# a partial unique index in the alembic migration (Postgres treats
+# NULL comparisons as NULL, which defeats unique constraints; the
+# COALESCE in the index resolves that for ``product_id`` and ``day_no``).
+#
+# Stream-conditional nullability (PRD §8.M2(b)):
+# - orders / production / sales / purchases → product_id NOT NULL,
+#   workers/days_per_worker/daily_wage_krw NULL
+# - labor → product_id NULL, workers/days_per_worker/daily_wage_krw NOT NULL
+# - expenses → product_id NULL (general ledger), money-only fields
+#
+# Service layer enforces the per-stream shape (Task 4.3 — save_row).
+# The DB keeps the column-level NULL permissiveness so the same table
+# backs all 6 streams without a UNION ALL of 6 sub-tables.
+class MonthlyInputRow(Base):
+    __tablename__ = "monthly_input_rows"
+
+    row_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    period_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("monthly_input_periods.period_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stream: Mapped[str] = mapped_column(Text, nullable=False)
+    product_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    day_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # AD-8: qty is small-decimal (NUMERIC 18,4). Engine multiplies with
+    # KRW unit_price → result rounded at the service boundary.
+    qty: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=18, scale=4), nullable=True
+    )
+    unit_price_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    amount_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    workers: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    days_per_worker: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    daily_wage_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    memo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "stream IN ('orders','production','sales','purchases','expenses','labor')",
+            name="monthly_input_rows_stream_check",
+        ),
+        CheckConstraint(
+            "day_no IS NULL OR (day_no BETWEEN 1 AND 31)",
+            name="monthly_input_rows_day_no_range_check",
+        ),
+        CheckConstraint(
+            "qty IS NULL OR qty >= 0",
+            name="monthly_input_rows_qty_nonneg",
+        ),
+        CheckConstraint(
+            "unit_price_krw IS NULL OR unit_price_krw >= 0",
+            name="monthly_input_rows_unit_price_nonneg",
+        ),
+        CheckConstraint(
+            "amount_krw IS NULL OR amount_krw >= 0",
+            name="monthly_input_rows_amount_nonneg",
+        ),
+        CheckConstraint(
+            "workers IS NULL OR workers >= 0",
+            name="monthly_input_rows_workers_nonneg",
+        ),
+        CheckConstraint(
+            "days_per_worker IS NULL OR days_per_worker >= 0",
+            name="monthly_input_rows_days_per_worker_nonneg",
+        ),
+        CheckConstraint(
+            "daily_wage_krw IS NULL OR daily_wage_krw >= 0",
+            name="monthly_input_rows_daily_wage_nonneg",
+        ),
+        CheckConstraint(
+            "memo IS NULL OR length(memo) <= 500",
+            name="monthly_input_rows_memo_length_check",
         ),
     )

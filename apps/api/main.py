@@ -23,6 +23,7 @@ from apps.api.core.pipa_gate import PipaConsentMissingError
 from apps.api.core.security import AuthError
 from apps.api.modules.m0_onboarding import router as m0_onboarding_router
 from apps.api.modules.m1_baseline import router as m1_baseline_router
+from apps.api.modules.m2_input import router as m2_input_router
 from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
@@ -42,6 +43,9 @@ app.include_router(m9_abc_router)
 
 # Story 1.3 — M10 AI document extraction (upload / list / reprocess + drafts CRUD / promote)
 app.include_router(m10_ai_router)
+
+# Story 3.1 — M2 monthly input capture (6-stream tabs + 일자별 toggle + completion gate)
+app.include_router(m2_input_router)
 
 
 @app.exception_handler(AuthError)

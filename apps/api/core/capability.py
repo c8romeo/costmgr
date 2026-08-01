@@ -71,6 +71,11 @@ class Capability(str, Enum):
     # R6: service tenants STILL register `product` + `goods` — finished
     # products and trade goods are BOM-independent catalog rows.
     PRODUCT_MATERIAL = "product_material"
+    # Story 3.1 — Monthly input production stream. Service tenants have
+    # no manufacturing capability → the [생산] tab is hidden. The other
+    # 5 streams (orders/sales/purchases/expenses/labor) are ungated;
+    # the gate here only protects the production-stream writes. PRD §8.M2(b).
+    MONTHLY_INPUT_PRODUCTION = "monthly_input_production"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -85,6 +90,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 2.1 — manufacturing tenants can register all 5 product types.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,
+            # Story 3.1 — manufacturing tenants get the [생산] tab.
+            Capability.MONTHLY_INPUT_PRODUCTION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -96,6 +103,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 2.1 — service tenants get PRODUCT (catalog CRUD) but
             # NOT PRODUCT_MATERIAL (no BOM → no physical raw/semi entries).
             Capability.PRODUCT,
+            # Story 3.1 — service tenants have NO production capability
+            # → the [생산] tab is hidden. The other 5 streams
+            # (orders/sales/purchases/expenses/labor) are ungated.
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -111,6 +121,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 2.1 — both engines → full product catalog.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,
+            # Story 3.1 — 겸영 tenants get the [생산] tab.
+            Capability.MONTHLY_INPUT_PRODUCTION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -126,6 +138,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 2.1 — full catalog + 격리 버킷.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,
+            # Story 3.1 — full matrix.
+            Capability.MONTHLY_INPUT_PRODUCTION,
         }
     ),
 }

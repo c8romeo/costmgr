@@ -197,3 +197,44 @@ export const INDUSTRY_ALLOWED_PRODUCT_TYPES: Record<Industry, readonly ProductTy
   manufacturing_service_other: ["product", "semi_product", "material", "goods", "service"],
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// Story 3.1 — six-stream monthly input visibility (PRD §8.M2(b))
+//
+// Mirror of the Python `STREAMS_FOR_INDUSTRY` map in
+// `packages/services/m2_input/stream_completion.py` — drift caught by
+// `tests/integration/test_m2_input_label_consistency.py`.
+//
+// Rule: service tenants hide the [생산] tab (no manufacturing capability).
+// The other 5 streams are visible to every industry. Backend gate is
+// `Capability.MONTHLY_INPUT_PRODUCTION`; this map is the UI projection.
+// ─────────────────────────────────────────────────────────────────────
+
+export const MONTHLY_INPUT_STREAM_VALUES = [
+  "orders",
+  "production",
+  "sales",
+  "purchases",
+  "expenses",
+  "labor",
+] as const;
+
+/* eslint-disable-next-line @typescript-eslint/no-restricted-types */
+export type MonthlyInputStream = (typeof MONTHLY_INPUT_STREAM_VALUES)[number];
+
+export const MONTHLY_INPUT_STREAM_LABEL_KO: Record<MonthlyInputStream, string> = {
+  orders: "주문",
+  production: "생산",
+  sales: "판매",
+  purchases: "구매",
+  expenses: "경비",
+  labor: "인원",
+};
+
+/** Per-industry visible-stream subset (PRD §8.M2(b)). */
+export const INDUSTRY_VISIBLE_STREAMS: Record<Industry, readonly MonthlyInputStream[]> = {
+  manufacturing: ["orders", "production", "sales", "purchases", "expenses", "labor"],
+  service: ["orders", "sales", "purchases", "expenses", "labor"],
+  manufacturing_service: ["orders", "production", "sales", "purchases", "expenses", "labor"],
+  manufacturing_service_other: ["orders", "production", "sales", "purchases", "expenses", "labor"],
+};
+
