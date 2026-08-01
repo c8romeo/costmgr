@@ -1,9 +1,9 @@
 ---
-baseline_commit: bd58c180234abae60a1bd4e8bcd38ea766263d9a
+baseline_commit: ab409bfca87315abfd315e6d7dbfa3c93f930986
 ---
 # Story 1.3: AI 문서 추출 + 신뢰도 배지
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created -->
 
