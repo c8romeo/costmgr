@@ -358,6 +358,15 @@ class MonthlyInputStateResponse(BaseModel):
     - `is_blocked: bool` — `len(warnings) > 0` (PRD §A11 close-time rule)
     - `warnings_count: int` — UI echo
     - `top_n_severity: int` — most severe warning ordinal (UI hint)
+
+    Story 5.1 (Epic 5) extends the response with 3 opening-carry
+    fields (PRD §F4.1):
+    - `opening_inventory: dict[str, str]` — product_id_str → qty_str
+      (Decimal serialization for cross-language drift prevention)
+    - `opening_inventory_locked: bool` — `_locked` JSONB sub-key
+      (False until first-row INSERT, then True)
+    - `opening_inventory_lock_reason_ko: str | None` — Korean reason
+      for the lock (default: "전월 기말 자동 이월")
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -376,3 +385,7 @@ class MonthlyInputStateResponse(BaseModel):
     is_blocked: bool = False
     warnings_count: int = 0
     top_n_severity: int = 0
+    # Story 5.1 — opening inventory auto-carry fields (PRD §F4.1)
+    opening_inventory: dict[str, str] = Field(default_factory=dict)
+    opening_inventory_locked: bool = False
+    opening_inventory_lock_reason_ko: str | None = None

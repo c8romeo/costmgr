@@ -523,6 +523,9 @@ class MonthlyInputService:
         - orders / production / sales / purchases → product_id required
         - labor / expenses → product_id must be None (service rejects)
         - production → industry capability check
+
+        Story 5.1 — `opening_inventory` is auto-carried after first-row
+        lock; manual row write rejected (PRD §F4.1).
         """
         if payload.stream not in (
             "orders",
@@ -531,10 +534,25 @@ class MonthlyInputService:
             "purchases",
             "expenses",
             "labor",
+            # Story 5.1 — opening_inventory is NOT a writable stream
+            # (auto-carried by OpeningCarryService). Listed here only
+            # to throw the dedicated typed exception below.
+            "opening_inventory",
         ):
             raise MonthlyInputInvalidPayloadError(
                 tenant_id=self.tenant_id,
                 details={"field": "stream", "value": payload.stream},
+                trace_id=self.trace_id,
+            )
+        # Story 5.1 — manual edit on opening_inventory rejected
+        if payload.stream == "opening_inventory":
+            from apps.api.modules.m4_inventory.services.opening_carry_service import (
+                MonthlyInputOpeningManualEditError,
+            )
+
+            raise MonthlyInputOpeningManualEditError(
+                tenant_id=self.tenant_id,
+                period_key="<pending>",
                 trace_id=self.trace_id,
             )
         if payload.stream in _STREAMS_REQUIRING_PRODUCT:
@@ -743,6 +761,24 @@ class MonthlyInputService:
                 },
                 trace_id=self.trace_id,
             ) from err
+
+        # Story 5.1 (Epic 5) — first-row INSERT triggers opening lock.
+        # PRD §F4.1: 이후 수동 입력은 차단한다. Lock marker is added to
+        # opening_inventory JSONB; future POSTs on stream='opening_inventory'
+        # return 400 MONTHLY_INPUT_OPENING_MANUAL_EDIT.
+        from apps.api.modules.m4_inventory.services.opening_carry_service import (
+            OpeningCarryService,
+        )
+
+        carry_svc = OpeningCarryService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+        await carry_svc.lock_opening_after_first_row(
+            period, actor_id=actor_id
+        )
 
         # Story 4.3 (A5 Phase 1) — typed emit wrapper.
         await emit_audit_typed(
@@ -978,8 +1014,26 @@ class MonthlyInputService:
           - `is_blocked: bool` — `len(warnings) > 0`
           - `warnings_count: int` — UI echo
           - `top_n_severity: int` — most severe warning ordinal
+
+        Story 5.1 — auto_carry_on_get_state hook. If opening_inventory
+        is empty AND a prev period exists, run the carry chain (silent).
+        Idempotent: if locked or already populated, no-op.
         """
         period = await self.get_or_create_period(period_key)
+
+        # Story 5.1 (Epic 5) — auto-carry hook (silent, idempotent)
+        from apps.api.modules.m4_inventory.services.opening_carry_service import (
+            OpeningCarryService,
+        )
+
+        carry_svc = OpeningCarryService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+        await carry_svc.auto_carry_on_get_state(period)
+
         rows = (
             await self.session.scalars(
                 select(MonthlyInputRow)
@@ -1038,6 +1092,20 @@ class MonthlyInputService:
             is_blocked=is_blocked,
             warnings_count=warnings_count,
             top_n_severity=top_n_severity,
+            # Story 5.1 — opening inventory auto-carry fields (PRD §F4.1).
+            # Decimal serialization via str() — cross-language drift
+            # prevention (AD-15).
+            opening_inventory={
+                k: str(v)
+                for k, v in period.opening_inventory.items()
+                if not k.startswith("_")
+            },
+            opening_inventory_locked=bool(
+                period.opening_inventory.get("_locked", False)
+            ),
+            opening_inventory_lock_reason_ko=period.opening_inventory.get(
+                "_lock_reason_ko"
+            ),
         )
 
     # ── Helpers ──────────────────────────────────────────────

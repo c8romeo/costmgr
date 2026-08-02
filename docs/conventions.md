@@ -442,3 +442,82 @@ which the orchestrator catches → 500 INTERNAL_ERROR via
 | TS `number` (money) | ESLint `no-restricted-types` (apps/web override) | `pnpm lint:conventions` |
 
 **PR 머지 차단:** `lint-conventions` 잡 실패 → merge 차단 (Story 0.4 §8).
+
+---
+
+## §10 Audit Actions (A5 — 단일 진실 공급원)
+
+CR 1.1 lesson (Epic 1·2·3·4 4번째 epic 연속 재발) — audit log의 `action` 필드가 free-form string literal로 모듈 곳곳에 분산되어 4번 연속 drift 발생. A5 pin-point에서 `apps/api/core/audit_action.py`가 **단일 진실 공급원 (SSOT)** 으로 강제된다.
+
+### §10.1 ActionClass / AuditAction
+
+| ActionClass | 대상 (target_table) | AuditAction Literal | 비고 |
+|---|---|---|---|
+| `TENANT_SETTINGS` | `tenant_settings` | `industry_selected`, `industry_change_initial`, `onboarding_field_saved`, `allocation_criterion_saved`, `company_subblock_promoted` | F-36 inversion lesson (Story 1.1) |
+| `SERVICE_ROLE` | `service_role` (audit_logs) | `service_role_bypass` | AD-2 audit-first |
+| `UPLOADED_DOCUMENT` | `uploaded_documents` | `document_uploaded`, `document_reprocess_requested`, `document_retention_soft_deleted` | Story 1.3 |
+| `INPUT_DRAFT` | `input_drafts` | `input_draft_confirm`, `input_draft_reject` | f-string interpolation → typed Literal 분리 |
+| `PRODUCT` | `products` | `product_created`, `product_updated`, `product_type_changed`, `product_soft_deleted`, `product_reactivated` | conditional ternary (Story 2.3) |
+| `BOM_LINE` | `bom_lines` | `bom_set`, `bom_cleared` | bulk replace (Story 2.2) |
+| `MONTHLY_INPUT_ROW` | `monthly_input_rows` | `monthly_input_row_created`, `monthly_input_row_updated`, `monthly_input_row_deleted` | save_row + update_row PATCH 동일 action |
+| `MONTHLY_INPUT_PERIOD` | `monthly_input_periods` | `monthly_input_mode_changed` | 다른 테이블 (per-row 아님) |
+| `CALC_LOG` | `calc_log` (별도 테이블) | `compute`, `idempotent_skip`, `rollback` | DB CHECK 1st (0012) |
+| `VERIFICATION_LOG` | `verification_log` (별도 테이블) | `verification_passed`, `verification_failed`, `verification_skipped`, `verify_v8_golden_match` | DB CHECK 2nd (0013) + Story 4.4 forward-lock |
+| `INVENTORY_LEDGER` | `inventory_ledger` (Epic 5) | (Epic 5 spec 진입 시 확정) | placeholder slot |
+| `REVERSAL_LOG` | `reversal_log` (Epic 11) | (Epic 11 spec 진입 시 확정) | placeholder slot |
+
+### §10.2 규칙
+
+- **모든 audit log write는 `emit_audit_typed()` 또는 typed service-layer writer** (`CalcOrchestrator._write_calc_log`, `_write_verification_log`) 를 통해 호출. legacy `emit_audit()` 직접 호출 **금지**.
+- **ActionClass는 호출 시점에 명시** — `target_table` 파라미터로 target_table을 추론하는 패턴 금지. registry가 라우팅 단일 결정.
+- **tuple `(ActionClass, action)` → `AuditLogType` 1:1 매핑** — 변경 시 `_ActionRegistry._REGISTRY` 에서 단일 edit. 분기 로직 복수 정의 금지.
+- **payload 내 `reason` field는 action literal과 분리** — compound discriminator 역할 (예: `industry_selected_initial` / `industry_change_within_grace`). action은 high-level verb.
+- **DB CHECK constraint = production gate** — 신규 ledger (verification_log, inventory_ledger, reversal_log) 추가 시 Alembic에서 `CHECK (action IN (...))` 강제. registry와 동등성 유지 (Phase 4 3-way drift detector).
+- **m4_inventory / m11_reversal service-layer writer** — `emit_audit_typed()`는 `audit_logs`만 라우팅. inventory_ledger / reversal_log는 각 service가 직접 typed writer 소유 (orchestrator 책임 분리).
+
+### §10.3 위반 시
+
+- `tests/services/test_audit_action_centralization.py` (AST-grep `emit_audit(` hitcount = 0) — **CI 게이트** (mandatory, no skip).
+- `tests/integration/test_audit_action_consistency.py` (3-way drift detector: registry vs DB CHECK vs call sites) — Alembic 0013+ DB CHECK constraint 변경 시 자동 검증.
+- 위반 시: `legacy emit_audit( call detected — migrate to emit_audit_typed() (apps/api/core/audit_action.py)`.
+
+### §10.4 lint
+
+| 검사 | 위치 | 실행 |
+|---|---|---|
+| `emit_audit(` legacy call site 0 | `tests/services/test_audit_action_centralization.py` AST-grep | `uv run pytest tests/services/test_audit_action_centralization.py` |
+| Registry ↔ DB CHECK ↔ call sites 3-way | `tests/integration/test_audit_action_consistency.py` | `uv run pytest tests/integration/` |
+
+### §10.5 Opening Auto-Carry Policy (Story 5.1)
+
+PRD §F4.1: 기초재고는 자동 이월되며, 매달 다시 입력하지 않아도 된다.
+
+**Chain limit**: 12-period (1년). `INVENTORY_PERIOD_CHAIN_LIMIT`
+상수는 `packages/services/m2_input/opening_carry.py` SSOT. 자동
+체인이 이 한도를 넘으면 silent no-op; 수동 trigger 도 422
+`MONTHLY_INPUT_CARRY_CHAIN_LIMIT` 으로 거부. 운영자가 period 별로
+수동 호출해 점진적 확장.
+
+**Lock marker**: `_locked=True, _lock_reason_ko="전월 기말 자동 이월"`
+JSONB sub-key 로 첫 row INSERT 후 추가. 이후 `stream='opening_inventory'`
+POST 는 400 `MONTHLY_INPUT_OPENING_MANUAL_EDIT` 으로 reject.
+_lock 해제는 Epic 11 reversal entrypoint (별도 story).
+
+**Audit actions**: `monthly_input_period_opening_carried` +
+`monthly_input_period_opening_locked` 두 액션. ActionClass
+`MONTHLY_INPUT_PERIOD` 으로 라우팅 (Story 5.2 에서 inventory_ledger
+도입 후 분리 가능).
+
+**Stale value 정책**: prev period projection 과 current opening 이
+불일치 시 silently overwrite (cj-style default). Audit log 의
+before/after 스냅샷에 prev_old 값 캡처 (CR 1.1 lesson).
+
+**3-way consistency pin**: pure kernel 의
+`INVENTORY_PERIOD_CHAIN_LIMIT=12` 와 TS mirror 의
+`OPENING_CARRY_CHAIN_LIMIT=12` 가 일치해야 함
+(Story 5.3 frontend toast 시점). `tests/integration/test_opening_carry_label_consistency.py`
+에서 검증.
+
+**Capability gate**: `Capability.OPENING_INVENTORY` 는 manufacturing-kind
+industry 에만 wired. Service industry 는 자동 no-op (carry chain
+returns empty decisions — inventory-bearing products 없음).

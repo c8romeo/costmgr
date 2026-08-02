@@ -124,6 +124,10 @@ MonthlyInputRowAction = Literal[
 # monthly_input_period actions (m2_input)
 MonthlyInputPeriodAction = Literal[
     "monthly_input_mode_changed",
+    # Story 5.1 (Epic 5) — opening carry chain audit-first events.
+    # Audit routes to audit_logs (NOT inventory_ledger — that's 5-2).
+    "monthly_input_period_opening_carried",  # auto/manual carry applied
+    "monthly_input_period_opening_locked",  # first-row lock marker added
 ]
 
 # calc_log actions (m3_calculate) — DB CHECK constraint applied (0012)
@@ -236,7 +240,14 @@ class _ActionRegistry:
         ),
         ActionClass.MONTHLY_INPUT_PERIOD: (
             "audit_logs",
-            frozenset({"monthly_input_mode_changed"}),
+            frozenset(
+                {
+                    "monthly_input_mode_changed",
+                    # Story 5.1 — opening carry chain
+                    "monthly_input_period_opening_carried",
+                    "monthly_input_period_opening_locked",
+                }
+            ),
         ),
         ActionClass.CALC_LOG: (
             "calc_log",

@@ -169,5 +169,12 @@ class CalcResponse(BaseModel):
   (4 industries × 3 baseline shapes) + `verify_v8_golden_match` audit
   action forward-lock. Industry canonical names parity 정렬. Capability
   행 자체는 변경 없음.
+- 2026-08-03 — v1.5 (Story 5.1, Epic 5): 기초재고 자동 이월 체인 (PRD §F4.1)
+  추가. `Capability.OPENING_INVENTORY`는 이미 manufacturing-kind
+  industry 3종 (manufacturing / manufacturing_service /
+  manufacturing_service_other) 에 wired. Service industry는 자동
+  no-op (carry chain returns empty decisions — inventory-bearing
+  products 없음). Capability 행 자체는 변경 없음 (5-1 wire는
+  기존 Capability 사용).
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.

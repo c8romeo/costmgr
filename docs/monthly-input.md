@@ -292,3 +292,47 @@ error=0, warning=1, info=2
   - `docs/architecture-decisions/AD-7-ai-extraction-table-naming.md`
 - 다음 Epic: Epic 4 (Cost Calculation & Verification) — first_calc에서
   `monthly_input_periods.baseline_revision` bump + `locked_by_calculation=true`
+
+## Story 5.1 — Opening Inventory Auto-Carry Chain
+
+PRD §F4.1: 기초재고는 자동 이월되며, 매달 다시 입력하지 않아도 됨.
+첫 행 입력 이후 `stream='opening_inventory'` POST는 400
+`MONTHLY_INPUT_OPENING_MANUAL_EDIT` 으로 거부됩니다.
+
+### 자동 wire
+
+`GET /state` 호출 시 silent hook:
+- `OpeningCarryService.auto_carry_on_get_state(period)` 가 opening_inventory JSONB 가
+  비어있고 prev period 가 존재하면 carry chain 실행 (idempotent).
+- opening_inventory 가 이미 locked or populated 이면 no-op.
+- emit_audit(action=`monthly_input_period_opening_carried`) BEFORE UPDATE (AD-2).
+
+### 첫 행 입력 시 lock
+
+`POST /rows` (INSERT 경로) 가 성공하면:
+- `OpeningCarryService.lock_opening_after_first_row(period)` 호출.
+- `_locked=True, _lock_reason_ko="전월 기말 자동 이월"` 마커 추가.
+- 이후 `stream='opening_inventory'` POST 는 400 reject.
+
+### 수동 trigger
+
+`POST /api/v1/inventory/opening-carry/{period_id}`:
+- 운영자가 데이터 수정 후 강제로 carry chain 다시 실행 가능.
+- 12-period 체인 깊이 초과 시 422 `MONTHLY_INPUT_CARRY_CHAIN_LIMIT`.
+- prev period 없으면 422 `MONTHLY_INPUT_CARRY_PREV_PERIOD_NOT_FOUND`.
+
+### 응답 스키마 추가 필드
+
+`MonthlyInputStateResponse` (Story 5.1) 확장:
+- `opening_inventory: dict[str, str]` — product_id_str → qty_str
+- `opening_inventory_locked: bool`
+- `opening_inventory_lock_reason_ko: str | None`
+
+### 참조
+
+- 운영자/dev 가이드: [docs/opening-inventory-carry.md](./opening-inventory-carry.md)
+- Architecture: AD-2 (audit-first) · AD-22 (reversal entrypoint)
+- 스펙: `_bmad-output/implementation-artifacts/5-1-opening-inventory-auto-carry-chain.md`
+
+## 참조
+

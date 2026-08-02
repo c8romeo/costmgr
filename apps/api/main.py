@@ -43,6 +43,13 @@ from apps.api.modules.m3_calculate.services import (
     FiscalPeriodSnapshotDivergedError,
     MonthlyInputBlockedError,
 )
+from apps.api.modules.m4_inventory import router as m4_inventory_router
+from apps.api.modules.m4_inventory.services.opening_carry_service import (
+    MonthlyInputCarryChainLimitError,
+    MonthlyInputCarryPrevPeriodNotFoundError,
+    MonthlyInputOpeningLockViolationError,
+    MonthlyInputOpeningManualEditError,
+)
 from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
@@ -71,6 +78,11 @@ app.include_router(m2_input_router)
 # AD-19 single entry point. AD-4 REPEATABLE READ handled inside the handler.
 # AD-1 binding: handler → service (calc_orchestrator) → engine (period_cost).
 app.include_router(m3_calculate_router)
+
+# Story 5.1 — M4 inventory opening carry manual trigger.
+# Auto-carry chain hooks into m2_input_service (get_state + save_row);
+# this router only exposes the explicit manual trigger.
+app.include_router(m4_inventory_router)
 
 
 @app.exception_handler(AuthError)
@@ -465,6 +477,110 @@ async def _m3_calc_service_error_handler(request: Request, exc: CalcServiceError
             "code": "INTERNAL_ERROR",
             "message_ko": "계산 처리 중 오류가 발생했습니다.",
             "details": exc.details,
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# Story 5.1 — M4 inventory opening carry chain exception handlers
+# (AD-15 §4 envelope mapping)
+# ─────────────────────────────────────────────────────────────
+
+
+@app.exception_handler(MonthlyInputOpeningManualEditError)
+async def _m4_opening_manual_edit_handler(
+    request: Request, exc: MonthlyInputOpeningManualEditError
+) -> JSONResponse:
+    """400 MONTHLY_INPUT_OPENING_MANUAL_EDIT — user attempted to
+    write `stream='opening_inventory'` row (PRD §F4.1).
+    """
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "MONTHLY_INPUT_OPENING_MANUAL_EDIT",
+            "message_ko": (
+                "기초재고는 자동 이월되며 수동 입력이 차단됩니다."
+            ),
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": str(exc.tenant_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(MonthlyInputOpeningLockViolationError)
+async def _m4_opening_lock_violation_handler(
+    request: Request, exc: MonthlyInputOpeningLockViolationError
+) -> JSONResponse:
+    """500 MONTHLY_INPUT_OPENING_LOCK_VIOLATION — JSONB shape
+    inconsistent (defense-in-depth guard).
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "MONTHLY_INPUT_OPENING_LOCK_VIOLATION",
+            "message_ko": (
+                "기초재고 잠금 상태가 손상되었습니다. 관리자에게 문의하세요."
+            ),
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": str(exc.tenant_id),
+                **exc.details,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(MonthlyInputCarryChainLimitError)
+async def _m4_carry_chain_limit_handler(
+    request: Request, exc: MonthlyInputCarryChainLimitError
+) -> JSONResponse:
+    """422 MONTHLY_INPUT_CARRY_CHAIN_LIMIT — chain depth > 12.
+    Manual trigger required for deeper chains.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "MONTHLY_INPUT_CARRY_CHAIN_LIMIT",
+            "message_ko": (
+                f"이월 체인 깊이({exc.depth})가 한도(12)를 초과했습니다. "
+                f"수동 트리거가 필요합니다."
+            ),
+            "details": {
+                "depth": exc.depth,
+                "limit": 12,
+                "period_key": exc.period_key,
+                "tenant_id": str(exc.tenant_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(MonthlyInputCarryPrevPeriodNotFoundError)
+async def _m4_carry_prev_not_found_handler(
+    request: Request, exc: MonthlyInputCarryPrevPeriodNotFoundError
+) -> JSONResponse:
+    """422 MONTHLY_INPUT_CARRY_PREV_PERIOD_NOT_FOUND — prev period
+    missing for the tenant.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "MONTHLY_INPUT_CARRY_PREV_PERIOD_NOT_FOUND",
+            "message_ko": (
+                f"이전 기간({exc.prev_period_key})이 존재하지 않습니다. "
+                f"먼저 이전 기간을 생성하세요."
+            ),
+            "details": {
+                "prev_period_key": exc.prev_period_key,
+                "current_period_key": exc.current_period_key,
+                "tenant_id": str(exc.tenant_id),
+            },
             "trace_id": exc.trace_id,
         },
     )
