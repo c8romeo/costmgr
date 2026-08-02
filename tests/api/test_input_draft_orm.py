@@ -41,9 +41,13 @@ def test_input_drafts_table_registered() -> None:
     assert table.name == "input_drafts"
 
 
-# ── Column presence (DDL parity with 0005 migration) ──────────
+# ── Column presence (DDL parity with 0005 + 0008 migrations) ──────────
 def test_uploaded_documents_columns_match_migration() -> None:
-    """Every column declared in 0005 is present on the ORM model."""
+    """Every column declared in 0005 + 0008 is present on the ORM model.
+
+    0005 created the base columns; 0008 added ``idempotency_key`` for
+    client-side dedup. Both must be present after all migrations run.
+    """
     table = Base.metadata.tables["uploaded_documents"]
     column_names = {c.name for c in table.columns}
     expected = {
@@ -61,6 +65,7 @@ def test_uploaded_documents_columns_match_migration() -> None:
         "deleted_at",
         "error_code",
         "error_message_ko",
+        "idempotency_key",  # added by migration 0008 (ai_documents_idempotency)
     }
     assert column_names == expected
 

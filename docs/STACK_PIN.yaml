@@ -38,7 +38,7 @@ stack_pin:
   # ── Backend (apps/api) ──
   fastapi: "0.139.2"
   pydantic: "2.11.9"        # RANGE-1 (CR 2026-07-25) — last 2.11.x before PYD-1
-  pydantic_core: "2.27.2"   # last known-good wheel (CR 2026-07-25 PYD-1)
+  pydantic_core: "2.33.2"   # pydantic 2.11.9 resolves core≥2.33.2; 2.27.2 was incorrect (resolver runtime pick)
   sqlalchemy: "2.0.36"
   alembic: "1.18.5"
   asyncpg: "0.30.0"

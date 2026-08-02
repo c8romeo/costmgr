@@ -135,12 +135,12 @@ def upgrade() -> None:
     # fall through to `DEFAULT_PAYROLL` in
     # `packages.services.m2_input.labor_conversion` (no-override path).
     # Shape (per-field fallback to default):
-    #     {
-    #         "monthly_salary_basis_krw": int (>= 0),
-    #         "workdays_in_month":       int (1..31),
-    #         "standard_monthly_hours":  int (> 0),
-    #         "company_burden_rate":     Decimal/string in [0, 1],
-    #     }
+    #     {  # noqa: ERA001
+    #         "monthly_salary_basis_krw": int (>= 0),  # noqa: ERA001
+    #         "workdays_in_month":       int (1..31),  # noqa: ERA001
+    #         "standard_monthly_hours":  int (> 0),  # noqa: ERA001
+    #         "company_burden_rate":     Decimal/string in [0, 1],  # noqa: ERA001
+    #     }  # noqa: ERA001
     op.execute(
         """
         ALTER TABLE tenant_settings

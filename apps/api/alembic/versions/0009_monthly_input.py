@@ -122,7 +122,7 @@ def upgrade() -> None:
     # Stream CHECK — explicit so the database rejects typos like
     # 'order' (vs 'orders') early. Mirrored in Pydantic schema layer.
     op.execute(
-        f"""
+        """
         ALTER TABLE monthly_input_rows
         DROP CONSTRAINT IF EXISTS monthly_input_rows_stream_check
         """

@@ -59,6 +59,8 @@ def test_ruff_passes_on_clean_repo() -> None:
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     assert result.returncode == 0, (

@@ -24,7 +24,7 @@ def test_krw_to_int() -> None:
 
 @pytest.mark.engine
 def test_krw_rejects_fractional_decimal() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="USD→KRW requires integer value"):
         to_krw(Decimal("1000.5"))
 
 
