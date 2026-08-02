@@ -81,7 +81,7 @@ IDEMPOTENCY_KEY_TTL_HOURS: Final[int] = 24
 # When `false`, the real `claude_vision.py` adapter raises
 # `AIProviderNotConfiguredError`. Tests/dev/CI set this to False.
 # Production sets it to True after the [STACK BUMP] wires the SDK.
-import os
+import os  # noqa: E402 — deferred module-level import after feature-flag docblock
 
 AI_PROVIDER_ENABLED: Final[bool] = (
     os.getenv("AI_PROVIDER_ENABLED", "false").lower() == "true"

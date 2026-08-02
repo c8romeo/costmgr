@@ -28,6 +28,8 @@ Update-history:
 
 from __future__ import annotations
 
+from typing import Final
+
 # ── BOM reference SQL fragment template ──────────────────────────
 # This is the SQL the service layer executes to count references
 # (bom_lines rows where the product appears as parent OR child).

@@ -46,7 +46,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.audit import emit_audit
+from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from apps.api.core.db_models import BOMLine, Product
 from apps.api.modules.m1_baseline.schemas import (
     ProductCreateRequest,
@@ -61,7 +61,6 @@ from packages.services.m1_baseline.product_code import (
     parse_code,
 )
 from packages.services.m1_baseline.product_references import (
-    count_bom_references,
     count_ledger_references,
     total_references,
 )
@@ -392,11 +391,12 @@ class ProductService:
 
         # Step 4: audit-first (AD-2 / H1). `target_id` is set at write time —
         # no racy backfill query, no race between concurrent POSTs.
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.PRODUCT,
             action="product_created",
-            target_table="products",
+            actor_id=actor_id,
             target_id=new_id,
             reason=None,
             payload={
@@ -615,12 +615,15 @@ class ProductService:
             else "product_updated"
         )
 
-        # Audit-first.
-        await emit_audit(
+        # Audit-first. Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        # `audit_action` is a local variable resolved by the conditional
+        # ternary above (product_type_changed vs product_updated). The
+        # registry validates the literal against ActionClass.PRODUCT.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.PRODUCT,
             action=audit_action,
-            target_table="products",
+            actor_id=actor_id,
             target_id=row.id,
             reason=None,
             payload={
@@ -674,11 +677,16 @@ class ProductService:
         row.is_active = is_active
         row.updated_at = datetime.now(tz=UTC)
 
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper. The conditional
+        # ternary resolves to a single AuditAction literal (product_soft_deleted
+        # OR product_reactivated) — both are in the registry's accepted set
+        # for ActionClass.PRODUCT.
+        toggle_action: str = "product_soft_deleted" if not is_active else "product_reactivated"
+        await emit_audit_typed(
             self.session,
+            action_class=ActionClass.PRODUCT,
+            action=toggle_action,
             actor_id=actor_id,
-            action="product_soft_deleted" if not is_active else "product_reactivated",
-            target_table="products",
             target_id=row.id,
             reason=None,
             payload={

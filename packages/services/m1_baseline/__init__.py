@@ -22,8 +22,8 @@ It may NOT import from `apps.api.*` either.
 """
 
 from packages.services.m1_baseline.bom_validation import (  # noqa: F401
-    InvalidRatioTypeError,
     TARGET_TOTAL,
+    InvalidRatioTypeError,
     is_complete_bom,
     missing_to_complete,
     quantize_ratio,
@@ -42,10 +42,10 @@ from packages.services.m1_baseline.product_references import (  # noqa: F401
     total_references,
 )
 from packages.services.m1_baseline.schemas import (  # noqa: F401
-    BOMChildType,
-    BOMParentType,
     PRODUCT_TYPE_LABEL_KO,
     PRODUCT_TYPE_PREFIX,
+    BOMChildType,
+    BOMParentType,
     ProductType,
     is_valid_bom_child,
     is_valid_bom_parent,

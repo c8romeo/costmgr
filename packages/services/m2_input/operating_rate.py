@@ -35,7 +35,6 @@ from __future__ import annotations
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, Protocol
 
-
 # ── Constants ────────────────────────────────────────────────
 # MVP default unit_time_hours per product. Epic 7 BEP (Story 7-2)
 # will refine via per-product 단위공수 source.

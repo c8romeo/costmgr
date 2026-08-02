@@ -57,6 +57,30 @@
 
 자세한 도메인 의미는 `docs/onboarding-schema.md` + `docs/onboarding-flow.md`.
 
+### §0.5 Verification rule purity gate (Story 4.3)
+
+AD-5 purity invariant은 engine (`packages/cost_engine/core/`) 뿐 아니라 **verification rule kernels** (`apps/api/modules/m3_calculate/services/rules/*.py`) 에도 동일하게 적용된다. 4 rule kernels (V1 / V4 / V7 / V8) + `protocol.py` + `verification_runner.py` 모두 다음 3중 게이트를 통과해야 한다:
+
+1. **`ruff`** (root `pyproject.toml`) — 코드 스타일 + `[tool.ruff.lint]` 규칙
+   - `apps/api/modules/m3_calculate/services/rules/*.py`: `ARG002`, `A002` 명시적 ignore (Protocol 시그니처 보존 — `applies_to(*, industry: str)` + `check(self, input: RuleInput)`)
+2. **`import-linter`** (root `pyproject.toml`) — `apps/api/**/*.py` 화이트리스트 외의 core import 차단
+   - `tests/architecture/test_api_calls_only_ports.py` `CORE_IMPORT_ALLOWLIST`에 5개 rules 파일 + verification_runner 추가됨
+3. **AST 가드** (`tests/cost_engine/test_verification_rules.py`) — `forbidden_imports` (sqlalchemy · psycopg · asyncpg · fastapi · starlette · httpx · time · datetime.now · random · secrets) 가 rule kernel 소스에 등장하면 즉시 fail
+
+**드리프트 강제:** `tests/web/test_m3_verdict_parity.py` (20 cross-lang cases) — `apps/web/lib/m3-verdict.ts` TS mirror의 enum members / industry firing matrix / top_failure invariant / UI failure code 매핑을 Python canonical schema와 대조. Story 4.4 Industry canonical names parity 추가 (`manufacturing_service`, `manufacturing_service_other`).
+
+**Story 4.4 V8 byte-identical CI gate (mandatory, no skip):**
+`tests/regression_v8/test_regression_v8_fixtures.py` 는 `@pytest.mark.engine` + `@pytest.mark.v8_regression` 둘 다 marking. 12 fixture 매트릭스 (4 industries × 3 baseline shapes = b-small/b-standard/b-complex) 의 byte-identical 골든 vs engine 비교를 강제한다. CI / dev `pytest` 기본 호출이 자동 포함 (`--ignore`/`--deselect` 금지). `STORY_4_4_FILL_POINT` marker (`packages/cost_engine/tests/regression_v8/__init__.py::V8_FIXTURE_COUNT == 12`) 가 0 → 12 로 lock 되어야 한다.
+
+- `verify_v8_golden_match` audit action (Story 4.4 forward-lock) — `verification_log` table 의 `action` column literal 에 추가됨. CR 1.1 audit-first 원칙 유지.
+
+위반 시 CI 단계가 명확한 메시지로 실패한다:
+
+```
+CONVENTION_VIOLATION: <file>:<line> violates AD-5 purity gate.
+  Rule kernel MUST NOT import DB / web / clock / random layers.
+```
+
 ### §0.5 ProductType (PRD §8.M1 — Story 2.1)
 
 `products.product_type` 컬럼의 단일 진실 공급원은
@@ -100,7 +124,26 @@ BOM 행렬은 `packages/services/m1_baseline/schemas.py::BOMParentType` /
 
 자세한 도메인 의미: `docs/bom-matrix.md`.
 
-### §0.7 품목 유형 변경 — 참조 검증 (PRD §6.1 — Story 2.3)
+### §0.7 AD-20 State Machine — Calc State Transition (PRD §11, Story 4.3)
+
+`POST /api/v1/calc` 의 state 전이는 **AD-20 invariant** 으로 강제된다. `verification_status` 와 `state` 의 매핑:
+
+| `state` | 진입 조건 | 진입 후속 처리 | 비고 |
+|---|---|---|---|
+| `draft` | engine `compute_period_cost` 의 return | service layer 가 받음 (Story 4.2) | engine returns ONLY `draft` (AD-22) |
+| `verified` | `verdict.verification_status == 'passed'` AND 모든 fired rule `status == 'passed'` | `INSERT INTO fiscal_period_snapshots (state='verified')` + `calc_log(action='compute')` + `verification_log(action='verification_passed')` | service-only transition |
+| `committed` | Epic 11 M11 reversal-pending → 전표 확정 | M11 owner | **본 스토리 범위 외** — Epic 11 |
+| `reversed` | M11 reversal | M11 owner | **본 스토리 범위 외** — Epic 11 |
+
+**AD-20 외부 응답 invariant** — `verification_status` 는 외부에 `Literal["passed", "failed"]` 만 노출. `'pending'` 은 **calc 내부 transient** 으로만 존재 (engine draft → verification runner → state transition 의 중간 상태). Pydantic Literal type + TS `VerificationStatus` mirror 모두 `'pending'` 부재 검증 (`tests/web/test_m3_verdict_parity.py::test_pending_status_rejected_in_python` + `test_pending_status_rejected_in_ts`).
+
+**AD-12 ordering invariant** — VerificationRunner가 `_VERIFICATION_RULES` tuple을 V1 → V4 → V7 → V8 순서로 iterate. `item.status == 'failed'` 시 `break` (후속 검증 abort). `verifications[]` 응답에는 발동된 rule만 포함 (applies_to=False → silent skip → array 미포함).
+
+**드리프트 강제:** `tests/integration/test_verification_order.py` (12 cases) + `tests/cost_engine/test_verification_rules.py` (22 cases) + `tests/web/test_m3_verdict_parity.py` (20 cases).
+
+자세한 도메인 의미는 `docs/cost-engine.md#verification-envelope-v1v4v7v8`.
+
+### §0.8 품목 유형 변경 — 참조 검증 (PRD §6.1 — Story 2.3)
 
 `product_type`은 변경 가능하지만 **조건부**: BOM + 수불 참조 0건일 때만 허용. 참조가 1건이라도 있으면
 PATCH는 409 PRODUCT_TYPE_HAS_REFERENCES로 거부된다 (RFC 7231 §6.5.8 — state conflict).
@@ -317,6 +360,28 @@ TS의 `Decimal.ROUND_HALF_EVEN`이 동일 결과 (`33.33335 → 33.3334`) 임을
 
 ## §6 Period Keys (AD-24)
 
+### §6.1 `POST /api/v1/calc` period_key validation (Story 4.2)
+
+The `CalcRequest.period_key` field validates against a strict regex:
+
+- Pattern: `^\d{4}-(0[1-9]|1[0-2])$`
+- Real fiscal periods ONLY — virtual `YYYY-MM#B<n>` keys are NOT
+  accepted by the calc endpoint in Story 4.2 (virtual keys land in
+  Story 8.1 with the simulation feature).
+- Pydantic v2 `pattern=` parameter enforces at request body level
+  → 422 INVALID_PAYLOAD on mismatch.
+- Same regex mirrored in `packages.cost_engine.core.period_cost`
+  (`_PERIOD_KEY_PATTERN`) for engine defense-in-depth.
+
+### §6.2 Engine period_key validation
+
+The engine also validates `period_key` on `MonthlyInput` and
+`Baseline.fiscal_period` — engine-side guard raises `ValueError`
+which the orchestrator catches → 500 INTERNAL_ERROR via
+`CalcServiceError` wrapper (handler-level typed envelope).
+
+---
+
 | 종류 | 형식 | 예시 |
 |---|---|---|
 | Real (실측 월) | `YYYY-MM` | `2026-07` |
@@ -354,6 +419,8 @@ TS의 `Decimal.ROUND_HALF_EVEN`이 동일 결과 (`33.33335 → 33.3334`) 임을
 | `Intl.NumberFormat` 인라인 (display) | §7 위반 — `formatKRW`/`formatUSD` 사용 |
 | Pydantic in `packages/cost_engine/core/` | AD-1 위반 — 순수 Python stdlib only |
 | `import-linter` 회피 (예: `cost_engine`이 `apps.api` import) | AD-11 위반 |
+| engine 이 `state="verified"` / `"committed"` / `"reversed"` 반환 | AD-22 위반 — engine 은 `state="draft"` ONLY (service layer 가 transition 소유) |
+| engine 에 `sqlalchemy` / DB driver import | AD-22 / AD-5 위반 — engine NEVER writes to DB |
 
 ---
 
@@ -365,6 +432,12 @@ TS의 `Decimal.ROUND_HALF_EVEN`이 동일 결과 (`33.33335 → 33.3334`) 임을
 | Python `float` money (engine) | `scripts/check_money_types.py` | `make lint-conventions` |
 | 마이그레이션 `camelCase` | `scripts/check_migration_naming.py` | `make lint-conventions` |
 | 마이그레이션 `Float` (money) | `scripts/check_migration_money.py` | `make lint-conventions` |
+| Engine IO/DB/clock import (AD-5) | `tests/cost_engine/test_no_io_imports.py` AST guard | `uv run pytest tests/cost_engine/` |
+| Engine AD-22 boundary (state, sqlalchemy, reversal) | `tests/cost_engine/test_no_io_imports.py` (4 cases) | `uv run pytest tests/cost_engine/` |
+| Engine ↔ Adapter import-linter | `import-linter` (root `pyproject.toml`) | `uv run lint-imports` |
+| Capability matrix drift | `tests/integration/test_capability_consistency.py` | `uv run pytest tests/integration/` |
+| V8 regression contract (placeholder) | `tests/cost_engine/test_regression_v8_placeholder.py` | `uv run pytest tests/cost_engine/` |
+| V8 골든 byte-identical CI gate | `tests/regression_v8/test_regression_v8_fixtures.py` (`@pytest.mark.v8_regression` — mandatory, no skip) | `uv run pytest tests/regression_v8/` |
 | TS 명명/restricted types | ESLint (root `.eslint.config.mjs`, flat config) | `pnpm lint:conventions` |
 | TS `number` (money) | ESLint `no-restricted-types` (apps/web override) | `pnpm lint:conventions` |
 

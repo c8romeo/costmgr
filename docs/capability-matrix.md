@@ -1,8 +1,48 @@
-# Capability Matrix
+# Capability Matrix (v1.4)
 
 > **Single source of truth** for the `Industry × Capability` gating that
-> Epic 1 / 2 / 3 stories need to coordinate. Replaces the per-story
+> Epic 1 / 2 / 3 / 4 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.4 (2026-08-02, Story 4.4)** — V8 골든 byte-identical 회귀 매트릭스
+> (4 industries × 3 baseline shapes = 12 fixtures) 가 CI mandatory gate 로
+> 추가됨. Industry canonical names parity 정렬 (manufacturing_service /
+> manufacturing_service_other). `verification_log.action` 에
+> `verify_v8_golden_match` audit action 추가 (A5 forward-lock). Capability
+> 행 자체는 변경 없음 — V8 은 COST_CALCULATION 응답 envelope 내부 검증
+> 으로 wire 됨.
+>
+> **v1.3 (2026-08-03, Story 4.3)** — verification envelope (V1·V4·V7·V8)
+> exposed via `CalcResponse.verdict`. `COST_CALCULATION` capability
+> unchanged (no new row); the verdict envelope is wired INTO the existing
+> calc response. AD-12 ordering invariant + per-industry V7 firing matrix
+> codified (see `docs/conventions.md §0.5` + `docs/cost-engine.md
+> #verification-envelope-v1v4v7v8`).
+>
+> **v1.2 (2026-08-02, Story 4.2)** — POST /api/v1/calc endpoint wired
+> behind `COST_CALCULATION` capability; service tenants return 403
+> INDUSTRY_NOT_SUPPORTED (Epic 9 ABC is their path).
+>
+> **v1.1 (2026-08-02, Story 4.1)** — added `COST_CALCULATION` row.
+
+## Wire contract: `POST /api/v1/calc` response envelope (Story 4.3)
+
+`COST_CALCULATION` 통과 시 응답 envelope:
+
+```python
+class CalcResponse(BaseModel):
+    # ... 기존 fields (tenant_id, period_key, 4 KRW + result_hash + state + baseline_revision + trace_id)
+    state: Literal["verified"] = "verified"   # AD-20 transition: draft → verified via V1·V4·V7·V8 passed
+    verdict: Verdict                            # NEW (Story 4.3) — verification envelope
+```
+
+**State machine (AD-20 invariant)** — `state ∈ Literal["draft", "verified", "committed", "reversed"]`. 본 스토리 범위는 `verified` 도달까지. `committed` / `reversed` 전이는 Epic 11 M11 owner.
+
+**Verdict envelope wire shape** — `verification_status ∈ Literal["passed", "failed"]` (AD-20 외부 노출 invariant — `'pending'` 부재). 200 OK envelope에 포함되며, 실패 시 ROLLBACK + 200 OK + verdict envelope (NOT 4xx — 계산 자체는 성공, lock만 service layer 책임).
+
+**Per-industry V* firing matrix (AD-12 spec interpretation)** — `manufacturing` / `manufacturing_service` / `manufacturing_service_other` 3 industry는 V1·V4·V8 발동 + V7 silent skip (3 rules). `service` industry는 V1·V4·V7·V8 모두 발동 (4 rules). Epic 9 9-1 wire 후 V7 ABC 무결성 검증 활성화.
+
+**Story 4.4 V8 골든 회귀 매트릭스** — `tests/regression_v8/test_regression_v8_fixtures.py` (28+ cases, `@pytest.mark.v8_regression` — mandatory, no skip). 4 industries × 3 baseline shapes (b-small / b-standard / b-complex) = 12 골든 JSON. `verify_v8_golden_match` audit action (Story 4.4 forward-lock) — V8 fail 시 `verification_log.action = 'verify_v8_golden_match'` 으로 INSERT (CR 1.1 audit-first).
 
 ## Industries (PRD §4.1 4지선다)
 
@@ -28,9 +68,19 @@
 | `PRODUCT` (catalog CRUD) | 2.1 | ✅ | ✅ | ✅ | ✅ |
 | `PRODUCT_MATERIAL` | 2.1 | ✅ | ❌ | ✅ | ✅ |
 | `MONTHLY_INPUT_PRODUCTION` | 3.1 | ✅ | ❌ | ✅ | ✅ |
+| `COST_CALCULATION` | 4.1 | ✅ | ❌ | ✅ | ✅ |
 
 ## Notes
 
+- **COST_CALCULATION (Story 4.1)** — gated to industries with a
+  manufacturing footprint. Service-only tenants use Epic 9 ABC costing
+  (COST_POOL / ACTIVITY / DRIVER) instead. The capability gate is
+  enforced at the FastAPI route boundary
+  (`apps/api/main.py` + `m3_calculate` module), NOT inside the engine.
+  The engine itself (`packages.cost_engine.core.period_cost`) is pure
+  and industry-agnostic — it ALWAYS returns `state="draft"` (AD-22
+  append-only-leaning). Service layer owns `verified` / `committed`
+  / `reversed` transitions.
 - **PRODUCT** (catalog) is granted to every industry — service tenants
   still register `product` + `goods` + `service` types (R6 from CR 2.1).
 - **PRODUCT_MATERIAL** gates the `material` + `semi_product` types.
@@ -100,6 +150,9 @@
 | 3.1 — Six-stream monthly input | `MONTHLY_INPUT_PRODUCTION` |
 | 3.2 — FTE precision + daily labor | (no new capability; FTE precision is part of `MONTHLY_INPUT_LABOR` ungated path; per-tenant payroll override via `tenant_settings.payroll.*` JSONB sub-block) |
 | 3.3 — Negative inventory & overcapacity warning | (no new capability; warning aggregate is part of `MONTHLY_INPUT_LABOR` ungated path + PRD §V3/§V5 universal gating on inventory-bearing product types only; service tenants → 0 inventory warnings by construction) |
+| 4.1 — Pure cost engine (periodic §6.1 산식) | `COST_CALCULATION` (granted to mfg / mfg+service / mfg+service+other; service-only tenants use ABC instead) |
+| 4.3 — Verification envelope (V1·V4·V7·V8) | (no new capability; verdict envelope wired INTO `COST_CALCULATION` response) |
+| 4.4 — V8 골든 byte-identical CI gate | (no new capability; 12 fixture 매트릭스가 `COST_CALCULATION` 응답 verdict envelope 의 V8 fail-path audit action (`verify_v8_golden_match`) 으로 wire) |
 | 5.x — Inventory | `OPENING_INVENTORY`, `INVENTORY_LEDGER` |
 | 9.x — ABC | `COST_POOL`, `ACTIVITY`, `DRIVER`, `SEGMENT_SPLIT` |
 
@@ -109,5 +162,12 @@
 - 2026-08-01 — Story 3.2 footnote added (payroll override + labor precision path).
 - 2026-08-01 — Story 3.3 footnote added (음수재고·조업도 실시간 경고;
   capability-ungated; warnings aggregate on m2_input state response).
+- 2026-08-02 — v1.1 (Story 4.1): `COST_CALCULATION` row added; service-only
+  tenants do NOT have COST_CALCULATION (Epic 9 ABC instead). Engine is
+  industry-agnostic — gate is enforced at the FastAPI route boundary.
+- 2026-08-02 — v1.4 (Story 4.4): V8 byte-identical 골든 매트릭스
+  (4 industries × 3 baseline shapes) + `verify_v8_golden_match` audit
+  action forward-lock. Industry canonical names parity 정렬. Capability
+  행 자체는 변경 없음.
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.

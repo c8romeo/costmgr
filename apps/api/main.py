@@ -19,7 +19,10 @@ from apps.api.core.capability import (
     ForbiddenRoleError,
     IndustryCapabilityError,
 )
-from apps.api.core.pipa_gate import PipaConsentMissingError
+from apps.api.core.pipa_gate import (
+    PipaConsentMissingError,
+    PipaReviewRequiredError,
+)
 from apps.api.core.security import AuthError
 from apps.api.modules.m0_onboarding import router as m0_onboarding_router
 from apps.api.modules.m1_baseline import router as m1_baseline_router
@@ -27,11 +30,18 @@ from apps.api.modules.m2_input import router as m2_input_router
 from apps.api.modules.m2_input.services.monthly_input_service import (
     MonthlyInputCompanyBurdenRateError,
     MonthlyInputFteReadOnlyError,
-    MonthlyInputInventoryProjectionError,
     MonthlyInputInvalidLaborShapeError,
-    MonthlyInputPayTypeMismatchError,
+    MonthlyInputInventoryProjectionError,
     MonthlyInputPayrollSettingsInvalidError,
+    MonthlyInputPayTypeMismatchError,
     MonthlyInputWarningsReadOnlyError,
+)
+from apps.api.modules.m3_calculate import router as m3_calculate_router
+from apps.api.modules.m3_calculate.services import (
+    BaselineNotReadyError,
+    CalcServiceError,
+    FiscalPeriodSnapshotDivergedError,
+    MonthlyInputBlockedError,
 )
 from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
@@ -56,6 +66,11 @@ app.include_router(m10_ai_router)
 # Story 3.1 — M2 monthly input capture (6-stream tabs + 일자별 toggle + completion gate)
 # Story 3.2 — M2 labor precision (pay_type 분기 + 5 breakdown fields + tenant payroll override)
 app.include_router(m2_input_router)
+
+# Story 4.2 — M3 single calculation endpoint (POST /api/v1/calc).
+# AD-19 single entry point. AD-4 REPEATABLE READ handled inside the handler.
+# AD-1 binding: handler → service (calc_orchestrator) → engine (period_cost).
+app.include_router(m3_calculate_router)
 
 
 @app.exception_handler(AuthError)
@@ -89,9 +104,7 @@ async def _industry_capability_handler(
             "code": "INDUSTRY_NOT_SUPPORTED",
             "message_ko": "현재 업종에서 지원하지 않는 기능입니다",
             "details": {
-                "current_industry": (
-                    exc.current_industry.value if exc.current_industry else None
-                ),
+                "current_industry": (exc.current_industry.value if exc.current_industry else None),
                 "requested_capability": exc.capability.value,
             },
             "trace_id": exc.trace_id,
@@ -102,9 +115,7 @@ async def _industry_capability_handler(
 # H3 / AD-10 / T4.2: typed envelope for ForbiddenRoleError.
 # Without this, FastAPI returns HTTP 500 for role gate failures.
 @app.exception_handler(ForbiddenRoleError)
-async def _forbidden_role_handler(
-    request: Request, exc: ForbiddenRoleError
-) -> JSONResponse:
+async def _forbidden_role_handler(request: Request, exc: ForbiddenRoleError) -> JSONResponse:
     return JSONResponse(
         status_code=403,
         content={
@@ -122,10 +133,31 @@ async def _forbidden_role_handler(
 # Story 1.3 — PIPA gate dependency-raised exception → 451 typed envelope.
 # Without this handler, FastAPI returns HTTP 500 for PIPA gate failures.
 @app.exception_handler(PipaConsentMissingError)
-async def _pipa_consent_handler(
-    request: Request, exc: PipaConsentMissingError
-) -> JSONResponse:
+async def _pipa_consent_handler(request: Request, exc: PipaConsentMissingError) -> JSONResponse:
     return _pipa_error_response(exc)
+
+
+# Epic 1 회고 A3 + Epic 3 회고 A1 — operations kill-switch envelope.
+# When `PIPA_REVIEW_COMPLETED=false` is set fleet-wide, the gate raises
+# `PipaReviewRequiredError` BEFORE the per-tenant check. This handler maps
+# it to 503 PIPA_REVIEW_REQUIRED so operators can pause cross-border AI
+# processing without redeploying per-tenant consent.
+@app.exception_handler(PipaReviewRequiredError)
+async def _pipa_review_required_handler(
+    request: Request, exc: PipaReviewRequiredError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,  # Service Unavailable
+        content={
+            "code": "PIPA_REVIEW_REQUIRED",
+            "message_ko": (
+                "개인정보 보호법 검토가 완료되지 않아 AI 처리를 일시 중단했습니다. "
+                "관리자에게 문의해 주세요."
+            ),
+            "details": {"reason": "operations_kill_switch"},
+            "trace_id": exc.trace_id,
+        },
+    )
 
 
 # Story 3.2 — labor precision error envelopes (AD-15 §4).
@@ -296,8 +328,13 @@ async def _bom_validation_error_handler(
             and loc[2].__class__.__name__ == "int"
             and loc[3] == "ratio"
             and err.get("type")
-            in {"decimal_max_places", "decimal_max_digits",
-                "greater_than", "less_than_equal", "decimal_whole_digits"}
+            in {
+                "decimal_max_places",
+                "decimal_max_digits",
+                "greater_than",
+                "less_than_equal",
+                "decimal_whole_digits",
+            }
         ):
             child_idx: int = loc[2]
             return JSONResponse(
@@ -321,6 +358,115 @@ async def _bom_validation_error_handler(
     return JSONResponse(
         status_code=422,
         content={"detail": errors},
+    )
+
+
+# Story 4.2 — M3 calculation error envelopes (AD-15 §4).
+# Maps the 4 typed exceptions from `m3_calculate.services`:
+#
+# - 409 MONTHLY_INPUT_BLOCKED — Epic 3 A4 close-time hook.
+#   Fired by orchestrator when `monthly_input_periods.is_blocked=true`.
+#   The user must clear the warnings + re-toggle the [마감] button.
+#
+# - 409 FISCAL_PERIOD_SNAPSHOT_DIVERGED — same (tenant, period, baseline,
+#   engine) row exists with DIFFERENT result_hash. Operator must
+#   investigate (PRD §V6 — divergent state requires manual action,
+#   not silent overwrite).
+#
+# - 422 BASELINE_NOT_READY — BOM 100% not validated OR allocation basis
+#   3종 missing (PRD §F0.2 + §F1.1). Engine rejects too (defense in
+#   depth); service layer is the canonical validator.
+#
+# - 500 INTERNAL_ERROR — generic orchestrator failure (DB connection,
+#   engine ValueError not mapped to typed errors, etc.).
+@app.exception_handler(MonthlyInputBlockedError)
+async def _m3_monthly_input_blocked_handler(
+    request: Request, exc: MonthlyInputBlockedError
+) -> JSONResponse:
+    """409 MONTHLY_INPUT_BLOCKED — Epic 3 A4 close-time hook.
+
+    Story 3.3 set `is_blocked=true` after user clicks [마감] when
+    `len(warnings) > 0`. Story 4.2 calc refuses to compute on a
+    blocked period (PRD §A11 close-time rule).
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "MONTHLY_INPUT_BLOCKED",
+            "message_ko": (
+                f"입력 마감된 기간입니다 (경고 {exc.warnings_count}건). "
+                "경고를 해결한 뒤 다시 마감해 주세요."
+            ),
+            "details": {
+                "warnings_count": exc.warnings_count,
+                "top_n_severity": exc.top_n_severity,
+                "period_key": exc.period_key,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(FiscalPeriodSnapshotDivergedError)
+async def _m3_snapshot_diverged_handler(
+    request: Request, exc: FiscalPeriodSnapshotDivergedError
+) -> JSONResponse:
+    """409 FISCAL_PERIOD_SNAPSHOT_DIVERGED — AC #4 divergent state.
+
+    Idempotency: same result_hash → no-op, return existing.
+    Divergence: different result_hash → 409 because baseline mutated
+    underneath without bumping baseline_revision.
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "FISCAL_PERIOD_SNAPSHOT_DIVERGED",
+            "message_ko": (
+                "동일 기간에 다른 계산 결과가 있습니다. "
+                "baseline이 변경되었을 수 있으니 관리자에게 문의해 주세요."
+            ),
+            "details": {
+                "baseline_revision": exc.baseline_revision,
+                "engine_type": exc.engine_type,
+                "existing_hash": exc.existing_hash,
+                "new_hash": exc.new_hash,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(BaselineNotReadyError)
+async def _m3_baseline_not_ready_handler(
+    request: Request, exc: BaselineNotReadyError
+) -> JSONResponse:
+    """422 BASELINE_NOT_READY — PRD §F0.2 (allocation basis 3종) or
+    §F1.1 (BOM 100%) gate failure."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "BASELINE_NOT_READY",
+            "message_ko": (
+                "계산 사전조건이 충족되지 않았습니다. "
+                "BOM 100% 검증과 배부기준 3종을 먼저 완료해 주세요."
+            ),
+            "details": exc.details,
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(CalcServiceError)
+async def _m3_calc_service_error_handler(request: Request, exc: CalcServiceError) -> JSONResponse:
+    """500 INTERNAL_ERROR — orchestrator wrapped an unexpected error."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "INTERNAL_ERROR",
+            "message_ko": "계산 처리 중 오류가 발생했습니다.",
+            "details": exc.details,
+            "trace_id": exc.trace_id,
+        },
     )
 
 

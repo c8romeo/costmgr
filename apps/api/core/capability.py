@@ -76,6 +76,15 @@ class Capability(str, Enum):
     # 5 streams (orders/sales/purchases/expenses/labor) are ungated;
     # the gate here only protects the production-stream writes. PRD §8.M2(b).
     MONTHLY_INPUT_PRODUCTION = "monthly_input_production"
+    # Story 4.1 — Periodic cost calculation. Granted to all industries
+    # with a manufacturing footprint (manufacturing / mfg+service /
+    # mfg+service+other). Service-only tenants do NOT have a [계산] tab
+    # — they will have Epic 9 ABC costing instead. The engine itself
+    # (packages.cost_engine.core.period_cost) is industry-agnostic and
+    # always returns `state="draft"` (AD-22 — service layer owns state
+    # transitions). The capability gate here only checks that the
+    # caller MAY run CalcPort.compute_period_cost at all.
+    COST_CALCULATION = "cost_calculation"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -92,6 +101,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.PRODUCT_MATERIAL,
             # Story 3.1 — manufacturing tenants get the [생산] tab.
             Capability.MONTHLY_INPUT_PRODUCTION,
+            # Story 4.1 — manufacturing tenants can run §6.1 원가 계산.
+            Capability.COST_CALCULATION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -106,6 +117,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 3.1 — service tenants have NO production capability
             # → the [생산] tab is hidden. The other 5 streams
             # (orders/sales/purchases/expenses/labor) are ungated.
+            # Story 4.1 — service tenants do NOT have COST_CALCULATION
+            # (no manufacturing footprint → no [계산] tab; they will
+            # use Epic 9 ABC costing instead — gate owner: m9_abc).
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -123,6 +137,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.PRODUCT_MATERIAL,
             # Story 3.1 — 겸영 tenants get the [생산] tab.
             Capability.MONTHLY_INPUT_PRODUCTION,
+            # Story 4.1 — 겸영 tenants get BOTH §6.1 traditional costing
+            # AND Epic 9 ABC costing (rows above). m3_calculate service
+            # routes only check COST_CALCULATION; M9 routes check
+            # COST_POOL/ACTIVITY/DRIVER.
+            Capability.COST_CALCULATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -140,6 +159,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.PRODUCT_MATERIAL,
             # Story 3.1 — full matrix.
             Capability.MONTHLY_INPUT_PRODUCTION,
+            # Story 4.1 — full matrix + 격리 버킷.
+            Capability.COST_CALCULATION,
         }
     ),
 }

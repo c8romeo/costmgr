@@ -39,7 +39,7 @@ import uuid
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.capability import ForbiddenRoleError, require_role
+from apps.api.core.capability import require_role
 from apps.api.core.db import get_session
 from apps.api.core.tenant_context import TenantContext, get_tenant_context
 from apps.api.modules.m0_onboarding.services.settings_service import (
@@ -54,9 +54,6 @@ from apps.api.modules.m2_input.schemas import (
 from apps.api.modules.m2_input.services import MonthlyInputService
 from apps.api.modules.m2_input.services.monthly_input_service import (
     MonthlyInputCapabilityError,
-    MonthlyInputInvalidPayloadError,
-    MonthlyInputNotFoundError,
-    MonthlyInputPeriodLockedError,
 )
 from packages.services.m0_onboarding.industry_menu import Industry
 

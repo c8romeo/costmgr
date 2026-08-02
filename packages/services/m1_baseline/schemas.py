@@ -23,7 +23,7 @@ AD binds enforced here:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Final, FrozenSet
+from typing import Final
 
 
 class ProductType(str, Enum):
@@ -113,14 +113,14 @@ def type_to_prefix(product_type: ProductType) -> str:
 # constraint on these (a DB-level check would require a trigger that
 # JOINs to `products`, which is impractical). The service is the source
 # of truth.
-BOMParentType: Final[FrozenSet[ProductType]] = frozenset(
+BOMParentType: Final[frozenset[ProductType]] = frozenset(
     {
         ProductType.PRODUCT,
         ProductType.SEMI_PRODUCT,
     }
 )
 
-BOMChildType: Final[FrozenSet[ProductType]] = frozenset(
+BOMChildType: Final[frozenset[ProductType]] = frozenset(
     {
         ProductType.MATERIAL,
         ProductType.SEMI_PRODUCT,

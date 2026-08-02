@@ -75,7 +75,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.audit import emit_audit
+from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from apps.api.core.db_models import (
     MonthlyInputPeriod,
     MonthlyInputRow,
@@ -95,18 +95,12 @@ from apps.api.modules.m2_input.schemas import (
 from packages.common.uuid7 import uuid7 as _uuid7
 from packages.services.m0_onboarding.industry_menu import Industry
 from packages.services.m2_input.inventory_projection import (
-    InventoryMovement,
     build_inventory_projection,
 )
 from packages.services.m2_input.labor_conversion import (
     DEFAULT_PAYROLL,
-    PayType,
     PayrollSettings,
-    build_fte_display,
-    compute_fte_for_daily,
-    compute_fte_for_monthly,
-    compute_fte_wage_for_daily,
-    compute_fte_wage_for_monthly,
+    PayType,
     merge_payroll_settings,
 )
 from packages.services.m2_input.operating_rate import (
@@ -125,7 +119,6 @@ from packages.services.m2_input.warnings import (
     build_inventory_warnings,
     build_operating_rate_warning,
 )
-
 
 # ── Constants ────────────────────────────────────────────────
 # PRD default monthly salary basis (Story 3.2 may extend with
@@ -679,11 +672,12 @@ class MonthlyInputService:
             for k, v in new_fields.items():
                 setattr(existing, k, v)
             existing.updated_at = now
-            await emit_audit(
+            # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+            await emit_audit_typed(
                 self.session,
-                actor_id=actor_id,
+                action_class=ActionClass.MONTHLY_INPUT_ROW,
                 action="monthly_input_row_updated",
-                target_table="monthly_input_rows",
+                actor_id=actor_id,
                 target_id=existing.row_id,
                 payload={
                     "tenant_id": str(self.tenant_id),
@@ -750,11 +744,12 @@ class MonthlyInputService:
                 trace_id=self.trace_id,
             ) from err
 
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.MONTHLY_INPUT_ROW,
             action="monthly_input_row_created",
-            target_table="monthly_input_rows",
+            actor_id=actor_id,
             target_id=new_row.row_id,
             payload={
                 "tenant_id": str(self.tenant_id),
@@ -840,11 +835,15 @@ class MonthlyInputService:
         for k, v in patch.items():
             setattr(existing, k, v)
         existing.updated_at = datetime.now(tz=UTC)
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper. Note: this is the
+        # update_row PATCH path; same action literal as save_row update
+        # path is intentional (CR 1.1 lesson: distinction lives in
+        # payload.stream + the calling endpoint, not in the action).
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.MONTHLY_INPUT_ROW,
             action="monthly_input_row_updated",
-            target_table="monthly_input_rows",
+            actor_id=actor_id,
             target_id=existing.row_id,
             payload={
                 "tenant_id": str(self.tenant_id),
@@ -898,11 +897,12 @@ class MonthlyInputService:
                 trace_id=self.trace_id,
             )
 
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.MONTHLY_INPUT_ROW,
             action="monthly_input_row_deleted",
-            target_table="monthly_input_rows",
+            actor_id=actor_id,
             target_id=row_id,
             payload={
                 "tenant_id": str(self.tenant_id),
@@ -945,11 +945,13 @@ class MonthlyInputService:
         before = {"mode": period.mode}
         period.mode = mode
         period.updated_at = datetime.now(tz=UTC)
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper. ActionClass
+        # MONTHLY_INPUT_PERIOD (not ROW) — distinct target_table.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.MONTHLY_INPUT_PERIOD,
             action="monthly_input_mode_changed",
-            target_table="monthly_input_periods",
+            actor_id=actor_id,
             target_id=period.period_id,
             payload={
                 "tenant_id": str(self.tenant_id),
@@ -1322,7 +1324,7 @@ class MonthlyInputService:
                     trace_id=self.trace_id,
                 )
             return
-        # pay_type == 'monthly'
+        # pay_type == 'monthly'  # noqa: ERA001
         if (
             payload.workers is None
             or payload.workers <= 0
@@ -1462,7 +1464,7 @@ class MonthlyInputService:
     async def _load_product_map_for_period(
         self,
         *,
-        period: MonthlyInputPeriod,
+        period: MonthlyInputPeriod,  # noqa: ARG002 — reserved for future product-scope filter
         rows: list[MonthlyInputRow],
     ) -> dict[uuid.UUID, _ProductProjection]:
         """Load product metadata keyed by `product_id` for inventory rows.
@@ -1639,9 +1641,7 @@ def _decimalize(d: dict[str, Any]) -> dict[str, Any]:
     """Convert Decimal values to str for JSON audit payloads (AD-2)."""
     out: dict[str, Any] = {}
     for k, v in d.items():
-        if isinstance(v, Decimal):
-            out[k] = str(v)
-        elif isinstance(v, uuid.UUID):
+        if isinstance(v, Decimal | uuid.UUID):
             out[k] = str(v)
         else:
             out[k] = v

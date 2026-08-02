@@ -8,12 +8,15 @@ Tests the pure orchestration:
 - Already soft-deleted documents → not re-touched (idempotency)
 - Empty result → no audit row, no error
 
-These tests stub the AsyncSession + emit_audit, so they run without a
+These tests stub the AsyncSession + emit_audit_typed, so they run without a
 DB. Real DB integration is covered by RLS tests (test_ai_documents_input_drafts).
 
 Note: pytest-asyncio is NOT in this repo's dependency set (pyproject.toml
 comment line 143: "driven via asyncio.run — no pytest-asyncio plugin
 needed"). So we wrap each coroutine in `asyncio.run()` synchronously.
+
+A5 migration (Story 4.3 T4): emit_audit → emit_audit_typed. The patched
+attribute reflects the A5 single-source-of-truth migration.
 """
 
 from __future__ import annotations
@@ -53,7 +56,9 @@ def test_retention_soft_deletes_old_documents() -> None:
     new_doc = _make_doc(uploaded_at=now - timedelta(days=89))
     session = _make_session_mock([old_doc])
 
-    with patch("apps.api.modules.m10_ai.service.emit_audit", new=AsyncMock()) as mock_audit:
+    with patch(
+        "apps.api.modules.m10_ai.service.emit_audit_typed", new=AsyncMock()
+    ) as mock_audit:
         result = asyncio.run(run_document_retention(session, now=now))
 
     assert result.soft_deleted_documents == 1
@@ -71,7 +76,9 @@ def test_retention_is_idempotent() -> None:
     )
     session = _make_session_mock([])  # WHERE clause filters out deleted
 
-    with patch("apps.api.modules.m10_ai.service.emit_audit", new=AsyncMock()) as mock_audit:
+    with patch(
+        "apps.api.modules.m10_ai.service.emit_audit_typed", new=AsyncMock()
+    ) as mock_audit:
         result = asyncio.run(run_document_retention(session, now=now))
 
     assert result.soft_deleted_documents == 0
@@ -90,7 +97,7 @@ def test_retention_cutoff_is_now_minus_window() -> None:
     now = datetime.now(tz=UTC)
     session = _make_session_mock([])
 
-    with patch("apps.api.modules.m10_ai.service.emit_audit", new=AsyncMock()):
+    with patch("apps.api.modules.m10_ai.service.emit_audit_typed", new=AsyncMock()):
         result = asyncio.run(run_document_retention(session, now=now))
 
     expected_cutoff = now - timedelta(days=m10_config.DOCUMENT_RETENTION_DAYS)

@@ -63,7 +63,7 @@ SEVERITY_ORDER: Final[dict[str, int]] = {
 
 
 # ── Warning NamedTuple ───────────────────────────────────────
-class Warning(NamedTuple):
+class Warning(NamedTuple):  # noqa: A001 — cross-language name mirrored in TS `Warning` interface (AD-15)
     """A single warning entry (mirrored by TS `Warning` interface).
 
     AD-15: snake_case field names. The `timestamp` is ISO-8601 UTC

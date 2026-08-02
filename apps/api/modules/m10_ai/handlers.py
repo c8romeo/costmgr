@@ -41,11 +41,9 @@ from apps.api.core.pipa_gate import (
     PipaConsentMissingError,
     require_pipa_review,
 )
-from apps.api.core.tenant_context import TenantContext, get_tenant_context
+from apps.api.core.tenant_context import TenantContext
 from apps.api.modules.m0_onboarding.services.settings_service import (
-    ForbiddenRoleError,
     SettingsService,
-    TenantSettingsNotFoundError,
 )
 from apps.api.modules.m10_ai.schemas import (
     DocumentResponse,
@@ -137,7 +135,7 @@ async def upload_document(
     # Decode base64.
     try:
         document_bytes = base64.b64decode(body.document_b64, validate=True)
-    except (binascii.Error, ValueError) as e:
+    except (binascii.Error, ValueError):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={

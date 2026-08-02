@@ -41,7 +41,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.audit import emit_audit
+from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from apps.api.core.db import get_session
 from apps.api.core.db_models import AuditLog
 
@@ -101,21 +101,41 @@ async def with_service_role(
     # ── Step 1: write + commit audit in its own transaction ─────
     audit_row: AuditLog | None = None
     async for audit_session in get_session():
-        audit_row = await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper. action_class
+        # SERVICE_ROLE routes to audit_logs with target_table='service_role'.
+        # The caller-supplied `target_table` param is preserved for the
+        # specific breached row (e.g. 'tenant_settings') and recorded
+        # in `payload` to keep the audit trail self-describing.
+        await emit_audit_typed(
             audit_session,
-            actor_id=actor_id,
+            action_class=ActionClass.SERVICE_ROLE,
             action="service_role_bypass",
-            target_table=target_table,
+            actor_id=actor_id,
             target_id=target_id,
             reason=reason,
-            payload=payload or {},
+            payload={
+                **(payload or {}),
+                "bypass_target_table": target_table,
+            },
             tenant_id=tenant_id,
             flush=True,
         )
+        # Re-fetch the AuditLog row to populate context.audit_row
+        # (the same lookup pattern emit_audit() used).
+        from sqlalchemy import select
+
+        stmt = (
+            select(AuditLog)
+            .where(AuditLog.tenant_id == tenant_id, AuditLog.action == "service_role_bypass")
+            .order_by(AuditLog.occurred_at.desc())
+            .limit(1)
+        )
+        result = await audit_session.execute(stmt)
+        audit_row = result.scalar_one()
         await audit_session.commit()
         break  # single iteration — close this session
 
-    assert audit_row is not None  # emit_audit always returns the row
+    assert audit_row is not None  # emit_audit_typed always persists the row
 
     # ── Step 2: open a fresh session for the privileged action ───
     async for action_session in get_session():

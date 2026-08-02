@@ -22,6 +22,7 @@ Allowed (engine may import):
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -129,3 +130,105 @@ def test_engine_money_module_is_stdlib_only() -> None:
             f"packages/cost_engine/core/money.py:{lineno} imports `{top}` "
             f"— only {sorted(allowed)} are allowed (AD-5 pure stdlib)"
         )
+
+
+# ─────────────────────────────────────────────────────────────
+# Story 4.1 — AD-22 + AD-11 strengthening cases
+# Engine NEVER writes to DB; engine NEVER authorizes reversal (M11 owns).
+# ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.engine
+def test_engine_does_not_import_sqlalchemy_orm() -> None:
+    """Story 4.1 — AD-22 boundary: engine NEVER writes to DB.
+
+    `sqlalchemy.orm` write-side APIs (Session, Mapper, etc.) are forbidden
+    inside the engine. The adapter layer (apps/api/) is the only place
+    where ORM session operations live.
+    """
+    forbidden = {"sqlalchemy"}
+    violations: list[str] = []
+    for py_file in _iter_python_files(ENGINE_ROOT):
+        for lineno, top in _imports_in_file(py_file):
+            if top in forbidden:
+                rel = py_file.relative_to(ROOT)
+                violations.append(
+                    f"{rel}:{lineno} imports `{top}` — engine MUST NOT "
+                    f"depend on ORM (AD-22 — DB writes live in adapters)"
+                )
+    assert not violations, "\n".join(violations)
+
+
+@pytest.mark.engine
+def test_engine_does_not_import_reversal_authorization() -> None:
+    """Story 4.1 — AD-22: engine NEVER authorizes reversal.
+
+    `M11 reversal` is Epic 11 (audit lock + reversal request). The engine
+    only COMPUTES `state="draft"`; reversal authorization is a service
+    concern (apps/api). This test guards against accidental reverse
+    import of M11 / m11 reversal modules.
+    """
+    forbidden_substrings = ("m11_reversal", "reversal_auth", "reverse_authorization")
+    violations: list[str] = []
+    for py_file in _iter_python_files(ENGINE_ROOT):
+        src = py_file.read_text(encoding="utf-8")
+        for needle in forbidden_substrings:
+            if needle in src:
+                rel = py_file.relative_to(ROOT)
+                violations.append(
+                    f"{rel} contains `{needle}` — engine MUST NOT authorize "
+                    f"reversal (AD-22 — M11 owns)"
+                )
+    assert not violations, "\n".join(violations)
+
+
+@pytest.mark.engine
+def test_engine_state_transitions_only_draft() -> None:
+    """Story 4.1 — AD-22 invariant: engine writes ONLY `state="draft"`.
+
+    Source scan: any literal string `"verified"`, `"committed"`, or
+    `"reversed"` inside a return statement is a violation. (Test pattern
+    mirrors CR 1.1's `apps/api/core/` scan.)
+    """
+    forbidden_states = ("verified", "committed", "reversed")
+    violations: list[str] = []
+    for py_file in _iter_python_files(ENGINE_ROOT):
+        src = py_file.read_text(encoding="utf-8")
+        for state in forbidden_states:
+            # Match return statements that look like `state=<state>` or
+            # `state = <state>` with a quoted literal.
+            pattern = rf"state\s*=\s*[\"']{state}[\"']"
+            if re.search(pattern, src):
+                rel = py_file.relative_to(ROOT)
+                violations.append(
+                    f"{rel} sets `state='{state}'` — engine returns "
+                    f"`state='draft'` ONLY (AD-22)"
+                )
+    assert not violations, "\n".join(violations)
+
+
+@pytest.mark.engine
+def test_engine_no_global_state_or_module_level_writes() -> None:
+    """Story 4.1 — AD-5: engine has no global mutable state.
+
+    Module-level `d = {}`, `d = []`, `d = set()` are forbidden. Constants
+    (frozen dict, Final tuple, frozenset) are allowed.
+    """
+    forbidden_patterns = (
+        re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\s*=\s*\{\}\s*$", re.MULTILINE),
+        re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\s*=\s*\[\]\s*$", re.MULTILINE),
+        re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\s*=\s*set\(\)\s*$", re.MULTILINE),
+    )
+    violations: list[str] = []
+    for py_file in _iter_python_files(ENGINE_ROOT):
+        src = py_file.read_text(encoding="utf-8")
+        for pat in forbidden_patterns:
+            for m in pat.finditer(src):
+                # Line number by counting newlines up to the match.
+                line_no = src[: m.start()].count("\n") + 1
+                rel = py_file.relative_to(ROOT)
+                violations.append(
+                    f"{rel}:{line_no} declares module-level mutable container "
+                    f"— engine has NO global state (AD-5)"
+                )
+    assert not violations, "\n".join(violations)

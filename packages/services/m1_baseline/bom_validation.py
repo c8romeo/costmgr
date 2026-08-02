@@ -26,8 +26,9 @@ Why this lives in `packages/services/` (not `apps/api/`):
 
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_EVEN
-from typing import Final, Iterable
+from collections.abc import Iterable
+from decimal import ROUND_HALF_EVEN, Decimal
+from typing import Final
 
 # ── A6 invariant — 100.0000% complete ───────────────────────────
 # NUMERIC(7,4) → 4 decimal places, max 100.0000. Matches the DB column

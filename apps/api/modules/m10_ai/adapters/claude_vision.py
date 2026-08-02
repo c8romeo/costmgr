@@ -64,7 +64,7 @@ class ClaudeVisionAdapter:
     `DocumentExtractionJob` instances in tests/dev.
     """
 
-    def extract(self, request: ExtractionRequest) -> DocumentExtractionJob:
+    def extract(self, request: ExtractionRequest) -> DocumentExtractionJob:  # noqa: ARG002 — interface compliance
         raise AIProviderNotConfiguredError(
             message=(
                 "claude_vision adapter is a stub; "

@@ -24,7 +24,7 @@ Money typing (AD-8) extended to ratio:
   defense-in-depth (AD-15 §4 error envelope).
 
 Audit-first (AD-2):
-- ``emit_audit()`` is called BEFORE the DELETE/INSERT with ``flush=True``.
+- ``emit_audit_typed()`` is called BEFORE the DELETE/INSERT with ``flush=True``.
 - The audit row records the full snapshot diff (AC #3:
   ``changed_ratios=[{child_product_id, before, after}, ...]``).
 - ``idempotent no-op skip`` is honored when the new payload exactly
@@ -35,7 +35,6 @@ Audit-first (AD-2):
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -61,21 +60,20 @@ def _bom_unique_constraint_name_in(orig: object) -> str | None:
         return "uq_bom_lines_tenant_parent_child"
     return None
 
-from apps.api.core.audit import emit_audit
-from apps.api.core.db_models import BOMLine, Product
-from apps.api.modules.m1_baseline.schemas import (
+from apps.api.core.audit_action import ActionClass, emit_audit_typed  # noqa: E402
+from apps.api.core.db_models import BOMLine, Product  # noqa: E402
+from apps.api.modules.m1_baseline.schemas import (  # noqa: E402
     BOMLineResponse,
     BOMResponse,
-    BOMRowInput,
     BOMSetRequest,
 )
-from packages.common.uuid7 import uuid7 as _uuid7
-from packages.services.m1_baseline.bom_validation import (
+from packages.common.uuid7 import uuid7 as _uuid7  # noqa: E402
+from packages.services.m1_baseline.bom_validation import (  # noqa: E402
+    TARGET_TOTAL,
     quantize_ratio,
     sum_ratios,
-    TARGET_TOTAL,
 )
-from packages.services.m1_baseline.schemas import (
+from packages.services.m1_baseline.schemas import (  # noqa: E402
     ProductType,
     is_valid_bom_child,
     is_valid_bom_parent,
@@ -483,11 +481,12 @@ class BOMService:
         is_complete = new_total == TARGET_TOTAL
 
         # Step 6: audit-first (AD-2). Emit BEFORE DELETE/INSERT.
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.BOM_LINE,
             action="bom_set",
-            target_table="bom_lines",
+            actor_id=actor_id,
             target_id=parent_product_id,
             reason=None,
             payload={
@@ -622,12 +621,12 @@ class BOMService:
         if existing_count_result.scalar_one_or_none() is None:
             return
 
-        # Audit-first (AD-2).
-        await emit_audit(
+        # Audit-first (AD-2). Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.BOM_LINE,
             action="bom_cleared",
-            target_table="bom_lines",
+            actor_id=actor_id,
             target_id=parent_product_id,
             reason=None,
             payload={

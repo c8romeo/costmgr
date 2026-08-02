@@ -43,7 +43,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.audit import emit_audit
+from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from apps.api.core.db_models import TenantSettings
 from apps.api.core.jsonb_schemas import (
     OnboardingField,
@@ -385,11 +385,14 @@ class SettingsService:
         else:
             audit_action = "industry_change_initial"
             payload_reason = "industry_change_within_grace"
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper. ActionClass.TENANT_SETTINGS
+        # routes to audit_logs with target_table='tenant_settings'. The action
+        # literal MUST be in the registry's accepted set for TENANT_SETTINGS.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.TENANT_SETTINGS,
             action=audit_action,
-            target_table="tenant_settings",
+            actor_id=actor_id,
             target_id=tenant_id,
             reason=payload_reason,
             payload={
@@ -555,11 +558,12 @@ class SettingsService:
                     )
 
         # Audit + write (audit-first per AD-2 / spec anti-pattern).
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.TENANT_SETTINGS,
             action="onboarding_field_saved",
-            target_table="tenant_settings",
+            actor_id=actor_id,
             target_id=tenant_id,
             reason=None,
             payload={
@@ -638,11 +642,11 @@ class SettingsService:
 
         now = datetime.now(tz=UTC)
 
-        await emit_audit(
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.TENANT_SETTINGS,
             action="allocation_criterion_saved",
-            target_table="tenant_settings",
+            actor_id=actor_id,
             target_id=tenant_id,
             reason=None,
             payload={

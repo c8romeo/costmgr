@@ -67,6 +67,16 @@ def test_api_does_not_import_engine_core_or_adapters() -> None:
             "apps/api/modules/m3_calculate/services/calc_orchestrator.py",
             "apps/api/modules/m3_calculate/services/baseline_loader.py",
             "apps/api/modules/m3_calculate/services/monthly_input_aggregator.py",
+            # Story 4.3 — verification rule kernels + runner are AD-11
+            # boundary service layer files (rule protocol + verification_runner
+            # import Baseline / CalcResult / MonthlyInput types from the engine
+            # core; rule kernels import KRW for 1원 단위 tolerance).
+            "apps/api/modules/m3_calculate/services/rules/protocol.py",
+            "apps/api/modules/m3_calculate/services/rules/v1_complete_allocation.py",
+            "apps/api/modules/m3_calculate/services/rules/v4_cost_income_reconciliation.py",
+            "apps/api/modules/m3_calculate/services/rules/v7_abc_integrity.py",
+            "apps/api/modules/m3_calculate/services/rules/v8_regression.py",
+            "apps/api/modules/m3_calculate/services/verification_runner.py",
             # Pre-existing — Epic 4 retro F-4 (re-export shim).
             "apps/api/core/money.py",
         }

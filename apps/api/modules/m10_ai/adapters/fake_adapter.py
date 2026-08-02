@@ -40,7 +40,6 @@ Logging:
 from __future__ import annotations
 
 import hashlib
-import uuid
 from typing import Final
 
 from packages.services.m10_ai.extraction_port import (
@@ -49,7 +48,6 @@ from packages.services.m10_ai.extraction_port import (
     ExtractionField,
     ExtractionRequest,
 )
-
 
 # ── Magic-byte failure / behavior flags ──────────────────────
 _FAKEFAIL_HEADER: Final[bytes] = b"FAKEFAIL"

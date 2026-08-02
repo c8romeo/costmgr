@@ -65,7 +65,7 @@ from packages.services.m2_input.stream_completion import (
 )
 
 __all__ = [
-    # Stream + Mode (re-exported)
+    # Stream + Mode (re-exported)  # noqa: ERA001
     "Stream",
     "Mode",
     "STREAM_LABELS_KO",

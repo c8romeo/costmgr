@@ -40,14 +40,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.audit import emit_audit
+from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from apps.api.core.db_models import InputDraft, TenantSettings, UploadedDocument
 from packages.services.m10_ai.extraction_port import (
     SUPPORTED_FIELD_NAMES,
     DocumentExtractionJob,
     DocumentExtractionPort,
     ExtractionEvidence,
-    ExtractionField,
     ExtractionRequest,
 )
 
@@ -197,7 +196,7 @@ def _ai_value_to_json(ai_value: object) -> dict[str, Any]:
         return {"kind": "null", "value": None}
     if isinstance(ai_value, bool):
         return {"kind": "boolean", "value": ai_value}
-    if isinstance(ai_value, (int, float)):
+    if isinstance(ai_value, int | float):
         return {"kind": "number", "value": ai_value}
     return {"kind": "string", "value": str(ai_value)}
 
@@ -275,11 +274,12 @@ class DocumentService:
         now = datetime.now(tz=UTC)
 
         # 3) Audit row first (AD-2 — audit-before-write).
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             self.session,
-            actor_id=uploaded_by,
+            action_class=ActionClass.UPLOADED_DOCUMENT,
             action="document_uploaded",
-            target_table="uploaded_documents",
+            actor_id=uploaded_by,
             target_id=document_id,
             reason=None,
             payload={
@@ -417,11 +417,12 @@ class DocumentService:
         document.error_message_ko = None
         await self.session.flush()
 
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.UPLOADED_DOCUMENT,
             action="document_reprocess_requested",
-            target_table="uploaded_documents",
+            actor_id=actor_id,
             target_id=document_id,
             reason=None,
             payload={"trace_id": self.trace_id},
@@ -519,11 +520,18 @@ class DocumentService:
 
         draft.version = draft.version + 1
 
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper. Caller-supplied
+        # `action: Literal["confirm", "reject"]` is mapped to the typed
+        # AuditAction literal at the registry boundary (f-string interpolation
+        # is the CR 1.1 lesson site #3; OQ4 cj-default = typed Literal).
+        draft_action_literal: str = (
+            "input_draft_confirm" if action == "confirm" else "input_draft_reject"
+        )
+        await emit_audit_typed(
             self.session,
+            action_class=ActionClass.INPUT_DRAFT,
+            action=draft_action_literal,  # type: ignore[arg-type]
             actor_id=actor_id,
-            action=f"input_draft_{action}",
-            target_table="input_drafts",
             target_id=draft_id,
             reason=None,
             payload={
@@ -606,12 +614,16 @@ class DocumentService:
         onboarding = dict(settings_row.onboarding or {})
         onboarding["company_subblock"] = new_subblock
 
-        # Audit (AD-2).
-        await emit_audit(
+        # Audit (AD-2). Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        # Note: company_subblock_promoted writes to tenant_settings JSONB
+        # but is initiated by m10_ai (document-based promotion). target_table
+        # is therefore tenant_settings (ActionClass.TENANT_SETTINGS routes
+        # the registry target_table to "tenant_settings").
+        await emit_audit_typed(
             self.session,
-            actor_id=actor_id,
+            action_class=ActionClass.TENANT_SETTINGS,
             action="company_subblock_promoted",
-            target_table="tenant_settings",
+            actor_id=actor_id,
             target_id=tenant_id,
             reason=None,
             payload={
@@ -661,7 +673,7 @@ class DocumentService:
 
         try:
             return self._port.extract(request)
-        except AIProviderNotConfiguredError as e:
+        except AIProviderNotConfiguredError:
             return DocumentExtractionJob(
                 document_id=document.document_id,
                 tenant_id=document.tenant_id,
@@ -767,11 +779,12 @@ async def run_document_retention(
         row.deleted_at = now
     if rows:
         await session.flush()
-        await emit_audit(
+        # Story 4.3 (A5 Phase 1) — typed emit wrapper.
+        await emit_audit_typed(
             session,
-            actor_id=uuid.UUID(int=0),  # system actor (no JWT user)
+            action_class=ActionClass.UPLOADED_DOCUMENT,
             action="document_retention_soft_deleted",
-            target_table="uploaded_documents",
+            actor_id=uuid.UUID(int=0),  # system actor (no JWT user)
             target_id=rows[0].document_id,
             reason="retention_window_elapsed",
             payload={

@@ -66,10 +66,9 @@ Future (not in Story 3.1/3.2/3.3):
 from __future__ import annotations
 
 # Re-export public API at the package level so callers can do:
-#   from packages.services.m2_input import compute_fte_for_daily
+#   from packages.services.m2_input import compute_fte_for_daily  # noqa: ERA001 — usage example, intentional
 # rather than:
-#   from packages.services.m2_input.labor_conversion import compute_fte_for_daily
-
+#   from packages.services.m2_input.labor_conversion import compute_fte_for_daily  # noqa: ERA001 — usage example, intentional
 from packages.services.m2_input.inventory_projection import (
     INVENTORY_PRODUCT_TYPES,
     LEDGER_REFERENCE_QUERY_STUB,
@@ -81,9 +80,9 @@ from packages.services.m2_input.inventory_projection import (
 from packages.services.m2_input.labor_conversion import (
     DEFAULT_PAYROLL,
     FteDisplay,
+    PayrollSettings,
     PayType,
     PayTypeBreakdown,
-    PayrollSettings,
     build_fte_display,
     compute_fte_for_daily,
     compute_fte_for_monthly,

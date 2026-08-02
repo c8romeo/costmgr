@@ -104,6 +104,13 @@ forbidden_modules = [
     "packages.cost_engine.adapters",
 ]
 
+# Story 4.2 — M3 handler/service boundary is enforced via AST boundary
+# test (apps.api → packages.cost_engine.core FORBIDDEN) rather than
+# import-linter, because the known root_package limitation prevents
+# import-linter from anchoring on `apps.api.modules.m3_calculate.*`.
+# See `tests/architecture/test_api_calls_only_ports.py`
+# `test_api_does_not_import_engine_core_or_adapters`.
+
 # ─────────────────────────────────────────────────────────
 # ruff — Python lint + format (AD-15, AD-8)
 # ─────────────────────────────────────────────────────────
@@ -123,6 +130,12 @@ ignore = ["E501"]
 # FastAPI exception handlers must accept `request` even when unused (ARG001).
 # SQLAlchemy: `UUID as PgUUID` is the standard typed-UUID alias (N811).
 "apps/api/**/*.py" = ["B008", "ARG001", "N811"]
+# AD-12 VerificationRule Protocol pattern (Story 4.3):
+# - `applies_to(*, industry: str)` unused in V1/V4/V8 (universal rules; all fire).
+# - `check(self, input: RuleInput)` shadows builtin `input` to mirror Protocol.
+# Both are intentional AD-12 / AD-5 contract invariants.
+"apps/api/modules/m3_calculate/services/rules/*.py" = ["ARG002", "A002"]
+"apps/api/modules/m3_calculate/services/rules/protocol.py" = ["ARG002", "A002"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -141,4 +154,5 @@ markers = [
     "engine: cost-engine purity tests (AST forbidden-imports)",
     "rls: tenant isolation + service_role audit tests (CI-only when no local Postgres)",
     "asyncio: async tests (driven via asyncio.run — no pytest-asyncio plugin needed)",
+    "v8_regression: Story 4.4 CI gate — 12 fixture 골든 byte-identical (mandatory, no skip)",
 ]

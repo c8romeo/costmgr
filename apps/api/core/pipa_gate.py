@@ -33,6 +33,7 @@ Future work (out of scope for Story 1.3):
 
 from __future__ import annotations
 
+import os
 import uuid
 from enum import Enum
 from typing import Final
@@ -53,14 +54,41 @@ class PipaRegion(str, Enum):
     """
 
     KR = "KR"
-    # EU = "EU"  # post-MVP — when Anthropic ships EU-hosted inference
-    # US = "US"  # explicitly NOT allowed under MVP PIPA rules
+    # EU = "EU"  # post-MVP — when Anthropic ships EU-hosted inference  # noqa: ERA001
+    # US = "US"  # explicitly NOT allowed under MVP PIPA rules  # noqa: ERA001
 
 
 _PIPA_ALLOWED_REGIONS: Final[frozenset[PipaRegion]] = frozenset({PipaRegion.KR})
 
 
-# ── Typed exception (mapped to 451 by handlers.py) ─────────
+# ── Operations kill-switch (Epic 1 회고 A3 + Epic 3 회고 A1) ─────
+# When `PIPA_REVIEW_COMPLETED=false`, the gate is FORCE-CLOSED regardless
+# of per-tenant consent. This is the operations-level safety switch the
+# team can flip before/after a legal review of cross-border AI processing.
+# Default behavior: unset / "true" / "1" → fall through to per-tenant check
+# (backward compatible). Explicit "false" / "0" → 503 PIPA_REVIEW_REQUIRED
+# for all M10 routes.
+PIPA_REVIEW_COMPLETED_ENV: Final[str] = "PIPA_REVIEW_COMPLETED"
+_PIPA_KILL_SWITCH_VALUES: Final[frozenset[str]] = frozenset({"false", "0", "False", "FALSE"})
+
+
+def pipa_review_completed() -> bool:
+    """Pure helper — is the operations-level PIPA review flag ON?
+
+    Reads `PIPA_REVIEW_COMPLETED` env var at call time. Returns True
+    unless the value is explicitly a kill-switch value (`false`/`0`).
+
+    Called by `require_pipa_review` BEFORE the per-tenant check so
+    operations can disable cross-border AI processing fleet-wide.
+
+    The env-var is read at function call time (not module load) so
+    tests can monkey-patch `os.environ` without re-importing.
+    """
+    raw = os.environ.get(PIPA_REVIEW_COMPLETED_ENV, "true").strip()
+    return raw not in _PIPA_KILL_SWITCH_VALUES
+
+
+# ── Typed exceptions (mapped to 451 / 503 by main.py) ──────────
 class PipaConsentMissingError(Exception):
     """451 PIPA_CONSENT_MISSING — tenant has not consented to cross-border AI."""
 
@@ -77,6 +105,23 @@ class PipaConsentMissingError(Exception):
         self.reason = reason
 
 
+class PipaReviewRequiredError(Exception):
+    """503 PIPA_REVIEW_REQUIRED — operations kill-switch ON.
+
+    Raised when `PIPA_REVIEW_COMPLETED=false` is set at the operations
+    level. The PIPA review has not been completed (or has been suspended)
+    so cross-border AI processing is denied fleet-wide regardless of
+    per-tenant consent. Operators set this when:
+    - DPA negotiations are in progress with the AI provider.
+    - A legal review is required before resuming processing.
+    - An incident requires pausing cross-border AI.
+    """
+
+    def __init__(self, *, trace_id: str) -> None:
+        super().__init__("PIPA review not completed (operations kill-switch ON)")
+        self.trace_id = trace_id
+
+
 # ── Public dependency ───────────────────────────────────────
 async def require_pipa_review(
     ctx: TenantContext = Depends(get_tenant_context),
@@ -84,15 +129,24 @@ async def require_pipa_review(
 ) -> TenantContext:
     """FastAPI dependency — gate the M10 routes on PIPA consent + region.
 
-    Reads `tenant_settings.onboarding.pipa_consent` and
-    `tenant_settings.onboarding.pipa_region`. Both must be present and
-    consent must be True; region must be in `_PIPA_ALLOWED_REGIONS`.
+    Two-layer check:
+    1. **Operations kill-switch** (`PIPA_REVIEW_COMPLETED=false`) — 503
+       `PIPA_REVIEW_REQUIRED` if set. Fleet-wide safety switch.
+    2. **Per-tenant consent** — reads `tenant_settings.onboarding.pipa_consent`
+       and `pipa_region`. Both must be present and consent must be True;
+       region must be in `_PIPA_ALLOWED_REGIONS`. 451 otherwise.
 
     Returns the `TenantContext` so the route can use it directly.
-    Raises `PipaConsentMissingError` (451 LEGAL_REASONS) otherwise.
+    Raises `PipaReviewRequiredError` (503) or `PipaConsentMissingError`
+    (451) otherwise.
     """
     trace_id = str(uuid.uuid4())
 
+    # ── Layer 1: operations kill-switch (Epic 1 회고 A3 + Epic 3 회고 A1) ──
+    if not pipa_review_completed():
+        raise PipaReviewRequiredError(trace_id=trace_id)
+
+    # ── Layer 2: per-tenant consent (Story 1.3) ────────────────
     # Lazy import — settings_service may not exist at import time
     # in tests that only exercise this module.
     from apps.api.modules.m0_onboarding.services.settings_service import (

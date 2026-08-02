@@ -31,10 +31,9 @@ Anti-pattern guards:
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Final, Protocol
-
 
 # ── Canonical field schema (Story 1.3 — Task 1.1) ─────────────
 # MVP set per Open Question 1 (cj-style default applied 2026-08-01):

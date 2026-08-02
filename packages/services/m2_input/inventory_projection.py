@@ -40,7 +40,6 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, NamedTuple, Protocol
 
-
 # ── Constants ────────────────────────────────────────────────
 # PRD §6.2 inventory-tracked product types.
 # - `material`     — 원재료 (raw material)

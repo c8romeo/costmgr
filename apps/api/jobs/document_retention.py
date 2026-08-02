@@ -30,6 +30,7 @@ Operational deployment:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -39,6 +40,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.core.db import get_session
 from apps.api.modules.m10_ai.service import (
     RetentionResult,
+)
+from apps.api.modules.m10_ai.service import (
     run_document_retention as _run_retention,
 )
 
@@ -69,14 +72,12 @@ async def run(*, now: datetime | None = None) -> RetentionResult:
             },
         )
         return result
-    except Exception as e:  # pragma: no cover — cron runner catches & alerts
+    except Exception:  # pragma: no cover — cron runner catches & alerts
         logger.exception(
             "document_retention.run failed",
             extra={"trace_id": trace_id},
         )
         raise
     finally:
-        try:
+        with contextlib.suppress(StopAsyncIteration):
             await session_gen.__anext__()  # trigger __aexit__ / close
-        except StopAsyncIteration:
-            pass

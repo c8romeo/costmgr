@@ -1,0 +1,28 @@
+{
+  "_fixture_lock_sha256": "b9d8d1c720a6d725f2a672e4f35b1558f7bc0604c0229c7a78f35d5a9997286b",
+  "baseline": {
+    "allocation_basis_set": true,
+    "bom_ratio_validated": true,
+    "fiscal_period": "2026-07",
+    "standard_monthly_hours": 209
+  },
+  "fixture_id": "manufacturing__b-small",
+  "fixture_version": "1.0.0",
+  "golden": {
+    "inventory_adjustment": 0,
+    "labor_cost": 2500000,
+    "manufacturing_cost": 3800000,
+    "material_cost": 1000000,
+    "overhead_cost": 300000,
+    "result_hash": "1e6338bcfc98f9b331d6d6a693b99c664dc9ca1a486d665cac0e82d94ccc3b6f",
+    "state": "draft"
+  },
+  "monthly_input": {
+    "direct_labor_krw": 500000,
+    "direct_material_krw": 1000000,
+    "fte_headcount": "5.0",
+    "indirect_krw": 300000
+  },
+  "period_key": "2026-07",
+  "tenant_id": "e2b9e633-0c2b-4d57-916e-c8d9b255a155"
+}

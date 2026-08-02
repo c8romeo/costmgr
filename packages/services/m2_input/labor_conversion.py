@@ -144,7 +144,7 @@ def merge_payroll_settings(
     )
     if company_burden_rate is None:
         company_burden_rate = base.company_burden_rate
-    if isinstance(company_burden_rate, (int, float, str)):
+    if isinstance(company_burden_rate, int | float | str):
         company_burden_rate = Decimal(str(company_burden_rate))
     if not isinstance(company_burden_rate, Decimal):
         raise ValueError(
