@@ -1,4 +1,4 @@
-"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3).
+"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2).
 
 Mapped tables:
 - 0001: tenants, users, tenant_memberships, tenant_settings, audit_logs
@@ -8,6 +8,7 @@ Mapped tables:
 - 0009 (Story 3.1): monthly_input_periods, monthly_input_rows
 - 0012 (Story 4.2): fiscal_period_snapshots, calc_log
 - 0013 (Story 4.3): verification_log
+- 0015 (Story 5.2): inventory_ledger (AD-2 append-only)
 
 Per AD-1/AD-11: this module is in `apps/api/` (infra layer). It does NOT
 import `packages.cost_engine` directly. Modules write through services.
@@ -771,5 +772,99 @@ class VerificationLog(Base):
         CheckConstraint(
             "baseline_revision >= 1",
             name="verification_log_revision_positive",
+        ),
+    )
+
+
+# ── inventory_ledger (Story 5.2 — Task 5) ──────────────────────
+# AD-2 append-only ledger (PRD §6.2 수불부). INSERT-only at the DB
+# layer via a `BEFORE UPDATE OR DELETE` row-level trigger that raises
+# custom SQLSTATE `P0001` with a Korean message. Corrections flow
+# through AD-22 reversal sequence (Epic 11 module authority insert).
+#
+# AD-18 single product identity: `product_id` FK to `products.id`
+# (UUID v7). AD-4 RLS: `tenant_id` FK to `tenants.id`.
+#
+# AD-8 monetary types: `qty` is NUMERIC(18,4) NULLABLE (OQ2 cj-style
+# default — non-quantitative events like `closing_snapshot` may have
+# NULL qty). AD-22 reversal fields (`reverses_event_id` +
+# `correction_group_id`) are populated only by reversal rows.
+#
+# AD-15: snake_case column names. UUID v7 default for `event_id`
+# (mirrors `packages.services.m4_inventory.ledger.InventoryLedgerEvent`).
+#
+# Drift detector: 11-value event_type CHECK constraint mirrors
+# `packages.services.m4_inventory.ledger.INVENTORY_LEDGER_EVENT_TYPES`
+# + `apps.api.core.audit_action._REGISTRY[ActionClass.INVENTORY_LEDGER]`.
+# Tests: `tests/integration/test_audit_action_consistency.py`.
+class InventoryLedger(Base):
+    __tablename__ = "inventory_ledger"
+
+    event_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    product_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    period_key: Mapped[str] = mapped_column(Text, nullable=False)
+    event_type: Mapped[str] = mapped_column(Text, nullable=False)
+    # AD-8 / OQ2: NUMERIC(18,4) NULLABLE for non-quantitative events.
+    qty: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=18, scale=4), nullable=True
+    )
+    trace_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), nullable=False
+    )
+    # AD-22 reversal sequence (Epic 11 forward-fill).
+    reverses_event_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), nullable=True
+    )
+    correction_group_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True), nullable=True
+    )
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    inserted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        # 11-value event_type CHECK (OQ3 cj-style default).
+        CheckConstraint(
+            "event_type IN ("
+            "'opening_carried', "
+            "'opening_carried_stale_overwrite', "
+            "'purchase_inbound', "
+            "'sales_outbound', "
+            "'production_output_inbound', "
+            "'production_material_consumption', "
+            "'adjustment_positive', "
+            "'adjustment_negative', "
+            "'reversal_negating', "
+            "'reversal_corrected', "
+            "'closing_snapshot'"
+            ")",
+            name="inventory_ledger_event_type_check",
+        ),
+        # AD-24 typed period_key: 'YYYY-MM'.
+        CheckConstraint(
+            "period_key ~ '^\\d{4}-(0[1-9]|1[0-2])$'",
+            name="inventory_ledger_period_key_format_check",
+        ),
+        # qty nonneg when present (NULL allowed for non-quantitative events).
+        CheckConstraint(
+            "qty IS NULL OR qty >= 0",
+            name="inventory_ledger_qty_nonneg_when_present",
+        ),
+        # Quantitative events MUST have non-NULL qty.
+        CheckConstraint(
+            "event_type = 'closing_snapshot' OR qty IS NOT NULL",
+            name="inventory_ledger_qty_required_for_quantitative_events",
         ),
     )

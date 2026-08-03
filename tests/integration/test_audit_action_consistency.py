@@ -139,7 +139,13 @@ def test_registry_matches_db_check_constraints() -> None:
     db_constraints = _parse_db_check_constraints()
 
     # Map ActionClass → expected DB table name
-    # (calc_log + verification_log have CHECK constraints; audit_logs does not)
+    # (calc_log + verification_log have CHECK constraints on the `action`
+    # column; audit_logs does not have an action CHECK; inventory_ledger
+    # has a CHECK on `event_type` (11 values) but NO `action` column —
+    # therefore the 3-way gate does NOT apply to inventory_ledger audit
+    # actions. The 11-value event_type enum drift is checked by a
+    # separate dedicated test —
+    # `tests/integration/test_inventory_ledger_event_type_drift.py`.
     class_to_table = {
         ActionClass.CALC_LOG: "calc_log",
         ActionClass.VERIFICATION_LOG: "verification_log",

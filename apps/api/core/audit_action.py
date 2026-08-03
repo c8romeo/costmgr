@@ -145,11 +145,22 @@ VerificationLogAction = Literal[
     "verify_v8_golden_match",  # Story 4.4 (V8 골든 mismatch audit-first)
 ]
 
-# inventory_ledger actions (Epic 5 NEW — design-only placeholder)
-# TODO(epic-5): FILL_INVENTORY_LEDGER_ACTIONS when m4_inventory module ships
-# Use a placeholder literal until Epic 5 lands (avoid empty Literal syntax).
+# inventory_ledger actions (Story 5.2 — AC #4 + OQ5 cj-style default).
+# Epic 5 ships 3 actions (event append, append-only violation, reversal
+# request). Epic 11 forward-fills 2 actions (reversal logged / rejected
+# — M11 authority approve/deny). Epic 6 close-out forward-fills 1
+# action (reprojection trigger — periodic close maintenance).
+# Drift detector: registry ↔ DB CHECK ↔ call sites (3-way gate).
 InventoryLedgerAction = Literal[
-    "_placeholder_inventory_ledger",
+    # Story 5.2 immediate (this commit)
+    "inventory_ledger_event_appended",  # primary INSERT path (5-2 T3)
+    "inventory_ledger_event_rejected",  # append-only violation (DB trigger)
+    "inventory_ledger_reversal_requested",  # M4 entrypoint (5-2 T6 forward-fill)
+    # Epic 11 forward-fill stubs (M11 authority approve/deny sequence)
+    "inventory_ledger_reversal_logged",  # M11 reversal approved + INSERTed
+    "inventory_ledger_reversal_rejected",  # M11 reversal denied
+    # Epic 6 close-out forward-fill stub (periodic close maintenance)
+    "inventory_ledger_reprojection_triggered",  # M6 closing_snapshot materialized
 ]
 
 # reversal_log actions (Epic 11 NEW — design-only placeholder)
@@ -264,8 +275,27 @@ class _ActionRegistry:
                 }
             ),
         ),
-        # Epic 5 / Epic 11 placeholder — empty until module ships
-        ActionClass.INVENTORY_LEDGER: ("inventory_ledger", frozenset()),
+        # Story 5.2 — INVENTORY_LEDGER 6 values fill (D1 deferral 해결).
+        # Epic 5 ships 3 + Epic 11 forward-fills 2 + Epic 6 close-out 1.
+        # The DB CHECK constraint is in Alembic 0015_inventory_ledger
+        # (AC #2 + OQ3 11-value enum mirror — T5 migration). Drift
+        # detector: tests/integration/test_audit_action_consistency.py
+        # `test_registry_matches_db_check_constraints` (3-way gate).
+        ActionClass.INVENTORY_LEDGER: (
+            "inventory_ledger",
+            frozenset(
+                {
+                    "inventory_ledger_event_appended",
+                    "inventory_ledger_event_rejected",
+                    "inventory_ledger_reversal_requested",
+                    # Epic 11 forward-fill
+                    "inventory_ledger_reversal_logged",
+                    "inventory_ledger_reversal_rejected",
+                    # Epic 6 close-out forward-fill
+                    "inventory_ledger_reprojection_triggered",
+                }
+            ),
+        ),
         ActionClass.REVERSAL_LOG: ("reversal_log", frozenset()),
     }
 

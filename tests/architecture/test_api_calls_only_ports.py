@@ -151,6 +151,11 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m2_input.inventory_projection",
             "packages.services.m2_input.opening_carry",  # Story 5.1 (Epic 5 — opening inventory auto-carry chain)
             "packages.services.m2_input",
+            # m4_inventory (Epic 5 — inventory ledger domain primitives)
+            # Story 5.2 — AD-2 append-only ledger + SQL fragment builders.
+            "packages.services.m4_inventory.ledger",
+            "packages.services.m4_inventory.ledger_query",
+            "packages.services.m4_inventory",
             # m10_ai (Epic 10 — AI document extraction port)
             "packages.services.m10_ai.extraction_port",
             "packages.services.m10_ai",
