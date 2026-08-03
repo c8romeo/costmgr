@@ -505,6 +505,9 @@ async def _m4_opening_manual_edit_handler(
             "details": {
                 "period_key": exc.period_key,
                 "tenant_id": str(exc.tenant_id),
+                # H4: spec literal — auto_carried_value (carry chain 현재 값)
+                # Story 5.2 spec 진입 시 opening_inventory JSONB lookup 결과 wire
+                "auto_carried_value": None,
             },
             "trace_id": exc.trace_id,
         },
@@ -539,20 +542,25 @@ async def _m4_opening_lock_violation_handler(
 async def _m4_carry_chain_limit_handler(
     request: Request, exc: MonthlyInputCarryChainLimitError
 ) -> JSONResponse:
-    """422 MONTHLY_INPUT_CARRY_CHAIN_LIMIT — chain depth > 12.
+    """422 MONTHLY_INPUT_CARRY_CHAIN_LIMIT — chain depth > limit.
     Manual trigger required for deeper chains.
     """
+    # L6: use INVENTORY_PERIOD_CHAIN_LIMIT constant from opening_carry_service
+    # instead of hardcoded "12"
+    from apps.api.modules.m4_inventory.services.opening_carry_service import (
+        INVENTORY_PERIOD_CHAIN_LIMIT,
+    )
     return JSONResponse(
         status_code=422,
         content={
             "code": "MONTHLY_INPUT_CARRY_CHAIN_LIMIT",
             "message_ko": (
-                f"이월 체인 깊이({exc.depth})가 한도(12)를 초과했습니다. "
-                f"수동 트리거가 필요합니다."
+                f"이월 체인 깊이({exc.depth})가 한도({INVENTORY_PERIOD_CHAIN_LIMIT})를 "
+                f"초과했습니다. 수동 트리거가 필요합니다."
             ),
             "details": {
                 "depth": exc.depth,
-                "limit": 12,
+                "limit": INVENTORY_PERIOD_CHAIN_LIMIT,
                 "period_key": exc.period_key,
                 "tenant_id": str(exc.tenant_id),
             },

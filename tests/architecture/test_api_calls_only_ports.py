@@ -149,6 +149,7 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m2_input.operating_rate",
             "packages.services.m2_input.warnings",
             "packages.services.m2_input.inventory_projection",
+            "packages.services.m2_input.opening_carry",  # Story 5.1 (Epic 5 — opening inventory auto-carry chain)
             "packages.services.m2_input",
             # m10_ai (Epic 10 — AI document extraction port)
             "packages.services.m10_ai.extraction_port",

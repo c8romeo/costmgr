@@ -40,7 +40,7 @@ A5 forward-lock:
 from __future__ import annotations
 
 import uuid
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from sqlalchemy import select
@@ -182,6 +182,10 @@ def _decode_opening_jsonb(
     """Decode `monthly_input_periods.opening_inventory` JSONB into
     `dict[UUID, Decimal]`, stripping special lock markers
     (`_locked`, `_lock_reason_ko`).
+
+    H7: Malformed values (NaN/Infinity/null/non-string/non-numeric) raise
+    MonthlyInputOpeningLockViolationError (500 AD-15 envelope) instead of
+    silent skip — defense-in-depth guard for JSONB 정합성.
     """
     if not raw:
         return {}
@@ -190,9 +194,18 @@ def _decode_opening_jsonb(
         if k.startswith("_"):
             continue  # lock markers
         try:
-            out[uuid.UUID(k)] = Decimal(str(v))
-        except (ValueError, TypeError):
-            continue  # defensive — drift detector catches later
+            value_decimal = Decimal(str(v))
+            if not value_decimal.is_finite():
+                raise ValueError(f"non-finite Decimal: {v}")
+            out[uuid.UUID(k)] = value_decimal
+        except (ValueError, TypeError, InvalidOperation) as err:
+            # H7: silent continue → typed exception (defense-in-depth)
+            raise MonthlyInputOpeningLockViolationError(
+                tenant_id=None,
+                period_key="<decode>",
+                lock_reason_ko=f"opening_inventory JSONB malformed: key={k}, value={v}",
+                trace_id=None,
+            ) from err
     return out
 
 
@@ -302,7 +315,14 @@ class OpeningCarryService:
         if prev_period_key is None:
             return []  # cj-style default: no prev → empty opening
 
-        prev_period = await self._load_period_by_key(prev_period_key)
+        # H8: 12-period chain depth guard (PRD §F4.1) — auto path 동일 적용
+        chain_depth = await self._compute_chain_depth(prev_period_key)
+        if chain_depth >= INVENTORY_PERIOD_CHAIN_LIMIT:
+            # silent skip (manual trigger 시 422 MONTHLY_INPUT_CARRY_CHAIN_LIMIT 안내)
+            return []
+
+        # H3: SELECT FOR UPDATE on prev period (concurrency guard — CR 1.1 idempotent no-op)
+        prev_period = await self._load_period_by_key_for_update(prev_period_key)
         if prev_period is None:
             return []  # cj-style default: silent no-op
 
@@ -315,8 +335,11 @@ class OpeningCarryService:
             current_period_state=current_decoded,
             prev_period_key=prev_period_key,
         )
+        # H10: empty decisions while current non-empty → silent no-op (이미 균형)
         if not decisions:
-            return []
+            if current_decoded:
+                return []  # already balanced — silent no-op
+            return []  # cj-style default: no prev closing → empty opening
 
         # Resolve + UPDATE
         final = resolve_opening_balance(
@@ -401,18 +424,38 @@ class OpeningCarryService:
         if next_period_key is None:
             return []
 
-        next_period = await self._load_period_by_key(next_period_key)
-        if next_period is None:
-            return []  # no next period yet — silent
+        # H12: chain propagation (AC #3 "chain" 명시) — while loop walk forward
+        # cycle guard: 다음 period가 다시 prev로 돌아오면 stop (depth limit + cycle)
+        all_decisions: list[OpeningCarryDecision] = []
+        depth = 0
+        current_key = prev_period_key
+        seen_keys: set[str] = {prev_period_key}
 
-        # Skip if locked (reversal entrypoint needed)
-        if next_period.opening_inventory.get("_locked"):
-            return []
+        while depth < INVENTORY_PERIOD_CHAIN_LIMIT:
+            next_key = self._next_period_key(current_key)
+            if next_key is None or next_key in seen_keys:
+                break  # cycle guard + chain end
+            seen_keys.add(next_key)
 
-        return await self.auto_carry_on_get_state(
-            next_period,
-            actor_id=actor_id,
-        )
+            next_period = await self._load_period_by_key_for_update(next_key)
+            if next_period is None:
+                break  # no next period yet — silent
+
+            # Skip if locked (reversal entrypoint needed)
+            if next_period.opening_inventory.get("_locked"):
+                break  # lock marker 보존 (Epic 11 reversal 진입점)
+
+            decisions = await self.auto_carry_on_get_state(
+                next_period,
+                actor_id=actor_id,
+            )
+            all_decisions.extend(decisions)
+            if not decisions:
+                break  # no propagation needed — early exit
+            depth += 1
+            current_key = next_key
+
+        return all_decisions
 
     # ── Operation 5: tenant-wide consistency check ────────────
     async def validate_opening_lock_consistency(
@@ -472,6 +515,22 @@ class OpeningCarryService:
                 MonthlyInputPeriod.period_key == period_key,
                 MonthlyInputPeriod.baseline_revision == 1,
             )
+        )
+
+    async def _load_period_by_key_for_update(
+        self, period_key: str
+    ) -> MonthlyInputPeriod | None:
+        """H3: SELECT FOR UPDATE on period — concurrency guard (CR 1.1 idempotent no-op).
+
+        Used by auto_carry_on_get_state to prevent two concurrent get_state
+        calls from emitting duplicate audit + UPDATE.
+        """
+        return await self.session.scalar(
+            select(MonthlyInputPeriod).where(
+                MonthlyInputPeriod.tenant_id == self.tenant_id,
+                MonthlyInputPeriod.period_key == period_key,
+                MonthlyInputPeriod.baseline_revision == 1,
+            ).with_for_update()
         )
 
     async def _compute_period_closing(
@@ -669,10 +728,15 @@ class OpeningCarryService:
         """Return the previous period_key (YYYY-MM → YYYY-(MM-1)).
 
         cj-style default: returns None if period_key is malformed.
+
+        M3: validation 강화 — month must be 1..12 (silent reject for
+        malformed keys like 00, 13, 'XX').
         """
         try:
             year_str, month_str = period_key.split("-")
             year, month = int(year_str), int(month_str)
+            if not (1 <= month <= 12):
+                return None  # M3: month out of range
             if month == 1:
                 return f"{year - 1}-12"
             return f"{year}-{month - 1:02d}"
@@ -681,10 +745,15 @@ class OpeningCarryService:
 
     @staticmethod
     def _next_period_key(period_key: str) -> str | None:
-        """Return the next period_key (YYYY-MM → YYYY-(MM+1))."""
+        """Return the next period_key (YYYY-MM → YYYY-(MM+1)).
+
+        M3: validation 강화 — month must be 1..12.
+        """
         try:
             year_str, month_str = period_key.split("-")
             year, month = int(year_str), int(month_str)
+            if not (1 <= month <= 12):
+                return None  # M3: month out of range
             if month == 12:
                 return f"{year + 1}-01"
             return f"{year}-{month + 1:02d}"

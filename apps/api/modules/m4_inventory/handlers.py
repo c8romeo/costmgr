@@ -32,7 +32,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.capability import require_role
+from apps.api.core.capability import Capability, require_capability, require_role
 from apps.api.core.db import get_session
 from apps.api.core.tenant_context import TenantContext, get_tenant_context
 from apps.api.modules.m0_onboarding.services.settings_service import (
@@ -88,6 +88,7 @@ async def trigger_opening_carry(
     period_id: uuid.UUID,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(require_capability(Capability.OPENING_INVENTORY)),
     _role: None = Depends(require_role("owner")),
 ) -> CarryChainResultResponse:
     """Manual carry chain trigger.

@@ -186,6 +186,10 @@ def resolve_opening_balance(
     for decision in sorted(carry_chain_result, key=lambda d: str(d.product_id)):
         out[decision.product_id] = decision.opening_qty
 
+    # H9: lock_state is preserved by the SERVICE LAYER (_persist_opening)
+    # which merges lock markers from the previous JSONB into the new one.
+    # Pure kernel returns Decimal-only map; lock markers cannot live in a
+    # dict[UUID, Decimal] return type. Design is intentional.
     return out
 
 

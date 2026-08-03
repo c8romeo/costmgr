@@ -527,6 +527,7 @@ class MonthlyInputService:
         Story 5.1 — `opening_inventory` is auto-carried after first-row
         lock; manual row write rejected (PRD §F4.1).
         """
+        # M1: Pydantic Literal auto-reject (opening_inventory는 valid set에서 제외)
         if payload.stream not in (
             "orders",
             "production",
@@ -534,10 +535,6 @@ class MonthlyInputService:
             "purchases",
             "expenses",
             "labor",
-            # Story 5.1 — opening_inventory is NOT a writable stream
-            # (auto-carried by OpeningCarryService). Listed here only
-            # to throw the dedicated typed exception below.
-            "opening_inventory",
         ):
             raise MonthlyInputInvalidPayloadError(
                 tenant_id=self.tenant_id,
@@ -545,6 +542,7 @@ class MonthlyInputService:
                 trace_id=self.trace_id,
             )
         # Story 5.1 — manual edit on opening_inventory rejected
+        # opening_inventory는 Literal 검증으로 자동 차단됨 (M1 fix)
         if payload.stream == "opening_inventory":
             from apps.api.modules.m4_inventory.services.opening_carry_service import (
                 MonthlyInputOpeningManualEditError,
@@ -552,7 +550,7 @@ class MonthlyInputService:
 
             raise MonthlyInputOpeningManualEditError(
                 tenant_id=self.tenant_id,
-                period_key="<pending>",
+                period_key=payload.period_key,
                 trace_id=self.trace_id,
             )
         if payload.stream in _STREAMS_REQUIRING_PRODUCT:
@@ -779,6 +777,17 @@ class MonthlyInputService:
         await carry_svc.lock_opening_after_first_row(
             period, actor_id=actor_id
         )
+
+        # H2: T3.3 hook wire — prev period row mutation 시 chain propagation
+        # AC #3 explicit "chain" — auto-recompute stale value
+        from apps.api.modules.m4_inventory.services.opening_carry_service import (
+            _prev_period_key as _carry_prev_period_key,
+        )
+        prev_period_key = _carry_prev_period_key(period.period_key)
+        if prev_period_key is not None:
+            await carry_svc.recompute_opening_on_prev_change(
+                prev_period_key, actor_id=actor_id
+            )
 
         # Story 4.3 (A5 Phase 1) — typed emit wrapper.
         await emit_audit_typed(

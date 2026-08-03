@@ -84,3 +84,40 @@ Items deferred from code review. Each entry records what was deferred, the ratio
 - **Mixed `code + product_type` PATCH UX** — 403 doesn't hint at split. Low-impact UX nicety; spec silent. Defer until post-MVP user feedback surfaces the confusion.
 
 - **`is_active=false` PATCH on already-soft-deleted product allows type change** — spec silent; current behavior "type change still works on inactive rows" may be intentional. Defer until Epic 11 close-sequence defines what "closed-period" product mutations look like.
+
+## Deferred from: code review of 5-1-opening-inventory-auto-carry-chain (2026-08-04)
+
+- **M14 — TS mirror file missing** (`apps/web/lib/l2-input-opening-carry.ts`) — frontend helper not yet created; spec file list mismatch. Defer to Story 5.3 spec entry (Epic 4 close-out retro A6 NEW 결정 — frontend toast 진입 시).
+- **M15 — `m4_inventory/schemas.py` not extracted (T4.2 violation)** — CarryDecisionResponse + CarryChainResultResponse inline in handlers.py. Defer to Story 5.1.1 follow-up 또는 5-2 spec 진입 시.
+- **M16 — 4 missing MODIFY files (drift detectors + TODO marker)** — (a) `packages/services/m2_input/inventory_projection.py` TODO(epic-5-5-2) marker 갱신, (b) `tests/services/test_audit_action_centralization.py` drift detector for 2 new actions, (c) `tests/integration/test_audit_action_consistency.py` m4_inventory AST-grep, (d) `tests/integration/test_m2_input_label_consistency.py` opening_inventory_label 5 cases. Defer to Story 5.2 spec 진입 시 (inventory_ledger table 진입 시 inline projection deprecation marker 갱신).
+- **L4 — Chain depth counter doesn't detect actual carry applied** — `_compute_chain_depth` walks backward counting period existence, not carry chain application. Defer to Epic 5 close-out A8+ 결정.
+- **L5 — m4 → m0 import reverse-dependency (AD-11)** — `apps/api/modules/m4_inventory/handlers.py` imports from `m0_onboarding`. Cross-module coupling. Defer to Epic 5+ architecture follow-up.
+- **L7 — Async test pattern (CR 4-3 F-1 / A7 carry)** — `tests/api/test_opening_carry.py` has `async def` + `@pytest.mark.skip` patterns. A7 wire 시점에 asyncio.run() wrapper로 fix + AST guard 확장.
+- **L8 — Manual edit reject bypass via bulk import** — service-layer exception만으로는 bulk import endpoint 우회 가능. SQL-level CHECK (`stream != 'opening_inventory' OR created_via = 'auto_carry'`) 추가 필요. Defer to Story 0.5 plumbing 후 SQL CHECK 추가.
+
+## Deferred from: code review of 5-1-opening-inventory-auto-carry-chain (2026-08-04, post-CR batch apply)
+
+**CR 결정 사항**:
+- **D1 (Audit action class drift)** — deferral 보존. 5-2 spec 진입 시 `ActionClass.INVENTORY_LEDGER` 신설 + 6 values wire (cr-5-1-lessons §3 + Epic 4 close-out A5 partial done pattern).
+- **D2 (Service-layer tests skip)** — skip 유지 + L1 SDR 정정. A6 Story 0.5 plumbing 진입 시 일괄 활성화 (Epic 4 close-out A6 결정).
+- **H6 / H9 false positive** — H6 (test files에 pytestmark/skip 없음), H9 (pure kernel의 lock_state parameter 이미 존재 + _persist_opening에 lock marker 보존 로직 이미 구현). Review finding 무효.
+- **L11 자동 해결** — H1 capability gate wire로 industry=None tenant 자동 reject.
+
+**16 PATCH carry-over (Story 5.1.1 follow-up 또는 5-2 spec 진입 시)**:
+
+- **M2 — Manual trigger idempotent no-op violation (CR 1.1)** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1317-1359` — 동일 manual trigger 매번 audit + UPDATE. defer to 5-1.1.
+- **M4 — Hardcoded `baseline_revision=1` lookup** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1552-1562` — multi-revision 환경 회귀. defer to Epic 5+ multi-revision 결정 시.
+- **M5 — Service instantiated for service-only industry (capability 미 enforced in service)** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1304-1315` — defense-in-depth. handler 게이트 외 service layer에서도 capability 검증 필요. defer to 5-1.1.
+- **M6 — Lock audit + transaction coupling gaps** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1439-1467` — audit flush + mutation rollback coupling 미흡. defer to 5-1.1.
+- **M7 — Malformed JSONB shape drift** — `_locked=true` without `_lock_reason_ko` 등 malformed JSONB silent accept. defer to 5-1.1.
+- **M8 — Mixed UUID/string product identifiers** `packages/services/m2_input/opening_carry.py:2385-2389` — equivalent products separate decisions. defer to 5-2.
+- **M9 — Quantity input non-Decimal type** `packages/services/m2_input/opening_carry.py:2389-2411` — int/float/string/None runtime errors. defer to 5-1.1.
+- **M10 — Audit writer error handling (rollback coupling)** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1624-1653` — rollback coupling 미흡. defer to 5-1.1.
+- **M11 — Decimal serialization allows arbitrary strings** `apps/api/modules/m2_input/schemas.py:387-390` — no value validator. defer to 5-1.1.
+- **M13 — `auto_carry` audit missing `prev_old_value`/`prev_new_value`** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1625-1650` — AC #3 explicit payload requirement 미충족. defer to 5-1.1.
+- **L2 — Settings lookup error handling** `apps/api/modules/m4_inventory/handlers.py:1044-1050` — 예상 못한 DB/decode error typed envelope 미 매핑. defer to 5-1.1.
+- **L3 — Response validation (decision non-string)** `apps/api/modules/m4_inventory/handlers.py:1058-1074` — `CarryDecisionResponse.model_validate(d)` 누락. defer to 5-1.1.
+- **L9 — `_run_carry_chain` cycle guard** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1733-1752` — depth walk에만 cycle guard, chain walk에는 없음. defer to 5-1.1.
+- **L10 — Capability matrix service-only ❌ test missing** `tests/integration/test_opening_carry_capability.py` — 4 cases 중 service-only rejection path 미 pinned. defer to A6 Story 0.5 plumbing 진입 시 일괄 활성화 (DB-backed CI-shim).
+- **D1 wire timing** — `ActionClass.INVENTORY_LEDGER` 신설 + 6 values wire. defer to 5-2 spec 진입 시 (inventory_ledger table과 함께 등장).
+- **A6 Story 0.5 plumbing** — shadcn Tabs / sonner / vitest / Playwright 4종 wire. 5-3 frontend toast 진입 전 별도 Story 진행 필수 (Epic 4 close-out A6 NEW 결정).

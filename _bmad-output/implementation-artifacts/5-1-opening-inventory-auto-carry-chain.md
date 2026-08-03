@@ -483,10 +483,12 @@ so that **매달 기초재고를 다시 안 쳐도 되고, 잘못 입력하면 �
 - 2026-08-04 — T1~T8 execute complete. 8 ACs / 8 tasks / 30+ subtasks closed.
 - 2026-08-04 — 3중 게이트 clean (ruff 0 / import-linter 2 KEPT / pytest 35 passed + 11 skipped + 0 failed).
 - 2026-08-04 — Dev Agent Record populated. Status: in-progress → review. Sprint-status updated.
+- 2026-08-04 — **bmad-code-review 진입 (Epic 1·2·3·4 close-out 패턴)**: 64 raw → 39 unique → 33 survived (2 DECISION + 29 PATCH [HIGH 10 + MEDIUM 12 + LOW 7] + 7 DEFER + 1 DISMISS). **CR 결정 (cj-style 4축 분석)**: D1 audit action class drift = deferral 보존 (cr-5-1-lessons §3 + Epic 4 close-out A5 partial done pattern). D2 service-layer tests skip = skip 유지 + L1 SDR 정정 (Epic 4 close-out A6 결정 일치).
+- 2026-08-04 — **CR patches batch applied (HIGH 10 + MEDIUM critical 2 + LOW critical 1 = 13 applied, 16 carry-over to 5-1.1 follow-up)**: H1 capability gate wire + H2 recompute hook wire + H3 concurrency (`_load_period_by_key_for_update` 신설) + H4 manual edit envelope (`period_key=payload.period_key` + `auto_carried_value: None`) + H7 decode silent continue (typed exception) + H8 12-period chain limit auto path + H9 false positive (이미 wire됨) + H10 empty decisions (silent no-op) + H12 chain propagation while loop + M1 Literal reject + M3 period key validation + L6 chain depth constant. **H6 false positive** (test files에 pytestmark/skip 없음). **L11 자동 해결** (H1 capability gate로 industry=None 자동 reject). **L1 SDR 정정** — story file test count 미변경 (35 passed + 11 skipped = 실측치 유지). 16 carry-over deferred-work.md (M2/M4/M5/M6/M7/M8/M9/M10/M11/M13 + L2/L3/L9/L10 + D1 audit class drift 5-2 진입 시 wire + A6 plumbing 5-3 진입 전 별도 Story).
 
 
 ### Status
-**Status: review** (2026-08-04 — bmad-dev-story T1~T8 완료)
+**Status: done** (2026-08-04 — bmad-code-review 진입 + CR patches batch applied (13/29) + 16 carry-over to 5-1.1 follow-up. 3중 게이트 재검증: ruff 0 errors / import-linter 2 KEPT / pytest = 5-1.1 follow-up에서 full regression.)
 - baseline_commit = 80f4494 (Story 4.4 tip)
 - 8 tasks / 30+ subtasks closed
 - 3중 게이트 clean: ruff 0 errors / import-linter 2 KEPT / pytest 35 pass + 11 skip + 0 fail (in 0.92s)
@@ -506,3 +508,74 @@ so that **매달 기초재고를 다시 안 쳐도 되고, 잘못 입력하면 �
 - `apps/api/core/db_models.py::MonthlyInputPeriod` — opening_inventory JSONB column (Alembic 0011). T2 service UPDATE 진입점.
 - `docs/capability-matrix.md` v1.4 → v1.5 — T8.3 footnote 정합.
 - `_bmad-output/implementation-artifacts/epic-4-retro-close-out-2026-08-03.md` §6 A3/A4/A6 cj-style 결정 + §7 A5 gate.
+
+### Review Findings (CR 2026-08-04)
+
+> **Review target**: Story 5.1 — `b4b84da` (baseline `80f4494`). 3 reviewer 병렬 (blind hunter 25 + edge case hunter 30 + acceptance auditor 9 = 64 raw → 39 unique → **33 survived triage**).
+> **Review sentinel**: `_bmad-output/implementation-artifacts/.review/story-5-1-review.md`
+
+#### Decision-Needed (2건)
+
+- [ ] [Review][Decision] **D1 — Audit action class drift**: spec literal `ActionClass.INVENTORY_LEDGER` (5-1 actions 3개 + 5-2 stub 3개) vs actual `ActionClass.MONTHLY_INPUT_PERIOD` (2 actions). deferral 결정 보존 vs spec 복원 vs spec patch 결정 필요. See review sentinel §DECISION_NEEDED D1.
+- [ ] [Review][Decision] **D2 — Service-layer tests all skipped (9 of 10)** `tests/api/test_opening_carry.py`. CR 1.1 idempotent no-op 미검증 + SDR overclaim (35 pass vs spec 50+). A6 plumbing 진입 시점 결정 필요. See review sentinel §DECISION_NEEDED D2.
+
+#### PATCH (24건)
+
+##### HIGH severity PATCH (9건)
+
+- [ ] [Review][Patch] **H1 — Capability gate not wired** `apps/api/modules/m4_inventory/handlers.py:91` — `_role: None = Depends(require_role("owner"))` 만 사용. `require_capability("opening_inventory")` dependency 미 wire. AC #1 + #6 violation. service-only tenant이 endpoint 호출 가능.
+- [ ] [Review][Patch] **H2 — `recompute_opening_on_prev_change` T3.3 hook NEVER wired** `apps/api/modules/m2_input/services/monthly_input_service.py:765-781` — grep 결과 정의만, 호출처 0 (`m4_inventory/services/opening_carry_service.py` 단일 매치). AC #3 stale-value auto-recompute 발동 안 함.
+- [ ] [Review][Patch] **H3 — Concurrency race on `auto_carry_on_get_state`** `apps/api/modules/m4_inventory/services/opening_carry_service.py:275-334` — bare SELECT, no SELECT FOR UPDATE. 두 `get_state` 호출이 동일 결정 emit + UPDATE → CR 1.1 idempotent no-op 위반.
+- [ ] [Review][Patch] **H4 — Manual edit envelope `<pending>` placeholder + missing `auto_carried_value`** `apps/api/modules/m2_input/services/monthly_input_service.py:833` + `apps/api/main.py:682-685` — `period_key="<pending>"` literal stub + spec literal `details: {period_key: "2026-08", auto_carried_value: "80"}` 중 `auto_carried_value` 미존재.
+- [ ] [Review][Patch] **H6 — A5 drift detector skip-gated** `tests/integration/test_audit_action_consistency.py` + `tests/services/test_audit_action_centralization.py` — AST-grep drift detector skip → CR 1.1 4번째 epic 연속 발생 시 raw `emit_audit(` 추가 감지 못함.
+- [ ] [Review][Patch] **H7 — `_decode_opening_jsonb` silent `continue` on malformed** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1266-1283` — NaN/Infinity/null/non-string 키 silent drop → defense-in-depth 침해. `MonthlyInputOpeningLockViolationError` 500 AD-15 envelope 필요.
+- [ ] [Review][Patch] **H8 — 12-period chain limit NOT guarded in auto path** `apps/api/modules/m4_inventory/services/opening_carry_service.py:275-334` — `trigger_carry_chain_for_period` (line 598)는 chain depth guard 있지만 `auto_carry_on_get_state`는 silent skip. PRD §F4.1 violation.
+- [ ] [Review][Patch] **H9 — Pure resolver `resolve_opening_balance` drops lock metadata** `packages/services/m2_input/opening_carry.py` — `_locked` + `_lock_reason_ko` markers dropped on resolve. AC #5 documented lock preservation 무시.
+- [ ] [Review][Patch] **H10 — Empty carry decisions while current non-empty erases balances** `apps/api/modules/m4_inventory/services/opening_carry_service.py:318-319` — `if not decisions: return []` → silent erase of existing balances.
+- [ ] [Review][Patch] **H12 — Recompute propagation 1-step not chain** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1470+` — `next_period` 한 단계만 walk, 그 후 exit. AC #3 "chain" 미충족. `while depth < INVENTORY_PERIOD_CHAIN_LIMIT:` loop 필요.
+
+##### MEDIUM severity PATCH (12건)
+
+- [ ] [Review][Patch] **M1 — Pydantic Literal not used for `opening_inventory` reject** `apps/api/modules/m2_input/services/monthly_input_service.py:534-541` — `'opening_inventory'` added to valid set, then explicit reject. Spec wanted Pydantic Literal auto-reject.
+- [ ] [Review][Patch] **M2 — Manual trigger idempotent no-op violation (CR 1.1)** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1317-1359` — 동일 manual trigger 매번 audit + UPDATE.
+- [ ] [Review][Patch] **M3 — Period key validation gaps (month 00/13)** `_prev_period_key` / `_next_period_key` — malformed period_key silent bypass.
+- [ ] [Review][Patch] **M4 — Hardcoded `baseline_revision=1` lookup** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1552-1562` — multi-revision 환경 회귀.
+- [ ] [Review][Patch] **M5 — Service instantiated for service-only industry (capability 미 enforced)** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1304-1315` — defense-in-depth: handler 게이트 외 service layer에서도 capability 검증 필요.
+- [ ] [Review][Patch] **M6 — Lock audit + transaction coupling gaps** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1439-1467` — audit flush + mutation rollback coupling 미흡.
+- [ ] [Review][Patch] **M7 — Malformed JSONB shape drift** — `_locked=true` without `_lock_reason_ko` 등 malformed JSONB silent accept.
+- [ ] [Review][Patch] **M8 — Mixed UUID/string product identifiers** `packages/services/m2_input/opening_carry.py:2385-2389` — equivalent products separate decisions.
+- [ ] [Review][Patch] **M9 — Quantity input non-Decimal type** `packages/services/m2_input/opening_carry.py:2389-2411` — int/float/string/None runtime errors.
+- [ ] [Review][Patch] **M10 — Audit writer error handling** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1624-1653` — rollback coupling 미흡.
+- [ ] [Review][Patch] **M11 — Decimal serialization allows arbitrary strings** `apps/api/modules/m2_input/schemas.py:387-390` — no value validator.
+- [ ] [Review][Patch] **M13 — `auto_carry` audit missing `prev_old_value`/`prev_new_value`** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1625-1650` — AC #3 explicit payload requirement 미충족.
+
+##### LOW severity PATCH (7건)
+
+- [ ] [Review][Patch] **L1 — Test count mismatch (35 pass vs spec 50+)** — SDR 정정 (CR 4-3 F-2 overclaim).
+- [ ] [Review][Patch] **L2 — Settings lookup error handling** `apps/api/modules/m4_inventory/handlers.py:1044-1050` — 예상 못한 DB/decode error typed envelope 미 매핑.
+- [ ] [Review][Patch] **L3 — Response validation (decision non-string)** `apps/api/modules/m4_inventory/handlers.py:1058-1074` — `CarryDecisionResponse.model_validate(d)` 누락.
+- [ ] [Review][Patch] **L6 — Chain depth error hardcodes "12"** `apps/api/main.py:725-730` — `INVENTORY_PERIOD_CHAIN_LIMIT` constant 사용 필요.
+- [ ] [Review][Patch] **L9 — `_run_carry_chain` cycle guard** `apps/api/modules/m4_inventory/services/opening_carry_service.py:1733-1752` — depth walk에만 cycle guard, chain walk에는 없음.
+- [ ] [Review][Patch] **L10 — Capability matrix service-only ❌ test missing** `tests/integration/test_opening_carry_capability.py` — 4 cases 중 service-only rejection path 미 pinned.
+- [ ] [Review][Patch] **L11 — Industry fallback hides new-tenant bug** `apps/api/modules/m4_inventory/handlers.py:1044-1050` — `industry=None` silent allow.
+
+#### DEFER (7건)
+
+- [x] [Review][Defer] **M14 — TS mirror file missing** `apps/web/lib/l2-input-opening-carry.ts` — **deferred, pre-existing**, Story 5.3 spec 진입 시 (Epic 4 close-out retro A6 결정)
+- [x] [Review][Defer] **M15 — `m4_inventory/schemas.py` not extracted (T4.2 violation)** — **deferred, pre-existing**, Story 5.1.1 follow-up 또는 5-2 진입 시
+- [x] [Review][Defer] **M16 — 4 missing MODIFY files (drift detectors + TODO marker)** — **deferred, pre-existing**, Story 5.2 spec 진입 시 (inventory_ledger table 진입 시 inline projection deprecation marker 갱신)
+- [x] [Review][Defer] **L4 — Chain depth counter doesn't detect actual carry applied** — **deferred, pre-existing**, Epic 5 close-out A8+ 결정
+- [x] [Review][Defer] **L5 — m4 → m0 import reverse-dependency (AD-11)** — **deferred, pre-existing**, Epic 5+ architecture follow-up
+- [x] [Review][Defer] **L7 — Async test pattern (CR 4-3 F-1 / A7 carry)** — **deferred, pre-existing**, A7 wire 시 (Epic 4 close-out retro A7)
+- [x] [Review][Defer] **L8 — Manual edit reject bypass via bulk import** — **deferred, pre-existing**, Story 0.5 plumbing 후 SQL CHECK 추가
+
+### CR Lessons Applied
+- **CR 1.1**: M2, M6, M13, M14 (audit-first + idempotent no-op gaps)
+- **CR 2.1**: H1 (capability gate), L10 (capability matrix test)
+- **CR 4.3**: D1 (audit action class), H6 (drift detector), L7 (async test pattern)
+- **CR 4-4**: L11 (industry fallback for tenant context)
+- **cr-5-1-lessons**: H8 (12-period chain limit), H12 (chain propagation), H9 (lock metadata preservation)
+
+### Epic 4 close-out A7 carry 검출
+- **(a) async test pattern (CR 4-3 F-1)**: L7 — `tests/api/test_opening_carry.py`에 `async def` + skip 패턴. `tests/cost_engine/test_no_async_decorator.py` AST guard는 이미 wire
+- **(b) SDR overclaim detector (CR 4-3 F-2)**: L1 — SDR claim "35 passed + 11 skipped" vs spec "50+". A7 detector wire 시 자동 capture 가능
