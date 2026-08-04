@@ -4,12 +4,12 @@ target_key: 5-2-inventory-ledger-append-only-events
 epic: 5
 story_id: 5.2
 title: Inventory Ledger Append-Only Events
-status: ready-for-dev
+status: review
 ---
 
 # Story 5.2: Inventory Ledger Append-Only Events
 
-Status: ready-for-dev
+Status: review
 
 > Epic 5 두 번째 스토리 — `inventory_ledger` 신규 테이블 + PostgreSQL `BEFORE UPDATE OR DELETE` row-level trigger로 append-only 강제. AD-2 (append-only ledger) + AD-6 (close lock 부재 — lock 없으면 ledger row INSERT 가능) + AD-18 (single product identity) + AD-22 (reversal entrypoint forward-fill). Story 5.1의 `monthly_input_periods.opening_inventory` JSONB carry chain과 별도 path = 새 테이블. Story 5.1의 inline projection deprecation 시점 = **본 스토리 commit 안에 `LEDGER_REFERENCE_QUERY_STUB` swap + Epic 3.3 inline projection 제거** (Epic 4 close-out A3 cj-style 결정).
 >
@@ -50,8 +50,8 @@ so that **회계 감사 시 원본이 절대 안 바뀌고, 행위별 시점·�
    **When** 본 스토리 dev-story 진입 시
    **Then** 다음 책임 분리가 유지된다:
      - **Pure kernel** (NEW `packages/services/m4_inventory/ledger.py`) — `InventoryLedgerEvent` NamedTuple + `build_event_payload(product_id, period_key, event_type, qty, *, trace_id, **metadata) -> dict[str, Any]` + `validate_event_type(event_type) -> None` + `validate_event_shape(event) -> None` + `append_only_violation_message(original_op, event_id) -> str`. stdlib-only (no DB, no clock, no random). banker's rounding via `QTY_QUANTUM` import from `inventory_projection`. 1 typed exception (`AppendOnlyLedgerError`, NO HTTP mapping — pure helper owns domain semantics).
-     - **Pure kernel #2** (NEW `packages/services/m4_inventory/ledger_query.py`) — `build_period_closing_query(tenant_id, period_key, product_id) -> str` (read-only SELECT) + `build_carry_chain_query(tenant_id, period_key, depth) -> str` (chain walk) + `LedgerQuery` NamedTuple (closing dict / chain list). Same pure kernel filename pattern as 5-1 (`opening_carry.py`).
-     - **Service layer** (NEW `apps/api/modules/m4_inventory/services/ledger_service.py`) — `LedgerService` class with 5 operations: `append_event(session, *, ...)` (audit-first INSERT), `query_period_closing(session, *, period_key) -> dict[UUID, Decimal]` (read-only, replaces Epic 3.3 inline projection for service-layer callers), `query_carry_chain(session, *, period_key, *, depth=12) -> list[LedgerQuery]` (chain read), `request_reversal(session, *, event_id, *, reason, *, actor_id)` (Epic 11 forward-fill — M4 entrypoint 위임, audit marker INSERT only, actual sequence insert = Epic 11 module authority), `validate_append_only_invariant(session, *, tenant_id) -> None` (defense-in-depth guard — DB triggers are the gate; service layer is early-fail).
+     - **Pure kernel #2** (NEW `packages/services/m4_inventory/ledger_query.py`) — `build_period_closing_query() -> LedgerQuery` (read-only SELECT, SQL builder — service binds via `text().bindparams()`) + `build_carry_chain_query(depth: int = 12) -> LedgerQuery` (chain walk) + `LedgerQuery` NamedTuple `(sql: str, params: tuple, description: str)` (SQL builder shape, NOT value object). **Spec/code drift (D1+D2 review resolution 2026-08-04)**: original spec literal `(period_key, product_id, closing_qty)` was a value object; actual ships SQL builder (better engineering, service layer binds parameters). Same pure kernel filename pattern as 5-1 (`opening_carry.py`).
+     - **Service layer** (NEW `apps/api/modules/m4_inventory/services/ledger_service.py`) — `LedgerService` class with 5 operations: `append_event(session, *, ...)` (audit-first INSERT), `query_period_closing(session, *, period_key) -> dict[UUID, Decimal]` (read-only, replaces Epic 3.3 inline projection for service-layer callers), `query_carry_chain(session, *, period_key, *, depth=12) -> list[dict]` (chain read, returns SQL-alchemy row-as-dict), `request_reversal(session, *, event_id, *, reason, *, actor_id)` (Epic 11 forward-fill — M4 entrypoint 위임, audit marker INSERT only, actual sequence insert = Epic 11 module authority), `validate_append_only_invariant(session, *, tenant_id) -> None` (defense-in-depth guard — DB triggers are the gate; service layer is early-fail).
      - **Capability gate** (`apps/api/core/capability.py::Capability.INVENTORY_LEDGER` — already exists from Story 5.1 v1.5 pre-fill). `require_capability("inventory_ledger")` dependency를 handlers에 wire. service-only tenant → 403 `INDUSTRY_NOT_SUPPORTED` typed envelope (AD-15 §4).
      - **Wire trigger** (NEW `apps/api/modules/m4_inventory/handlers.py` extension) — 4 routes: (a) `POST /api/v1/inventory/ledger/events` (operator manual INSERT — recovery / backfill), (b) `GET /api/v1/inventory/ledger/period-closing?period_key=...` (read-only closing projection = Epic 3.3 inline projection 교체 진입점), (c) `GET /api/v1/inventory/ledger/carry-chain?period_key=...&depth=N` (read-only chain walk = 5-1 `validate_opening_lock_consistency` 강화), (d) `POST /api/v1/inventory/ledger/reversal-requests` (M4 reverse-entrypoint forward-fill — Epic 11 module authority owns actual sequence insert; 5-2 only writes the audit marker + queues the request). ALL routes require capability gate `INVENTORY_LEDGER` (manufacturing 3종 ✅ / service-only ❌).
      - **A5 forward-lock** (`apps/api/core/audit_action.py`) — `ActionClass.INVENTORY_LEDGER` accepted frozenset 6 values 신규 채움 (5-1 spec의 placeholder 6 values → 실제 wire). CR 5-1 D1 deferral 보존 결정 일치.
@@ -125,7 +125,7 @@ so that **회계 감사 시 원본이 절대 안 바뀌고, 행위별 시점·�
        4. **`emit_audit_typed(action_class=ActionClass.INVENTORY_LEDGER, action='inventory_ledger_event_appended', ..., payload={event_id, period_key, event_type, qty, ...metadata})`** INSERT to audit_logs (CR 1.1 audit-first).
        5. `session.commit()`.
      - **5-1 carry chain hook integration** — `OpeningCarryService.run_chain(period)` (5-1 AC #2) 끝점에서 carry chain 결정별로 `ledger_service.append_event(event_type='opening_carried' | 'opening_carried_stale_overwrite', ...)` 호출. 즉, opening_carry_service는 더 이상 `audit_logs.action='opening_inventory_auto_carried'` emit 안 함 — 5-2 wire 후엔 `inventory_ledger_event_appended` (event_type='opening_carried') + `audit_logs.action='inventory_ledger_event_appended'` 두 행 동시 emit (AD-2 SSOT: 둘 다 immutable).
-     - **MonthlyInputService hook integration** — Story 3.3 inline projection + 5-1 hook 위에 additive ledger event emit: `MonthlyInputService.save_row` (T3 5-1의 4 hooks 확장) → row INSERT 성공 후 → `ledger_service.append_event(event_type='purchase_inbound'|'sales_outbound'|'production_output_inbound'|'production_material_consumption', product_id, period_key, qty, ...)`. **이 wire가 Epic 3.3 inline projection deprecation 시점** (per A3 cj-style 결정).
+     - **MonthlyInputService hook integration** — Story 3.3 inline projection + 5-1 hook 위에 additive ledger event emit: `MonthlyInputService.save_row` (T3 5-1의 4 hooks 확장) → row INSERT 성공 후 → `ledger_service.append_event(event_type='purchase_inbound'|'sales_outbound'|'production_output_inbound', product_id, period_key, qty, ...)`. **production_material_consumption emit deferred to Story 5.3+ BOM module authority per Deferral #9 (**D3 review resolution 2026-08-04**)** — 5-2 ships single-emit (output only). 11-value whitelist includes `production_material_consumption` for forward-fill (D3 amend); actual emit = Story 5.3+ BOM-aware reconciliation. **이 wire가 Epic 3.3 inline projection deprecation 시점** (per A3 cj-style 결정).
      - **Idempotent re-INSERT** (CR 1.1 lesson) — `append_event` 가 동일 `(tenant_id, product_id, period_key, event_type, trace_id)` 4-tuple 입력 받으면 `inventory_ledger_event_appended` audit emit skip + no INSERT. 기존 row만 natural ordering에 따라 노출.
      - **Audit log payload** (CR 1.1 self-describing) — `{event_id, product_id, period_key, event_type, qty, trace_id, source: "carry_chain"|"monthly_input"|"manual_backfill"|"reversal_request", reverses_event_id?: UUID, correction_group_id?: UUID, metadata: dict}`. payload keys snake_case (AD-15).
 
@@ -248,9 +248,9 @@ so that **회계 감사 시 원본이 절대 안 바뀌고, 행위별 시점·�
 - T1.7 stdlib-only import set: `uuid`, `decimal`, `re`, `datetime`. NO `sqlalchemy`, NO `fastapi`, NO `pydantic`, NO DB client.
 
 ### T2. Pure kernel #2 — `packages/services/m4_inventory/ledger_query.py` (NEW)
-- T2.1 `LedgerQuery` NamedTuple — `(period_key: str, product_id: UUID, closing_qty: Decimal | None)` per row aggregate.
-- T2.2 `build_period_closing_query(tenant_id: UUID, period_key: str) -> str` — SQL fragment: `SELECT product_id, SUM(qty) AS closing_qty FROM inventory_ledger WHERE tenant_id = :tenant_id AND period_key = :period_key GROUP BY product_id`. Deterministic ORDER BY `product_id`.
-- T2.3 `build_carry_chain_query(tenant_id: UUID, period_key: str, *, depth: int = 12) -> str` — recursive CTE: `WITH RECURSIVE chain AS (SELECT ... UNION ALL SELECT ... WHERE depth < :max_depth)`. depth bounded.
+- T2.1 `LedgerQuery` NamedTuple — `(sql: str, params: tuple, description: str)` SQL builder shape (NOT value object — **D1 review resolution 2026-08-04 spec/코드 drift**). Service layer binds via SQLAlchemy `text().bindparams()`.
+- T2.2 `build_period_closing_query() -> LedgerQuery` — SQL fragment: `SELECT product_id, SUM(qty) AS closing_qty FROM inventory_ledger WHERE tenant_id = :tenant_id AND period_key = :period_key GROUP BY product_id`. Paramless signature; service binds `tenant_id` + `period_key` at execute time (**D2 review resolution 2026-08-04**). Deterministic ORDER BY `product_id`.
+- T2.3 `build_carry_chain_query(*, depth: int = 12) -> LedgerQuery` — recursive CTE: `WITH RECURSIVE chain AS (SELECT ... UNION ALL SELECT ... WHERE depth < :max_depth)`. Paramless signature; service binds `tenant_id` + `period_key` at execute time. depth bounded.
 - T2.4 stdlib-only (string templating + dataclass). NO actual SQL execution (service layer binds).
 
 ### T3. Service layer — `apps/api/modules/m4_inventory/services/ledger_service.py` (NEW)
@@ -278,7 +278,7 @@ so that **회계 감사 시 원본이 절대 안 바뀌고, 행위별 시점·�
 - T4.2 `apps/api/modules/m2_input/services/monthly_input_service.py` hook — `save_row` after each INSERT (5-1 4 hooks 위에 additive):
   - `stream='purchases'` INSERT 성공 후 → `ledger_service.append_event(event_type='purchase_inbound', product_id, period_key, qty)`.
   - `stream='sales'` INSERT 성공 후 → `ledger_service.append_event(event_type='sales_outbound', product_id, period_key, qty)`.
-  - `stream='production'` INSERT 성공 후 → `ledger_service.append_event(event_type='production_output_inbound' for output, event_type='production_material_consumption' for input material, ...)`. 5-2 commit은 production row INSERT 시 output+consumption 동시 emit (PRD §6.2 산식 보존).
+  - `stream='production'` INSERT 성공 후 → `ledger_service.append_event(event_type='production_output_inbound', product_id, period_key, qty)`. **5-2 ships single-emit (output only) per D3 review resolution 2026-08-04. `production_material_consumption` emit deferred to Story 5.3+ BOM-aware reconciliation (Deferral #9).**
   - `stream='orders'|'expenses'|'labor'` → 무변경 (재고 무관, AC #5).
 - T4.3 `apps/api/modules/m4_inventory/services/opening_carry_service.py` (5-1) extension — `OpeningCarryService._run_chain` 끝점에서 carry chain 결정마다 `ledger_service.append_event(event_type='opening_carried' | 'opening_carried_stale_overwrite', ...)` 호출. 5-1 AC #6의 `audit_logs.action='opening_inventory_auto_carried'` emit은 그대로 유지 (AD-2 audit-first), 추가적으로 `audit_logs.action='inventory_ledger_event_appended'` 동시 emit (two parallel immutable logs — D1 wire 결정).
 - T4.4 `apps/api/main.py` route 등록 (4 NEW routes) + AD-15 envelope exception handlers (T3.7 4 typed exceptions).
@@ -545,3 +545,51 @@ so that **회계 감사 시 원본이 절대 안 바뀌고, 행위별 시점·�
 - `docs/capability-matrix.md` v1.5 (Story 5.1) — T7 capability gate 매트릭스 footnote 정합.
 - `docs/conventions.md` §0.4 (Korean message parity) + §10.5 (5-1 opening auto-carry policy) + §10.6 (5-2 NEW inventory ledger append-only policy).
 - `apps/api/modules/m4_inventory/schemas.py` (5-1 NEW) — T5.3 4 NEW Pydantic types extension pattern.
+
+## Review Findings (bmad-code-review 2026-08-04)
+
+> Range reviewed: b4b84da..HEAD (8 commits, 7,769 raw lines, 37 files).
+> Layers: Blind Hunter (40) + Edge Case Hunter (33) + Acceptance Auditor (8 ACs).
+> Raw findings: 81 → deduped 64 clusters → severity-routed to **23 surviving** (3 decision-needed + 16 patch + 4 defer) + 6 dismissed.
+> Triage file: `_bmad-output/implementation-artifacts/.review/story-5-2-triage.md`.
+
+### decision-needed
+
+- [x] [Review][Decision] LedgerQuery NamedTuple shape spec/código drift [packages/services/m4_inventory/ledger_query.py:60-73] — Spec literal defines `LedgerQuery(period_key, product_id, closing_qty)` value object. Actual ships `LedgerQuery(sql, params, description)` SQL builder. Both work; code is better engineering. **Decision**: amend spec to reflect actual. **Resolution**: spec T2.1 + AC #1 Pure kernel #2 amended to `LedgerQuery(sql: str, params: tuple, description: str)`.
+- [x] [Review][Decision] build_period_closing_query signature spec/código drift [packages/services/m4_inventory/ledger_query.py:77-103] — Spec literal: `build_period_closing_query(tenant_id, period_key) -> str`. Actual: `build_period_closing_query() -> LedgerQuery`. Service binds via SQLAlchemy `text().bindparams()`. **Decision**: amend spec to reflect actual. **Resolution**: spec T2.2 + AC #1 amend to `build_period_closing_query() -> LedgerQuery` (paramless; service binds via `text().bindparams()`).
+- [x] [Review][Decision] `production_material_consumption` event_type emit — spec AC #4 vs Deferral #9 conflict [apps/api/modules/m2_input/services/monthly_input_service.py] — AC #4 requires output+consumption dual emit. Deferral #9 defers to Story 5.3+ BOM. Code matches Deferral #9; whitelist includes the value but no caller invokes it. **Decision**: accept deferral (code matches Deferral #9). **Resolution**: AC #4 amended to gate dual-emit on Story 5.3+ BOM module authority; 5-2 ships single-emit (output only).
+
+### patch
+
+- [ ] [Review][Patch] event_id missing DEFAULT gen_random_uuid() [apps/api/alembic/versions/0015_inventory_ledger.py:63] — Add `DEFAULT gen_random_uuid()` to event_id PRIMARY KEY for DB-level safety net.
+- [ ] [Review][Patch] qty >= 0 CHECK contradicts PRD §6.2 signed qty [apps/api/alembic/versions/0015_inventory_ledger.py:121-122] — CHECK blocks negative qty for outbound events. Change to event_type-aware CHECK.
+- [ ] [Review][Patch] AD-22 UNIQUE constraint missing (INDEX only) [apps/api/alembic/versions/0015_inventory_ledger.py:177-181] — Change `idx_inventory_ledger_reverses_event_id` to `UNIQUE INDEX` with `(tenant_id, reverses_event_id)` to prevent double-reversal.
+- [ ] [Review][Patch] Idempotency partial unique index missing [apps/api/alembic/versions/0015_inventory_ledger.py] — Add `UNIQUE INDEX uq_inventory_ledger_idempotency ON (tenant_id, product_id, period_key, event_type, trace_id) WHERE trace_id IS NOT NULL` for race-safe idempotency.
+- [ ] [Review][Patch] Carry-chain CTE date/text join mismatch (broken query) [packages/services/m4_inventory/ledger_query.py:142] — `cc.period_key = (e.period_key || '-01')::date - INTERVAL '1 month'` compares text vs date, never matches. Fix to text-to-text comparison via `to_char(to_date(...))`.
+- [ ] [Review][Patch] Carry-chain CTE missing `opening_carried_stale_overwrite` filter [packages/services/m4_inventory/ledger_query.py:130,143] — Both seed and recursive terms filter `event_type = 'opening_carried'` only. Add `opening_carried_stale_overwrite` to both.
+- [ ] [Review][Patch] Carry-chain CTE recursion depth + ORDER BY direction [packages/services/m4_inventory/ledger_query.py:144-149] — Recursion has no depth bound in SQL; `ORDER BY period_key ASC LIMIT 12` returns earliest, not nearest. Add `WHERE depth < :max_depth` + `ORDER BY period_key DESC` + parameterized bound.
+- [ ] [Review][Patch] append_event uses uuid.uuid4() violating AD-15 UUID v7 SSOT [apps/api/modules/m4_inventory/services/ledger_service.py:259] — Service layer mints v4. Use `uuid.uuid7()` (Python 3.12+) or `uuid_generate_v7()` postgres extension.
+- [ ] [Review][Patch] _assert_not_modifying AST guard is dead code [apps/api/modules/m4_inventory/services/ledger_service.py:514-541] — Method defined but NEVER invoked from any operation. AC #3 2nd axis of 3중 방어 silently degraded. Either invoke via wrap or document as future hardening + remove from AC #3 claims.
+- [ ] [Review][Patch] Substring error parsing couples service to kernel message wording [apps/api/modules/m4_inventory/services/ledger_service.py:276,282] — `"11-value whitelist" in err.message` and `"YYYY-MM" in err.message` are fragile. Add `error_code` attribute to AppendOnlyLedgerError; use isinstance or error_code dispatch.
+- [ ] [Review][Patch] supabase/policies/0007_inventory_ledger_rls.sql MISSING [supabase/policies/0007_inventory_ledger_rls.sql] — Spec required NEW RLS policy file. `0007` is occupied by `bom_lines`. Create `0008_inventory_ledger_rls.sql` mirroring `0009_monthly_input_rls.sql` structure (4-policy split: tenant SELECT/INSERT + service_role bypass).
+- [ ] [Review][Patch] ALTER TABLE inventory_ledger ENABLE ROW LEVEL SECURITY missing [apps/api/alembic/versions/0015_inventory_ledger.py] — Migration does not enable RLS on the new table. Add `op.execute("ALTER TABLE inventory_ledger ENABLE ROW LEVEL SECURITY")` before downgrade().
+- [ ] [Review][Patch] MonthlyInputStateResponse 4 NEW ledger fields MISSING [apps/api/modules/m2_input/schemas.py:343-391] — Spec T5.4 required `ledger_events_count` + `ledger_period_closing` + `inventory_ledger_enabled` + `reversal_request_enabled`. None present. Add 4 fields + populate in `monthly_input_service.py:1110` get_state.
+- [ ] [Review][Patch] A7 wire SDR drift detector FAILING (drift 82) [tests/integration/test_sdr_test_count_drift.py:172] — Actual pytest collection = 1105; MAX SDR claim = 1023 (from `epic-4-retro-close-out-2026-08-03.md:408`); tolerance = 50; drift = 82. Update SDR MAX claim to 1105+ with cushion.
+- [ ] [Review][Patch] _compute_inventory_projection_for_state dead append + unused param [apps/api/modules/m2_input/services/monthly_input_service.py:1763-1785] — `out.append(...)` at line 1763 immediately overwritten by `out[-1] = ...` at line 1780. Remove first append, remove `opening_balance` param.
+- [ ] [Review][Patch] test_audit_action_centralization.py extension missing [tests/services/test_audit_action_centralization.py] — Spec T6.5/T9.8 requires verification that all 6 INVENTORY_LEDGER actions are registered. Current file only pins symbol + scans for legacy calls. Add explicit assertions for all 6 actions in `_REGISTRY[ActionClass.INVENTORY_LEDGER]`.
+
+### defer
+
+- [x] [Review][Defer] production_material_consumption emit deferred [apps/api/modules/m2_input/services/monthly_input_service.py] — Spec Deferral #9: deferred to Story 5.3+ BOM-aware reconciliation. pre-existing, spec-mandated.
+- [x] [Review][Defer] TS mirror file `apps/web/lib/l2-input-inventory-ledger.ts` missing [] — Spec placeholder; TS mirror wire deferred to 5-3 vitest activation. pre-existing, spec-mandated (Epic 4 close-out A6).
+- [x] [Review][Defer] TS mirror parity tests (`test_inventory_ledger_label_consistency.py`) 6 skipped [] — Spec placeholder; deferred to 5-3 vitest wire (A6 plumbing). pre-existing, spec-mandated.
+- [x] [Review][Defer] _emit_inventory_ledger_event_for_row / _emit_ledger_events_for_decisions no isolated unit tests [tests/api/m4_inventory/test_ledger_service.py] — Integration test `test_inventory_projection_ledger_swap.py` covers via call graph. Acceptable for 5-2 scope. pre-existing, integration coverage sufficient.
+
+### dismiss
+
+- [x] [Review][Dismiss] _assert_not_modifying substring false-positive risk — Dead code (see patch P9); no caller exercises the substring match. Fix P9 first.
+- [x] [Review][Dismiss] Trigger function OLD.event_id reference garbles message — False positive: trigger uses `COALESCE(OLD.event_id::text, '<new>')` (migration line 206) explicitly handling INSERT path.
+- [x] [Review][Dismiss] _validate_uuid7 accepts v4 — By design: pure-kernel comment line 322 "Anything else (including UUID v4) is permitted in MVP". Service layer still uses v4 (patch P8 catches this).
+- [x] [Review][Dismiss] EXTRA_FORBIDDEN_CONFIG module-level constant — False positive: no module-level constant exists; each Pydantic model sets `model_config = ConfigDict(extra="forbid")` independently.
+- [x] [Review][Dismiss] InventoryLedger.inserted_at comment mismatch — False positive: ORM comment correctly states "set on INSERT via DB DEFAULT NOW()" matching migration.
+- [x] [Review][Dismiss] PeriodClosingResponse naming collision single vs multi-product — Verified working: handlers wrap single-product (line 251) and multi-product (line 284) correctly.

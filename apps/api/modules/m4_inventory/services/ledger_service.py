@@ -46,6 +46,11 @@ A5 forward-lock:
   `_ActionRegistry.validate()` BEFORE INSERT (CR 1.1 audit-first).
 - Drift detector: `tests/integration/test_audit_action_consistency.py`
   + `tests/integration/test_inventory_ledger_event_type_drift.py`.
+
+AD-15 UUID v7 enforcement (5-2 patch P8): service layer mints
+UUID v7 via `uuid.uuid7()` (Python 3.14+) when available, else
+falls back to `uuid.uuid4()`. The pure-kernel `_validate_uuid7`
+accepts v4 + v7 by MVP design (post-MVP strict v7 enforcement).
 """
 
 from __future__ import annotations
@@ -63,6 +68,8 @@ from apps.api.core.audit_action import ActionClass, _ActionRegistry
 from apps.api.core.db_models import InventoryLedger
 from packages.services.m0_onboarding.industry_menu import Industry
 from packages.services.m4_inventory.ledger import (
+    ERROR_CODE_INVALID_EVENT_TYPE,
+    ERROR_CODE_INVALID_PERIOD_KEY,
     AppendOnlyLedgerError,
     build_event_payload,
 )
@@ -71,6 +78,20 @@ from packages.services.m4_inventory.ledger_query import (
     build_carry_chain_query,
     build_period_closing_query,
 )
+
+
+def _mint_event_id() -> uuid.UUID:
+    """Mint a new event_id (AD-15 UUID v7 preferred).
+
+    Uses `uuid.uuid7()` when available (Python 3.14+, PEP 815); falls
+    back to `uuid.uuid4()` with a documented note. Pure kernel accepts
+    both v4 and v7 by MVP design.
+    """
+    mint_v7 = getattr(uuid, "uuid7", None)
+    if mint_v7 is not None:
+        return mint_v7()
+    # Python < 3.14 fallback: v4 is permitted by pure kernel MVP.
+    return uuid.uuid4()
 
 # ─────────────────────────────────────────────────────────────
 # Typed exceptions (mapped to HTTP by handlers.py / main.py)
@@ -256,8 +277,8 @@ class LedgerService:
                 depth if pure kernel validation has a bug).
         """
         # (1) Pure-kernel validation + payload build
-        event_id = uuid.uuid4()
-        trace_id_uuid = uuid.UUID(self.trace_id) if self.trace_id else uuid.uuid4()
+        event_id = _mint_event_id()
+        trace_id_uuid = uuid.UUID(self.trace_id) if self.trace_id else _mint_event_id()
         try:
             payload = build_event_payload(
                 event_id=event_id,
@@ -272,20 +293,22 @@ class LedgerService:
                 metadata=metadata,
             )
         except AppendOnlyLedgerError as err:
-            # Re-raise as typed service-layer exception (defense-in-depth)
-            if "11-value whitelist" in err.message:
+            # Re-raise as typed service-layer exception (defense-in-depth).
+            # Dispatch via err.error_code (stable Literal) — NOT substring
+            # matching on err.message (fragile). CR review 2026-08-04 P10.
+            if err.error_code == ERROR_CODE_INVALID_EVENT_TYPE:
                 raise InventoryLedgerInvalidEventTypeError(
                     tenant_id=self.tenant_id,
                     event_type=event_type,
                     trace_id=self.trace_id,
                 ) from err
-            if "YYYY-MM" in err.message:
+            if err.error_code == ERROR_CODE_INVALID_PERIOD_KEY:
                 raise InventoryLedgerPeriodKeyFormatError(
                     tenant_id=self.tenant_id,
                     period_key=period_key,
                     trace_id=self.trace_id,
                 ) from err
-            raise  # unknown kernel error — propagate
+            raise  # unknown kernel error_code — propagate (defense-in-depth)
 
         # (2) Audit-first emit (BEFORE INSERT — CR 1.1)
         await self._write_inventory_ledger_audit(
@@ -343,6 +366,10 @@ class LedgerService:
         """
         query = build_period_closing_query()
         assert_tenant_guarded(query)
+        # AC #3 2nd axis: AST guard on raw SQL fragments before issue.
+        # CR review 2026-08-04 P9 — wire _assert_not_modifying at every
+        # session.execute(text(...)) entrypoint.
+        self._assert_not_modifying(query.sql)
         result = await self.session.scalar(
             text(query.sql),
             {
@@ -382,6 +409,8 @@ class LedgerService:
             "  AND event_type != 'closing_snapshot' "
             "GROUP BY product_id"
         )
+        # AC #3 2nd axis: AST guard on raw SQL fragments before issue.
+        self._assert_not_modifying(sql)
         rows = await self.session.execute(
             text(sql),
             {
@@ -413,6 +442,8 @@ class LedgerService:
         """
         query = build_carry_chain_query()
         assert_tenant_guarded(query)
+        # AC #3 2nd axis: AST guard on raw SQL fragments before issue.
+        self._assert_not_modifying(query.sql)
         rows = await self.session.execute(
             text(query.sql),
             {

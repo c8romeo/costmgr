@@ -121,3 +121,13 @@ Items deferred from code review. Each entry records what was deferred, the ratio
 - **L10 — Capability matrix service-only ❌ test missing** `tests/integration/test_opening_carry_capability.py` — 4 cases 중 service-only rejection path 미 pinned. defer to A6 Story 0.5 plumbing 진입 시 일괄 활성화 (DB-backed CI-shim).
 - **D1 wire timing** — `ActionClass.INVENTORY_LEDGER` 신설 + 6 values wire. defer to 5-2 spec 진입 시 (inventory_ledger table과 함께 등장).
 - **A6 Story 0.5 plumbing** — shadcn Tabs / sonner / vitest / Playwright 4종 wire. 5-3 frontend toast 진입 전 별도 Story 진행 필수 (Epic 4 close-out A6 NEW 결정).
+
+
+
+
+## Story 5.2 — bmad-code-review 2026-08-04 deferrals (4 items)
+
+- **W1 — production_material_consumption event_type emit** `apps/api/modules/m2_input/services/monthly_input_service.py` (production stream hook) — Spec Deferral #9 explicitly defers to Story 5.3+ BOM-aware reconciliation. 5-2 ships single-emit (output only). 11-value whitelist includes the value for forward-fill (D3 review resolution). defer to 5-3 spec 진입 시 (BOM-aware emit 결정 + Epic 6 close-out retro 보완).
+- **W2 — TS mirror file `apps/web/lib/l2-input-inventory-ledger.ts` missing** — Spec placeholder; TS mirror wire deferred to 5-3 vitest activation (Epic 4 close-out A6 NEW 결정). defer to 5-3 spec 진입 시 (A6 Story 0.5 plumbing done 게이트).
+- **W3 — TS mirror parity tests (`tests/integration/test_inventory_ledger_label_consistency.py`) 6 skipped** — Spec placeholder; deferred to 5-3 vitest wire (A6 plumbing). defer to 5-3 spec 진입 시 (vitest 활성화 + 6 cases unskip).
+- **W4 — `_emit_inventory_ledger_event_for_row` / `_emit_ledger_events_for_decisions` no isolated unit tests** `tests/api/m4_inventory/test_ledger_service.py` — Integration test `tests/integration/test_inventory_projection_ledger_swap.py` covers via call graph. Acceptable for 5-2 scope. defer to 5-3 maintenance window (isolated unit tests 추가).

@@ -94,6 +94,21 @@ SOURCE_CLOSE_SNAPSHOT: Final[str] = "close_snapshot"
 
 
 # ── Typed exception (pure-kernel domain semantics) ───────────
+# Stable error codes — service layer dispatches via `err.error_code`
+# (NOT substring matching on err.message). Substring matching was
+# fragile (C11 CR review 2026-08-04) — any kernel message refactor
+# (e.g. "11-value" → "12-value") silently broke service dispatch.
+ERROR_CODE_INVALID_EVENT_TYPE: Final[str] = "INVALID_EVENT_TYPE"
+ERROR_CODE_EMPTY_EVENT_TYPE: Final[str] = "EMPTY_EVENT_TYPE"
+ERROR_CODE_NON_STR_EVENT_TYPE: Final[str] = "NON_STR_EVENT_TYPE"
+ERROR_CODE_INVALID_PERIOD_KEY: Final[str] = "INVALID_PERIOD_KEY"
+ERROR_CODE_NON_STR_PERIOD_KEY: Final[str] = "NON_STR_PERIOD_KEY"
+ERROR_CODE_QTY_REQUIRED: Final[str] = "QTY_REQUIRED"
+ERROR_CODE_QTY_MUST_BE_DECIMAL: Final[str] = "QTY_MUST_BE_DECIMAL"
+ERROR_CODE_INVALID_UUID_VERSION: Final[str] = "INVALID_UUID_VERSION"
+ERROR_CODE_INVALID_SOURCE: Final[str] = "INVALID_SOURCE"
+
+
 class AppendOnlyLedgerError(Exception):
     """Pure-kernel append-only violation.
 
@@ -102,11 +117,22 @@ class AppendOnlyLedgerError(Exception):
     raised by the pure kernel during event_type validation / shape
     validation / message construction. NO HTTP mapping; service layer
     wraps with envelope details.
+
+    Service-layer dispatch uses `err.error_code` (stable Literal) NOT
+    `err.message` substring matching. CR review 2026-08-04 patch P10.
     """
 
-    def __init__(self, *, message: str, event_id: uuid.UUID | None = None, attempted_op: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        message: str,
+        error_code: str = ERROR_CODE_INVALID_EVENT_TYPE,
+        event_id: uuid.UUID | None = None,
+        attempted_op: str | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
+        self.error_code = error_code
         self.event_id = event_id
         self.attempted_op = attempted_op
 
@@ -215,11 +241,13 @@ def validate_event_type(event_type: str) -> None:
             message=(
                 f"inventory_ledger event_type must be str, got "
                 f"{type(event_type).__name__!r}"
-            )
+            ),
+            error_code=ERROR_CODE_NON_STR_EVENT_TYPE,
         )
     if not event_type:
         raise AppendOnlyLedgerError(
-            message="inventory_ledger event_type must be non-empty"
+            message="inventory_ledger event_type must be non-empty",
+            error_code=ERROR_CODE_EMPTY_EVENT_TYPE,
         )
     if event_type not in INVENTORY_LEDGER_EVENT_TYPES:
         raise AppendOnlyLedgerError(
@@ -227,7 +255,8 @@ def validate_event_type(event_type: str) -> None:
                 f"inventory_ledger event_type {event_type!r} is not in "
                 f"the 11-value whitelist. Accepted: "
                 f"{sorted(INVENTORY_LEDGER_EVENT_TYPES)}"
-            )
+            ),
+            error_code=ERROR_CODE_INVALID_EVENT_TYPE,
         )
 
 
@@ -253,6 +282,7 @@ def validate_event_shape(event: InventoryLedgerEvent) -> None:
     _validate_uuid7(event.product_id, field="product_id")
     _validate_uuid7(event.event_id, field="event_id")
     _validate_uuid7(event.trace_id, field="trace_id")
+
     if event.event_id == event.trace_id:
         # Sanity: event_id and trace_id should be different objects
         # (event_id is the row PK; trace_id is the request correlation).
@@ -265,13 +295,15 @@ def _validate_period_key(period_key: str) -> None:
     """AD-24 typed period-key: 'YYYY-MM' (real fiscal only)."""
     if not isinstance(period_key, str):
         raise AppendOnlyLedgerError(
-            message=f"period_key must be str, got {type(period_key).__name__!r}"
+            message=f"period_key must be str, got {type(period_key).__name__!r}",
+            error_code=ERROR_CODE_NON_STR_PERIOD_KEY,
         )
     if not _PERIOD_KEY_PATTERN.match(period_key):
         raise AppendOnlyLedgerError(
             message=(
                 f"period_key {period_key!r} must match 'YYYY-MM' AD-24 typed pattern"
-            )
+            ),
+            error_code=ERROR_CODE_INVALID_PERIOD_KEY,
         )
 
 
@@ -298,7 +330,8 @@ def _validate_qty(qty: Decimal | None, *, event_type: str) -> None:
                 message=(
                     f"event_type {event_type!r} requires non-None qty "
                     f"(PRD §6.2 inventory equation has a qty term)"
-                )
+                ),
+                error_code=ERROR_CODE_QTY_REQUIRED,
             )
         return  # non-quantitative event with None qty = valid
 
@@ -307,7 +340,8 @@ def _validate_qty(qty: Decimal | None, *, event_type: str) -> None:
             message=(
                 f"qty must be Decimal, got {type(qty).__name__!r} "
                 f"(AD-8 monetary types)"
-            )
+            ),
+            error_code=ERROR_CODE_QTY_MUST_BE_DECIMAL,
         )
 
 
@@ -315,7 +349,8 @@ def _validate_uuid7(value: uuid.UUID, *, field: str) -> None:
     """Lightweight UUID v7 check (AD-15 identity convention)."""
     if not isinstance(value, uuid.UUID):
         raise AppendOnlyLedgerError(
-            message=f"{field} must be UUID, got {type(value).__name__!r}"
+            message=f"{field} must be UUID, got {type(value).__name__!r}",
+            error_code=ERROR_CODE_INVALID_UUID_VERSION,
         )
     # UUID v7 detection: byte[6] major version bits = 0b0111 = 7.
     # `value.bytes[6] >> 4 == 7`. Anything else (including UUID v4)
@@ -329,7 +364,8 @@ def _validate_uuid7(value: uuid.UUID, *, field: str) -> None:
             message=(
                 f"{field} must be UUID v7 (preferred) or v4, got version "
                 f"{version!r}"
-            )
+            ),
+            error_code=ERROR_CODE_INVALID_UUID_VERSION,
         )
 
 
@@ -349,7 +385,8 @@ def _validate_source(source: str) -> None:
             message=(
                 f"source {source!r} is not in the 5-canonical set: "
                 f"{sorted(valid)}"
-            )
+            ),
+            error_code=ERROR_CODE_INVALID_SOURCE,
         )
 
 
@@ -409,6 +446,15 @@ def append_only_violation_message(
 
 __all__ = [
     "AppendOnlyLedgerError",
+    "ERROR_CODE_EMPTY_EVENT_TYPE",
+    "ERROR_CODE_INVALID_EVENT_TYPE",
+    "ERROR_CODE_INVALID_PERIOD_KEY",
+    "ERROR_CODE_INVALID_SOURCE",
+    "ERROR_CODE_INVALID_UUID_VERSION",
+    "ERROR_CODE_NON_STR_EVENT_TYPE",
+    "ERROR_CODE_NON_STR_PERIOD_KEY",
+    "ERROR_CODE_QTY_MUST_BE_DECIMAL",
+    "ERROR_CODE_QTY_REQUIRED",
     "INVENTORY_LEDGER_EVENT_TYPES",
     "INVENTORY_LEDGER_QTY_QUANTUM",
     "InventoryLedgerEvent",

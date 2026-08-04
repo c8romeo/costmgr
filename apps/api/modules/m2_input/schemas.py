@@ -367,6 +367,18 @@ class MonthlyInputStateResponse(BaseModel):
       (False until first-row INSERT, then True)
     - `opening_inventory_lock_reason_ko: str | None` — Korean reason
       for the lock (default: "전월 기말 자동 이월")
+
+    Story 5.2 (Epic 5) extends the response with 4 inventory_ledger
+    fields (PRD §6.2 + §8.M2):
+    - `ledger_events_count: int` — total flow events for this period
+      (excludes `closing_snapshot` materialized rows)
+    - `ledger_period_closing: dict[str, str]` — product_id_str → qty_str
+      (SUM(qty) for the period; same shape as `opening_inventory`)
+    - `inventory_ledger_enabled: bool` — capability gate (manufacturing
+      3종 ✅ / service-only ❌). Mirrors `capability_mask` but as a
+      single boolean for the [수불부] tab visibility.
+    - `reversal_request_enabled: bool` — M4 entrypoint wire status
+      (currently False; Epic 11 module ships → True).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -389,3 +401,8 @@ class MonthlyInputStateResponse(BaseModel):
     opening_inventory: dict[str, str] = Field(default_factory=dict)
     opening_inventory_locked: bool = False
     opening_inventory_lock_reason_ko: str | None = None
+    # Story 5.2 — inventory_ledger wire fields (PRD §6.2 + §8.M2)
+    ledger_events_count: int = 0
+    ledger_period_closing: dict[str, str] = Field(default_factory=dict)
+    inventory_ledger_enabled: bool = False
+    reversal_request_enabled: bool = False  # Epic 11 forward-fill

@@ -60,7 +60,7 @@ def upgrade() -> None:
     op.execute(
         """
         CREATE TABLE inventory_ledger (
-            event_id            UUID PRIMARY KEY,
+            event_id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             tenant_id           UUID NOT NULL
                                 REFERENCES tenants(id) ON DELETE RESTRICT,
             product_id          UUID NOT NULL
@@ -110,16 +110,35 @@ def upgrade() -> None:
         """
     )
 
-    # ── 4. qty nonneg + quant-or-null coherence CHECK ──────────
-    # Non-quantitative events may have NULL qty. Quantitative events
-    # (everything except closing_snapshot) MUST have non-NULL qty.
-    # Banker's rounding is enforced at the service-layer (LedgerService),
+    # ── 4. qty signed-coherence + quant-or-null CHECK ──────────
+    # PRD §6.2 signed-qty semantics: outbound events carry negative qty.
+    # event_type-aware CHECK:
+    #   - Negative qty permitted ONLY for: sales_outbound,
+    #     production_material_consumption, adjustment_negative,
+    #     reversal_negating (AD-22 sign-negating row).
+    #   - All other quantitative events require qty >= 0.
+    #   - Non-quantitative events (closing_snapshot) may have NULL qty.
+    # Banker's rounding enforced at the service-layer (LedgerService),
     # not at the DB layer (NUMERIC(18,4) precision is the storage guarantee).
     op.execute(
         """
         ALTER TABLE inventory_ledger
-        ADD CONSTRAINT inventory_ledger_qty_nonneg_when_present
-        CHECK (qty IS NULL OR qty >= 0)
+        ADD CONSTRAINT inventory_ledger_qty_signed_coherence
+        CHECK (
+            qty IS NULL
+            OR (event_type IN (
+                'sales_outbound',
+                'production_material_consumption',
+                'adjustment_negative',
+                'reversal_negating'
+            ) AND qty < 0)
+            OR (event_type NOT IN (
+                'sales_outbound',
+                'production_material_consumption',
+                'adjustment_negative',
+                'reversal_negating'
+            ) AND qty >= 0)
+        )
         """
     )
 
@@ -172,11 +191,24 @@ def upgrade() -> None:
         """
     )
     # (c) reversal lookup by reverses_event_id (Epic 11 forward-fill)
+    # AD-22 invariant: each (tenant_id, reverses_event_id) at most one
+    # reversal row → UNIQUE (not just INDEX) to prevent double-reversal at DB.
     op.execute(
         """
-        CREATE INDEX idx_inventory_ledger_reverses_event_id
-            ON inventory_ledger (reverses_event_id)
+        CREATE UNIQUE INDEX uq_inventory_ledger_reverses_event_id
+            ON inventory_ledger (tenant_id, reverses_event_id)
             WHERE reverses_event_id IS NOT NULL
+        """
+    )
+    # (c.1) Idempotency partial unique index (AC #4):
+    # application-layer idempotent re-INSERT detection same
+    # (tenant_id, product_id, period_key, event_type, trace_id) tuple.
+    # Race-safe via DB UNIQUE constraint; service layer catches
+    # IntegrityError on duplicate.
+    op.execute(
+        """
+        CREATE UNIQUE INDEX uq_inventory_ledger_idempotency
+            ON inventory_ledger (tenant_id, product_id, period_key, event_type, trace_id)
         """
     )
     # (d) correction_group_id lookup (Epic 11 forward-fill)
@@ -234,13 +266,21 @@ def upgrade() -> None:
         """
     )
 
+    # ── 9. RLS enable (CR 0-2 RLS infrastructure pattern) ──────
+    # Story 0-2 RLS pattern: AD-3 tenant_id predicate enforced at DB
+    # layer. RLS policy file is `supabase/policies/0008_inventory_ledger_rls.sql`
+    # (mirrors `0009_monthly_input_rls.sql` for SELECT/INSERT + service_role bypass).
+    # service_role bypass is audit-first (Epic 0 pattern).
+    op.execute("ALTER TABLE inventory_ledger ENABLE ROW LEVEL SECURITY")
+
 
 def downgrade() -> None:
     # Reverse order: trigger → function → indexes → constraints → table.
     op.execute("DROP TRIGGER IF EXISTS trg_inventory_ledger_append_only ON inventory_ledger")
     op.execute("DROP FUNCTION IF EXISTS _inventory_ledger_append_only()")
     op.execute("DROP INDEX IF EXISTS idx_inventory_ledger_correction_group_id")
-    op.execute("DROP INDEX IF EXISTS idx_inventory_ledger_reverses_event_id")
+    op.execute("DROP INDEX IF EXISTS uq_inventory_ledger_reverses_event_id")
+    op.execute("DROP INDEX IF EXISTS uq_inventory_ledger_idempotency")
     op.execute("DROP INDEX IF EXISTS idx_inventory_ledger_carry_chain")
     op.execute("DROP INDEX IF EXISTS idx_inventory_ledger_tenant_product_period")
     op.execute("DROP TABLE IF EXISTS inventory_ledger")

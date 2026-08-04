@@ -18,8 +18,6 @@ import pytest
 from packages.services.m4_inventory.ledger import (
     INVENTORY_LEDGER_EVENT_TYPES,
     INVENTORY_LEDGER_QTY_QUANTUM,
-    AppendOnlyLedgerError,
-    InventoryLedgerEvent,
     PAYLOAD_KEY_CORRECTION_GROUP_ID,
     PAYLOAD_KEY_EVENT_ID,
     PAYLOAD_KEY_EVENT_TYPE,
@@ -35,6 +33,8 @@ from packages.services.m4_inventory.ledger import (
     SOURCE_MANUAL_BACKFILL,
     SOURCE_MONTHLY_INPUT,
     SOURCE_REVERSAL_REQUEST,
+    AppendOnlyLedgerError,
+    InventoryLedgerEvent,
     append_only_violation_message,
     build_event_payload,
     validate_event_shape,
@@ -72,13 +72,13 @@ def test_event_types_11_values_present() -> None:
         "reversal_corrected",
         "closing_snapshot",
     }
-    assert INVENTORY_LEDGER_EVENT_TYPES == frozenset(expected)
+    assert frozenset(expected) == INVENTORY_LEDGER_EVENT_TYPES
     assert len(INVENTORY_LEDGER_EVENT_TYPES) == 11
 
 
 def test_qty_quantum_matches_engine() -> None:
     """NUMERIC(18,4) quantization (AD-8 monetary types)."""
-    assert INVENTORY_LEDGER_QTY_QUANTUM == Decimal("0.0001")
+    assert Decimal("0.0001") == INVENTORY_LEDGER_QTY_QUANTUM
 
 
 # ─────────────────────────────────────────────────────────────

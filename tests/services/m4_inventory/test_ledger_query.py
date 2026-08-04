@@ -14,15 +14,14 @@ import pytest
 
 from packages.services.m4_inventory.ledger_query import (
     CARRY_CHAIN_RECURSION_DEPTH,
-    LedgerQuery,
     PARAM_PERIOD_KEY,
     PARAM_PRODUCT_ID,
     PARAM_TENANT_ID,
+    LedgerQuery,
     assert_tenant_guarded,
     build_carry_chain_query,
     build_period_closing_query,
 )
-
 
 # ─────────────────────────────────────────────────────────────
 # Constants
@@ -105,11 +104,16 @@ def test_carry_chain_query_includes_tenant_guard() -> None:
 
 
 def test_carry_chain_query_orders_chronologically() -> None:
-    """ORDER BY period_key ASC + LIMIT 12 (chain bound)."""
+    """ORDER BY period_key DESC + LIMIT 12 (chain bound).
+
+    Story 5.2 review patch P7 — changed direction from ASC to DESC so
+    the carry-chain returns the 12 nearest periods NOT the 12 earliest.
+    The recursion walks backward from the upper bound (period_key).
+    """
     query = build_carry_chain_query()
     assert "ORDER BY" in query.sql
     assert "period_key" in query.sql
-    assert "ASC" in query.sql
+    assert "DESC" in query.sql
     assert f"LIMIT {CARRY_CHAIN_RECURSION_DEPTH}" in query.sql
 
 
@@ -192,10 +196,18 @@ def test_carry_chain_query_no_fstring_interpolation_pattern() -> None:
     """SQL fragment uses :param binding (no caller-value interpolation).
 
     Allowed SQL literals: enum values + date-arithmetic constants
-    ('-01' for first-of-month concat, '1 month' for INTERVAL).
+    ('-01' for first-of-month concat, '1 month' for INTERVAL, 'YYYY-MM-DD'
+    for to_date format mask, 'YYYY-MM' for to_char format mask).
     """
     query = build_carry_chain_query()
-    allowed = {"opening_carried", "-01", "1 month"}
+    allowed = {
+        "opening_carried",
+        "opening_carried_stale_overwrite",
+        "-01",
+        "1 month",
+        "YYYY-MM-DD",
+        "YYYY-MM",
+    }
     quoted = re.findall(r"'([^']*)'", query.sql)
     for q in quoted:
         assert q in allowed, (

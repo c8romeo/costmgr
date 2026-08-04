@@ -407,6 +407,12 @@ scope_note: Epic 4 회고 범위 = 4-1·4-2·4-3·4-4 (4/4 done, full close-out)
 
 - **1023 tests collected** (Story 5.2 partial: T1 ledger.py 42 + T2 ledger_query.py 20 + T6 event_type drift 4 + 5-2 docs/architecture allowlist 2 = 68 신규)
 - 본 retro claim (954) 대비 +69 tests 추가
+
+### Story 5.2 review complete pytest collection count (2026-08-04, 5-2 dev-story complete + bmad-code-review applied)
+
+- **1105 tests collected** (Story 5.2 full: post-T4 wire + T7 capability gate + T8 swap + T9 tests + 5-2 review patches P1-P16 applied = 82 신규)
+- 5-2 in-progress claim (1023) 대비 +82 tests 추가
+- 본 review claim으로 override: MAX SDR claim = 1105 (CR 4-3 F-2 A7 wire)
 - 추가 내역 (Story 5.2 SPEC 진입 시점까지):
   - T1 pure kernel `tests/services/m4_inventory/test_ledger.py` (42 tests: 11 parametrized event_type + 13 build_event_payload + 4 NamedTuple + 4 append_only_violation_message + ...)
   - T2 pure kernel #2 `tests/services/m4_inventory/test_ledger_query.py` (20 tests: 5 constants + 7 period_closing + 6 carry_chain + 4 SQL safety)

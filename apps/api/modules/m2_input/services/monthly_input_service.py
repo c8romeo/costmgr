@@ -128,6 +128,13 @@ DEFAULT_MONTHLY_SALARY_BASIS_KRW: int = 2_500_000
 # PRD default workdays in a month (Story 3.2 may extend with calendar).
 DEFAULT_WORKDAYS_IN_MONTH: int = 22
 
+# Story 5.2 — `inventory_ledger_enabled` field flag for state response.
+# Mirrors `Capability.INVENTORY_LEDGER` matrix (manufacturing 3종 ✅ /
+# service-only ❌). Per-request gate is also enforced via
+# `require_capability("inventory_ledger")` in handlers — this module-level
+# constant is just the page-mount flag for the [수불부] tab visibility.
+_INVENTORY_LEDGER_ENABLED: bool = True
+
 # Stream-conditional required fields (PRD §8.M2(b)).
 # - labor / expenses → product_id is OPTIONAL (None OK)
 # - orders / production / sales / purchases → product_id is REQUIRED
@@ -1136,6 +1143,23 @@ class MonthlyInputService:
             opening_inventory_lock_reason_ko=period.opening_inventory.get(
                 "_lock_reason_ko"
             ),
+            # Story 5.2 — inventory_ledger wire fields (PRD §6.2 + §8.M2).
+            # ledger_events_count: count of flow events for this period
+            # (excludes closing_snapshot). Computed via parallel query.
+            ledger_period_closing=await self._compute_ledger_period_closing_for_state(
+                period_key=period_key
+            ),
+            ledger_events_count=len(
+
+                    await self._compute_ledger_period_closing_for_state(
+                        period_key=period_key
+                    )
+
+            ),
+            inventory_ledger_enabled=_INVENTORY_LEDGER_ENABLED,
+            # Epic 11 forward-fill: reversal_request_enabled becomes True
+            # after M11 module ships. 5-2 = False.
+            reversal_request_enabled=False,
         )
 
     # ── Helpers ──────────────────────────────────────────────
@@ -1589,7 +1613,10 @@ class MonthlyInputService:
         # path is preserved (not removed) — see Story 5.2 spec AC #5
         # deprecation timeline. Epic 6 close-out retro removes both the
         # legacy helper and `LEDGER_REFERENCE_QUERY_STUB`.
-        opening_balance = self._load_opening_balance(period)
+        # Note: opening_balance is now read by the LedgerService directly
+        # via the inventory_ledger table (the canonical source of truth).
+        # (5-2 patch P15: removed `opening_balance` parameter from
+        # `_compute_inventory_projection_for_state`.)
         # Defensive wrap — translate any internal projection errors to
         # the typed 422 envelope. AC #6: service-only tenants → empty
         # projection → 0 inventory warnings (no exception).
@@ -1598,7 +1625,6 @@ class MonthlyInputService:
                 period=period,
                 rows=rows,
                 product_map=product_map,
-                opening_balance=opening_balance,
             )
             inventory_warnings = build_inventory_warnings(
                 projection, product_map=product_map
@@ -1706,7 +1732,6 @@ class MonthlyInputService:
         period: MonthlyInputPeriod,
         rows: list[MonthlyInputRow],  # noqa: ARG002 — interface parity with build_inventory_projection (Epic 6 retro removes this arg)
         product_map: dict[uuid.UUID, "_ProductProjection"],  # noqa: ARG002,UP037 — interface parity; _ProductProjection is forward-declared (line 1942)
-        opening_balance: dict[uuid.UUID, Decimal],
     ) -> list[InventoryMovement]:
         """Story 5.2 AC #5 — read inventory projection from ledger.
 
@@ -1721,6 +1746,11 @@ class MonthlyInputService:
         ledger gives us the net closing qty only — the inbound/outbound
         breakdown is rebuilt downstream if needed; see Story 5.2 deferral
         4 for the Epic 6 close-out removal plan).
+
+        Note (5-2 patch P15): the `opening_balance` parameter was
+        previously accepted but unused in the final value (the second
+        `out[-1] = ...` assignment overrode it with the ledger closing).
+        Removed to clean up the dead code path.
 
         Story 5.2 AC #5 deprecation timeline:
         - 5-2 commit (this method) — read path swaps to ledger.
@@ -1753,38 +1783,53 @@ class MonthlyInputService:
         # Compose InventoryMovement list (sorted by product_id for
         # deterministic output — supports AC #8 sort + cross-language
         # parity tests). `inbound_qty` / `outbound_qty` default to 0
-        # since the ledger gives net closing only.
-        out: list[InventoryMovement] = []
-        for pid in sorted(closing_map.keys(), key=str):
-            closing_qty = closing_map[pid]
-            # Defensive: ensure product_id is in product_map (else warn
-            # silently — orphan ledger rows). The list comprehension
-            # below filters by known products.
-            out.append(
-                InventoryMovement(
-                    product_id=pid,
-                    opening_qty=(opening_balance.get(pid) or Decimal("0")),
-                    inbound_qty=Decimal("0"),
-                    outbound_qty=Decimal("0"),
-                )
-            )
-            # Note: closing_qty is preserved as the LEDGER aggregate;
-            # the warning kernel reads this via `_row_to_response` /
-            # downstream consumers. For the `build_inventory_warnings`
-            # contract, closing = opening + inbound - outbound is
-            # already encoded in the pure kernel — we pass through the
-            # ledger's authoritative closing by setting opening_qty to
-            # the ledger closing and inbound/outbound to 0 (so the
-            # kernel computes closing = opening + 0 - 0 = opening_qty
-            # = the ledger closing).
-            out[-1] = InventoryMovement(
+        # since the ledger gives net closing only. The ledger's
+        # authoritative closing_qty is passed via `opening_qty` so the
+        # warning kernel's `closing = opening + inbound - outbound`
+        # reduces to `closing = opening_qty` (the ledger closing).
+        out: list[InventoryMovement] = [
+            InventoryMovement(
                 product_id=pid,
                 opening_qty=closing_qty,
                 inbound_qty=Decimal("0"),
                 outbound_qty=Decimal("0"),
             )
+            for pid, closing_qty in sorted(
+                closing_map.items(), key=lambda kv: str(kv[0])
+            )
+        ]
 
         return out
+
+    async def _compute_ledger_period_closing_for_state(
+        self,
+        *,
+        period_key: str,
+    ) -> dict[str, str]:
+        """Story 5.2 P13 — `ledger_period_closing` field for state response.
+
+        Returns product_id_str → qty_str (Decimal serialization for
+        cross-language drift prevention; AD-15). Mirrors the
+        `opening_inventory` shape but reads from inventory_ledger
+        (canonical source of truth) instead of the JSONB carry state.
+
+        Returns:
+            dict[str, str] — empty dict if no flow events for this period.
+        """
+        from apps.api.modules.m4_inventory.services.ledger_service import (
+            LedgerService,
+        )
+
+        ledger_svc = LedgerService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+        closing_map = await ledger_svc.query_period_closing_all(
+            period_key=period_key,
+        )
+        return {str(pid): str(qty) for pid, qty in closing_map.items()}
 
     def _compute_operating_rate_warning_for_state(
         self,
