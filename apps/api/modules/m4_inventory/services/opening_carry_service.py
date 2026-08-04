@@ -579,6 +579,16 @@ class OpeningCarryService:
     ) -> None:
         """Persist updated opening_inventory JSONB + audit row.
 
+        Story 5.2 addition: per-decision `inventory_ledger_event_appended`
+        emit. Each carry decision becomes ONE ledger row (event_type
+        `opening_carried` for fresh carry, `opening_carried_stale_overwrite`
+        when the previous period's data shifted and we're overwriting a
+        stale value — `decision.recompute=True`).
+
+        The audit log emission happens AFTER the JSONB update so the
+        decision metadata (period_key + product_id + qty + trace_id) is
+        immutable at the time of the ledger INSERT.
+
         Preserves lock marker (`_locked`, `_lock_reason_ko`) if present.
         """
         merged: dict[str, Any] = {
@@ -593,7 +603,7 @@ class OpeningCarryService:
                 "_lock_reason_ko", "전월 기말 자동 이월"
             )
 
-        # Audit-first
+        # Audit-first (5-1 pattern — monthly_input_period_opening_carried)
         await emit_audit_typed(
             self.session,
             action_class=ActionClass.MONTHLY_INPUT_PERIOD,
@@ -623,6 +633,84 @@ class OpeningCarryService:
 
         period.opening_inventory = merged
         period.updated_at = _now_utc()
+
+        # Story 5.2 — AD-2 append-only ledger emit (per-decision).
+        # Each OpeningCarryDecision becomes one inventory_ledger row.
+        # Two immutable logs are emitted simultaneously (CR 1.1):
+        #   1. audit_logs.action='monthly_input_period_opening_carried'
+        #      (above, MONTHLY_INPUT_PERIOD target — 5-1 wire)
+        #   2. audit_logs.action='inventory_ledger_event_appended' +
+        #      inventory_ledger.event_type IN ('opening_carried',
+        #      'opening_carried_stale_overwrite')
+        #      (LedgerService.append_event — this method)
+        # Both rows are INSERT-only; AD-2 invariant preserved on
+        # both targets.
+        await self._emit_ledger_events_for_decisions(
+            period=period,
+            decisions=decisions,
+            prev_period_key=prev_period_key,
+            actor_id=actor_id,
+            trigger_source=trigger_source,
+        )
+
+    async def _emit_ledger_events_for_decisions(
+        self,
+        *,
+        period: MonthlyInputPeriod,
+        decisions: list[OpeningCarryDecision],
+        prev_period_key: str,
+        actor_id: uuid.UUID | None,
+        trigger_source: str,
+    ) -> None:
+        """Emit per-decision `inventory_ledger_event_appended` rows.
+
+        Story 5.2 AC #4 — opening carry decisions are now routed to
+        the inventory_ledger table (in addition to the 5-1 audit_logs
+        emission that is preserved above).
+
+        Mapping:
+        - `decision.recompute=False` → event_type='opening_carried'
+        - `decision.recompute=True`  → event_type='opening_carried_stale_overwrite'
+
+        The ledger event_type SSOT is the 11-value whitelist in
+        `packages/services/m4_inventory/ledger.py::INVENTORY_LEDGER_EVENT_TYPES`.
+
+        Lazy import: LedgerService is in the same package, but lazy
+        import keeps startup clean + avoids any circular-import risk.
+        """
+        # Lazy import (sibling module — no circular risk, but lazy for clarity)
+        from apps.api.modules.m4_inventory.services.ledger_service import (
+            LedgerService,
+        )
+        from packages.services.m4_inventory.ledger import (
+            SOURCE_CARRY_CHAIN,
+        )
+
+        ledger_svc = LedgerService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+        for decision in decisions:
+            event_type = (
+                "opening_carried_stale_overwrite"
+                if decision.recompute
+                else "opening_carried"
+            )
+            await ledger_svc.append_event(
+                product_id=decision.product_id,
+                period_key=period.period_key,
+                event_type=event_type,
+                qty=decision.opening_qty,
+                source=SOURCE_CARRY_CHAIN,
+                metadata={
+                    "prev_period_key": prev_period_key,
+                    "is_stale": decision.is_stale,
+                    "trigger_source": trigger_source,
+                },
+                actor_id=actor_id,
+            )
 
     async def _run_carry_chain(
         self,

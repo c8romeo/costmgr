@@ -63,22 +63,14 @@ from apps.api.core.audit_action import ActionClass, _ActionRegistry
 from apps.api.core.db_models import InventoryLedger
 from packages.services.m0_onboarding.industry_menu import Industry
 from packages.services.m4_inventory.ledger import (
-    PAYLOAD_KEY_EVENT_ID,
-    PAYLOAD_KEY_EVENT_TYPE,
-    PAYLOAD_KEY_PRODUCT_ID,
-    PAYLOAD_KEY_QTY,
-    PAYLOAD_KEY_SOURCE,
     AppendOnlyLedgerError,
     build_event_payload,
-    validate_event_type,
 )
 from packages.services.m4_inventory.ledger_query import (
-    LedgerQuery,
     assert_tenant_guarded,
     build_carry_chain_query,
     build_period_closing_query,
 )
-
 
 # ─────────────────────────────────────────────────────────────
 # Typed exceptions (mapped to HTTP by handlers.py / main.py)
@@ -360,6 +352,47 @@ class LedgerService:
             },
         )
         return Decimal(str(result)) if result is not None else Decimal("0")
+
+    # ── Operation 2b: query_period_closing_all (multi-product) ─
+    async def query_period_closing_all(
+        self,
+        *,
+        period_key: str,
+    ) -> dict[uuid.UUID, Decimal]:
+        """SUM(qty) aggregated per product for a single period.
+
+        Excludes `closing_snapshot` rows (same semantics as
+        `query_period_closing`). Used by:
+        - `MonthlyInputService._compute_inventory_projection_for_state`
+          (Epic 3.3 inline projection swap — AC #5)
+        - `GET /api/v1/inventory/ledger/period-closing` handler
+          (multi-product read endpoint)
+
+        Tenant-isolation: filters on tenant_id (AD-4 RLS).
+
+        Returns:
+            dict[UUID, Decimal] — empty if no flow events.
+        """
+
+        sql = (
+            "SELECT product_id, COALESCE(SUM(qty), 0) AS closing_qty "
+            "FROM inventory_ledger "
+            "WHERE tenant_id = :tenant_id "
+            "  AND period_key = :period_key "
+            "  AND event_type != 'closing_snapshot' "
+            "GROUP BY product_id"
+        )
+        rows = await self.session.execute(
+            text(sql),
+            {
+                "tenant_id": str(self.tenant_id),
+                "period_key": period_key,
+            },
+        )
+        return {
+            row.product_id: Decimal(str(row.closing_qty))
+            for row in rows
+        }
 
     # ── Operation 3: query_carry_chain (AC #1 recursive walk) ──
     async def query_carry_chain(

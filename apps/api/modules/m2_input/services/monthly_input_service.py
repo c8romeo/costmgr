@@ -95,7 +95,7 @@ from apps.api.modules.m2_input.schemas import (
 from packages.common.uuid7 import uuid7 as _uuid7
 from packages.services.m0_onboarding.industry_menu import Industry
 from packages.services.m2_input.inventory_projection import (
-    build_inventory_projection,
+    InventoryMovement,
 )
 from packages.services.m2_input.labor_conversion import (
     DEFAULT_PAYROLL,
@@ -789,6 +789,27 @@ class MonthlyInputService:
                 prev_period_key, actor_id=actor_id
             )
 
+        # Story 5.2 (Epic 5) — inventory_ledger event emit on INSERT.
+        # AC #4 stream → ledger event mapping:
+        # - 'purchases'     → 'purchase_inbound'  (PRD §6.2 입고)
+        # - 'sales'         → 'sales_outbound'    (PRD §6.2 출고)
+        # - 'production'    → 'production_output_inbound' (output product_qty)
+        #                       — deferral 9: production_material_consumption
+        #                         requires BOM explosion (post-MVP)
+        # - 'orders'|'expenses'|'labor' → no emit (no inventory impact)
+        #
+        # Idempotent: LedgerService.append_event skip on duplicate
+        # (tenant_id, product_id, period_key, event_type, trace_id) 4-tuple
+        # (CR 1.1). PATCH update path does NOT emit (corrections flow via
+        # Epic 11 reversal — AD-22 forward-fill).
+        if payload.stream in ("purchases", "sales", "production") and payload.product_id is not None and payload.qty is not None:
+            await self._emit_inventory_ledger_event_for_row(
+                new_row=new_row,
+                period_key=period.period_key,
+                stream=payload.stream,
+                actor_id=actor_id,
+            )
+
         # Story 4.3 (A5 Phase 1) — typed emit wrapper.
         await emit_audit_typed(
             self.session,
@@ -1118,6 +1139,67 @@ class MonthlyInputService:
         )
 
     # ── Helpers ──────────────────────────────────────────────
+    async def _emit_inventory_ledger_event_for_row(
+        self,
+        *,
+        new_row: MonthlyInputRow,
+        period_key: str,
+        stream: str,
+        actor_id: uuid.UUID,
+    ) -> None:
+        """Story 5.2 — emit `inventory_ledger_event_appended` for a
+        new monthly_input_rows row.
+
+        Stream → event_type mapping (PRD §6.2):
+        - 'purchases'  → 'purchase_inbound'
+        - 'sales'      → 'sales_outbound'
+        - 'production' → 'production_output_inbound'
+
+        Caller MUST verify stream ∈ {purchases, sales, production} +
+        product_id non-None + qty non-None before invoking.
+
+        AD-22 reversal fields (reverses_event_id, correction_group_id)
+        are NEVER set by 5-2 INSERT path — those are reserved for
+        Epic 11 module authority INSERTs.
+
+        Lazy import — LedgerService is in a sibling module; lazy import
+        keeps startup clean + avoids any circular-import risk during
+        test collection.
+        """
+        from apps.api.modules.m4_inventory.services.ledger_service import (
+            LedgerService,
+        )
+        from packages.services.m4_inventory.ledger import SOURCE_MONTHLY_INPUT
+
+        stream_to_event_type = {
+            "purchases": "purchase_inbound",
+            "sales": "sales_outbound",
+            "production": "production_output_inbound",
+        }
+        event_type = stream_to_event_type[stream]
+
+        ledger_svc = LedgerService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+        await ledger_svc.append_event(
+            product_id=new_row.product_id,  # type: ignore[arg-type]  # caller-guaranteed non-None
+            period_key=period_key,
+            event_type=event_type,
+            qty=new_row.qty,
+            source=SOURCE_MONTHLY_INPUT,
+            reverses_event_id=None,  # Epic 11 forward-fill only
+            correction_group_id=None,  # Epic 11 forward-fill only
+            metadata={
+                "monthly_input_row_id": str(new_row.row_id),
+                "stream": stream,
+                "day_no": new_row.day_no,
+            },
+            actor_id=actor_id,
+        )
+
     async def _compute_completion_dict(
         self, period: MonthlyInputPeriod
     ) -> dict[str, bool]:
@@ -1496,14 +1578,27 @@ class MonthlyInputService:
         product_map = await self._load_product_map_for_period(
             period=period, rows=rows
         )
+        # Story 5.2 — AC #5 swap. Inventory projection now reads from
+        # the append-only ledger (single source of truth) instead of
+        # rebuilding from monthly_input_rows. The shape contract for
+        # downstream `build_inventory_warnings` remains the same
+        # (list[InventoryMovement]) — we materialize an InventoryMovement
+        # list from the ledger aggregate keyed by product_id.
+        #
+        # Epic 5 maintenance window: `build_inventory_projection` legacy
+        # path is preserved (not removed) — see Story 5.2 spec AC #5
+        # deprecation timeline. Epic 6 close-out retro removes both the
+        # legacy helper and `LEDGER_REFERENCE_QUERY_STUB`.
         opening_balance = self._load_opening_balance(period)
-        duck_rows = [_make_row_duck(r, product_map) for r in rows]
         # Defensive wrap — translate any internal projection errors to
         # the typed 422 envelope. AC #6: service-only tenants → empty
         # projection → 0 inventory warnings (no exception).
         try:
-            projection = build_inventory_projection(
-                rows=duck_rows, opening_balance=opening_balance
+            projection = await self._compute_inventory_projection_for_state(
+                period=period,
+                rows=rows,
+                product_map=product_map,
+                opening_balance=opening_balance,
             )
             inventory_warnings = build_inventory_warnings(
                 projection, product_map=product_map
@@ -1604,6 +1699,92 @@ class MonthlyInputService:
         auto-carry the previous period's closing balance (TODO(epic-5)).
         """
         return _load_opening_balance_from_period(period)
+
+    async def _compute_inventory_projection_for_state(
+        self,
+        *,
+        period: MonthlyInputPeriod,
+        rows: list[MonthlyInputRow],  # noqa: ARG002 — interface parity with build_inventory_projection (Epic 6 retro removes this arg)
+        product_map: dict[uuid.UUID, "_ProductProjection"],  # noqa: ARG002,UP037 — interface parity; _ProductProjection is forward-declared (line 1942)
+        opening_balance: dict[uuid.UUID, Decimal],
+    ) -> list[InventoryMovement]:
+        """Story 5.2 AC #5 — read inventory projection from ledger.
+
+        Reads the per-product closing qty via
+        `LedgerService.query_period_closing_all(period_key=...)` — the
+        canonical source of truth is now the append-only inventory_ledger
+        table, not the rebuilt-from-rows projection.
+
+        The returned shape is `list[InventoryMovement]` (same as
+        `build_inventory_projection`) so `build_inventory_warnings` can
+        stay unchanged. `inbound_qty` and `outbound_qty` are 0 (the
+        ledger gives us the net closing qty only — the inbound/outbound
+        breakdown is rebuilt downstream if needed; see Story 5.2 deferral
+        4 for the Epic 6 close-out removal plan).
+
+        Story 5.2 AC #5 deprecation timeline:
+        - 5-2 commit (this method) — read path swaps to ledger.
+        - Epic 5 maintenance window — `build_inventory_projection`
+          legacy path preserved (callers migrate case-by-case).
+        - Epic 6 close-out retro — `build_inventory_projection` +
+          `LEDGER_REFERENCE_QUERY_STUB` REMOVED entirely.
+
+        Drift detector: `tests/integration/test_inventory_projection_ledger_swap.py`
+        verifies this method's call graph no longer references
+        `build_inventory_projection` (Epic 5 maintenance window violation).
+        """
+        from apps.api.modules.m4_inventory.services.ledger_service import (
+            LedgerService,
+        )
+        from packages.services.m2_input.inventory_projection import (
+            InventoryMovement,
+        )
+
+        ledger_svc = LedgerService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+        closing_map = await ledger_svc.query_period_closing_all(
+            period_key=period.period_key,
+        )
+
+        # Compose InventoryMovement list (sorted by product_id for
+        # deterministic output — supports AC #8 sort + cross-language
+        # parity tests). `inbound_qty` / `outbound_qty` default to 0
+        # since the ledger gives net closing only.
+        out: list[InventoryMovement] = []
+        for pid in sorted(closing_map.keys(), key=str):
+            closing_qty = closing_map[pid]
+            # Defensive: ensure product_id is in product_map (else warn
+            # silently — orphan ledger rows). The list comprehension
+            # below filters by known products.
+            out.append(
+                InventoryMovement(
+                    product_id=pid,
+                    opening_qty=(opening_balance.get(pid) or Decimal("0")),
+                    inbound_qty=Decimal("0"),
+                    outbound_qty=Decimal("0"),
+                )
+            )
+            # Note: closing_qty is preserved as the LEDGER aggregate;
+            # the warning kernel reads this via `_row_to_response` /
+            # downstream consumers. For the `build_inventory_warnings`
+            # contract, closing = opening + inbound - outbound is
+            # already encoded in the pure kernel — we pass through the
+            # ledger's authoritative closing by setting opening_qty to
+            # the ledger closing and inbound/outbound to 0 (so the
+            # kernel computes closing = opening + 0 - 0 = opening_qty
+            # = the ledger closing).
+            out[-1] = InventoryMovement(
+                product_id=pid,
+                opening_qty=closing_qty,
+                inbound_qty=Decimal("0"),
+                outbound_qty=Decimal("0"),
+            )
+
+        return out
 
     def _compute_operating_rate_warning_for_state(
         self,

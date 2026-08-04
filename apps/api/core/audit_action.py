@@ -277,9 +277,8 @@ class _ActionRegistry:
         ),
         # Story 5.2 — INVENTORY_LEDGER 6 values fill (D1 deferral 해결).
         # Epic 5 ships 3 + Epic 11 forward-fills 2 + Epic 6 close-out 1.
-        # The DB CHECK constraint is in Alembic 0015_inventory_ledger
-        # (AC #2 + OQ3 11-value enum mirror — T5 migration). Drift
-        # detector: tests/integration/test_audit_action_consistency.py
+        # DB CHECK constraint mirror is Alembic 0015_inventory_ledger.
+        # Drift detector: tests/integration/test_audit_action_consistency.py
         # `test_registry_matches_db_check_constraints` (3-way gate).
         ActionClass.INVENTORY_LEDGER: (
             "inventory_ledger",

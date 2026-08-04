@@ -17,7 +17,6 @@ from __future__ import annotations
 import re
 from typing import Final, NamedTuple
 
-
 # ── Constants ────────────────────────────────────────────────
 # Parameter names mirror what the service layer binds (SQLAlchemy
 # `text(...).bindparams(...)`). Drift between Python and TS caught

@@ -44,6 +44,12 @@ from apps.api.modules.m3_calculate.services import (
     MonthlyInputBlockedError,
 )
 from apps.api.modules.m4_inventory import router as m4_inventory_router
+from apps.api.modules.m4_inventory.services.ledger_service import (
+    AppendOnlyLedgerViolationError,
+    InventoryLedgerInvalidEventTypeError,
+    InventoryLedgerPeriodKeyFormatError,
+    InventoryLedgerReversalNotYetWiredError,
+)
 from apps.api.modules.m4_inventory.services.opening_carry_service import (
     MonthlyInputCarryChainLimitError,
     MonthlyInputCarryPrevPeriodNotFoundError,
@@ -588,6 +594,124 @@ async def _m4_carry_prev_not_found_handler(
                 "prev_period_key": exc.prev_period_key,
                 "current_period_key": exc.current_period_key,
                 "tenant_id": str(exc.tenant_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# Story 5.2 — M4 inventory_ledger exception handlers
+# (AD-15 §4 envelope mapping for AD-2 append-only + 11-value
+# event_type + AD-24 period_key + Epic 11 reversal forward-fill)
+# ─────────────────────────────────────────────────────────────
+
+
+@app.exception_handler(AppendOnlyLedgerViolationError)
+async def _m4_append_only_violation_handler(
+    request: Request, exc: AppendOnlyLedgerViolationError
+) -> JSONResponse:
+    """500 APPEND_ONLY_LEDGER_VIOLATION — service-layer AST guard
+    caught an UPDATE/DELETE/TRUNCATE/DROP attempt on inventory_ledger.
+
+    AC #3 — 2nd axis of 3중 방어:
+    1. DB trigger raises (1st axis) → SQLAlchemy error
+    2. Service-layer `_assert_not_modifying` (this exception, 2nd axis)
+    3. Audit log emission: `inventory_ledger_event_rejected` (3rd axis)
+
+    When the 2nd axis fires, the DB has NOT been touched. The audit log
+    emission is the responsibility of the calling service path; this
+    handler only maps the typed exception to the AD-15 envelope.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "APPEND_ONLY_LEDGER_VIOLATION",
+            "message_ko": (
+                "수불부는 원장만 기록 가능하며 수정·삭제 불가합니다"
+            ),
+            "details": {
+                "event_id": str(exc.event_id) if exc.event_id else None,
+                "attempted_op": exc.attempted_op,
+                "tenant_id": str(exc.tenant_id),
+                **exc.details,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(InventoryLedgerInvalidEventTypeError)
+async def _m4_invalid_event_type_handler(
+    request: Request, exc: InventoryLedgerInvalidEventTypeError
+) -> JSONResponse:
+    """422 INVENTORY_LEDGER_INVALID_EVENT_TYPE — event_type not in the
+    11-value whitelist (defense-in-depth; pure kernel rejects upstream).
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "INVENTORY_LEDGER_INVALID_EVENT_TYPE",
+            "message_ko": (
+                f"수불 이벤트 타입({exc.event_type!r})이 유효한 11개 값 목록에 없습니다"
+            ),
+            "details": {
+                "event_type": exc.event_type,
+                "tenant_id": str(exc.tenant_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(InventoryLedgerPeriodKeyFormatError)
+async def _m4_period_key_format_handler(
+    request: Request, exc: InventoryLedgerPeriodKeyFormatError
+) -> JSONResponse:
+    """422 INVENTORY_LEDGER_PERIOD_KEY_FORMAT — period_key AD-24 mismatch.
+
+    PRD §6.2 inventory equation is fiscal ('YYYY-MM'). M8 virtual budget
+    keys ('YYYY-MM#B<n>') are explicitly excluded from inventory_ledger.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "INVENTORY_LEDGER_PERIOD_KEY_FORMAT",
+            "message_ko": (
+                f"기간 키({exc.period_key!r})는 'YYYY-MM' 형식이어야 합니다"
+            ),
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": str(exc.tenant_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(InventoryLedgerReversalNotYetWiredError)
+async def _m4_reversal_not_yet_wired_handler(
+    request: Request, exc: InventoryLedgerReversalNotYetWiredError
+) -> JSONResponse:
+    """501 INVENTORY_LEDGER_REVERSAL_NOT_YET_WIRED — Epic 11 forward-fill.
+
+    M4 entrypoint emits `inventory_ledger_reversal_requested` audit
+    marker. The actual reversal sequence INSERT (negating row +
+    optional corrected row) is owned by Epic 11 module authority
+    (`m11_reversal` module). Until M11 ships, the endpoint returns 501.
+    """
+    return JSONResponse(
+        status_code=501,
+        content={
+            "code": "INVENTORY_LEDGER_REVERSAL_NOT_YET_WIRED",
+            "message_ko": (
+                "수불 반전 기능은 Epic 11 모듈 출시 후 활성화됩니다. "
+                "현재는 요청만 기록됩니다."
+            ),
+            "details": {
+                "event_id": str(exc.event_id),
+                "tenant_id": str(exc.tenant_id),
+                "epic": "Epic 11",
             },
             "trace_id": exc.trace_id,
         },

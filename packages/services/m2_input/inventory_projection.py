@@ -16,7 +16,7 @@ The module answers:
   - `sales` rows → outbound (PRD §6.2 판매 = 출고)
   - `purchases` rows → inbound (PRD §6.2 구매 = 매입)
   - `production` rows → inbound (output product_qty only — input material
-    consumption is Epic 5 ledger territory; see `TODO(epic-5)` marker)
+    consumption is Epic 5 ledger territory; see `TODO(epic-5)` marker — closed in Story 5.2)
 
 PRD §6.2 수불부: 기초 + 구입 − 생산출고 = 기말
 - opening = monthly_input_periods.opening_inventory JSONB (MVP default 0)
@@ -26,7 +26,7 @@ PRD §6.2 수불부: 기초 + 구입 − 생산출고 = 기말
 MVP limitation (deferred to Epic 5):
 - Material consumption when production occurs: not tracked in 3.3
 - Cumulative across periods: prev_period_closing → current_period_opening
-  is auto-carried by Epic 5 Story 5-1 (TODO(epic-5) marker below)
+  is auto-carried by Epic 5 Story 5-1 (TODO(epic-5) marker below, which became Story 5-1 — not the same as the Story 5.2 close of the inline projection swap)
 
 AD-8 monetary parity: qty is `Decimal` (NUMERIC(18,4)). Not a monetary
 amount, but inherits the same drift-prevention discipline.
@@ -72,13 +72,24 @@ class InventoryMovement(NamedTuple):
     outbound_qty: Decimal
 
 
-# ── ERP / Inventory source marker (Epic 5 stub) ─────────────
-# TODO(epic-5): When Epic 5 Story 5-1 (opening auto-carry) + 5-2
-# (append-only ledger) ships, this module will read from
-# `inventory_ledger` instead of `monthly_input_rows`. The inline
-# projection is the MVP source-of-truth. Mirrors Story 2.3's
-# `LEDGER_REFERENCE_QUERY_STUB` pattern.
-LEDGER_REFERENCE_QUERY_STUB: Final[str] = ""
+# ── ERP / Inventory source marker (Epic 5 wire — Story 5.2) ────
+# DEPRECATION TIMELINE (Story 5.2 spec AC #5):
+# - Story 5.2 commit = LEDGER_REFERENCE_QUERY_STUB filled + TODO marker
+#   CLOSED. MonthlyInputService._compute_inventory_projection_for_state
+#   now reads via LedgerService.query_period_closing (NEW in Story 5.2).
+# - Epic 5 maintenance window: callers (MonthlyInputService) read via
+#   LedgerService.query_period_closing as the canonical source.
+# - Epic 6 close-out retro: this stub marker + the
+#   `build_inventory_projection` legacy path REMOVED entirely.
+LEDGER_REFERENCE_QUERY_STUB: Final[str] = """
+-- Story 5.2 wire: inventory_ledger read.
+-- SELECT product_id, COALESCE(SUM(qty), 0) AS closing_qty
+-- FROM inventory_ledger
+-- WHERE tenant_id = :tenant_id
+--   AND period_key = :period_key
+--   AND event_type != 'closing_snapshot'
+-- GROUP BY product_id
+"""
 
 
 # ── Row protocol (avoids SQLAlchemy dependency in pure tests) ─
@@ -170,8 +181,13 @@ def build_inventory_projection(
         List of `InventoryMovement` (one per product). Products with
         all-zero qty contributions are omitted.
 
-    TODO(epic-5): replace with `inventory_ledger` read when Epic 5
-    5-1+5-2 ships. The columns/products set remains the same.
+    TODO(epic-5-5-2): CLOSED — Story 5.2 replaces the read path.
+    The inline `build_inventory_projection` helper is preserved for
+    the Epic 5 maintenance window (callers migrate case-by-case);
+    Epic 6 close-out retro removes this helper entirely.
+    Read path now goes through `LedgerService.query_period_closing_all`
+    (see `_compute_inventory_projection_for_state` in monthly_input_service.py).
+    The columns/products set remains the same.
     """
     # product_id → running aggregate
     bucket: dict[uuid.UUID, dict[str, Decimal]] = {}
@@ -197,7 +213,7 @@ def build_inventory_projection(
             slot["inbound"] += qty
         elif row.stream == "production":
             # Output product_qty → inbound (MVP).
-            # Input material consumption → Epic 5 ledger (TODO(epic-5)).
+            # Input material consumption → Epic 5 ledger (TODO(epic-5) closed in 5-2 for the swap; the multi-period material consumption flow itself ships in Epic 6).
             slot["inbound"] += qty
         # orders / expenses / labor → skip
 

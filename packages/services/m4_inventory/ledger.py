@@ -37,10 +37,9 @@ from __future__ import annotations
 import re
 import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
-from typing import Any, Final, NamedTuple, Optional
+from typing import Any, Final, NamedTuple
 
 from packages.services.m2_input.inventory_projection import QTY_QUANTUM
-
 
 # ── Constants ────────────────────────────────────────────────
 # Whitelist of 11 event_type values (AC #2 + OQ3 cj-style default).
@@ -354,11 +353,15 @@ def _validate_source(source: str) -> None:
         )
 
 
-def _serialize_qty(qty: Decimal | None, *, event_type: str) -> str | None:
+def _serialize_qty(qty: Decimal | None, *, event_type: str = "") -> str | None:
     """Decimal → str for JSON serialization (AD-8 banker's rounding parity).
 
-    `None` is preserved for non-quantitative events.
+    `None` is preserved for non-quantitative events. `event_type` is
+    accepted for future per-type serialization rules (e.g. different
+    quantum per stream) but currently unused — kept as a keyword-only
+    parameter so call sites can document their event type intent.
     """
+    _ = event_type  # reserved for per-type quantum overrides
     if qty is None:
         return None
     quantized = qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
