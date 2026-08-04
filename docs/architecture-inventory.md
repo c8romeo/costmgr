@@ -110,3 +110,60 @@ CarryChainResultResponse {decisions, opening_inventory, chain_depth}
   9개 stub 활성화).
 - **Epic 11** (reversal): locked opening 수동 해제 + reversal_log
   INSERT entrypoint.
+
+## §5.2 Inventory Ledger Architecture (Story 5.2)
+
+### 신규 모듈
+
+```
+apps/api/modules/m4_inventory/
+  ├── services/ledger_service.py (5 operations)
+  │     ├── append_event — AC #4 primary INSERT
+  │     ├── query_period_closing — AC #1 SUM(qty) 단일
+  │     ├── query_period_closing_all — AC #5 multi-product
+  │     ├── query_carry_chain — AC #1 recursive walk ≤ 12
+  │     ├── request_reversal — AC #6 Epic 11 forward-fill (501)
+  │     ├── get_event — AC #1 단일 event lookup
+  │     ├── _assert_not_modifying — AC #3 2축 AST guard
+  │     └── _write_inventory_ledger_audit — A5 forward-lock writer
+  ├── schemas.py (4 Pydantic types, extra='forbid')
+  └── handlers.py (4 routes + Capability.INVENTORY_LEDGER gate)
+```
+
+### Capability gate
+
+`Capability.INVENTORY_LEDGER` — manufacturing-kind 3종 ✅, service ❌.
+Service-only tenant 가 POST 시도 → 403 INDUSTRY_NOT_SUPPORTED.
+
+### AD-15 envelope mapping (apps/api/main.py)
+
+| Exception | Status | envelope.error.code |
+|---|---|---|
+| AppendOnlyLedgerViolationError | 500 | APPEND_ONLY_LEDGER_VIOLATION |
+| InventoryLedgerInvalidEventTypeError | 422 | INVENTORY_LEDGER_INVALID_EVENT_TYPE |
+| InventoryLedgerPeriodKeyFormatError | 422 | INVENTORY_LEDGER_PERIOD_KEY_FORMAT |
+| InventoryLedgerReversalNotYetWiredError | 501 | INVENTORY_LEDGER_REVERSAL_NOT_YET_WIRED |
+
+### Hook chain 통합
+
+5-1 `_persist_opening` (carry decisions)
+  → 5-2 `_emit_ledger_events_for_decisions` (carry → ledger hook)
+  → `LedgerService.append_event` (3중 방어 자동 적용)
+
+5-2 `_emit_inventory_ledger_event_for_row` (monthly input save_row)
+  → `LedgerService.append_event`
+
+5-2 `_compute_warnings_aggregate_for_state`
+  → `_compute_inventory_projection_for_state` (T8 swap)
+  → `LedgerService.query_period_closing_all` (Epic 3.3 AC #5)
+
+### Drift detectors (T9.1+T9.2+T9.5)
+
+- `tests/integration/test_inventory_projection_ledger_swap.py` (T9.5)
+  AC #5 swap 무결성 — `TODO(epic-5-5-2) CLOSED` marker + 5개 검증.
+- `tests/architecture/test_inventory_ledger_no_mutate.py` (T9.1)
+  AST guard 자체 검증 + mutation 금지.
+- `tests/integration/test_inventory_ledger_capability.py` (T9.2)
+  capability matrix consistency.
+- `tests/integration/test_inventory_ledger_event_type_drift.py`
+  11-value enum SSOT vs DB CHECK vs call sites.

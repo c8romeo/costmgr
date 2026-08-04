@@ -334,5 +334,41 @@ PRD §F4.1: 기초재고는 자동 이월되며, 매달 다시 입력하지 않�
 - Architecture: AD-2 (audit-first) · AD-22 (reversal entrypoint)
 - 스펙: `_bmad-output/implementation-artifacts/5-1-opening-inventory-auto-carry-chain.md`
 
+## §5.2 Inventory Ledger Stream Hook (Story 5.2)
+
+`POST /api/v1/monthly-input/rows` 의 INSERT path 에서 inventory
+streams (purchases / sales / production) 의 row 가 들어올 때마다
+`inventory_ledger` 테이블에 append-only 행을 추가합니다.
+
+### Stream → event_type 매핑
+
+| monthly_input_rows.stream | inventory_ledger.event_type | direction |
+|---|---|---|
+| purchases | `purchase_inbound` | + qty |
+| sales | `sales_outbound` | − qty |
+| production | `production_output_inbound` | + qty (output product_qty) |
+
+Material consumption (input side of production) 은 Epic 6 wire — 당분간
+production row 가 추가되어도 ledger 행의 source 가 `monthly_input` 이고
+event_type 이 `production_output_inbound` (output 만 추적).
+
+### Hook 위치
+
+`_emit_inventory_ledger_event_for_row(new_row, period, payload)`:
+- `payload.stream ∈ {"purchases", "sales", "production"}` AND
+  `payload.product_id IS NOT NULL` AND `payload.qty IS NOT NULL` 조건
+  만족 시 호출.
+- Service-layer helper 가 `LedgerService.append_event` 호출 → 3중 방어
+  (DB trigger + AST guard + audit) 자동 적용.
+
+### Epic 3.3 inline projection swap (AC #5)
+
+5-2 이전: `_compute_warnings_aggregate_for_state` 가
+`build_inventory_projection(rows, opening_balance)` 직접 호출.
+5-2 이후: `_compute_inventory_projection_for_state` (T8 wrapper) 가
+`LedgerService.query_period_closing_all(period_key=...)` 사용.
+`build_inventory_projection` 자체는 Epic 6 close-out retro 까지
+유지 (5-1 carry chain path 에서 여전히 사용).
+
 ## 참조
 

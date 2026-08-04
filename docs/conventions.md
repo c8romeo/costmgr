@@ -463,7 +463,7 @@ CR 1.1 lesson (Epic 1·2·3·4 4번째 epic 연속 재발) — audit log의 `act
 | `MONTHLY_INPUT_PERIOD` | `monthly_input_periods` | `monthly_input_mode_changed` | 다른 테이블 (per-row 아님) |
 | `CALC_LOG` | `calc_log` (별도 테이블) | `compute`, `idempotent_skip`, `rollback` | DB CHECK 1st (0012) |
 | `VERIFICATION_LOG` | `verification_log` (별도 테이블) | `verification_passed`, `verification_failed`, `verification_skipped`, `verify_v8_golden_match` | DB CHECK 2nd (0013) + Story 4.4 forward-lock |
-| `INVENTORY_LEDGER` | `inventory_ledger` (Epic 5) | (Epic 5 spec 진입 시 확정) | placeholder slot |
+| `INVENTORY_LEDGER` | `inventory_ledger` (Epic 5) | `inventory_ledger_event_appended`, `inventory_ledger_event_rejected`, `inventory_ledger_reversal_requested`, `inventory_ledger_reversal_logged`, `inventory_ledger_reversal_rejected`, `inventory_ledger_reprojection_triggered` | Story 5.2 — append-only invariant + 3중 방어 + Epic 11 forward-fill |
 | `REVERSAL_LOG` | `reversal_log` (Epic 11) | (Epic 11 spec 진입 시 확정) | placeholder slot |
 
 ### §10.2 규칙
@@ -521,3 +521,68 @@ before/after 스냅샷에 prev_old 값 캡처 (CR 1.1 lesson).
 **Capability gate**: `Capability.OPENING_INVENTORY` 는 manufacturing-kind
 industry 에만 wired. Service industry 는 자동 no-op (carry chain
 returns empty decisions — inventory-bearing products 없음).
+
+### §10.6 Inventory Ledger Append-Only Policy (Story 5.2)
+
+PRD §F4.2: 모든 재고 변동(inbound / outbound / carry / adjustment) 은
+append-only 재고 원장에 기록되며, UPDATE/DELETE 가 차단된다.
+
+**Append-only 3중 방어 (AD-2 / AC #3)**:
+1. **DB trigger** (`Alembic 0015 inventory_ledger_append_only`) —
+   PostgreSQL `BEFORE UPDATE OR DELETE` row-level trigger 가
+   `SQLSTATE P0001` 으로 raise. Production gate.
+2. **Service-layer AST guard** (`LedgerService._assert_not_modifying`) —
+   UPDATE/DELETE/TRUNCATE/DROP TABLE 키워드 4종을 입력 SQL 텍스트에서
+   감지. Early fail + raise `AppendOnlyLedgerViolationError`
+   (500 APPEND_ONLY_LEDGER_VIOLATION).
+3. **Audit log** — 모든 rejection 은 `inventory_ledger_event_rejected`
+   audit 행으로 emit (관측성).
+
+**11-value event_type enum (AC #2)** — opening_carried /
+opening_carried_stale_overwrite / purchase_inbound / sales_outbound /
+production_output_inbound / production_material_consumption /
+adjustment_positive / adjustment_negative / reversal_negating /
+reversal_corrected / closing_snapshot. Drift detector:
+`tests/integration/test_inventory_ledger_event_type_drift.py`
+(registry vs DB CHECK vs call sites 3-way).
+
+**Period key AD-24 typed pattern**: `^\d{4}-(0[1-9]|1[0-2])$` —
+예: `2026-07`. M8 virtual budget keys (`2026-07#B1`) 는 Epic 8 scope
+으로 명시적으로 제외. Pydantic 필드 validator + service-layer
+re-validation + pure kernel + DB CHECK 4중 검증.
+
+**QTY_QUANTUM**: NUMERIC(18,4) — banker's rounding (ROUND_HALF_EVEN).
+Python kernel `Decimal` ↔ PostgreSQL `NUMERIC(18,4)` parity (CR 0-4
+lesson). `INVENTORY_LEDGER_QTY_QUANTUM = Decimal("0.0001")` SSOT.
+
+**Capability gate**: `Capability.INVENTORY_LEDGER` 는 manufacturing-kind
+3종 (manufacturing / manufacturing_service /
+manufacturing_service_other) 에 wired. Service-only 는 403
+INDUSTRY_NOT_SUPPORTED (BOM 없음 → 원장 의미 없음). Drift detector:
+`tests/integration/test_inventory_ledger_capability.py` (T9.2).
+
+**AD-22 reversal entrypoint forward-fill (AC #6)**: M4 entrypoint
+`request_reversal(event_id, reason)` 은 audit marker emit +
+501 `INVENTORY_LEDGER_REVERSAL_NOT_YET_WIRED` raise. Epic 11 M11
+모듈 authority 가 실제 reversal sequence INSERT (`reversal_negating`
++ `reversal_corrected` 두 행) 를 담당. Epic 11 wire 시점에 501 →
+200 + reversal sequence 반환으로 변경.
+
+**Audit-first wire (A5 forward-lock)**: 모든 state-changing operation
+은 `_write_inventory_ledger_audit` 를 **먼저** 호출. Drift detector:
+`tests/integration/test_audit_action_consistency.py` (ActionClass
+INVENTORY_LEDGER ↔ DB CHECK ↔ call sites 3-way gate).
+
+**Epic 3.3 inline projection swap (AC #5)**: `MonthlyInputService` 가
+`build_inventory_projection` 직접 호출 대신 `LedgerService.
+query_period_closing_all(period_key=...)` 를 canonical source 로 사용.
+`TODO(epic-5-5-2) CLOSED` marker 가
+`packages/services/m2_input/inventory_projection.py` 에 남아 있음
+(Epic 6 close-out retro 까지). Drift detector:
+`tests/integration/test_inventory_projection_ledger_swap.py` (T9.5).
+
+**TS mirror (deferred to Story 5.3)**: 5-3 frontend 진입 시점에
+`apps/web/lib/l2-inventory-ledger.ts` 추가. `tests/integration/
+test_inventory_ledger_label_consistency.py` 가 snake_case Python ↔
+camelCase TS parity 검증 (CR 4-3 lesson — drift detector
+placeholder).

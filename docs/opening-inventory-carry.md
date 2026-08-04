@@ -184,3 +184,43 @@ decisions — inventory-bearing products 없음).
   async 테스트 자동화.
 - **Epic 11** (reversal entrypoint): locked opening 수동 해제 +
   reversal_log INSERT.
+
+## §5.2 Carry Decision → Ledger Event Hook (Story 5.2)
+
+`OpeningCarryService._persist_opening` 가 carry decision 마다
+`_emit_ledger_events_for_decisions` 를 호출하여 `inventory_ledger`
+테이블에 append-only 행을 emit 합니다.
+
+### Decision → event_type 매핑
+
+| `OpeningCarryDecision.recompute` | `event_type` |
+|---|---|
+| `False` (정상 자동 이월) | `opening_carried` |
+| `True` (이전 결정 silently overwrite) | `opening_carried_stale_overwrite` |
+
+### emit 시점
+
+- Manual trigger: `POST /api/v1/inventory/opening-carry/{period_id}`
+  → 5-1 `_persist_opening` 호출 → 5-2 `_emit_ledger_events_for_decisions`
+  가 같은 transaction 안에서 ledger 행 INSERT.
+- Silent trigger: `MonthlyInputService.get_state` 호출 시
+  `auto_carry_on_get_state` (idempotent no-op check) → 5-1 carry
+  applied → 5-2 ledger emit. 이미 opening 이 lock 된 상태에서는
+  silent no-op (carry 적용 X → ledger emit X).
+
+### metadata 캡처
+
+각 ledger 행의 metadata JSONB:
+- `prev_period_key`: carry source period (예: `2026-06`)
+- `is_stale`: `OpeningCarryDecision.is_stale` (True if prev projection
+  과 current opening 불일치)
+- `trigger_source`: `"manual"` (POST /opening-carry) or `"silent"`
+  (GET /state hook)
+
+### Audit-first wire (A5 forward-lock)
+
+`_emit_ledger_events_for_decisions` 는 `LedgerService.append_event` 를
+호출 → `_write_inventory_ledger_audit(action="inventory_ledger_event_appended", ...)`
+가 audit 행을 **먼저** emit → 그 다음 ledger INSERT. Drift detector:
+`tests/integration/test_audit_action_consistency.py` (ActionClass
+INVENTORY_LEDGER ↔ DB CHECK ↔ call sites 3-way).

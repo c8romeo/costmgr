@@ -1,8 +1,20 @@
-# Capability Matrix (v1.4)
+# Capability Matrix (v1.6)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.6 (2026-08-04, Story 5.2)** — `Capability.INVENTORY_LEDGER` row
+> confirmed wired for manufacturing-kind 3종 (manufacturing /
+> manufacturing_service / manufacturing_service_other); service-only
+> ❌ (403 INDUSTRY_NOT_SUPPORTED). 4 HTTP routes registered
+> (POST /events, GET /period-closing, GET /carry-chain,
+> POST /reversal-requests). Drift protection:
+> `tests/integration/test_inventory_ledger_capability.py` (T9.2).
+>
+> **v1.5 (2026-08-03, Story 5.1)** — `Capability.OPENING_INVENTORY` row
+> confirmed (already wired since Story 3.3 baseline; 5-1 explicit pin).
+> Service industry is auto no-op (carry chain returns empty decisions).
 >
 > **v1.4 (2026-08-02, Story 4.4)** — V8 골든 byte-identical 회귀 매트릭스
 > (4 industries × 3 baseline shapes = 12 fixtures) 가 CI mandatory gate 로
@@ -176,5 +188,12 @@ class CalcResponse(BaseModel):
   no-op (carry chain returns empty decisions — inventory-bearing
   products 없음). Capability 행 자체는 변경 없음 (5-1 wire는
   기존 Capability 사용).
+- 2026-08-04 — v1.6 (Story 5.2, Epic 5): `INVENTORY_LEDGER` capability
+  row confirmed + 4 HTTP routes registered behind the gate. Drift
+  protection added (`tests/integration/test_inventory_ledger_capability.py`).
+  Service-only tenants continue to be excluded (403
+  INDUSTRY_NOT_SUPPORTED — BOM 없음 → ledger 의미 없음). Capability
+  행 자체는 변경 없음 (5-2 wire는 5-1 의 Capability.OPENING_INVENTORY
+  와 동일한 manufacturing-kind 3종 wiring 사용).
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.
