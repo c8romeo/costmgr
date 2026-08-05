@@ -61,7 +61,9 @@ def upgrade() -> None:
     # DROPPING + ADDING a named constraint is the idiomatic Alembic
     # pattern. The constraint name `verification_log_action_check` is
     # PostgreSQL's auto-generated name for the inline CHECK in 0013.
-    op.execute("ALTER TABLE verification_log DROP CONSTRAINT IF EXISTS verification_log_action_check")
+    op.execute(
+        "ALTER TABLE verification_log DROP CONSTRAINT IF EXISTS verification_log_action_check"
+    )
     op.execute(
         """
         ALTER TABLE verification_log
@@ -91,7 +93,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Restore the original 3-value CHECK constraint
-    op.execute("ALTER TABLE verification_log DROP CONSTRAINT IF EXISTS verification_log_action_check")
+    op.execute(
+        "ALTER TABLE verification_log DROP CONSTRAINT IF EXISTS verification_log_action_check"
+    )
     op.execute(
         """
         ALTER TABLE verification_log

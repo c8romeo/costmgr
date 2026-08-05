@@ -132,7 +132,8 @@ def test_registry_matches_db_check_constraints() -> None:
 
     Pins:
     - `calc_log` (ActionClass.CALC_LOG) ↔ Alembic 0012 CHECK
-    - `verification_log` (ActionClass.VERIFICATION_LOG) ↔ Alembic 0013 CHECK
+    - `verification_log` (ActionClass.VERIFICATION_LOG + ActionClass.VERIFICATION)
+      ↔ Alembic 0013/0014/0016 CHECK (5-value union)
     """
     from apps.api.core.audit_action import ActionClass, _ActionRegistry
 
@@ -146,30 +147,50 @@ def test_registry_matches_db_check_constraints() -> None:
     # actions. The 11-value event_type enum drift is checked by a
     # separate dedicated test —
     # `tests/integration/test_inventory_ledger_event_type_drift.py`.
-    class_to_table = {
+    #
+    # Story 5.3 — `ActionClass.VERIFICATION` (1 value: verify_v3_closing_invariant)
+    # also routes to `verification_log` (shared destination with
+    # ActionClass.VERIFICATION_LOG). The DB CHECK constraint is the UNION
+    # of both ActionClass accepted sets — that's why the 5-value CHECK
+    # exists (Alembic 0016).
+    class_to_table: dict[ActionClass, str] = {
         ActionClass.CALC_LOG: "calc_log",
         ActionClass.VERIFICATION_LOG: "verification_log",
+        ActionClass.VERIFICATION: "verification_log",
     }
 
+    # Group by table_name — multiple ActionClasses can route to the same
+    # destination. The DB CHECK must equal the UNION of their accepted sets.
+    table_to_action_classes: dict[str, list[ActionClass]] = {}
+    for ac, tbl in class_to_table.items():
+        table_to_action_classes.setdefault(tbl, []).append(ac)
+
     violations: list[str] = []
-    for action_class, table_name in class_to_table.items():
+    for table_name, action_classes in table_to_action_classes.items():
         if table_name not in db_constraints:
             violations.append(
                 f"{table_name}: missing DB CHECK constraint in Alembic migrations. "
-                f"ActionClass.{action_class.name} requires a CHECK constraint."
+                f"ActionClass {[ac.name for ac in action_classes]} requires a CHECK constraint."
             )
             continue
 
-        registry_log_type, registry_accepted = _ActionRegistry._REGISTRY[action_class]
+        # Compute UNION of registry accepted sets across all ActionClasses
+        # routing to this table.
+        registry_union: frozenset[str] = frozenset()
+        for ac in action_classes:
+            _log_type, accepted = _ActionRegistry._REGISTRY[ac]
+            registry_union = registry_union | accepted
+
         db_allowed = db_constraints[table_name]
 
-        if registry_accepted != db_allowed:
+        if registry_union != db_allowed:
             violations.append(
                 f"{table_name}: registry ↔ DB CHECK drift.\n"
-                f"  Registry accepts ({len(registry_accepted)}): {sorted(registry_accepted)}\n"
+                f"  ActionClasses routing here: {[ac.name for ac in action_classes]}\n"
+                f"  Registry union ({len(registry_union)}): {sorted(registry_union)}\n"
                 f"  DB CHECK allows  ({len(db_allowed)}): {sorted(db_allowed)}\n"
-                f"  MISSING from registry: {sorted(db_allowed - registry_accepted)}\n"
-                f"  EXTRA in registry:    {sorted(registry_accepted - db_allowed)}"
+                f"  MISSING from registry: {sorted(db_allowed - registry_union)}\n"
+                f"  EXTRA in registry:    {sorted(registry_union - db_allowed)}"
             )
 
     assert not violations, (

@@ -155,6 +155,9 @@ def test_api_root_does_not_import_services() -> None:
             # Story 5.2 — AD-2 append-only ledger + SQL fragment builders.
             "packages.services.m4_inventory.ledger",
             "packages.services.m4_inventory.ledger_query",
+            # Story 5.3 — closing ≥ 0 invariant guard + BOM reconciliation pure kernels.
+            "packages.services.m4_inventory.closing_guard",
+            "packages.services.m4_inventory.production_consumption",
             "packages.services.m4_inventory",
             # m10_ai (Epic 10 — AI document extraction port)
             "packages.services.m10_ai.extraction_port",

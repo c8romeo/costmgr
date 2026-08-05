@@ -83,10 +83,7 @@ class V7AbcIntegrityRule:
         abc_complete_allocation_ok = True
 
         all_pass = (
-            abc_pools_ok
-            and abc_activities_ok
-            and abc_drivers_ok
-            and abc_complete_allocation_ok
+            abc_pools_ok and abc_activities_ok and abc_drivers_ok and abc_complete_allocation_ok
         )
 
         if all_pass:

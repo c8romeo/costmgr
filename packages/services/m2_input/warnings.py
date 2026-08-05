@@ -105,10 +105,7 @@ def format_inventory_warning_ko(
     closing = _compute_closing_qty_for_ko(projection)
     name = product.name_ko or ""
     if name:
-        return (
-            f"{product.product_code}({name}) "
-            f"기말재고 {closing} → 음수 경고"
-        )
+        return f"{product.product_code}({name}) " f"기말재고 {closing} → 음수 경고"
     return f"{product.product_code} 기말재고 {closing} → 음수 경고"
 
 
@@ -160,11 +157,7 @@ def _strip_zeros(d: Decimal) -> str:
 
 def _compute_closing_qty_for_ko(projection: InventoryMovement) -> str:
     """Compute closing_qty for the Korean message (signed Decimal)."""
-    closing = (
-        projection.opening_qty
-        + projection.inbound_qty
-        - projection.outbound_qty
-    )
+    closing = projection.opening_qty + projection.inbound_qty - projection.outbound_qty
     return _strip_zeros(closing)
 
 
@@ -224,9 +217,7 @@ def build_inventory_warnings(
         )
         warnings.append(warn)
     # Sort by closing_qty ASC (most negative first).
-    warnings.sort(
-        key=lambda w: Decimal(w.details["closing_qty"])
-    )
+    warnings.sort(key=lambda w: Decimal(w.details["closing_qty"]))
     return warnings
 
 

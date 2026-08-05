@@ -98,9 +98,7 @@ def is_review_required(confidence: Decimal | float | int | None) -> bool:
             f"confidence must be Decimal, float, int, or None — got {type(confidence).__name__}"
         )
     if confidence < Decimal("0") or confidence > Decimal("1"):
-        raise ValueError(
-            f"confidence must be in [0, 1] — got {confidence!s}"
-        )
+        raise ValueError(f"confidence must be in [0, 1] — got {confidence!s}")
     return confidence < REVIEW_THRESHOLD
 
 

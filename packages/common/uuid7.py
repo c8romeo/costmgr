@@ -60,8 +60,8 @@ def uuid7() -> uuid.UUID:
     #   variant        2     [64..65]
     #   rand_b        62     [66..127]
     value = (unix_ts_ms & ((1 << 48) - 1)) << 80
-    value |= (0x7 << 76)  # version 7 at bits 76..79 of the 128-bit int
+    value |= 0x7 << 76  # version 7 at bits 76..79 of the 128-bit int
     value |= (rand_a & ((1 << 12) - 1)) << 64
-    value |= (0b10 << 62)  # RFC 4122 variant at bits 62..63
+    value |= 0b10 << 62  # RFC 4122 variant at bits 62..63
     value |= rand_b & ((1 << 62) - 1)
     return uuid.UUID(int=value)

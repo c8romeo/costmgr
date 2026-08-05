@@ -151,5 +151,7 @@ def downgrade() -> None:
     # FKs, but policies + tables should be torn down symmetrically).
     op.execute("DROP POLICY IF EXISTS calc_log_tenant_isolation ON calc_log")
     op.execute("DROP TABLE IF EXISTS calc_log")
-    op.execute("DROP POLICY IF EXISTS fiscal_period_snapshots_tenant_isolation ON fiscal_period_snapshots")
+    op.execute(
+        "DROP POLICY IF EXISTS fiscal_period_snapshots_tenant_isolation ON fiscal_period_snapshots"
+    )
     op.execute("DROP TABLE IF EXISTS fiscal_period_snapshots")

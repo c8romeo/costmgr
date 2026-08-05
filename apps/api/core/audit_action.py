@@ -55,6 +55,8 @@ class ActionClass(str, __import__("enum").Enum):
     VERIFICATION_LOG = "verification_log"  # Story 4.3 (NEW)
     INVENTORY_LEDGER = "inventory_ledger"  # Epic 5 (NEW — slot pre-fill)
     REVERSAL_LOG = "reversal_log"  # Epic 11 (NEW — slot pre-fill)
+    CLOSING_GUARD = "closing_guard"  # Story 5.3 (NEW — closing ≥ 0 invariant audit)
+    VERIFICATION = "verification"  # Story 5.3 (NEW — V3 closing invariant verification)
 
 
 # ────────────────────────────────────────────────────────────
@@ -166,8 +168,28 @@ InventoryLedgerAction = Literal[
 # reversal_log actions (Epic 11 NEW — design-only placeholder)
 # TODO(epic-11): FILL_REVERSAL_LOG_ACTIONS when m11_reversal module ships
 # Use a placeholder literal until Epic 11 lands (avoid empty Literal syntax).
-ReversalLogAction = Literal[
-    "_placeholder_reversal_log",
+ReversalLogAction = Literal["_placeholder_reversal_log",]
+
+# closing_guard actions (Story 5.3 NEW — AC #2 + AC #5).
+# Closing ≥ 0 invariant (PRD §F4.2 + §V3) audit-first events:
+# - `closing_guard_violated` — invariant.code=NEGATIVE_CLOSING detected
+#   (manual close attempt rejected)
+# - `closing_guard_passed` — invariant.code=CLOSING_OK after verify
+#   (close-time hook 200 OK response)
+# - `v3_closing_invariant_verified` — V3 verdict emitted (PASS/FAIL/SKIP)
+ClosingGuardAction = Literal[
+    "closing_guard_violated",
+    "closing_guard_passed",
+    "v3_closing_invariant_verified",
+]
+
+# verification actions (Story 5.3 NEW — V3 closing invariant verifier).
+# Distinct from VERIFICATION_LOG: VERIFICATION_LOG tracks per-rule
+# verdicts (PASS/FAIL/SKIP + V8 golden match); VERIFICATION tracks
+# cross-rule invariants (V3 closing ≥ 0 + future Epic 11 reversal
+# verification + Epic 12 close-out verification).
+VerificationAction = Literal[
+    "verify_v3_closing_invariant",  # Story 5.3 V3 rule audit (PASS/FAIL/SKIP)
 ]
 
 
@@ -185,6 +207,8 @@ AuditAction = (
     | VerificationLogAction
     | InventoryLedgerAction
     | ReversalLogAction
+    | ClosingGuardAction
+    | VerificationAction
 )
 
 
@@ -296,6 +320,31 @@ class _ActionRegistry:
             ),
         ),
         ActionClass.REVERSAL_LOG: ("reversal_log", frozenset()),
+        # Story 5.3 — closing_guard 3 values (AC #2 + AC #5 + AC #6).
+        # DB CHECK constraint mirror: audit_logs CHECK includes
+        # closing_guard_violated, closing_guard_passed,
+        # v3_closing_invariant_verified (drift detector enforces parity).
+        ActionClass.CLOSING_GUARD: (
+            "audit_logs",
+            frozenset(
+                {
+                    "closing_guard_violated",
+                    "closing_guard_passed",
+                    "v3_closing_invariant_verified",
+                }
+            ),
+        ),
+        # Story 5.3 — verification 1 value (V3 closing invariant verifier).
+        # Routes to verification_log destination (shared with
+        # VERIFICATION_LOG — distinct action_class but same destination).
+        ActionClass.VERIFICATION: (
+            "verification_log",
+            frozenset(
+                {
+                    "verify_v3_closing_invariant",
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -412,5 +461,7 @@ __all__ = [
     "VerificationLogAction",
     "InventoryLedgerAction",
     "ReversalLogAction",
+    "ClosingGuardAction",
+    "VerificationAction",
     "emit_audit_typed",
 ]

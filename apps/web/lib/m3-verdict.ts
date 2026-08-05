@@ -31,7 +31,7 @@
  * - audit trail: trace_id round-tripped for support diagnostics
  */
 
-export type VerificationCode = "V1" | "V4" | "V7" | "V8";
+export type VerificationCode = "V1" | "V3" | "V4" | "V7" | "V8";
 
 export type VerificationStatus = "passed" | "failed";
 

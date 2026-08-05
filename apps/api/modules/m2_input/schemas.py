@@ -222,9 +222,7 @@ class MonthlyInputRowCreate(BaseModel):
     welfare_krw: KRW | None = None
     bonus_krw: KRW | None = None
     retirement_reserve_krw: KRW | None = None
-    company_burden_rate: Decimal | None = Field(
-        default=None, ge=Decimal("0"), le=Decimal("1")
-    )
+    company_burden_rate: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("1"))
 
 
 class MonthlyInputRowUpdate(BaseModel):
@@ -260,9 +258,7 @@ class MonthlyInputRowUpdate(BaseModel):
     welfare_krw: KRW | None = None
     bonus_krw: KRW | None = None
     retirement_reserve_krw: KRW | None = None
-    company_burden_rate: Decimal | None = Field(
-        default=None, ge=Decimal("0"), le=Decimal("1")
-    )
+    company_burden_rate: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("1"))
 
 
 # ── Response ─────────────────────────────────────────────────

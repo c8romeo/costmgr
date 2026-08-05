@@ -67,6 +67,7 @@ from packages.services.m2_input.opening_carry import (
 # Typed exceptions (mapped to HTTP by handlers.py / main.py)
 # ─────────────────────────────────────────────────────────────
 
+
 class MonthlyInputOpeningManualEditError(Exception):
     """400 MONTHLY_INPUT_OPENING_MANUAL_EDIT — user tried to write
     `stream='opening_inventory'` row.
@@ -176,6 +177,7 @@ class MonthlyInputCarryPrevPeriodNotFoundError(Exception):
 # Helper: decode opening_inventory JSONB
 # ─────────────────────────────────────────────────────────────
 
+
 def _decode_opening_jsonb(
     raw: dict[str, Any] | None,
 ) -> dict[uuid.UUID, Decimal]:
@@ -212,6 +214,7 @@ def _decode_opening_jsonb(
 # ─────────────────────────────────────────────────────────────
 # OpeningCarryService
 # ─────────────────────────────────────────────────────────────
+
 
 class OpeningCarryService:
     """Story 5.1 — opening inventory auto-carry chain service.
@@ -480,9 +483,7 @@ class OpeningCarryService:
             ) from e
 
     # ── Internal helpers ──────────────────────────────────────
-    async def _load_period_for_update(
-        self, period_id: uuid.UUID
-    ) -> MonthlyInputPeriod:
+    async def _load_period_for_update(self, period_id: uuid.UUID) -> MonthlyInputPeriod:
         """SELECT FOR UPDATE — period row by id (tenant-scoped)."""
         period = await self.session.scalar(
             select(MonthlyInputPeriod)
@@ -505,9 +506,7 @@ class OpeningCarryService:
             )
         return period
 
-    async def _load_period_by_key(
-        self, period_key: str
-    ) -> MonthlyInputPeriod | None:
+    async def _load_period_by_key(self, period_key: str) -> MonthlyInputPeriod | None:
         """Load period by (tenant_id, period_key, baseline_revision=1)."""
         return await self.session.scalar(
             select(MonthlyInputPeriod).where(
@@ -517,25 +516,23 @@ class OpeningCarryService:
             )
         )
 
-    async def _load_period_by_key_for_update(
-        self, period_key: str
-    ) -> MonthlyInputPeriod | None:
+    async def _load_period_by_key_for_update(self, period_key: str) -> MonthlyInputPeriod | None:
         """H3: SELECT FOR UPDATE on period — concurrency guard (CR 1.1 idempotent no-op).
 
         Used by auto_carry_on_get_state to prevent two concurrent get_state
         calls from emitting duplicate audit + UPDATE.
         """
         return await self.session.scalar(
-            select(MonthlyInputPeriod).where(
+            select(MonthlyInputPeriod)
+            .where(
                 MonthlyInputPeriod.tenant_id == self.tenant_id,
                 MonthlyInputPeriod.period_key == period_key,
                 MonthlyInputPeriod.baseline_revision == 1,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
 
-    async def _compute_period_closing(
-        self, period: MonthlyInputPeriod
-    ) -> dict[uuid.UUID, Decimal]:
+    async def _compute_period_closing(self, period: MonthlyInputPeriod) -> dict[uuid.UUID, Decimal]:
         """Compute closing balance for a period (rebuilds projection
         from monthly_input_rows).
 
@@ -592,9 +589,7 @@ class OpeningCarryService:
         Preserves lock marker (`_locked`, `_lock_reason_ko`) if present.
         """
         merged: dict[str, Any] = {
-            str(pid): str(qty) for pid, qty in sorted(
-                new_opening.items(), key=lambda x: str(x[0])
-            )
+            str(pid): str(qty) for pid, qty in sorted(new_opening.items(), key=lambda x: str(x[0]))
         }
         # Preserve lock marker
         if period.opening_inventory.get("_locked"):
@@ -694,9 +689,7 @@ class OpeningCarryService:
         )
         for decision in decisions:
             event_type = (
-                "opening_carried_stale_overwrite"
-                if decision.recompute
-                else "opening_carried"
+                "opening_carried_stale_overwrite" if decision.recompute else "opening_carried"
             )
             await ledger_svc.append_event(
                 product_id=decision.product_id,
@@ -782,17 +775,13 @@ class OpeningCarryService:
                 }
                 for d in decisions
             ],
-            "opening_inventory": {
-                str(pid): str(qty) for pid, qty in final.items()
-            },
+            "opening_inventory": {str(pid): str(qty) for pid, qty in final.items()},
             "chain_depth": depth,
             "trigger_source": trigger_source,
             "trace_id": self.trace_id,
         }
 
-    async def _compute_chain_depth(
-        self, period: MonthlyInputPeriod
-    ) -> int:
+    async def _compute_chain_depth(self, period: MonthlyInputPeriod) -> int:
         """Walk backward from `period` counting prev periods."""
         depth = 1
         cursor = period

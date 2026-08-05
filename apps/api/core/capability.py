@@ -262,9 +262,7 @@ class ForbiddenRoleError(Exception):
         required_role: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"role {role!r} forbidden; required {required_role!r}"
-        )
+        super().__init__(f"role {role!r} forbidden; required {required_role!r}")
         self.tenant_id = tenant_id
         self.user_id = user_id
         self.role = role

@@ -28,6 +28,9 @@ from apps.api.modules.m3_calculate.services.rules.protocol import (
 from apps.api.modules.m3_calculate.services.rules.v1_complete_allocation import (
     V1CompleteAllocationRule,
 )
+from apps.api.modules.m3_calculate.services.rules.v3_closing_invariant import (
+    V3ClosingInvariantRule,
+)
 from apps.api.modules.m3_calculate.services.rules.v4_cost_income_reconciliation import (
     V4CostIncomeReconciliationRule,
 )
@@ -39,12 +42,14 @@ from apps.api.modules.m3_calculate.services.rules.v8_regression import (
 )
 
 # AD-12 strict ordered sequence — Story 4.3 AC #2.
-# Tuple immutable so the order can't be mutated at runtime. To insert a
-# new rule between two existing ones, replace the tuple (Story 4.4 will
-# extend V8 with golden fixtures — tuple swap, not in-place mutation).
+# Story 5.3 — V3 closing ≥ 0 invariant inserted at slot 3 of 5
+# (V1 → V4 → V3 → V7 → V8). Tuple immutable so the order can't be
+# mutated at runtime. To insert a new rule between two existing ones,
+# replace the tuple (tuple swap, not in-place mutation).
 _VERIFICATION_RULES: tuple[VerificationRule, ...] = (
     V1CompleteAllocationRule(),
     V4CostIncomeReconciliationRule(),
+    V3ClosingInvariantRule(),
     V7AbcIntegrityRule(),
     V8RegressionRule(),
 )
@@ -55,6 +60,7 @@ __all__ = [
     "VerificationItem",
     "VerificationStatusLiteral",
     "V1CompleteAllocationRule",
+    "V3ClosingInvariantRule",
     "V4CostIncomeReconciliationRule",
     "V7AbcIntegrityRule",
     "V8RegressionRule",

@@ -25,4 +25,3 @@ API key.
 """
 
 from apps.api.modules.m10_ai.handlers import router  # noqa: E402,F401
-

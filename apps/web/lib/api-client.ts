@@ -590,3 +590,51 @@ export async function clearBom(
     accessToken,
   );
 }
+
+// ── Story 5.3 — Closing guard API methods (AC #2 + AC #4 + AC #5) ─
+
+/**
+ * POST /api/v1/inventory/closing-guard/evaluate
+ * Read-only closing ≥ 0 invariant check.
+ * Returns `ClosingGuardEvaluateResponse` (banner + negative products).
+ */
+export async function evaluateClosingGuard(
+  periodKey: string,
+  accessToken?: string,
+): Promise<import("./closing-guard").ClosingGuardEvaluateResponse> {
+  const { data } = await request<
+    import("./closing-guard").ClosingGuardEvaluateResponse
+  >(
+    "/api/v1/inventory/closing-guard/evaluate",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ period_key: periodKey }),
+    },
+    accessToken,
+  );
+  return data;
+}
+
+/**
+ * POST /api/v1/inventory/closing-guard/close-attempt
+ * Close-time gate wire. On 200 → invariant.code = CLOSING_OK or EMPTY_PERIOD.
+ * On 409 → throws ApiError with code='NEGATIVE_CLOSING_INVENTORY'.
+ */
+export async function requestClosingGuardAttempt(
+  periodKey: string,
+  accessToken?: string,
+): Promise<import("./closing-guard").ClosingGuardCloseAttemptResponse> {
+  const { data } = await request<
+    import("./closing-guard").ClosingGuardCloseAttemptResponse
+  >(
+    "/api/v1/inventory/closing-guard/close-attempt",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ period_key: periodKey }),
+    },
+    accessToken,
+  );
+  return data;
+}

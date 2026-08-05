@@ -116,9 +116,7 @@ def parse_code(code: str) -> tuple[ProductType, int]:
     try:
         seq = int(raw_seq)
     except ValueError as err:
-        raise InvalidProductCodeError(
-            code, f"invalid numeric suffix {raw_seq!r}"
-        ) from err
+        raise InvalidProductCodeError(code, f"invalid numeric suffix {raw_seq!r}") from err
 
     return product_type, seq
 

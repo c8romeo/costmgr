@@ -225,14 +225,16 @@ async def _per_industry_firing_matrix_impl(industry: str) -> None:
     )
     codes = [v.code for v in verdict.verifications]
     if industry == INDUSTRY_SERVICE:
+        # V3 silent skip for service-only (no inventory semantics).
         assert codes == ["V1", "V4", "V7", "V8"]
     else:
-        assert codes == ["V1", "V4", "V8"]
+        # V3 inserted at slot 3 of 5 (Story 5.3).
+        assert codes == ["V1", "V4", "V3", "V8"]
 
 
 @pytest.mark.engine
 def test_engine_draft_passes_v1_v4_v8_for_manufacturing_retail() -> None:
-    """manufacturing_retail industry: V1/V4/V8 fire, V7 silent skip."""
+    """manufacturing_retail industry: V1/V4/V3/V8 fire, V7 silent skip."""
     asyncio.run(_engine_draft_passes_v1_v4_v8_for_manufacturing_retail_impl())
 
 
@@ -252,12 +254,13 @@ async def _engine_draft_passes_v1_v4_v8_for_manufacturing_retail_impl() -> None:
         period_key="2026-07",
     )
     codes = [v.code for v in verdict.verifications]
-    assert codes == ["V1", "V4", "V8"]
+    # Story 5.3 — V3 inserted at slot 3 of 5.
+    assert codes == ["V1", "V4", "V3", "V8"]
 
 
 @pytest.mark.engine
 def test_engine_draft_passes_v1_v4_v8_for_mixed() -> None:
-    """mixed industry: V1/V4/V8 fire, V7 silent skip."""
+    """mixed industry: V1/V4/V3/V8 fire, V7 silent skip."""
     asyncio.run(_engine_draft_passes_v1_v4_v8_for_mixed_impl())
 
 
@@ -277,7 +280,8 @@ async def _engine_draft_passes_v1_v4_v8_for_mixed_impl() -> None:
         period_key="2026-07",
     )
     codes = [v.code for v in verdict.verifications]
-    assert codes == ["V1", "V4", "V8"]
+    # Story 5.3 — V3 inserted at slot 3 of 5.
+    assert codes == ["V1", "V4", "V3", "V8"]
 
 
 @pytest.mark.engine
@@ -363,7 +367,8 @@ def test_rule_registry_uniqueness() -> None:
     """Each rule name maps to exactly one registry entry (no duplicates)."""
     names = [r.name for r in _VERIFICATION_RULES]
     assert len(names) == len(set(names))
-    assert set(names) == {"V1", "V4", "V7", "V8"}
+    # Story 5.3 — V3 inserted at slot 3 of 5.
+    assert set(names) == {"V1", "V3", "V4", "V7", "V8"}
 
 
 # ── Story 4.4 — V8 골든 match path (AC #5) ─────────────────
@@ -476,7 +481,7 @@ async def _step_6_5_v8_golden_mismatch_returns_failed_envelope_impl() -> None:
     assert verdict.top_failure.code == "V8"
     # AD-12 ordering — V1·V4 still fired before V8 triggered the abort.
     codes = [v.code for v in verdict.verifications]
-    assert codes == ["V1", "V4", "V8"]
+    assert codes == ["V1", "V4", "V3", "V8"]  # Story 5.3 V3 inserted at slot 3 of 5
     # golden_diff is the CR 2.3 extra='forbid' consistent shape.
     assert "golden_diff" in verdict.top_failure.details
     diff = verdict.top_failure.details["golden_diff"]

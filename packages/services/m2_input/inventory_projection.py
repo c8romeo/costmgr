@@ -46,9 +46,7 @@ from typing import Final, NamedTuple, Protocol
 # - `semi_product` — 반제품 (work-in-progress)
 # - `product`      — 완제품 (finished goods)
 # Excluded: `service` (consulting, no stock), `merchandise` (Epic 5 separate)
-INVENTORY_PRODUCT_TYPES: Final[frozenset[str]] = frozenset(
-    {"material", "semi_product", "product"}
-)
+INVENTORY_PRODUCT_TYPES: Final[frozenset[str]] = frozenset({"material", "semi_product", "product"})
 
 # Decimal quantization for qty — NUMERIC(18,4) per PRD §6.1.
 QTY_QUANTUM: Final[Decimal] = Decimal("0.0001")
@@ -222,21 +220,13 @@ def build_inventory_projection(
     out: list[InventoryMovement] = []
     for pid in sorted(bucket.keys(), key=str):
         slot = bucket[pid]
-        opening = (
-            (opening_balance or {}).get(pid, Decimal("0"))
-        )
+        opening = (opening_balance or {}).get(pid, Decimal("0"))
         out.append(
             InventoryMovement(
                 product_id=pid,
-                opening_qty=opening.quantize(
-                    QTY_QUANTUM, rounding=ROUND_HALF_EVEN
-                ),
-                inbound_qty=slot["inbound"].quantize(
-                    QTY_QUANTUM, rounding=ROUND_HALF_EVEN
-                ),
-                outbound_qty=slot["outbound"].quantize(
-                    QTY_QUANTUM, rounding=ROUND_HALF_EVEN
-                ),
+                opening_qty=opening.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN),
+                inbound_qty=slot["inbound"].quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN),
+                outbound_qty=slot["outbound"].quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN),
             )
         )
     return out

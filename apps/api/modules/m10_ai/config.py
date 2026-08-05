@@ -83,6 +83,4 @@ IDEMPOTENCY_KEY_TTL_HOURS: Final[int] = 24
 # Production sets it to True after the [STACK BUMP] wires the SDK.
 import os  # noqa: E402 — deferred module-level import after feature-flag docblock
 
-AI_PROVIDER_ENABLED: Final[bool] = (
-    os.getenv("AI_PROVIDER_ENABLED", "false").lower() == "true"
-)
+AI_PROVIDER_ENABLED: Final[bool] = os.getenv("AI_PROVIDER_ENABLED", "false").lower() == "true"

@@ -290,9 +290,14 @@ async def _v8_golden_industry_skip_matrix_impl(industry: str) -> None:
     codes = [v.code for v in verdict.verifications]
     if industry == "service":
         # V7 fires only for service. V8 still fires for all.
+        # Story 5.3: V3 is service-only SKIPPED (Story 4-3 service-only skip pattern
+        # mirrored by V3 closing invariant = inventory semantics don't apply to
+        # service-only tenants). So service skips V3 entirely.
         assert codes == ["V1", "V4", "V7", "V8"]
     else:
-        assert codes == ["V1", "V4", "V8"]
+        # V3 fires for all manufacturing industries (closing invariant is
+        # inventory-semantic — applies to any tenant with inventory).
+        assert codes == ["V1", "V4", "V3", "V8"]
     # V8 itself fired and passed (canonical b-small match for all industries).
     v8 = next(v for v in verdict.verifications if v.code == "V8")
     assert v8.status == "passed"
@@ -350,7 +355,9 @@ def test_v8_rule_registry_uniqueness() -> None:
     """Each rule name maps to exactly one registry entry (no duplicates)."""
     names = [r.name for r in _VERIFICATION_RULES]
     assert len(names) == len(set(names))
-    assert set(names) == {"V1", "V4", "V7", "V8"}
+    # Story 5.3: V3 (closing ≥ 0 invariant) added at slot 3 of 5 ordering
+    # (V1 → V4 → V3 → V7 → V8). Per AD-12 invariant preserved.
+    assert set(names) == {"V1", "V3", "V4", "V7", "V8"}
 
 
 @pytest.mark.engine

@@ -48,12 +48,8 @@ INDUSTRY_MANUFACTURING_SERVICE_OTHER: Literal["manufacturing_service_other"] = (
 # Back-compat alias — some tests had a `INDUSTRY_MANUFACTURING_RETAIL` name.
 # Keep pointing at the canonical "manufacturing_service" string so legacy
 # references still resolve while the canonical enum drives truth.
-INDUSTRY_MANUFACTURING_RETAIL: Literal["manufacturing_service"] = (
-    INDUSTRY_MANUFACTURING_SERVICE
-)
-INDUSTRY_MIXED: Literal["manufacturing_service_other"] = (
-    INDUSTRY_MANUFACTURING_SERVICE_OTHER
-)
+INDUSTRY_MANUFACTURING_RETAIL: Literal["manufacturing_service"] = INDUSTRY_MANUFACTURING_SERVICE
+INDUSTRY_MIXED: Literal["manufacturing_service_other"] = INDUSTRY_MANUFACTURING_SERVICE_OTHER
 
 # Tenant.industry column CheckConstraint enum values (db_models.py:62-64).
 INDUSTRY_VALUES: tuple[str, ...] = tuple(member.value for member in Industry)
@@ -72,6 +68,11 @@ class RuleInput:
     Story 4.3 (Task 1.2) — every field is serializable + deterministic.
     `tenant_id`, `period_key`, `trace_id` are identifiers for audit log
     carriers (consumed by `VerificationRunner`, NOT by rule kernels).
+
+    Story 5.3 — `closing_invariant_verdict` is the pre-loaded V3 verdict
+    (V3Verdict TypedDict from `packages.cost_engine.closing_invariant_check`).
+    The orchestrator pre-loads via `ClosingGuardService` BEFORE calling
+    `VerificationRunner.run_all()`. Rules do NOT perform I/O (AD-5).
     """
 
     monthly_input: MonthlyInput
@@ -81,6 +82,7 @@ class RuleInput:
     tenant_id: UUID
     period_key: str
     trace_id: str
+    closing_invariant_verdict: dict[str, Any] | None = None  # Story 5.3 V3 pre-load
 
 
 @dataclass(frozen=True)
@@ -96,7 +98,7 @@ class VerificationItem:
         V7: pools/activities, V8: placeholder contract flags).
     """
 
-    code: Literal["V1", "V4", "V7", "V8"]
+    code: Literal["V1", "V4", "V3", "V7", "V8"]
     status: VerificationStatusLiteral
     message_ko: str
     details: dict[str, Any]

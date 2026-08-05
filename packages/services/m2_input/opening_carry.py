@@ -54,6 +54,7 @@ INVENTORY_PERIOD_CHAIN_LIMIT: Final[int] = 12
 # OpeningCarryDecision — pure data class for carry chain result
 # ─────────────────────────────────────────────────────────────
 
+
 class OpeningCarryDecision(NamedTuple):
     """Per-product carry chain decision for current period's opening.
 
@@ -76,6 +77,7 @@ class OpeningCarryDecision(NamedTuple):
 # ─────────────────────────────────────────────────────────────
 # compute_carry_chain — prev period closing → current opening
 # ─────────────────────────────────────────────────────────────
+
 
 def compute_carry_chain(
     prev_period_projection: dict[uuid.UUID, Decimal] | None,
@@ -131,9 +133,7 @@ def compute_carry_chain(
         else:
             # Current has a value — is it stale? Stale = current value
             # doesn't match prev period's known projection.
-            current_normalized = current_qty.quantize(
-                QTY_QUANTUM, rounding=ROUND_HALF_EVEN
-            )
+            current_normalized = current_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
             is_stale = current_normalized != prev_normalized
             decisions.append(
                 OpeningCarryDecision(
@@ -151,6 +151,7 @@ def compute_carry_chain(
 # ─────────────────────────────────────────────────────────────
 # resolve_opening_balance — JSONB → dict[UUID, Decimal] carry vs stale
 # ─────────────────────────────────────────────────────────────
+
 
 def resolve_opening_balance(
     current_opening_jsonb: dict[str, Any] | None,  # noqa: ARG001 — audit log capture (Epic 5-2)
@@ -197,6 +198,7 @@ def resolve_opening_balance(
 # lock_opening_after_first_row — JSONB sub-key lock marker
 # ─────────────────────────────────────────────────────────────
 
+
 def lock_opening_after_first_row(
     period_state: dict[uuid.UUID, Decimal],
     *,
@@ -229,6 +231,7 @@ def lock_opening_after_first_row(
 # ─────────────────────────────────────────────────────────────
 # validate_opening_lock_consistency — JSONB shape guard
 # ─────────────────────────────────────────────────────────────
+
 
 class MonthlyInputOpeningLockViolationError(Exception):
     """Raised when opening_inventory JSONB shape is inconsistent.

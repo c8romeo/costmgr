@@ -239,8 +239,7 @@ def validate_event_type(event_type: str) -> None:
     if not isinstance(event_type, str):
         raise AppendOnlyLedgerError(
             message=(
-                f"inventory_ledger event_type must be str, got "
-                f"{type(event_type).__name__!r}"
+                f"inventory_ledger event_type must be str, got " f"{type(event_type).__name__!r}"
             ),
             error_code=ERROR_CODE_NON_STR_EVENT_TYPE,
         )
@@ -300,9 +299,7 @@ def _validate_period_key(period_key: str) -> None:
         )
     if not _PERIOD_KEY_PATTERN.match(period_key):
         raise AppendOnlyLedgerError(
-            message=(
-                f"period_key {period_key!r} must match 'YYYY-MM' AD-24 typed pattern"
-            ),
+            message=(f"period_key {period_key!r} must match 'YYYY-MM' AD-24 typed pattern"),
             error_code=ERROR_CODE_INVALID_PERIOD_KEY,
         )
 
@@ -337,10 +334,7 @@ def _validate_qty(qty: Decimal | None, *, event_type: str) -> None:
 
     if not isinstance(qty, Decimal):
         raise AppendOnlyLedgerError(
-            message=(
-                f"qty must be Decimal, got {type(qty).__name__!r} "
-                f"(AD-8 monetary types)"
-            ),
+            message=(f"qty must be Decimal, got {type(qty).__name__!r} " f"(AD-8 monetary types)"),
             error_code=ERROR_CODE_QTY_MUST_BE_DECIMAL,
         )
 
@@ -361,10 +355,7 @@ def _validate_uuid7(value: uuid.UUID, *, field: str) -> None:
         return
     if version not in (4, 7):
         raise AppendOnlyLedgerError(
-            message=(
-                f"{field} must be UUID v7 (preferred) or v4, got version "
-                f"{version!r}"
-            ),
+            message=(f"{field} must be UUID v7 (preferred) or v4, got version " f"{version!r}"),
             error_code=ERROR_CODE_INVALID_UUID_VERSION,
         )
 
@@ -382,10 +373,7 @@ def _validate_source(source: str) -> None:
     )
     if source not in valid:
         raise AppendOnlyLedgerError(
-            message=(
-                f"source {source!r} is not in the 5-canonical set: "
-                f"{sorted(valid)}"
-            ),
+            message=(f"source {source!r} is not in the 5-canonical set: " f"{sorted(valid)}"),
             error_code=ERROR_CODE_INVALID_SOURCE,
         )
 
@@ -435,10 +423,7 @@ def append_only_violation_message(
         "DELETE": "삭제",
     }.get(attempted_op, attempted_op)
 
-    base = (
-        f"수불부는 원장만 기록 가능하며 {op_label} 불가합니다 "
-        f"(event_id={event_id})"
-    )
+    base = f"수불부는 원장만 기록 가능하며 {op_label} 불가합니다 " f"(event_id={event_id})"
     if db_trigger_message:
         base = f"{base} — DB trigger: {db_trigger_message}"
     return base

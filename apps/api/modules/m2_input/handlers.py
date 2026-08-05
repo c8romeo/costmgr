@@ -61,9 +61,7 @@ router = APIRouter(prefix="/api/v2/monthly-input", tags=["m2-input"])
 
 
 # ── Industry resolution (for capability gate) ────────────────
-async def _resolve_industry(
-    *, session: AsyncSession, tenant_id: uuid.UUID
-) -> Industry | None:
+async def _resolve_industry(*, session: AsyncSession, tenant_id: uuid.UUID) -> Industry | None:
     """Read the tenant's industry from `tenant_settings.onboarding.industry`.
 
     Returns None if no tenant_settings row exists (e.g. tenant created
@@ -72,9 +70,7 @@ async def _resolve_industry(
     `TenantSettingsNotFoundError`; let DB / schema errors propagate.
     """
     try:
-        row = await SettingsService(session).get_tenant_settings(
-            tenant_id=tenant_id
-        )
+        row = await SettingsService(session).get_tenant_settings(tenant_id=tenant_id)
     except TenantSettingsNotFoundError:
         return None
     onboarding = dict(row.onboarding or {})
@@ -104,9 +100,7 @@ async def get_monthly_input_state(
     Drives the horizontal tab strip + yellow dots + [계산] button state
     + read-only FTE display. RLS-scoped via `tenant_id` from JWT.
     """
-    industry = await _resolve_industry(
-        session=session, tenant_id=ctx.tenant_id
-    )
+    industry = await _resolve_industry(session=session, tenant_id=ctx.tenant_id)
     trace_id = str(uuid.uuid4())
     service = MonthlyInputService(
         session,
@@ -137,9 +131,7 @@ async def save_monthly_input_row(
     frontend can clear the yellow dot + update the [계산] button state
     without an extra round-trip.
     """
-    industry = await _resolve_industry(
-        session=session, tenant_id=ctx.tenant_id
-    )
+    industry = await _resolve_industry(session=session, tenant_id=ctx.tenant_id)
     trace_id = str(uuid.uuid4())
     service = MonthlyInputService(
         session,
@@ -183,9 +175,7 @@ async def update_monthly_input_row(
     `exclude_unset=True` semantics are honored at the Pydantic boundary
     (`body.model_dump(exclude_unset=True)`).
     """
-    industry = await _resolve_industry(
-        session=session, tenant_id=ctx.tenant_id
-    )
+    industry = await _resolve_industry(session=session, tenant_id=ctx.tenant_id)
     trace_id = str(uuid.uuid4())
     service = MonthlyInputService(
         session,
@@ -219,9 +209,7 @@ async def delete_monthly_input_row(
 
     Audit row written BEFORE the data DELETE (AD-2).
     """
-    industry = await _resolve_industry(
-        session=session, tenant_id=ctx.tenant_id
-    )
+    industry = await _resolve_industry(session=session, tenant_id=ctx.tenant_id)
     trace_id = str(uuid.uuid4())
     service = MonthlyInputService(
         session,
@@ -257,9 +245,7 @@ async def set_monthly_input_mode(
     body empty and to match the F2.1 spec shape. No baseline_revision
     bump — mode is a UI preference, not a baseline change.
     """
-    industry = await _resolve_industry(
-        session=session, tenant_id=ctx.tenant_id
-    )
+    industry = await _resolve_industry(session=session, tenant_id=ctx.tenant_id)
     trace_id = str(uuid.uuid4())
     service = MonthlyInputService(
         session,
@@ -300,11 +286,7 @@ def _industry_not_supported_response(
             "code": "INDUSTRY_NOT_SUPPORTED",
             "message_ko": "제조업 업종에서만 입력 가능합니다",
             "details": {
-                "current_industry": (
-                    exc.current_industry.value
-                    if exc.current_industry
-                    else None
-                ),
+                "current_industry": (exc.current_industry.value if exc.current_industry else None),
                 "requested_stream": "production",
             },
             "trace_id": exc.trace_id,

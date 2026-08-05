@@ -335,17 +335,14 @@ def _validate_company_subblock(value: Any) -> list[OnboardingSchemaError]:
                 OnboardingSchemaError(
                     field=f"company_subblock.{key}",
                     reason=(
-                        f"unknown subkey (must be one of "
-                        f"{sorted(_COMPANY_SUBBLOCK_KEYS)})"
+                        f"unknown subkey (must be one of " f"{sorted(_COMPANY_SUBBLOCK_KEYS)})"
                     ),
                     value=key,
                 )
             )
     # Per-field validation (only when present — partial semantics).
     if "business_registration_number" in value:
-        errors.extend(
-            _validate_business_registration_number(value["business_registration_number"])
-        )
+        errors.extend(_validate_business_registration_number(value["business_registration_number"]))
     if "company_name" in value:
         errors.extend(_validate_company_name(value["company_name"]))
     if "address" in value:

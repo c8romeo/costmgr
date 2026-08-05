@@ -54,17 +54,13 @@ def compute_four_elements(
         All values are KRW int (AD-8 BIGINT 정밀).
     """
     # ①생산·매출 수량차 재료비 = (produced - sold) * unit_material_price
-    qty_diff_material_krw = KRW(
-        int((produced_qty - sold_qty) * int(unit_material_price_krw))
-    )
+    qty_diff_material_krw = KRW(int((produced_qty - sold_qty) * int(unit_material_price_krw)))
 
     # ②흡수 원가 (sold_qty × unit_material_price + labor + overhead)
     # ① + ② = produced × unit_material + labor + overhead = manufacturing
     # (this is the standard V4 decomposition invariant)
     labor_overhead_allocation_krw = KRW(
-        int(sold_qty * int(unit_material_price_krw))
-        + int(labor_cost_krw)
-        + int(overhead_cost_krw)
+        int(sold_qty * int(unit_material_price_krw)) + int(labor_cost_krw) + int(overhead_cost_krw)
     )
 
     # ③총평균단가차 — Epic 5 5-2 ledger fold-in 후 wire (MVP placeholder)
@@ -77,9 +73,7 @@ def compute_four_elements(
     inventory_adjustment_pass = KRW(int(inventory_adjustment_krw))
 
     sum_4_elements = KRW(
-        int(qty_diff_material_krw)
-        + int(labor_overhead_allocation_krw)
-        + int(unit_price_diff_krw)
+        int(qty_diff_material_krw) + int(labor_overhead_allocation_krw) + int(unit_price_diff_krw)
     )
 
     return {

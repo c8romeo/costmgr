@@ -93,6 +93,7 @@ def _mint_event_id() -> uuid.UUID:
     # Python < 3.14 fallback: v4 is permitted by pure kernel MVP.
     return uuid.uuid4()
 
+
 # ─────────────────────────────────────────────────────────────
 # Typed exceptions (mapped to HTTP by handlers.py / main.py)
 # ─────────────────────────────────────────────────────────────
@@ -142,9 +143,7 @@ class InventoryLedgerInvalidEventTypeError(Exception):
         event_type: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"event_type {event_type!r} is not in the 11-value whitelist"
-        )
+        super().__init__(f"event_type {event_type!r} is not in the 11-value whitelist")
         self.tenant_id = tenant_id
         self.event_type = event_type
         self.trace_id = trace_id
@@ -164,9 +163,7 @@ class InventoryLedgerPeriodKeyFormatError(Exception):
         period_key: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"period_key {period_key!r} must match 'YYYY-MM' AD-24 typed pattern"
-        )
+        super().__init__(f"period_key {period_key!r} must match 'YYYY-MM' AD-24 typed pattern")
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.trace_id = trace_id
@@ -418,10 +415,7 @@ class LedgerService:
                 "period_key": period_key,
             },
         )
-        return {
-            row.product_id: Decimal(str(row.closing_qty))
-            for row in rows
-        }
+        return {row.product_id: Decimal(str(row.closing_qty)) for row in rows}
 
     # ── Operation 3: query_carry_chain (AC #1 recursive walk) ──
     async def query_carry_chain(
@@ -457,9 +451,7 @@ class LedgerService:
                 "event_id": str(row.event_id),
                 "period_key": row.period_key,
                 "qty": str(row.qty) if row.qty is not None else None,
-                "inserted_at": row.inserted_at.isoformat()
-                if row.inserted_at
-                else None,
+                "inserted_at": row.inserted_at.isoformat() if row.inserted_at else None,
             }
             for row in rows
         ]

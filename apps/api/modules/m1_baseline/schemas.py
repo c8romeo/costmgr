@@ -161,7 +161,9 @@ class ProductCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(..., min_length=1, max_length=200, description="제품/품목 이름 (1..200자).")
-    product_type: ProductType = Field(..., description="5지선다 enum (제품·반제품·원자재·상품·서비스).")
+    product_type: ProductType = Field(
+        ..., description="5지선다 enum (제품·반제품·원자재·상품·서비스)."
+    )
     code: str | None = Field(
         default=None,
         max_length=20,
@@ -180,7 +182,9 @@ class ProductCreateRequest(BaseModel):
         decimal_places=2,
         description="단가 (USD). NUMERIC(18,2). 미설정 시 null.",
     )
-    description: str | None = Field(default=None, max_length=2000, description="설명 (최대 2000자).")
+    description: str | None = Field(
+        default=None, max_length=2000, description="설명 (최대 2000자)."
+    )
 
 
 class ProductUpdateRequest(BaseModel):
@@ -354,9 +358,7 @@ class BOMResponse(BaseModel):
     parent_product_type: ProductType
     parent_is_active: bool
     lines: list[BOMLineResponse]
-    total_ratio: Decimal = Field(
-        ..., description="비중 합계 (NUMERIC(7,4) precision)."
-    )
+    total_ratio: Decimal = Field(..., description="비중 합계 (NUMERIC(7,4) precision).")
     is_complete: bool = Field(
         ...,
         description="A6 invariant — True iff total_ratio == Decimal('100.0000').",

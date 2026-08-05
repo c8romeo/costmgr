@@ -505,9 +505,7 @@ async def _m4_opening_manual_edit_handler(
         status_code=400,
         content={
             "code": "MONTHLY_INPUT_OPENING_MANUAL_EDIT",
-            "message_ko": (
-                "기초재고는 자동 이월되며 수동 입력이 차단됩니다."
-            ),
+            "message_ko": ("기초재고는 자동 이월되며 수동 입력이 차단됩니다."),
             "details": {
                 "period_key": exc.period_key,
                 "tenant_id": str(exc.tenant_id),
@@ -531,9 +529,7 @@ async def _m4_opening_lock_violation_handler(
         status_code=500,
         content={
             "code": "MONTHLY_INPUT_OPENING_LOCK_VIOLATION",
-            "message_ko": (
-                "기초재고 잠금 상태가 손상되었습니다. 관리자에게 문의하세요."
-            ),
+            "message_ko": ("기초재고 잠금 상태가 손상되었습니다. 관리자에게 문의하세요."),
             "details": {
                 "period_key": exc.period_key,
                 "tenant_id": str(exc.tenant_id),
@@ -556,6 +552,7 @@ async def _m4_carry_chain_limit_handler(
     from apps.api.modules.m4_inventory.services.opening_carry_service import (
         INVENTORY_PERIOD_CHAIN_LIMIT,
     )
+
     return JSONResponse(
         status_code=422,
         content={
@@ -627,9 +624,7 @@ async def _m4_append_only_violation_handler(
         status_code=500,
         content={
             "code": "APPEND_ONLY_LEDGER_VIOLATION",
-            "message_ko": (
-                "수불부는 원장만 기록 가능하며 수정·삭제 불가합니다"
-            ),
+            "message_ko": ("수불부는 원장만 기록 가능하며 수정·삭제 불가합니다"),
             "details": {
                 "event_id": str(exc.event_id) if exc.event_id else None,
                 "attempted_op": exc.attempted_op,
@@ -677,9 +672,7 @@ async def _m4_period_key_format_handler(
         status_code=422,
         content={
             "code": "INVENTORY_LEDGER_PERIOD_KEY_FORMAT",
-            "message_ko": (
-                f"기간 키({exc.period_key!r})는 'YYYY-MM' 형식이어야 합니다"
-            ),
+            "message_ko": (f"기간 키({exc.period_key!r})는 'YYYY-MM' 형식이어야 합니다"),
             "details": {
                 "period_key": exc.period_key,
                 "tenant_id": str(exc.tenant_id),
@@ -705,8 +698,7 @@ async def _m4_reversal_not_yet_wired_handler(
         content={
             "code": "INVENTORY_LEDGER_REVERSAL_NOT_YET_WIRED",
             "message_ko": (
-                "수불 반전 기능은 Epic 11 모듈 출시 후 활성화됩니다. "
-                "현재는 요청만 기록됩니다."
+                "수불 반전 기능은 Epic 11 모듈 출시 후 활성화됩니다. " "현재는 요청만 기록됩니다."
             ),
             "details": {
                 "event_id": str(exc.event_id),

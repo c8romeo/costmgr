@@ -62,9 +62,7 @@ STREAMS_FOR_INDUSTRY: Final[dict[Industry, frozenset[str]]] = {
     Industry.MANUFACTURING: frozenset(
         {"orders", "production", "sales", "purchases", "expenses", "labor"}
     ),
-    Industry.SERVICE: frozenset(
-        {"orders", "sales", "purchases", "expenses", "labor"}
-    ),
+    Industry.SERVICE: frozenset({"orders", "sales", "purchases", "expenses", "labor"}),
     Industry.MANUFACTURING_SERVICE: frozenset(
         {"orders", "production", "sales", "purchases", "expenses", "labor"}
     ),

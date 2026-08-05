@@ -92,9 +92,12 @@ class FakeDocumentExtractionAdapter:
             return f"홍길동{int(chunk[:2], 16) % 100}"
         if field_name == "industry":
             # Cycle through 4 known industries for variety.
-            return ("manufacturing", "service", "manufacturing_service", "manufacturing_service_other")[
-                int(chunk[:2], 16) % 4
-            ]
+            return (
+                "manufacturing",
+                "service",
+                "manufacturing_service",
+                "manufacturing_service_other",
+            )[int(chunk[:2], 16) % 4]
         return None
 
     def _fake_confidence(self, field_name: str, digest: bytes) -> float:

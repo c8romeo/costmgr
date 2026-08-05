@@ -72,9 +72,7 @@ INDUSTRY_VALUES: tuple[str, ...] = (
 ALL_BASELINE_SHAPES: tuple[str, ...] = tuple(BASELINE_SHAPES.keys())
 
 
-def _publish_one(
-    *, industry: str, baseline_shape: str, fixtures_root: Path
-) -> dict:
+def _publish_one(*, industry: str, baseline_shape: str, fixtures_root: Path) -> dict:
     """1 industry × 1 baseline shape = 1 fixture object (in-memory + disk)."""
     s = BASELINE_SHAPES[baseline_shape]
     mi = MonthlyInput(
@@ -201,8 +199,7 @@ def main() -> int:
                     fixtures_root=args.fixtures_root,
                 )
                 print(
-                    f"  [OK] {obj['fixture_id']} "
-                    f"(lock={obj['_fixture_lock_sha256'][:16]}...)"
+                    f"  [OK] {obj['fixture_id']} " f"(lock={obj['_fixture_lock_sha256'][:16]}...)"
                 )
         return 0
 

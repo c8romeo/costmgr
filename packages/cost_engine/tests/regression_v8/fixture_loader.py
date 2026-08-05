@@ -62,20 +62,16 @@ def _validate_v8_input_shape(input_dict: dict[str, Any]) -> None:
     monthly_input = input_dict.get("monthly_input", {})
     mi_required = set(V8_INPUT_SCHEMA["properties"]["monthly_input"]["required"])
     mi_missing = mi_required - set(monthly_input.keys())
-    assert not mi_missing, (
-        f"monthly_input missing required keys: {sorted(mi_missing)}"
-    )
+    assert not mi_missing, f"monthly_input missing required keys: {sorted(mi_missing)}"
 
     for k in ("direct_material_krw", "direct_labor_krw", "indirect_krw"):
         v = monthly_input.get(k)
-        assert isinstance(v, int), (
-            f"monthly_input.{k} must be int, got {type(v).__name__}"
-        )
+        assert isinstance(v, int), f"monthly_input.{k} must be int, got {type(v).__name__}"
 
     fte = monthly_input.get("fte_headcount")
-    assert isinstance(fte, str | int | float), (
-        f"monthly_input.fte_headcount must be str (Decimal) or numeric, got {type(fte).__name__}"
-    )
+    assert isinstance(
+        fte, str | int | float
+    ), f"monthly_input.fte_headcount must be str (Decimal) or numeric, got {type(fte).__name__}"
 
 
 def _validate_v8_golden_shape(golden: dict[str, Any]) -> None:
@@ -90,23 +86,21 @@ def _validate_v8_golden_shape(golden: dict[str, Any]) -> None:
         assert v >= 0, f"golden.{k} must be ≥ 0 (V8_INPUT_SCHEMA minimum=0)"
 
     inv_adj = golden.get("inventory_adjustment")
-    assert isinstance(inv_adj, int), (
-        f"golden.inventory_adjustment must be int, got {type(inv_adj).__name__}"
-    )
+    assert isinstance(
+        inv_adj, int
+    ), f"golden.inventory_adjustment must be int, got {type(inv_adj).__name__}"
 
     rh = golden.get("result_hash")
     assert isinstance(rh, str)
-    assert len(rh) == 64, (
-        f"golden.result_hash must be 64-char hex, got len={len(rh)}"
-    )
-    assert all(c in "0123456789abcdef" for c in rh.lower()), (
-        f"golden.result_hash must be hex, got {rh[:16]}…"
-    )
+    assert len(rh) == 64, f"golden.result_hash must be 64-char hex, got len={len(rh)}"
+    assert all(
+        c in "0123456789abcdef" for c in rh.lower()
+    ), f"golden.result_hash must be hex, got {rh[:16]}…"
 
     state = golden.get("state")
-    assert state == "draft", (
-        f"golden.state must be 'draft' (AD-22 — engine returns draft ONLY), got {state!r}"
-    )
+    assert (
+        state == "draft"
+    ), f"golden.state must be 'draft' (AD-22 — engine returns draft ONLY), got {state!r}"
 
 
 def compute_golden_lock_sha256(golden: V8GoldenOutputDict) -> str:

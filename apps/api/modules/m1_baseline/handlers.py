@@ -190,6 +190,7 @@ async def _resolve_industry_for_capability(
     if not industry_raw:
         return None
     from packages.services.m0_onboarding.industry_menu import Industry
+
     try:
         return Industry(industry_raw)
     except ValueError:
@@ -250,9 +251,7 @@ def _format_type_references_message_ko(err: ProductTypeHasReferencesError) -> st
     parts = [f"BOM {err.bom_count}건에서 참조 중"]
     if err.ledger_count > 0:
         parts.append(f"· 수불 {err.ledger_count}건")
-    parts.append(
-        " — 신규 품목 생성 후 참조 이관 후 삭제 (품목 유형은 참조 0건일 때만 변경 가능)"
-    )
+    parts.append(" — 신규 품목 생성 후 참조 이관 후 삭제 (품목 유형은 참조 0건일 때만 변경 가능)")
     return "".join(parts)
 
 
@@ -420,10 +419,7 @@ async def update_product(
     # If the body is ONLY `{is_active: false}`, skip update_product and
     # go straight to soft_delete_product. If mixed, run update_product
     # first for the metadata fields, then soft_delete_product.
-    if (
-        body.is_active is not None
-        and body.model_dump(exclude_unset=True).keys() == {"is_active"}
-    ):
+    if body.is_active is not None and body.model_dump(exclude_unset=True).keys() == {"is_active"}:
         try:
             row = await service.soft_delete_product(
                 tenant_id=ctx.tenant_id,

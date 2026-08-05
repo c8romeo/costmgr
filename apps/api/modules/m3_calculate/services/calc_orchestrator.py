@@ -57,6 +57,9 @@ from apps.api.modules.m3_calculate.services.baseline_loader import (
     BaselineLoadResult,
     BaselineNotReadyError,
 )
+from apps.api.modules.m3_calculate.services.closing_invariant_verifier import (
+    ClosingInvariantVerifier,
+)
 from apps.api.modules.m3_calculate.services.monthly_input_aggregator import (
     MonthlyInputAggregator,
 )
@@ -76,6 +79,7 @@ from packages.cost_engine.ports.calc_port import (
 # ── Constants ────────────────────────────────────────────────
 _ENGINE_TYPE_TRAD: Final[str] = "trad"  # default engine_type (Epic 9 adds 'abc')
 _DEFAULT_BASELINE_REVISION: Final[int] = 1  # initial revision; bumped by Story 3.4 / Epic 4
+
 
 # Calc outcome — pairs engine result with AD-12 verdict envelope.
 # Returned by `CalcOrchestrator.compute(...)` so the handler can build
@@ -205,6 +209,7 @@ class CalcOrchestrator:
         self._input_aggregator = MonthlyInputAggregator(session=session, trace_id=trace_id)
         self._verification_runner = VerificationRunner(trace_id=trace_id)
         self._industry: str | None = None  # cached after _load_tenant_industry
+        self._industry_enum = None  # Story 5.3 — Industry enum for ClosingInvariantVerifier
 
     async def compute(
         self,
@@ -303,6 +308,28 @@ class CalcOrchestrator:
                 )
 
             # 8. First-time compute: Step 6.5 AD-12 verification-first.
+            # Story 5.3 — V3 pre-load via ClosingInvariantVerifier
+            # (closing_invariant_verdict) is injected into RuleInput. The V3
+            # rule kernel stays pure (AD-5) — orchestrator owns the I/O.
+            closing_invariant_verdict: dict | None = None
+            if self._industry_enum is not None:
+                v3_verifier = ClosingInvariantVerifier(
+                    self._session,
+                    tenant_id=tenant_id,
+                    industry=self._industry_enum,
+                    trace_id=self._trace_id,
+                )
+                try:
+                    closing_invariant_verdict = await v3_verifier.verify_v3_closing_invariant(
+                        period_key=period_key,
+                        actor_id=None,  # system actor — calc orchestrator
+                    )
+                except Exception:
+                    # V3 pre-load failure → fall back to None (V3 rule treats
+                    # None as skipped, not block). Don't fail calc on
+                    # transient guard failure.
+                    closing_invariant_verdict = None
+
             verdict = await self._verification_runner.run_all(
                 monthly_input=monthly_input,
                 baseline=baseline,
@@ -310,6 +337,7 @@ class CalcOrchestrator:
                 industry=self._industry or "manufacturing",  # default fallback
                 tenant_id=tenant_id,
                 period_key=period_key,
+                closing_invariant_verdict=closing_invariant_verdict,
             )
 
             if verdict.verification_status == "failed":
@@ -340,9 +368,7 @@ class CalcOrchestrator:
                     baseline_revision=baseline_revision,
                     action=v8_action,
                     top_failure_code=top_failure.code if top_failure else None,
-                    top_failure_message_ko=top_failure.message_ko
-                    if top_failure
-                    else None,
+                    top_failure_message_ko=top_failure.message_ko if top_failure else None,
                     result_hash=engine_result.result_hash,
                     trace_id=self._trace_id,
                 )
@@ -429,6 +455,13 @@ class CalcOrchestrator:
             )
         # Cache for AD-12 verification (Step 6.5 needs industry)
         self._industry = tenant.industry
+        # Story 5.3 — also cache Industry enum for ClosingInvariantVerifier
+        try:
+            from packages.services.m0_onboarding.industry_menu import Industry
+
+            self._industry_enum = Industry(tenant.industry)
+        except (ValueError, KeyError):
+            self._industry_enum = None
         return tenant
 
     def _build_default_pass_verdict(self) -> Verdict:
@@ -542,9 +575,7 @@ class CalcOrchestrator:
         constraint on `verification_log.action` is the production gate;
         the registry validate is the early-fail guard for upstream callers.
         """
-        _ActionRegistry.validate(
-            action_class=ActionClass.VERIFICATION_LOG, action=action
-        )
+        _ActionRegistry.validate(action_class=ActionClass.VERIFICATION_LOG, action=action)
         row = VerificationLog(
             tenant_id=tenant_id,
             period_key=period_key,

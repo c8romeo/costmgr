@@ -78,6 +78,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "ALTER TABLE monthly_input_periods DROP COLUMN IF EXISTS opening_inventory"
-    )
+    op.execute("ALTER TABLE monthly_input_periods DROP COLUMN IF EXISTS opening_inventory")

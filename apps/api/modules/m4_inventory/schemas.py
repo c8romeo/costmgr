@@ -73,9 +73,7 @@ class LedgerEventCreateRequest(BaseModel):
         import re
 
         if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", v):
-            raise ValueError(
-                f"period_key {v!r} must match 'YYYY-MM' AD-24 typed pattern"
-            )
+            raise ValueError(f"period_key {v!r} must match 'YYYY-MM' AD-24 typed pattern")
         return v
 
 
@@ -154,10 +152,114 @@ class ReversalRequestCreate(BaseModel):
     )
 
 
+# ── 5. Story 5.3 — Closing guard schemas (AC #2 + AC #4 + AC #5) ─
+class ClosingGuardEvaluateRequest(BaseModel):
+    """POST /api/v1/inventory/closing-guard/evaluate body.
+
+    Read-only closing invariant check (PRD §F4.2 + §V3).
+    Triggers `ClosingGuardService.evaluate_closing_guard(period_key)`.
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str = Field(..., description="AD-24 typed 'YYYY-MM' fiscal key")
+
+    @field_validator("period_key")
+    @classmethod
+    def _validate_period_key_format(cls, v: str) -> str:
+        """AD-24 pattern check at the Pydantic boundary (defense-in-depth)."""
+        import re
+
+        if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", v):
+            raise ValueError(f"period_key {v!r} must match 'YYYY-MM' AD-24 typed pattern")
+        return v
+
+
+class NegativeProductEntry(BaseModel):
+    """Single product entry in the negative_products list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: str = Field(..., description="product_id UUID string")
+    closing_qty: str = Field(..., description="Negative Decimal as AD-8 string")
+
+
+class ClosingGuardEvaluateResponse(BaseModel):
+    """POST /api/v1/inventory/closing-guard/evaluate response.
+
+    Returns the ClosingInvariant NamedTuple fields in wire format:
+    - `code`: 'CLOSING_OK' | 'NEGATIVE_CLOSING' | 'EMPTY_PERIOD'
+    - `closing_per_product`: dict[product_id_str → Decimal_str]
+    - `negative_products`: list of {product_id, closing_qty} (empty when OK/EMPTY)
+    - `guard_enabled`: True if industry supports inventory guard
+    - `banner_ko`: Korean message for UI display
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str
+    code: str
+    closing_per_product: dict[str, str] = Field(default_factory=dict)
+    negative_products: list[NegativeProductEntry] = Field(default_factory=list)
+    guard_enabled: bool
+    banner_ko: str
+    trace_id: str
+
+
+class ClosingGuardCloseAttemptRequest(BaseModel):
+    """POST /api/v1/inventory/closing-guard/close-attempt body.
+
+    Close-time gate wire (additive over Story 4-2 is_blocked →
+    409 MONTHLY_INPUT_BLOCKED). When invariant.code='NEGATIVE_CLOSING',
+    returns 409 NEGATIVE_CLOSING_INVENTORY with the Korean banner.
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str = Field(..., description="AD-24 typed 'YYYY-MM' fiscal key")
+
+    @field_validator("period_key")
+    @classmethod
+    def _validate_period_key_format(cls, v: str) -> str:
+        import re
+
+        if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", v):
+            raise ValueError(f"period_key {v!r} must match 'YYYY-MM' AD-24 typed pattern")
+        return v
+
+
+class ClosingGuardCloseAttemptResponse(BaseModel):
+    """POST /api/v1/inventory/closing-guard/close-attempt response (200 OK).
+
+    Returns `allowed: True` with the closing projection for UI echo.
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    allowed: bool
+    period_key: str
+    closing_per_product: dict[str, str] = Field(default_factory=dict)
+    invariant_code: str
+    trace_id: str
+
+
 __all__ = [
     "CarryChainEntry",
     "CarryChainResponse",
+    "ClosingGuardEvaluateRequest",
+    "ClosingGuardEvaluateResponse",
+    "ClosingGuardCloseAttemptRequest",
+    "ClosingGuardCloseAttemptResponse",
     "LedgerEventCreateRequest",
+    "NegativeProductEntry",
     "PeriodClosingResponse",
     "ReversalRequestCreate",
 ]

@@ -131,10 +131,7 @@ class V8RegressionRule:
             return VerificationItem(
                 code="V8",
                 status="passed",
-                message_ko=(
-                    f"V8 1원 단위 회귀 정상 "
-                    f"(fixture_id={golden_input['fixture_id']})"
-                ),
+                message_ko=(f"V8 1원 단위 회귀 정상 " f"(fixture_id={golden_input['fixture_id']})"),
                 details={
                     "fixture_id": golden_input["fixture_id"],
                     "fields_compared": fields_compared,
@@ -143,8 +140,7 @@ class V8RegressionRule:
 
         fields_diff = sorted(golden_diff.keys())
         diff_summary = ", ".join(
-            f"{f}={golden_diff[f]['golden']}!={golden_diff[f]['actual']}"
-            for f in fields_diff
+            f"{f}={golden_diff[f]['golden']}!={golden_diff[f]['actual']}" for f in fields_diff
         )
         return VerificationItem(
             code="V8",

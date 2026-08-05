@@ -104,10 +104,7 @@ def merge_payroll_settings(
     )
     if monthly_salary_basis_krw is None:
         monthly_salary_basis_krw = base.monthly_salary_basis_krw
-    if (
-        not isinstance(monthly_salary_basis_krw, int)
-        or monthly_salary_basis_krw < 0
-    ):
+    if not isinstance(monthly_salary_basis_krw, int) or monthly_salary_basis_krw < 0:
         raise ValueError(
             f"monthly_salary_basis_krw must be a non-negative int, "
             f"got {monthly_salary_basis_krw!r}"
@@ -116,32 +113,18 @@ def merge_payroll_settings(
     workdays_in_month = override.get("workdays_in_month", base.workdays_in_month)
     if workdays_in_month is None:
         workdays_in_month = base.workdays_in_month
-    if (
-        not isinstance(workdays_in_month, int)
-        or workdays_in_month < 1
-        or workdays_in_month > 31
-    ):
-        raise ValueError(
-            f"workdays_in_month must be 1..31, got {workdays_in_month!r}"
-        )
+    if not isinstance(workdays_in_month, int) or workdays_in_month < 1 or workdays_in_month > 31:
+        raise ValueError(f"workdays_in_month must be 1..31, got {workdays_in_month!r}")
 
-    standard_monthly_hours = override.get(
-        "standard_monthly_hours", base.standard_monthly_hours
-    )
+    standard_monthly_hours = override.get("standard_monthly_hours", base.standard_monthly_hours)
     if standard_monthly_hours is None:
         standard_monthly_hours = base.standard_monthly_hours
-    if (
-        not isinstance(standard_monthly_hours, int)
-        or standard_monthly_hours < 1
-    ):
+    if not isinstance(standard_monthly_hours, int) or standard_monthly_hours < 1:
         raise ValueError(
-            f"standard_monthly_hours must be a positive int, "
-            f"got {standard_monthly_hours!r}"
+            f"standard_monthly_hours must be a positive int, " f"got {standard_monthly_hours!r}"
         )
 
-    company_burden_rate = override.get(
-        "company_burden_rate", base.company_burden_rate
-    )
+    company_burden_rate = override.get("company_burden_rate", base.company_burden_rate)
     if company_burden_rate is None:
         company_burden_rate = base.company_burden_rate
     if isinstance(company_burden_rate, int | float | str):
@@ -152,9 +135,7 @@ def merge_payroll_settings(
             f"got {type(company_burden_rate).__name__}"
         )
     if company_burden_rate < 0 or company_burden_rate > 1:
-        raise ValueError(
-            f"company_burden_rate must be in [0, 1], got {company_burden_rate}"
-        )
+        raise ValueError(f"company_burden_rate must be in [0, 1], got {company_burden_rate}")
 
     return PayrollSettings(
         monthly_salary_basis_krw=monthly_salary_basis_krw,
@@ -227,9 +208,7 @@ def compute_pay_type_breakdown(
     if not isinstance(company_burden_rate, Decimal):
         company_burden_rate = Decimal(str(company_burden_rate))
     if company_burden_rate < 0 or company_burden_rate > 1:
-        raise ValueError(
-            f"company_burden_rate must be in [0, 1], got {company_burden_rate}"
-        )
+        raise ValueError(f"company_burden_rate must be in [0, 1], got {company_burden_rate}")
 
     retirement_burden_raw = Decimal(retirement_reserve_krw) * company_burden_rate
     retirement_burden_krw = int(
@@ -279,9 +258,7 @@ def compute_fte_for_daily(
     """
     if workers <= 0 or days_per_worker <= 0 or payroll.workdays_in_month <= 0:
         return Decimal("0.00")
-    raw = Decimal(workers) * Decimal(days_per_worker) / Decimal(
-        payroll.workdays_in_month
-    )
+    raw = Decimal(workers) * Decimal(days_per_worker) / Decimal(payroll.workdays_in_month)
     return raw.quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
 
 
@@ -453,19 +430,11 @@ def build_fte_display(
 
     if pay_type == PayType.DAILY:
         if days_per_worker is None or days_per_worker < 0:
-            raise ValueError(
-                f"days_per_worker required for daily, got {days_per_worker}"
-            )
+            raise ValueError(f"days_per_worker required for daily, got {days_per_worker}")
         if daily_wage_krw is None or daily_wage_krw < 0:
-            raise ValueError(
-                f"daily_wage_krw required for daily, got {daily_wage_krw}"
-            )
-        fte_headcount = compute_fte_for_daily(
-            workers, days_per_worker, payroll
-        )
-        fte_wage_krw = compute_fte_wage_for_daily(
-            daily_wage_krw, workers, days_per_worker
-        )
+            raise ValueError(f"daily_wage_krw required for daily, got {daily_wage_krw}")
+        fte_headcount = compute_fte_for_daily(workers, days_per_worker, payroll)
+        fte_wage_krw = compute_fte_wage_for_daily(daily_wage_krw, workers, days_per_worker)
         return FteDisplay(
             pay_type=PayType.DAILY,
             fte_headcount=fte_headcount,
@@ -477,13 +446,10 @@ def build_fte_display(
     if pay_type == PayType.MONTHLY:
         if monthly_salary_basis_krw is None or monthly_salary_basis_krw < 0:
             raise ValueError(
-                f"monthly_salary_basis_krw required for monthly, "
-                f"got {monthly_salary_basis_krw}"
+                f"monthly_salary_basis_krw required for monthly, " f"got {monthly_salary_basis_krw}"
             )
         rate = (
-            company_burden_rate
-            if company_burden_rate is not None
-            else payroll.company_burden_rate
+            company_burden_rate if company_burden_rate is not None else payroll.company_burden_rate
         )
         breakdown = compute_pay_type_breakdown(
             monthly_salary_basis_krw=monthly_salary_basis_krw,

@@ -60,6 +60,7 @@ def _bom_unique_constraint_name_in(orig: object) -> str | None:
         return "uq_bom_lines_tenant_parent_child"
     return None
 
+
 from apps.api.core.audit_action import ActionClass, emit_audit_typed  # noqa: E402
 from apps.api.core.db_models import BOMLine, Product  # noqa: E402
 from apps.api.modules.m1_baseline.schemas import (  # noqa: E402
@@ -96,9 +97,7 @@ class BOMParentNotFoundError(Exception):
         parent_product_id: uuid.UUID,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"bom parent {parent_product_id!s} not found for tenant {tenant_id!s}"
-        )
+        super().__init__(f"bom parent {parent_product_id!s} not found for tenant {tenant_id!s}")
         self.tenant_id = tenant_id
         self.parent_product_id = parent_product_id
         self.trace_id = trace_id
@@ -120,8 +119,7 @@ class BOMInvalidParentTypeError(Exception):
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"parent {parent_product_id!s} type {parent_type.value!r} "
-            f"is not a valid BOM parent"
+            f"parent {parent_product_id!s} type {parent_type.value!r} " f"is not a valid BOM parent"
         )
         self.tenant_id = tenant_id
         self.parent_product_id = parent_product_id
@@ -145,8 +143,7 @@ class BOMInvalidChildTypeError(Exception):
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"child {child_product_id!s} type {child_type.value!r} "
-            f"is not a valid BOM child"
+            f"child {child_product_id!s} type {child_type.value!r} " f"is not a valid BOM child"
         )
         self.tenant_id = tenant_id
         self.child_product_id = child_product_id
@@ -259,9 +256,7 @@ class BOMService:
         `is_complete` and `missing_ratio` are **derived** at read time
         via the pure helpers in `packages.services.m1_baseline.bom_validation`.
         """
-        parent = await self._load_parent(
-            tenant_id=tenant_id, parent_product_id=parent_product_id
-        )
+        parent = await self._load_parent(tenant_id=tenant_id, parent_product_id=parent_product_id)
 
         # Eager-load child products for denormalized BOMLineResponse.
         # `selectinload` is the right choice — there's no FK relationship
@@ -357,9 +352,7 @@ class BOMService:
         `flush=True` per AD-2.
         """
         # Step 1: parent load + type validation.
-        parent = await self._load_parent(
-            tenant_id=tenant_id, parent_product_id=parent_product_id
-        )
+        parent = await self._load_parent(tenant_id=tenant_id, parent_product_id=parent_product_id)
         # M5 (Review): refuse mutations on soft-deleted parents. Treating
         # `is_active=False` as "not found" from the mutation surface keeps
         # the API consistent (GET still surfaces the row so the user can
@@ -471,9 +464,7 @@ class BOMService:
         # CR 2.1 idempotent no-op skip: if new set == existing set
         # (same keys, same quantized ratios), return without writing.
         if self._is_noop_replace(existing_ratios, new_ratios):
-            return await self.get_bom(
-                tenant_id=tenant_id, parent_product_id=parent_product_id
-            )
+            return await self.get_bom(tenant_id=tenant_id, parent_product_id=parent_product_id)
 
         # Build the changed_ratios audit payload (AC #3).
         changed_ratios = self._diff_ratios(existing_ratios, new_ratios)
@@ -568,9 +559,7 @@ class BOMService:
             raise
 
         # Return the refreshed BOM.
-        return await self.get_bom(
-            tenant_id=tenant_id, parent_product_id=parent_product_id
-        )
+        return await self.get_bom(tenant_id=tenant_id, parent_product_id=parent_product_id)
 
     # ── clear_bom ─────────────────────────────────────────────
     async def clear_bom(
@@ -587,9 +576,7 @@ class BOMService:
         Raises:
             BOMParentNotFoundError: parent does not exist for tenant.
         """
-        parent = await self._load_parent(
-            tenant_id=tenant_id, parent_product_id=parent_product_id
-        )
+        parent = await self._load_parent(tenant_id=tenant_id, parent_product_id=parent_product_id)
         # M5 (Review): refuse mutations on soft-deleted parents.
         if not parent.is_active:
             raise BOMParentNotFoundError(

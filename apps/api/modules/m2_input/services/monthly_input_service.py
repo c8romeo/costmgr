@@ -161,13 +161,9 @@ class MonthlyInputNotFoundError(Exception):
         trace_id: str,
     ) -> None:
         if row_id is not None:
-            super().__init__(
-                f"row {row_id} not found for tenant {tenant_id}"
-            )
+            super().__init__(f"row {row_id} not found for tenant {tenant_id}")
         else:
-            super().__init__(
-                f"period {period_key} not found for tenant {tenant_id}"
-            )
+            super().__init__(f"period {period_key} not found for tenant {tenant_id}")
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.row_id = row_id
@@ -184,9 +180,7 @@ class MonthlyInputInvalidPayloadError(Exception):
         details: dict[str, Any],
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"invalid monthly input payload: {details}"
-        )
+        super().__init__(f"invalid monthly input payload: {details}")
         self.tenant_id = tenant_id
         self.details = details
         self.trace_id = trace_id
@@ -202,9 +196,7 @@ class MonthlyInputPeriodLockedError(Exception):
         period_key: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"period {period_key} for tenant {tenant_id} is locked by calculation"
-        )
+        super().__init__(f"period {period_key} for tenant {tenant_id} is locked by calculation")
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.trace_id = trace_id
@@ -223,9 +215,7 @@ class MonthlyInputCapabilityError(Exception):
         current_industry: Industry | None,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"industry {current_industry!r} cannot use production stream"
-        )
+        super().__init__(f"industry {current_industry!r} cannot use production stream")
         self.tenant_id = tenant_id
         self.current_industry = current_industry
         self.trace_id = trace_id
@@ -249,9 +239,7 @@ class MonthlyInputStreamNotSupportedError(Exception):
         current_industry: Industry | None,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"stream {stream!r} not supported for industry {current_industry!r}"
-        )
+        super().__init__(f"stream {stream!r} not supported for industry {current_industry!r}")
         self.tenant_id = tenant_id
         self.stream = stream
         self.current_industry = current_industry
@@ -277,9 +265,7 @@ class MonthlyInputInvalidLaborShapeError(Exception):
         details: dict[str, Any],
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"invalid monthly input labor shape: {details}"
-        )
+        super().__init__(f"invalid monthly input labor shape: {details}")
         self.tenant_id = tenant_id
         self.details = details
         self.trace_id = trace_id
@@ -302,9 +288,7 @@ class MonthlyInputFteReadOnlyError(Exception):
         field: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"field {field!r} is read-only (derived from FTE pipeline)"
-        )
+        super().__init__(f"field {field!r} is read-only (derived from FTE pipeline)")
         self.tenant_id = tenant_id
         self.field = field
         self.trace_id = trace_id
@@ -328,9 +312,7 @@ class MonthlyInputPayrollSettingsInvalidError(Exception):
         details: dict[str, Any],
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"invalid payroll settings: {details}"
-        )
+        super().__init__(f"invalid payroll settings: {details}")
         self.tenant_id = tenant_id
         self.details = details
         self.trace_id = trace_id
@@ -352,9 +334,7 @@ class MonthlyInputCompanyBurdenRateError(Exception):
         value: Any,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"company_burden_rate {value!r} out of range [0, 1]"
-        )
+        super().__init__(f"company_burden_rate {value!r} out of range [0, 1]")
         self.tenant_id = tenant_id
         self.value = value
         self.trace_id = trace_id
@@ -378,9 +358,7 @@ class MonthlyInputPayTypeMismatchError(Exception):
         details: dict[str, Any],
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"pay_type mismatch: {details}"
-        )
+        super().__init__(f"pay_type mismatch: {details}")
         self.tenant_id = tenant_id
         self.details = details
         self.trace_id = trace_id
@@ -409,9 +387,7 @@ class MonthlyInputWarningsReadOnlyError(Exception):
         field: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"field {field!r} is read-only (derived from warning pipeline)"
-        )
+        super().__init__(f"field {field!r} is read-only (derived from warning pipeline)")
         self.tenant_id = tenant_id
         self.field = field
         self.trace_id = trace_id
@@ -441,9 +417,7 @@ class MonthlyInputInventoryProjectionError(Exception):
         details: dict[str, Any],
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"inventory projection failed: {details}"
-        )
+        super().__init__(f"inventory projection failed: {details}")
         self.tenant_id = tenant_id
         self.details = details
         self.trace_id = trace_id
@@ -474,9 +448,7 @@ class MonthlyInputService:
         self.trace_id = trace_id
 
     # ── Period bootstrap ─────────────────────────────────────
-    async def get_or_create_period(
-        self, period_key: str
-    ) -> MonthlyInputPeriod:
+    async def get_or_create_period(self, period_key: str) -> MonthlyInputPeriod:
         """Return the period row for (tenant, period_key, baseline_revision=1).
 
         Inserts a new row with `mode='month_total', baseline_revision=1,
@@ -566,9 +538,7 @@ class MonthlyInputService:
                     tenant_id=self.tenant_id,
                     details={
                         "field": "product_id",
-                        "reason": (
-                            f"stream {payload.stream!r} requires a product_id"
-                        ),
+                        "reason": (f"stream {payload.stream!r} requires a product_id"),
                     },
                     trace_id=self.trace_id,
                 )
@@ -578,9 +548,7 @@ class MonthlyInputService:
                     tenant_id=self.tenant_id,
                     details={
                         "field": "product_id",
-                        "reason": (
-                            f"stream {payload.stream!r} does not take product_id"
-                        ),
+                        "reason": (f"stream {payload.stream!r} does not take product_id"),
                     },
                     trace_id=self.trace_id,
                 )
@@ -621,10 +589,8 @@ class MonthlyInputService:
                 STREAMS_FOR_INDUSTRY,
             )
 
-            if (
-                self.industry is None
-                or _PRODUCTION_STREAM
-                not in STREAMS_FOR_INDUSTRY.get(self.industry, frozenset())
+            if self.industry is None or _PRODUCTION_STREAM not in STREAMS_FOR_INDUSTRY.get(
+                self.industry, frozenset()
             ):
                 raise MonthlyInputCapabilityError(
                     tenant_id=self.tenant_id,
@@ -677,9 +643,7 @@ class MonthlyInputService:
 
         if existing is not None:
             # Idempotent no-op detection (CR 1.1)
-            if all(
-                getattr(existing, k) == v for k, v in new_fields.items()
-            ):
+            if all(getattr(existing, k) == v for k, v in new_fields.items()):
                 # Same-value POST → 200 + no audit + no version bump
                 completion = await self._compute_completion_dict(period)
                 missing = self._missing_labels(completion)
@@ -689,9 +653,7 @@ class MonthlyInputService:
                     missing,
                 )
             # Mutating PATCH → audit + update
-            before = {
-                k: getattr(existing, k) for k in new_fields
-            }
+            before = {k: getattr(existing, k) for k in new_fields}
             for k, v in new_fields.items():
                 setattr(existing, k, v)
             existing.updated_at = now
@@ -781,41 +743,54 @@ class MonthlyInputService:
             industry=self.industry,
             trace_id=self.trace_id,
         )
-        await carry_svc.lock_opening_after_first_row(
-            period, actor_id=actor_id
-        )
+        await carry_svc.lock_opening_after_first_row(period, actor_id=actor_id)
 
         # H2: T3.3 hook wire — prev period row mutation 시 chain propagation
         # AC #3 explicit "chain" — auto-recompute stale value
         from apps.api.modules.m4_inventory.services.opening_carry_service import (
             _prev_period_key as _carry_prev_period_key,
         )
+
         prev_period_key = _carry_prev_period_key(period.period_key)
         if prev_period_key is not None:
-            await carry_svc.recompute_opening_on_prev_change(
-                prev_period_key, actor_id=actor_id
-            )
+            await carry_svc.recompute_opening_on_prev_change(prev_period_key, actor_id=actor_id)
 
         # Story 5.2 (Epic 5) — inventory_ledger event emit on INSERT.
         # AC #4 stream → ledger event mapping:
         # - 'purchases'     → 'purchase_inbound'  (PRD §6.2 입고)
         # - 'sales'         → 'sales_outbound'    (PRD §6.2 출고)
         # - 'production'    → 'production_output_inbound' (output product_qty)
-        #                       — deferral 9: production_material_consumption
-        #                         requires BOM explosion (post-MVP)
+        #                       + 'production_material_consumption' (BOM children)
+        #                       (Story 5.3 deferral #9 resolved — BOM-aware emit)
         # - 'orders'|'expenses'|'labor' → no emit (no inventory impact)
         #
         # Idempotent: LedgerService.append_event skip on duplicate
         # (tenant_id, product_id, period_key, event_type, trace_id) 4-tuple
         # (CR 1.1). PATCH update path does NOT emit (corrections flow via
         # Epic 11 reversal — AD-22 forward-fill).
-        if payload.stream in ("purchases", "sales", "production") and payload.product_id is not None and payload.qty is not None:
-            await self._emit_inventory_ledger_event_for_row(
-                new_row=new_row,
-                period_key=period.period_key,
-                stream=payload.stream,
-                actor_id=actor_id,
-            )
+        if (
+            payload.stream in ("purchases", "sales", "production")
+            and payload.product_id is not None
+            and payload.qty is not None
+        ):
+            if payload.stream == "production":
+                # Story 5.3 deferral #9 — BOM-aware multi-emit.
+                # Delegate to ClosingGuardService.emit_production_ledger_events
+                # which handles (1) BOM load, (2) material consumption
+                # reconciliation, (3) fallback to adjustment_positive on
+                # missing BOM.
+                await self._emit_production_ledger_events_bom_aware(
+                    new_row=new_row,
+                    period_key=period.period_key,
+                    actor_id=actor_id,
+                )
+            else:
+                await self._emit_inventory_ledger_event_for_row(
+                    new_row=new_row,
+                    period_key=period.period_key,
+                    stream=payload.stream,
+                    actor_id=actor_id,
+                )
 
         # Story 4.3 (A5 Phase 1) — typed emit wrapper.
         await emit_audit_typed(
@@ -1094,23 +1069,23 @@ class MonthlyInputService:
             STREAMS_FOR_INDUSTRY,
         )
 
-        visible = STREAMS_FOR_INDUSTRY.get(
-            self.industry, STREAMS_FOR_INDUSTRY[Industry.SERVICE]
-        )
+        visible = STREAMS_FOR_INDUSTRY.get(self.industry, STREAMS_FOR_INDUSTRY[Industry.SERVICE])
 
         # Fill period_key into row responses
         row_responses = [
-            self._row_to_response(r, mode=period.mode, period_key=period_key)
-            for r in rows
+            self._row_to_response(r, mode=period.mode, period_key=period_key) for r in rows
         ]
 
         # Story 3.3 (Task 3.1) — Warning aggregate dispatcher. Read-only
         # advisory (PRD §A11 입력 시); Epic 4 first_calc closes the
         # `is_blocked=true` → hard block hook.
-        warnings, is_blocked, warnings_count, top_n_severity = (
-            await self._compute_warnings_aggregate_for_state(
-                period=period, rows=list(rows), fte_display=fte_display
-            )
+        (
+            warnings,
+            is_blocked,
+            warnings_count,
+            top_n_severity,
+        ) = await self._compute_warnings_aggregate_for_state(
+            period=period, rows=list(rows), fte_display=fte_display
         )
         warning_responses = [_warning_to_response(w) for w in warnings]
 
@@ -1133,16 +1108,10 @@ class MonthlyInputService:
             # Decimal serialization via str() — cross-language drift
             # prevention (AD-15).
             opening_inventory={
-                k: str(v)
-                for k, v in period.opening_inventory.items()
-                if not k.startswith("_")
+                k: str(v) for k, v in period.opening_inventory.items() if not k.startswith("_")
             },
-            opening_inventory_locked=bool(
-                period.opening_inventory.get("_locked", False)
-            ),
-            opening_inventory_lock_reason_ko=period.opening_inventory.get(
-                "_lock_reason_ko"
-            ),
+            opening_inventory_locked=bool(period.opening_inventory.get("_locked", False)),
+            opening_inventory_lock_reason_ko=period.opening_inventory.get("_lock_reason_ko"),
             # Story 5.2 — inventory_ledger wire fields (PRD §6.2 + §8.M2).
             # ledger_events_count: count of flow events for this period
             # (excludes closing_snapshot). Computed via parallel query.
@@ -1150,11 +1119,7 @@ class MonthlyInputService:
                 period_key=period_key
             ),
             ledger_events_count=len(
-
-                    await self._compute_ledger_period_closing_for_state(
-                        period_key=period_key
-                    )
-
+                await self._compute_ledger_period_closing_for_state(period_key=period_key)
             ),
             inventory_ledger_enabled=_INVENTORY_LEDGER_ENABLED,
             # Epic 11 forward-fill: reversal_request_enabled becomes True
@@ -1163,6 +1128,70 @@ class MonthlyInputService:
         )
 
     # ── Helpers ──────────────────────────────────────────────
+    async def _emit_production_ledger_events_bom_aware(
+        self,
+        *,
+        new_row: MonthlyInputRow,
+        period_key: str,  # noqa: ARG002 — hook signature kept uniform with row emit hook
+        actor_id: uuid.UUID,  # noqa: ARG002 — passed for audit trace uniformity
+    ) -> None:
+        """Story 5.3 deferral #9 — BOM-aware production emit.
+
+        Loads the BOM for `new_row.product_id` (parent), then delegates
+        to `ClosingGuardService.emit_production_ledger_events` which
+        emits:
+        - production_output_inbound (output product qty)
+        - production_material_consumption events (BOM children, 음수)
+          OR adjustment_positive fallback (BOM missing/incomplete)
+
+        AD-22: reversal fields NEVER set — Epic 11 forward-fill only.
+
+        Idempotent: ClosingGuardService.emit_production_ledger_events
+        delegates to LedgerService.append_event which has CR 1.1
+        idempotent no-op skip on duplicate (tenant_id, product_id,
+        period_key, event_type, trace_id) 4-tuple.
+
+        BOM load: queries `bom_lines` for parent_product_id.
+        """
+        from apps.api.core.db_models import BOMLine
+        from apps.api.modules.m4_inventory.services.closing_guard_service import (
+            ClosingGuardService,
+        )
+
+        # Load BOM for the parent product (defensive — service-only
+        # tenants + missing BOM both trigger fallback path).
+        bom_dict: dict | None = None
+        bom_rows = (
+            await self.session.scalars(
+                select(BOMLine).where(
+                    BOMLine.tenant_id == self.tenant_id,
+                    BOMLine.parent_product_id == new_row.product_id,
+                )
+            )
+        ).all()
+        if bom_rows:
+            bom_dict = {
+                "parent_product_id": str(new_row.product_id),
+                "children": [
+                    {
+                        "child_product_id": str(b.child_product_id),
+                        "ratio": str(b.ratio),
+                    }
+                    for b in bom_rows
+                ],
+            }
+
+        guard_svc = ClosingGuardService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+        await guard_svc.emit_production_ledger_events(
+            production_row=new_row,
+            bom=bom_dict,
+        )
+
     async def _emit_inventory_ledger_event_for_row(
         self,
         *,
@@ -1224,9 +1253,7 @@ class MonthlyInputService:
             actor_id=actor_id,
         )
 
-    async def _compute_completion_dict(
-        self, period: MonthlyInputPeriod
-    ) -> dict[str, bool]:
+    async def _compute_completion_dict(self, period: MonthlyInputPeriod) -> dict[str, bool]:
         rows_by_stream = dict(
             (
                 await self.session.execute(
@@ -1252,15 +1279,9 @@ class MonthlyInputService:
             STREAM_ORDER,
         )
 
-        return [
-            STREAM_LABELS_KO[s]
-            for s in STREAM_ORDER
-            if s in completion and not completion[s]
-        ]
+        return [STREAM_LABELS_KO[s] for s in STREAM_ORDER if s in completion and not completion[s]]
 
-    async def _compute_fte_display(
-        self, period: MonthlyInputPeriod
-    ) -> FteDisplay | None:
+    async def _compute_fte_display(self, period: MonthlyInputPeriod) -> FteDisplay | None:
         """Story 3.1 / 3.2 hook — returns the page-mount `FteDisplay`.
 
         Story 3.2 replaces the inline `format_fte_headcount` /
@@ -1312,9 +1333,7 @@ class MonthlyInputService:
         )
 
         if not labor_rows:
-            raise ValueError(
-                "_compute_fte_for_state requires at least 1 labor row"
-            )
+            raise ValueError("_compute_fte_for_state requires at least 1 labor row")
         # Aggregate the rows based on pay_type. month_total typically
         # has 1 row (the row IS the month). daily may have up to 31.
         pay_types = {r.pay_type for r in labor_rows if r.pay_type}
@@ -1328,19 +1347,13 @@ class MonthlyInputService:
             # Mixed pay_types in one period — default to 'monthly'
             # (정규직 우선). The UI should prevent this; the service
             # is forgiving in case it slips through.
-            chosen = next(
-                r for r in labor_rows if r.pay_type == PayType.MONTHLY
-            )
+            chosen = next(r for r in labor_rows if r.pay_type == PayType.MONTHLY)
         else:
             chosen = labor_rows[0]
 
         workers = sum(int(r.workers or 0) for r in labor_rows)
-        days_per_worker = sum(
-            int(r.days_per_worker or 0) for r in labor_rows
-        )
-        daily_wage_krw = sum(
-            int(r.daily_wage_krw or 0) for r in labor_rows
-        )
+        days_per_worker = sum(int(r.days_per_worker or 0) for r in labor_rows)
+        daily_wage_krw = sum(int(r.daily_wage_krw or 0) for r in labor_rows)
 
         # Story 3.1 backward-compat aggregate fields
         total_workers = workers
@@ -1380,8 +1393,7 @@ class MonthlyInputService:
             fte_headcount=display.fte_headcount,
             fte_wage_krw=display.fte_wage_krw,
             monthly_salary_basis_krw=(
-                chosen.monthly_salary_basis_krw
-                or payroll.monthly_salary_basis_krw
+                chosen.monthly_salary_basis_krw or payroll.monthly_salary_basis_krw
             ),
             # Story 3.2 additions
             pay_type=display.pay_type.value,
@@ -1390,12 +1402,8 @@ class MonthlyInputService:
                 overtime_krw=breakdown.get("overtime_krw", 0),
                 welfare_krw=breakdown.get("welfare_krw", 0),
                 bonus_krw=breakdown.get("bonus_krw", 0),
-                retirement_reserve_krw=breakdown.get(
-                    "retirement_reserve_krw", 0
-                ),
-                retirement_burden_krw=breakdown.get(
-                    "retirement_burden_krw", 0
-                ),
+                retirement_reserve_krw=breakdown.get("retirement_reserve_krw", 0),
+                retirement_burden_krw=breakdown.get("retirement_burden_krw", 0),
                 company_burden_rate=_rate,
                 total_krw=breakdown.get("total_krw", 0),
             ),
@@ -1408,9 +1416,7 @@ class MonthlyInputService:
             ),
         )
 
-    async def _load_payroll_settings(
-        self, tenant_id: uuid.UUID
-    ) -> PayrollSettings:
+    async def _load_payroll_settings(self, tenant_id: uuid.UUID) -> PayrollSettings:
         """Load + merge per-tenant payroll override (Story 3.2 AC #3).
 
         Reads `tenant_settings.payroll` JSONB sub-block (added by
@@ -1420,9 +1426,7 @@ class MonthlyInputService:
         value), translates to typed `MonthlyInputPayrollSettingsInvalidError`.
         """
         result = await self.session.execute(
-            select(TenantSettings).where(
-                TenantSettings.tenant_id == tenant_id
-            )
+            select(TenantSettings).where(TenantSettings.tenant_id == tenant_id)
         )
         row = result.scalar_one_or_none()
         override: dict | None = None
@@ -1437,9 +1441,7 @@ class MonthlyInputService:
                 trace_id=self.trace_id,
             ) from err
 
-    def _validate_labor_shape(
-        self, payload: MonthlyInputRowCreate
-    ) -> None:
+    def _validate_labor_shape(self, payload: MonthlyInputRowCreate) -> None:
         """Story 3.2 AC #4 — validate labor-stream shape by `pay_type`.
 
         Rules:
@@ -1461,15 +1463,12 @@ class MonthlyInputService:
                 tenant_id=self.tenant_id,
                 details={
                     "field": "pay_type",
-                    "reason": "labor stream requires pay_type "
-                    "('monthly' or 'daily')",
+                    "reason": "labor stream requires pay_type " "('monthly' or 'daily')",
                 },
                 trace_id=self.trace_id,
             )
         if payload.company_burden_rate is not None and not (
-            Decimal("0")
-            <= payload.company_burden_rate
-            <= Decimal("1")
+            Decimal("0") <= payload.company_burden_rate <= Decimal("1")
         ):
             raise MonthlyInputCompanyBurdenRateError(
                 tenant_id=self.tenant_id,
@@ -1518,17 +1517,11 @@ class MonthlyInputService:
                 tenant_id=self.tenant_id,
                 details={
                     "pay_type": "monthly",
-                    "reason": (
-                        "monthly mode requires "
-                        "workers>0, monthly_salary_basis_krw>0"
-                    ),
+                    "reason": ("monthly mode requires " "workers>0, monthly_salary_basis_krw>0"),
                 },
                 trace_id=self.trace_id,
             )
-        if (
-            payload.days_per_worker is not None
-            and payload.days_per_worker > 0
-        ):
+        if payload.days_per_worker is not None and payload.days_per_worker > 0:
             raise MonthlyInputPayTypeMismatchError(
                 tenant_id=self.tenant_id,
                 details={
@@ -1599,9 +1592,7 @@ class MonthlyInputService:
         Story 3.3 §Task 1 for the AC mapping (AC #1, #2, #3, #5, #6,
         #8).
         """
-        product_map = await self._load_product_map_for_period(
-            period=period, rows=rows
-        )
+        product_map = await self._load_product_map_for_period(period=period, rows=rows)
         # Story 5.2 — AC #5 swap. Inventory projection now reads from
         # the append-only ledger (single source of truth) instead of
         # rebuilding from monthly_input_rows. The shape contract for
@@ -1626,9 +1617,7 @@ class MonthlyInputService:
                 rows=rows,
                 product_map=product_map,
             )
-            inventory_warnings = build_inventory_warnings(
-                projection, product_map=product_map
-            )
+            inventory_warnings = build_inventory_warnings(projection, product_map=product_map)
         except (ValueError, TypeError, ArithmeticError) as err:
             raise MonthlyInputInventoryProjectionError(
                 tenant_id=self.tenant_id,
@@ -1638,12 +1627,10 @@ class MonthlyInputService:
 
         # Operating rate needs FTE data + payroll. If no labor rows
         # (fte_display=None), operating rate warning is None.
-        operating_rate_warning = (
-            self._compute_operating_rate_warning_for_state(
-                period=period,
-                rows=rows,
-                fte_display=fte_display,
-            )
+        operating_rate_warning = self._compute_operating_rate_warning_for_state(
+            period=period,
+            rows=rows,
+            fte_display=fte_display,
         )
 
         warnings = aggregate_warnings(
@@ -1654,9 +1641,7 @@ class MonthlyInputService:
         warnings_count = len(warnings)
         # top_n_severity: integer from SEVERITY_ORDER for the worst
         # warning (lowest = most severe). 0 if no warnings.
-        top_n_severity = (
-            SEVERITY_ORDER.get(warnings[0].severity, 0) if warnings else 0
-        )
+        top_n_severity = SEVERITY_ORDER.get(warnings[0].severity, 0) if warnings else 0
         return warnings, is_blocked, warnings_count, top_n_severity
 
     async def _load_product_map_for_period(
@@ -1677,9 +1662,7 @@ class MonthlyInputService:
         # Determine distinct product_ids in inventory-bearing rows
         inv_types = {"sales", "purchases", "production"}
         distinct_ids = {
-            r.product_id
-            for r in rows
-            if r.stream in inv_types and r.product_id is not None
+            r.product_id for r in rows if r.stream in inv_types and r.product_id is not None
         }
         if not distinct_ids:
             return {}
@@ -1705,9 +1688,7 @@ class MonthlyInputService:
             )
         return product_map
 
-    def _load_opening_balance(
-        self, period: MonthlyInputPeriod
-    ) -> dict[uuid.UUID, Decimal]:
+    def _load_opening_balance(self, period: MonthlyInputPeriod) -> dict[uuid.UUID, Decimal]:
         """Read `period.opening_inventory` JSONB → `dict[UUID, Decimal]`.
 
         MVP shape (added by Alembic 0011, Task 2.1):
@@ -1794,9 +1775,7 @@ class MonthlyInputService:
                 inbound_qty=Decimal("0"),
                 outbound_qty=Decimal("0"),
             )
-            for pid, closing_qty in sorted(
-                closing_map.items(), key=lambda kv: str(kv[0])
-            )
+            for pid, closing_qty in sorted(closing_map.items(), key=lambda kv: str(kv[0]))
         ]
 
         return out
@@ -1865,9 +1844,7 @@ class MonthlyInputService:
             return None
 
         # standard_monthly_hours from payroll settings (Story 3.2)
-        standard_monthly_hours = (
-            fte_display.payroll_settings.standard_monthly_hours
-        )
+        standard_monthly_hours = fte_display.payroll_settings.standard_monthly_hours
         if standard_monthly_hours <= 0:
             return None
 
@@ -1984,6 +1961,8 @@ def _load_opening_balance_from_period(
             continue
         out[pid] = qty
     return out
+
+
 class _ProductProjection(NamedTuple):
     """Lightweight product metadata for the inventory projection duck type.
 

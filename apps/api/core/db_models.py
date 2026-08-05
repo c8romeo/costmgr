@@ -185,23 +185,15 @@ class UploadedDocument(Base):
     content_sha256: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Provider job status — separate from `input_drafts.state` per spec Task 1.2.
-    job_status: Mapped[str] = mapped_column(
-        Text, nullable=False, default="queued"
-    )
+    job_status: Mapped[str] = mapped_column(Text, nullable=False, default="queued")
     uploaded_by: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
-    uploaded_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # Story 1.3 — Idempotency-Key header support (Task 3.1 / AC #2).
     # Partial unique index enforces dedupe at the DB layer; non-unique
     # when NULL so clients that omit the header still get a fresh row.
     idempotency_key: Mapped[str | None] = mapped_column(Text, nullable=True)
-    reviewed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    deleted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message_ko: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -224,9 +216,7 @@ class UploadedDocument(Base):
 class InputDraft(Base):
     __tablename__ = "input_drafts"
 
-    draft_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
-    )
+    draft_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
     tenant_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
@@ -242,23 +232,15 @@ class InputDraft(Base):
     confirmed_value: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     # NUMERIC(4,3) — 4 digits total, 3 after the decimal → covers 0.000..9.999
     # with the CHECK constraint restricting to [0, 1]. Use Decimal for AD-8 parity.
-    confidence: Mapped[Decimal | None] = mapped_column(
-        Numeric(precision=4, scale=3), nullable=True
-    )
+    confidence: Mapped[Decimal | None] = mapped_column(Numeric(precision=4, scale=3), nullable=True)
     state: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
     evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     draft_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     requested_by: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
-    requested_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    reviewed_by: Mapped[UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), nullable=True
-    )
-    reviewed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_by: Mapped[UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -286,9 +268,7 @@ class InputDraft(Base):
 class Product(Base):
     __tablename__ = "products"
 
-    id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
-    )
+    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
     tenant_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
@@ -308,12 +288,8 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Soft-delete flag (AC #5). Hard delete is forbidden (AD-2 append-only).
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
@@ -341,9 +317,7 @@ class Product(Base):
             name="products_description_length_check",
         ),
         # AC #3 — same-tenant code uniqueness. RLS-scoped (NOT global).
-        UniqueConstraint(
-            "tenant_id", "code", name="uq_products_tenant_code"
-        ),
+        UniqueConstraint("tenant_id", "code", name="uq_products_tenant_code"),
     )
 
 
@@ -362,9 +336,7 @@ class Product(Base):
 class BOMLine(Base):
     __tablename__ = "bom_lines"
 
-    id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
-    )
+    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
     tenant_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
@@ -385,15 +357,9 @@ class BOMLine(Base):
     )
     # AD-8 — ratio is NUMERIC(7,4). Decimal-typed in both Python and TS.
     # `Decimal` is imported above; mapped_column handles the SQL type.
-    ratio: Mapped[Decimal] = mapped_column(
-        Numeric(precision=7, scale=4), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    ratio: Mapped[Decimal] = mapped_column(Numeric(precision=7, scale=4), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
@@ -422,39 +388,25 @@ class BOMLine(Base):
 class MonthlyInputPeriod(Base):
     __tablename__ = "monthly_input_periods"
 
-    period_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
-    )
+    period_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
     tenant_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
         nullable=False,
     )
     period_key: Mapped[str] = mapped_column(Text, nullable=False)
-    mode: Mapped[str] = mapped_column(
-        Text, nullable=False, default="month_total"
-    )
-    baseline_revision: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1
-    )
-    locked_by_calculation: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    mode: Mapped[str] = mapped_column(Text, nullable=False, default="month_total")
+    baseline_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    locked_by_calculation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Story 3.3 (Task 2.2) — per-period per-product opening inventory
     # balance. Consumed by the inventory projection kernel
     # (`packages.services.m2_input.inventory_projection`). MVP default
     # `{}` — service layer falls back to 0 for all products. Epic 5
     # Story 5-1 will auto-carry closing balances from the previous
     # period (TODO(epic-5) marker in `inventory_projection.py`).
-    opening_inventory: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, default=dict
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    opening_inventory: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
@@ -466,7 +418,9 @@ class MonthlyInputPeriod(Base):
             name="monthly_input_periods_revision_positive",
         ),
         UniqueConstraint(
-            "tenant_id", "period_key", "baseline_revision",
+            "tenant_id",
+            "period_key",
+            "baseline_revision",
             name="uq_monthly_input_periods_tenant_period_revision",
         ),
     )
@@ -491,9 +445,7 @@ class MonthlyInputPeriod(Base):
 class MonthlyInputRow(Base):
     __tablename__ = "monthly_input_rows"
 
-    row_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
-    )
+    row_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
     tenant_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
@@ -513,9 +465,7 @@ class MonthlyInputRow(Base):
     day_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # AD-8: qty is small-decimal (NUMERIC 18,4). Engine multiplies with
     # KRW unit_price → result rounded at the service boundary.
-    qty: Mapped[Decimal | None] = mapped_column(
-        Numeric(precision=18, scale=4), nullable=True
-    )
+    qty: Mapped[Decimal | None] = mapped_column(Numeric(precision=18, scale=4), nullable=True)
     unit_price_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     amount_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     workers: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -527,26 +477,18 @@ class MonthlyInputRow(Base):
     # Nullable across all 6 streams — service layer enforces non-NULL
     # only when stream == 'labor' (`_validate_labor_shape`).
     pay_type: Mapped[str | None] = mapped_column(Text, nullable=True)
-    monthly_salary_basis_krw: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=True
-    )
+    monthly_salary_basis_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     overtime_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     welfare_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     bonus_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    retirement_reserve_krw: Mapped[int | None] = mapped_column(
-        BigInteger, nullable=True
-    )
+    retirement_reserve_krw: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     # 4대보험·퇴직 회사부담 비율 — AD-8 NUMERIC(5,4) (4 decimal places)
     company_burden_rate: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=5, scale=4), nullable=True
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
@@ -649,24 +591,16 @@ class FiscalPeriodSnapshot(Base):
         nullable=False,
     )
     period_key: Mapped[str] = mapped_column(Text, nullable=False)
-    baseline_revision: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1
-    )
-    engine_type: Mapped[str] = mapped_column(
-        Text, nullable=False, default="trad"
-    )
+    baseline_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    engine_type: Mapped[str] = mapped_column(Text, nullable=False, default="trad")
     material_cost: Mapped[int] = mapped_column(BigInteger, nullable=False)
     labor_cost: Mapped[int] = mapped_column(BigInteger, nullable=False)
     overhead_cost: Mapped[int] = mapped_column(BigInteger, nullable=False)
     manufacturing_cost: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    inventory_adjustment: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
+    inventory_adjustment: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     result_hash: Mapped[str] = mapped_column(Text, nullable=False)
     state: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
@@ -678,7 +612,10 @@ class FiscalPeriodSnapshot(Base):
             name="fiscal_period_snapshots_revision_positive",
         ),
         UniqueConstraint(
-            "tenant_id", "period_key", "baseline_revision", "engine_type",
+            "tenant_id",
+            "period_key",
+            "baseline_revision",
+            "engine_type",
             name="uq_fiscal_period_snapshots_tenant_period_revision_engine",
         ),
     )
@@ -703,18 +640,12 @@ class CalcLog(Base):
         nullable=False,
     )
     period_key: Mapped[str] = mapped_column(Text, nullable=False)
-    baseline_revision: Mapped[int] = mapped_column(
-        Integer, nullable=False
-    )
-    engine_type: Mapped[str] = mapped_column(
-        Text, nullable=False, default="trad"
-    )
+    baseline_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    engine_type: Mapped[str] = mapped_column(Text, nullable=False, default="trad")
     action: Mapped[str] = mapped_column(Text, nullable=False)
     result_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     trace_id: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
@@ -760,9 +691,7 @@ class VerificationLog(Base):
     top_failure_message_ko: Mapped[str | None] = mapped_column(Text, nullable=True)
     result_hash: Mapped[str] = mapped_column(Text, nullable=False)
     trace_id: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
@@ -800,9 +729,7 @@ class VerificationLog(Base):
 class InventoryLedger(Base):
     __tablename__ = "inventory_ledger"
 
-    event_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
-    )
+    event_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
     tenant_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="RESTRICT"),
@@ -816,23 +743,13 @@ class InventoryLedger(Base):
     period_key: Mapped[str] = mapped_column(Text, nullable=False)
     event_type: Mapped[str] = mapped_column(Text, nullable=False)
     # AD-8 / OQ2: NUMERIC(18,4) NULLABLE for non-quantitative events.
-    qty: Mapped[Decimal | None] = mapped_column(
-        Numeric(precision=18, scale=4), nullable=True
-    )
-    trace_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False
-    )
+    qty: Mapped[Decimal | None] = mapped_column(Numeric(precision=18, scale=4), nullable=True)
+    trace_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
     # AD-22 reversal sequence (Epic 11 forward-fill).
-    reverses_event_id: Mapped[UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), nullable=True
-    )
-    correction_group_id: Mapped[UUID | None] = mapped_column(
-        PgUUID(as_uuid=True), nullable=True
-    )
+    reverses_event_id: Mapped[UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
+    correction_group_id: Mapped[UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    inserted_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    inserted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         # 11-value event_type CHECK (OQ3 cj-style default).

@@ -485,9 +485,7 @@ class DocumentService:
         result = await self.session.execute(stmt)
         draft = result.scalar_one_or_none()
         if draft is None:
-            raise DraftNotFoundError(
-                tenant_id=tenant_id, draft_id=draft_id, trace_id=self.trace_id
-            )
+            raise DraftNotFoundError(tenant_id=tenant_id, draft_id=draft_id, trace_id=self.trace_id)
         if draft.state != "draft":
             raise DraftStateError(
                 current_state=draft.state,
@@ -596,11 +594,7 @@ class DocumentService:
                     new_subblock["fields"][d.field_name] = cv
 
         # Update tenant_settings.onboarding JSONB.
-        stmt = (
-            select(TenantSettings)
-            .where(TenantSettings.tenant_id == tenant_id)
-            .with_for_update()
-        )
+        stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id).with_for_update()
         result = await self.session.execute(stmt)
         settings_row = result.scalar_one_or_none()
         if settings_row is None:
@@ -723,9 +717,7 @@ class DocumentService:
             await self.session.flush()
         return tuple(rows)
 
-    async def _drafts_for(
-        self, document_id: uuid.UUID, tenant_id: uuid.UUID
-    ) -> list[InputDraft]:
+    async def _drafts_for(self, document_id: uuid.UUID, tenant_id: uuid.UUID) -> list[InputDraft]:
         stmt = (
             select(InputDraft)
             .where(InputDraft.tenant_id == tenant_id)

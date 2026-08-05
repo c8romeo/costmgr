@@ -432,3 +432,24 @@ Dana (QA Engineer): "백엔드 280+ tests 안정 (engine 67 + orchestrator/endpo
 Elena (Junior Dev): "Epic 1·2·3 회고 패턴 (lightweight 25-30분 + 12 sections + 이전 epic follow-through) 4번째 반복 — 회고 운영이 안정화됐습니다. L8 CR 4-3 lessons 즉시 wire (F-1~F-10) = CR pattern 학습 = Epic 5 carry-over 자산. A6 Story 0.5 plumbing 별도 Story가 Epic 5 5-3 frontend toast 진입점입니다."
 
 kjw (Project Lead): "회고 종료. Epic 4 close-out — 4-1·4-2·4-3·4-4 모두 done. A2 4-4 part done 마킹. A3 + A4 cj-style 결정 완료. Epic 5 진입은 A5 (CR 1.1 Phase 1+2) + A6 (Story 0.5 plumbing 별도 Story) done 후."
+
+---
+
+### Story 5.3 dev-story pytest collection count (2026-08-06, 5-3 T1-T10 done)
+
+- **1180 tests collected** (Story 5.3 dev-story complete: T1 closing_guard pure kernel + T2 closing_invariant_check + T3 production_consumption + T4 closing_guard_service + T5 closing_invariant_verifier + T6 wire triggers + T7 schemas + T8 audit-action wire + T9 frontend wire + T10 tests + docs + 3중 게이트 = 75 신규)
+- 5-2 review claim (1105) 대비 +75 tests 추가
+- 본 dev-story claim으로 override: MAX SDR claim = 1180 (CR 4-3 F-2 A7 wire carry-over)
+- 추가 내역 (Story 5.3 SPEC 진입 시점부터):
+  - T1 closing_guard pure kernel `tests/services/m4_inventory/test_closing_guard.py` (NEW — banker's rounding + classify_closing_invariant NEGATIVE/OK/EMPTY + is_close_blocked + NEGATIVE_CLOSING_INVENTORY_KO constant + 100× determinism = 20 cases)
+  - T2 closing_invariant_check pure kernel `tests/cost_engine/test_closing_invariant_check.py` (NEW — V3 verdict PASS/FAIL/SKIP + product whitelist mismatch + industry='service' skip + ordering invariant + banker's rounding + 100× determinism = 15 cases)
+  - T3 production_consumption pure kernel `tests/services/m4_inventory/test_production_consumption.py` (NEW — BOM 매트릭스 utilization 100%/partial/empty/missing + consumption qty = output_qty * ratio / 100 ROUND_HALF_EVEN + adjustment_positive fallback = 12 cases)
+  - T4 closing_guard_service `tests/services/test_closing_guard_service.py` (NEW — pure-shape service-layer 5 cases — async tests deferred to integration harness)
+  - T5 closing_invariant_verifier `tests/services/test_closing_invariant_verifier.py` (NEW — pure-shape 6 cases + asyncio.run service-only ❌ skip pattern)
+  - T7 SQL CHECK constraint `tests/integration/test_opening_inventory_sql_check.py` (NEW — 4 cases — AC #4 L8 carry-over close)
+  - T8 audit-action wire `tests/services/test_audit_action_centralization.py` extension + `tests/integration/test_audit_action_consistency.py` extension + `tests/integration/test_sdr_test_count_drift.py` extension (A7 wire carry-over)
+  - T10 production_consumption_label_consistency `tests/integration/test_production_consumption_label_consistency.py` (NEW — AD-15 §11 parity 4 cases)
+  - T10 v3_closing_invariant_rule `tests/cost_engine/test_v3_closing_invariant_rule.py` (NEW — V3 rule kernel pure-shape 4 cases — applies_to + slot 3 of 5 ordering + check() + AD-5 purity AST)
+  - T10 e2e `tests/e2e/test_closing_guard_e2e.py` (NEW — pure-kernel e2e smoke 3 cases — NEGATIVE_CLOSING / CLOSING_OK / EMPTY_PERIOD)
+  - Pre-existing ordering tests updated: `tests/cost_engine/test_verification_rules.py` (V1/V4/V3/V7/V8 = 5 rules) + `tests/integration/test_verification_order.py` (manufacturing 5 rules + service-only V3 SKIP path)
+- SDR drift detector 통과 조건: `actual_count ∈ [max_claim, max_claim + 50]`. 본 claim 추가 후 drift window 재설정 (1105 → 1180, +75 tests 신규 = 5-3 spec 본문 ~150 cases 중 pure-kernel + service-shape + e2e + drift + SQL CHECK subset).

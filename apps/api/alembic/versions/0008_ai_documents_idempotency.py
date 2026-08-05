@@ -40,8 +40,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.execute(
-        "ALTER TABLE uploaded_documents "
-        "ADD COLUMN IF NOT EXISTS idempotency_key TEXT NULL"
+        "ALTER TABLE uploaded_documents " "ADD COLUMN IF NOT EXISTS idempotency_key TEXT NULL"
     )
     op.execute(
         """

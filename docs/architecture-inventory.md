@@ -167,3 +167,99 @@ Service-only tenant 가 POST 시도 → 403 INDUSTRY_NOT_SUPPORTED.
   capability matrix consistency.
 - `tests/integration/test_inventory_ledger_event_type_drift.py`
   11-value enum SSOT vs DB CHECK vs call sites.
+
+## §5.3 Negative Closing Inventory Guard Architecture (Story 5.3)
+
+### 신규 모듈
+
+```
+apps/api/modules/m4_inventory/
+  ├── services/closing_guard_service.py (4 operations, 5 typed exceptions)
+  │     ├── evaluate_closing_guard — AC #1 read-only invariant computation
+  │     ├── request_close_attempt — AC #2 block-on-negative (409)
+  │     ├── emit_production_ledger_events — AC #3 BOM-aware reconciliation
+  │     └── validate_closing_invariant_against_active_products — calc orchestrator pre-load
+  ├── schemas.py (+5 Pydantic types, extra='forbid')
+  └── handlers.py (+2 routes POST /api/v1/inventory/closing-guard/{evaluate,close-attempt})
+```
+
+### 신규 pure kernel
+
+```
+packages/services/m4_inventory/
+  ├── closing_guard.py
+  │     ├── compute_closing_balance_per_product — SIGN-NEUTRAL aggregate
+  │     ├── classify_closing_invariant — 3 codes (CLOSING_OK / NEGATIVE_CLOSING / EMPTY_PERIOD)
+  │     ├── is_close_blocked — single source of truth
+  │     ├── format_negative_closing_banner_ko — Korean message SSOT
+  │     └── ClosingInvariant NamedTuple
+  └── production_consumption.py
+        ├── compute_production_consumption_events — BOM-aware emit
+        ├── EVENT_TYPE_PRODUCTION_OUTPUT_INBOUND (+ consumption + adjustment_positive)
+        └── BomChild / BomMatrixLike / ProductionRowLike
+
+packages/cost_engine/
+  └── closing_invariant_check.py
+        ├── verify_closing_invariant — V3 kernel (pure per AD-5)
+        ├── V3Verdict TypedDict envelope
+        └── Status enum: passed / failed / skipped
+```
+
+### Rule kernel 통합 (AD-12 slot 3 of 5)
+
+```
+V1CompleteAllocationRule (slot 1)
+V4CostIncomeReconciliationRule (slot 2)
+V3ClosingInvariantRule (slot 3) ← NEW
+V7AbcIntegrityRule (slot 4)
+V8RegressionRule (slot 5)
+```
+
+V3 는 calc orchestrator 가 ClosingInvariantVerifier.verify_v3_closing_invariant
+를 pre-load 후 RuleInput.closing_invariant_verdict 로 주입 — rule kernel
+은 pure 유지 (AD-5).
+
+### Capability gate
+
+`Capability.INVENTORY_CLOSING_GUARD` — manufacturing-kind 3종 ✅,
+service ❌. Service-only tenant 가 POST 시도 → 403 INDUSTRY_NOT_SUPPORTED.
+
+### AD-15 envelope mapping
+
+| Exception | Status | envelope.error.code |
+|---|---|---|
+| ClosingGuardNegativeInventoryError | 409 | NEGATIVE_CLOSING_INVENTORY |
+| ClosingGuardInvalidPeriodKeyError | 422 | CLOSING_GUARD_INVALID_PERIOD_KEY |
+| ClosingGuardServiceOnlyTenantError | 403 | CLOSING_GUARD_SERVICE_ONLY_TENANT |
+| ClosingGuardProductionConsumptionError | 500 | PRODUCTION_CONSUMPTION_INVALID |
+| ClosingGuardAuditEmitError | 500 | CLOSING_GUARD_AUDIT_EMIT_FAILED |
+
+### Audit action wire (A5 forward-lock + A7 wire)
+
+`ActionClass.CLOSING_GUARD` 등록 — registry → audit_log INSERT:
+- `closing_guard.evaluated` (read-only invariant computation)
+- `closing_guard.close_attempted` (block-on-negative)
+- `closing_guard.production_emitted` (BOM-aware ledger write)
+
+### Alembic migration
+
+- `0016_verification_log_v3_audit.py` — verification_log CHECK constraint
+  확장 (4 → 5 value, `verify_v3_closing_invariant` 추가)
+- `3-way drift detector` — UNION of ActionClass.VERIFICATION_LOG (4) +
+  ActionClass.VERIFICATION (1) = DB CHECK (5)
+
+### Drift detectors (T10)
+
+- `tests/cost_engine/test_closing_invariant_check.py` (14 cases) V3 kernel
+- `tests/services/test_closing_guard.py` (18 cases) closing_guard pure kernel
+- `tests/services/test_production_consumption.py` (12 cases) BOM reconciliation
+- `tests/cost_engine/test_v3_closing_invariant_rule.py` V3 rule kernel
+- `tests/integration/test_closing_guard_label_consistency.py`
+  (5 cases, AD-15 §11) Korean message parity Python ↔ TS
+- `tests/integration/test_production_consumption_label_consistency.py`
+  AD-15 §11 event_type parity
+- `tests/services/test_closing_guard_service.py` (6+ cases) service-layer async
+- `tests/services/test_closing_invariant_verifier.py` verifier bridge
+- `tests/e2e/test_closing_guard_e2e.py` full flow smoke
+
+총 ~70+ cases 추가 (3-way drift + parity + service + e2e).

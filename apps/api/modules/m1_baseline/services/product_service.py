@@ -81,9 +81,7 @@ class ProductNotFoundError(Exception):
         product_id: uuid.UUID,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"product {product_id!s} not found for tenant {tenant_id!s}"
-        )
+        super().__init__(f"product {product_id!s} not found for tenant {tenant_id!s}")
         self.tenant_id = tenant_id
         self.product_id = product_id
         self.trace_id = trace_id
@@ -363,18 +361,14 @@ class ProductService:
 
         # Step 2: code resolution.
         if body.code is None:
-            code = await self._next_code(
-                tenant_id=tenant_id, product_type=body.product_type
-            )
+            code = await self._next_code(tenant_id=tenant_id, product_type=body.product_type)
         elif body.code == "":
             # M8: explicit empty string is malformed input, not a request
             # to auto-generate. Different from `None` (auto-generate).
             raise InvalidProductCodeError(body.code, "code cannot be empty string")
         else:
             if not is_valid_code_format(body.code):
-                raise InvalidProductCodeError(
-                    body.code, "manual code must match PREFIX-XXXX"
-                )
+                raise InvalidProductCodeError(body.code, "manual code must match PREFIX-XXXX")
             # M7: cross-validate manual code prefix vs body.product_type.
             code_prefix_type, _seq = parse_code(body.code)
             if code_prefix_type != body.product_type:
@@ -503,9 +497,7 @@ class ProductService:
             uuid.NAMESPACE_URL,
             f"product-type-change:{tenant_id}:{product_id}",
         )
-        await self.session.execute(
-            select(func.pg_advisory_xact_lock(int(lock_key.int >> 96)))
-        )
+        await self.session.execute(select(func.pg_advisory_xact_lock(int(lock_key.int >> 96))))
 
         # Lock + load.
         load_stmt = (
@@ -722,13 +714,10 @@ class ProductService:
         # Pull all codes with the matching prefix for this tenant + type.
         # Use the indexed columns only; the in-Python regex parse handles
         # the suffix extraction (cheaper than a regex-on-DB query).
-        stmt = (
-            select(Product.code)
-            .where(
-                Product.tenant_id == tenant_id,
-                Product.product_type == product_type.value,
-                Product.code.like(f"{prefix}-%"),
-            )
+        stmt = select(Product.code).where(
+            Product.tenant_id == tenant_id,
+            Product.product_type == product_type.value,
+            Product.code.like(f"{prefix}-%"),
         )
         result = await self.session.execute(stmt)
         max_seq = 0
@@ -792,9 +781,7 @@ class ProductService:
         TODO(epic-5): REPLACE_LEDGER_STUB — swap the ledger_count for a real Query.
         """
         if tenant_id is None:
-            raise ValueError(
-                "tenant_id must not be None (AD-3 RLS pre-flight — caller bug)"
-            )
+            raise ValueError("tenant_id must not be None (AD-3 RLS pre-flight — caller bug)")
         # BOM side — single OR-merged query. Mirrors BOM_REFERENCE_QUERY.
         stmt = select(func.count(BOMLine.id)).where(
             BOMLine.tenant_id == tenant_id,

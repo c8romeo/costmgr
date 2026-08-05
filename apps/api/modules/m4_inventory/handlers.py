@@ -70,9 +70,17 @@ from apps.api.modules.m0_onboarding.services.settings_service import (
 from apps.api.modules.m4_inventory.schemas import (
     CarryChainEntry,
     CarryChainResponse,
+    ClosingGuardCloseAttemptRequest,
+    ClosingGuardCloseAttemptResponse,
+    ClosingGuardEvaluateRequest,
+    ClosingGuardEvaluateResponse,
     LedgerEventCreateRequest,
+    NegativeProductEntry,
     PeriodClosingResponse,
     ReversalRequestCreate,
+)
+from apps.api.modules.m4_inventory.services.closing_guard_service import (
+    ClosingGuardService,
 )
 from apps.api.modules.m4_inventory.services.ledger_service import LedgerService
 from apps.api.modules.m4_inventory.services.opening_carry_service import (
@@ -159,9 +167,7 @@ async def trigger_opening_carry(
         period_id=result["period_id"],
         period_key=result["period_key"],
         prev_period_key=result["prev_period_key"],
-        decisions=[
-            CarryDecisionResponse(**d) for d in result["decisions"]
-        ],
+        decisions=[CarryDecisionResponse(**d) for d in result["decisions"]],
         opening_inventory=result["opening_inventory"],
         chain_depth=result["chain_depth"],
         trigger_source=result["trigger_source"],
@@ -172,9 +178,7 @@ async def trigger_opening_carry(
 # ── Story 5.2 — Ledger routes ────────────────────────────────
 
 
-async def _build_ledger_service(
-    session: AsyncSession, ctx: TenantContext
-) -> LedgerService:
+async def _build_ledger_service(session: AsyncSession, ctx: TenantContext) -> LedgerService:
     """Construct `LedgerService` with tenant industry loaded.
 
     Helper: identical to the pattern used by the 5-1 carry route
@@ -204,9 +208,7 @@ async def create_ledger_event(
     payload: LedgerEventCreateRequest,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.INVENTORY_LEDGER)
-    ),
+    _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
     _role: None = Depends(require_role("owner")),
 ) -> PeriodClosingResponse:
     """Operator manual INSERT entry (recovery / backfill).
@@ -263,9 +265,7 @@ async def get_period_closing(
     period_key: str = Query(..., description="AD-24 typed 'YYYY-MM' fiscal key"),
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.INVENTORY_LEDGER)
-    ),
+    _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
 ) -> PeriodClosingResponse:
     """Read-only closing projection (multi-product).
 
@@ -306,9 +306,7 @@ async def get_carry_chain(
     ),
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.INVENTORY_LEDGER)
-    ),
+    _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
 ) -> CarryChainResponse:
     """Read-only carry-chain walk (recursive CTE).
 
@@ -351,9 +349,7 @@ async def request_reversal(
     payload: ReversalRequestCreate,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.INVENTORY_LEDGER)
-    ),
+    _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
     _role: None = Depends(require_role("owner")),
 ) -> dict[str, str]:
     """M4 reversal entrypoint stub.
@@ -379,3 +375,130 @@ async def request_reversal(
     # Unreachable: request_reversal always raises. Defensive return for
     # type-checker satisfaction (FastAPI will never serialize this).
     return {"trace_id": ctx.trace_id}
+
+
+# ── Story 5.3 — Closing guard routes (T6.1 + T6.2) ────────────
+
+
+async def _build_closing_guard_service(
+    session: AsyncSession, ctx: TenantContext
+) -> ClosingGuardService:
+    """Construct `ClosingGuardService` with tenant industry loaded.
+
+    Helper: identical pattern to `_build_ledger_service`. Industry
+    loaded from tenant_settings; None for service tenants (guard disabled).
+    """
+    settings_svc = SettingsService(session, tenant_id=ctx.tenant_id)
+    try:
+        settings = await settings_svc.get_or_create_settings()
+        industry = settings.industry
+    except TenantSettingsNotFoundError:
+        industry = None
+
+    from packages.services.m0_onboarding.industry_menu import Industry
+
+    industry_enum: Industry | None = None
+    if industry is not None:
+        try:
+            industry_enum = Industry(industry)
+        except (ValueError, KeyError):
+            industry_enum = None
+
+    return ClosingGuardService(
+        session,
+        tenant_id=ctx.tenant_id,
+        industry=industry_enum,
+        trace_id=ctx.trace_id,
+    )
+
+
+@router.post(
+    "/closing-guard/evaluate",
+    response_model=ClosingGuardEvaluateResponse,
+    status_code=200,
+    summary="Closing invariant read-only check (Story 5.3 AC #2 + AC #4)",
+)
+async def evaluate_closing_guard(
+    payload: ClosingGuardEvaluateRequest,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
+) -> ClosingGuardEvaluateResponse:
+    """Read-only closing ≥ 0 invariant check (PRD §F4.2 + §V3).
+
+    Returns the ClosingInvariant NamedTuple fields in wire format.
+    UI uses this for the [수불부] tab red banner + manual edit reject
+    gate (Story 5.3 T9 frontend wire).
+
+    For service-only tenants: guard_enabled=False, code='EMPTY_PERIOD'.
+    """
+    guard_svc = await _build_closing_guard_service(session, ctx)
+    invariant = await guard_svc.evaluate_closing_guard(period_key=payload.period_key)
+
+    closing_wire = {str(pid): f"{qty:f}" for pid, qty in invariant.closing_per_product.items()}
+    negative_products = [
+        NegativeProductEntry(
+            product_id=str(pid),
+            closing_qty=f"{qty:f}",
+        )
+        for pid, qty in invariant.negative_products.items()
+    ]
+    banner_ko = ""
+    if invariant.code == "NEGATIVE_CLOSING":
+        banner_ko = _format_banner_ko(invariant)
+
+    return ClosingGuardEvaluateResponse(
+        period_key=payload.period_key,
+        code=invariant.code,
+        closing_per_product=closing_wire,
+        negative_products=negative_products,
+        guard_enabled=invariant.guard_enabled,
+        banner_ko=banner_ko,
+        trace_id=ctx.trace_id,
+    )
+
+
+@router.post(
+    "/closing-guard/close-attempt",
+    response_model=ClosingGuardCloseAttemptResponse,
+    status_code=200,
+    summary="Close-time gate wire — additive over 4-2 is_blocked (Story 5.3 AC #5)",
+)
+async def request_close_attempt(
+    payload: ClosingGuardCloseAttemptRequest,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
+    _role: None = Depends(require_role("owner")),
+) -> ClosingGuardCloseAttemptResponse:
+    """Close-time gate wire (PRD §F4.2 + §V3 — Story 5.3 AC #5).
+
+    Additive over Story 4-2 is_blocked → 409 MONTHLY_INPUT_BLOCKED.
+    When invariant.code='NEGATIVE_CLOSING', raises 409
+    ClosingGuardNegativeInventoryError → 409 NEGATIVE_CLOSING_INVENTORY.
+    """
+    guard_svc = await _build_closing_guard_service(session, ctx)
+    result = await guard_svc.request_close_attempt(
+        period_key=payload.period_key,
+        actor_id=ctx.user_id,
+    )
+    return ClosingGuardCloseAttemptResponse(
+        allowed=result["allowed"],
+        period_key=result["period_key"],
+        closing_per_product=result["closing_per_product"],
+        invariant_code=result["invariant_code"],
+        trace_id=ctx.trace_id,
+    )
+
+
+def _format_banner_ko(invariant) -> str:
+    """Format the Korean red banner from a ClosingInvariant NamedTuple.
+
+    Lazy import — avoid circular dependency on
+    packages.services.m4_inventory.closing_guard.
+    """
+    from packages.services.m4_inventory.closing_guard import (
+        format_negative_closing_banner_ko,
+    )
+
+    return format_negative_closing_banner_ko(invariant)

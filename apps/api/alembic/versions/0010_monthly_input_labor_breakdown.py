@@ -69,9 +69,7 @@ def upgrade() -> None:
         ADD COLUMN IF NOT EXISTS pay_type TEXT NULL
         """
     )
-    op.execute(
-        "DROP CONSTRAINT IF EXISTS monthly_input_rows_pay_type_check"
-    )
+    op.execute("DROP CONSTRAINT IF EXISTS monthly_input_rows_pay_type_check")
     pay_type_list = ", ".join(f"'{p}'" for p in _PAY_TYPE_VALUES)
     op.execute(
         f"""
@@ -153,16 +151,10 @@ def downgrade() -> None:
     # Drop tenant_settings column first (cross-table dependency order).
     op.execute("ALTER TABLE tenant_settings DROP COLUMN IF EXISTS payroll")
     # Drop in reverse order; CHECK constraints cascade with the columns.
-    op.execute(
-        "ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS company_burden_rate"
-    )
-    op.execute(
-        "ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS retirement_reserve_krw"
-    )
+    op.execute("ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS company_burden_rate")
+    op.execute("ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS retirement_reserve_krw")
     op.execute("ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS bonus_krw")
     op.execute("ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS welfare_krw")
     op.execute("ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS overtime_krw")
-    op.execute(
-        "ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS monthly_salary_basis_krw"
-    )
+    op.execute("ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS monthly_salary_basis_krw")
     op.execute("ALTER TABLE monthly_input_rows DROP COLUMN IF EXISTS pay_type")

@@ -26,7 +26,7 @@ async I/O — rule kernels are sync.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from apps.api.modules.m3_calculate.services.rules import (
@@ -112,8 +112,9 @@ class VerificationRunner:
         industry: str,
         tenant_id: UUID,
         period_key: str,
+        closing_invariant_verdict: dict[str, Any] | None = None,
     ) -> Verdict:
-        """Run the 4-rule strict ordered sequence.
+        """Run the 5-rule strict ordered sequence.
 
         AD-12 ordering invariant: previous rule status='failed' → abort
         later rules. The `verifications[]` array contains ONLY fired
@@ -122,6 +123,11 @@ class VerificationRunner:
         AD-5 purity: rule kernels do not perform I/O. The runner itself
         is also pure (no DB session, no clock). Async signature matches
         orchestrator conventions.
+
+        Story 5.3 — V3 closing_invariant_verdict pre-load (cost_engine
+        V3Verdict TypedDict shape). Orchestrator fetches via
+        ClosingInvariantVerifier BEFORE run_all(); V3 rule kernel stays
+        pure (AD-5).
         """
         rule_input = RuleInput(
             monthly_input=monthly_input,
@@ -131,6 +137,7 @@ class VerificationRunner:
             tenant_id=tenant_id,
             period_key=period_key,
             trace_id=self._trace_id,
+            closing_invariant_verdict=closing_invariant_verdict,
         )
 
         verifications: list[VerificationItem] = []
@@ -145,9 +152,7 @@ class VerificationRunner:
                 break
 
         verification_status: VerificationEnvelopeStatus = (
-            "passed"
-            if all(v.status == "passed" for v in verifications)
-            else "failed"
+            "passed" if all(v.status == "passed" for v in verifications) else "failed"
         )
         top_failure: VerificationItem | None = next(
             (v for v in verifications if v.status == "failed"), None

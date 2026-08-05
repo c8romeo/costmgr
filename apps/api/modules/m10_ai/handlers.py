@@ -391,7 +391,8 @@ async def promote_drafts(
         promoted_at=_dt.fromisoformat(new_subblock["promoted_at"]),
         fields=dict(new_subblock.get("fields") or {}),
         missing_optional=[
-            f for f in (
+            f
+            for f in (
                 "business_registration_number",
                 "company_name",
                 "address",

@@ -360,8 +360,13 @@ def test_v8_golden_match_passes_for_all_industries() -> None:
 # ── Registry — AD-12 strict order ────────────────────────────
 @pytest.mark.engine
 def test_registry_order_is_v1_v4_v7_v8() -> None:
-    """AD-12 ordering invariant: V1 first, V4 second, V7 third, V8 last."""
-    assert [r.name for r in _VERIFICATION_RULES] == ["V1", "V4", "V7", "V8"]
+    """AD-12 ordering invariant: V1 → V4 → V3 → V7 → V8 (5 rules).
+
+    Story 5.3 inserted V3 at slot 3 between V4 and V7 per AD-12 ordering
+    invariant preservation.
+    """
+    assert [r.name for r in _VERIFICATION_RULES] == ["V1", "V4", "V3", "V7", "V8"]
+    assert len(_VERIFICATION_RULES) == 5
 
 
 @pytest.mark.engine
@@ -408,7 +413,7 @@ async def _runner_v1_v4_v8_for_manufacturing_v7_skipped_impl() -> None:
     assert verdict.verification_status == "passed"
     assert verdict.top_failure is None
     codes = [v.code for v in verdict.verifications]
-    assert codes == ["V1", "V4", "V8"]  # V7 silently skipped
+    assert codes == ["V1", "V4", "V3", "V8"]  # V7 silently skipped (manufacturing)
     assert verdict.trace_id == "t-1"
 
 
