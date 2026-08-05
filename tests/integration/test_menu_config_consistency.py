@@ -29,6 +29,7 @@ from pathlib import Path
 
 from packages.services.m0_onboarding.industry_menu import (
     GRACE_PERIOD_DAYS,
+    INDUSTRY_ICON,
     INDUSTRY_LABEL_KO,
     Industry,
     MenuItem,
@@ -231,3 +232,38 @@ def test_python_menuitem_has_korean_label_for_every_ts_label() -> None:
     py_labels = {m.value for m in MenuItem}
     missing_in_py = ts_labels - py_labels
     assert not missing_in_py, f"TS labels missing from Python MenuItem enum: {missing_in_py}"
+
+
+# ─────────────────────────────────────────────────────────────
+# INDUSTRY_ICON parity (Story 0.5 T8.4 — closes Story 1.1 F-33+F-37)
+# A5 forward-lock drift detector pattern: drift = A5 forward-lock fail.
+# ─────────────────────────────────────────────────────────────
+
+
+def test_industry_icon_parity_ts_matches_python() -> None:
+    """INDUSTRY_ICON must match between TS and Python for every industry.
+
+    Both sides store icon NAME (lucide-react convention) — Python side has
+    no SVG component. Drift here breaks IndustryCard rendering (TS looks up
+    lucide by name) and would be silent in CI otherwise.
+    """
+    import pytest
+
+    src = _read_ts_source()
+    m = re.search(
+        r"export\s+const\s+INDUSTRY_ICON:\s*Record<Industry,\s*string>\s*=\s*\{(?P<body>.*?)\};",
+        src,
+        re.DOTALL,
+    )
+    if not m:
+        pytest.fail("Could not find INDUSTRY_ICON object in menu-config.ts")
+
+    body = m.group("body")
+    for industry in Industry:
+        pattern = rf'{industry.value}:\s*"(?P<icon>[^"]+)"'
+        m2 = re.search(pattern, body)
+        assert m2, f"Missing industry key {industry.value!r} in TS INDUSTRY_ICON"
+        assert m2.group("icon") == INDUSTRY_ICON[industry], (
+            f"INDUSTRY_ICON drift for {industry.value!r}: "
+            f"TS={m2.group('icon')!r} PY={INDUSTRY_ICON[industry]!r}"
+        )

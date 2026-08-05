@@ -31,7 +31,7 @@ interface OnboardingIndustryPageProps {
 export default async function OnboardingIndustryPage({
   params,
 }: OnboardingIndustryPageProps) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const hasSession = cookieStore.get("sb-access-token")?.value;
   // F-4: pass the accessToken STRING to the client component (was previously
   // undefined, which caused every POST to be unauthenticated).

@@ -5,15 +5,14 @@
  *
  * Scenarios:
  *   1. test_new_user_sees_industry_selector
- *      - Visit `/[locale]/login` (Story 0.5 wires the real signup).
- *      - After login, redirected to industry selector.
+ *      - Visit `/[locale]/onboarding/industry` → heading + 4 industry names visible.
  *   2. test_select_service_hides_bom_menu
  *      - Select "서비스업" → sidebar shows 원가풀/활동/동인 and hides BOM/기초재고/수불부.
  *   3. test_select_manufacturing_service_shows_segment_split
  *      - Select "제조+서비스" → "카브아웃 분할" visible + tooltip on hover.
  *
- * The Playwright runner + Supabase test fixtures are added in Story 0.5.
- * Until then this file is shipped as scaffolding.
+ * Story 0.5 wired the Playwright runner + Supabase test fixtures
+ * (e2e/fixtures/supabase-test.ts).
  */
 
 import { expect, test } from "@playwright/test";

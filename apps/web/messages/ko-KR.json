@@ -1,0 +1,42 @@
+{
+  "industry": {
+    "title": "업종을 선택해 주세요",
+    "manufacturing": "제조업",
+    "service": "서비스업",
+    "mixed": "제조+서비스",
+    "service_other": "제조+서비스+기타",
+    "locked_message": "업종이 A7 전진법으로 잠겼습니다",
+    "next_fiscal_year": "다음 회계연도부터 변경 가능합니다 ({date}부터)"
+  },
+  "bom": {
+    "not_complete": "비중 합 100% 필요 (현재 {ratio}%)",
+    "ratio_label": "비중",
+    "ratio_total": "비중 합계",
+    "target_total": "목표",
+    "missing": "비중 합 {missing}% 부족 — [계산] 버튼이 잠깁니다.",
+    "complete": "비중 합 100% 완료 — [계산] 버튼이 활성화됩니다."
+  },
+  "settings": {
+    "wizard_title": "초기 설정 마법사",
+    "fiscal_year_start": "회계연도 시작일",
+    "allocation_criteria": "배부 기준",
+    "language": "언어",
+    "save": "저장",
+    "next": "다음",
+    "previous": "이전"
+  },
+  "common": {
+    "save": "저장",
+    "cancel": "취소",
+    "close": "닫기",
+    "loading": "로딩 중...",
+    "error": "오류가 발생했습니다",
+    "retry": "재시도"
+  },
+  "errors": {
+    "industry_locked": "업종 변경은 다음 회계연도부터 가능합니다 (A7 전진법)",
+    "forbidden_role": "owner 역할만 가능합니다",
+    "invalid_input": "입력값이 올바르지 않습니다",
+    "server_error": "서버 오류가 발생했습니다"
+  }
+}

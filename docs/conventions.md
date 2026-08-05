@@ -586,3 +586,132 @@ query_period_closing_all(period_key=...)` 를 canonical source 로 사용.
 test_inventory_ledger_label_consistency.py` 가 snake_case Python ↔
 camelCase TS parity 검증 (CR 4-3 lesson — drift detector
 placeholder).
+
+---
+
+## §11 Frontend Tooling (Story 0.5)
+
+Frontend toolchain stack pin + 디자인 토큰 + drift detector의 SSOT는
+[`docs/frontend-toolchain.md`](./frontend-toolchain.md) 이다. 본 절은
+`docs/conventions.md` 의 다른 절과의 cross-reference 만을 다룬다.
+
+### §11.1 적용 범위
+
+`apps/web/**` (Next.js 15.5.4 + React 19.1.1 + Tailwind 4). 다른
+package (모놀리식 frontend 가 없는 backend 서비스)에는 미적용.
+
+### §11.2 Cross-reference
+
+| 토픽 | 본 파일 anchor | frontend-toolchain.md anchor |
+|---|---|---|
+| Tailwind 4 디자인 토큰 (CSS variables) | §11.3 (이 절) | §2 Tailwind 4 Config |
+| `cn()` helper | §11.4 (이 절) | §3 shadcn/ui Setup |
+| sonner toast wire | §11.5 (이 절) | §4 sonner Toast Usage |
+| vitest + MSW | §11.6 (이 절) | §5 vitest Setup |
+| Playwright + rls_db fixture | §11.7 (이 절) | §6 Playwright Setup |
+| next-intl ko-KR | §11.8 (이 절) | §7 next-intl Routing |
+| INDUSTRY_ICON cross-language contract | §11.9 (이 절) | §8 INDUSTRY_ICON Contract |
+
+### §11.3 Tailwind 4 디자인 토큰 (CSS variables)
+
+Tailwind 4 디자인 토큰 (background / foreground / primary / ring / radius)
+은 `apps/web/app/globals.css` `@theme inline` 블록에서 SSOT. 클래스명은
+`bg-background`, `text-primary`, `ring-ring`, `rounded-lg` 등이며
+utility-first 직접 사용을 권장. 임의 색상 (예: `bg-blue-500`)은
+**금지** — 토큰을 확장하여 사용 (`bg-primary` 등).
+
+### §11.4 `cn()` helper
+
+```typescript
+import { cn } from "@/lib/utils";
+
+className={cn("px-4 py-2", isActive && "bg-primary", className)}
+```
+
+수동 className concatenation (`"px-4 " + (isActive ? "bg-primary" : "")`)
+**금지** — tailwind-merge 로 충돌 resolved 보장.
+
+### §11.5 sonner toast wire
+
+```typescript
+"use client";
+import { toast } from "sonner";
+
+useEffect(() => {
+  if (!isComplete && ratioSum < 100) {
+    toast.warning(`BOM 비중 합 100% 필요 (현재 ${ratioSum.toFixed(2)}%)`);
+  }
+}, [isComplete, ratioSum]);
+```
+
+- `<Toaster />` 는 `apps/web/app/layout.tsx` 에서 1회 wire. 페이지마다
+  호출 금지.
+- `useEffect` 안에서 trigger (render-time fire 금지 — spam 방지).
+- server component 에서 직접 `toast()` 호출 **금지** — client component
+  경계 안에서만.
+
+### §11.6 vitest + MSW
+
+- `apps/web/__tests__/**/*.test.tsx` - component / hook test
+- `apps/web/test/setup.ts` - extend expect + MSW server lifecycle
+- `apps/web/mocks/handlers.ts` - HTTP mock 추가 시 핸들러 1곳 SSOT
+
+테스트 작성 시:
+- `describe`/`it`/`expect`/`vi` 는 globals (import 불요)
+- `<input>` 변경은 `userEvent.setup()` + `user.click()` / `user.type()`
+  (fireEvent 사용 시 Radix 미작동)
+- `next/navigation` 모킹 시 `useParams: vi.fn(() => ({ locale: "ko-KR" }))`
+  명시 (default undefined 시 test fail)
+
+### §11.7 Playwright + rls_db fixture
+
+- `apps/web/e2e/**/*.spec.ts` - E2E test
+- `apps/web/e2e/fixtures/supabase-test.ts` - tenant-scoped E2E fixture
+  (Story 1.1 F-30 close)
+
+`rlsDb` fixture 사용:
+
+```typescript
+import { test } from "./fixtures/supabase-test";
+
+test("tenant-scoped inquiry", async ({ rlsDb }) => {
+  // rlsDb.tenantId, rlsDb.tenantToken 자동 주입
+});
+```
+
+### §11.8 next-intl ko-KR
+
+- `apps/web/messages/ko-KR.json` - 번역 SSOT (namespaces: industry,
+  bom, settings, common, errors)
+- 모든 UI 텍스트는 `useTranslations("namespace")` 경유. ko-KR 인라인
+  string **금지** (UX v1.0 ko-KR lock).
+
+```typescript
+"use client";
+import { useTranslations } from "next-intl";
+
+const t = useTranslations("industry");
+return <h1>{t("manufacturing")}</h1>;
+```
+
+### §11.9 INDUSTRY_ICON cross-language contract
+
+TS 와 Python 양쪽에 `INDUSTRY_ICON: Record<Industry, string>` /
+`INDUSTRY_ICON: dict[Industry, str]` 가 존재. Drift detector:
+`tests/integration/test_menu_config_consistency.py::test_industry_icon_parity_ts_matches_python`.
+**새 industry 추가 시 Python + TS + detector 3중 일관성 필수** (AD-15
+cross-language hygiene).
+
+### §11.10 Lint — frontend toolchain
+
+| 검사 | 위치 | 실행 |
+|---|---|---|
+| TS 명명/restricted types | ESLint (root `.eslint.config.mjs`) | `pnpm lint:conventions` |
+| TS `number` (money) | ESLint `no-restricted-types` | `pnpm lint:conventions` |
+| TS 타입 체크 | `tsc --noEmit` | `pnpm lint:tsc` |
+| Vitest | `vitest` | `pnpm test` |
+| Playwright (chromium smoke) | `playwright test --project=chromium` | `pnpm playwright:test` |
+| Drift detector (TS ↔ Python INDUSTRY_ICON) | `tests/integration/test_menu_config_consistency.py` | `uv run pytest tests/integration/` |
+
+Frontend 도구 세부 설치 / wire 절차는
+[`docs/frontend-toolchain.md`](./frontend-toolchain.md) 참조.

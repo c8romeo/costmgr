@@ -23,7 +23,8 @@ import { fetchProductsServerSide } from "@/lib/server-api";
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
-  const accessToken = cookies().get("sb-access-token")?.value;
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("sb-access-token")?.value;
   const traceId = crypto.randomUUID();
 
   // F-20: server-side initial product list fetch. On any failure

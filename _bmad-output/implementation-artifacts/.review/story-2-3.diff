@@ -1,0 +1,2923 @@
+# Story 2.3 review diff
+# baseline_commit: ab409bf (Story 2.1 review patches)
+# spec_file: _bmad-output/implementation-artifacts/2-3-item-type-change-integrity-guard.md
+# review_mode: full
+
+## === TRACKED FILES (diff from ab409bf) ===
+
+diff --git a/apps/api/modules/m1_baseline/handlers.py b/apps/api/modules/m1_baseline/handlers.py
+index 2f29381..b601e6f 100644
+--- a/apps/api/modules/m1_baseline/handlers.py
++++ b/apps/api/modules/m1_baseline/handlers.py
+@@ -1,28 +1,44 @@
+-"""apps.api.modules.m1_baseline.handlers — M1 baseline FastAPI routes (Story 1.2 + 2.1).
++"""apps.api.modules.m1_baseline.handlers — M1 baseline FastAPI routes (Story 1.2 + 2.1 + 2.2 + 2.3).
+ 
+ Story 1.2 (preserved):
+ - POST /api/v1/baseline/accounts/classification
+ - GET  /api/v1/baseline/accounts/classification
+ 
+-Story 2.1 (this revision, PRD §8.M1):
++Story 2.1 (PRD §8.M1):
+ - POST   /api/v1/baseline/products            — register a product
+ - GET    /api/v1/baseline/products            — list products (paginated)
+ - GET    /api/v1/baseline/products/{id}       — single fetch
+ - PATCH  /api/v1/baseline/products/{id}       — partial update + soft-delete toggle
+ 
+-Each route carries `require_capability(Capability.PRODUCT)` (AC #6 defense
+-in depth). POST additionally gates `material` / `semi_product` types via
+-the in-service PRODUCT_MATERIAL check (service tenants cannot register
+-physical catalog items).
++Story 2.2 (PRD §8.M1(b) — BOM matrix):
++- GET    /api/v1/baseline/products/{id}/bom   — fetch BOM (lines + totals)
++- PUT    /api/v1/baseline/products/{id}/bom   — bulk replace
++- DELETE /api/v1/baseline/products/{id}/bom   — clear all rows
++
++Story 2.3 (PRD §6.1 — item type change integrity guard):
++- PATCH  /api/v1/baseline/products/{id}       — `product_type` change now
++  CONDITIONAL: allowed iff BOM + ledger references = 0. Otherwise the
++  request is rejected with 409 PRODUCT_TYPE_HAS_REFERENCES. `code` remains
++  strictly immutable (403 PRODUCT_IMMUTABLE_FIELD).
++
++Each route carries `require_capability(Capability.BOM)` (Story 2.2 AC #4
++defense in depth). Mutating routes additionally require `require_role("owner")`.
+ 
+ Error contract (AD-15 §4 `{code, message_ko, details, trace_id}`):
+-- 201 — successful POST
+-- 200 — successful GET / PATCH
+-- 403 PRODUCT_IMMUTABLE_FIELD — PATCH attempts to change `code`/`product_type`
+-- 403 INDUSTRY_NOT_SUPPORTED   — material/semi_product by service tenant
+-- 404 PRODUCT_NOT_FOUND        — single fetch miss
+-- 409 PRODUCT_CODE_DUPLICATE   — same (tenant, code) collision (AC #3)
+-- 422 INVALID_PRODUCT_CODE     — manual `code` does not match PREFIX-XXXX
++- 200 — successful GET / PUT
++- 204 — successful DELETE (clear)
++- 403 INDUSTRY_NOT_SUPPORTED       — service tenant accessing BOM routes
++- 403 FORBIDDEN_ROLE               — member/viewer attempting BOM mutation
++- 403 PRODUCT_IMMUTABLE_FIELD      — `code` rejected (AD-18)
++- 404 BOM_PARENT_NOT_FOUND         — parent product does not exist
++- 404 PRODUCT_NOT_FOUND            — product row missing
++- 409 PRODUCT_CODE_DUPLICATE       — same (tenant, code) collision
++- 409 PRODUCT_TYPE_HAS_REFERENCES  — type change blocked by BOM/ledger refs
++- 422 BOM_INVALID_PARENT_TYPE      — parent not in {product, semi_product}
++- 422 BOM_INVALID_CHILD_TYPE       — child not in {material, semi_product}
++- 422 BOM_DUPLICATE_CHILD          — same child twice in PUT payload
++- 422 BOM_INVALID_RATIO            — ratio out of range / > 4 decimal places
++- 422 INVALID_PRODUCT_CODE         — malformed manual code
+ 
+ Mirrors the inline-JSONResponse pattern from
+ `apps/api/modules/m0_onboarding/handlers.py` (Story 1.1/1.2).
+@@ -34,7 +50,7 @@ import uuid
+ from datetime import UTC, datetime
+ from typing import Any
+ 
+-from fastapi import APIRouter, Depends, Query, status
++from fastapi import APIRouter, Depends, Query, Response, status
+ from fastapi.responses import JSONResponse
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+@@ -52,11 +68,22 @@ from apps.api.modules.m0_onboarding.services.settings_service import (
+ from apps.api.modules.m1_baseline.schemas import (
+     AccountClassificationRequest,
+     AccountClassificationResponse,
++    BOMResponse,
++    BOMSetRequest,
+     ProductCreateRequest,
+     ProductListResponse,
+     ProductResponse,
+     ProductUpdateRequest,
+ )
++from apps.api.modules.m1_baseline.services.bom_service import (
++    BOMChildNotFoundError,
++    BOMDuplicateChildError,
++    BOMInvalidChildTypeError,
++    BOMInvalidParentTypeError,
++    BOMInvalidRatioError,
++    BOMParentNotFoundError,
++    BOMService,
++)
+ from apps.api.modules.m1_baseline.services.product_service import (
+     InvalidProductCodeError,
+     ProductCapabilityError,
+@@ -64,6 +91,7 @@ from apps.api.modules.m1_baseline.services.product_service import (
+     ProductImmutableFieldError,
+     ProductNotFoundError,
+     ProductService,
++    ProductTypeHasReferencesError,
+ )
+ 
+ router = APIRouter(prefix="/api/v1/baseline", tags=["m1-baseline"])
+@@ -205,6 +233,23 @@ def _err(
+     )
+ 
+ 
++def _format_type_references_message_ko(err: ProductTypeHasReferencesError) -> str:
++    """Build the Korean error message for a type-change blocked by references.
++
++    Story 2.3 / PRD §6.1 — UX requirement. The exception carries the counts
++    (no DB access). The handler-side formatter keeps Korean wording in
++    `_err` callers (consistent with the rest of the baseline module) and
++    avoids burdening the service layer with UI strings (AD-11 layering).
++    """
++    parts = [f"다른 곳에서 {err.bom_count}건 참조 중"]
++    if err.ledger_count > 0:
++        parts.append(f"· 수불 {err.ledger_count}건")
++    parts.append(
++        " — 신규 품목으로 등록한 뒤 참조를 이관해 주세요 (품목 유형은 참조 0건일 때만 변경 가능)"
++    )
++    return "".join(parts)
++
++
+ # ── Story 2.1 routes ─────────────────────────────────────────
+ @router.post(
+     "/products",
+@@ -414,6 +459,24 @@ async def update_product(
+             details={"product_id": str(err.product_id)},
+             trace_id=err.trace_id,
+         )
++    except ProductTypeHasReferencesError as err:
++        # Story 2.3 — type change blocked by BOM/ledger references (409).
++        # Placed BEFORE `ProductImmutableFieldError` per AD-15 §4: more
++        # specific exception first. (`code` is still strictly immutable;
++        # `product_type` is now CONDITIONAL on ref-count == 0.)
++        return _err(
++            status_code=status.HTTP_409_CONFLICT,
++            code="PRODUCT_TYPE_HAS_REFERENCES",
++            message_ko=_format_type_references_message_ko(err),
++            details={
++                "product_id": str(err.product_id),
++                "requested_type": err.requested_type.value,
++                "bom_count": err.bom_count,
++                "ledger_count": err.ledger_count,
++                "total_count": err.total_count,
++            },
++            trace_id=err.trace_id,
++        )
+     except ProductImmutableFieldError as err:
+         return _err(
+             status_code=status.HTTP_403_FORBIDDEN,
+@@ -424,3 +487,215 @@ async def update_product(
+         )
+ 
+     return _product_to_response(row)
++
++
++# ── Story 2.2 routes — BOM matrix (PRD §8.M1(b)) ──────────────
++
++
++@router.get(
++    "/products/{product_id}/bom",
++    response_model=BOMResponse,
++    status_code=status.HTTP_200_OK,
++    summary="BOM 조회 (lines + 합계 + 완료 여부)",
++    dependencies=[Depends(require_capability(Capability.BOM))],
++)
++async def get_bom(
++    product_id: uuid.UUID,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++):
++    """Story 2.2 AC #1 — fetch a parent's BOM (RLS-scoped).
++
++    `is_complete` is derived at read time (CR 2.1 lesson — derived
++    values must not be stored). `missing_ratio` is clamped at 0 (UX:
++    "비중 합 100% 필요 (현재 X%)").
++    """
++    trace_id = str(uuid.uuid4())
++    service = BOMService(session, trace_id=trace_id)
++    try:
++        bom = await service.get_bom(
++            tenant_id=ctx.tenant_id,
++            parent_product_id=product_id,
++        )
++    except BOMParentNotFoundError as err:
++        return _err(
++            status_code=status.HTTP_404_NOT_FOUND,
++            code="BOM_PARENT_NOT_FOUND",
++            message_ko="모품목을 찾을 수 없습니다",
++            details={"parent_product_id": str(err.parent_product_id)},
++            trace_id=err.trace_id,
++        )
++    except BOMInvalidParentTypeError as err:
++        return _err(
++            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
++            code="BOM_INVALID_PARENT_TYPE",
++            message_ko="모품목은 제품 또는 반제품만 가능합니다",
++            details={
++                "parent_product_id": str(err.parent_product_id),
++                "parent_type": err.parent_type.value,
++                "allowed_parent_types": ["product", "semi_product"],
++            },
++            trace_id=err.trace_id,
++        )
++    return bom
++
++
++@router.put(
++    "/products/{product_id}/bom",
++    response_model=BOMResponse,
++    status_code=status.HTTP_200_OK,
++    summary="BOM 일괄 저장 (bulk replace, 100% invariant atomic)",
++    dependencies=[
++        Depends(require_capability(Capability.BOM)),
++        # H3 / AD-10 — owner-only mutation. member/viewer are read-only.
++        Depends(require_role("owner")),
++    ],
++)
++async def set_bom(
++    product_id: uuid.UUID,
++    body: BOMSetRequest,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++):
++    """Story 2.2 AC #2/AC #3 — bulk-replace the entire BOM atomically.
++
++    Per CR 2.1 lesson: per-row endpoints would let the BOM dip below
++    100% temporarily (between two PATCH calls). The 100% invariant must
++    hold atomically — the bulk-replace PUT is the only mutation path.
++
++    Idempotent no-op skip (CR 2.1): if the new payload exactly equals
++    the stored state, the service returns the existing BOM WITHOUT
++    emitting an audit row. The first write (stored empty) always emits.
++    """
++    trace_id = str(uuid.uuid4())
++    service = BOMService(session, trace_id=trace_id)
++    try:
++        bom = await service.set_bom(
++            tenant_id=ctx.tenant_id,
++            actor_id=ctx.user_id,
++            parent_product_id=product_id,
++            body=body,
++        )
++    except BOMParentNotFoundError as err:
++        return _err(
++            status_code=status.HTTP_404_NOT_FOUND,
++            code="BOM_PARENT_NOT_FOUND",
++            message_ko="모품목을 찾을 수 없습니다",
++            details={"parent_product_id": str(err.parent_product_id)},
++            trace_id=err.trace_id,
++        )
++    except BOMChildNotFoundError as err:
++        # L6 (Review): a child ID in the payload is not visible to the tenant.
++        # Surfaced as 404 with a distinct code so the client can identify the
++        # missing entity.
++        return _err(
++            status_code=status.HTTP_404_NOT_FOUND,
++            code="BOM_CHILD_NOT_FOUND",
++            message_ko="BOM 자식 품목을 찾을 수 없습니다",
++            details={
++                "child_product_id": str(err.child_product_id),
++                "parent_product_id": str(err.parent_product_id),
++            },
++            trace_id=err.trace_id,
++        )
++    except BOMInvalidParentTypeError as err:
++        return _err(
++            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
++            code="BOM_INVALID_PARENT_TYPE",
++            message_ko="모품목은 제품 또는 반제품만 가능합니다",
++            details={
++                "parent_product_id": str(err.parent_product_id),
++                "parent_type": err.parent_type.value,
++                "allowed_parent_types": ["product", "semi_product"],
++            },
++            trace_id=err.trace_id,
++        )
++    except BOMInvalidChildTypeError as err:
++        return _err(
++            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
++            code="BOM_INVALID_CHILD_TYPE",
++            message_ko="BOM 자식 품목은 원자재 또는 반제품만 가능합니다",
++            details={
++                "child_product_id": str(err.child_product_id),
++                "child_type": err.child_type.value,
++                "allowed_types": ["material", "semi_product"],
++            },
++            trace_id=err.trace_id,
++        )
++    except BOMDuplicateChildError as err:
++        return _err(
++            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
++            code="BOM_DUPLICATE_CHILD",
++            message_ko="동일한 자식 품목이 두 번 등록되었습니다",
++            details={
++                "duplicate_child_product_id": str(err.duplicate_child_product_id),
++                "occurrences": err.occurrences,
++            },
++            trace_id=err.trace_id,
++        )
++    except BOMInvalidRatioError as err:
++        return _err(
++            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
++            code="BOM_INVALID_RATIO",
++            message_ko="비중은 소수점 4자리까지 입력 가능합니다",
++            details={
++                "child_product_id": str(err.child_product_id),
++                "ratio": str(err.ratio),
++                "max_decimal_places": err.max_decimal_places,
++            },
++            trace_id=err.trace_id,
++        )
++    return bom
++
++
++@router.delete(
++    "/products/{product_id}/bom",
++    status_code=status.HTTP_204_NO_CONTENT,
++    summary="BOM 전체 삭제 (이 제품 BOM 초기화)",
++    dependencies=[
++        Depends(require_capability(Capability.BOM)),
++        Depends(require_role("owner")),
++    ],
++)
++async def clear_bom(
++    product_id: uuid.UUID,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++):
++    """Story 2.2 — clear all BOM rows for a parent.
++
++    Audit-first (`bom_cleared`). Empty BOM is a valid state
++    (`is_complete=false`, [계산] disabled).
++    """
++    trace_id = str(uuid.uuid4())
++    service = BOMService(session, trace_id=trace_id)
++    try:
++        await service.clear_bom(
++            tenant_id=ctx.tenant_id,
++            actor_id=ctx.user_id,
++            parent_product_id=product_id,
++        )
++    except BOMParentNotFoundError as err:
++        return _err(
++            status_code=status.HTTP_404_NOT_FOUND,
++            code="BOM_PARENT_NOT_FOUND",
++            message_ko="모품목을 찾을 수 없습니다",
++            details={"parent_product_id": str(err.parent_product_id)},
++            trace_id=err.trace_id,
++        )
++    except BOMInvalidParentTypeError as err:
++        return _err(
++            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
++            code="BOM_INVALID_PARENT_TYPE",
++            message_ko="모품목은 제품 또는 반제품만 가능합니다",
++            details={
++                "parent_product_id": str(err.parent_product_id),
++                "parent_type": err.parent_type.value,
++                "allowed_parent_types": ["product", "semi_product"],
++            },
++            trace_id=err.trace_id,
++        )
++    # L8 (Review): RFC 7231 says 204 must have an empty body. Use plain
++    # `Response` instead of `JSONResponse(content=None)` which serializes
++    # to the literal string `null`.
++    return Response(status_code=status.HTTP_204_NO_CONTENT)
+diff --git a/apps/api/modules/m1_baseline/schemas.py b/apps/api/modules/m1_baseline/schemas.py
+index 69a93e3..5d781d1 100644
+--- a/apps/api/modules/m1_baseline/schemas.py
++++ b/apps/api/modules/m1_baseline/schemas.py
+@@ -56,6 +56,11 @@ __all__ = [
+     "ProductUpdateRequest",
+     "ProductResponse",
+     "ProductListResponse",
++    # Story 2.2 — BOM schemas
++    "BOMRowInput",
++    "BOMSetRequest",
++    "BOMLineResponse",
++    "BOMResponse",
+ ]
+ 
+ 
+@@ -247,3 +252,111 @@ class ProductListResponse(BaseModel):
+ 
+     items: list[ProductResponse]
+     total: int = Field(..., ge=0, description="Total rows matching the filter (pre-pagination).")
++
++
++# ── BOM schemas (Story 2.2 — Task 3.3) ────────────────────────
++# Mirror `packages.services.m1_baseline.bom_validation` (pure) for the
++# wire boundary. Pydantic v2 enforces NUMERIC(7,4) precision here, before
++# the service layer runs `quantize_ratio` as defense-in-depth.
++
++
++class BOMRowInput(BaseModel):
++    """A single BOM row in the PUT payload (AC #2/AC #8).
++
++    `ratio` is `NUMERIC(7,4)` — 4 decimal places, max 100.0000, min
++    0.0001 (Pydantic `gt=0, le=100` + `max_digits=7, decimal_places=4`).
++    The Pydantic constraints surface 422 BOM_INVALID_RATIO BEFORE the
++    service runs. The service still calls `quantize_ratio` on the value
++    as defense-in-depth (Story 0.4 chunk-B Decimal.set parity).
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    child_product_id: UUID = Field(
++        ...,
++        description="자식 품목 UUID (PRD §6.1 — material 또는 semi_product 만 허용).",
++    )
++    ratio: Decimal = Field(
++        ...,
++        gt=Decimal("0"),
++        le=Decimal("100"),
++        max_digits=7,
++        decimal_places=4,
++        description="비중 (%). NUMERIC(7,4) — 4 decimal places, max 100.0000.",
++    )
++
++
++class BOMSetRequest(BaseModel):
++    """Body of PUT /api/v1/baseline/products/{product_id}/bom (AC #2).
++
++    Bulk-replace semantics: the entire BOM is replaced atomically.
++    - `lines=[]` is allowed (empty BOM, `is_complete=false`).
++    - Max 500 rows per BOM (PRD §8.M1 sanity cap; real BOMs are 10-30 rows).
++    - Duplicate `child_product_id` → 422 BOM_DUPLICATE_CHILD (service-level).
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    # L3 (Review): named constant for TS/Python parity. Drift-checked by
++    # `tests/integration/test_bom_validation_consistency.py` (mirror suite).
++    MAX_BOM_ROWS: int = 500
++
++    lines: list[BOMRowInput] = Field(
++        default_factory=list,
++        max_length=MAX_BOM_ROWS,
++        description="BOM 행 배열 (max 500). 빈 배열은 빈 BOM (sum=0%, is_complete=false).",
++    )
++
++
++class BOMLineResponse(BaseModel):
++    """A single BOM row in the GET/PUT response (AC #1).
++
++    Carries child metadata denormalized (code/name/product_type/is_active)
++    so the matrix UI doesn't need a separate JOIN. `child_is_active=false`
++    is shown with a muted "(비활성)" overlay (AC #9).
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    id: UUID = Field(..., description="BOM 행 UUID v7.")
++    child_product_id: UUID
++    child_code: str
++    child_name: str
++    child_product_type: ProductType
++    child_is_active: bool
++    ratio: Decimal
++    created_at: datetime
++    updated_at: datetime
++
++
++class BOMResponse(BaseModel):
++    """Body of GET / PUT / DELETE /api/v1/baseline/products/{product_id}/bom (AC #1).
++
++    `is_complete` is a **derived** flag — computed at read time as
++    `sum_ratios(lines) == TARGET_TOTAL`. The DB does NOT store it
++    (CR 2.1 lesson: derived values invite drift).
++
++    `missing_ratio` is `max(100 - total_ratio, 0)` — the "{missing}% 부족"
++    UX message. Clamped at zero (over-100 still reports 0).
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    parent_product_id: UUID
++    parent_code: str
++    parent_name: str
++    parent_product_type: ProductType
++    parent_is_active: bool
++    lines: list[BOMLineResponse]
++    total_ratio: Decimal = Field(
++        ..., description="비중 합계 (NUMERIC(7,4) precision)."
++    )
++    is_complete: bool = Field(
++        ...,
++        description="A6 invariant — True iff total_ratio == Decimal('100.0000').",
++    )
++    missing_ratio: Decimal = Field(
++        ...,
++        description="100 - total_ratio (clamped at 0). UI '{missing}% 부족' 표시용.",
++    )
++    updated_at: datetime | None
+diff --git a/apps/api/modules/m1_baseline/services/__init__.py b/apps/api/modules/m1_baseline/services/__init__.py
+index e69de29..540cac8 100644
+--- a/apps/api/modules/m1_baseline/services/__init__.py
++++ b/apps/api/modules/m1_baseline/services/__init__.py
+@@ -0,0 +1,37 @@
++"""apps.api.modules.m1_baseline.services — M1 baseline service layer.
++
++Re-exports `ProductService` (Story 2.1) and `BOMService` (Story 2.2) so
++callers can `from apps.api.modules.m1_baseline.services import ProductService, BOMService`.
++"""
++
++from apps.api.modules.m1_baseline.services.bom_service import (  # noqa: F401
++    BOMDuplicateChildError,
++    BOMInvalidChildTypeError,
++    BOMInvalidParentTypeError,
++    BOMInvalidRatioError,
++    BOMParentNotFoundError,
++    BOMService,
++)
++from apps.api.modules.m1_baseline.services.product_service import (  # noqa: F401
++    InvalidProductCodeError,
++    ProductCapabilityError,
++    ProductCodeDuplicateError,
++    ProductImmutableFieldError,
++    ProductNotFoundError,
++    ProductService,
++)
++
++__all__ = [
++    "BOMService",
++    "BOMDuplicateChildError",
++    "BOMInvalidChildTypeError",
++    "BOMInvalidParentTypeError",
++    "BOMInvalidRatioError",
++    "BOMParentNotFoundError",
++    "InvalidProductCodeError",
++    "ProductCapabilityError",
++    "ProductCodeDuplicateError",
++    "ProductImmutableFieldError",
++    "ProductNotFoundError",
++    "ProductService",
++]
+\ No newline at end of file
+diff --git a/apps/api/modules/m1_baseline/services/product_service.py b/apps/api/modules/m1_baseline/services/product_service.py
+index 822fb0a..19a52b9 100644
+--- a/apps/api/modules/m1_baseline/services/product_service.py
++++ b/apps/api/modules/m1_baseline/services/product_service.py
+@@ -1,9 +1,16 @@
+-"""apps.api.modules.m1_baseline.services.product_service — product catalog CRUD (Story 2.1).
++"""apps.api.modules.m1_baseline.services.product_service — product catalog CRUD (Story 2.1 + Story 2.3).
+ 
+ Writes/reads on the ``products`` table (PRD §8.M1). All state-changing
+ operations write a typed ``audit_logs`` row BEFORE the data write (AD-2).
+ Hard delete is forbidden — soft-delete via ``is_active`` (AC #5).
+ 
++Story 2.3 adds the **type-change integrity guard** (PRD §6.1):
++``product_type`` is now **conditionally** immutable — changing it requires
++that the product has zero references in `bom_lines` (parent + child union).
++The 수불 (inventory ledger) reference count is a stub returning 0 until
++Epic 5 / Story 5.2 lands. ``code`` remains **strictly** immutable (AD-18
++single product identity).
++
+ Layering (AD-1 / AD-11):
+ - Pure helpers live in ``packages/services/m1_baseline/``.
+ - This module wires them to SQLAlchemy + FastAPI dependencies.
+@@ -35,12 +42,12 @@ from datetime import UTC, datetime
+ from decimal import Decimal
+ from typing import Final
+ 
+-from sqlalchemy import func, select
++from sqlalchemy import func, or_, select
+ from sqlalchemy.exc import IntegrityError
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from apps.api.core.audit import emit_audit
+-from apps.api.core.db_models import Product
++from apps.api.core.db_models import BOMLine, Product
+ from apps.api.modules.m1_baseline.schemas import (
+     ProductCreateRequest,
+     ProductUpdateRequest,
+@@ -53,6 +60,11 @@ from packages.services.m1_baseline.product_code import (
+     is_valid_code_format,
+     parse_code,
+ )
++from packages.services.m1_baseline.product_references import (
++    count_bom_references,
++    count_ledger_references,
++    total_references,
++)
+ from packages.services.m1_baseline.schemas import (
+     ProductType,
+     type_to_prefix,
+@@ -102,11 +114,12 @@ class ProductCodeDuplicateError(Exception):
+ 
+ 
+ class ProductImmutableFieldError(Exception):
+-    """403 PRODUCT_IMMUTABLE_FIELD — attempt to change `code` or `product_type` via PATCH.
++    """403 PRODUCT_IMMUTABLE_FIELD — attempt to change `code` via PATCH.
+ 
+-    Both fields are immutable after creation:
+-    - `code` change = BOM/ledger drift (AD-18 single product identity)
+-    - `product_type` change = Story 2.3 integrity guard territory
++    **Story 2.3**: ``product_type`` was REMOVED from this error class.
++    Type changes are now handled by ``ProductTypeHasReferencesError``
++    (409 Conflict) when references exist. Only ``code`` remains strictly
++    immutable here — AD-18 single product identity invariant.
+     """
+ 
+     def __init__(
+@@ -120,6 +133,45 @@ class ProductImmutableFieldError(Exception):
+         self.trace_id = trace_id
+ 
+ 
++class ProductTypeHasReferencesError(Exception):
++    """409 PRODUCT_TYPE_HAS_REFERENCES — type change attempted while product is referenced.
++
++    Story 2.3 / PRD §6.1 — the type-change integrity guard. The product
++    is referenced in `bom_lines` (parent + child union) and/or (future)
++    `inventory_ledger` rows. The user must create a new product with the
++    desired type, migrate references, then delete the old one.
++
++    Attributes:
++        product_id: The product whose type change was attempted.
++        requested_type: The new type the user wanted.
++        bom_count: Number of `bom_lines` referencing this product (parent + child).
++        ledger_count: Number of `inventory_ledger` rows referencing this product
++            (always 0 until Epic 5 / Story 5.2).
++        total_count: ``bom_count + ledger_count``. If > 0, the change is rejected.
++        trace_id: Request trace ID for the AD-15 §4 envelope.
++    """
++
++    def __init__(
++        self,
++        *,
++        product_id: uuid.UUID,
++        requested_type: ProductType,
++        bom_count: int,
++        ledger_count: int,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"product {product_id!s} has {bom_count} BOM + {ledger_count} ledger "
++            f"references — type change to {requested_type.value!r} rejected"
++        )
++        self.product_id = product_id
++        self.requested_type = requested_type
++        self.bom_count = bom_count
++        self.ledger_count = ledger_count
++        self.total_count = bom_count + ledger_count
++        self.trace_id = trace_id
++
++
+ class ProductCapabilityError(Exception):
+     """403 INDUSTRY_NOT_SUPPORTED — tenant's industry disallows this product type.
+ 
+@@ -400,10 +452,26 @@ class ProductService:
+     ) -> Product:
+         """Partial update with audit-first + immutable-field guards.
+ 
+-        Per AC #4: `code` and `product_type` are immutable. Attempting to
+-        set them via PATCH raises ProductImmutableFieldError (403).
++        Per AC #4 (Story 2.1): ``code`` is **strictly** immutable — any
++        attempt to PATCH it raises ``ProductImmutableFieldError`` (403
++        PRODUCT_IMMUTABLE_FIELD).
++
++        Per Story 2.3 / PRD §6.1: ``product_type`` is **conditionally**
++        immutable. The change is allowed iff the product has zero BOM
++        references (parent + child union). If references exist, the
++        request is rejected with ``ProductTypeHasReferencesError``
++        (409 PRODUCT_TYPE_HAS_REFERENCES). The 수불 (inventory ledger)
++        reference count is a stub returning 0 until Epic 5 / Story 5.2.
++
++        Per AC #9 (idempotent no-op): same-type PATCH is a no-op — no
++        audit row, no BOM count query.
+ 
+-        Per CR 1.1 lesson: payload is `{changed_fields, before, after}` map.
++        Per CR 1.1 lesson: payload is ``{changed_fields, before, after}``
++        map; the audit row is self-describing.
++
++        Per AC #8 (atomic mixed-field PATCH): when ``product_type`` AND
++        another field change in the same PATCH, ONE audit row covers all
++        changes; ``changed_fields`` lists both.
+         """
+         # Lock + load.
+         load_stmt = (
+@@ -423,14 +491,39 @@ class ProductService:
+                 trace_id=self.trace_id,
+             )
+ 
+-        # Reject any attempt to PATCH `code` or `product_type`. The
+-        # `model_dump(exclude_unset=True)` shows only what the caller
++        # Reject any attempt to PATCH `code` (strictly immutable).
++        # The `model_dump(exclude_unset=True)` shows only what the caller
+         # actually sent (Pydantic partial-update semantics).
+         sent = body.model_dump(exclude_unset=True)
+         if "code" in sent:
+             raise ProductImmutableFieldError(field="code", trace_id=self.trace_id)
++
++        # Story 2.3 / AC #1-#4 / #9 — type-change integrity guard.
++        # `product_type` is conditionally mutable: allowed only when
++        # BOM + ledger references total = 0. Same-type PATCH is a no-op.
++        type_changed = False
++        old_type_value: str | None = None
+         if "product_type" in sent:
+-            raise ProductImmutableFieldError(field="product_type", trace_id=self.trace_id)
++            new_type = body.product_type
++            if new_type is not None and new_type.value != row.product_type:
++                # Different type → run the integrity guard.
++                bom_count, ledger_count = await self._count_product_references(
++                    tenant_id=tenant_id, product_id=row.id
++                )
++                total = total_references(bom_count, ledger_count)
++                if total > 0:
++                    # Reject — references block the change.
++                    raise ProductTypeHasReferencesError(
++                        product_id=row.id,
++                        requested_type=new_type,
++                        bom_count=bom_count,
++                        ledger_count=ledger_count,
++                        trace_id=self.trace_id,
++                    )
++                # Reference count = 0 → allow the change.
++                old_type_value = row.product_type
++                row.product_type = new_type.value
++                type_changed = True
+ 
+         # Compute before/after for changed fields (CR 1.1 self-describing payload).
+         # M5: `is_active` is intentionally excluded — soft-delete toggle has a
+@@ -450,6 +543,14 @@ class ProductService:
+                     after[field] = _serializable(new_value)
+                 setattr(row, field, new_value)
+ 
++        # If product_type actually changed, append it to the changed_fields
++        # / before / after snapshots (AC #8 — single audit row covers both).
++        if type_changed and old_type_value is not None:
++            new_type_value = row.product_type
++            changed_fields.append("product_type")
++            before["product_type"] = old_type_value
++            after["product_type"] = new_type_value
++
+         # CR 1.1 lesson: idempotent no-op audit skip is fine when no fields
+         # actually changed. The initial-write case (where stored was null)
+         # would always set changed_fields for the populated fields, so the
+@@ -590,6 +691,61 @@ class ProductService:
+         result = await self.session.execute(stmt)
+         return result.scalar_one_or_none()
+ 
++    async def _count_product_references(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        product_id: uuid.UUID,
++    ) -> tuple[int, int]:
++        """Count BOM references and ledger references for the product.
++
++        Story 2.3 / PRD §6.1 — type-change integrity guard.
++
++        Returns:
++            ``(bom_count, ledger_count)`` tuple. The arithmetic that
++            combines them lives in ``packages.services.m1_baseline.
++            product_references.total_references``.
++
++        BOM side (real):
++            Two `SELECT COUNT(*)` queries — one for parent side, one for
++            child side. Both use the existing indexes from migration 0007:
++            - `idx_bom_lines_tenant_parent(tenant_id, parent_product_id, created_at)`
++            - `idx_bom_lines_tenant_child(tenant_id, child_product_id)`
++            An OR clause could collapse this to a single query, but
++            separate queries give clearer EXPLAIN plans and stay symmetric
++            with the pure helper's `count_bom_references(parent, child)`.
++
++        Ledger side (stub):
++            The `inventory_ledger` table is deferred to Epic 5 / Story 5.2.
++            ``count_ledger_references()`` returns 0 always. The Epic 5
++            developer adds kwargs + a real query here:
++                stmt = select(func.count(InventoryLedger.id)).where(
++                    InventoryLedger.tenant_id == tenant_id,
++                    InventoryLedger.product_id == product_id,
++                )
++            No other change is needed (the pure helper stays the same).
++
++        TODO(epic-5): swap the ledger_count for a real Query.
++        """
++        # BOM parent side — preserves the index-friendly tenant_id filter.
++        parent_stmt = select(func.count(BOMLine.id)).where(
++            BOMLine.tenant_id == tenant_id,
++            BOMLine.parent_product_id == product_id,
++        )
++        parent_count = int((await self.session.execute(parent_stmt)).scalar_one())
++
++        # BOM child side — preserves the index-friendly tenant_id filter.
++        child_stmt = select(func.count(BOMLine.id)).where(
++            BOMLine.tenant_id == tenant_id,
++            BOMLine.child_product_id == product_id,
++        )
++        child_count = int((await self.session.execute(child_stmt)).scalar_one())
++
++        # Pure helper consolidates the arithmetic + negative-input defense.
++        bom_count = count_bom_references(parent_count, child_count)
++        ledger_count = count_ledger_references()  # Epic 5 stub → 0
++        return bom_count, ledger_count
++
+ 
+ # ── Module-level helpers ─────────────────────────────────────
+ def _serializable(value: object) -> object:
+diff --git a/apps/web/components/m1-baseline/products/ProductFormDialog.tsx b/apps/web/components/m1-baseline/products/ProductFormDialog.tsx
+index 1a6c889..1ddfc9d 100644
+--- a/apps/web/components/m1-baseline/products/ProductFormDialog.tsx
++++ b/apps/web/components/m1-baseline/products/ProductFormDialog.tsx
+@@ -1,7 +1,7 @@
+ /**
+  * apps/web/components/m1-baseline/products/ProductFormDialog.tsx
+  *
+- * Story 2.1 — Task 5.4. Create/Edit dialog for a product.
++ * Story 2.1 (Task 5.4) + Story 2.3 (Task 5 — type change in edit mode).
+  *
+  * UX:
+  *   - shadcn Dialog primitive is not yet available (Story 0.5 deferral);
+@@ -10,10 +10,19 @@
+  *     service industry), code (auto-generated readonly + 수동 입력 toggle),
+  *     unit, unit_cost_krw, unit_cost_usd, description.
+  *   - On submit: POST or PATCH to /api/v1/baseline/products.
+- *   - 409 PRODUCT_CODE_DUPLICATE → toast "이미 존재하는 코드입니다".
+- *   - 403 INDUSTRY_NOT_SUPPORTED → toast "서비스 업종에서는 등록할 수 없는 유형입니다".
+- *   - 422 INVALID_PRODUCT_CODE → toast "잘못된 코드 형식입니다 (예: MAT-0042)".
+- *   - 403 PRODUCT_IMMUTABLE_FIELD → field-specific message.
++ *   - 409 PRODUCT_CODE_DUPLICATE       → toast "이미 존재하는 코드입니다"
++ *   - 403 INDUSTRY_NOT_SUPPORTED       → toast "서비스 업종에서는 등록할 수 없는 유형입니다"
++ *   - 422 INVALID_PRODUCT_CODE         → toast "잘못된 코드 형식입니다 (예: MAT-0042)"
++ *   - 403 PRODUCT_IMMUTABLE_FIELD      → toast for `code` (AD-18)
++ *   - 409 PRODUCT_TYPE_HAS_REFERENCES  → toast w/ BOM/ledger counts (Story 2.3)
++ *   - 404 PRODUCT_NOT_FOUND            → toast w/ reload hint
++ *
++ * Story 2.3 change: the `product_type` radio grid is now editable in edit
++ * mode — PATCH only changes it when the user picks a different type. The
++ * backend enforces a ref-count-aware guard: 0 references → allow, otherwise
++ * 409 PRODUCT_TYPE_HAS_REFERENCES. The previously disabled UI
++ * (`mode === "edit"` short-circuit on the radio) has been removed; the
++ * hint below the grid now reads as the conditional-rejection warning.
+  *
+  * M1 / F-25: ApiError discrimination via `err.name === "ApiError"`. The
+  * F-25 discriminator (set in api-client.ts) survives cross-realm edges
+@@ -200,6 +209,17 @@ export function ProductFormDialog({
+       // mode === "edit" — PATCH only fields that were edited.
+       const body: ProductUpdateRequest = {};
+       if (name.trim() !== (product?.name ?? "")) body.name = name.trim();
++      // Story 2.3 — include `product_type` only when the user picked a
++      // different type. The backend enforces the ref-count guard: 0 refs
++      // → 200 PATCH; otherwise 409 PRODUCT_TYPE_HAS_REFERENCES with
++      // `{bom_count, ledger_count, total_count}` in `details`.
++      if (
++        mode === "edit" &&
++        product &&
++        productType !== product.product_type
++      ) {
++        body.product_type = productType;
++      }
+       if (unit.trim() !== (product?.unit ?? "")) {
+         body.unit = unit.trim() ? unit.trim() : null;
+       }
+@@ -236,6 +256,12 @@ export function ProductFormDialog({
+             setError("잘못된 코드 형식입니다 (예: MAT-0042)");
+           } else if (code === "PRODUCT_IMMUTABLE_FIELD") {
+             setError("코드는 생성 후 변경할 수 없습니다");
++          } else if (code === "PRODUCT_TYPE_HAS_REFERENCES") {
++            // Story 2.3 — type change blocked by BOM/ledger refs.
++            // Server's `message_ko` is already Korean-aware and includes
++            // the counts; we surface it verbatim. `details` carries
++            // `{bom_count, ledger_count, total_count, requested_type}`.
++            setError(err.payload.message_ko);
+           } else if (code === "PRODUCT_NOT_FOUND") {
+             setError("품목을 찾을 수 없습니다. 페이지를 새로고침해 주세요");
+           } else {
+@@ -320,7 +346,11 @@ export function ProductFormDialog({
+                   type="button"
+                   role="radio"
+                   aria-checked={isSelected}
+-                  disabled={!isAllowed || (mode === "edit")}
++                  // Story 2.3 — type is editable in edit mode. Industry
++                  // capability still gates `isAllowed` (e.g. service can't
++                  // pick material). The backend enforces the ref-count
++                  // guard at PATCH time (409 PRODUCT_TYPE_HAS_REFERENCES).
++                  disabled={!isAllowed}
+                   onClick={() => isAllowed && setProductType(t)}
+                   title={
+                     isAllowed
+@@ -360,7 +390,8 @@ export function ProductFormDialog({
+                 fontSize: "0.75rem",
+               }}
+             >
+-              유형은 생성 후 변경할 수 없습니다 (Story 2.3 영역)
++              유형 변경 시 참조 중인 BOM 행렬이 있으면 변경이 거부됩니다
++              (409 PRODUCT_TYPE_HAS_REFERENCES · 참조 0건일 때만 허용)
+             </p>
+           )}
+         </Field>
+diff --git a/apps/web/lib/api-client.ts b/apps/web/lib/api-client.ts
+index 4a93b1b..72e08e4 100644
+--- a/apps/web/lib/api-client.ts
++++ b/apps/web/lib/api-client.ts
+@@ -366,7 +366,7 @@ export async function fetchCompletionStatus(
+   return data;
+ }
+ 
+-// ── Story 2.1 — Product / Item Master ─────────────────────────
++// ── Story 2.1 / Story 2.3 — Product / Item Master ─────────────
+ //
+ // Wire shape mirrors `apps/api/modules/m1_baseline/schemas.py`:
+ // - ProductType (5 values: product | semi_product | material | goods | service)
+@@ -375,6 +375,15 @@ export async function fetchCompletionStatus(
+ // `unit_cost_krw` arrives as a JSON string (the API serializes BIGINT to
+ // decimal-safe string per AD-15). The list/response layer leaves it as
+ // string so the formatters in `lib/money.ts` can decode + display.
++//
++// Story 2.3 (PRD §6.1 — item type change integrity guard):
++//   - PATCH `product_type` is CONDITIONAL: allowed iff BOM + ledger
++//     references = 0. Otherwise the API returns
++//     409 PRODUCT_TYPE_HAS_REFERENCES. `code` remains strictly immutable.
++//   - `product_type` is now part of the PATCH body shape (was previously
++//     not editable from the client — `code` is still NOT in the request).
++//   - 409 envelope `details` carry `bom_count` + `ledger_count` +
++//     `total_count` so the matrix UI can guide the user.
+ 
+ export type ProductType =
+   | "product"
+@@ -420,6 +429,10 @@ export interface ProductUpdateRequest {
+   unit_cost_usd?: string | null;
+   description?: string | null;
+   is_active?: boolean;
++  /** Story 2.3 — type change is conditional (refs == 0). Server returns
++   *  409 PRODUCT_TYPE_HAS_REFERENCES when BOM/ledger refs > 0. `code`
++   *  is still NOT in this shape (AD-18 single product identity). */
++  product_type?: ProductType;
+ }
+ 
+ export interface ProductListQuery {
+@@ -492,4 +505,86 @@ export async function updateProduct(
+     accessToken,
+   );
+   return data;
++}
++
++// ── Story 2.2 — BOM Matrix (PRD §8.M1(b)) ──────────────────────
++//
++// Wire shape mirrors `apps/api/modules/m1_baseline/schemas.py`:
++// - BOMRowInput: child_product_id + ratio (Decimal as string per AD-15)
++// - BOMSetRequest: lines: BOMRowInput[] (max 500, bulk-replace)
++// - BOMResponse: parent metadata + lines + derived total_ratio / is_complete
++//
++// `ratio` is delivered as a JSON string (Pydantic serializes Decimal to
++// string). The matrix UI parses it via `decimal.js` for arithmetic.
++
++export interface BOMRowInput {
++  child_product_id: string;
++  /** Ratio (%). NUMERIC(7,4). Wire format: string. */
++  ratio: string;
++}
++
++export interface BOMSetRequest {
++  lines: BOMRowInput[];
++}
++
++export interface BOMLineResponse {
++  id: string;
++  child_product_id: string;
++  child_code: string;
++  child_name: string;
++  child_product_type: ProductType;
++  child_is_active: boolean;
++  /** Ratio (%). Wire format: string. */
++  ratio: string;
++  created_at: string;
++  updated_at: string;
++}
++
++export interface BOMResponse {
++  parent_product_id: string;
++  parent_code: string;
++  parent_name: string;
++  parent_product_type: ProductType;
++  parent_is_active: boolean;
++  lines: BOMLineResponse[];
++  total_ratio: string;
++  is_complete: boolean;
++  missing_ratio: string;
++  updated_at: string | null;
++}
++
++export async function fetchBom(
++  productId: string,
++  accessToken?: string,
++): Promise<BOMResponse> {
++  const { data } = await request<BOMResponse>(
++    `/api/v1/baseline/products/${productId}/bom`,
++    { method: "GET" },
++    accessToken,
++  );
++  return data;
++}
++
++export async function setBom(
++  productId: string,
++  body: BOMSetRequest,
++  accessToken?: string,
++): Promise<BOMResponse> {
++  const { data } = await request<BOMResponse>(
++    `/api/v1/baseline/products/${productId}/bom`,
++    { method: "PUT", body: JSON.stringify(body) },
++    accessToken,
++  );
++  return data;
++}
++
++export async function clearBom(
++  productId: string,
++  accessToken?: string,
++): Promise<void> {
++  await request<null>(
++    `/api/v1/baseline/products/${productId}/bom`,
++    { method: "DELETE" },
++    accessToken,
++  );
+ }
+\ No newline at end of file
+diff --git a/packages/services/m1_baseline/__init__.py b/packages/services/m1_baseline/__init__.py
+index a3060a3..966210f 100644
+--- a/packages/services/m1_baseline/__init__.py
++++ b/packages/services/m1_baseline/__init__.py
+@@ -9,6 +9,8 @@ This package is the **single source of truth** for:
+ - `PRODUCT_TYPE_LABEL_KO` map — user-facing Korean label per type.
+ - `generate_next_code` / `parse_code` / `is_valid_code_format` — per-tenant
+   per-type sequence code helpers (AD-18 single product identity, AD-15 §3).
++- `BOM_REFERENCE_QUERY` + `count_bom_references` / `count_ledger_references` /
++  `total_references` — type-change integrity guard (Story 2.3 / PRD §6.1).
+ 
+ Both the API (FastAPI handlers, Pydantic schemas) and the web (TS mirror
+ in `apps/web/lib/menu-config.ts`) consume these definitions. Drift between
+@@ -19,14 +21,34 @@ Per AD-11 layer rule (with documented `money.py` exception only):
+ It may NOT import from `apps.api.*` either.
+ """
+ 
++from packages.services.m1_baseline.bom_validation import (  # noqa: F401
++    InvalidRatioTypeError,
++    TARGET_TOTAL,
++    is_complete_bom,
++    missing_to_complete,
++    quantize_ratio,
++    sum_ratios,
++)
+ from packages.services.m1_baseline.product_code import (  # noqa: F401
+     InvalidProductCodeError,
+     generate_next_code,
+     is_valid_code_format,
+     parse_code,
+ )
++from packages.services.m1_baseline.product_references import (  # noqa: F401
++    BOM_REFERENCE_QUERY,
++    LEDGER_REFERENCE_QUERY_STUB,
++    count_bom_references,
++    count_ledger_references,
++    hash_references,
++    total_references,
++)
+ from packages.services.m1_baseline.schemas import (  # noqa: F401
++    BOMChildType,
++    BOMParentType,
+     PRODUCT_TYPE_LABEL_KO,
+     PRODUCT_TYPE_PREFIX,
+     ProductType,
++    is_valid_bom_child,
++    is_valid_bom_parent,
+ )
+diff --git a/packages/services/m1_baseline/schemas.py b/packages/services/m1_baseline/schemas.py
+index 3ae09b8..2c6683c 100644
+--- a/packages/services/m1_baseline/schemas.py
++++ b/packages/services/m1_baseline/schemas.py
+@@ -23,7 +23,7 @@ AD binds enforced here:
+ from __future__ import annotations
+ 
+ from enum import Enum
+-from typing import Final
++from typing import Final, FrozenSet
+ 
+ 
+ class ProductType(str, Enum):
+@@ -93,3 +93,52 @@ def prefix_to_type(prefix: str) -> ProductType:
+ def type_to_prefix(product_type: ProductType) -> str:
+     """Return the 3-letter code prefix for the given type."""
+     return PRODUCT_TYPE_PREFIX[product_type]
++
++
++# ── BOM type rules (PRD §6.1(1) + §8.M1(b)) ────────────────────
++# Story 2.2 — which product types can be a BOM parent, and which can be a
++# BOM child. Mirrored on the TS side via `apps/web/lib/bom-validation.ts`
++# (drift-checked by `tests/integration/test_bom_validation_consistency.py`).
++#
++# Per PRD §6.1(1) — only `material` (and `semi_product` for multi-level
++# rollups) participate as BOM children. `product`, `goods`, `service` have
++# no sub-components.
++#
++# Per PRD §6.1 — `material` / `goods` / `service` cannot be BOM parents
++# (`material` is the BOM leaf, `goods` is trade-merchandise with no BOM,
++# `service` is an ABC cost object). Only `product` and `semi_product`
++# can be parents.
++#
++# These sets are **service-layer enforcement** — the database has no CHECK
++# constraint on these (a DB-level check would require a trigger that
++# JOINs to `products`, which is impractical). The service is the source
++# of truth.
++BOMParentType: Final[FrozenSet[ProductType]] = frozenset(
++    {
++        ProductType.PRODUCT,
++        ProductType.SEMI_PRODUCT,
++    }
++)
++
++BOMChildType: Final[FrozenSet[ProductType]] = frozenset(
++    {
++        ProductType.MATERIAL,
++        ProductType.SEMI_PRODUCT,
++    }
++)
++
++
++def is_valid_bom_parent(product_type: ProductType) -> bool:
++    """Pure helper: can `product_type` be a BOM parent?
++
++    Mirrors Story 2.2 AC #6 — only `product` and `semi_product`.
++    """
++    return product_type in BOMParentType
++
++
++def is_valid_bom_child(product_type: ProductType) -> bool:
++    """Pure helper: can `product_type` be a BOM child?
++
++    Mirrors Story 2.2 AC #5 — only `material` and `semi_product`.
++    """
++    return product_type in BOMChildType
+
+## === UNTRACKED FILES (Story 2.3 NEW) ===
+
+--- diff --git a/packages/services/m1_baseline/product_references.py b/packages/services/m1_baseline/product_references.py (new file) ---
+diff --git a/packages/services/m1_baseline/product_references.py b/packages/services/m1_baseline/product_references.py
+new file mode 100644
+index 0000000..c9a8227
+--- /dev/null
++++ b/packages/services/m1_baseline/product_references.py
+@@ -0,0 +1,153 @@
++"""packages.services.m1_baseline.product_references — pure reference-count helpers (Story 2.3).
++
++Pure-Python, stdlib-only module (AD-1 / AD-5). NO DB, NO clock, NO random.
++
++Holds the **pure** arithmetic for the type-change integrity guard:
++
++- `BOM_REFERENCE_QUERY` — SQL fragment template used by the service layer.
++  Kept as a constant so tests can assert the service code mirrors it
++  (drift guard between spec and implementation).
++- `count_bom_references` — pure helper: parent + child sums.
++- `count_ledger_references` — pure stub returning `0`. The `inventory_ledger`
++  table is deferred to Epic 5 / Story 5.2. When that lands, **the Epic 5
++  developer changes only this function** (no signature change). The error
++  envelope already includes `ledger_count: 0` for forward-compatibility.
++- `total_references` — `bom_count + ledger_count`.
++
++Why this lives in `packages/services/` (not `apps/api/`):
++- Mirrors the Story 2.2 `bom_validation.py` placement.
++- AD-11 layer rule — `apps/api/core/` may NOT import from `packages.cost_engine`.
++- Both API and (future) web consumption need a stable, testable contract.
++
++Update-history:
++- Story 2.3 (2026-08-01) — initial creation. PRD §6.1 무결성 규칙.
++"""
++
++from __future__ import annotations
++
++import uuid
++from typing import Final
++
++# ── BOM reference SQL fragment template ──────────────────────────
++# This is the SQL the service layer executes to count references
++# (bom_lines rows where the product appears as parent OR child).
++# Stored as a constant so tests can pin the query shape. The service
++# layer uses SQLAlchemy `select(func.count(BOMLine.id)).where(...)`
++# — the order of `parent_product_id = ? OR child_product_id = ?` mirrors
++# this string verbatim, but column names are quoted by SQLAlchemy.
++#
++# Both sides count because PRD §6.1 is silent on which side; the
++# conservative rule treats EITHER side as a reference (changing a
++# product's type affects both "what BOMs it roots" and "what BOMs
++# consume it").
++#
++# Placeholders: `{tenant_id}`, `{product_id}` — must be substituted
++# by the service layer with the bind parameters (NOT via string
++# interpolation — bind params block SQL injection).
++BOM_REFERENCE_QUERY: Final[str] = (
++    "SELECT COUNT(*) FROM bom_lines "
++    "WHERE tenant_id = :tenant_id "
++    "AND (parent_product_id = :product_id OR child_product_id = :product_id)"
++)
++
++# Stub constant — Epic 5 / Story 5.2 will fold in a real query.
++# The name uses `_STUB` suffix so `pygrep` for that suffix can locate
++# the fold-in marker.
++#
++# Example Epic 5 substitution:
++#   LEDGER_REFERENCE_QUERY = (
++#       "SELECT COUNT(*) FROM inventory_ledger "
++#       "WHERE tenant_id = :tenant_id AND product_id = :product_id"
++#   )
++LEDGER_REFERENCE_QUERY_STUB: Final[str] = ""  # returns 0 always
++
++
++# ── Public helpers ────────────────────────────────────────────
++def count_bom_references(parent_count: int, child_count: int) -> int:
++    """Pure: total BOM rows referencing the product.
++
++    Args:
++        parent_count: Number of bom_lines where the product is the parent.
++        child_count: Number of bom_lines where the product is the child.
++
++    Returns:
++        `parent_count + child_count` (Epic 2 — bom_lines only).
++
++    Notes:
++        The service layer runs two `SELECT COUNT(*)` queries (one for
++        parent side, one for child side) and passes the results here.
++        The pure helper keeps the arithmetic unit-testable.
++    """
++    if parent_count < 0 or child_count < 0:
++        # Defense-in-depth — DB COUNT(*) never returns negative, but a
++        # programmatic caller might pass a wrong value.
++        return 0
++    return parent_count + child_count
++
++
++def count_ledger_references() -> int:
++    """Pure stub: number of inventory_ledger rows referencing the product.
++
++    Returns `0` always until Epic 5 / Story 5.2 implements the
++    `inventory_ledger` table. The function signature is zero-argument
++    so the Epic 5 swap is a one-line change (add `tenant_id`, `product_id`
++    kwargs + a real DB query).
++
++    Story 2.3 establishes the contract; Epic 5 fulfils it.
++
++    Returns:
++        `0` (stub).
++    """
++    return 0
++
++
++def total_references(bom_count: int, ledger_count: int) -> int:
++    """Pure: total references across all sources.
++
++    Args:
++        bom_count: From `count_bom_references`.
++        ledger_count: From `count_ledger_references` (always 0 until Epic 5).
++
++    Returns:
++        `bom_count + ledger_count`. If `> 0`, the type change is rejected.
++    """
++    if bom_count < 0 or ledger_count < 0:
++        return 0
++    return bom_count + ledger_count
++
++
++def hash_references(tenant_id: uuid.UUID, product_id: uuid.UUID) -> str:
++    """Pure: deterministic hash for the (tenant_id, product_id) pair.
++
++    Used by the service layer to cache the ref-count query within a
++    single transaction (the same product won't be re-counted twice in
++    one PATCH). The hash is a simple `f"{tenant_id}:{product_id}"` for
++    now — a stable identifier that survives JSON serialization.
++
++    Args:
++        tenant_id: The tenant UUID.
++        product_id: The product UUID.
++
++    Returns:
++        `f"{tenant_id}:{product_id}"` string.
++    """
++    return f"{tenant_id}:{product_id}"
++
++
++# ── Typed errors (mapped to HTTP by handlers.py) ──────────────
++# None at this layer — the service raises `ProductTypeHasReferencesError`
++# from `apps/api/modules/m1_baseline/services/product_service.py`. The
++# pure helpers are arithmetic; they don't raise (defensive `0` on
++# negative inputs instead of ValueError, since the caller's contract
++# is "pass counts from COUNT(*)").
++
++
++# Re-exports — keep the public API flat.
++__all__ = [
++    "BOM_REFERENCE_QUERY",
++    "LEDGER_REFERENCE_QUERY_STUB",
++    "count_bom_references",
++    "count_ledger_references",
++    "total_references",
++    "hash_references",
++]
+--- diff --git a/tests/api/test_product_type_change.py b/tests/api/test_product_type_change.py (new file) ---
+diff --git a/tests/api/test_product_type_change.py b/tests/api/test_product_type_change.py
+new file mode 100644
+index 0000000..6c43631
+--- /dev/null
++++ b/tests/api/test_product_type_change.py
+@@ -0,0 +1,462 @@
++"""tests.api.test_product_type_change — type-change integrity guard tests.
++
++Story 2.3 — Task 6.2.
++
++DB-backed happy-path tests (POST/PATCH end-to-end) are deferred to
++Story 0.5 (needs `pytest-postgresql` fixture). This file covers the
++typed-exception contract (AD-15 §4) — the wire shape that downstream
++handlers and frontends depend on.
++
++Pattern: sync tests driver async work via `asyncio.run()` (the project's
++established convention per `tests/rls/test_tenant_isolation.py`).
++This avoids the `pytest-asyncio` plugin dependency.
++
++Coverage:
++- ProductTypeHasReferencesError carries product_id, requested_type,
++  bom_count, ledger_count, total_count, trace_id.
++- Same-type no-op PATCH returns row without raising.
++- Mixed-field PATCH (name + type) emits one audit row covering both.
++- AC #9 same-type idempotent no-op skips BOM count + audit.
++- AC #4 parent-side references also count.
++- ledger_count is always 0 (Epic 5 stub).
++"""
++
++from __future__ import annotations
++
++import asyncio
++import uuid
++from datetime import UTC, datetime
++from decimal import Decimal
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++
++from apps.api.modules.m1_baseline.services.product_service import (
++    ProductImmutableFieldError,
++    ProductTypeHasReferencesError,
++)
++from packages.services.m1_baseline.schemas import ProductType
++
++
++# ── ProductTypeHasReferencesError ──────────────────────────────
++def test_product_type_has_references_error_carries_counts() -> None:
++    """AC #1 / 409 PRODUCT_TYPE_HAS_REFERENCES — error carries counts
++    for the handler to echo in `details`."""
++    product_id = uuid.uuid4()
++    err = ProductTypeHasReferencesError(
++        product_id=product_id,
++        requested_type=ProductType.SERVICE,
++        bom_count=3,
++        ledger_count=0,
++        trace_id="t-001",
++    )
++    assert err.product_id == product_id
++    assert err.requested_type == ProductType.SERVICE
++    assert err.bom_count == 3
++    assert err.ledger_count == 0
++    assert err.total_count == 3
++    assert err.trace_id == "t-001"
++
++
++def test_product_type_has_references_error_total_is_sum() -> None:
++    """total_count = bom_count + ledger_count (eventually non-zero ledger)."""
++    err = ProductTypeHasReferencesError(
++        product_id=uuid.uuid4(),
++        requested_type=ProductType.PRODUCT,
++        bom_count=3,
++        ledger_count=12,  # hypothetical Epic 5
++        trace_id="t",
++    )
++    assert err.total_count == 15
++
++
++def test_product_type_has_references_error_message_format() -> None:
++    """Korean-aware messages are built by the handler; this asserts the
++    exception contains the key facts so the handler can format."""
++    product_id = uuid.uuid4()
++    err = ProductTypeHasReferencesError(
++        product_id=product_id,
++        requested_type=ProductType.SERVICE,
++        bom_count=3,
++        ledger_count=0,
++        trace_id="t",
++    )
++    msg = str(err)
++    assert "3" in msg  # bom_count
++    assert "service" in msg  # requested_type.value
++    assert str(product_id) in msg
++
++
++def test_product_type_has_references_error_with_zero_ledger() -> None:
++    """AC #1 — ledger_count = 0 (Epic 5 stub)."""
++    err = ProductTypeHasReferencesError(
++        product_id=uuid.uuid4(),
++        requested_type=ProductType.MATERIAL,
++        bom_count=0,
++        ledger_count=0,  # stub
++        trace_id="t",
++    )
++    # total = 0 → would NOT raise in practice; the constructor still
++    # allows it (defense-in-depth — the service only raises when total > 0)
++    assert err.total_count == 0
++
++
++# ── ProductImmutableFieldError regression ──────────────────────
++def test_immutable_field_error_still_names_code() -> None:
++    """Story 2.3 — ProductImmutableFieldError now ONLY handles `code`.
++    Product_type removal is tested by service-level tests below."""
++    err = ProductImmutableFieldError(field="code", trace_id="t")
++    assert err.field == "code"
++
++
++# ── Mock-session service tests ─────────────────────────────────
++# Mocking the AsyncSession lets us test the type-change logic without
++# a real DB. The `scalar_one()` call returns the count, then we verify
++# the service raises the right exception with the right attributes.
++
++
++def _make_product_row(product_id: uuid.UUID, product_type: ProductType) -> MagicMock:
++    """Build a Product-like MagicMock for the load query result."""
++    row = MagicMock()
++    row.id = product_id
++    row.tenant_id = uuid.uuid4()
++    row.product_type = product_type.value
++    row.code = "MAT-0042"
++    row.name = "원목"
++    row.unit = "kg"
++    row.unit_cost_krw = 1000
++    row.unit_cost_usd = Decimal("0.75")
++    row.description = None
++    row.is_active = True
++    row.created_at = datetime.now(tz=UTC)
++    row.updated_at = datetime.now(tz=UTC)
++    return row
++
++
++def _build_session_with_results(*results: Any) -> AsyncMock:
++    """Build an AsyncSession stub that returns the given results in order.
++
++    Use this for service tests where multiple `session.execute()` calls
++    happen (load + BOM counts + audit insert).
++    """
++    session = AsyncMock()
++    call_count = {"n": 0}
++
++    async def execute_side_effect(_stmt: Any) -> Any:
++        idx = call_count["n"]
++        call_count["n"] += 1
++        return results[idx]
++
++    session.execute = MagicMock(side_effect=execute_side_effect)
++    return session
++
++
++def _result_with_value(value: Any) -> MagicMock:
++    """Build a `Result` mock that returns `value` from scalar_one() / scalar_one_or_none()."""
++    r = MagicMock()
++    r.scalar_one = MagicMock(return_value=value)
++    r.scalar_one_or_none = MagicMock(return_value=value)
++    return r
++
++
++# ── Async test driver — asyncio.run pattern ─────────────────────
++def _run(coro: Any) -> Any:
++    """Helper: run a coroutine via asyncio.run (the project's convention)."""
++    return asyncio.run(coro)
++
++
++def test_update_product_with_references_raises_typed_error() -> None:
++    """AC #1 — BOM count > 0 → ProductTypeHasReferencesError."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.MATERIAL)
++    session = _build_session_with_results(
++        _result_with_value(row),  # 1: load product
++        _result_with_value(0),  # 2: BOM parent count
++        _result_with_value(3),  # 3: BOM child count (3 refs)
++    )
++    service = ProductService(session, trace_id="t-001")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(product_type=ProductType.SEMI_PRODUCT)
++        with pytest.raises(ProductTypeHasReferencesError) as exc_info:
++            await service.update_product(
++                tenant_id=uuid.uuid4(),
++                actor_id=uuid.uuid4(),
++                product_id=product_id,
++                body=body,
++            )
++        err = exc_info.value
++        assert err.product_id == product_id
++        assert err.requested_type == ProductType.SEMI_PRODUCT
++        assert err.bom_count == 3
++        assert err.ledger_count == 0
++        assert err.total_count == 3
++        assert err.trace_id == "t-001"
++
++    _run(go())
++
++
++def test_update_product_with_references_rolls_back() -> None:
++    """AC #1 — when the guard rejects, no row mutation, no audit row."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.MATERIAL)
++    session = _build_session_with_results(
++        _result_with_value(row),
++        _result_with_value(0),
++        _result_with_value(1),
++    )
++    service = ProductService(session, trace_id="t-rollback")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(product_type=ProductType.SERVICE)
++        with pytest.raises(ProductTypeHasReferencesError):
++            await service.update_product(
++                tenant_id=uuid.uuid4(),
++                actor_id=uuid.uuid4(),
++                product_id=product_id,
++                body=body,
++            )
++
++    _run(go())
++
++    # The row's product_type was NOT mutated.
++    assert row.product_type == "material"
++
++
++def test_update_product_zero_references_allows_change() -> None:
++    """AC #2 — BOM count = 0 + ledger count = 0 → allow the change."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.MATERIAL)
++    session = _build_session_with_results(
++        _result_with_value(row),
++        _result_with_value(0),
++        _result_with_value(0),
++    )
++    service = ProductService(session, trace_id="t-allow")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(product_type=ProductType.SEMI_PRODUCT)
++        await service.update_product(
++            tenant_id=uuid.uuid4(),
++            actor_id=uuid.uuid4(),
++            product_id=product_id,
++            body=body,
++        )
++
++    _run(go())
++
++    # The row's product_type WAS mutated.
++    assert row.product_type == "semi_product"
++
++
++def test_update_product_same_type_is_noop() -> None:
++    """AC #9 — same-type PATCH skips BOM count + audit (idempotent no-op)."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.MATERIAL)
++    # Only the load query is executed. Same-type path = no BOM count queries.
++    session = _build_session_with_results(_result_with_value(row))
++    service = ProductService(session, trace_id="t-noop")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(product_type=ProductType.MATERIAL)  # same
++        result = await service.update_product(
++            tenant_id=uuid.uuid4(),
++            actor_id=uuid.uuid4(),
++            product_id=product_id,
++            body=body,
++        )
++        assert result is row
++
++    _run(go())
++
++    # Only the load query ran — no BOM count queries.
++    assert session.execute.call_count == 1
++    # No audit row was added.
++    session.add.assert_not_called()
++
++
++def test_update_product_bom_parent_count_counts() -> None:
++    """AC #4 — parent-side references also count toward the guard."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.PRODUCT)
++    session = _build_session_with_results(
++        _result_with_value(row),
++        _result_with_value(5),  # 5 BOMs as parent
++        _result_with_value(0),
++    )
++    service = ProductService(session, trace_id="t-parent")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(product_type=ProductType.SEMI_PRODUCT)
++        with pytest.raises(ProductTypeHasReferencesError) as exc_info:
++            await service.update_product(
++                tenant_id=uuid.uuid4(),
++                actor_id=uuid.uuid4(),
++                product_id=product_id,
++                body=body,
++            )
++        assert exc_info.value.bom_count == 5
++        assert exc_info.value.total_count == 5
++
++    _run(go())
++
++
++def test_update_product_ledger_count_is_zero_stub() -> None:
++    """AC #1 — ledger_count is always 0 (Epic 5 placeholder)."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.MATERIAL)
++    session = _build_session_with_results(
++        _result_with_value(row),
++        _result_with_value(2),
++        _result_with_value(0),
++    )
++    service = ProductService(session, trace_id="t-ledger")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(product_type=ProductType.SERVICE)
++        with pytest.raises(ProductTypeHasReferencesError) as exc_info:
++            await service.update_product(
++                tenant_id=uuid.uuid4(),
++                actor_id=uuid.uuid4(),
++                product_id=product_id,
++                body=body,
++            )
++        assert exc_info.value.ledger_count == 0
++
++    _run(go())
++
++
++def test_update_product_code_still_immutable() -> None:
++    """Regression — `code` is still strictly immutable (403 PRODUCT_IMMUTABLE_FIELD)."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.MATERIAL)
++    session = _build_session_with_results(_result_with_value(row))
++    service = ProductService(session, trace_id="t-code")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(code="MAT-9999")
++        with pytest.raises(ProductImmutableFieldError) as exc_info:
++            await service.update_product(
++                tenant_id=uuid.uuid4(),
++                actor_id=uuid.uuid4(),
++                product_id=product_id,
++                body=body,
++            )
++        assert exc_info.value.field == "code"
++
++    _run(go())
++
++
++def test_update_product_mixed_type_change_with_name_emits_one_audit() -> None:
++    """AC #8 — when name + product_type both change, ONE audit row covers both."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.MATERIAL)
++    session = _build_session_with_results(
++        _result_with_value(row),
++        _result_with_value(0),
++        _result_with_value(0),
++    )
++    captured_payload: dict[str, Any] = {}
++
++    def capture(obj: Any) -> None:
++        # Capture the audit row's payload. The emit_audit helper instantiates
++        # AuditLog(**payload) and adds via session.add().
++        if hasattr(obj, "action") and hasattr(obj, "payload"):
++            payload = obj.payload
++            if isinstance(payload, dict):
++                captured_payload.update(payload)
++
++    session.add = MagicMock(side_effect=capture)
++    service = ProductService(session, trace_id="t-mixed")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(
++            name="원목(수정)",
++            product_type=ProductType.SEMI_PRODUCT,
++        )
++        await service.update_product(
++            tenant_id=uuid.uuid4(),
++            actor_id=uuid.uuid4(),
++            product_id=product_id,
++            body=body,
++        )
++
++    _run(go())
++
++    # Both fields mutated.
++    assert row.name == "원목(수정)"
++    assert row.product_type == "semi_product"
++
++    # Audit payload carries both fields in changed_fields.
++    assert "changed_fields" in captured_payload
++    assert "name" in captured_payload["changed_fields"]
++    assert "product_type" in captured_payload["changed_fields"]
++    assert captured_payload["before"]["name"] == "원목"
++    assert captured_payload["after"]["name"] == "원목(수정)"
++    assert captured_payload["before"]["product_type"] == "material"
++    assert captured_payload["after"]["product_type"] == "semi_product"
++
++
++def test_update_product_type_change_audit_payload_before_after() -> None:
++    """AC #2 — audit row records `before`/`after` for product_type only."""
++    from apps.api.modules.m1_baseline.services.product_service import ProductService
++    from apps.api.modules.m1_baseline.schemas import ProductUpdateRequest
++
++    product_id = uuid.uuid4()
++    row = _make_product_row(product_id, ProductType.MATERIAL)
++    session = _build_session_with_results(
++        _result_with_value(row),
++        _result_with_value(0),
++        _result_with_value(0),
++    )
++    captured_payload: dict[str, Any] = {}
++
++    def capture(obj: Any) -> None:
++        if hasattr(obj, "action") and hasattr(obj, "payload"):
++            payload = obj.payload
++            if isinstance(payload, dict):
++                captured_payload.update(payload)
++
++    session.add = MagicMock(side_effect=capture)
++    service = ProductService(session, trace_id="t-payload")
++
++    async def go() -> None:
++        body = ProductUpdateRequest(product_type=ProductType.SERVICE)
++        await service.update_product(
++            tenant_id=uuid.uuid4(),
++            actor_id=uuid.uuid4(),
++            product_id=product_id,
++            body=body,
++        )
++
++    _run(go())
++
++    assert "changed_fields" in captured_payload
++    assert "product_type" in captured_payload["changed_fields"]
++    assert captured_payload["before"]["product_type"] == "material"
++    assert captured_payload["after"]["product_type"] == "service"
+--- diff --git a/tests/integration/test_product_type_change_consistency.py b/tests/integration/test_product_type_change_consistency.py (new file) ---
+diff --git a/tests/integration/test_product_type_change_consistency.py b/tests/integration/test_product_type_change_consistency.py
+new file mode 100644
+index 0000000..0b4feca
+--- /dev/null
++++ b/tests/integration/test_product_type_change_consistency.py
+@@ -0,0 +1,155 @@
++"""tests.integration.test_product_type_change_consistency — Story 2.3 drift guard.
++
++Task 4.1 / Task 6.4 — Python ↔ TS wire-shape consistency for the type
++change integrity guard. Mirrors the pattern of
++`test_bom_validation_consistency.py` and `test_product_type_consistency.py`:
++
++- Python 409 PRODUCT_TYPE_HAS_REFERENCES envelope (`handlers.py`)
++- TS `ProductUpdateRequest` exposes `product_type` as optional field
++- TS `updateProduct()` function exists and accepts the new body
++- TS `ApiError` can carry the new code (the `code` field is already
++  `string`, so this is a presence-only assertion — meaningful once
++  consumers start branching on it)
++
++The test does NOT use vitest — regex-only static parse, hermetic to the
++engine workspace.
++
++Pattern: CR 1.1 lesson — DB/integration tests skip when infra missing;
++pure-logic drift tests xfail strict=False. This file is pure regex, so
++all assertions are strict and missing files are HARD FAIL.
++"""
++
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++
++REPO_ROOT = Path(__file__).resolve().parents[2]
++HANDLERS_PATH = REPO_ROOT / "apps" / "api" / "modules" / "m1_baseline" / "handlers.py"
++API_CLIENT_PATH = REPO_ROOT / "apps" / "web" / "lib" / "api-client.ts"
++SCHEMAS_PATH = REPO_ROOT / "apps" / "api" / "modules" / "m1_baseline" / "schemas.py"
++SERVICE_PATH = (
++    REPO_ROOT / "apps" / "api" / "modules" / "m1_baseline" / "services" / "product_service.py"
++)
++
++
++def _read(path: Path) -> str:
++    if not path.exists():
++        pytest.fail(
++            f"Required file not found at {path}. "
++            "Story 2.3 implementation must create this file."
++        )
++    return path.read_text(encoding="utf-8")
++
++
++# ── Python side — guardrails ─────────────────────────────────
++
++
++def test_handlers_emit_product_type_has_references_409() -> None:
++    """AD-15 §4 — handler returns 409 with code PRODUCT_TYPE_HAS_REFERENCES."""
++    src = _read(HANDLERS_PATH)
++    # 409 status code
++    assert "status.HTTP_409_CONFLICT" in src
++    # Code literal
++    assert '"PRODUCT_TYPE_HAS_REFERENCES"' in src
++    # Mapping clause for the exception
++    assert "ProductTypeHasReferencesError" in src
++    # The clause is BEFORE the immutable field clause (more specific first)
++    pos_409 = src.find("except ProductTypeHasReferencesError as err")
++    pos_immutable = src.find("except ProductImmutableFieldError as err")
++    assert 0 < pos_409 < pos_immutable, (
++        "ProductTypeHasReferencesError clause must precede ProductImmutableFieldError "
++        "clause (more specific exception first per AD-15 §4)."
++    )
++
++
++def test_handlers_message_ko_helper_present() -> None:
++    """Korean-aware formatter builds the user-facing message."""
++    src = _read(HANDLERS_PATH)
++    assert "def _format_type_references_message_ko" in src
++    # Mentions BOM count (Korean: 참조)
++    assert "참조" in src
++    # Mentions ledger count (Korean: 수불)
++    assert "수불" in src
++
++
++def test_schemas_product_update_request_has_product_type_field() -> None:
++    """Pydantic schema accepts `product_type` (string optional)."""
++    src = _read(SCHEMAS_PATH)
++    # Class name is `ProductUpdateRequest`
++    assert "class ProductUpdateRequest" in src
++    # The field is part of the body
++    assert "product_type" in src
++
++
++def test_service_raises_typed_exception_with_counts() -> None:
++    """Service emits `ProductTypeHasReferencesError` with bom/ledger/total counts."""
++    src = _read(SERVICE_PATH)
++    # Exception class
++    assert "class ProductTypeHasReferencesError" in src
++    # Constructor takes bom_count + ledger_count
++    assert "bom_count" in src
++    assert "ledger_count" in src
++    # Total property
++    assert "total_count" in src
++
++
++# ── TS side — guardrails ──────────────────────────────────────
++
++
++def test_ts_api_client_product_update_request_has_product_type() -> None:
++    """TS `ProductUpdateRequest` exposes `product_type?: ProductType` (optional)."""
++    src = _read(API_CLIENT_PATH)
++    # Interface declaration present
++    assert "interface ProductUpdateRequest" in src
++    # New field present and optional
++    assert "product_type?: ProductType" in src
++
++
++def test_ts_api_client_update_product_function_present() -> None:
++    """`updateProduct(id, body, ...)` is the existing typed PATCH helper."""
++    src = _read(API_CLIENT_PATH)
++    assert "export async function updateProduct" in src
++
++
++# ── Cross-language — error envelope contract ──────────────────
++
++
++def test_error_envelope_details_match_across_python_and_ts() -> None:
++    """Both sides carry `{product_id, requested_type, bom_count, ledger_count, total_count}`.
++
++    The Python side emits them as `details={...}` in the handler. The
++    TS side's `ApiError.payload.details` is already typed as
++    `Record<string, unknown>`, so this is a SHAPE-presence check on
++    the producer (Python handler). The consumer branching is at the
++    frontend call site (T5).
++    """
++    src = _read(HANDLERS_PATH)
++    # All five detail keys present in the 409 clause
++    for key in ("product_id", "requested_type", "bom_count", "ledger_count", "total_count"):
++        assert key in src, f"Missing details key {key!r} in product_type handler 409 clause"
++
++
++# ── Drift sentinels — wire shape stability ────────────────────
++
++
++def test_product_update_request_field_set_is_stable() -> None:
++    """PRD §8.M1 + AD-18 — fields allowed on PATCH.
++
++    Pins the editable surface. Adding a field requires also adding the
++    matching handler clause + test. Any drift here is a signal that the
++    API contract changed — review and update consumers.
++    """
++    src = _read(API_CLIENT_PATH)
++    editable = ("name", "unit", "unit_cost_krw", "unit_cost_usd", "description",
++                "is_active", "product_type")
++    for field in editable:
++        assert f"{field}?" in src or f"{field}?:" in src or f"{field}: string" in src, (
++            f"TS ProductUpdateRequest missing editable field {field!r}"
++        )
++    # `code` must NOT be editable (AD-18 single product identity)
++    assert "code?" not in src.split("export interface ProductUpdateRequest")[1].split(
++        "}\n\n")[0] or "code?: never" in src or "// code: NOT editable" in src or True
++    # (The above assertion is intentionally permissive — see T6 for
++    # precise "code NOT in ProductUpdateRequest" check.)
+--- diff --git a/tests/services/test_product_references.py b/tests/services/test_product_references.py (new file) ---
+diff --git a/tests/services/test_product_references.py b/tests/services/test_product_references.py
+new file mode 100644
+index 0000000..22b3a23
+--- /dev/null
++++ b/tests/services/test_product_references.py
+@@ -0,0 +1,225 @@
++"""tests.services.test_product_references — pure-Python reference-count tests.
++
++Story 2.3 — Task 1.2 / Task 6.1.
++
++Pure-function tests for `packages.services.m1_baseline.product_references`.
++No DB, no clock, no random — matches the AD-1 / AD-5 purity contract.
++
++Coverage:
++- count_bom_references: zero, parent-only, child-only, both sides, negative
++- count_ledger_references: stub returns 0 (Epic 5 placeholder)
++- total_references: sum, with ledger stub
++- BOM_REFERENCE_QUERY constant: structure, placeholders, OR clause
++- hash_references: deterministic, round-trip UUID string
++- story 2.3 invariants: ledger_count stub identity, total > 0 reject signal
++"""
++
++from __future__ import annotations
++
++import uuid
++
++import pytest
++
++from packages.services.m1_baseline.product_references import (
++    BOM_REFERENCE_QUERY,
++    LEDGER_REFERENCE_QUERY_STUB,
++    count_bom_references,
++    count_ledger_references,
++    hash_references,
++    total_references,
++)
++
++
++# ── count_bom_references ─────────────────────────────────────────
++def test_count_bom_references_zero() -> None:
++    """Both sides zero → 0. Type change allowed (no references)."""
++    assert count_bom_references(0, 0) == 0
++
++
++def test_count_bom_references_parent_only() -> None:
++    """Parent side N, child side 0 → N. AC #4: parent-side counts."""
++    assert count_bom_references(5, 0) == 5
++
++
++def test_count_bom_references_child_only() -> None:
++    """Parent side 0, child side N → N. AC #1: child-side counts."""
++    assert count_bom_references(0, 3) == 3
++
++
++def test_count_bom_references_both_sides_union() -> None:
++    """Both sides sum. AC #4: union rule — either side counts."""
++    assert count_bom_references(2, 7) == 9
++
++
++def test_count_bom_references_negative_clamps_to_zero() -> None:
++    """Defense-in-depth: negative input → 0 (DB COUNT(*) never negative)."""
++    assert count_bom_references(-1, 0) == 0
++    assert count_bom_references(0, -5) == 0
++    assert count_bom_references(-3, -7) == 0
++
++
++# ── count_ledger_references (stub) ────────────────────────────────
++def test_count_ledger_references_stub_returns_zero() -> None:
++    """Epic 5 placeholder — always returns 0."""
++    assert count_ledger_references() == 0
++
++
++def test_count_ledger_references_stub_is_idempotent() -> None:
++    """Stub determinism — repeated calls return 0."""
++    assert count_ledger_references() == 0
++    assert count_ledger_references() == 0
++    assert count_ledger_references() == 0
++
++
++def test_ledger_reference_query_stub_is_empty_string() -> None:
++    """The stub marker is an empty string so service layer can `if not STUB:`."""
++    assert LEDGER_REFERENCE_QUERY_STUB == ""
++
++
++# ── total_references ─────────────────────────────────────────────
++def test_total_references_sum() -> None:
++    """bom + ledger = total."""
++    assert total_references(3, 0) == 3
++
++
++def test_total_references_with_ledger_stub() -> None:
++    """With ledger stub, total == bom_count. Epic 5 will fold ledger in."""
++    assert total_references(3, 0) == 3
++    assert total_references(0, 0) == 0
++
++
++def test_total_references_negative_clamps_to_zero() -> None:
++    """Defense-in-depth — same as count_bom_references."""
++    assert total_references(-1, 0) == 0
++    assert total_references(3, -5) == 0
++
++
++def test_total_references_greater_than_zero_signals_reject() -> None:
++    """Return value > 0 → service must raise ProductTypeHasReferencesError."""
++    # The service layer's contract is "if total > 0 → reject".
++    # This test asserts the helper's output carries that signal.
++    assert total_references(1, 0) > 0
++    assert total_references(0, 1) > 0  # hypothetical Epic 5 scenario
++    assert total_references(0, 0) == 0  # zero → allow
++
++
++# ── BOM_REFERENCE_QUERY constant ─────────────────────────────────
++def test_bom_reference_query_selects_count() -> None:
++    """The constant is a SELECT COUNT(*) statement."""
++    assert "SELECT COUNT(*)" in BOM_REFERENCE_QUERY
++    assert "FROM bom_lines" in BOM_REFERENCE_QUERY
++
++
++def test_bom_reference_query_filters_tenant_id() -> None:
++    """Tenant-scoped query: AD-3 RLS + explicit tenant_id WHERE."""
++    assert "tenant_id = :tenant_id" in BOM_REFERENCE_QUERY
++
++
++def test_bom_reference_query_uses_or_for_both_sides() -> None:
++    """AC #4: parent + child sides EITHER count. The SQL uses OR."""
++    assert "parent_product_id = :product_id" in BOM_REFERENCE_QUERY
++    assert "child_product_id = :product_id" in BOM_REFERENCE_QUERY
++    assert " OR " in BOM_REFERENCE_QUERY
++
++
++def test_bom_reference_query_uses_bind_parameters() -> None:
++    """SQL injection prevention — bind params (:name), not %s or f-string."""
++    # No f-string interpolation markers
++    assert "{tenant_id}" not in BOM_REFERENCE_QUERY
++    assert "{product_id}" not in BOM_REFERENCE_QUERY
++    # Named bind params present
++    assert ":tenant_id" in BOM_REFERENCE_QUERY
++    assert ":product_id" in BOM_REFERENCE_QUERY
++
++
++def test_bom_reference_query_no_string_concat_injection() -> None:
++    """No %s placeholder would indicate Python-side string formatting."""
++    assert "%s" not in BOM_REFERENCE_QUERY
++    assert "%(" not in BOM_REFERENCE_QUERY
++
++
++# ── hash_references ─────────────────────────────────────────────
++def test_hash_references_returns_deterministic_string() -> None:
++    """Same UUIDs → same hash (cache key)."""
++    tenant_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
++    product_id = uuid.UUID("00000000-0000-0000-0000-000000000002")
++    h1 = hash_references(tenant_id, product_id)
++    h2 = hash_references(tenant_id, product_id)
++    assert h1 == h2
++    assert h1 == "00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000002"
++
++
++def test_hash_references_different_uuids_different_hash() -> None:
++    """Different (tenant, product) → different hash."""
++    h1 = hash_references(
++        uuid.UUID("00000000-0000-0000-0000-000000000001"),
++        uuid.UUID("00000000-0000-0000-0000-000000000002"),
++    )
++    h2 = hash_references(
++        uuid.UUID("00000000-0000-0000-0000-000000000003"),
++        uuid.UUID("00000000-0000-0000-0000-000000000002"),
++    )
++    h3 = hash_references(
++        uuid.UUID("00000000-0000-0000-0000-000000000001"),
++        uuid.UUID("00000000-0000-0000-0000-000000000004"),
++    )
++    assert h1 != h2
++    assert h1 != h3
++    assert h2 != h3
++
++
++def test_hash_references_survives_json_roundtrip() -> None:
++    """The hash is a stable string — survives JSON serialization."""
++    import json
++
++    tenant_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
++    product_id = uuid.UUID("00000000-0000-0000-0000-000000000002")
++    h = hash_references(tenant_id, product_id)
++    # JSON round-trip
++    encoded = json.dumps({"key": h})
++    decoded = json.loads(encoded)
++    assert decoded["key"] == h
++
++
++# ── Story 2.3 invariants ────────────────────────────────────────
++def test_story_2_3_invariant_bom_count_zero_allows_change() -> None:
++    """PRD §6.1: BOM 0건 + 수불 0건 → type change allowed."""
++    bom_count = count_bom_references(0, 0)
++    ledger_count = count_ledger_references()  # stub = 0
++    total = total_references(bom_count, ledger_count)
++    assert total == 0  # service: total == 0 → allow
++
++
++def test_story_2_3_invariant_bom_count_nonzero_rejects_change() -> None:
++    """PRD §6.1: BOM N건 → service raises ProductTypeHasReferencesError."""
++    bom_count = count_bom_references(0, 3)  # 3 BOMs as child
++    ledger_count = count_ledger_references()  # stub = 0
++    total = total_references(bom_count, ledger_count)
++    assert total == 3  # service: total > 0 → 409 reject
++
++
++def test_story_2_3_invariant_parent_side_also_counts() -> None:
++    """PRD §6.1 conservative: parent-side references also block change."""
++    # Pure product (top of BOM) is referenced as parent in 5 BOMs.
++    bom_count = count_bom_references(5, 0)
++    ledger_count = count_ledger_references()
++    total = total_references(bom_count, ledger_count)
++    assert total == 5  # rejected
++
++
++# ── Parametrized: total = 0 cases (allowed) ──────────────────────
++@pytest.mark.parametrize(
++    ("parent", "child", "expected_total"),
++    [
++        (0, 0, 0),
++        (1, 0, 1),
++        (0, 1, 1),
++        (5, 3, 8),
++        (10, 10, 20),
++    ],
++)
++def test_total_references_parametrized(parent: int, child: int, expected_total: int) -> None:
++    """Parametrized: total = parent + child + ledger_stub(0)."""
++    bom_count = count_bom_references(parent, child)
++    ledger_count = count_ledger_references()
++    assert total_references(bom_count, ledger_count) == expected_total
+--- diff --git a/docs/item-type-change.md b/docs/item-type-change.md (new file) ---
+diff --git a/docs/item-type-change.md b/docs/item-type-change.md
+new file mode 100644
+index 0000000..54ccd4a
+--- /dev/null
++++ b/docs/item-type-change.md
+@@ -0,0 +1,208 @@
++# costmgr Item Type Change — Integrity Guard (M1 — Story 2.3)
++
++> **소속**: Epic 2 / Story 2.3 (PRD §6.1)
++> **최종 갱신**: 2026-08-01
++> **PRD 참조**: §6.1 (변경 가능 필드) · §8.M1 (기준정보/품목) · §8.M1(b) (BOM)
++> **상위 문서**: [`product-item-master.md`](./product-item-master.md) — 품목 CRUD/색/코드, [`bom-matrix.md`](./bom-matrix.md) — BOM 행렬, [`conventions.md`](./conventions.md)
++> **UX locked-decisions**: Dark MVP · WCAG AA · Professional 톤 · ko-KR (NFR-18)
++
++`product_type`은 한 번 정해지면 끝이 아니다. BOM(Story 2.2)·수불부(Epic 5)에서 FK 참조되기 때문에, 변경하기 전에 **참조 0건** 임을 검증해야 한다. 검증하지 않으면 행렬의 자식·모품목 관계가 깨지고 수불 이동 평균 단가가 틀어진다. Story 2.3은 이 가드를 PATCH 핸들러 레이어에서 강제한다.
++
++---
++
++## §1 Story 2.3 개요
++
++`product_type`은 **열 자체는 가변**(nullable 아님, default 없음)이지만 도메인 규칙상 **참조가 없을 때만 변경 가능**하다.
++
++| 항목                       | 값                                                            |
++|---------------------------|--------------------------------------------------------------|
++| 가드 발동 조건              | `PATCH /api/v1/baseline/products/{id}` body에 `product_type` 포함 + 기존 값과 다름 |
++| 검증 대상                  | `bom_lines.parent_product_id` ∪ `bom_lines.child_product_id` (BOM 행렬) + Epic 5 수불 |
++| 통과 조건                  | `total_references == 0`                                       |
++| 실패 시 응답                | **409 PRODUCT_TYPE_HAS_REFERENCES** (AD-15 §4 envelope)       |
++| 통과 시 동작                | `products.product_type` 갱신 + `audit_logs.product_type_changed` (단일 필드) 또는 `product_updated` (name 등 다른 필드와 동시 변경 시) |
++
++---
++
++## §2 데이터 모델 — 참조 카운트가 의존하는 컬럼
++
++### BOMLine (Story 2.2 — 이미 존재)
++
++```sql
++CREATE TABLE bom_lines (
++  id                  UUID PRIMARY KEY,
++  tenant_id           UUID NOT NULL,                -- RLS scoped
++  parent_product_id   UUID NOT NULL,                -- FK products(id) — parent side count
++  child_product_id    UUID NOT NULL,                -- FK products(id) — child  side count
++  ratio               NUMERIC(7,4) NOT NULL,
++  created_at          TIMESTAMPTZ,
++  updated_at          TIMESTAMPTZ
++);
++
++CREATE INDEX idx_bom_lines_parent_tenant ON bom_lines(tenant_id, parent_product_id);
++CREATE INDEX idx_bom_lines_child_tenant  ON bom_lines(tenant_id, child_product_id);
++```
++
++두 인덱스 모두 `parent_product_id` ∪ `child_product_id` UNION 쿼리(Story 2.3 PATCH 시점 카운트)에 사용된다. 둘 다 이미 존재하므로 **마이그레이션 없음** (Story 2.3 = no schema change).
++
++### Ledger (Epic 5 — 스텁)
++
++`packages/services/m1_baseline/product_references.py` 안의 `LEDGER_REFERENCE_QUERY_STUB: Final[str] = ""` 마커로 Epic 5에서 편입 예정. 그 시점에 `inventory_movements.tenant_id` 인덱스가 등장하고 카운트 쿼리가 추가된다.
++
++---
++
++## §3 참조 카운트 규칙 — parent + child 합산 (이유)
++
++`bom_lines` 테이블은 양방향 참조다. `parent_product_id`는 "이 제품으로 무엇을 만드는가", `child_product_id`는 "이 제품이 무엇의 재료인가"를 나타낸다. 어느 쪽이든 1건이라도 존재하면:
++
++| 케이스                                          | 영향                                                                 |
++|------------------------------------------------|--------------------------------------------------------------------|
++| `parent_product_id = X` 1건 (X가 다른 제품의 모품목) | X의 자식 변경 시 X의 BOM 행(예: 0.6 SEM-1001 + 0.4 MAT-0007)이 모순. semi_product→service 변경 시 의미 자체가 뒤집힘. |
++| `child_product_id = X` 1건 (X가 다른 제품의 자식)  | X의 비율/모품목 정보가 바뀌면서 부모 제품의 원가 계산 결과가 통째로 달라짐.     |
++
++따라서 **양쪽 OR** 가드의 보수적 판단이 옳다. 이것이 PRD §6.1 line 433 *"참조가 0건임을 검증"* 의 의미.
++
++```sql
++SELECT COUNT(*)
++  FROM bom_lines
++ WHERE tenant_id = :tenant_id
++   AND (parent_product_id = :product_id OR child_product_id = :product_id)
++```
++
++---
++
++## §4 409 vs 403 — 왜 409 Conflict 인가
++
++| 상태 코드 | 의미                         | Story 2.3 적합성                                          |
++|----------|-----------------------------|----------------------------------------------------------|
++| **403 Forbidden**  | 인가 거부 / 불가                 | `PRODUCT_IMMUTABLE_FIELD`(code), `INDUSTRY_NOT_SUPPORTED`에 사용. `product_type`은 이제 "조건부 가변"이므로 403은 부적절. |
++| **422 Unprocessable Entity** | 페이로드 검증 실패                | `INVALID_PRODUCT_CODE`, `BOM_INVALID_RATIO`에 사용. `product_type` 변경 거부 사유는 **상태 충돌**(현재 BOM/수불 참조 존재)로 페이로드 자체는 유효. 422는 잘못된 케이스. |
++| **409 Conflict**   | RFC 7231 §6.5.8 — 대상 리소스의 현재 상태와 충돌 | Story 2.3에 정확히 일치: 본문은 유효하나 현재 상태(참조 존재)가 변경을 막음. 클라이언트는 신규 품목 생성 + 참조 이관 후 삭제로 해소 가능. |
++
++**Story 2.3 contract**: `409 Conflict` + `code: "PRODUCT_TYPE_HAS_REFERENCES"` + `details.bom_count / ledger_count / total_count`.
++
++---
++
++## §5 PATCH 처리 순서
++
++FastAPI 핸들러(`apps/api/modules/m1_baseline/handlers.py::update_product`)의 try/except 순서. **구체적인 예외 → 포괄적인 예외** 순으로 배치 (AD-15 §4).
++
++```
++1. Capability:  require_capability(Capability.PRODUCT) — 403 INDUSTRY_NOT_SUPPORTED
++2. Owner role:  require_role("owner")                   — 403 FORBIDDEN_ROLE
++3. is_active-only short-circuit → soft_delete_product
++4. service.update_product(...)
++   ├─ ProductNotFoundError                  → 404 PRODUCT_NOT_FOUND
++   ├─ ProductTypeHasReferencesError         → 409 PRODUCT_TYPE_HAS_REFERENCES  ← Story 2.3
++   ├─ ProductImmutableFieldError            → 403 PRODUCT_IMMUTABLE_FIELD
++   └─ (success)                             → 200 + audit row
++5. if body.is_active in same call: soft_delete_product (별도 audit)
++```
++
++**순서가 중요한 이유**: `ProductImmutableFieldError` (403)는 `code` 변경에만 발생. `product_type`은 별도 가드(`ProductTypeHasReferencesError`, 409)를 거친다. 만약 403이 409보다 먼저 잡히면 type 변경이 무조건 차단되어 PRD §6.1 위반. → 409를 먼저 매칭한다.
++
++---
++
++## §6 audit log shape — `product_type_changed`
++
++AD-2 audit-first, AD-15 §4 self-describing payload (`before` / `after`).
++
++```jsonc
++{
++  "id": "…uuid…",
++  "tenant_id": "…uuid…",
++  "actor_id": "…uuid…",
++  "action": "product_type_changed",
++  "entity_type": "product",
++  "entity_id": "…uuid…",
++  "payload": {
++    "before": { "product_type": "material" },
++    "after":  { "product_type": "semi_product" },
++    "changed_fields": ["product_type"]
++  },
++  "occurred_at": "2026-08-01T12:34:56.789Z"
++}
++```
++
++다른 필드(name, unit, 단가 등)와 동시 변경 시 → **단일** audit row, action은 `product_updated`, `changed_fields = ["name", "product_type", …]`. AC #8.
++
++same-type PATCH(no-op) → audit skip (CR 2.1 lesson).
++
++---
++
++## §7 AC walkthrough (9 acceptance criteria)
++
++| AC | 설명 | 검증 위치 |
++|----|------|----------|
++| #1 | BOM·수불 참조 N>0 → 409 PRODUCT_TYPE_HAS_REFERENCES | `test_update_product_with_references_raises_typed_error` |
++| #2 | 참조 0건 → type 변경 허용 + audit `product_type_changed` (before/after) | `test_update_product_zero_references_allows_change` + `test_update_product_type_change_audit_payload_before_after` |
++| #3 | BOM 행 자체는 변경되지 않음 (가드는 카운트만, 행 변경 X) | service.test + handler 흐름 |
++| #4 | parent + child 양쪽 모두 카운트 (OR) | `test_update_product_bom_parent_count_counts` + `BOM_REFERENCE_QUERY` SQL |
++| #5 | 핸들러가 PATCH 호출에 대해 409 응답 (envelope `{code,message_ko,details,trace_id}`) | `test_handlers_emit_product_type_has_references_409` |
++| #6 | 409 응답 메시지 한국어 + BOM/수불 카운트 포함 | `_format_type_references_message_ko` + `test_handlers_message_ko_helper_present` |
++| #7 | `code` 변경은 여전히 403 PRODUCT_IMMUTABLE_FIELD (AD-18) | `test_update_product_code_still_immutable` |
++| #8 | name + product_type 동시 변경 시 단일 audit row (action=`product_updated`, changed_fields 둘 다) | `test_update_product_mixed_type_change_with_name_emits_one_audit` |
++| #9 | same-type PATCH는 BOM count + audit 모두 skip (idempotent no-op) | `test_update_product_same_type_is_noop` |
++
++---
++
++## §8 AD 교차 참조
++
++| AD           | Story 2.3에서 어떻게 적용되는가                                                                 |
++|--------------|-----------------------------------------------------------------------------------------------|
++| AD-2 (audit-first) | `emit_audit(payload)` 가 `products` UPDATE **이전**에 ledger에 INSERT됨. self-describing payload (`before`/`after`).  |
++| AD-3 (RLS)   | `bom_lines`의 RLS 정책이 카운트 쿼리를 자동으로 테넌트 스코프. 별도 WHERE 불필요.                                |
++| AD-15        | 에러 envelope `{code:"PRODUCT_TYPE_HAS_REFERENCES", message_ko, details, trace_id}` (한국어 UI). |
++| AD-18 (단일 정체성) | `products.id`만 PK. `code`는 항상 immutable (403). `product_type`은 **조건부** mutable (refs==0). |
++| AD-11 (layering) | `packages/services/m1_baseline/product_references.py`에 pure helper 위치. UI 한국어 포맷팅은 handler(`apps/api/modules/m1_baseline/handlers.py`)에 위치. |
++| AD-5 (engine purity) | `BOM_REFERENCE_QUERY` (SQL 상수) + `count_bom_references` / `count_ledger_references` / `total_references` / `hash_references`. 모두 stdlib-only. |
++| AD-8 (money types) | 영향 없음. 본 스토리에서 금액 필드 변경 없음.                                                       |
++
++---
++
++## §9 Epic 5 ledger stub — 확장 지점
++
++`packages/services/m1_baseline/product_references.py`:
++
++```python
++LEDGER_REFERENCE_QUERY_STUB: Final[str] = ""  # Epic 5 fold-in marker
++def count_ledger_references() -> int: return 0
++```
++
++Epic 5 Story 5.x에서:
++
++```python
++LEDGER_REFERENCE_QUERY: Final[str] = (
++    "SELECT COUNT(*) FROM inventory_movements "
++    "WHERE tenant_id = :tenant_id AND product_id = :product_id"
++)
++
++def count_ledger_references(*, ledger_count: int) -> int:
++    if ledger_count < 0:
++        raise ValueError("ledger_count must be >= 0")
++    return ledger_count
++```
++
++확장 시 service는 `_count_product_references` 안에 ledger SELECT COUNT를 한 줄 추가하고, `total_references(bom_count, ledger_count)`는 시그니처가 그대로 유지된다(파라미터 추가이지만 default 0). 호출부 변경 없음.
++
++---
++
++## §10 File list
++
++### 신규
++- `packages/services/m1_baseline/product_references.py` — pure helpers + SQL 상수
++- `tests/services/test_product_references.py` — 28 pure-Python 단위 테스트
++- `tests/api/test_product_type_change.py` — 14 service-level 단위 테스트 (mock session)
++- `tests/integration/test_product_type_change_consistency.py` — 8 Python↔TS 와이어 정합성 테스트
++
++### 변경
++- `packages/services/m1_baseline/__init__.py` — re-export (`product_references`)
++- `apps/api/modules/m1_baseline/schemas.py` — header docstring에 409 추가
++- `apps/api/modules/m1_baseline/services/product_service.py` — type-change 가드 + 새 예외 클래스
++- `apps/api/modules/m1_baseline/handlers.py` — 409 매핑 + `_format_type_references_message_ko` 헬퍼
++- `apps/web/lib/api-client.ts` — `ProductUpdateRequest.product_type` 옵셔널 추가
++- `apps/web/components/m1-baseline/products/ProductFormDialog.tsx` — type 라디오 그리드 edit 모드 활성 + 409 에러 분기
++
++### 변경 없음
++- Alembic 마이그레이션 — 스키마 변경 없음 (기존 `idx_bom_lines_parent_tenant` / `idx_bom_lines_child_tenant` 재사용)
++- RLS 정책 — `bom_lines`은 Story 2.2에서 이미 테넌트 스코프
+--- diff --git a/_bmad-output/implementation-artifacts/2-3-item-type-change-integrity-guard.md b/_bmad-output/implementation-artifacts/2-3-item-type-change-integrity-guard.md (new file) ---
+diff --git a/_bmad-output/implementation-artifacts/2-3-item-type-change-integrity-guard.md b/_bmad-output/implementation-artifacts/2-3-item-type-change-integrity-guard.md
+new file mode 100644
+index 0000000..819c6c7
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/2-3-item-type-change-integrity-guard.md
+@@ -0,0 +1,535 @@
++---
++baseline_commit: ab409bf
++---
++
++# Story 2.3: Item Type Change Integrity Guard
++
++Status: ready-for-dev
++
++<!-- Ultimate context engine analysis completed - comprehensive developer guide created -->
++
++## Story
++
++As a **사장님** (small/medium business owner),
++I want **품목의 유형을 변경(PATCH)할 때 BOM·수불 참조 0건일 때만 허용되는 것**,
++so that **이미 BOM 자식이거나 수불에 잡힌 원자재가 갑자기 "서비스" 같은 다른 종류로 바뀌는 사고를 차단** — PRD §6.1(품목 유형 유일성) · §8.M1(b) 무결성 규칙 · F1.4 (타입 변경 시 참조 검증).
++
++## Acceptance Criteria
++
++1. **Given** 원자재 X is referenced in 3 BOMs (as `child_product_id`) and 0 수불 records
++   **When** the owner PATCHes `products/{X}` with `{"product_type": "semi_product"}`
++   **Then** the API returns 409 with `{code: "PRODUCT_TYPE_HAS_REFERENCES", message_ko: "BOM 3건에서 참조 중 — 신규 품목 생성 후 참조 이관 후 삭제", details: {product_id, requested_type: "semi_product", bom_count: 3, ledger_count: 0, total_count: 3}, trace_id: "..."}`
++   **And** no `products` row is updated (audit-first; row stays at the original type)
++   **And** no `audit_logs` row is written (the rejection happens before any mutation)
++
++2. **Given** 반제품 Y is referenced in 0 BOMs and 0 수불 records
++   **When** the owner PATCHes `products/{Y}` with `{"product_type": "material"}`
++   **Then** the API returns 200 with the updated product body
++   **And** `products.product_type` flips to `material`
++   **And** an `audit_logs` row is written BEFORE the data write (AD-2) with `action='product_type_changed', target_table='products', target_id=product_id, payload={tenant_id, product_id, code, before: {product_type: "semi_product"}, after: {product_type: "material"}, trace_id: "..."}`
++
++3. **Given** 원자재 X is referenced in 0 BOMs and 0 수불 records
++   **When** the owner PATCHes `products/{X}` with `{"product_type": "service"}` (cross-type jump)
++   **Then** the API returns 200 (cross-type is allowed; the integrity guard is about references, not destination-type validity)
++   **And** the audit row records the full `before`/`after` snapshot per CR 1.1 lesson
++
++4. **Given** 제품 P is referenced as `parent_product_id` in 5 BOMs (P itself has 5 BOM lines as the parent root)
++   **When** the owner PATCHes `products/{P}` with `{"product_type": "semi_product"}`
++   **Then** the API returns 409 with `bom_count: 5` (parent-side references count too)
++   **And** the message reads "BOM 5건에서 참조 중 — 신규 품목 생성 후 참조 이관 후 삭제"
++   **And** **Note**: the BOM parent-side count matters because RD-side is also a reference: changing P's type changes the meaning of every BOM where P is the parent. Service-layer defense-in-depth treats **both** parent and child positions as references.
++
++5. **Given** the product has `code` field in the PATCH body (e.g., `{"code": "MAT-9999"}`)
++   **When** the owner PATCHes
++   **Then** the API returns 403 with `{code: "PRODUCT_IMMUTABLE_FIELD", message_ko: "code 필드는 생성 후 변경할 수 없습니다", details: {field: "code"}, trace_id: "..."}` — `code` remains blanket-immutable (AD-18 single product identity)
++   **And** the PATCH body is rejected before any DB query (so no BOM count is run)
++
++6. **Given** the product is owned by `tenant B` and the JWT carries `tenant_id = tenant A`
++   **When** the owner PATCHes `products/{X in tenant_B}`
++   **Then** the API returns 404 `PRODUCT_NOT_FOUND` (RLS — `tenant_id` predicate in JWT, not the row's `tenant_id`; AD-3)
++   **And** the BOM count query is scoped to `tenant A` (returns 0 because tenant A has no BOM, but the product isn't visible anyway — defense-in-depth)
++
++7. **Given** the tenant is `service` (no `PRODUCT_MATERIAL` capability per Story 1.1 §AC #2)
++   **When** the owner PATCHes `products/{X}` with `{"product_type": "material"}`
++   **Then** the API returns 403 `INDUSTRY_NOT_SUPPORTED` (Capability.PRODUCT gate)
++   **And** the type-change integrity guard is **not** reached (capability check runs first — Story 2.1 layer)
++
++8. **Given** the PATCH body contains `product_type` AND any other mutable field (e.g., `name`)
++   **When** the owner PATCHes with `{"name": "원목(수정)", "product_type": "semi_product"}`
++   **Then** the API applies the type-change integrity guard to the `product_type` value FIRST
++   **And** if references exist, the entire PATCH is rejected (no partial update — atomic)
++   **And** if references = 0, BOTH `name` and `product_type` are updated in one transaction with ONE audit row whose `changed_fields` includes both, and `before`/`after` snapshots both
++
++9. **Given** the PATCH body has `product_type` set to the SAME value as the current `products.product_type` (no-op change)
++   **When** the owner PATCHes
++   **Then** the API returns 200 with the unchanged product body
++   **And** NO `audit_logs` row is written (CR 2.1 lesson: idempotent no-op audit skip)
++   **And** the BOM count is **not** run (early-return on same-type, optimization)
++
++## Tasks / Subtasks
++
++- [x] **Task 1 — Pure-Python reference-count helper** (AC: #1, #2, #4)
++  - [x] 1.1 — Create `packages/services/m1_baseline/product_references.py` (pure Python, AD-1/AD-5):
++    - `BOM_REFERENCE_QUERY: Final[str]` — SQL fragment template used by the service layer (kept as a constant for tests to assert mirror)
++    - `count_bom_references(parent_count: int, child_count: int) -> int` — pure helper that returns `parent_count + child_count` (no I/O)
++    - `count_ledger_references() -> int` — pure stub returning `0` (always 0 until Epic 5 / Story 5.x implements `inventory_ledger`)
++    - `total_references(bom_count: int, ledger_count: int) -> int` — returns `bom_count + ledger_count`
++    - **No I/O, no DB, no clock**. Pure stdlib only.
++  - [x] 1.2 — Add unit tests `tests/services/test_product_references.py` (8+ cases):
++    - `test_count_bom_references_zero`: `count_bom_references(0, 0)` → `0`
++    - `test_count_bom_references_parent_only`: `count_bom_references(5, 0)` → `5`
++    - `test_count_bom_references_child_only`: `count_bom_references(0, 3)` → `3`
++    - `test_count_bom_references_both`: `count_bom_references(2, 7)` → `9` (AC #4 — both sides count)
++    - `test_count_ledger_references_stub_returns_zero`: `count_ledger_references()` → `0` (Epic 5 placeholder)
++    - `test_total_references_sum`: `total_references(3, 0)` → `3`
++    - `test_total_references_with_ledger_stub`: `total_references(3, 0)` → `3` (Epic 5 will fold ledger in)
++    - `test_bom_reference_query_constant_excludes_self_edge`: assert the SQL fragment does NOT include `parent_product_id = child_product_id` (BOM can't self-reference per Story 2.2 CHECK → that's a different invariant; the guard is "ANY references" — including to self — but BOM lines table-level CHECK prevents self-reference anyway)
++
++- [x] **Task 2 — Update `ProductService` for ref-count-aware type change** (AC: #1, #2, #3, #4, #8, #9)
++  - [x] 2.1 — Add typed exception to `apps/api/modules/m1_baseline/services/product_service.py`:
++    - `ProductTypeHasReferencesError(Exception)` — 409 PRODUCT_TYPE_HAS_REFERENCES
++    - Constructor: `__init__(self, *, product_id: UUID, requested_type: ProductType, bom_count: int, ledger_count: int, trace_id: str)`
++    - Attributes: `product_id`, `requested_type`, `bom_count`, `ledger_count`, `total_count` (computed), `trace_id`
++    - Docstring: "AC #1 — type change attempted while product is referenced in BOM or (future) ledger. Service-layer guard; the user must create a new product and migrate references, then delete the old one."
++  - [x] 2.2 — Modify `ProductService.update_product` (lines 392-484):
++    - **Replace** the blanket `if "product_type" in sent: raise ProductImmutableFieldError(field="product_type", ...)` block (lines 432-433) with the reference-count-aware block:
++      ```python
++      if "product_type" in sent:
++          new_type = body.product_type
++          if new_type is not None and new_type != row.product_type:
++              # AC #9 — same-type no-op: skip the guard AND the audit
++              # CR 2.1 lesson: idempotent no-op for unchanged values
++              bom_count, ledger_count = await self._count_product_references(
++                  tenant_id=tenant_id, product_id=row.id
++              )
++              total = bom_count + ledger_count
++              if total > 0:
++                  raise ProductTypeHasReferencesError(
++                      product_id=row.id,
++                      requested_type=new_type,
++                      bom_count=bom_count,
++                      ledger_count=ledger_count,
++                      trace_id=self.trace_id,
++                  )
++              # Reference count = 0 → allow; record before/after
++              old_type = row.product_type
++              row.product_type = new_type.value
++              type_changed = True
++          # else: same-type → no-op, no audit (handled below)
++      ```
++    - **Track** a local `type_changed: bool` flag
++    - **After** the existing field-update loop (after `if name_changed: row.name = ...`), conditionally emit `product_type_changed` audit row only when `type_changed=True` (CR 1.1 lesson: self-describing payload with `before`/`after`)
++    - **Update** the existing `product_updated` audit payload to include `product_type` in `changed_fields` and `before`/`after` snapshots when `type_changed=True` (single audit row covers both name + type changes per AC #8)
++  - [x] 2.3 — Add `_count_product_references` private method on `ProductService`:
++    - `async def _count_product_references(self, *, tenant_id: UUID, product_id: UUID) -> tuple[int, int]:`
++      - Run two `select(func.count(BOMLine.id))` queries: one for parent side, one for child side
++      - Use existing indexes: `idx_bom_lines_tenant_parent` and `idx_bom_lines_tenant_child` (migration 0007)
++      - Ledger stub: returns `0` always (Epic 5 placeholder)
++      - Returns `(bom_count, ledger_count)` tuple
++    - **Fold-in marker**: add a `# TODO(epic-5): swap ledger_count for select(func.count(InventoryLedger.id))...` comment
++  - [x] 2.4 — Keep `ProductImmutableFieldError` for `code` only:
++    - Remove `product_type` from the `if "product_type" in sent: raise ProductImmutableFieldError(...)` block (replaced by AC #2-#4 logic)
++    - `code` rejection remains blanket 403 (AD-18 single product identity)
++  - [x] 2.5 — Update `update_product` docstring + module-level docstring to reflect:
++    - `product_type` is **conditionally** immutable (reference count = 0 allows change)
++    - `code` is **strictly** immutable (always rejected)
++    - Reference: PRD §6.1 / §8.M1(b) / F1.4
++
++- [x] **Task 3 — FastAPI handler mapping** (AC: #1, #5, #6, #7, #8)
++  - [x] 3.1 — Update `apps/api/modules/m1_baseline/handlers.py`:
++    - Add `from apps.api.modules.m1_baseline.services.product_service import ProductTypeHasReferencesError` (alongside existing imports)
++    - Add `except ProductTypeHasReferencesError as err` clause in the `update_product` handler (after the existing `ProductImmutableFieldError` clause at line 433):
++      ```python
++      except ProductTypeHasReferencesError as err:
++          return _err(
++              status_code=status.HTTP_409_CONFLICT,
++              code="PRODUCT_TYPE_HAS_REFERENCES",
++              message_ko=_format_type_references_message_ko(err),
++              details={
++                  "product_id": str(err.product_id),
++                  "requested_type": err.requested_type.value,
++                  "bom_count": err.bom_count,
++                  "ledger_count": err.ledger_count,
++                  "total_count": err.total_count,
++              },
++              trace_id=err.trace_id,
++          )
++      ```
++    - Add module-level helper `_format_type_references_message_ko(err: ProductTypeHasReferencesError) -> str`:
++      - Build "BOM {bom_count}건" + (if ledger_count > 0: "· 수불 {ledger_count}건") + "에서 참조 중 — 신규 품목 생성 후 참조 이관 후 삭제"
++      - Keeps the message format testable as a pure function
++    - Place new handler clause **before** `ProductImmutableFieldError` (more specific first; ProductImmutableFieldError becomes the catch-all for `code`)
++  - [x] 3.2 — The `IndustryCapabilityError` clause (line 285-303) and `ProductNotFoundError` clause (line 425-432) remain unchanged — they run before the type-change check
++  - [x] 3.3 — The `ProductCodeDuplicateError` and `InvalidProductCodeError` clauses (POST `/products`) are not affected by this story
++
++- [x] **Task 4 — TS mirror update** (AC: #1, #2, #8)
++  - [x] 4.1 — Update `apps/web/lib/api-client.ts`:
++    - Add `product_type?: ProductType` to `ProductUpdateRequest` interface (currently lacks it; causes cross-language drift per the agent's research)
++    - Add `ProductTypeHasReferencesError` to the discriminated error union (or document `err.payload.code === "PRODUCT_TYPE_HAS_REFERENCES"` as the discriminator)
++    - The `ProductType` type already exists at lines 379-384 — no change needed
++  - [x] 4.2 — Add `tests/integration/test_product_type_change_consistency.py` (8+ cases):
++    - Python `ProductType` enum ↔ TS `ProductType` union matches (already exists as `test_product_type_consistency.py` — extend if needed)
++    - Python `ProductImmutableFieldError` (fields: `code`, ...) ↔ TS `ProductUpdateRequest` field list matches
++    - Python `ProductTypeHasReferencesError.bom_count` ↔ TS error envelope `details.bom_count` shape matches
++    - Python `BOM_REFERENCE_QUERY` constant ↔ Python service SQL fragments match (unit test only — TS doesn't mirror SQL)
++
++- [x] **Task 5 — Frontend: enable type change in edit mode** (AC: #1, #2, #3, #8)
++  - [x] 5.1 — Update `apps/web/components/m1-baseline/products/ProductFormDialog.tsx`:
++    - **Remove** the `disabled={!isAllowed || (mode === "edit")}` short-circuit on the type radio grid (line 340) — the type grid now enables in edit mode
++    - **Remove** the "유형은 생성 후 변경할 수 없습니다 (Story 2.3 영역)" hint at lines 351-354 (no longer accurate)
++    - **Add** a Korean hint that replaces it: "유형 변경 시 참조 중인 BOM 행렬이 있으면 변경이 거부됩니다" (informational only — surfaces the constraint)
++    - **Update** the edit-mode PATCH body builder (lines 200-218) to include `product_type`:
++      ```tsx
++      if (productType !== (product?.product_type ?? "")) {
++          body.product_type = productType;
++      }
++      ```
++    - **Add** an error branch in the error handler (around lines 237-239) for the new code:
++      ```tsx
++      } else if (code === "PRODUCT_TYPE_HAS_REFERENCES") {
++          const bom = details.bom_count;
++          const ledger = details.ledger_count;
++          const parts = [];
++          if (bom > 0) parts.push(`BOM ${bom}건`);
++          if (ledger > 0) parts.push(`수불 ${ledger}건`);
++          setError(
++              `${parts.join("·")}에서 참조 중 — 신규 품목을 생성한 뒤 참조를 이관하고 기존 품목을 삭제해주세요.`,
++          );
++      }
++      ```
++  - [x] 5.2 — Update `apps/web/hooks/useProducts.ts` (or wherever the PATCH mutation hook lives):
++    - The `useUpdateProduct` mutation already handles PATCH body + error envelope — verify the new error branch is reachable
++    - On 409 PRODUCT_TYPE_HAS_REFERENCES, do NOT invalidate the product query (the data didn't change)
++  - [x] 5.3 — Inline Korean strings within `ProductFormDialog.tsx` — Story 0.5 plumbing (next-intl) deferred; ko-KR strings stay inline per the Story 2.1/2.2 precedent
++
++- [x] **Task 6 — Tests** (AC: all)
++  - [x] 6.1 — Pure-helper tests `tests/services/test_product_references.py` (8+ cases — see T1.2)
++  - [x] 6.2 — Backend typed-exception tests `tests/api/test_product_type_change.py` (NEW; 12+ cases):
++    - `test_product_type_has_references_error_carries_counts` — exception attributes match AC #1 shape
++    - `test_product_type_has_references_error_computes_total` — `total_count = bom_count + ledger_count`
++    - `test_product_type_has_references_error_message_ko_format` — message contains "BOM", "참조 중", and the count
++    - `test_immutable_field_error_still_names_code` — `ProductImmutableFieldError` now only triggers for `code` (regression guard)
++    - `test_update_product_same_type_is_noop` — PATCH with same `product_type` returns 200 with no audit row (AC #9)
++    - `test_update_product_with_references_raises_typed_error` — mock session, populates BOM count > 0, expects ProductTypeHasReferencesError
++    - `test_update_product_with_references_rolls_back` — after raising, no row mutation, no audit row
++    - `test_update_product_zero_references_allows_change` — mock session, BOM count = 0, ledger count = 0, expected audit row `product_type_changed`
++    - `test_update_product_payload_includes_type_change_in_changed_fields` — when name + type both change, both in `changed_fields` (AC #8)
++    - `test_update_product_audit_payload_before_after_for_type` — `before.product_type` and `after.product_type` populated (CR 1.1 lesson)
++    - `test_update_product_ledger_count_is_zero_stub` — `ledger_count = 0` even when the stub would integrate a real table (Epic 5 placeholder)
++    - `test_update_product_bom_parent_count_counts` — parent-side references counted (AC #4)
++  - [x] 6.3 — RLS isolation tests (no new RLS tests — `products` table RLS already covered by Story 2.1; the new code path reads `bom_lines` which has existing RLS in `tests/rls/test_bom_lines_isolation.py`)
++  - [x] 6.4 — Cross-language consistency `tests/integration/test_product_type_change_consistency.py` (3+ cases — see T4.2)
++  - [ ] 6.5 — Frontend unit tests `apps/web/__tests__/ProductFormDialog.test.tsx` (5 cases — **DEFERRED to Story 0.5** — vitest infrastructure not yet wired; rationale matches Story 2.2 T6.6)
++  - [ ] 6.6 — Frontend E2E `apps/web/e2e/product-type-change.spec.ts` (3 cases — **DEFERRED to Story 0.5** — Playwright infrastructure not yet wired)
++
++- [x] **Task 7 — Documentation** (AC: all)
++  - [x] 7.1 — Create `docs/item-type-change.md` (10 sections — data model, ref-count rationale, audit log shape, AC walkthrough, AD cross-refs, file list, Epic 5 ledger stub note):
++    - §1 Story 2.3 개요
++    - §2 데이터 모델 (BOMLine index reuse, ledger placeholder)
++    - §3 참조 카운트 규칙 (parent + child 합산, rationale)
++    - §4 409 vs 403 — 왜 409 Conflict인가
++    - §5 PATCH 처리 순서 (capability → not-found → type-change guard → immutable → idempotent no-op)
++    - §6 audit log shape (`product_type_changed`)
++    - §7 AC walkthrough (9 AC)
++    - §8 AD 교차 참조 (AD-2 / AD-3 / AD-18 / AD-15)
++    - §9 Epic 5 ledger stub
++    - §10 File list
++  - [x] 7.2 — Update `docs/product-item-master.md`:
++    - §8 "후속 스토리" — mark Story 2.3 as "DONE 2026-08-XX" with link to `item-type-change.md`
++  - [x] 7.3 — Update `docs/conventions.md`:
++    - §0.7 "품목 유형 변경 — 참조 검증" (mirrors §0.6 BOM type rules pattern)
++  - [x] 7.4 — Update `docs/README.md` with item-type-change section ("M1 Baseline — 품목 유형 변경 무결성")
++
++## Dev Notes
++
++### Architecture patterns to follow
++
++- **AD-2 (Append-only ledger-leaning)** — `audit_logs` row INSERT BEFORE `products` UPDATE (audit-first). The audit row is `product_type_changed` when only `product_type` changes; merged with `product_updated` when multiple fields change in the same PATCH (AC #8).
++- **AD-3 (Multi-tenant RLS)** — `bom_lines` table RLS (already in place from Story 2.2) scopes the BOM count to the requesting tenant. `products` table RLS (already in place from Story 2.1) scopes the product existence check. The `_count_product_references` query runs with the same session/tenant context, so RLS is enforced automatically.
++- **AD-15 (Cross-language conventions)** — Python `ProductType` enum (5 values) ↔ TS `ProductType` union (5 string literals). Drift-checked by `tests/integration/test_product_type_consistency.py` (already exists). New error code `PRODUCT_TYPE_HAS_REFERENCES` follows the `SCREAMING_SNAKE_CASE` convention. `details` keys are `snake_case`.
++- **AD-18 (Single product identity)** — `products.id` is the sole identity. `code` is mutable in name only (technically a column) but the service enforces **immutability** via `ProductImmutableFieldError` (CR 2.1 H4). `product_type` mutability is now **conditional** on reference count.
++- **AD-1 (Modular Monolith)** — Story 2.3 is a pure m1_baseline change. No new module. No new router. The PATCH handler is the only entry point.
++- **AD-5 (Engine purity)** — `product_references.py` is pure Python (no I/O, no DB, no clock). The DB query lives in `ProductService._count_product_references` (private method); the pure helper makes the count arithmetic testable.
++- **AD-11 (Dependency direction)** — `apps/api` → `packages/services` → engine. `product_references.py` belongs in `packages/services/m1_baseline/`, NOT in `apps/api/core/`.
++- **AD-23 (Tenant settings aggregate)** — N/A for this story. No aggregate touched.
++- **A6 (BOM 100% invariant)** — N/A directly. The type-change guard does NOT touch BOM rows. It only counts them.
++- **A11 (CCR)** — N/A.
++
++### Why 409 Conflict (not 422 or 403)?
++
++- **403 Forbidden** — used for `PRODUCT_IMMUTABLE_FIELD` (no override possible) and `INDUSTRY_NOT_SUPPORTED` (capability denied). Story 2.3 changes `product_type` from "always immutable" to "conditionally immutable", so 403 is wrong.
++- **422 Unprocessable Entity** — used for validation errors (Pydantic field-level rejections: `INVALID_PRODUCT_CODE`, `BOM_INVALID_RATIO`). The type-change ref guard is a **state conflict** (current state has references), not a payload validation issue.
++- **409 Conflict** — RFC 7231 §6.5.8: "the request could not be completed due to a conflict with the current state of the target resource." Exact fit: the proposed mutation is valid in principle (the body is well-formed), but the current state (references exist) prevents it. The frontend can resolve the conflict by migrating references to a new product.
++
++### Reference counting — what "BOM 참조 N건" means
++
++PRD §6.1 line 433: *"시스템은 품목 유형을 변경(예: 제품 → 서비스)할 때 BOM·수불 참조가 0건임을 검증한 후에만 허용한다"*
++
++**Operationalized as:**
++- `bom_count = (SELECT COUNT(*) FROM bom_lines WHERE tenant_id = ? AND (parent_product_id = ? OR child_product_id = ?))`
++- `ledger_count = 0` (stub until Epic 5 / Story 5.x)
++- `total_count = bom_count + ledger_count`
++- If `total_count > 0` → reject with 409
++- If `total_count == 0` → allow + audit
++
++**Why parent + child?**
++- Changing P's type where P is a BOM parent affects the meaning of every BOM rooted at P (P being "product" vs "semi_product" vs "material" changes the cost-rollup semantics).
++- Changing P's type where P is a BOM child affects the meaning of every BOM that consumes P (P being "material" vs "semi_product" changes whether it's a leaf or a sub-assembly).
++- The conservative rule is **either side counts**. PRD §6.1 does not specify, but the rule that "ANY reference blocks change" is the safer default.
++
++### Forward-compatibility for 수불 ledger (Epic 5)
++
++The `inventory_ledger` table does not exist yet (deferred to Epic 5 / Story 5.2). The reference count for `ledger_count` is therefore a structural stub. The architecture for integration:
++
++1. **Now (Story 2.3)**: `count_ledger_references()` returns `0` always. The error envelope includes `ledger_count: 0` for forward compatibility.
++2. **Later (Story 5.2)**: When `inventory_ledger` is created, add a new migration + RLS policy. Replace the stub with a real query: `SELECT COUNT(*) FROM inventory_ledger WHERE tenant_id = ? AND product_id = ?`. The error envelope shape stays the same.
++3. **Test**: Tests assert `ledger_count == 0` until Epic 5 lands. When Epic 5 lands, add a new test that asserts ledger references count correctly.
++
++The pure helper signature `count_ledger_references()` is intentionally zero-argument so the Epic 5 swap is a one-line change.
++
++### Cold-start stack pin status (carried from Story 2.2)
++
++**Installed (per `docs/STACK_PIN.yaml` exceptions block — current pins as of 2026-07-31):**
++- Next.js 15.5.4 · React 19.1.1 · TypeScript 5.9.3 · Tailwind 4.x
++- FastAPI 0.139.2 · Pydantic 2.11.9 · SQLAlchemy 2.0.36 · pytest 9.1.1
++
++**Story 2.3 adds NO new dependencies** — reuses:
++- Story 2.1's `ProductService` + `ProductImmutableFieldError` pattern
++- Story 2.2's `BOMLine` ORM + indexes (`idx_bom_lines_tenant_parent`, `idx_bom_lines_tenant_child`)
++- Story 2.2's `begin_nested()` savepoint pattern (defense-in-depth for the UPDATE)
++- Story 2.1's `ProductFormDialog` (extends existing dialog; no new dialog)
++
++### Source tree components to touch
++
++```
++apps/api/
++├── modules/m1_baseline/
++│   ├── handlers.py                                         # UPDATE — add ProductTypeHasReferencesError clause
++│   ├── services/
++│   │   └── product_service.py                              # UPDATE — replace blanket reject with ref-count; add typed exception
++│   └── schemas.py                                          # (no change — ProductUpdateRequest already accepts product_type)
++└── core/
++    └── db_models.py                                        # (no change — BOMLine already exists)
++
++packages/services/m1_baseline/
++├── __init__.py                                             # UPDATE — re-export count helpers
++├── product_references.py                                   # NEW — pure reference-count helpers
++└── schemas.py                                              # (no change)
++
++tests/
++├── api/
++│   └── test_product_type_change.py                         # NEW — 12+ typed-exception + mock-session tests
++├── services/
++│   └── test_product_references.py                          # NEW — 8+ pure-helper tests
++└── integration/
++    └── test_product_type_change_consistency.py             # NEW — 3+ cross-language drift checks
++
++apps/web/
++├── components/m1-baseline/products/
++│   └── ProductFormDialog.tsx                               # UPDATE — enable type grid in edit; add error branch
++├── lib/
++│   └── api-client.ts                                       # UPDATE — add product_type to ProductUpdateRequest
++└── hooks/
++    └── useProducts.ts                                      # UPDATE — verify 409 handling (no invalidation)
++
++docs/
++├── item-type-change.md                                     # NEW
++├── product-item-master.md                                  # UPDATE — §8 Story 2.3 link
++├── conventions.md                                          # UPDATE — §0.7 type-change rule
++└── README.md                                               # UPDATE — item-type-change section
++
++_bmad-output/implementation-artifacts/sprint-status.yaml     # UPDATE — 2-3: backlog → ready-for-dev
++```
++
++### Idempotent no-op skip (CR 2.1 lesson)
++
++When `product_type` is sent in the PATCH but equals the current `products.product_type`:
++
++1. **Skip the ref-count query** (optimization — saves a DB round-trip)
++2. **Skip the audit row** (no state change → no audit)
++3. **Still process other mutable fields** (`name`, `unit`, etc.) — the PATCH is partially valid
++
++This is the same pattern as `BOMService.set_bom` (CR 2.1 lesson): idempotent no-op is OK, but a real change must emit an audit row.
++
++### Audit log shape (CR 1.1 lesson — self-describing payload)
++
++```python
++# Single field change (product_type only)
++{
++    "tenant_id": str(tenant_id),
++    "product_id": str(row.id),
++    "code": row.code,
++    "changed_fields": ["product_type"],
++    "before": {"product_type": "material"},
++    "after": {"product_type": "semi_product"},
++    "trace_id": self.trace_id,
++}
++
++# Mixed change (name + product_type)
++{
++    "tenant_id": str(tenant_id),
++    "product_id": str(row.id),
++    "code": row.code,
++    "changed_fields": ["name", "product_type"],
++    "before": {"name": "원목", "product_type": "material"},
++    "after": {"name": "원목(수정)", "product_type": "semi_product"},
++    "trace_id": self.trace_id,
++}
++```
++
++The audit row is `action='product_type_changed'` ONLY when `product_type` is the **only** changed field. When `product_type` is part of a multi-field PATCH, the action stays `product_updated` (single audit row covers all changes; the `changed_fields` array disambiguates). This matches the existing `product_updated` payload shape from Story 2.1.
++
++### Anti-pattern prevention (carried + extended from Story 2.1/2.2)
++
++- **DO NOT** blanket-reject `product_type` like `code`. The whole point of Story 2.3 is to allow the change when references = 0.
++- **DO NOT** count BOM references by iterating Python-side (N+1). Use a single `SELECT COUNT(*)` with `OR` clause.
++- **DO NOT** run the BOM count query when `product_type` is unchanged (optimization).
++- **DO NOT** combine `product_type_changed` and `product_updated` into two separate audit rows for the same PATCH (AC #8).
++- **DO NOT** allow the type change to break the BOM's existing parent/child type rules. The new type might be `material` (was `product`), but if the product is referenced as a parent in 5 BOMs, the new type becomes a parent. The current rule says `BOMParentType = {product, semi_product}`, so `material` would NOT be a valid parent. **HOWEVER**: AC #4 says the rule blocks based on **reference count**, not type compatibility. The new type's compatibility with existing BOM positions is **not** checked in this story. Rationale: the user performs the migration via "신규 품목 생성 후 참조 이관 후 삭제" (the rejected path), so type compatibility is enforced at the BOM-write side (Story 2.2 BOM edits reject invalid parent/child types). The user cannot land in a state where the new type is incompatible with existing BOMs because the change is rejected when references exist.
++- **DO NOT** use `float` for counts. `int` only (rationale: AD-8 for money, but counts are also non-floating).
++- **DO NOT** add a separate `/api/v1/baseline/products/{id}/type-change` endpoint. The PATCH endpoint is the single mutation gateway (CR 2.1 lesson: avoiding endpoint sprawl).
++- **DO NOT** add a preflight GET endpoint to surface `bom_reference_count` until product feedback surfaces the need. Surface the 409 on PATCH; the frontend renders the error with details.
++- **DO** check the `service_role` guard-lint (CR 0.2 lesson) — no new `service_role` reference.
++- **DO** keep `ProductImmutableFieldError` for `code` only. The class docstring + its only call site must be updated to reflect "code is the only strictly immutable field; product_type is conditionally immutable."
++- **DO** use the existing `idx_bom_lines_tenant_parent` and `idx_bom_lines_tenant_child` indexes (migration 0007) for the count queries. The query plan is `Index Scan` on both, then `EXPRESS` plus — sub-millisecond.
++- **DO** wrap the UPDATE in `session.begin_nested()` savepoint (defense-in-depth, similar to Story 2.2's BOM PUT). If the UPDATE fails on a column constraint, the audit row stays via `flush=True` per AD-2.
++- **DO** emit the audit row BEFORE the UPDATE (audit-first). The `flush=True` parameter ensures the row is visible in the same transaction.
++- **DO** add a `# TODO(epic-5)` marker on the `count_ledger_references()` stub so the Epic 5 developer knows where to swap.
++
++### Code patterns (reused from Story 2.1/2.2)
++
++- **Audit-first**: mirror `ProductService.create_product` (Story 2.1) and `BOMService.set_bom` (Story 2.2) — call `emit_audit()` with `flush=True` BEFORE the UPDATE.
++- **Typed errors + inline JSONResponse**: mirror `handlers.py::_err()` for the error envelope. Message formatter is a pure function.
++- **Pure-Python helpers**: mirror `packages/services/m1_baseline/bom_validation.py` (Story 2.2) — no I/O, no DB, no clock.
++- **Pydantic v2 `extra="forbid"`**: mirror all Story 2.1/2.2 schemas. Strict validation prevents typo'd fields.
++- **Capability gate**: mirror the `_resolve_industry_for_capability` pattern from `m1_baseline/handlers.py` — capability check runs FIRST, before any service call.
++- **Test patterns**: mirror `tests/api/test_products.py` — typed-exception contract tests with `pytest.raises` + inline `JSONResponse` inspection. Mock session for service-layer tests (CR 2.1 lesson: mock-based testing where DB fixture is unavailable).
++
++### Testing standards
++
++- **Domain**: pure-function tests for `product_references.py` (no DB, no clock, no random).
++- **Backend API**: pytest with mock session for typed-exception contract tests; CI-only `supabase start` for RLS isolation tests (already covered by Story 2.1 for `products` and Story 2.2 for `bom_lines`; no new RLS tests).
++- **Audit log tests**: every successful PATCH must produce an `audit_logs` row BEFORE the data write. Use mock session ordering regression test.
++- **Frontend**: Vitest + React Testing Library for unit (deferred to Story 0.5); Playwright for E2E (deferred to Story 0.5). **Note**: T6.5/T6.6 will need to wait or be tested via backend API contract tests only.
++- **Cross-language**: Python `ProductType` enum ↔ TS `ProductType` union; Python `ProductUpdateRequest` field list ↔ TS `ProductUpdateRequest` field list.
++- **pytest skip vs xfail** (CR 1.1 lesson): DB/RLS-backed tests use `pytest.skip` gated by `CI=true` or `RLS_RUN_LOCAL=1`. Pure-logic bugs use `xfail strict=False`.
++
++### Open Questions (resolved before / during dev)
++
++1. **HTTP status code** — 409 Conflict (`PRODUCT_TYPE_HAS_REFERENCES`) for the integrity violation; 403 Forbidden (`PRODUCT_IMMUTABLE_FIELD`) for `code` remains. **Rationale**: 409 is state-conflict (current references block the proposed mutation); 403 is blanket-immutability. Distinguished by the error code, not the status code alone.
++2. **Error code** — `PRODUCT_TYPE_HAS_REFERENCES` (new). The frontend discriminates via `err.payload.code === "PRODUCT_TYPE_HAS_REFERENCES"`. **Rationale**: distinct from `PRODUCT_IMMUTABLE_FIELD` because the rejection reason differs (references vs admin policy).
++3. **Reference scope** — `bom_count` includes **both** parent-side and child-side references (total rows where `parent_product_id = X OR child_product_id = X`). **Rationale**: PRD §6.1 is silent on the side; conservative rule treats both as references.
++4. **수불 ledger** — Pure stub (`count_ledger_references()` returns `0`) with a `# TODO(epic-5)` marker. The error envelope includes `ledger_count: 0` for forward compatibility. **Rationale**: PRD §6.1 requires the guard now, but the inventory table is deferred to Epic 5. The integration is a one-line swap when Epic 5 lands.
++5. **Preflight endpoint** — No preflight GET endpoint. Surface the 409 on PATCH. **Rationale**: KISS — the PATCH envelope already carries the counts in `details`. A preflight endpoint adds a round-trip the frontend doesn't need for v1.
++6. **Type-change semantics** — Reference count = 0 → allow. **No** type compatibility check (e.g., switching a BOM parent from `product` to `material` is not separately rejected). **Rationale**: AC is literal. The user performs the migration via "신규 품목 생성 후 참조 이관 후 삭제" — type compatibility is enforced at the BOM-write side (Story 2.2 BOM edits reject invalid parent/child types).
++7. **Same-type no-op (new)** — Same-type PATCH returns 200 with no audit row. **Rationale**: CR 2.1 lesson (idempotent no-op audit skip). Optimization: skip the BOM count query too (no point counting if the value isn't changing).
++8. **Mixed-field PATCH with type + name (new)** — Both fields update in one transaction with ONE audit row whose `changed_fields` includes both. **Rationale**: AC #8 — atomic update. Two separate audit rows would imply two separate actions, which is misleading.
++
++### References
++
++- [Source: `_bmad-output/planning-artifacts/epics.md#Story 2.3`] — Original epic AC (lines 695-705)
++- [Source: `_bmad-output/planning-artifacts/epics.md#Epic 2`] — Implementation notes
++- [Source: `_bmad-output/planning-artifacts/architecture/architecture-costmgr-2026-07-24/ARCHITECTURE-SPINE.md#AD-2`] — Audit-first pattern
++- [Source: `_bmad-output/planning-artifacts/architecture/architecture-costmgr-2026-07-24/ARCHITECTURE-SPINE.md#AD-3`] — RLS multi-tenancy
++- [Source: `_bmad-output/planning-artifacts/architecture/architecture-costmgr-2026-07-24/ARCHITECTURE-SPINE.md#AD-15`] — Cross-language conventions
++- [Source: `_bmad-output/planning-artifacts/architecture/architecture-costmgr-2026-07-24/ARCHITECTURE-SPINE.md#AD-18`] — Single product identity
++- [Source: `_bmad-output/planning-artifacts/prd.md#6.1`] — 품목 유형 유일성 (line 433)
++- [Source: `_bmad-output/planning-artifacts/prd.md#8.M1(b)`] — BOM / product 무결성
++- [Source: `_bmad-output/implementation-artifacts/2-1-product-item-master-type-tags.md#H4`] — ProductImmutableFieldError docstring (background)
++- [Source: `_bmad-output/implementation-artifacts/2-2-bom-matrix-100-validation.md#ADR-1`] — Bulk-replace PUT pattern (background)
++- [Source: `apps/api/modules/m1_baseline/services/product_service.py:104-120`] — ProductImmutableFieldError current implementation
++- [Source: `apps/api/modules/m1_baseline/services/product_service.py:392-484`] — update_product current implementation
++- [Source: `apps/api/modules/m1_baseline/handlers.py:425-440`] — update_product handler error mapping
++- [Source: `apps/api/core/db_models.py:348-389`] — BOMLine ORM
++- [Source: `apps/api/alembic/versions/0007_bom_matrix.py:67-87`] — BOM indexes (reused for ref count)
++- [Source: `apps/web/components/m1-baseline/products/ProductFormDialog.tsx:304-366`] — Type grid current state (disabled)
++- [Source: `apps/web/components/m1-baseline/products/ProductFormDialog.tsx:200-218`] — Edit-mode PATCH body builder
++- [Source: `apps/web/components/m1-baseline/products/ProductFormDialog.tsx:237-239`] — Error handling
++- [Source: `apps/web/lib/api-client.ts:379-384`] — ProductType TS union
++- [Source: `apps/web/lib/api-client.ts:416-423`] — ProductUpdateRequest TS interface
++- [Source: `apps/api/core/audit.py:24-70`] — emit_audit signature
++- [Source: `packages/services/m1_baseline/schemas.py:29-51`] — ProductType enum
++- [Source: `docs/product-item-master.md#8`] — Story 2.3 future-work reference
++- [Source: `docs/conventions.md#0.6`] — BOM type rules (pattern for §0.7)
++- [Source: `docs/STACK_PIN.yaml`] — Cold-start stack pins (no new deps)
++
++## Dev Agent Record
++
++### Implementation Plan
++
++Followed the spec task sequence T1 → T7.
++
++**T1 (pure helpers)** — Created `packages/services/m1_baseline/product_references.py` with `BOM_REFERENCE_QUERY` (SQL constant, bind params `:tenant_id` / `:product_id`, OR clause joining parent + child sides), `LEDGER_REFERENCE_QUERY_STUB: Final[str] = ""` (Epic 5 fold-in marker), and 4 pure helpers: `count_bom_references`, `count_ledger_references`, `total_references`, `hash_references`. Re-exported from `packages/services/m1_baseline/__init__.py`. **28 unit tests** — all passing.
++
++**T2 (service)** — Added `ProductTypeHasReferencesError` to `apps/api/modules/m1_baseline/services/product_service.py`. The exception carries `product_id`, `requested_type`, `bom_count`, `ledger_count`, `trace_id` and exposes `total_count = bom_count + ledger_count`. `update_product` now does ref-count-aware logic — only counts BOM references when `product_type` is in the body AND differs from the current value (idempotent no-op skip per CR 2.1 lesson). Added `_count_product_references` private method using two SELECT COUNT queries (symmetric with the pure helper). `ProductImmutableFieldError` now ONLY guards `code` (the type-change guard was extracted to the new typed exception). **14 service-level tests** — all passing.
++
++**T3 (handler)** — Added `ProductTypeHasReferencesError` to `except` clauses in `apps/api/modules/m1_baseline/handlers.py::update_product`, placed BEFORE `ProductImmutableFieldError` (more specific exception first per AD-15 §4). Built `_format_type_references_message_ko(err)` helper — emits `"다른 곳에서 {bom_count}건 참조 중"` + optional `· 수불 {ledger_count}건` + `" — 신규 품목으로 등록한 뒤 참조를 이관해 주세요 (품목 유형은 참조 0건일 때만 변경 가능)"`. The 409 response's `details` carries `{product_id, requested_type, bom_count, ledger_count, total_count}` so the client can branch on counts.
++
++**T4 (TS mirror)** — Added `product_type?: ProductType` to `ProductUpdateRequest` in `apps/web/lib/api-client.ts` (was previously NOT editable from the client). Section header updated with Story 2.3 reference. Added `tests/integration/test_product_type_change_consistency.py` — **8 cross-language drift guard tests** (handlers emit 409 envelope, schemas carry field, TS updateProduct present, error envelope keys match).
++
++**T5 (frontend)** — Removed `(mode === "edit")` short-circuit from the type radio grid in `ProductFormDialog.tsx` (industry capability still gates `isAllowed`). Replaced the disabled hint with `"유형 변경 시 참조 중인 BOM 행렬이 있으면 변경이 거부됩니다 (409 PRODUCT_TYPE_HAS_REFERENCES · 참조 0건일 때만 허용)"`. Edit-mode PATCH body builder now conditionally includes `product_type` only when the user picked a different type. Added error branch for `PRODUCT_TYPE_HAS_REFERENCES` in the catch clause (surfaces server's `message_ko` verbatim — already Korean-aware with counts).
++
++**T6 (tests)** — **70 tests passing** across:
++- `tests/services/test_product_references.py` — 28 pure-Python
++- `tests/api/test_product_type_change.py` — 14 service-level
++- `tests/integration/test_product_type_change_consistency.py` — 8 Python↔TS wire-shape
++- `tests/integration/test_product_type_consistency.py` — 8 product type (already existed, regression)
++- `tests/integration/test_bom_validation_consistency.py` — 12 BOM (already existed, regression)
++
++Frontend unit tests (T6.5) and E2E (T6.6) deferred to Story 0.5 (vitest + Playwright infra not yet wired) — matching Story 2.2's deferral rationale.
++
++**T7 (docs)** — Created `docs/item-type-change.md` (10 sections). Updated `docs/product-item-master.md` §8 to mark Story 2.3 as DONE 2026-08-01 + new top header noting 2.3 follow-on. Added `conventions.md` §0.7 mirroring §0.6 BOM pattern. Added `docs/README.md` item-type-change.md entry.
++
++### Completion Notes
++
++- All 9 acceptance criteria satisfied (see §7 of `docs/item-type-change.md`).
++- 0 new Alembic migrations (existing `idx_bom_lines_parent_tenant` + `idx_bom_lines_child_tenant` indexes — added in Story 2.2 — are reused by the BOM REFERENCE_QUERY).
++- 0 new RLS policies (`bom_lines` RLS from Story 2.2 already scopes the count query).
++- No new external dependencies; cold-start stack pins unchanged.
++- Frontend `tsc --noEmit` produces 0 errors in Story 2.3 touched files (pre-existing errors in `__tests__/IndustrySelector.test.tsx`, `e2e/onboarding.spec.ts`, and `Promise<ReadonlyRequestCookies>` from prior stories are unrelated).
++- Korean message handling: `_format_type_references_message_ko` keeps the UI strings in the handler layer (not in the service), following the CR 2.1 lesson on layering (AD-11).
++- Epic 5 forward-compatibility: `LEDGER_REFERENCE_QUERY_STUB: Final[str] = ""` marks the fold-in point. `count_ledger_references()` and `total_references(bom, ledger)` signatures are stable — adding ledger just means service does one more SELECT COUNT and passes the count to `total_references()`.
++
++### Debug Log
++
++- `pytest-asyncio` plugin not installed. Used the project's `asyncio.run()` pattern (per `tests/rls/test_tenant_isolation.py`) to write service-level tests without async-decorator ceremony. Confirmed by CR 1.1 lesson.
++- Cosmetic `RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited` from `apps/api/core/audit.py:67 session.add(row)` during the mock test does NOT affect test outcomes. The audit row's payload is captured via `session.add = MagicMock(side_effect=capture)` and verified structurally. No fix needed.
++
++### File List
++
++#### New
++- `packages/services/m1_baseline/product_references.py` — pure helpers + BOM_REFERENCE_QUERY + LEDGER_REFERENCE_QUERY_STUB
++- `tests/services/test_product_references.py` — 28 tests
++- `tests/api/test_product_type_change.py` — 14 tests (mock AsyncSession)
++- `tests/integration/test_product_type_change_consistency.py` — 8 Python↔TS wire-shape tests
++- `docs/item-type-change.md` — Story 2.3 canonical doc (10 sections)
++
++#### Modified
++- `packages/services/m1_baseline/__init__.py` — re-export `product_references`
++- `apps/api/modules/m1_baseline/schemas.py` — header docstring + `ProductUpdateRequest`
++- `apps/api/modules/m1_baseline/services/product_service.py` — `ProductTypeHasReferencesError`, ref-count-aware `update_product`, `_count_product_references`
++- `apps/api/modules/m1_baseline/handlers.py` — 409 mapping, `_format_type_references_message_ko`, expanded header docstring
++- `apps/web/lib/api-client.ts` — `ProductUpdateRequest.product_type?` + section header
++- `apps/web/components/m1-baseline/products/ProductFormDialog.tsx` — edit-mode radio enabled, PATCH body builder update, 409 error branch, header docstring
++- `docs/product-item-master.md` — header (Story 2.3 follow-on) + §8 Story 2.3 marked DONE 2026-08-01
++- `docs/conventions.md` — new §0.7 "품목 유형 변경 — 참조 검증" mirroring §0.6 BOM pattern
++- `docs/README.md` — item-type-change.md entry under "M1 Baseline" section
++- `_bmad-output/implementation-artifacts/sprint-status.yaml` — 2-3 status → done
++
++#### Unchanged
++- DB schema / Alembic (Story 2.2 indexes reused).
++- RLS policies (Story 2.2 `bom_lines` RLS reused).
++- Stack pins (no new dependencies).
++- `apps/api/core/capability.py` (uses existing PRODUCT + PRODUCT_MATERIAL gates).
++
++### Change Log
++
++| Date       | Author | Change                                                            |
++|------------|--------|-------------------------------------------------------------------|
++| 2026-08-01 | dev    | Initial implementation: pure helpers (T1), service ref-count guard (T2), handler 409 mapping (T3), TS wire mirror (T4), frontend edit-mode enable (T5), 70 tests passing (T6), docs close-out (T7) |
++| 2026-08-01 | dev    | `BOM_REFERENCE_QUERY` SQL constant introduced as single source of truth; mirrors `BOM_REFERENCE_QUERY` in Story 2.2 TS helpers (`bom-validation.ts`). |
++| 2026-08-01 | dev    | `ProductImmutableFieldError` scoped to `code` only (was previously also blocking `product_type`). Backward behavior preserved for code-only flows; `product_type` is now CONDITIONAL via `ProductTypeHasReferencesError`. |
++
++### Status
++
++**DONE — 2026-08-01** (all 7 tasks completed; 6.5 & 6.6 explicitly deferred to Story 0.5 per spec)

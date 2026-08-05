@@ -148,6 +148,18 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
 SEGMENT_SPLIT_TOOLTIP: Final[str] = "재무제표 업로드 필수 (§7.3 [A10])"
 
 
+# ── INDUSTRY_ICON (Story 0.5 T8.3 — closes Story 1.1 F-37) ───
+# Mirror of apps/web/lib/menu-config.ts::INDUSTRY_ICON. Stores icon
+# name only (Python side has no SVG component). Drift between this and
+# the TS mirror is caught by tests/integration/test_menu_config_consistency.py.
+INDUSTRY_ICON: Final[dict[Industry, str]] = {
+    Industry.MANUFACTURING: "Factory",
+    Industry.SERVICE: "Briefcase",
+    Industry.MANUFACTURING_SERVICE: "Layers",
+    Industry.MANUFACTURING_SERVICE_OTHER: "Boxes",
+}
+
+
 # ── Industry label dictionary (Decision §2: PRD §4.1 set) ──
 INDUSTRY_LABEL_KO: Final[dict[Industry, str]] = {
     Industry.MANUFACTURING: "제조업",

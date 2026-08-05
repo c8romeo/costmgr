@@ -33,7 +33,8 @@ import { fetchCompletionServerSide } from "@/lib/server-api";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsWizardPage() {
-  const accessToken = cookies().get("sb-access-token")?.value;
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("sb-access-token")?.value;
   const traceId = crypto.randomUUID();
 
   // F-20: server-side initial completion fetch. On any failure (network,

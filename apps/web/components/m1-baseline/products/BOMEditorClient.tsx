@@ -25,8 +25,9 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Decimal from "decimal.js";
+import { toast } from "sonner";
 
 import { ProductTypeBadge } from "@/components/m1-baseline/products/ProductTypeBadge";
 import {
@@ -65,8 +66,7 @@ export function BOMEditorClient({ productId, accessToken, initialBom }: BOMEdito
     // We deliberately exclude `bom` from deps — local state is the source
     // of truth between PUTs. Reset on `bom` change is explicit via a
     // `useEffect` below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [bom],
   );
   const [lines, setLines] = useState<BOMRowInput[]>(() =>
     initialLines.map((l) => ({
@@ -106,6 +106,19 @@ export function BOMEditorClient({ productId, accessToken, initialBom }: BOMEdito
     () => TARGET_TOTAL.minus(totalRatio).toDecimalPlaces(4, Decimal.ROUND_HALF_EVEN),
     [totalRatio],
   );
+
+  // Story 0.5 T3.4 — close Story 2-2 M11 deferral.
+  // Fire a sonner toast when the BOM sum drops below 100% (transient
+  // notification; the inline <p> below remains as persistent visual
+  // feedback). One-time fire per non-complete render via ref guard.
+  const wasCompleteRef = useRef<boolean>(isComplete);
+  useEffect(() => {
+    if (wasCompleteRef.current && !isComplete && lines.length > 0) {
+      toast.warning(`BOM 비중 합 100% 필요 (현재 ${totalRatio.toFixed(2)}%)`);
+    }
+    wasCompleteRef.current = isComplete;
+  }, [isComplete, totalRatio, lines.length]);
+
 
   // Add a child row.
   const handleAdd = useCallback(

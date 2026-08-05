@@ -23,7 +23,8 @@ export default async function ProductDetailPage({
   params: Promise<{ productId: string }>;
 }) {
   const { productId } = await params;
-  const accessToken = cookies().get("sb-access-token")?.value;
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("sb-access-token")?.value;
   const traceId = crypto.randomUUID();
 
   const initialBom = await fetchBomServerSide(productId, accessToken, traceId);

@@ -3,12 +3,28 @@
  *
  * Story 1.1 — Task 3.3. UX-locked: Professional 톤 + ko-KR. Selected
  * state shows a blue border + checkmark icon (per ux-locked-decisions).
+ *
+ * Story 0.5 T8 — renders INDUSTRY_ICON (lucide-react component) above the
+ * label. Closes Story 1.1 F-33 deferral.
  */
 
 "use client";
 
+import { Boxes, Briefcase, Factory, Layers, type LucideIcon } from "lucide-react";
+
 import type { Industry } from "@/lib/menu-config";
-import { INDUSTRY_DESCRIPTION_KO, INDUSTRY_LABEL_KO } from "@/lib/menu-config";
+import {
+  INDUSTRY_DESCRIPTION_KO,
+  INDUSTRY_ICON,
+  INDUSTRY_LABEL_KO,
+} from "@/lib/menu-config";
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Factory,
+  Briefcase,
+  Layers,
+  Boxes,
+};
 
 export interface IndustryCardProps {
   industry: Industry;
@@ -23,6 +39,8 @@ export function IndustryCard({
   disabled = false,
   onClick,
 }: IndustryCardProps) {
+  const Icon = ICON_MAP[INDUSTRY_ICON[industry]] ?? Factory;
+
   return (
     <button
       type="button"
@@ -46,51 +64,67 @@ export function IndustryCard({
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "flex-start",
-          gap: "0.5rem",
+          gap: "0.75rem",
         }}
       >
-        <h3
-          style={{
-            fontSize: "1.05rem",
-            fontWeight: 600,
-            margin: 0,
-            color: "#0f172a",
-          }}
-        >
-          {INDUSTRY_LABEL_KO[industry]}
-        </h3>
-        {selected && (
-          <span
-            aria-label="선택됨"
+        <Icon
+          aria-hidden="true"
+          size={28}
+          strokeWidth={1.5}
+          color={selected ? "#2563eb" : "#475569"}
+        />
+        <div style={{ flex: 1 }}>
+          <div
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              background: "#2563eb",
-              color: "white",
-              fontSize: 14,
-              fontWeight: 700,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: "0.5rem",
             }}
           >
-            ✓
-          </span>
-        )}
+            <h3
+              style={{
+                fontSize: "1.05rem",
+                fontWeight: 600,
+                margin: 0,
+                color: "#0f172a",
+              }}
+            >
+              {INDUSTRY_LABEL_KO[industry]}
+            </h3>
+            {selected && (
+              <span
+                aria-label="선택됨"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: "#2563eb",
+                  color: "white",
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              >
+                ✓
+              </span>
+            )}
+          </div>
+          <p
+            style={{
+              marginTop: "0.5rem",
+              fontSize: "0.875rem",
+              color: "#475569",
+              lineHeight: 1.5,
+            }}
+          >
+            {INDUSTRY_DESCRIPTION_KO[industry]}
+          </p>
+        </div>
       </div>
-      <p
-        style={{
-          marginTop: "0.5rem",
-          fontSize: "0.875rem",
-          color: "#475569",
-          lineHeight: 1.5,
-        }}
-      >
-        {INDUSTRY_DESCRIPTION_KO[industry]}
-      </p>
     </button>
   );
 }

@@ -118,12 +118,17 @@ export const INDUSTRY_DESCRIPTION_KO: Record<Industry, string> = {
     "두 엔진 + '기타' 부문 격리 버킷 — 원가계산 제외",
 };
 
-/** Per-card icon (story-level hint; Story 0.5 supplies the icon set). */
+/**
+ * Per-industry lucide-react icon name.
+ * Story 0.5 T8.1 — closes Story 1.1 F-33 deferral.
+ * Mirror in packages/services/m0_onboarding/industry_menu.py (F-37).
+ * Drift detected by tests/integration/test_menu_config_consistency.py.
+ */
 export const INDUSTRY_ICON: Record<Industry, string> = {
   manufacturing: "Factory",
   service: "Briefcase",
   manufacturing_service: "Layers",
-  manufacturing_service_other: "FolderTree",
+  manufacturing_service_other: "Boxes",
 };
 
 // ─────────────────────────────────────────────────────────────────────

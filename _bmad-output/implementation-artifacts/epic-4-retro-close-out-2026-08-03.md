@@ -335,7 +335,7 @@ scope_note: Epic 4 회고 범위 = 4-1·4-2·4-3·4-4 (4/4 done, full close-out)
 | **A3** | Epic 5 ledger fold-in 진입점 명시 (cj-style 결정) | Alice + Amelia | ✅ done (본 회고) | 3-story 분할 유지 (5-1 → 5-2 → 5-3). inline projection deprecation timeline = 5-2 spec에서 명시 |
 | **A4** | Epic 5 frontend toast 0.5 plumbing 결정 (cj-style 결정) | Amelia | ✅ done (본 회고) | 0.5 plumbing을 Epic 5 5-3 진입 전 별도 Story. Epic 5 5-1 + 5-2는 backend-only |
 | **A5** | CR 1.1 전사 single source of truth fix (Phase 1+2) | Charlie + Amelia | **Epic 5 5-1 spec 진입 전 (즉시)** | `apps/api/core/audit_action.py` 작성 (ActionClass 13 + AuditAction 30+ Literal + _ActionRegistry) + 22 call sites migrate + `verification_log` CHECK constraint (Alembic 0013) + drift detector (`tests/services/test_audit_action_centralization.py`) KEPT. `uv run pytest` (full) = 0 failed. Phase 3+4 (기존 audit_logs CHECK + 3-way drift detector)는 Epic 5 spec 진입 시 별도 |
-| **A6** | Story 0.5 plumbing 5번째 재평가 (별도 Story) | Amelia | **Epic 5 5-3 spec 진입 전** | shadcn Tabs / sonner / vitest / Playwright 4종 wire. 5-1 + 5-2 backend-only 진행 가능. 5-3 frontend toast 진입 가능 |
+| **A6** | Story 0.5 plumbing 5번째 재평가 (별도 Story) | Amelia | ✅ done (2026-08-05, Story 0.5 landing) | shadcn Tabs / sonner / vitest / Playwright 4종 wire. F-1 / F-30 / F-31 / F-32 / F-33 / F-37 / F-42 / M11 / TYPES-1 closed. Epic 5 5-3 frontend toast 진입 가능. `docs/frontend-toolchain.md` v1.0 SSOT |
 | **A7** | Epic 4 0.5 plumbing C4/C6 carry (async test pattern + SDR overclaim) | Amelia + Dana | Epic 5 carry | `tests/cost_engine/test_no_async_decorator.py` AST guard + SDR test count vs pytest actual count drift detector. CR 4-3 lessons C4·C6 carry-over |
 
 ## 8. Epic 4 Close-out Tasks
@@ -351,7 +351,7 @@ scope_note: Epic 4 회고 범위 = 4-1·4-2·4-3·4-4 (4/4 done, full close-out)
 
 **Critical Path (Epic 5 진입 전):**
 - [ ] A5 CR 1.1 Phase 1+2 (audit_action.py + 22 call sites migrate + verification_log CHECK) — Epic 5 5-1 spec 진입 전 별도 적용 (4-8h, A5 spike 디자인 그대로)
-- [ ] A6 Story 0.5 plumbing 별도 Story — Epic 5 5-3 spec 진입 전
+- [x] A6 Story 0.5 plumbing 별도 Story — ✅ done 2026-08-05 (Epic 5 5-3 spec 진입 전 dep satisfied)
 
 **Nice-to-have (Epic 4 close-out 시 병행 가능):**
 - [ ] A7 Epic 4 0.5 plumbing C4/C6 carry — Epic 5 carry
@@ -379,14 +379,14 @@ scope_note: Epic 4 회고 범위 = 4-1·4-2·4-3·4-4 (4/4 done, full close-out)
 - Epic 3 A3 Epic 5 ledger fold-in이 3번째 epic 연속 carry-over (Epic 2 A3 → Epic 3 A3 → Epic 4 A3) → **본 회고 A3 cj-style 결정으로 resolved** (3-story 분할 유지)
 - Epic 2 A4 Epic 5 frontend toast 0.5 plumbing 3번째 epic 연속 carry-over (Epic 2 A4 → Epic 3 A2 → Epic 4 A4) → **본 회고 A4 cj-style 결정으로 resolved** (5-3 진입 전 별도 Story)
 - CR 1.1 lesson (audit-action inversion) 4번째 epic 연속 재발 → A5 forward-lock 자산화 (F-6 drift detector) + A5 spike 디자인 Phase 1+2 Epic 5 5-1 진입 전 별도 적용 결정
-- Story 0.5 plumbing 누적 4번째 epic 연속 deferral → Epic 5 5-3 진입 전 별도 Story로 차단 (A6 결정). 미해결 시 Epic 6 (charts) + Epic 7 (BEP) + Epic 8 (budget)까지 "사실상 표준" 고착화 가속
+- Story 0.5 plumbing 누적 4번째 epic 연속 deferral → Epic 5 5-3 진입 전 별도 Story로 차단 (A6 결정). ✅ done 2026-08-05 (Story 0.5 landing). Epic 5 5-3 frontend toast + Epic 6 charts + Epic 7 BEP + Epic 8 budget 모두 frontend plumbing dep satisfied
 
 ## 11. 다음 단계
 
 1. **즉시 (Epic 5 5-1 spec 진입 전)**:
    - A5 CR 1.1 Phase 1+2 (audit_action.py + 22 call sites migrate + verification_log CHECK) — 4-8h, Charlie + Amelia
-   - A6 Story 0.5 plumbing 별도 Story 작성 + spec 진입 — shadcn Tabs / sonner / vitest / Playwright 4종 wire
-2. **Epic 5 5-1 spec 진입 (A5 + A6 done 후)**: bmad-create-story (5-1 opening-inventory-auto-carry-chain, baseline_commit = Story 4-4 commit 80f4494)
+   - ~~A6 Story 0.5 plumbing 별도 Story 작성 + spec 진입 — ✅ done 2026-08-05 (Story 0.5 landing)~~
+2. **Epic 5 5-1 spec 진입 (A5 done 후, A6 done)**: bmad-create-story (5-1 opening-inventory-auto-carry-chain, baseline_commit = Story 4-4 commit 80f4494)
 3. **Story 5-1 spec 진입 전 결정**:
    - A3 (cj-style): 3-story 분할 유지 (5-1 → 5-2 → 5-3). 5-2 spec에서 inline projection deprecation timeline 명시
 4. **Story 5-3 spec 진입 전 결정**:

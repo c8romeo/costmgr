@@ -7,14 +7,13 @@
  *   - On 200 OK, navigates to /dashboard.
  *   - On 409 INDUSTRY_LOCKED, shows the locked toast and disables inputs.
  *
- * Test framework note: these tests rely on Vitest + @testing-library/react.
- * Story 0.5 wires the toolchain. For now, the file is shipped as
- * scaffolding — CI picks them up once Story 0.5 lands.
- *
  * Why this file uses `vi.mock` instead of MSW: the api-client wrapper is
  * already a tiny fetch shim — mocking at the wrapper boundary keeps
- * tests fast and deterministic. MSW is added in Story 0.5 for the
- * multi-handler suites.
+ * tests fast and deterministic. MSW handlers in mocks/handlers.ts cover
+ * the broader suite.
+ *
+ * Story 0.5 wired the vitest toolchain (T4) — this test now runs as part
+ * of `pnpm test`.
  */
 
 /* eslint-disable @typescript-eslint/no-restricted-types --
@@ -22,6 +21,9 @@
  * non-money fields. See api-client.ts for the full rationale.
  */
 
+/// <reference types="@testing-library/jest-dom" />
+
+import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useRouter } from "next/navigation";
@@ -46,6 +48,7 @@ vi.mock("@/lib/api-client", () => ({
 // Mock the router so navigation calls don't blow up.
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
+  useParams: vi.fn(() => ({ locale: "ko-KR" })),
 }));
 
 // Mock the MenuContext to a controllable stub.
@@ -103,7 +106,7 @@ describe("IndustrySelector", () => {
         undefined,
       );
       expect(mockSetIndustry).toHaveBeenCalledWith("service", ["원가풀", "활동", "동인"]);
-      expect(mockPush).toHaveBeenCalledWith("/dashboard");
+      expect(mockPush).toHaveBeenCalledWith("/ko-KR/dashboard");
     });
   });
 

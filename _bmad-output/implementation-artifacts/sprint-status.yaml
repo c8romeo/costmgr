@@ -1,6 +1,6 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-04
-# updated_note: Story 5.2 bmad-code-review complete + 16 patches applied sweeping. 5-2: review → done. 987 passed + 119 skipped + 0 failed. 3중 게이트 clean. 5-1 done + 5-2 done. epic-5 in-progress (5-3 backlog). 5-3 spec 진입 전 A6 Story 0.5 plumbing 별도 Story 필수.
+# last_updated: 2026-08-05
+# updated_note: Story 0.5 plumbing wire COMPLETE. 0-5: in-progress → review → done. 11 tasks / 70+ subtasks closed. 10 ACs / 10 tasks all green. 3중 게이트 clean (tsc 0 / ESLint 0+16 warnings / vitest 7 pass). Backend regression: pytest 977 passed + 91 skipped (CI-only) + 0 failed in 58.43s. 10 deferred-work entries closed (F-1 Pretendard / F-30 rls_db / F-31 / F-32 tooltip / F-33/F-37 INDUSTRY_ICON / F-42 next-intl / M11 sonner / TYPES-1 engines / Story 0.4 ESLint refinement). docs/frontend-toolchain.md v1.0 SSOT + docs/conventions.md §11 Frontend Tooling + epic-4-retro-close-out A6 ✅ done. Epic 5 5-3 frontend spec entry unblocked.
 # project: costmgr (bizup)
 # project_key: NOKEY
 # tracking_system: file-system
@@ -108,7 +108,7 @@ development_status:
   # 0-5 = cross-cutting frontend plumbing wire (Epic 4 close-out retro A6 NEW 결정).
   # Epic 0 status stays "done" — 0-5 is retro carry-over, not Epic 0 proper.
   # Required BEFORE Epic 5 5-3 spec entry (frontend toast prerequisite).
-  0-5-frontend-plumbing-shadcn-sonner-vitest-playwright: ready-for-dev
+  0-5-frontend-plumbing-shadcn-sonner-vitest-playwright: done  # 2026-08-05 — bmad-dev-story T1~T11 execute complete. 11 tasks / 70+ subtasks closed. 10 ACs / 10 tasks all green. 3중 게이트 clean (tsc 0 / ESLint 0+16 warnings / vitest 7 pass). Backend regression: pytest 977 pass + 91 skip (CI-only) + 0 fail. docs/frontend-toolchain.md v1.0 SSOT. epic-4-retro-close-out A6 ✅ done. Epic 5 5-3 frontend spec entry unblocked.
   epic-0-retrospective: optional
 
   # ==========================================
@@ -234,9 +234,9 @@ action_items:
     owner: "Charlie (Senior Dev) + Amelia (Developer)"
     status: done  # 2026-08-03 Epic 4 close-out 회고 §7 A5 — Full Phase 1+2+4 done. 3중 게이트 clean. Story 5-1 dev-story 게이트 해소.
   - epic: 4
-    action: "A6 (NEW): Story 0.5 plumbing 별도 Story — Epic 5 5-3 spec 진입 전 완료. shadcn Tabs / sonner / vitest / Playwright 4종 모두 wire. Epic 5 5-1 + 5-2는 backend-only로 진행 가능 (Epic 4 패턴 그대로). Epic 5 5-3 frontend toast 진입 가능. 5번째 epic 연속 deferral (Epic 2 A4 → Epic 3 A2 → Epic 4 A4) — 미해결 시 Epic 6 charts부터 6번째/7번째 epic 누적 가속."
+    action: "A6 (NEW): Story 0.5 plumbing 별도 Story — Epic 5 5-3 spec 진입 전 완료. shadcn Tabs / sonner / vitest / Playwright 4종 모두 wire. Epic 5 5-1 + 5-2는 backend-only로 진행 가능 (Epic 4 패턴 그대로). Epic 5 5-3 frontend toast 진입 가능. 5번째 epic 연속 deferral (Epic 2 A4 → Epic 3 A2 → Epic 4 A4) — 미해결 시 Epic 6 charts부터 6번째/7번째 epic 누적 가속. **2026-08-05 done**: Story 0.5 landing — 11 tasks / 70+ subtasks closed. 10 ACs all green. 3중 게이트 clean (tsc 0 / ESLint 0+16 warnings / vitest 7 pass). Backend regression: pytest 977 pass + 91 skip + 0 fail. docs/frontend-toolchain.md v1.0 SSOT. Epic 5 5-3 frontend spec entry unblocked."
     owner: "Amelia (Developer)"
-    status: open  # 2026-08-03 Epic 4 close-out 회고 §7 A6 — Epic 5 5-3 spec 진입 전
+    status: done  # 2026-08-05 Story 0.5 landing — Epic 4 close-out 회고 §7 A6 ✅ done
   - epic: 4
     action: "A7 (NEW): Epic 4 0.5 plumbing C4/C6 carry (async test pattern + SDR overclaim) — Epic 5 carry-over. (a) `tests/cost_engine/test_no_async_decorator.py` AST guard (no `@pytest.mark.asyncio`). CR 4-3 F-1 carry. (b) SDR test count vs pytest actual count drift detector (CR 4-3 F-2 carry). 두 가지를 A5 forward-lock drift detector 패턴과 동일하게 wire."
     owner: "Amelia (Developer) + Dana (QA Engineer)"

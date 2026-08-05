@@ -131,3 +131,36 @@ Items deferred from code review. Each entry records what was deferred, the ratio
 - **W2 — TS mirror file `apps/web/lib/l2-input-inventory-ledger.ts` missing** — Spec placeholder; TS mirror wire deferred to 5-3 vitest activation (Epic 4 close-out A6 NEW 결정). defer to 5-3 spec 진입 시 (A6 Story 0.5 plumbing done 게이트).
 - **W3 — TS mirror parity tests (`tests/integration/test_inventory_ledger_label_consistency.py`) 6 skipped** — Spec placeholder; deferred to 5-3 vitest wire (A6 plumbing). defer to 5-3 spec 진입 시 (vitest 활성화 + 6 cases unskip).
 - **W4 — `_emit_inventory_ledger_event_for_row` / `_emit_ledger_events_for_decisions` no isolated unit tests** `tests/api/m4_inventory/test_ledger_service.py` — Integration test `tests/integration/test_inventory_projection_ledger_swap.py` covers via call graph. Acceptable for 5-2 scope. defer to 5-3 maintenance window (isolated unit tests 추가).
+
+---
+
+## Closed by Story 0.5 (2026-08-05)
+
+- **F-1 — Pretendard CDN without SRI** — closed. `apps/web/app/layout.tsx` now uses `next/font/local` with bundled `apps/web/public/fonts/PretendardVariable.woff2` (2.05MB). No external CDN, no SRI required.
+
+- **Story 0.4 ESLint refinement (per-file disable overrides)** — closed. `apps/web/eslint.config.mjs` AD-8 per-file disable overrides for 15 files (status/version/count/index where `number` is semantically correct). Pattern + comment explaining each disable applied.
+
+- **F-30 — `rls_db` fixture exportable from Playwright (Story 1.1)** — closed. `apps/web/e2e/fixtures/supabase-test.ts` provides `rlsDb` fixture for tenant-scoped E2E. Pattern mirrors `tests/rls/conftest.py`. The original xfail marker on `test_select_industry_creates_tenant_settings` can be dropped when Epic 5+ E2E re-activates.
+
+- **F-31 — Anti-pattern guard for "no industry in URL"** — closed. `apps/web/test/setup.ts` + ESLint regex guard added (extends AD-15 cross-language conventions). Static assertion on `/[industry]` dynamic route segments.
+
+- **F-32 — Native HTML `title` tooltip** — closed. SidebarItem now uses shadcn `<Tooltip>` (Radix UI wrapper) with proper keyboard focus support. `apps/web/components/ui/tooltip.tsx` provides the primitive.
+
+- **F-33 — `INDUSTRY_ICON` dead-code placeholders** — closed. `apps/web/lib/menu-config.ts::INDUSTRY_ICON` now has real values: `{ manufacturing: "Factory", service: "Briefcase", manufacturing_service: "Layers", manufacturing_service_other: "Boxes" }`. `apps/web/components/onboarding/IndustryCard.tsx` uses lucide-react `<Icon />` rendering.
+
+- **F-37 — `INDUSTRY_ICON` Python mirror + drift test** — closed. `packages/services/m0_onboarding/industry_menu.py::INDUSTRY_ICON` (Python dict) + `tests/integration/test_menu_config_consistency.py::test_industry_icon_parity_ts_matches_python` (drift detector). Cross-language parity enforced.
+
+- **F-42 — `apps/web/messages/ko-KR.json` missing + inline ko-KR strings** — closed. `apps/web/messages/ko-KR.json` created with namespaces (industry, bom, settings, common, errors). IndustrySelector + SidebarItem now use `useTranslations("namespace")`. next-intl `localePrefix: "as-needed"` for middleware.
+
+- **M11 — sonner toast wiring (Story 2.2 toast deferral)** — closed. `apps/web/components/ui/sonner.tsx` `<Toaster />` wired in `apps/web/app/layout.tsx`. `apps/web/components/m1-baseline/products/BOMEditorClient.tsx` now uses `toast.warning(\`BOM 비중 합 100% 필요 (현재 ${totalRatio.toFixed(2)}%)\`)` via `useEffect` ref guard. Inline `<p>` retained as persistent visual feedback.
+
+- **TYPES-1 — `apps/web/package.json` lacks `engines` field (Story 0.3)** — closed. `apps/web/package.json` declares `"engines": { "node": ">=24.18.0 <25" }`. ENGINE-1 (Node 24.15.0 vs 24.18.0) minor drift documented as accepted.
+
+---
+
+## Still Deferred (Story 5.3 / Epic 5 carry)
+
+- **M14 — TS mirror file `apps/web/lib/l2-input-opening-carry.ts` missing** — Story 5.1 carry. Defer to Story 5.3 spec entry (frontend toast wraps the carry chain).
+- **L8 — Manual edit reject bypass via bulk import (SQL CHECK)** — Story 5.1 carry. SQL-level `CHECK (stream != 'opening_inventory' OR created_via = 'auto_carry')` in Alembic 0016+. Defer to Story 5.3 maintenance window (after Story 0.5 plumbing done).
+- **W2 — TS mirror file `apps/web/lib/l2-inventory-ledger.ts` missing** — Story 5.2 carry. Defer to Story 5.3 spec entry (vitest activation).
+- **W3 — TS mirror parity tests 6 skipped** — Story 5.2 carry. Defer to Story 5.3 spec entry (vitest activation + 6 cases unskip).

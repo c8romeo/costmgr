@@ -27,10 +27,11 @@ import { Sidebar } from "@/components/sidebar/Sidebar";
 
 export const dynamic = "force-dynamic";
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
   // F-1 + F-38: read the access token once and pass the STRING (not a function).
   // This is serializable across the RSC boundary.
-  const accessToken = cookies().get("sb-access-token")?.value;
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("sb-access-token")?.value;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>

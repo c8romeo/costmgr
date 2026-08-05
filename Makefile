@@ -119,6 +119,17 @@ test-conventions:
 test-stack-pin:
 	$(PYTEST) tests/integration/test_stack_pin_check.py -v
 
+# ─────────────────────────────────────────────────────────────────
+# Story 0.5 — Frontend tooling (vitest + Playwright)
+# ─────────────────────────────────────────────────────────────────
+.PHONY: web-test
+web-test:
+	cd apps/web && pnpm test --run
+
+.PHONY: web-e2e
+web-e2e:
+	cd apps/web && pnpm playwright test --project=chromium
+
 .PHONY: test-all
 test-all: test-architecture test-rls test-conventions test-stack-pin
 	@echo "✅ All tests passed (excluding live Postgres jobs)"
