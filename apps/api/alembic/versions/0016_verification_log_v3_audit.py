@@ -99,6 +99,35 @@ def upgrade() -> None:
         """
     )
 
+    # ── Story 5.3 P3 review patch — closing-guard infrastructure ──
+    # (1) monthly_input_rows.created_via + manual-edit reject CHECK.
+    #     Story 5.1 manual_edit_reject already exists at the service
+    #     layer, but a bulk-import SQL path can bypass the service.
+    #     The CHECK constraint closes the L8 deferred-work bypass.
+    op.execute(
+        """
+        ALTER TABLE monthly_input_rows
+        ADD COLUMN IF NOT EXISTS created_via VARCHAR(32) NOT NULL DEFAULT 'user_save'
+        """
+    )
+    op.execute(
+        """
+        ALTER TABLE monthly_input_rows
+        ADD CONSTRAINT chk_opening_inventory_manual_reject
+        CHECK (stream != 'opening_inventory' OR (stream = 'opening_inventory' AND created_via = 'auto_carry'))
+        """
+    )
+    # (2) idx_closing_guard_audit — tenant-scoped period_key lookup
+    #     for the audit-trail route. `period_key` lives in payload JSONB
+    #     (audit_logs table has no `period_key` / `created_at` columns),
+    #     so the index extracts it via JSONB expression.
+    op.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_closing_guard_audit
+        ON audit_logs (tenant_id, (payload->>'period_key'), occurred_at DESC)
+        """
+    )
+
 
 def downgrade() -> None:
     # Restore the 4-value CHECK constraint (Alembic 0014 state)
@@ -126,4 +155,13 @@ def downgrade() -> None:
         'verification_passed, verification_failed, verification_skipped, '
         'verify_v8_golden_match — Story 4.4 V8 forward-lock).'
         """
+    )
+    # Drop the Story 5.3 closing-guard additions.
+    op.execute("DROP INDEX IF EXISTS idx_closing_guard_audit")
+    op.execute(
+        "ALTER TABLE monthly_input_rows "
+        "DROP CONSTRAINT IF EXISTS chk_opening_inventory_manual_reject"
+    )
+    op.execute(
+        "ALTER TABLE monthly_input_rows " "DROP COLUMN IF EXISTS created_via"
     )

@@ -55,7 +55,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.audit_action import ActionClass, emit_audit_typed
+from apps.api.core.audit_action import ActionClass, ClosingGuardAction, emit_audit_typed
 from apps.api.core.db_models import MonthlyInputRow, Product
 from packages.services.m0_onboarding.industry_menu import Industry
 from packages.services.m4_inventory.closing_guard import (
@@ -248,7 +248,7 @@ class ClosingGuardService:
             ClosingGuardInvalidPeriodKeyError: malformed period_key.
             ClosingGuardServiceOnlyTenantError: service-only tenant.
         """
-        _validate_period_key(period_key)
+        _validate_period_key(period_key, tenant_id=self.tenant_id, trace_id=self.trace_id)
 
         # Read-only ledger aggregate via SSOT (5-2 wire).
         closing_per_product = await self._query_closing_via_ledger(period_key)
@@ -282,6 +282,19 @@ class ClosingGuardService:
             ClosingGuardInvalidPeriodKeyError: malformed period_key.
             ClosingGuardServiceOnlyTenantError: service-only tenant.
         """
+        # AD-4 atomicity: SELECT FOR UPDATE on monthly_input_periods at close attempt
+        # Prevents TOCTOU race between two concurrent [마감] requests (CR 5.3 P4
+        # review patch). Acquires row lock on the period_key for the duration of
+        # the transaction so concurrent close attempts serialize at the DB layer.
+        from apps.api.core.db_models import MonthlyInputPeriod
+
+        await self.session.scalar(
+            select(MonthlyInputPeriod).where(
+                MonthlyInputPeriod.tenant_id == self.tenant_id,
+                MonthlyInputPeriod.period_key == period_key,
+            ).with_for_update()
+        )
+
         invariant = await self.evaluate_closing_guard(period_key)
 
         if is_close_blocked(invariant):
@@ -401,45 +414,81 @@ class ClosingGuardService:
                 trace_id=self.trace_id,
             ) from err
 
-        # Emit each event via LedgerService.append_event.
-        from apps.api.modules.m4_inventory.services.ledger_service import (
-            LedgerService,
-        )
+        # 1-shot bulk INSERT per CR 5.3 P5 + D2=(a) decision.
+        # Build event rows (typed dicts matching InventoryLedger columns),
+        # execute a single executemany INSERT in one transaction, then emit
+        # ONE audit log for the whole batch (no per-event audit).
+        # If ANY row violates CHECK / FK / NOT NULL, the entire transaction
+        # rolls back (no partial state).
+        from sqlalchemy import insert
+
+        from apps.api.core.db_models import InventoryLedger
         from packages.services.m4_inventory.ledger import (
             SOURCE_MONTHLY_INPUT,
         )
 
-        ledger_svc = LedgerService(
-            self.session,
-            tenant_id=self.tenant_id,
-            industry=self.industry,
-            trace_id=self.trace_id,
-        )
-
+        trace_id_uuid = uuid.UUID(self.trace_id) if self.trace_id else _mint_trace_id()
+        inserted_at = _now_utc()
+        event_dicts: list[dict[str, Any]] = []
         emitted_event_ids: list[str] = []
+
         for event in computed_events:
-            try:
-                qty_decimal = _to_decimal(event["qty"])
-                event_id = await ledger_svc.append_event(
-                    product_id=uuid.UUID(event["product_id"]),
-                    period_key=row_dict["period_key"],
-                    event_type=event["event_type"],
-                    qty=qty_decimal,
-                    source=SOURCE_MONTHLY_INPUT,
-                    metadata=event["metadata"],
-                    actor_id=None,
-                )
-                emitted_event_ids.append(str(event_id))
-            except Exception as err:
-                raise ClosingGuardProductionConsumptionError(
-                    tenant_id=self.tenant_id,
-                    details={
-                        "error_code": "LEDGER_EMIT_FAIL",
-                        "event_type": event["event_type"],
-                        "message": str(err),
+            qty_decimal = _to_decimal(event["qty"])
+            event_id = _mint_trace_id()  # uuid7 (uuid4 fallback) per AD-15
+            emitted_event_ids.append(str(event_id))
+            event_dicts.append(
+                {
+                    "event_id": event_id,
+                    "tenant_id": self.tenant_id,
+                    "product_id": uuid.UUID(event["product_id"]),
+                    "period_key": row_dict["period_key"],
+                    "event_type": event["event_type"],
+                    "qty": qty_decimal,
+                    "trace_id": trace_id_uuid,
+                    "reverses_event_id": None,
+                    "correction_group_id": None,
+                    "payload": {
+                        **event["metadata"],
+                        "source": SOURCE_MONTHLY_INPUT,
                     },
-                    trace_id=self.trace_id,
-                ) from err
+                    "inserted_at": inserted_at,
+                }
+            )
+
+        try:
+            # Audit-first emit (CR 1.1) — ONE batch audit row before INSERT.
+            await self._emit_audit(
+                action="production_ledger_batch_emit",
+                actor_id=None,
+                payload={
+                    "tenant_id": str(self.tenant_id),
+                    "period_key": row_dict["period_key"],
+                    "production_row_id": str(production_row.row_id)
+                    if getattr(production_row, "row_id", None)
+                    else None,
+                    "event_count": len(event_dicts),
+                    "event_ids": emitted_event_ids,
+                    "event_types": [e["event_type"] for e in event_dicts],
+                    "source": SOURCE_MONTHLY_INPUT,
+                    "trace_id": self.trace_id,
+                },
+            )
+
+            # 1-shot INSERT (all-or-nothing — single transaction, no flush loop).
+            if event_dicts:
+                await self.session.execute(
+                    insert(InventoryLedger), event_dicts
+                )
+        except Exception as err:
+            raise ClosingGuardProductionConsumptionError(
+                tenant_id=self.tenant_id,
+                details={
+                    "error_code": "LEDGER_BATCH_INSERT_FAIL",
+                    "event_count": len(event_dicts),
+                    "message": str(err),
+                },
+                trace_id=self.trace_id,
+            ) from err
 
         return emitted_event_ids
 
@@ -471,7 +520,7 @@ class ClosingGuardService:
             verify_closing_invariant,
         )
 
-        _validate_period_key(period_key)
+        _validate_period_key(period_key, tenant_id=self.tenant_id, trace_id=self.trace_id)
 
         # Industry skip matrix
         if not self._guard_enabled:
@@ -537,7 +586,17 @@ class ClosingGuardService:
     async def _query_active_product_whitelist(
         self,
     ) -> set[uuid.UUID]:
-        """Query active products for the tenant (RLS-scoped)."""
+        """Query active products for the tenant (RLS-scoped).
+
+        CR 5.3 P12 review patch — early-return for service-only tenants.
+        service-only tenants have NO inventory semantics, so the whitelist
+        must be empty (NOT an unbounded query). Otherwise V3 would falsely
+        classify all products as 'in_whitelist' for service-only tenants.
+        """
+        # CR 5.3 P12 — service-only tenant → empty whitelist (no inventory).
+        if self.industry == Industry.SERVICE:
+            return set()
+
         result = await self.session.scalars(
             select(Product.product_id).where(
                 Product.tenant_id == self.tenant_id,
@@ -549,7 +608,7 @@ class ClosingGuardService:
     async def _emit_audit(
         self,
         *,
-        action: str,
+        action: ClosingGuardAction,
         actor_id: uuid.UUID | None,
         payload: dict[str, Any],
     ) -> None:
@@ -558,7 +617,7 @@ class ClosingGuardService:
             await emit_audit_typed(
                 self.session,
                 action_class=ActionClass.CLOSING_GUARD,
-                action=action,  # type: ignore[arg-type]
+                action=action,
                 actor_id=actor_id,
                 target_id=None,
                 reason=None,
@@ -574,21 +633,31 @@ class ClosingGuardService:
             ) from err
 
 
-def _validate_period_key(period_key: str) -> None:
-    """AD-24 typed period-key: 'YYYY-MM'."""
+def _validate_period_key(
+    period_key: str,
+    *,
+    tenant_id: uuid.UUID,
+    trace_id: str,
+) -> None:
+    """AD-24 typed period-key: 'YYYY-MM'.
+
+    Caller-provided tenant_id + trace_id ensure error correlation
+    (CR 5.3 P13 review patch — was previously using uuid.UUID(int=0)
+    + empty trace_id, which made envelope-to-audit correlation impossible).
+    """
     import re
 
     if not isinstance(period_key, str):
         raise ClosingGuardInvalidPeriodKeyError(
-            tenant_id=uuid.UUID(int=0),
+            tenant_id=tenant_id,
             period_key=str(period_key),
-            trace_id="",
+            trace_id=trace_id,
         )
-    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", period_key):
+    if not re.match(r"^(19|20)\d{2}-(0[1-9]|1[0-2])$", period_key):
         raise ClosingGuardInvalidPeriodKeyError(
-            tenant_id=uuid.UUID(int=0),
+            tenant_id=tenant_id,
             period_key=period_key,
-            trace_id="",
+            trace_id=trace_id,
         )
 
 

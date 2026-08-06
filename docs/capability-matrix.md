@@ -195,5 +195,6 @@ class CalcResponse(BaseModel):
   INDUSTRY_NOT_SUPPORTED — BOM 없음 → ledger 의미 없음). Capability
   행 자체는 변경 없음 (5-2 wire는 5-1 의 Capability.OPENING_INVENTORY
   와 동일한 manufacturing-kind 3종 wiring 사용).
+- 2026-08-06 — v1.7 (Story 5.3): `CLOSING_GUARD` capability wire (manufacturing 3종 ✅ / service-only ❌) + `ActionClass.CLOSING_GUARD` 3 values 채움 + `ActionClass.VERIFICATION` V3 value add (4 → 5) + V3 verification surface wire + Alembic 0016 SQL CHECK constraint (chk_opening_inventory_manual_reject) + monthly_input_rows.created_via column + idx_closing_guard_audit index.
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.

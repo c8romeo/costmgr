@@ -120,8 +120,25 @@ V8_GOLDEN_OUTPUT_STRUCTURE: Final[dict] = {
 V8_BANKER_ROUNDING: Final[str] = "ROUND_HALF_EVEN"
 
 # Story 4.4 populated 12 golden fixtures (4 industries × 3 baseline shapes).
+# Story 5.3 added 2 NEW V3 closing invariant 골든 fixtures (PASS + FAIL).
 # See `tests/regression_v8/test_regression_v8_fixtures.py` for CI gate.
-V8_FIXTURE_COUNT: Final[int] = 12
+# CR 5.3 P18 review patch — V8 + V3 fixture count = 12 + 2 = 14.
+V8_FIXTURE_COUNT: Final[int] = 14
+
+# V3 closing invariant fixture count (subset of V8_FIXTURE_COUNT).
+# These are the 2 NEW V3 골든 fixtures shipped in Story 5.3:
+# - v3_closing_pass_manufacturing.json
+# - v3_closing_fail_manufacturing.json
+# Distinct from the 12 V8 byte-identical regression fixtures (which use
+# the `industry__b-shape` naming convention with monthly_input/golden
+# payloads). The V3 fixtures use a different shape (industry +
+# ledger_aggregate + expected_v3_*) and live in the same fixtures/
+# directory for CI discoverability. CR 5.3 P18 review patch.
+V3_FIXTURE_COUNT: Final[int] = 2
+V3_FIXTURE_IDS: Final[tuple[str, ...]] = (
+    "v3_closing_pass_manufacturing",
+    "v3_closing_fail_manufacturing",
+)
 
 
 # ── Helper for Story 4.4 fixture generation ─────────────────

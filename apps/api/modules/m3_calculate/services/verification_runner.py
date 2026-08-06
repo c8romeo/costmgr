@@ -151,8 +151,11 @@ class VerificationRunner:
                 # AD-12 ordering invariant — earlier failed aborts later.
                 break
 
+        # CR 5.3 P17 review fix — 'skipped' ≠ 'failed' (AD-12 enum).
+        # 'skipped' is metadata-only (e.g., service-only tenant for V3);
+        # treat as 'passed' for overall verdict computation.
         verification_status: VerificationEnvelopeStatus = (
-            "passed" if all(v.status == "passed" for v in verifications) else "failed"
+            "passed" if all(v.status in ("passed", "skipped") for v in verifications) else "failed"
         )
         top_failure: VerificationItem | None = next(
             (v for v in verifications if v.status == "failed"), None

@@ -58,10 +58,13 @@ import uuid
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.core.audit_action import ActionClass
 from apps.api.core.capability import Capability, require_capability, require_role
 from apps.api.core.db import get_session
+from apps.api.core.db_models import AuditLog
 from apps.api.core.tenant_context import TenantContext, get_tenant_context
 from apps.api.modules.m0_onboarding.services.settings_service import (
     SettingsService,
@@ -70,6 +73,8 @@ from apps.api.modules.m0_onboarding.services.settings_service import (
 from apps.api.modules.m4_inventory.schemas import (
     CarryChainEntry,
     CarryChainResponse,
+    ClosingAuditTrailEntry,
+    ClosingAuditTrailResponse,
     ClosingGuardCloseAttemptRequest,
     ClosingGuardCloseAttemptResponse,
     ClosingGuardEvaluateRequest,
@@ -468,7 +473,7 @@ async def request_close_attempt(
     payload: ClosingGuardCloseAttemptRequest,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
+    _capability: None = Depends(require_capability(Capability.INVENTORY_CLOSING_GUARD)),
     _role: None = Depends(require_role("owner")),
 ) -> ClosingGuardCloseAttemptResponse:
     """Close-time gate wire (PRD §F4.2 + §V3 — Story 5.3 AC #5).
@@ -487,6 +492,73 @@ async def request_close_attempt(
         period_key=result["period_key"],
         closing_per_product=result["closing_per_product"],
         invariant_code=result["invariant_code"],
+        trace_id=ctx.trace_id,
+    )
+
+
+@router.get(
+    "/closing-guard/audit-trail",
+    response_model=ClosingAuditTrailResponse,
+    status_code=200,
+    summary="Closing-guard audit log emission trace (Story 5.3 P1 review patch — observability)",
+)
+async def get_closing_guard_audit_trail(
+    period_key: str = Query(..., description="AD-24 typed 'YYYY-MM' fiscal key"),
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
+) -> ClosingAuditTrailResponse:
+    """Closing-guard audit log query (CR 1.1 observability).
+
+    Returns `audit_logs` entries filtered by:
+    - `tenant_id` (RLS predicate — current tenant only)
+    - `payload->>'period_key' = period_key` (JSONB extraction)
+    - `action IN ('closing_guard_violated', 'closing_guard_passed',
+                  'v3_closing_invariant_verified')`
+
+    Read-only query — NO owner role required per P1 spec.
+    Capability gate: INVENTORY_LEDGER (manufacturing-kind industries).
+
+    The query uses the `idx_closing_guard_audit` index added by Alembic
+    0016 (Alembic Story 5.3 P3 review patch) for tenant-scoped
+    period_key lookups.
+    """
+    rows = (
+        await session.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.tenant_id == ctx.tenant_id,
+                AuditLog.target_table == ActionClass.CLOSING_GUARD.value,
+                AuditLog.action.in_(
+                    [
+                        "closing_guard_violated",
+                        "closing_guard_passed",
+                        "v3_closing_invariant_verified",
+                    ]
+                ),
+                AuditLog.payload["period_key"].astext == period_key,
+            )
+            .order_by(AuditLog.occurred_at.desc())
+        )
+    ).scalars().all()
+
+    entries = [
+        ClosingAuditTrailEntry(
+            id=str(r.id),
+            tenant_id=str(r.tenant_id) if r.tenant_id is not None else None,
+            actor_id=str(r.actor_id) if r.actor_id is not None else None,
+            action=r.action,
+            target_table=r.target_table,
+            target_id=str(r.target_id) if r.target_id is not None else None,
+            reason=r.reason,
+            payload=dict(r.payload or {}),
+            occurred_at=r.occurred_at.isoformat() if r.occurred_at else "",
+        )
+        for r in rows
+    ]
+    return ClosingAuditTrailResponse(
+        period_key=period_key,
+        entries=entries,
         trace_id=ctx.trace_id,
     )
 

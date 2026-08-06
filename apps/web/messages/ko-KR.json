@@ -38,5 +38,14 @@
     "forbidden_role": "owner 역할만 가능합니다",
     "invalid_input": "입력값이 올바르지 않습니다",
     "server_error": "서버 오류가 발생했습니다"
+  },
+  "closing_guard": {
+    "banner_title": "기말재고 음수: 마감 불가",
+    "banner_description": "아래 원자재의 기말재고가 음수입니다. 출고량을 줄이거나 입고량을 늘려 0 이상으로 맞춰주세요.",
+    "toast_warning": "기말재고 음수가 발생했습니다",
+    "close_button_disabled_tooltip": "기말재고 음수 → 마감 불가",
+    "opening_locked_helper": "기초재고 잠김 — 자동 이월 체인 활성. 수동 수정 불가",
+    "opening_locked_toast": "기초재고는 자동 이월 체인에 의해 잠겼습니다",
+    "audit_trail_title": "마감 검증 이력"
   }
 }

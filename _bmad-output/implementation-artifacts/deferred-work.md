@@ -164,3 +164,30 @@ Items deferred from code review. Each entry records what was deferred, the ratio
 - **L8 — Manual edit reject bypass via bulk import (SQL CHECK)** — Story 5.1 carry. SQL-level `CHECK (stream != 'opening_inventory' OR created_via = 'auto_carry')` in Alembic 0016+. Defer to Story 5.3 maintenance window (after Story 0.5 plumbing done).
 - **W2 — TS mirror file `apps/web/lib/l2-inventory-ledger.ts` missing** — Story 5.2 carry. Defer to Story 5.3 spec entry (vitest activation).
 - **W3 — TS mirror parity tests 6 skipped** — Story 5.2 carry. Defer to Story 5.3 spec entry (vitest activation + 6 cases unskip).
+
+---
+
+## Deferred from: code review of 5-3-negative-closing-inventory-guard (2026-08-06)
+
+> 3 review layers (Blind Hunter · Edge Case Hunter · Acceptance Auditor) full sweep against `ead1974..HEAD` (8,141 lines · 74 files · +5,386 / -725). 66 raw → 31 unique → triage 33 patch + 3 decision + 5 defer + 1 dismiss. `{failed_layers}=''`. Cross-layer dedup validated against actual source via grep + file-tree verification. **Major observation**: dev-story's `File List` + `Completion Notes` contain phantom file claims (e.g., spec claims `apps/web/components/m2-input/MonthlyInputRowForm.tsx` NEW — directory itself absent). See spec file `### Review Findings` D3 + 33 patch items (P1-P33) for full detail.
+
+- **Defer-1** — `closing_guard_service._query_closing_via_ledger` re-instantiates LedgerService per call (N+1 risk, REPEATABLE READ idempotent) — deferred, perf micro-optimization
+
+- **Defer-2** — `ClosingInvariant.guard_enabled` field in pure kernel (service concept leaked — AD-11 경계) — deferred, wire envelope reshape 별도 Story candidate (Epic 5 close-out retro A8 후보)
+
+- **Defer-3** — `_emit_production_ledger_events_bom_aware` period_key/actor_id: noqa ARG002 unused args — deferred, signature uniformity 보존
+
+- **Defer-4** — `V3_FAILURE_KO_MESSAGE` constant orphan (defined but unused) — deferred, style nit
+
+- **Defer-5** — `compute_production_consumption_events` sort-key tuple (int, str, str) — deferred, AC #8 100× determinism test 묶음 처리
+
+### Story 5.3 review carry-over closed
+
+> These were the 6 carry-over items from Story 5.1 / 5.2 that the Story 5.3 spec claimed to close (see spec Change Log 2026-08-06 entry). bmad-code-review determined they were NOT actually closed:
+
+- **M14 (5-1 carry) — `apps/web/lib/l2-input-opening-carry.ts`** — claimed closed; file does NOT exist on disk. Re-escalated to **patch P23** + D3 phantom-file-claims.
+- **L8 (5-1 carry) — Alembic 0016 `chk_opening_inventory_manual_reject` CHECK** — claimed closed; actual migration `0016_verification_log_v3_audit.py` has only `verification_log` CHECK expansion. Re-escalated to **patch P3** + D3.
+- **W1 (5-2 carry) — production_material_consumption emit** — closed (file `packages/services/m4_inventory/production_consumption.py` exists in diff). Partial atomicity concern deferred to **decision D2**.
+- **W2 (5-2 carry) — `apps/web/lib/l2-input-inventory-ledger.ts`** — claimed closed; file does NOT exist on disk. Re-escalated to **patch P24** + D3.
+- **W3 (5-2 carry) — TS mirror parity tests 6 unskip** — claimed closed; `tests/integration/test_production_consumption_label_consistency.py` exists but skips self due to missing TS mirror. Re-escalated to **patch P25** + P33 + D3.
+- **W4 (5-2 carry) — `_emit_inventory_ledger_event_for_row` isolated unit tests** — claimed closed (spec lists `tests/services/m4_inventory/test_emit_inventory_ledger_event_for_row.py`); file does NOT exist at that path. Re-escalated to **patch P32** + D3.

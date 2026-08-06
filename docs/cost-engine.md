@@ -348,6 +348,24 @@ CREATE POLICY verification_log_tenant_isolation ON verification_log
 
 Alembic migration: `apps/api/alembic/versions/0013_verification_log.py`. A5 audit-action inversion은 `apps/api/core/audit_action.py::ActionClass` 가 single source of truth.
 
+## V3 — Closing Invariant Verification (Story 5.3, 2026-08-06)
+
+V3 (연결성) verification = closing ≥ 0 invariant. Wire contract:
+- 4-3 V3 placeholder → 4-4 V8 골든 → 5-3 V3 fill (closing ≥ 0 invariant rule)
+- Pure kernel: `packages/cost_engine/closing_invariant_check.py` (stdlib-only, AD-11 layer rule)
+- Service: `apps/api/modules/m3_calculate/services/closing_invariant_verifier.py` (V3 slot fill in VerificationRunner)
+- AD-12 ordering: V1 → V4 → V3 → V7 → V8 (5-rule ordering, abort-on-fail pattern)
+
+V3 골든 fixture 2 NEW:
+- `v3_closing_pass_manufacturing.json` — 모든 product closing ≥ 0 + V3 verdict = passed
+- `v3_closing_fail_manufacturing.json` — 최소 1개 product closing < 0 + V3 verdict = failed
+- V8 byte-identical 14 matrix extension (12 → 14)
+
+V3 SKIP semantic:
+- industry='service' → status='skipped' (per AD-12 enum)
+- empty manufacturing product set → status='skipped'
+- reason_ko='service-only tenant은 inventory 의미 없음' (Korean SSOT)
+
 ## Story → engine story mapping
 
 | Story | Engine 영향 |

@@ -1,0 +1,16 @@
+{
+  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
+  "fixture_id": "v3_closing_pass_manufacturing",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "ledger_aggregate": {
+    "00000000-0000-0000-0000-000000000001": "10.0000",
+    "00000000-0000-0000-0000-000000000002": "5.5000",
+    "00000000-0000-0000-0000-000000000003": "0.0000"
+  },
+  "expected_v3_status": "passed",
+  "expected_v3_failures": [],
+  "expected_v3_skip_reason_ko": null,
+  "product_whitelist_size": 3,
+  "verified_at": "2026-08-05T00:00:00Z"
+}

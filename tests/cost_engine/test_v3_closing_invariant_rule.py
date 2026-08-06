@@ -147,7 +147,13 @@ def test_v3_check_failed_verdict():
 
 
 def test_v3_check_skipped_verdict():
-    """Pre-loaded V3Verdict with status='skipped' → status='passed' (silent skip)."""
+    """Pre-loaded V3Verdict with status='skipped' → status='skipped' (CR 5.3 P17).
+
+    CR 5.3 P17 review patch — pre-patch, this case returned status='passed'
+    (silent skip). Post-patch, it surfaces status='skipped' so callers can
+    distinguish "evaluated and passed" from "evaluated and skipped". 'skipped'
+    still does NOT block later rules per AD-12 — it's a metadata flag.
+    """
     from packages.cost_engine.closing_invariant_check import (
         V3_SKIP_REASON_SERVICE_ONLY_KO,
         V3_STATUS_SKIPPED,
@@ -163,17 +169,18 @@ def test_v3_check_skipped_verdict():
         "skip_reason_ko": V3_SKIP_REASON_SERVICE_ONLY_KO,
     }
     item = rule.check(input=_make_rule_input(verdict=verdict))
-    # skipped → status='passed' (does NOT block later rules per AD-12)
+    # CR 5.3 P17 — skipped verdict surfaces as status='skipped' (NOT 'passed').
     assert item.code == "V3"
-    assert item.status == "passed"
+    assert item.status == "skipped"
 
 
 def test_v3_check_none_verdict():
-    """No pre-loaded V3Verdict → status='passed' with skip message."""
+    """No pre-loaded V3Verdict → status='skipped' with skip message (CR 5.3 P17)."""
     rule = V3ClosingInvariantRule()
     item = rule.check(input=_make_rule_input(verdict=None))
     assert item.code == "V3"
-    assert item.status == "passed"
+    # CR 5.3 P17 — None verdict surfaces as status='skipped' (defense-in-depth).
+    assert item.status == "skipped"
 
 
 # ── AD-5 purity: V3 rule kernel has no I/O imports ────────────

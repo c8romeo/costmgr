@@ -14,15 +14,24 @@
  * - negativeProducts: list of {product_id, closing_qty} violating products
  *
  * UX (locked in UX v1.0):
- * - Red `bg-red-50 border-red-300` banner with NEGATIVE_CLOSING message
+ * - shadcn/ui Alert (variant=destructive) with AlertTriangle icon
  * - Hidden when CLOSING_OK or EMPTY_PERIOD
- * - Manual edit gate: passes `disabled` state to children via slot pattern
+ * - Manual edit gate: <fieldset disabled> wraps form fields so keyboard
+ *   Tab + Enter + programmatic submit all bypass correctly (P22 patch)
+ *
+ * Patches applied (Story 5.3 bmad-code-review):
+ * - P20: Migrate raw `<div bg-red-50...>` to shadcn Alert primitive
+ * - P21: Top-N offenders slice (top 5) sorted by severity ASC (qty ASC)
+ * - P22: Migrate `pointer-events-none` + `aria-disabled` to `<fieldset disabled>`
  */
 
 "use client";
 
+import { Decimal } from "decimal.js";
+import { AlertTriangle } from "lucide-react";
 import * as React from "react";
 
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { NEGATIVE_CLOSING_INVENTORY_KO } from "@/lib/closing-guard";
 import { cn } from "@/lib/utils";
 
@@ -54,30 +63,37 @@ export function ClosingGuardBanner({
     return null;
   }
 
+  // P21: Top-N offenders slice (top 5) sorted by severity ASC (qty ASC).
+  // Use Decimal.js for severity sort (P28 — precision loss + NaN risk on Number).
+  const topOffenders = (negativeProducts ?? [])
+    .slice(0, 5)
+    .sort((a, b) => new Decimal(a.closing_qty).minus(b.closing_qty).toNumber());
+
   return (
-    <div
+    <Alert
+      variant="destructive"
       role="alert"
       aria-live="assertive"
-      className={cn(
-        "rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900",
-        className,
-      )}
+      className={className}
       data-testid="closing-guard-banner"
     >
-      <div className="font-semibold">{NEGATIVE_CLOSING_INVENTORY_KO}</div>
+      <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+      <AlertTitle>{NEGATIVE_CLOSING_INVENTORY_KO}</AlertTitle>
       {bannerKo && bannerKo !== NEGATIVE_CLOSING_INVENTORY_KO && (
-        <div className="mt-1 text-red-800">{bannerKo}</div>
+        <AlertDescription>{bannerKo}</AlertDescription>
       )}
-      {negativeProducts && negativeProducts.length > 0 && (
-        <ul className="mt-2 list-disc pl-5 text-xs text-red-700">
-          {negativeProducts.map((p) => (
-            <li key={p.product_id}>
-              {p.product_id.slice(0, 8)}: {p.closing_qty}개
-            </li>
-          ))}
-        </ul>
+      {topOffenders.length > 0 && (
+        <AlertDescription>
+          <ul className="mt-2 list-disc pl-5 text-xs">
+            {topOffenders.map((p) => (
+              <li key={p.product_id}>
+                {p.product_id.slice(0, 8)}: {p.closing_qty}개
+              </li>
+            ))}
+          </ul>
+        </AlertDescription>
       )}
-    </div>
+    </Alert>
   );
 }
 
@@ -94,8 +110,11 @@ export interface ClosingGuardGateProps {
  * ClosingGuardGate — Wraps children to disable manual edit while invariant violated.
  *
  * Manual edit is blocked when invariant.code = NEGATIVE_CLOSING.
- * The gate renders children inside a `pointer-events-none` wrapper with
- * `aria-disabled` so screen readers announce the disabled state.
+ *
+ * P22 (patch): Migrate `pointer-events-none` + `aria-disabled` to
+ * `<fieldset disabled={is_blocked}>`. This ensures keyboard Tab + Enter +
+ * programmatic submit all bypass correctly (the HTML disabled attribute
+ * blocks form submission, while pointer-events-none only blocks mouse).
  *
  * Use for: save buttons, form inputs, BOM editor, product create/edit
  * dialogs in the [수불부] tab when banner is visible.
@@ -116,13 +135,13 @@ export function ClosingGuardGate({
   }
 
   return (
-    <div
-      aria-disabled="true"
+    <fieldset
+      disabled
       data-testid="closing-guard-gate"
-      className="pointer-events-none cursor-not-allowed opacity-50"
+      className={cn("cursor-not-allowed", "border-0 p-0 m-0 min-w-0")}
       title={NEGATIVE_CLOSING_INVENTORY_KO}
     >
       {children}
-    </div>
+    </fieldset>
   );
 }

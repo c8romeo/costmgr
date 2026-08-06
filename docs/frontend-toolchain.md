@@ -152,6 +152,27 @@ Adding a new industry:
 3. Run `pnpm test` + `uv run pytest tests/integration/test_menu_config_consistency.py`
 4. Both must pass; if either fails, drift detector has your back
 
+## Story 5.3 — Closing Guard (2026-08-06)
+
+sonner toast pattern (Story 0.5 v1.0 SSOT extension):
+- `toast.warning(message, { duration: 5000, position: 'top-right' })` — transient feedback
+- `toast.error(message, { duration: 5000, position: 'top-right' })` — error feedback (manual edit reject)
+- 짧은 메시지 + 2-3 toast limit + loading → success/error pattern
+
+shadcn Alert variant='destructive' pattern:
+- `<Alert variant="destructive">` + `<AlertTitle>` + `<AlertDescription>` + `<AlertTriangle>` icon from lucide-react
+- red banner with destructive intent — P20 wire from m4-inventory to m2-input subtree
+
+shadcn Form pattern:
+- `<Form>` primitive wrap + `<Input disabled>` for manual edit reject
+- helper text + sonner toast on attempted save
+- Korean error messages from ko-KR.json `closing_guard.*` keys
+
+manual edit reject form convention:
+- For `stream='opening_inventory'` rows: form field disabled state
+- Helper text: "기초재고 잠김 — 자동 이월 체인 활성. 수동 수정 불가"
+- Sonner toast.error on save attempt
+
 ## References
 
 - Story 0.5 spec: `_bmad-output/implementation-artifacts/0-5-frontend-plumbing-shadcn-sonner-vitest-playwright.md`

@@ -1,0 +1,27 @@
+{
+  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
+  "fixture_id": "v3_closing_fail_manufacturing",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "ledger_aggregate": {
+    "00000000-0000-0000-0000-000000000001": "-5.0000",
+    "00000000-0000-0000-0000-000000000002": "3.2500",
+    "00000000-0000-0000-0000-000000000003": "-2.5000"
+  },
+  "expected_v3_status": "failed",
+  "expected_v3_failures": [
+    {
+      "product_id": "00000000-0000-0000-0000-000000000003",
+      "closing_qty": "-2.5000",
+      "message_ko": "기말재고 음수 -2.5000개 (PRD §V3)"
+    },
+    {
+      "product_id": "00000000-0000-0000-0000-000000000001",
+      "closing_qty": "-5.0000",
+      "message_ko": "기말재고 음수 -5.0000개 (PRD §V3)"
+    }
+  ],
+  "expected_v3_skip_reason_ko": null,
+  "product_whitelist_size": 3,
+  "verified_at": "2026-08-05T00:00:00Z"
+}

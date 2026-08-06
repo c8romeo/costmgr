@@ -251,9 +251,57 @@ class ClosingGuardCloseAttemptResponse(BaseModel):
     trace_id: str
 
 
+# ── 6. Story 5.3 — audit-trail response (P1 review patch) ─────
+class ClosingAuditTrailEntry(BaseModel):
+    """Single audit log entry in the closing-guard audit trail response.
+
+    Wire-format shape of an `audit_logs` row filtered by closing-guard
+    actions (closing_guard_violated / closing_guard_passed /
+    v3_closing_invariant_verified). Read-only observability (CR 1.1).
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    tenant_id: str | None
+    actor_id: str | None
+    action: str
+    target_table: str
+    target_id: str | None
+    reason: str | None
+    payload: dict[str, Any] = Field(default_factory=dict)
+    occurred_at: str
+
+
+class ClosingAuditTrailResponse(BaseModel):
+    """GET /api/v1/inventory/closing-guard/audit-trail response.
+
+    Read-only observability of the closing-guard audit log emissions
+    (CR 1.1 invariant). Returns audit_logs rows scoped to:
+    - tenant_id (RLS predicate)
+    - period_key (via payload->>'period_key' JSONB extraction)
+    - action ∈ {closing_guard_violated, closing_guard_passed,
+                v3_closing_invariant_verified}
+
+    NO owner-role requirement — read-only audit query per P1 spec.
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str
+    entries: list[ClosingAuditTrailEntry] = Field(default_factory=list)
+    trace_id: str
+
+
 __all__ = [
     "CarryChainEntry",
     "CarryChainResponse",
+    "ClosingAuditTrailEntry",
+    "ClosingAuditTrailResponse",
     "ClosingGuardEvaluateRequest",
     "ClosingGuardEvaluateResponse",
     "ClosingGuardCloseAttemptRequest",

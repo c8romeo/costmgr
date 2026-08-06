@@ -224,3 +224,24 @@ decisions — inventory-bearing products 없음).
 가 audit 행을 **먼저** emit → 그 다음 ledger INSERT. Drift detector:
 `tests/integration/test_audit_action_consistency.py` (ActionClass
 INVENTORY_LEDGER ↔ DB CHECK ↔ call sites 3-way).
+
+## Story 5.3 — Closing Guard (2026-08-06)
+
+M14 TS mirror wire (apps/web/lib/l2-input-opening-carry.ts) — Story 5.1 carry-over close-out:
+- `OpeningCarryState` type + `isOpeningLocked()` + `canEditOpening()` + `formatCarryChainReason()` helpers
+- banker's rounding parity + Decimal serialization (AD-15 §11)
+
+L8 SQL CHECK constraint (`chk_opening_inventory_manual_reject`):
+- monthly_input_rows table guard: `stream != 'opening_inventory' OR (stream = 'opening_inventory' AND created_via = 'auto_carry')`
+- Alembic 0016 wire: column + CHECK + index
+- defense-in-depth: bulk import / direct INSERT path 우회 시에도 service-layer reject와 동등 enforcement
+
+Manual edit reject UI (frontend):
+- `apps/web/components/m2-input/MonthlyInputRowForm.tsx` — for `stream='opening_inventory'` rows
+- When `opening_inventory_locked=true` → form field disabled + helper text + sonner toast.error
+- shadcn `<Form>` primitive + `<Input disabled>` + `<Tooltip>`
+
+3중 defense-in-depth (manual edit reject):
+- 5-1 service-layer `manual_edit_reject` validation
+- L8 SQL CHECK constraint (chk_opening_inventory_manual_reject)
+- 5-3 frontend form disabled + sonner toast.error

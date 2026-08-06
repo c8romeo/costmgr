@@ -1089,6 +1089,19 @@ class MonthlyInputService:
         )
         warning_responses = [_warning_to_response(w) for w in warnings]
 
+        # Story 5.3 P2 review patch — closing-guard bundle for state response.
+        # Compute closing-guard invariant + audit trail + V3 verdict for the
+        # page-mount payload. Service-only tenants get the EMPTY_PERIOD no-op
+        # shape (defense-in-depth, never raises here — the guard service
+        # swallows the industry skip matrix).
+        (
+            closing_guard_invariant,
+            closing_guard_blocked,
+            closing_guard_audit_trail,
+            production_consumption_events,
+            v3_verdict,
+        ) = await self._compute_closing_guard_bundle_for_state(period_key=period_key)
+
         return MonthlyInputStateResponse(
             period_key=period_key,
             mode=period.mode,
@@ -1125,6 +1138,12 @@ class MonthlyInputService:
             # Epic 11 forward-fill: reversal_request_enabled becomes True
             # after M11 module ships. 5-2 = False.
             reversal_request_enabled=False,
+            # Story 5.3 — closing-guard wire fields (PRD §F4.2 + §V3).
+            closing_guard_invariant=closing_guard_invariant,
+            closing_guard_blocked=closing_guard_blocked,
+            closing_guard_audit_trail=closing_guard_audit_trail,
+            production_consumption_events=production_consumption_events,
+            v3_verdict=v3_verdict,
         )
 
     # ── Helpers ──────────────────────────────────────────────
@@ -1809,6 +1828,159 @@ class MonthlyInputService:
             period_key=period_key,
         )
         return {str(pid): str(qty) for pid, qty in closing_map.items()}
+
+    async def _compute_closing_guard_bundle_for_state(
+        self,
+        *,
+        period_key: str,
+    ) -> tuple[
+        dict[str, Any],
+        bool,
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+        dict[str, Any] | None,
+    ]:
+        """Story 5.3 P2 review patch — closing-guard bundle for state response.
+
+        Returns 5-tuple of:
+        - `closing_guard_invariant`: ClosingInvariant dict shape
+          (closing_per_product + negative_products + guard_enabled + code)
+        - `closing_guard_blocked`: bool — invariant.code == 'NEGATIVE_CLOSING'
+        - `closing_guard_audit_trail`: last 10 audit_logs rows for
+          closing_guard actions (closing_guard_violated /
+          closing_guard_passed / v3_closing_invariant_verified)
+        - `production_consumption_events`: list of LedgerEvent dicts
+          for production_output_inbound + production_material_consumption
+        - `v3_verdict`: V3RuleResult dict or None (V3 verification sync
+          via ClosingGuardService.validate_closing_invariant_against_active_products)
+
+        Service-only tenants: returns EMPTY bundle (no-op shape).
+        """
+        from apps.api.modules.m4_inventory.services.closing_guard_service import (
+            ClosingGuardService,
+        )
+
+        empty_invariant: dict[str, Any] = {
+            "code": "EMPTY_PERIOD",
+            "guard_enabled": False,
+            "closing_per_product": {},
+            "negative_products": {},
+        }
+
+        # Service-only tenant skip matrix — guard disabled, no bundle.
+        from packages.services.m0_onboarding.industry_menu import Industry
+
+        if self.industry == Industry.SERVICE:
+            return (empty_invariant, False, [], [], None)
+
+        # Build ClosingGuardService for this tenant (read-only aggregate).
+        guard_svc = ClosingGuardService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+
+        # Closing invariant shape (closing_per_product + negative_products
+        # + code + guard_enabled).
+        try:
+            invariant = await guard_svc.evaluate_closing_guard(period_key=period_key)
+        except Exception:
+            # Defensive: never raise here — fall back to EMPTY_PERIOD shape.
+            invariant = None
+
+        if invariant is not None:
+            closing_guard_invariant: dict[str, Any] = {
+                "code": invariant.code,
+                "guard_enabled": invariant.guard_enabled,
+                "closing_per_product": {
+                    str(pid): f"{qty:f}" for pid, qty in invariant.closing_per_product.items()
+                },
+                "negative_products": {
+                    str(pid): f"{qty:f}" for pid, qty in invariant.negative_products.items()
+                },
+            }
+            closing_guard_blocked = invariant.code == "NEGATIVE_CLOSING"
+        else:
+            closing_guard_invariant = empty_invariant
+            closing_guard_blocked = False
+
+        # Audit trail (last 10 closing_guard rows for this period_key).
+        from apps.api.core.db_models import AuditLog
+
+        audit_rows = (
+            await self.session.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.tenant_id == self.tenant_id,
+                    AuditLog.target_table == ActionClass.CLOSING_GUARD.value,
+                    AuditLog.action.in_(
+                        [
+                            "closing_guard_violated",
+                            "closing_guard_passed",
+                            "v3_closing_invariant_verified",
+                        ]
+                    ),
+                    AuditLog.payload["period_key"].astext == period_key,
+                )
+                .order_by(AuditLog.occurred_at.desc())
+                .limit(10)
+            )
+        ).scalars().all()
+        closing_guard_audit_trail: list[dict[str, Any]] = [
+            {
+                "id": str(r.id),
+                "actor_id": str(r.actor_id) if r.actor_id is not None else None,
+                "action": r.action,
+                "occurred_at": r.occurred_at.isoformat() if r.occurred_at else "",
+                "payload": dict(r.payload or {}),
+            }
+            for r in audit_rows
+        ]
+
+        # Production consumption events for this period.
+        from apps.api.modules.m4_inventory.services.ledger_service import (
+            LedgerService,
+        )
+
+        ledger_svc = LedgerService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
+        )
+        ledger_events = await ledger_svc.query_period_closing(period_key=period_key)
+        production_consumption_events: list[dict[str, Any]] = [
+            {
+                "event_id": str(e.event_id),
+                "product_id": str(e.product_id),
+                "period_key": e.period_key,
+                "event_type": e.event_type,
+                "qty": str(e.qty) if e.qty is not None else None,
+                "source": e.source,
+            }
+            for e in ledger_events
+            if e.event_type
+            in ("production_output_inbound", "production_material_consumption")
+        ]
+
+        # V3 verdict (PASS/FAIL/SKIP) — best-effort, swallow errors.
+        try:
+            verdict = await guard_svc.validate_closing_invariant_against_active_products(
+                period_key=period_key,
+                actor_id=None,
+            )
+            v3_verdict: dict[str, Any] | None = dict(verdict) if verdict else None
+        except Exception:
+            v3_verdict = None
+
+        return (
+            closing_guard_invariant,
+            closing_guard_blocked,
+            closing_guard_audit_trail,
+            production_consumption_events,
+            v3_verdict,
+        )
 
     def _compute_operating_rate_warning_for_state(
         self,

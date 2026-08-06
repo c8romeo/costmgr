@@ -60,11 +60,20 @@ class V3ClosingInvariantRule:
         ClosingGuardService.validate_closing_invariant_against_active_products().
         V3 kernel just adapts the verdict shape to VerificationItem.
 
+        CR 5.3 P17 review patch — SKIP semantic fix.
+        Pre-patch: when V3 verdict.status == 'skipped' (industry=service
+        OR empty aggregate+whitelist), the V3 kernel returned
+        VerificationItem.status='passed' (silent skip). Post-patch:
+        returns VerificationItem.status='skipped' so callers can
+        distinguish "evaluated and passed" from "evaluated and skipped".
+        Per AD-12, 'skipped' does NOT block later rules (still
+        metadata-only); the `verifications[]` array now carries V3
+        entries with status='skipped' when applicable.
+
         Returns:
             VerificationItem with code='V3', status mapped from
             V3_STATUS_* (passed → 'passed', failed → 'failed',
-            skipped → 'passed' since skipped does NOT block later rules
-            per AD-12; skipped is a metadata flag).
+            skipped → 'skipped' — distinct from 'passed').
         """
         verdict = input.closing_invariant_verdict
         if verdict is None:
@@ -72,7 +81,7 @@ class V3ClosingInvariantRule:
             # If absent, treat as skipped (no harm to other rules).
             return VerificationItem(
                 code="V3",
-                status="passed",
+                status="skipped",
                 message_ko=V3_SKIP_REASON_SERVICE_ONLY_KO,
                 details={
                     "v3_status": V3_STATUS_SKIPPED,
@@ -107,22 +116,33 @@ class V3ClosingInvariantRule:
                 },
             )
 
-        # passed or skipped → status='passed' (silent skip in envelope)
-        message_ko = (
-            f"closing ≥ 0 invariant 정상 (product_whitelist_size="
-            f"{verdict.get('product_whitelist_size', 0)})"
-            if v3_status == V3_STATUS_PASSED
-            else f"V3 skip: {skip_reason_ko or ''}"
-        )
+        if v3_status == V3_STATUS_SKIPPED:
+            # CR 5.3 P17 — SKIP surfaces as VerificationItem.status='skipped'.
+            return VerificationItem(
+                code="V3",
+                status="skipped",
+                message_ko=f"V3 skip: {skip_reason_ko or ''}",
+                details={
+                    "v3_status": V3_STATUS_SKIPPED,
+                    "failures_count": 0,
+                    "product_whitelist_size": verdict.get("product_whitelist_size", 0),
+                    "skip_reason_ko": skip_reason_ko,
+                },
+            )
+
+        # passed → status='passed'
         return VerificationItem(
             code="V3",
             status="passed",
-            message_ko=message_ko,
+            message_ko=(
+                f"closing ≥ 0 invariant 정상 (product_whitelist_size="
+                f"{verdict.get('product_whitelist_size', 0)})"
+            ),
             details={
-                "v3_status": v3_status,
+                "v3_status": V3_STATUS_PASSED,
                 "failures_count": 0,
                 "product_whitelist_size": verdict.get("product_whitelist_size", 0),
-                "skip_reason_ko": skip_reason_ko,
+                "skip_reason_ko": None,
             },
         )
 

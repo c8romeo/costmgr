@@ -301,3 +301,23 @@ GET `/api/v1/inventory/ledger/carry-chain?product_id=...&period_key=2026-07&dept
   event_type + 6-value action + 5 service operations + 4 HTTP routes
   + 4 Pydantic schemas + 3중 방어 + Epic 3.3 inline projection swap
   + AC #6 reversal forward-fill (Epic 11 owner).
+
+## Story 5.3 — Closing Guard + V3 Sync (2026-08-06)
+
+W2 TS mirror wire (apps/web/lib/l2-input-inventory-ledger.ts) — Story 5.2 carry-over close-out:
+- `LedgerEventType` 11 values + `LedgerEvent` interface + `ClosingBalance` + `ClosingInvariant` + `ClosingInvariantCode`
+- `classifyClosingInvariant()` + `isCloseBlocked()` + `formatNegativeClosingBannerKo()` helpers
+- banker's rounding parity + Decimal serialization (AD-15 §11)
+
+W3 vitest activation (8 cases) — Story 5.2 carry-over close-out:
+- 6 unskip + 3 NEW 5-3 cases (negative_closing_invariant_ko, v3_verdict_envelope_ko, closing_guard_audit_payload_ko)
+- pytest.skip markers removed (Story 0.5 vitest activation done)
+
+W4 isolated unit tests (8 cases) — Story 5.2 carry-over close-out:
+- `tests/services/m4_inventory/test_emit_inventory_ledger_event_for_row.py` NEW
+- W4: test_emit_event_for_purchase_inbound_row, _sales_outbound_row, _production_output_inbound_row, _production_with_bom_consumption, _idempotent_skip, _invalid_event_type_rejected, _qty_decimal_quantization, _audit_first_ordering
+
+W1 BOM-aware reconciliation (production_output + production_material_consumption 동시 emit):
+- `production_consumption.py` pure kernel (BOM matrix 비율 → consumption qty calculation)
+- `closing_guard_service.emit_production_ledger_events()` dispatch
+- 5-2 deferral #9 resolved

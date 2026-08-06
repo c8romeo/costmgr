@@ -52,7 +52,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import NewType
+from typing import Any, NewType
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -402,3 +402,17 @@ class MonthlyInputStateResponse(BaseModel):
     ledger_period_closing: dict[str, str] = Field(default_factory=dict)
     inventory_ledger_enabled: bool = False
     reversal_request_enabled: bool = False  # Epic 11 forward-fill
+    # Story 5.3 — closing-guard wire fields (PRD §F4.2 + §V3).
+    # 5 NEW fields populated by `MonthlyInputService.get_state` extension:
+    # - closing_guard_invariant: ClosingInvariant shape (closing_per_product +
+    #   negative_products + guard_enabled + code)
+    # - closing_guard_blocked: True if invariant.code == 'NEGATIVE_CLOSING'
+    # - closing_guard_audit_trail: last 10 audit_logs rows for closing_guard actions
+    # - production_consumption_events: list of LedgerEvent dicts from
+    #   production_output_inbound + production_material_consumption streams
+    # - v3_verdict: V3RuleResult dict or None (V3 verification sync)
+    closing_guard_invariant: dict[str, Any] = Field(default_factory=dict)
+    closing_guard_blocked: bool = False
+    closing_guard_audit_trail: list[dict[str, Any]] = Field(default_factory=list)
+    production_consumption_events: list[dict[str, Any]] = Field(default_factory=list)
+    v3_verdict: dict[str, Any] | None = None

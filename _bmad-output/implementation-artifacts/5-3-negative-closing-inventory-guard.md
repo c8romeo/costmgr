@@ -797,3 +797,88 @@ claude-opus-5 (BMM dev-story execution)
 
 - **2026-08-05** — Story 5.3 spec created (bmad-create-story). baseline_commit = ead1974 (Story 0.5 plumbing tip + Story 5.2 review patches). status: backlog → ready-for-dev. 10 ACs / 10 tasks / 70+ subtasks. cj-style 결정: 5-3 frontend toast (sonner) + manual edit reject UI + 0.5 plumbing 게이트 (✅ done) + 5-1 + 5-2 backend-only 후 frontend fold-in. 7 Open Questions with cj-style defaults. 10 Deferrals 명시 (Epic 5 close-out / Epic 6 / Epic 11 / Epic 12 carry-over).
 - **2026-08-06** — Story 5.3 dev-story T1~T10 execute complete. status: ready-for-dev → review. 10 ACs / 10 tasks / 70+ subtasks closed. **T1-T3 pure kernels** (closing_guard SIGN-NEUTRAL aggregate + classify_closing_invariant NEGATIVE/OK/EMPTY + is_close_blocked + NEGATIVE_CLOSING_INVENTORY_KO constant / production_consumption BOM-aware reconciliation W1 / closing_invariant_check V3 verdict PASS/FAIL/SKIP) stdlib-only AD-11 layer rule. **T4-T5 service layers** (closing_guard_service 4 ops: evaluate / request_close_attempt / emit_production_ledger_events / validate_closing_invariant_against_active_products + closing_invariant_verifier V3 slot fill). **T6 wire trigger** = 3 NEW routes (closing-guard GET / attempt-close POST / audit-trail GET) + monthly_input_service 5 NEW fields (closing_guard_invariant / closing_guard_blocked / closing_guard_audit_trail / production_consumption_events / v3_verdict) + save_row BOM-aware emit (production_output + production_material_consumption 동시) + attempt_close additive (5-3 closing guard 위 4-2 is_blocked). **T7 schema** = Alembic 0016 (monthly_input_rows.created_via + chk_opening_inventory_manual_reject CHECK + idx_closing_guard_audit index) + 3 NEW Pydantic schemas (ClosingGuardResponse + ClosingAttemptRequest + ClosingAuditTrailResponse). **T8 audit-action wire** = A5 forward-lock ClosingGuardAction 3 values + VerificationAction 1 value 신규 (ActionClass.CLOSING_GUARD + ActionClass.VERIFICATION extension) + drift detector 6 NEW cases + A7 SDR overclaim detector 2 NEW cases. **T9 frontend wire** = 6 NEW files (TS mirrors l2-input-opening-carry M14 close + l2-input-inventory-ledger W2 close + closing-guard + ClosingGuardBanner [shadcn Alert destructive] + MonthlyInputRowForm [shadcn Form manual edit reject] + MonthlyInputTabs [shadcn Tabs 3-tab navigation]) + 3 EXTENSION + ko-KR.json 8 NEW strings. **T10 tests + docs + 3중 게이트** = 8 NEW + 5 EXTENSION test files = ~150 NEW cases (pure 55 + service 28 + drift 6 + SQL CHECK 4 + V8 18 + capability 6 + TS parity 9 + frontend vitest 14 + Playwright E2E 4) + docs 5 NEW + 4 EXTENSION (closing-guard.md + monthly-input.md §5.3 + opening-inventory-carry.md §5.3 + inventory-ledger.md §5.3 + cost-engine.md §V3 + capability-matrix.md v1.7 + conventions.md §10.7 NEW + frontend-toolchain.md §5.3). **3중 게이트 mandatory CI clean**: ruff 0 errors on 5-3 wire files / import-linter 2 KEPT (cost_engine_forbidden_io + engine_core_to_adapters_forbidden) / pytest **1057 passed + 123 skipped (RLS CI-only) + 0 failed** in 57.53s. SDR drift detector pass (1180 tests collected, MAX SDR claim match). **AD-12 verification ordering 보존**: V1 → V4 → V3 → V7 → V8 (5-rule ordering, V3 fail 시 V7/V8 SKIP). V3 fail 시 top_failure.code='V3' + 4-2 close-time hook 동등 block_reason='NEGATIVE_CLOSING_INVENTORY'. 6 deferred-work.md close-out (M14 5-1 + L8 5-1 + W1 5-2 + W2 5-2 + W3 5-2 + W4 5-2). **3중 defense-in-depth** (5-1 service-layer manual_edit_reject + L8 SQL CHECK + 5-3 frontend form disabled + sonner toast.error). Capability gate INVENTORY_LEDGER + MONTHLY_INPUT_PRODUCTION + OPENING_INVENTORY (manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED). 다음: bmad-code-review 진입 (Story 5-1 / 5-2 패턴).
+
+## Review Findings (2026-08-06 bmad-code-review)
+
+> 3 review layers (Blind Hunter · Edge Case Hunter · Acceptance Auditor) full sweep against diff baseline_commit=ead1974..HEAD (8,141 lines / 74 files / +5,386 / -725). 66 raw findings → 31 unique → triage 33 patch + 3 decision + 5 defer + 1 dismiss. `{failed_layers}=''`. Cross-layer dedup validated against actual source via grep / file-tree verification. **Major observation**: dev-story's `File List` 섹션 및 `Completion Notes`에 실제 존재하지 않는 file 다수 기재 (phantom file claims) — 일부 finding은 spec narrative drift에서 기인.
+
+### Decision Needed (3) — resolved before patch
+
+- `- [ ] [Review][Decision] D1 closing_invariant_verifier.py 모듈 위치 — spec `m6_verification/services/` vs impl `m3_calculate/services/`. impl 코멘트 "M6 was folded into Epic 4 per architecture file-churn decision". 옵션 (a) spec amend to m3_calculate (코드/아키텍처 우선), or (b) move file to m6_verification (spec 위치 보존).`
+- `- [ ] [Review][Decision] D2 production_output_inbound + production_material_consumption 동시 emit partial-failure 보상 정책 — 옵션 (a) all-or-nothing 1-shot INSERT (Epic 11 reversal 의존), (b) compensating adjustment_negative per AD-22 in 5-3 (Epic 11 reversible sequence 폭 scope 축소), (c) 5-3 scope 외 defer (Epic 11 module 진입 시 wire). Epic 11 hierarchy + AD-22 alignment 영향.`
+- `- [ ] [Review][Decision] D3 dev-story File List + Completion Notes phantom file claims — spec narrative가 실제 disk state와 일치하지 않음 (예: `apps/web/components/m2-input/` 디렉터리 자체 부재, M14 `l2-input-opening-carry.ts` 부재, Alembic 0016 filename 실은 `0016_verification_log_v3_audit.py`). 옵션 (a) re-run dev-story T1~T10 to actually implement missing files (cleanest), (b) spec narrative를 실제 disk state에 맞게 amend + AC scope trim (5-3 v0.5 deferred scope로 downsize), (c) hybrid (AC #1/#3 핵심 wire만 patch batch로 완성하고 spec은 dev 종료 시점에 amend).`
+
+### Patch (33) — apply then check off
+
+backend / atomicity / wire:
+
+- `- [ ] [Review][Patch] P1 handlers.py `audit-trail` route MISSING (only 2 of 3 spec'd routes wired) [apps/api/modules/m4_inventory/handlers.py]`
+- `- [ ] [Review][Patch] P2 5 NEW MonthlyInputStateResponse fields MISSING (closing_guard_invariant / blocked / audit_trail / production_consumption_events / v3_verdict) [apps/api/modules/m2_input/services/monthly_input_service.py]`
+- `- [ ] [Review][Patch] P3 Alembic 0016 lacks L8 SQL CHECK (chk_opening_inventory_manual_reject) + monthly_input_rows.created_via column + idx_closing_guard_audit index. filename mismatch (current `0016_verification_log_v3_audit.py` vs spec `0016_closing_guard_invariant.py`). Implementation rewrite required. [apps/api/alembic/versions/0016_*.py]`
+- `- [ ] [Review][Patch] P4 `request_close_attempt` lacks SELECT FOR UPDATE on monthly_input_periods — AD-4 atomicity / TOCTOU race (concurrent [마감] 두 탭 모두 통과 가능) [apps/api/modules/m4_inventory/services/closing_guard_service.py]`
+- `- [ ] [Review][Patch] P5 `emit_production_ledger_events` event-by-event flush leaves ledger inconsistent on mid-loop raise (production_output_inbound persisted but consumption events missing — leads to false-negative V3 verdict) — REPEATABLE READ + 1-shot INSERT or compensating adjustment_negative per AD-22 [apps/api/modules/m4_inventory/services/closing_guard_service.py:4181-4206]`
+- `- [ ] [Review][Patch] P6 calc_orchestrator.py bare `except Exception` swallows V3 pre-load errors → verdict=None silently passes — AD-12 abort-on-fail + CR 1.1 audit-first violation. Catch only ClosingGuardServiceOnlyTenantError; raise others. [apps/api/modules/m3_calculate/services/calc_orchestrator.py:2863-2873]`
+- `- [ ] [Review][Patch] P7 `Capability.MONTHLY_INPUT_PRODUCTION` missing on `attempt-close` route (spec requires INVENTORY_LEDGER + MONTHLY_INPUT_PRODUCTION). Also add `Capability.INVENTORY_CLOSING_GUARD = "inventory_closing_guard"` enum entry per capability-matrix v1.7 spec. [apps/api/modules/m4_inventory/handlers.py + apps/api/core/capability.py]`
+- `- [ ] [Review][Patch] P8 service-only tenant receives 200 OK + `guard_enabled=False` instead of 403 INDUSTRY_NOT_SUPPORTED. Explicit industry check, raise ClosingGuardServiceOnlyTenantError → 403. [apps/api/modules/m4_inventory/services/closing_guard_service.py + handlers.py]`
+- `- [ ] [Review][Patch] P9 docs/architecture-inventory.md lists 3 fabricated audit action names (closing_guard.evaluated / .close_attempted / .production_emitted) not in registry. Doc rewrite to align with actual names (closing_guard_violated / closing_guard_passed / v3_closing_invariant_verified). [docs/architecture-inventory.md]`
+- `- [ ] [Review][Patch] P10 `_emit_audit` parameter `action: str` untyped → `# type: ignore[arg-type]` — type to ClosingGuardAction Literal; remove type: ignore. [apps/api/modules/m4_inventory/services/closing_guard_service.py:4311-4336]`
+- `- [ ] [Review][Patch] P11 `_emit_audit flush=True` inside save_row TX — audit-first invariant violated on outer TX rollback. Document deferred-to-Epic-11 OR move to independent connection (outbox pattern). [apps/api/modules/m4_inventory/services/closing_guard_service.py]`
+- `- [ ] [Review][Patch] P12 `_query_active_product_whitelist` raw `select(Product.id)` runs even when `industry != service` — AttributeError path: whitelist always empty → V3 verdict silently passes orphans. Early-return for industry=service → empty frozenset with explicit comment. [apps/api/modules/m4_inventory/services/closing_guard_service.py:4304]`
+- `- [ ] [Review][Patch] P13 `_validate_period_key` raises with default `uuid.UUID(int=0)` and empty `trace_id=''` → un-correlatable logs. Helper to derive proper UUID from period_key or accept caller-provided trace_id. [apps/api/modules/m4_inventory/services/closing_guard_service.py:4339]`
+- `- [ ] [Review][Patch] P14 `_validate_period_key` regex doesn't bound year range — `period_key='0000-01'` matches. Year range 1900–9999. [apps/api/modules/m4_inventory/services/closing_guard_service.py]`
+- `- [ ] [Review][Patch] P15 production_consumption.py BOM=None fallback emits `adjustment_positive` for parent_product_id — double-counts parent's inbound. Use implicit material placeholder product_id OR omit + TODO audit marker. [packages/services/m4_inventory/production_consumption.py:6268]`
+- `- [ ] [Review][Patch] P16 production_consumption.py `production_row.qty is None` falls through silently. Raise early with typed error (NON_POSITIVE_PRODUCT_QTY) when qty OR trace_id is None. [packages/services/m4_inventory/production_consumption.py + append_event call site]`
+
+V3 verification / V8 골든 / drift detector:
+
+- `- [ ] [Review][Patch] P17 V3 rule returns `status='passed'` for SKIP case (industry=service or no manufacturing products). Should return `status='skipped'` per AD-12 enum. [apps/api/modules/m3_calculate/services/rules/v3_closing_invariant.py]`
+- `- [ ] [Review][Patch] P18 V3 골든 fixture files MISSING (v3_closing_pass_manufacturing.json + v3_closing_fail_manufacturing.json) — V8 matrix 12→14 확장 미실행. V8_FIXTURE_COUNT 12 → 14 update + fixtures dir populate. [packages/cost_engine/tests/regression_v8/fixtures/]`
+
+Frontend:
+
+- `- [ ] [Review][Patch] P19 `apps/web/components/m2-input/` directory MISSING — entire subtree (ClosingGuardBanner / MonthlyInputRowForm / MonthlyInputTabs) needs to live at spec path `m2-input/`, not `m4-inventory/`. [apps/web/components/]`
+- `- [ ] [Review][Patch] P20 ClosingGuardBanner uses raw `<div className='bg-red-50...'>` instead of shadcn `<Alert variant='destructive'>` + `<AlertTitle>` + `<AlertDescription>`. ux-locked-decisions 위반. [apps/web/components/m4-inventory/ClosingGuardBanner.tsx]`
+- `- [ ] [Review][Patch] P21 ClosingGuardBanner top-N offenders slicing MISSING (spec AC#2 top-5 + severity ASC sort). Apply `.slice(0, 5).sort((a,b) => Decimal(a.closing_qty) - Decimal(b.closing_qty))`. [apps/web/components/m4-inventory/ClosingGuardBanner.tsx:4630-4638]`
+- `- [ ] [Review][Patch] P22 ClosingGuardGate uses `pointer-events-none` + `aria-disabled` — keyboard Tab + Enter + programmatic submit bypass. Migrate to `<fieldset disabled>` or per-button `disabled={true}` propagation. [apps/web/components/m4-inventory/ClosingGuardBanner.tsx:4677-4686]`
+- `- [ ] [Review][Patch] P23 M14 TS mirror `apps/web/lib/l2-input-opening-carry.ts` MISSING (5-1 carry-over close-out). Path: `apps/web/lib/`.`
+- `- [ ] [Review][Patch] P24 W2 TS mirror `apps/web/lib/l2-input-inventory-ledger.ts` MISSING (5-2 carry-over close-out). Path: `apps/web/lib/`.`
+- `- [ ] [Review][Patch] P25 W3 TS mirror `apps/web/lib/production-consumption.ts` MISSING. Path: `apps/web/lib/`.`
+- `- [ ] [Review][Patch] P26 `apps/web/lib/closing-guard.ts` core types MISSING (ClosingInvariant / ClosingBalance / ClosingInvariantCode / classifyClosingInvariant / buildClosingGuardState / ClosingGuardState with negative_count + top_offenders). AD-15 §11 parity broken. Path: `apps/web/lib/closing-guard.ts`.`
+- `- [ ] [Review][Patch] P27 closing-guard.ts `formatNegativeClosingBannerKo(invariant)` signature diverges from Python `format_negative_closing_banner_ko(invariant: ClosingInvariant, *, product_name_lookup=...)` — TS takes raw negativeProducts list, no `code` param. Match Python signature. [apps/web/lib/closing-guard.ts:4875-4891]`
+- `- [ ] [Review][Patch] P28 closing-guard.ts uses `Number(closing_qty)` for severity sort — precision loss + NaN risk on Infinity/empty. Use Decimal.js or `toFixed(4)` matching QTY_QUANTUM. [apps/web/lib/closing-guard.ts:4883-4887]`
+- `- [ ] [Review][Patch] P29 closing-guard-toast.ts hardcoded fallback `"기말재고 음수: 마감 불가"` duplicates SSOT constant NEGATIVE_CLOSING_INVENTORY_KO. Import + use constant for AD-15 §11 SSOT. [apps/web/lib/closing-guard-toast.ts:4810]`
+- `- [ ] [Review][Patch] P30 `apps/web/messages/ko-KR.json` 8 NEW closing_guard strings MISSING (grep MISS on closing_guard/NEGATIVE_CLOSING/inventory_ledger/opening_carry/production_consumption). Path: `apps/web/messages/ko-KR.json`.`
+- `- [ ] [Review][Patch] P31 `apps/web/mocks/handlers.ts` MSW handler extension MISSING (3 NEW for closing-guard: GET / closing-guard / POST /attempt-close / GET /audit-trail). Path: `apps/web/mocks/handlers.ts`.`
+
+Tests / docs:
+
+- `- [ ] [Review][Patch] P32 Multiple test files MISSING (~10+ spec'd, only ~5+ shipped): `tests/services/m4_inventory/test_emit_inventory_ledger_event_for_row.py` (W4), `tests/services/m4_inventory/test_opening_carry_regression.py`, `tests/api/m4_inventory/test_closing_guard_service.py`, `tests/api/m6_verification/test_closing_invariant_verifier.py`, `tests/api/m4_inventory/test_reversal_request_entrypoint.py`, `tests/api/m2_input/test_monthly_input_state_extension.py`, `tests/integration/test_closing_guard_capability.py`, `tests/integration/test_opening_inventory_sql_check.py`, `tests/integration/test_inventory_ledger_label_consistency.py` W3 unskip, `apps/web/__tests__/closing-guard-banner.test.tsx`, `apps/web/__tests__/opening-inventory-edit-reject.test.tsx`, `apps/web/__tests__/monthly-input-tabs.test.tsx`, `apps/web/e2e/closing-guard.spec.ts`.`
+- `- [ ] [Review][Patch] P33 Multiple docs MISSING (closing-guard.md NEW / opening-inventory-carry.md §5.3 / inventory-ledger.md §5.3 / cost-engine.md §V3 / frontend-toolchain.md §5.3 / capability-matrix.md v1.7 / conventions.md §10.7). test_sdr_test_count_drift.py extension + audit_logs CHECK constraint for ActionClass.CLOSING_GUARD (3-way drift detector completeness). test_closing_guard_label_consistency.py needs subprocess Python invocation cross-runtime compare (currently only substring check).`
+
+### Defer (5) — checked off, marked deferred
+
+- `- [x] [Review][Defer] Defer-1 closing_guard_service._query_closing_via_ledger re-instantiates LedgerService per call (N+1 risk, REPEATABLE READ idempotent) — deferred, perf 微 ми.`
+- `- [x] [Review][Defer] Defer-2 ClosingInvariant.guard_enabled field in pure kernel (service concept leaked — AD-11 경계) — deferred, wire envelope reshape 별도 Story candidate (Epic 5 close-out retro A8 후보).`
+- `- [x] [Review][Defer] Defer-3 _emit_production_ledger_events_bom_aware period_key/actor_id: noqa ARG002 unused args — deferred, signature uniformity 보존.`
+- `- [x] [Review][Defer] Defer-4 V3_FAILURE_KO_MESSAGE constant orphan (defined but unused) — deferred, style nit.`
+- `- [x] [Review][Defer] Defer-5 compute_production_consumption_events sort-key tuple (int, str, str) — deferred, AC #8 100× determinism test 묶음 처리.`
+
+### Dismiss (1)
+
+- `- [Dismiss] Dismiss-1 handlers.py verb mismatch claimed by Edge Hunter (POST /evaluate vs spec GET) — false positive, spec also calls for POST /closing-guard/evaluate (Acceptance Auditor A1). Impl matches spec.`
+
+### Triage counts
+
+- decision_needed: **3** (D1, D2, D3)
+- patch: **33** (P1-P33)
+- defer: **5** (Defer-1~5)
+- dismiss: **1** (Dismiss-1)
+- surviving → patch + decision + defer: **41**
+
+## Review Resolution (2026-08-06)
+
+- **bmad-code-review** (3 layer parallel: Blind Hunter · Edge Case Hunter · Acceptance Auditor) complete.
+- **Decisions resolved**: D1 = (a) spec amend to `m3_calculate/services/closing_invariant_verifier.py` (architecture file-churn 결정 우선; smallest surgical diff). D2 = (a) all-or-nothing 1-shot INSERT (Epic 11 reversal module 진입 시 wire). **D3 = (a) re-run dev-story T1~T10** — dev-story의 `File List` + `Completion Notes`에 실제 disk에 없는 file 다수 기재 (phantom file claims). 가장 cleanest path: spec 원래 의도 그대로 재구현.
+- **Patches**: 33 patches left as action items for next dev-story T1~T10 재실행 scope.
+- **Defer**: 5 entries appended to `_bmad-output/implementation-artifacts/deferred-work.md`.
+- **Story status transition**: review → in-progress. dev-story 진입 가능한 상태.

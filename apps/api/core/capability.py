@@ -56,6 +56,12 @@ class Capability(str, Enum):
     ACTIVITY = "activity"
     DRIVER = "driver"
     SEGMENT_SPLIT = "segment_split"  # mfg+service / mfg+service+other only
+    # Story 5.3 — closing-guard capability (PRD §F4.2 + §V3). Granted to
+    # manufacturing-kind industries (manufacturing / mfg+service /
+    # mfg+service+other). Service-only tenants do NOT have inventory
+    # so the closing-guard gate has nothing to check (industry skip matrix
+    # in `ClosingGuardService`).
+    INVENTORY_CLOSING_GUARD = "inventory_closing_guard"
     # Story 1.3 — AI document extraction (Task 3.6). Granted to every
     # Industry per the ARCHITECTURE-SPINE capability map (all four
     # industries can use AI extraction). This is a defense-in-depth gate
@@ -95,6 +101,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.BOM,
             Capability.OPENING_INVENTORY,
             Capability.INVENTORY_LEDGER,
+            # Story 5.3 — manufacturing tenants get closing-guard gate
+            # (PRD §F4.2 + §V3).
+            Capability.INVENTORY_CLOSING_GUARD,
             Capability.AI_EXTRACT,  # Story 1.3 — all industries can use AI extraction
             # Story 2.1 — manufacturing tenants can register all 5 product types.
             Capability.PRODUCT,
@@ -127,6 +136,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.BOM,
             Capability.OPENING_INVENTORY,
             Capability.INVENTORY_LEDGER,
+            # Story 5.3 — 겸영 tenants get closing-guard gate
+            # (PRD §F4.2 + §V3).
+            Capability.INVENTORY_CLOSING_GUARD,
             Capability.COST_POOL,
             Capability.ACTIVITY,
             Capability.DRIVER,
@@ -149,6 +161,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.BOM,
             Capability.OPENING_INVENTORY,
             Capability.INVENTORY_LEDGER,
+            # Story 5.3 — 겸영 + other tenants get closing-guard gate
+            # (PRD §F4.2 + §V3).
+            Capability.INVENTORY_CLOSING_GUARD,
             Capability.COST_POOL,
             Capability.ACTIVITY,
             Capability.DRIVER,

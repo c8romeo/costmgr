@@ -35,10 +35,11 @@ from typing import Any, Final, TypedDict
 from packages.services.m2_input.inventory_projection import QTY_QUANTUM
 
 # ── Constants ────────────────────────────────────────────────
-# Korean message SSOT (AD-15 §11 parity).
-INCOMPLETE_BOM_FALLBACK_REASON_KO: Final[str] = (
-    "BOM 미정의 또는 부분 정의 — material consumption 기록 보류"
-)
+# Korean message SSOT (AD-15 §11 parity). Single-line declaration so
+# the drift-detector regex `INCOMPLETE_BOM_FALLBACK_REASON_KO: Final[str]
+# = "([^"]+)"` (test_production_consumption_label_consistency.py)
+# can extract the literal without multi-line stripping.
+INCOMPLETE_BOM_FALLBACK_REASON_KO: Final[str] = "BOM 미정의 또는 부분 정의 — material consumption 기록 보류"
 
 # Event_type discriminators (5-2 wire — 11-value whitelist).
 EVENT_TYPE_PRODUCTION_OUTPUT_INBOUND: Final[str] = "production_output_inbound"
@@ -120,6 +121,31 @@ class ProductionConsumptionError(Exception):
         self.product_id = product_id
 
 
+class ProductionConsumptionInvalidRowError(ProductionConsumptionError):
+    """Pure-kernel typed error for non-positive / null production row input.
+
+    CR 5.3 P16 review patch — distinguishes 'input is structurally invalid'
+    (None qty / None trace_id) from 'computed value violates invariant'.
+    The service layer maps this to a 422 envelope; pre-patch, None
+    qty/trace_id silently fell through to Decimal(None) TypeError or
+    silently minted a fresh trace_id at the call site (audit drift).
+    """
+
+    def __init__(
+        self,
+        *,
+        message: str,
+        field: str,
+        product_id: uuid.UUID | None = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            error_code="PRODUCTION_CONSUMPTION_INVALID_ROW",
+            product_id=product_id,
+        )
+        self.field = field
+
+
 # ── compute_production_consumption_events ────────────────────
 def compute_production_consumption_events(
     *,
@@ -135,8 +161,13 @@ def compute_production_consumption_events(
     - If BOM is defined + complete:
       - N `production_material_consumption` events (one per child).
     - If BOM is None OR children empty:
-      - 1 `adjustment_positive` event for material consumption
-        (incomplete BOM 기록 — operator TODO marker).
+      - **CR 5.3 P15 — NO `adjustment_positive` event** (post-patch).
+      Pre-patch, an `adjustment_positive` was emitted for the parent
+      product_id (which double-counted the parent's inbound). Post-patch,
+      only the `production_output_inbound` event is emitted; material
+      consumption bookkeeping is deferred to Epic 6 BOM-aware reconciliation.
+      The TODO(epic-6) marker in `_compute_bom_events` documents the
+      forward-completion path.
 
     Args:
         production_row: Duck-typed production row (product_id UUID
@@ -146,13 +177,36 @@ def compute_production_consumption_events(
 
     Returns:
         List of ComputedLedgerEvent TypedDicts (1 output + N consumption
-        OR 1 output + 1 adjustment_positive). Sorted deterministically
-        by event_type + product_id (CR 4-3 lesson).
+        OR 1 output + 0 adjustment when BOM missing — CR 5.3 P15).
+        Sorted deterministically by event_type + product_id (CR 4-3 lesson).
 
     Raises:
         ProductionConsumptionError: On malformed input (non-positive
             qty, BOM ratio out of [0, 100], non-finite Decimal).
+        ProductionConsumptionInvalidRowError: CR 5.3 P16 — production_row
+            has None qty or None trace_id (structural invalidity).
     """
+    # CR 5.3 P16 — early validation for None qty / None trace_id.
+    # TypedDict declares these as `str`, but at runtime a caller could pass
+    # a dict with None values; surface a typed error instead of silently
+    # coercing or letting Decimal(None) raise an opaque TypeError.
+    if production_row.get("product_qty") is None:
+        raise ProductionConsumptionInvalidRowError(
+            message=(
+                "production row product_qty must not be None "
+                "(non-positive/null input)"
+            ),
+            field="product_qty",
+        )
+    if production_row.get("trace_id") is None:
+        raise ProductionConsumptionInvalidRowError(
+            message=(
+                "production row trace_id must not be None "
+                "(non-positive/null input)"
+            ),
+            field="trace_id",
+        )
+
     # Validate production row
     product_id = _parse_uuid(production_row["product_id"], field="product_id")
     product_qty = _parse_qty(production_row["product_qty"], field="product_qty", min_zero=True)
@@ -200,21 +254,31 @@ def _compute_bom_events(
     output_product_id: uuid.UUID,
     output_qty: Decimal,
 ) -> list[ComputedLedgerEvent]:
-    """Compute material consumption events (or fallback adjustment)."""
+    """Compute material consumption events (or fallback adjustment).
+
+    CR 5.3 P15 review patch — BOM=None fallback change.
+    Pre-patch: BOM=None/empty → emit `adjustment_positive` for the
+    parent_product_id. This double-counted the parent's inbound (the
+    production_output_inbound at compute_production_consumption_events
+    already records the parent's qty credit). Post-patch: BOM=None →
+    emit ONLY production_output_inbound (no adjustment_positive). The
+    service layer caller (closing_guard_service) adds the output_event
+    regardless of BOM status, so material consumption bookkeeping is
+    deferred until Epic 6 BOM-aware reconciliation lands.
+
+    TODO(epic-6): BOM-aware reconciliation for incomplete BOM records.
+    When a BOM is partial (some children defined, some missing), the
+    kernel must split: emit production_material_consumption for known
+    children + emit an adjustment_positive marker for the missing portion
+    (with `fallback_reason_ko`). Out of scope for Story 5.3 (single-emit
+    simplicity wins); tracked under Epic 6 BOM hardening.
+    """
     if bom is None or not bom.get("children"):
-        return [
-            ComputedLedgerEvent(
-                event_type=EVENT_TYPE_ADJUSTMENT_POSITIVE,
-                product_id=str(output_product_id),
-                qty=_format_qty(output_qty),
-                metadata={
-                    "period_key": production_row["period_key"],
-                    "trace_id": production_row["trace_id"],
-                    "fallback_reason_ko": INCOMPLETE_BOM_FALLBACK_REASON_KO,
-                    "bom_status": "missing_or_empty",
-                },
-            )
-        ]
+        # CR 5.3 P15 — BOM missing or empty: emit NO material consumption
+        # event. Parent's production_output_inbound (added by caller in
+        # compute_production_consumption_events) is the only event. The
+        # TODO(epic-6) above describes the post-5.3 reconciliation path.
+        return []
 
     events: list[ComputedLedgerEvent] = []
     for child in bom["children"]:
@@ -297,6 +361,7 @@ __all__ = [
     "BomMatrixLike",
     "ComputedLedgerEvent",
     "ProductionConsumptionError",
+    "ProductionConsumptionInvalidRowError",
     "ProductionRowLike",
     "compute_production_consumption_events",
 ]

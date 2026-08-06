@@ -95,12 +95,12 @@ def test_bom_none_fallback():
         trace_id=str(uuid.uuid4()),
     )
     events = compute_production_consumption_events(production_row=row, bom=None)
-    assert len(events) == 2  # 1 output + 1 fallback
-    types = sorted(e["event_type"] for e in events)
-    assert types == [EVENT_TYPE_ADJUSTMENT_POSITIVE, EVENT_TYPE_PRODUCTION_OUTPUT_INBOUND]
-    fallback = next(e for e in events if e["event_type"] == EVENT_TYPE_ADJUSTMENT_POSITIVE)
-    assert fallback["metadata"]["bom_status"] == "missing_or_empty"
-    assert fallback["metadata"]["fallback_reason_ko"] == INCOMPLETE_BOM_FALLBACK_REASON_KO
+    # CR 5.3 P15 review patch: BOM=None fallback emits output_only (no
+    # adjustment_positive for parent_product_id — double-count prevention).
+    # TODO(epic-6) marker for forward-completion of incomplete BOM records.
+    assert len(events) == 1  # CR 5.3 P15: output only (no adjustment_positive)
+    assert events[0]["event_type"] == EVENT_TYPE_PRODUCTION_OUTPUT_INBOUND
+    assert events[0]["product_id"] == str(parent_pid)
 
 
 # ── BOM empty children → fallback ──────────────────────────────
@@ -115,7 +115,8 @@ def test_bom_empty_children_fallback():
     )
     bom = BomMatrixLike(parent_product_id=str(parent_pid), children=[])
     events = compute_production_consumption_events(production_row=row, bom=bom)
-    assert len(events) == 2  # fallback path
+    # CR 5.3 P15: empty children → output only (no adjustment_positive)
+    assert len(events) == 1
 
 
 # ── Banker's rounding parity ────────────────────────────────────

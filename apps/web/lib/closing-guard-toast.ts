@@ -23,8 +23,10 @@
  * SSOT) is preferred over a hardcoded client fallback.
  */
 
-import type { ApiError } from "@/lib/api-client";
 import { toast } from "sonner";
+
+import type { ApiError } from "@/lib/api-client";
+import { NEGATIVE_CLOSING_INVENTORY_KO } from "@/lib/l2-input-inventory-ledger";
 
 /**
  * Returns true iff the given `ApiError` is a 409 NEGATIVE_CLOSING_INVENTORY.
@@ -56,8 +58,11 @@ export function isClosingGuardNegativeError(
  * Toast duration: 6000ms (long enough for the user to read the banner).
  */
 export function showClosingGuardNegativeToast(err: ApiError): void {
+  // P29 (patch): Use NEGATIVE_CLOSING_INVENTORY_KO SSOT from
+  // `apps/web/lib/l2-input-inventory-ledger.ts` instead of hardcoded
+  // literal — single source of truth per AD-15 §11.
   const message =
-    err.payload.message_ko || "기말재고 음수: 마감 불가";
+    err.payload.message_ko || NEGATIVE_CLOSING_INVENTORY_KO;
   toast.error(message, {
     duration: 6000,
     description: err.payload.details

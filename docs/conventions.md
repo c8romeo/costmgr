@@ -522,6 +522,8 @@ before/after 스냅샷에 prev_old 값 캡처 (CR 1.1 lesson).
 industry 에만 wired. Service industry 는 자동 no-op (carry chain
 returns empty decisions — inventory-bearing products 없음).
 
+- §10.5 갱신 (Story 5.3, 2026-08-06): "M14 TS mirror wire + L8 SQL CHECK + 5-3 frontend manual edit reject UI = 3중 defense-in-depth 보존."
+
 ### §10.6 Inventory Ledger Append-Only Policy (Story 5.2)
 
 PRD §F4.2: 모든 재고 변동(inbound / outbound / carry / adjustment) 은
@@ -586,6 +588,10 @@ query_period_closing_all(period_key=...)` 를 canonical source 로 사용.
 test_inventory_ledger_label_consistency.py` 가 snake_case Python ↔
 camelCase TS parity 검증 (CR 4-3 lesson — drift detector
 placeholder).
+
+### §10.7 Closing Guard Invariant Policy (Story 5.3)
+
+closing ≥ 0 invariant = AD-2 ledger read-only aggregate + AD-4 atomicity close-time hook + AD-12 V3 verification ordering. 입력 시 경고 (Story 3.3 inline + 5-3 ledger aggregate) + 마감 시 차단 (5-3 closing_guard_service + 4-2 close-time hook) 2-layer. V3 fail 시 4-3 verdict envelope + 4-2 close-time block_reason 동등 발동. 5-3 spec에서 3중 게이트 와이어됨.
 
 ---
 

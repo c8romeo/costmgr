@@ -54,11 +54,16 @@ INDUSTRY_MIXED: Literal["manufacturing_service_other"] = INDUSTRY_MANUFACTURING_
 # Tenant.industry column CheckConstraint enum values (db_models.py:62-64).
 INDUSTRY_VALUES: tuple[str, ...] = tuple(member.value for member in Industry)
 
-# Verification item status — passed / failed only.
-# `skipped` is excluded because applies_to=False rules are silently
-# omitted from the `verifications[]` array (Story 4.3 AC #2 AD-12 ordering
+# Verification item status — passed / failed / skipped.
+# `skipped` is included for V3 (Story 5.3 P17 review patch) — when the
+# V3 verdict (closing_invariant_check.verify_closing_invariant) returns
+# status='skipped' (industry=service OR empty aggregate+whitelist), the
+# V3 rule kernel surfaces that as VerificationItem.status='skipped'
+# (NOT 'passed') so callers can distinguish "evaluated and skipped" from
+# "evaluated and passed". applies_to=False rules remain silently omitted
+# from the `verifications[]` array (Story 4.3 AC #2 AD-12 ordering
 # invariant + AC #3 envelope shape).
-VerificationStatusLiteral = Literal["passed", "failed"]
+VerificationStatusLiteral = Literal["passed", "failed", "skipped"]
 
 
 @dataclass(frozen=True)

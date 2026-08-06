@@ -42,7 +42,7 @@ from apps.api.modules.m3_calculate.services.verification_runner import (
 from packages.cost_engine.core.money import KRW
 from packages.cost_engine.core.period_cost import Baseline, compute_period_cost
 from packages.cost_engine.ports.calc_port import CalcResult, MonthlyInput
-from packages.cost_engine.tests.regression_v8 import V8_FIXTURE_COUNT
+from packages.cost_engine.tests.regression_v8 import V3_FIXTURE_IDS, V8_FIXTURE_COUNT
 from packages.cost_engine.tests.regression_v8.fixture_loader import (
     compute_golden_lock_sha256,
     load_golden_by_id,
@@ -55,7 +55,16 @@ FIXTURES_DIR = REPO_ROOT / "packages" / "cost_engine" / "tests" / "regression_v8
 
 ALL_INDUSTRIES = list(INDUSTRY_VALUES)  # 4 values
 ALL_SHAPES = ("b-small", "b-standard", "b-complex")  # 3 baseline shapes
-EXPECTED_FIXTURE_COUNT = len(ALL_INDUSTRIES) * len(ALL_SHAPES)  # 12
+# CR 5.3 P18 — V8 + V3 fixture count = 12 (V8 byte-identical) + 2 (V3 골든) = 14.
+# Matrix coverage tests filter V8-only fixtures by the `industry__b-shape` pattern.
+EXPECTED_FIXTURE_COUNT = len(ALL_INDUSTRIES) * len(ALL_SHAPES)  # 12 (V8 only)
+EXPECTED_TOTAL_COUNT = EXPECTED_FIXTURE_COUNT + 2  # 14 (V8 + V3 골든)
+
+
+def _v8_fixture_paths() -> list[Path]:
+    """V8-only fixtures (industry__b-shape naming convention)."""
+    return [p for p in FIXTURES_DIR.glob("*.json") if "__" in p.stem]
+
 
 _DETERMINISTIC_TENANT_ID = _uuid_mod.UUID("11111111-1111-4111-8111-111111111111")
 
@@ -63,15 +72,25 @@ _DETERMINISTIC_TENANT_ID = _uuid_mod.UUID("11111111-1111-4111-8111-111111111111"
 # ── Fixtures shipped on disk invariant ────────────────────────
 @pytest.mark.engine
 @pytest.mark.v8_regression
-def test_v8_fixture_count_is_12() -> None:
-    """V8_FIXTURE_COUNT = 12 + 12 fixture JSON files on disk (AC #7)."""
-    assert V8_FIXTURE_COUNT == 12, (
-        f"V8_FIXTURE_COUNT must be 12 (Story 4.4 fill). Got {V8_FIXTURE_COUNT}."
+def test_v8_fixture_count_is_14() -> None:
+    """V8_FIXTURE_COUNT = 14 + 14 fixture JSON files on disk (AC #7 + CR 5.3 P18).
+
+    CR 5.3 P18 review patch — 12 V8 byte-identical 골든 + 2 V3 closing
+    invariant 골든 (v3_closing_pass_manufacturing.json +
+    v3_closing_fail_manufacturing.json) = 14 total. The V3 fixtures use
+    a different naming convention (no `__` separator) and have a
+    different payload shape (industry + ledger_aggregate +
+    expected_v3_*). The V8 matrix coverage tests below filter V8-only
+    fixtures by the `__` pattern.
+    """
+    assert V8_FIXTURE_COUNT == 14, (
+        f"V8_FIXTURE_COUNT must be 14 (Story 4.4 12 + Story 5.3 2 V3 fixtures). "
+        f"Got {V8_FIXTURE_COUNT}."
     )
     actual = sorted(p.name for p in FIXTURES_DIR.glob("*.json"))
-    assert len(actual) == EXPECTED_FIXTURE_COUNT, (
-        f"V8 fixtures directory must contain {EXPECTED_FIXTURE_COUNT} JSON files "
-        f"(4 industries × 3 baseline shapes). Found {len(actual)}: {actual}"
+    assert len(actual) == EXPECTED_TOTAL_COUNT, (
+        f"Fixtures directory must contain {EXPECTED_TOTAL_COUNT} JSON files "
+        f"(12 V8 + 2 V3). Found {len(actual)}: {actual}"
     )
 
 
@@ -79,7 +98,8 @@ def test_v8_fixture_count_is_12() -> None:
 @pytest.mark.v8_regression
 def test_v8_fixture_matrix_covers_all_4_industries() -> None:
     """4 industries × ≥1 fixture each (Industry enum SSOT — F-5 review lock)."""
-    industries = {p.stem.split("__")[0] for p in FIXTURES_DIR.glob("*.json")}
+    # CR 5.3 P18 — filter V8-only fixtures by `industry__b-shape` pattern.
+    industries = {p.stem.split("__")[0] for p in _v8_fixture_paths()}
     expected_industries = set(ALL_INDUSTRIES)
     assert industries == expected_industries, (
         f"V8 fixture industry coverage drift: got {industries}, "
@@ -91,10 +111,23 @@ def test_v8_fixture_matrix_covers_all_4_industries() -> None:
 @pytest.mark.v8_regression
 def test_v8_fixture_matrix_covers_all_3_baseline_shapes() -> None:
     """3 baseline shapes × ≥1 fixture each (PRD §6.1)."""
-    shapes = {p.stem.split("__")[1] for p in FIXTURES_DIR.glob("*.json")}
+    # CR 5.3 P18 — filter V8-only fixtures by `industry__b-shape` pattern.
+    shapes = {p.stem.split("__")[1] for p in _v8_fixture_paths()}
     assert shapes == set(ALL_SHAPES), (
         f"V8 fixture shape coverage drift: got {shapes}, expected {set(ALL_SHAPES)}"
     )
+
+
+@pytest.mark.engine
+@pytest.mark.v8_regression
+def test_v3_golden_fixtures_exist() -> None:
+    """CR 5.3 P18 — 2 V3 closing invariant 골든 fixtures ship on disk."""
+    for fixture_id in V3_FIXTURE_IDS:
+        path = FIXTURES_DIR / f"{fixture_id}.json"
+        assert path.exists(), (
+            f"V3 골든 fixture missing: {path}. "
+            f"Expected 2 fixtures: {V3_FIXTURE_IDS}."
+        )
 
 
 # ── Lock sha256 invariant (AC #7) ────────────────────────────
