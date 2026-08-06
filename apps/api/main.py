@@ -44,6 +44,13 @@ from apps.api.modules.m3_calculate.services import (
     MonthlyInputBlockedError,
 )
 from apps.api.modules.m4_inventory import router as m4_inventory_router
+from apps.api.modules.m4_inventory.services.closing_guard_service import (
+    ClosingGuardAuditEmitError,
+    ClosingGuardInvalidPeriodKeyError,
+    ClosingGuardNegativeInventoryError,
+    ClosingGuardProductionConsumptionError,
+    ClosingGuardServiceOnlyTenantError,
+)
 from apps.api.modules.m4_inventory.services.ledger_service import (
     AppendOnlyLedgerViolationError,
     InventoryLedgerInvalidEventTypeError,
@@ -704,6 +711,134 @@ async def _m4_reversal_not_yet_wired_handler(
                 "event_id": str(exc.event_id),
                 "tenant_id": str(exc.tenant_id),
                 "epic": "Epic 11",
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# Story 5.3 — M4 closing_guard exception handlers (AD-15 §4).
+# Without these, FastAPI returns HTTP 500 for the 5 typed exceptions
+# raised by ClosingGuardService — violating the typed envelope
+# contract. Mapping:
+# - 409 NEGATIVE_CLOSING_INVENTORY — PRD §F4.2 close attempt blocked.
+# - 422 CLOSING_GUARD_INVALID_PERIOD_KEY — period_key AD-24 mismatch.
+# - 403 INDUSTRY_NOT_SUPPORTED — service-only tenant attempted guard.
+# - 500 CLOSING_GUARD_PRODUCTION_CONSUMPTION_ERROR — BOM reconcile fail.
+# - 500 CLOSING_GUARD_AUDIT_EMIT_ERROR — CR 1.1 audit-first fail-closed.
+# ─────────────────────────────────────────────────────────────
+
+
+@app.exception_handler(ClosingGuardNegativeInventoryError)
+async def _m4_closing_guard_negative_inventory_handler(
+    request: Request, exc: ClosingGuardNegativeInventoryError
+) -> JSONResponse:
+    """409 NEGATIVE_CLOSING_INVENTORY — closing ≥ 0 invariant violated.
+
+    Story 5.3 P4 review patch: SELECT FOR UPDATE row-level lock prevents
+    concurrent close attempts from racing past the closing-guard gate.
+    P5: 1-shot INSERT atomicity prevents partial event flush.
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "NEGATIVE_CLOSING_INVENTORY",
+            "message_ko": exc.banner_ko,
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": str(exc.tenant_id),
+                "negative_products": {
+                    str(pid): str(qty) for pid, qty in exc.negative_products.items()
+                },
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingGuardInvalidPeriodKeyError)
+async def _m4_closing_guard_invalid_period_key_handler(
+    request: Request, exc: ClosingGuardInvalidPeriodKeyError
+) -> JSONResponse:
+    """422 CLOSING_GUARD_INVALID_PERIOD_KEY — period_key not 'YYYY-MM'."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "CLOSING_GUARD_INVALID_PERIOD_KEY",
+            "message_ko": f"기간 키({exc.period_key!r})는 'YYYY-MM' 형식이어야 합니다",
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": str(exc.tenant_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingGuardServiceOnlyTenantError)
+async def _m4_closing_guard_service_only_handler(
+    request: Request, exc: ClosingGuardServiceOnlyTenantError
+) -> JSONResponse:
+    """403 INDUSTRY_NOT_SUPPORTED — service-only tenant attempted guard."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "INDUSTRY_NOT_SUPPORTED",
+            "message_ko": "현재 업종에서 지원하지 않는 기능입니다",
+            "details": {
+                "feature": "closing_guard",
+                "tenant_id": str(exc.tenant_id),
+                "industry": exc.industry,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingGuardProductionConsumptionError)
+async def _m4_closing_guard_production_consumption_handler(
+    request: Request, exc: ClosingGuardProductionConsumptionError
+) -> JSONResponse:
+    """500 CLOSING_GUARD_PRODUCTION_CONSUMPTION_ERROR — BOM reconciliation fail.
+
+    Story 5.3 W1: BOM-aware reconciliation raised a typed error on invalid
+    BOM child shape, non-finite Decimal, or BOM matrix malformed. Mapped to
+    500 because the failure indicates operator data corruption, not user
+    input — operator must investigate via the audit trail.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "CLOSING_GUARD_PRODUCTION_CONSUMPTION_ERROR",
+            "message_ko": "BOM 수불부 정합성 검증에 실패했습니다 (관리자에게 문의)",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                **exc.details,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingGuardAuditEmitError)
+async def _m4_closing_guard_audit_emit_handler(
+    request: Request, exc: ClosingGuardAuditEmitError
+) -> JSONResponse:
+    """500 CLOSING_GUARD_AUDIT_EMIT_ERROR — CR 1.1 audit-first fail-closed.
+
+    Story 5.3 AD-2 audit-first: if audit row emission fails, the closing
+    guard MUST refuse to advance (fail-closed). Mapped to 500 so operator
+    sees the audit backlog issue immediately.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "CLOSING_GUARD_AUDIT_EMIT_ERROR",
+            "message_ko": "closing-guard audit emit 실패 (관리자에게 문의)",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                **exc.details,
             },
             "trace_id": exc.trace_id,
         },

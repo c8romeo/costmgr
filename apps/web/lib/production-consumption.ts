@@ -44,14 +44,21 @@ export interface BomMatrix {
 
 /**
  * Computed ledger event shape (mirrors Python `ComputedLedgerEvent`).
+ *
+ * Story 5.3 T3 review patch: `adjustment_positive` removed from the
+ * TS literal union because P15 explicitly forbids emitting it from
+ * `compute_production_consumption_events` in 5-3 (re-introduced only
+ * if Epic 6 BOM reconciliation lands). The exported
+ * `EVENT_TYPE_ADJUSTMENT_POSITIVE` constant below is retained as a
+ * reserved literal for Epic 6 (mirrors Python's reservation in the
+ * 11-value `inventory_ledger.event_type` whitelist).
  */
 export interface ProductionConsumptionEvent {
   product_id: string;
   period_key: string;
   event_type:
     | "production_output_inbound"
-    | "production_material_consumption"
-    | "adjustment_positive";
+    | "production_material_consumption";
   qty: string;
   trace_id: string;
 }
@@ -66,11 +73,19 @@ export interface ProductionConsumptionEvent {
  *   - Emits N `production_material_consumption` events (per child,
  *     NEGATIVE qty = output_qty * ratio / 100).
  * - If BOM is missing or empty:
- *   - Emits 1 `adjustment_positive` fallback event.
+ *   - Emits ONLY the `production_output_inbound` event (no material
+ *     consumption rows + no adjustment_positive). Story 5.3 P15 patch:
+ *     pre-patch, an `adjustment_positive` was emitted for the parent
+ *     product_id (which double-counted the parent's inbound). Post-patch,
+ *     only the `production_output_inbound` event is emitted.
  *
- * The Python module emits 1 adjustment_positive fallback, but P25's TS
- * spec (this file) keeps the more permissive BOM-only path for the
- * frontend preview surface. Caller decides which event set to ship.
+ * TODO(epic-6): BOM-aware reconciliation for incomplete BOM records —
+ * matches the TODO(epic-6) marker in
+ * `packages/services/m4_inventory/production_consumption.py` line 269.
+ * When a BOM is partial (some children defined, some missing), the
+ * kernel must split: emit production_material_consumption for known
+ * children + emit an adjustment_positive marker for the missing portion
+ * (with `fallback_reason_ko`). Out of scope for Story 5.3.
  */
 export function computeProductionConsumptionEvents(
   productionRow: ProductionRow,
@@ -108,6 +123,11 @@ export function computeProductionConsumptionEvents(
 // `EVENT_TYPE_*` constants in
 // `packages/services/m4_inventory/production_consumption.py`).
 // Drift caught by `test_production_consumption_label_consistency.py`.
+//
+// Story 5.3 T3 review patch: EVENT_TYPE_ADJUSTMENT_POSITIVE retained as
+// a reserved literal for Epic 6 (BOM-aware reconciliation re-introduces
+// the fallback). It is NOT in the discriminated union above because
+// `computeProductionConsumptionEvents` no longer emits it in 5-3.
 export const EVENT_TYPE_PRODUCTION_OUTPUT_INBOUND = "production_output_inbound";
 export const EVENT_TYPE_PRODUCTION_MATERIAL_CONSUMPTION = "production_material_consumption";
 export const EVENT_TYPE_ADJUSTMENT_POSITIVE = "adjustment_positive";

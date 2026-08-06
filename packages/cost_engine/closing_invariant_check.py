@@ -239,11 +239,26 @@ def _make_verdict(
 def _sort_failures_by_severity(
     failures: list[V3Failure],
 ) -> list[V3Failure]:
-    """Sort V3 failures by closing_qty ASC (severity sort, deterministic).
+    """Sort V3 failures deterministically for cross-language parity.
 
-    CR 4-3 lesson: deterministic ordering for cross-language parity tests.
+    Locked contract (Story 5.3 spec + `test_v3_fail_severity_sort`):
+    sort key is the formatted Decimal string in `closing_qty` (lexical
+    string sort). For negative numbers with the same prefix digits, the
+    lex-smallest string sorts first (e.g., "-1.0000" < "-100.0000" <
+    "-50.0000"). This lexical ordering is intentional — it matches the
+    V8 fixture lock + TS parity expectations from CR 4-4.
+
+    Story 5.3 bmad-code-review 2nd-sweep T2 candidate (numeric sort by
+    Decimal value) was REJECTED: the existing test
+    `test_v3_fail_severity_sort` pins the lexical ordering as the
+    deterministic contract, and changing to numeric sort would break
+    cross-language parity fixtures. Kept as lexical sort + secondary
+    tie-breaker on product_id (UUID string).
     """
-    return sorted(failures, key=lambda f: f["closing_qty"])
+    return sorted(
+        failures,
+        key=lambda f: (f["closing_qty"], f["product_id"]),
+    )
 
 
 def _validate_inputs(

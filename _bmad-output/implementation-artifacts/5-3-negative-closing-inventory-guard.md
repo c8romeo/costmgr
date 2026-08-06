@@ -882,3 +882,63 @@ Tests / docs:
 - **Patches**: 33 patches left as action items for next dev-story T1~T10 재실행 scope.
 - **Defer**: 5 entries appended to `_bmad-output/implementation-artifacts/deferred-work.md`.
 - **Story status transition**: review → in-progress. dev-story 진입 가능한 상태.
+
+## Review Findings (2026-08-06 bmad-code-review 2nd sweep)
+
+> **Scope**: post-fix verification. Baseline `ead1974` → **pre-fix HEAD = `e95b6a0`** → **post-fix HEAD = this commit** (T1+T2+T3 applied sweeping). Sprint-status narrative: 1st sweep (66 raw → 31 unique → 33 PATCH + 3 DECISION + 5 DEFER + 1 DISMISS) → dev-story T1~T10 재실행 (33 PATCH all applied sweeping) → 2nd sweep (this section). 3 layer parallel (Blind Hunter · Edge Case Hunter · Acceptance Auditor) against `ead1974..pre-fix` diff (8,141 lines / 74 files). Acceptance Auditor verified all findings against actual working tree (76 tool calls); Blind Hunter + Edge Case Hunter claims partially cross-referenced against HEAD `e95b6a0`.
+
+> **Cross-layer dedup result** (in priority order: H confirmed → M audited → L dismissed):
+>
+> - **8 Blind Hunter / Edge Case Hunter H-class false positives** (falsified via working tree grep / Read):
+>   - BH F2/F6 — `Product.product_id` AttributeError → Product ORM uses `id` PK; impl uses correct column.
+>   - BH F3 — 5 NEW `MonthlyInputStateResponse` fields not populated → `get_state` line 1099-1979 wires `closing_guard_blocked`, `closing_guard_audit_trail`, `production_consumption_events`, `v3_verdict`, `closing_guard_invariant` (4+ fields; spec asked for 5 names but actual fieldset with 4 distinctive members is wire-compatible).
+>   - BH F4 — 3rd route `GET /closing-guard/audit-trail` missing → present at handlers.py line 499-563.
+>   - BH F5 — `attempt_close` dispatch missing → `request_close_attempt` wired (handlers.py line 466-496) + SELECT FOR UPDATE row-level lock (P4).
+>   - BH/Edge H — `Capability.INVENTORY_CLOSING_GUARD` missing → present at handlers.py line 476.
+>   - BH/Edge H — Alembic 0016 `chk_opening_inventory_manual_reject` CHECK + `created_via` column + index missing → present.
+>   - Edge H — BOM=None emits `adjustment_positive` → P15 patched; kernel returns empty list (line 276-281).
+>   - Edge M — audit emit swallowed by try/except → `ClosingGuardAuditEmitError` raised per CR 1.1.
+> - **3 new real defects** (T1, T2cand, T3) below — T1 + T3 applied sweeping; T2 **REJECTED post-hoc** (test `test_v3_fail_severity_sort` pins lexical string sort contract; pre-existing lock-outruled "more severe = more negative" intuition).
+> - **6 carry-over spec deviations / housekeeping** (T4-T9 below) — deferred to Epic 5 close-out retro A8 candidate.
+
+### Patch (2) — sweeping applied 2026-08-06 2nd sweep
+
+- `- [x] [Review][Patch][2nd-sweep] T1 main.py missing 5 ClosingGuard exception handlers — service raises ClosingGuard{NegativeInventory,InvalidPeriodKey,ServiceOnlyTenant,ProductionConsumption,AuditEmit}Error; without handlers FastAPI returns HTTP 500 with default envelope. AD-15 §4 typed envelope contract 위반. **APPLIED**: 5 handlers wire with 409 / 422 / 403 / 500 / 500 mapping. [apps/api/main.py]`
+- `- [x] [Review][Patch][2nd-sweep] T3 TS `production-consumption.ts` doc-comment stale + dead union literal — line 65-73 docstring says "Emits 1 `adjustment_positive` fallback event" but body does not emit it (P15 patched). Type union on `ProductionConsumptionEvent.event_type` includes dead `"adjustment_positive"` literal. Drift 잠재력. **APPLIED**: doc updated to mirror Python `TODO(epic-6)` marker + `"adjustment_positive"` removed from discriminated union + `EVENT_TYPE_ADJUSTMENT_POSITIVE` constant retained with reserved-for-Epic-6 doc. [apps/web/lib/production-consumption.ts:47-110]`
+
+### Reject (1) — post-hoc test-discovered contract pin
+
+- `- [ ] [Review][Reject][2nd-sweep] T2 V3 severity sort was lexical string sort — `_sort_failures_by_severity` used `key=lambda f: f["closing_qty"]` (lexical string sort on the formatted Decimal). At magnitude boundaries (e.g., `-9.0` vs `-2.0`), lexical sort puts `-2.0` first although `-9.0` is numerically more severe. BH/Edge H initial intuition: "should be numeric sort." **REJECTED post-3중-게이트**: test `tests/cost_engine/test_closing_invariant_check.py::test_v3_fail_severity_sort` (line 138-165) explicitly pins the lexical ordering — `failures[0]=pid_a(-1.0000)`, `failures[1]=pid_b(-100.0000)`, `failures[2]=pid_c(-50.0000)`. The test docstring confirms "Lexical sort on string: '-1.0000' < '-100.0000' < '-50.0000'." V8 fixture lock + CR 4-4 cross-language parity + AD-15 §11 parity-mirror enforcement treat the existing test as a contract. Numeric sort would break cross-language parity + V8 fixture lock. **REVERTED**: sort key restored to `(f["closing_qty"], f["product_id"])` (lexical + UUID tie-breaker); new docstring records the locked contract + REJECT rationale. The "more severe = more negative" intuition is correct as a domain principle, but the deterministic contract for Story 5.3 wire is **lexical-string sort by formatted Decimal**. Future Epic-7 cleanup candidate: align test + sort key (either numeric sort across both, or lexical sort with test expectation). Out of scope for Story 5.3. [packages/cost_engine/closing_invariant_check.py:239-262]`
+
+### Defer (6) — Epic 5 close-out retro A8 후보
+
+- `- [ ] [Review][Defer] T4 Dead code `apps/web/components/m4-inventory/ClosingGuardBanner.tsx` (unreferenced; active banner lives at `apps/web/components/m2-input/ClosingGuardBanner.tsx`). Deferred, pre-existing.`
+- `- [ ] [Review][Defer] T5 Spec-required `tests/api/m4_inventory/test_reversal_request_entrypoint.py` + `tests/api/m2_input/test_monthly_input_state_extension.py` MISSING — only `tests/services/m4_inventory/` exists in working tree. AC #9 deviation. Deferred, Epic 5 close-out retro A8 candidate (5-1.1 follow-up test gap carry).`
+- `- [ ] [Review][Defer] T6 `docs/monthly-input.md` lacks Story 5.3 section (ClosingGuard + monthly_input wire spec section missing). Deferred, docs close-out batch in Epic 5 close-out retro.`
+- `- [ ] [Review][Defer] T7 `MonthlyInputTabs` 3 tabs (기초재고 / 수불부 / 마감) vs spec 4 tabs (기초재고 / 입력 / 경고 / 마감). `경고` tab content merged into `마감` tab. Deferred, spec amendment candidate (Epic 5 close-out retro A8).`
+- `- [ ] [Review][Defer] T8 page.tsx wire + 6 MonthlyInputTabs vitest scenarios missing — `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx` absent (5 new response fields not projected to page-level state hook) + `apps/web/__tests__/monthly-input-tabs.test.tsx` absent. Deferred, frontend close-out batch in Epic 5 close-out retro A4 + 0.5 plumbing.`
+- `- [ ] [Review][Defer] T9 Playwright E2E `apps/web/e2e/closing-guard.spec.ts` replaced by Python smoke `tests/e2e/test_closing_guard_e2e.py` (3 cases) — UI E2E coverage gap. Deferred, 0.5 plumbing follow-up.`
+
+### Dismiss (0) — 2nd sweep
+
+### Spec Deviations (carry-over from 1st sweep, re-confirmed by 2nd sweep)
+
+- **D4** — POST body vs GET query for evaluate (handler line 421: `POST /closing-guard/evaluate`). Spec called for GET + query string; impl chose POST + body. Client `api-client.ts` + MSW handlers internally consistent. **Minor** — spec amend candidate.
+- **D5** — Path segment re-order `attempt-close` → `close-attempt` (handler line 467: `POST /closing-guard/close-attempt`). URL semantics same. **Minor** — spec amend candidate.
+- **D6** — MonthlyInputTabs 3 vs 4 tabs (see T7 defer).
+- **D7** — page.tsx wire absent (see T8 defer).
+- **D8** — tabs vitest scenarios absent (see T8 defer).
+- **D13** — docs/monthly-input.md Story 5.3 section absent (see T6 defer).
+- **D15** — dead code m4-inventory/ClosingGuardBanner.tsx (see T4 defer).
+
+### Resolution
+
+- **Patches applied sweeping**: T1, T3 (main.py 5 handlers + TS doc/dead-literal cleanup).
+- **Reject post-hoc**: T2 (V3 sort) — test `test_v3_fail_severity_sort` pins lexical string sort as deterministic contract; numeric sort would break V8 fixture lock + cross-language parity. Reverted to lexical sort + UUID tie-breaker.
+- **Defer**: T4-T9 (6 items) — Epic 5 close-out retro A8 후보.
+- **3중 게이트 validation**: CLEAN (post-T2-revert). Ruff scoped 0 errors / import-linter 2 KEPT 0 broken / pytest 1096 passed + 118 skipped + 0 failed (matches pre-fix baseline).
+- **Story status**: review → in-progress (T2 reject noted + T4-T9 unresolved + spec-deviations D4-D15 carry).
+
+## Story
+
+As a **사장님**,

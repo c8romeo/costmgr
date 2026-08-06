@@ -191,3 +191,34 @@ Items deferred from code review. Each entry records what was deferred, the ratio
 - **W2 (5-2 carry) — `apps/web/lib/l2-input-inventory-ledger.ts`** — claimed closed; file does NOT exist on disk. Re-escalated to **patch P24** + D3.
 - **W3 (5-2 carry) — TS mirror parity tests 6 unskip** — claimed closed; `tests/integration/test_production_consumption_label_consistency.py` exists but skips self due to missing TS mirror. Re-escalated to **patch P25** + P33 + D3.
 - **W4 (5-2 carry) — `_emit_inventory_ledger_event_for_row` isolated unit tests** — claimed closed (spec lists `tests/services/m4_inventory/test_emit_inventory_ledger_event_for_row.py`); file does NOT exist at that path. Re-escalated to **patch P32** + D3.
+
+---
+
+## Deferred from: 2nd-sweep bmad-code-review of 5-3-negative-closing-inventory-guard (2026-08-06)
+
+> Post-fix verification re-review. Baseline `ead1974` → pre-fix HEAD `e95b6a0` → post-fix HEAD = this commit (T1 + T3 sweeping + T2 **REJECTED post-hoc** via test contract). Acceptance Auditor verified all 10 surviving findings against actual working tree; Blind Hunter + Edge Case Hunter H claims mostly cross-referenced against HEAD and 8 H-class false positives identified. 2 patches applied sweeping; 6 housekeeping / spec-deviation items deferred to Epic 5 close-out retro A8 candidate; 1 patch (T2) rejected post-3중-게이트 because `test_v3_fail_severity_sort` pins lexical string sort as the locked deterministic contract.
+
+- **T4** — Dead code `apps/web/components/m4-inventory/ClosingGuardBanner.tsx` (unreferenced; active banner lives at `apps/web/components/m2-input/ClosingGuardBanner.tsx`). Pre-existing file from prior dev-story that became unreferenced after P19 sweep. Housekeeping — Epic 5 close-out retro A8 frontend consolidation.
+
+- **T5** — Spec-required `tests/api/m4_inventory/test_reversal_request_entrypoint.py` + `tests/api/m2_input/test_monthly_input_state_extension.py` MISSING — only `tests/services/m4_inventory/` directory exists in working tree (3 files: `test_emit_inventory_ledger_event_for_row.py`, `test_ledger.py`, `test_ledger_query.py`). AC #9 spec deviation. Test path reorganization candidate (5-1.1 follow-up test gap carry-over).
+
+- **T6** — `docs/monthly-input.md` lacks Story 5.3 section (ClosingGuard wire spec section missing). Pre-existing docs gap. Docs close-out batch — Epic 5 close-out retro A8 docs consolidation.
+
+- **T7** — `MonthlyInputTabs` 3 tabs (기초재고 / 수불부 / 마감) vs spec 4 tabs (기초재고 / 입력 / 경고 / 마감). `경고` tab content merged into `마감` tab. Spec amendment candidate (Epic 5 close-out retro A8 — accept scope trim or restore tab).
+
+- **T8** — page.tsx wire + 6 MonthlyInputTabs vitest scenarios missing — `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx` absent (5 new response fields not projected to page-level state hook) + `apps/web/__tests__/monthly-input-tabs.test.tsx` absent. Frontend close-out batch — Epic 5 close-out retro A4 + 0.5 plumbing follow-up.
+
+- **T9** — Playwright E2E `apps/web/e2e/closing-guard.spec.ts` replaced by Python smoke `tests/e2e/test_closing_guard_e2e.py` (3 cases) — UI E2E coverage gap. 0.5 plumbing follow-up (Playwright E2E coverage in Epic 5 close-out retro).
+
+### Disambiguation vs 1st-sweep carry-over batch (5-3 1st-sweep deferrals)
+
+The 6 deferred items above (T4-T9) **complement** (not replace) the 5 defer entries from the 1st sweep (Defer-1~5) and the 6 carry-over close-out items (M14/L8/W1/W2/W3/W4). T4-T9 are spec-deviation / housekeeping items found during the 2nd sweep after P1-P33 patches were applied sweeping. None overlap with Defer-1~5 (perf micro-opt / AD-11 boundary / signature uniformity / style nit / AC#8 determinism) — all distinct concerns.
+
+### Story 5.3 2nd-sweep resolution summary
+
+- **Patches applied sweeping**: 2 (T1 main.py 5 ClosingGuard exception handlers + T3 TS `production-consumption.ts` doc/dead-literal cleanup).
+- **Reject post-hoc**: 1 (T2 V3 sort numeric-vs-lexical — test `test_v3_fail_severity_sort` pins lexical string sort as locked deterministic contract; numeric sort would break V8 fixture lock + cross-language parity).
+- **Defer**: 6 items (T4-T9) above.
+- **Dismiss**: 0 items.
+- **3중 게이트 validation**: CLEAN — ruff scoped 0 errors / import-linter 2 KEPT 0 broken / pytest 1096 passed + 118 skipped + 0 failed (matches pre-fix baseline).
+- **Story status**: review → in-progress (T2 reject noted + T4-T9 unresolved + spec-deviations D4-D15 carry).
