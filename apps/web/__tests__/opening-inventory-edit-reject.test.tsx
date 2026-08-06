@@ -15,8 +15,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
 import * as React from "react";
+import { toast } from "sonner";
 
-// Mock sonner toast
+// Mock sonner toast — reference the same vi.fn() instances the test will assert against
 vi.mock("sonner", () => ({
   toast: {
     warning: vi.fn(),
@@ -45,10 +46,7 @@ function OpeningInventoryField({
 }: OpeningInventoryFieldProps): React.ReactElement {
   const handleSave = () => {
     if (openingInventoryLocked) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      void import("sonner").then(({ toast }) => {
-        toast.error("기초재고는 자동 이월 체인에 의해 잠겼습니다");
-      });
+      toast.error("기초재고는 자동 이월 체인에 의해 잠겼습니다");
       return;
     }
     onSave();
@@ -117,12 +115,11 @@ describe("OpeningInventoryField (manual edit reject)", () => {
     );
 
     const saveBtn = screen.getByTestId("opening-inventory-save");
-    saveBtn.click();
+    // jsdom: disabled <fieldset> blocks native click. Dispatch a synthetic
+    // bubbling click event so the React onClick handler still fires for
+    // this unit-level smoke test (DOM-level guard is asserted in Case 1).
+    saveBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    // Allow the dynamic import to resolve
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    const { toast } = await import("sonner");
     expect(toast.error).toHaveBeenCalledWith(
       "기초재고는 자동 이월 체인에 의해 잠겼습니다",
     );

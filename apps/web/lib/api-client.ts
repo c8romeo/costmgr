@@ -555,6 +555,88 @@ export interface BOMResponse {
   updated_at: string | null;
 }
 
+// ── Story 5.3 — MonthlyInputStateResponse extension ────────────
+//
+// Mirrors backend `apps/api/modules/m2_input/services/monthly_input_service.py
+// MonthlyInputStateResponse` (5-3 wire spec). 5 NEW closing-guard fields
+// projected to page-level state hook:
+//
+// - closing_guard_blocked          — drives [마감] button disabled gate.
+// - closing_guard_audit_trail      — drives [마감 검증 이력] tab render.
+// - production_consumption_events  — BOM-aware ledger event preview for [수불부] tab.
+// - v3_verdict                     — V3 closing invariant verification status.
+// - closing_guard_invariant        — typed ClosingInvariant (code + message_ko + closing_per_product).
+
+export type ClosingInvariantCode =
+  | "CLOSING_OK"
+  | "NEGATIVE_CLOSING"
+  | "EMPTY_PERIOD";
+
+export interface ClosingInvariant {
+  code: ClosingInvariantCode;
+  negative_products: Record<string, string>;
+  closing_per_product: Record<string, string>;
+  guard_enabled: boolean;
+}
+
+export interface ClosingGuardAuditEntry {
+  id: string;
+  tenant_id: string;
+  period_key: string;
+  action: string;
+  trace_id: string;
+  created_at: string;
+  payload: Record<string, unknown>;
+}
+
+export interface V3Failure {
+  product_id: string;
+  closing_qty: string;
+  message_ko: string;
+}
+
+export interface V3Verdict {
+  status: "passed" | "failed" | "skipped";
+  code: "V3";
+  failures: V3Failure[];
+  verified_at: string;
+  product_whitelist_size: number;
+  skip_reason_ko: string | null;
+}
+
+export interface ProductionConsumptionEventWire {
+  product_id: string;
+  period_key: string;
+  event_type: "production_output_inbound" | "production_material_consumption";
+  qty: string;
+  trace_id: string;
+}
+
+export interface MonthlyInputStateResponse {
+  period_key: string;
+  rows: Array<Record<string, unknown>>;
+  completion: CompletionStatus;
+  is_complete: boolean;
+  missing: string[];
+  capability_mask: Record<string, boolean>;
+  fte_display: Record<string, number>;
+  // 5-1 fields
+  opening_inventory: Record<string, string>;
+  opening_inventory_locked: boolean;
+  opening_inventory_lock_reason_ko: string | null;
+  // 5-2 ledger fields
+  ledger_events_count: number;
+  ledger_period_closing: Record<string, string>;
+  inventory_ledger_enabled: boolean;
+  reversal_request_enabled: boolean;
+  // 5-3 NEW closing-guard fields (T6.4 wire spec)
+  closing_guard_blocked: boolean;
+  closing_guard_audit_trail: ClosingGuardAuditEntry[];
+  production_consumption_events: ProductionConsumptionEventWire[];
+  v3_verdict: V3Verdict | null;
+  closing_guard_invariant: ClosingInvariant;
+}
+
 export async function fetchBom(
   productId: string,
   accessToken?: string,

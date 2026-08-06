@@ -91,6 +91,7 @@ export function expectedRuleCodesForIndustry(industry: Industry): VerificationCo
  */
 export const V_FAILURE_CODES: Readonly<Record<VerificationCode, string>> = {
   V1: "ERR_V1_INCOMPLETE_ALLOCATION",
+  V3: "ERR_V3_UNIT_OF_ACCOUNT_CONFLICT",
   V4: "ERR_V4_COST_INCOME_RECONCILIATION",
   V7: "ERR_V7_ABC_INTEGRITY",
   V8: "ERR_V8_ENGINE_REGRESSION",

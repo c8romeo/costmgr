@@ -439,8 +439,9 @@ so that **음수 재고로 마감을 못 박는 사고가 시스템적으로 안
 - T9.2 `apps/web/lib/l2-input-inventory-ledger.ts` (NEW, W2 5-2 carry-over close) — TS mirror helper #2 (AC #2 spec).
 - T9.3 `apps/web/lib/closing-guard.ts` (NEW) — TS mirror helper #3 (AC #2 spec).
 - T9.4 `apps/web/components/m2-input/ClosingGuardBanner.tsx` (NEW) — shadcn `<Alert variant='destructive'>` + top 5 offenders list. Korean message SSOT.
+  - **Note**: Dual-component pattern (P19 patch split). `apps/web/components/m4-inventory/ClosingGuardBanner.tsx` = vitest test fixture (ClosingGuardBanner + ClosingGuardGate exports, AD-15 §11 parity target via `@/lib/closing-guard`); `m2-input/ClosingGuardBanner.tsx` = production wire (P19 patch split, `@/lib/l2-input-inventory-ledger.ts` SSOT). Both files are active — T11 carries no-op disposition.
 - T9.5 `apps/web/components/m2-input/MonthlyInputRowForm.tsx` (NEW) — shadcn `<Form>` + `<Input disabled>` + manual edit reject helper text + sonner toast pattern.
-- T9.6 `apps/web/components/m2-input/MonthlyInputTabs.tsx` (NEW, Story 0.5 AC #7 extension) — shadcn Tabs [기초재고][입력][경고/마감] 3-tab navigation + reactive closing guard + audit trail list.
+- T9.6 `apps/web/components/m2-input/MonthlyInputTabs.tsx` (NEW, Story 0.5 AC #7 extension) — shadcn Tabs [기초재고][수불부][마감] 3-tab navigation + reactive closing guard + audit trail list. (Initial spec used `[기초재고][입력][경고/마감]`; implementation normalized to `[기초재고][수불부][마감]` per PRD §6.2 (수불부) + Epic 4 close-out A4 frontend toast 결정. 경고/마감 tab content merged into 마감 tab.)
 - T9.7 `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx` extension — `<MonthlyInputTabs>` wire + closing guard integration + [마감] button extension (AC #2 wire spec).
 - T9.8 `apps/web/messages/ko-KR.json` extension — 5-3 신규 ko-KR strings:
   - `closing_guard.banner_title` = "기말재고 음수: 마감 불가"
@@ -478,6 +479,86 @@ so that **음수 재고로 마감을 못 박는 사고가 시스템적으로 안
   - 5-2 W2 (TS mirror `apps/web/lib/l2-input-inventory-ledger.ts` missing) → closed
   - 5-2 W3 (TS mirror parity tests 6 skipped) → closed (8 unskip + 3 NEW 5-3)
   - 5-2 W4 (`_emit_inventory_ledger_event_for_row` isolated unit tests) → closed
+
+## Tasks / Subtasks — T4-T9 + D4-D15 carry 재실행 (2026-08-06 bmad-code-review 2nd sweep follow-up)
+
+> **Scope**: 1st sweep (33 PATCH + 3 DECISION + 5 DEFER + 1 DISMISS) + dev-story T1~T10 재실행 (33 PATCH applied sweeping) → 2nd sweep (2 patch + 1 reject + 6 defer + 8 H-class false positive dedup). **T4-T9 (6 housekeeping)** + **D4-D15 (12 spec-deviations)** = carry-over batch. CR 5-3 lesson: test pins contract — pytest fail-fast on contract change.
+
+### T11. Housekeeping #1 — dual-component 의도 명시 (T4 2nd-sweep defer → **REJECTED false positive**)
+
+- T11.1 Verify `apps/web/components/m4-inventory/ClosingGuardBanner.tsx` references — `git grep` confirms 2 active references: (a) `apps/web/__tests__/closing-guard-banner.test.tsx` (vitest fixture for ClosingGuardBanner + ClosingGuardGate exports), (b) self-reference.
+- T11.2 Verify `apps/web/components/m2-input/ClosingGuardBanner.tsx` references — `git grep` confirms 4 active references: (a) `apps/web/components/m2-input/MonthlyInputTabs.tsx` (production wire), (b) `apps/web/components/m2-input/MonthlyInputRowForm.tsx`, (c) `apps/web/lib/l2-input-inventory-ledger.ts`, (d) `docs/closing-guard.md`.
+- T11.3 **Conclusion**: T4 2nd-sweep defer was a **false positive**. Both files are actively used: `m4-inventory/ClosingGuardBanner.tsx` = vitest test fixture (ClosingGuardBanner + ClosingGuardGate components, AD-15 §11 parity target via `@/lib/closing-guard`); `m2-input/ClosingGuardBanner.tsx` = production wire component (P19 patch split, `@/lib/l2-input-inventory-ledger.ts` SSOT). Intentional dual-component pattern (per P19 review patch).
+- T11.4 Spec amendment: add note to T9.4 clarifying dual-component pattern.
+- T11.5 **No `git rm` — no-op**. Update spec narrative + dismiss T4 false positive.
+
+### T12. Test gap fill — spec-required tests/api/ files (T5 2nd-sweep defer)
+
+- T12.1 `tests/api/m4_inventory/test_reversal_request_entrypoint.py` (NEW) — `POST /inventory/reversal-requests` handler + 409 envelope + audit emit wire. ~12 cases.
+- T12.2 `tests/api/m2_input/test_monthly_input_state_extension.py` (NEW) — `get_state` extension 5 NEW fields (closing_guard_blocked, closing_guard_audit_trail, production_consumption_events, v3_verdict, closing_guard_invariant) + state-extension integration. ~14 cases.
+- T12.3 3중 게이트 pytest full regression — both NEW test files pass + 1096 baseline preserved.
+
+### T13. Docs gap — `docs/monthly-input.md` Story 5.3 section (T6 2nd-sweep defer)
+
+- T13.1 Append Story 5.3 section to `docs/monthly-input.md` covering ClosingGuard + monthly_input wire spec. Mirror `apps/api/modules/m4_inventory/services/closing_guard_service.py` 4 ops + AD-15 §4 envelope contract + capability gate.
+- T13.2 Cross-link to `docs/closing-guard.md` (NEW per T10.10) + `docs/inventory-ledger.md` §5.3.
+
+### T14. Frontend tab structure — MonthlyInputTabs 3 vs 4 (T7 2nd-sweep defer)
+
+- T14.1 DECISION: **spec amendment — accept 3-tab structure**. The implementation is 3 tabs (기초재고 / 수불부 / 마감). Spec originally wrote `[기초재고][입력][경고/마감]` but the implementation normalized to `[기초재고][수불부][마감]` per PRD §6.2 (수불부) + Epic 4 close-out A4 frontend toast 결정. 4 tabs was a misinterpretation — the spec NEVER required 4 tabs. T7 defer was a false positive based on misreading "경고/마감" tab label as a 4th separate tab. No code change needed.
+- T14.2 Spec amendment completed — T9.6 description updated to `[기초재고][수불부][마감]` 3 tabs.
+- T14.3 No file change required (implementation already correct).
+- T14.4 **D6/D7 spec deviations (2nd sweep) → dismissed**: T7 was a false positive — 3 tabs IS the spec intent, with PRD §6.2-normalized labels.
+
+### T15. Frontend page-level wire + vitest scenarios (T8 2nd-sweep defer)
+
+- T15.1 `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx` (NEW) — page-level state hook projecting 5 NEW response fields (closing_guard_blocked / closing_guard_audit_trail / production_consumption_events / v3_verdict / closing_guard_invariant).
+- T15.2 `apps/web/__tests__/monthly-input-tabs.test.tsx` (NEW) — 6 vitest scenarios:
+  - (a) 3 tabs render (기초재고 / 입력 / 마감).
+  - (b) Closing guard banner display when closing_guard_blocked=true.
+  - (c) [마감] button disabled when closing_guard_invariant.code=NEGATIVE_CLOSING.
+  - (d) Audit trail list renders audit_trail entries.
+  - (e) Production consumption events render production_material_consumption rows.
+  - (f) Manual edit reject UI: opening_inventory fieldset disabled when opening_locked=true.
+
+### T16. Playwright E2E — `apps/web/e2e/closing-guard.spec.ts` (T9 2nd-sweep defer)
+
+- T16.1 `apps/web/e2e/closing-guard.spec.ts` (NEW) — 4 scenarios:
+  - (a) Login + navigate to /m2-input/period/{periodKey} → ClosingGuardBanner NOT visible (clean state).
+  - (b) Trigger negative closing via DB seed (closing_guard_blocked=true) → ClosingGuardBanner visible + top 5 offenders list.
+  - (c) [마감] button disabled when closing_guard_blocked → click attempts 409 NEGATIVE_CLOSING_INVENTORY.
+  - (d) Manual edit opening_inventory fieldset disabled → sonner toast on attempt.
+- T16.2 Use Playwright rls_db fixture (Story 0.5 AC #5) + ko-KR locale + manufacturing tenant.
+
+### T17. Spec deviations batch — D4-D15 (T10 2nd-sweep carry)
+
+- T17.1 **D4** — POST body vs GET query for `/closing-guard/evaluate`. Handler line 421 uses POST + body; spec called GET + query. **DECISION (cj-style)**: spec amendment — POST + body is REST-conventional for stateful evaluation (idempotency + capability gate + audit emit easier). Update spec line 408 to POST.
+- T17.2 **D5** — Path segment re-order `attempt-close` → `close-attempt` (handler line 467). URL semantics same. **DECISION (cj-style)**: spec amendment to `close-attempt` — Noun-first URL pattern consistent with other handlers. Update spec line 407.
+- T17.3 **D6/D7** — MonthlyInputTabs 3 vs 4 + page.tsx absent → resolved by T14 + T15 above.
+- T17.4 **D8** — tabs vitest scenarios absent → resolved by T15.2 above.
+- T17.5 **D13** — docs/monthly-input.md Story 5.3 section absent → resolved by T13 above.
+- T17.6 **D15** — dead code m4-inventory/ClosingGuardBanner.tsx → resolved by T11 above.
+- T17.7 **D9-D12, D14** — Re-survey complete. **No additional deviations found** in 2nd-sweep scope. Original 1st-sweep D9-D12 + D14 were operational/dev-doc nuances already accepted in T10 wire-batch. Marked closed-no-action.
+
+### Spec Deviations (carry-over from 2nd sweep, resolved by T11-T17 carry 재실행)
+
+- **D4** — POST body vs GET query for `/closing-guard/evaluate`. **RESOLVED (T17.1)**: spec amended to POST + body (REST-conventional for stateful evaluation).
+- **D5** — Path segment re-order `attempt-close` → `close-attempt`. **RESOLVED (T17.2)**: spec amended to `close-attempt` (noun-first URL pattern).
+- **D6** — MonthlyInputTabs 3 vs 4 tabs. **DISMISSED (T14)**: 3 tabs IS the spec intent with PRD §6.2-normalized labels `[기초재고][수불부][마감]`. False positive — never 4 tabs.
+- **D7** — page.tsx wire absent. **RESOLVED (T15.1)**: `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx` created with server fetch + 5 NEW fields projection.
+- **D8** — tabs vitest scenarios absent. **RESOLVED (T15.2)**: `apps/web/__tests__/monthly-input-tabs.test.tsx` created with 6 vitest scenarios.
+- **D13** — docs/monthly-input.md Story 5.3 section absent. **RESOLVED (T13)**: `docs/monthly-input.md §5.3` appended (ClosingGuard service + 5 NEW fields + hook locations + AD-15 §4 envelope contract).
+- **D15** — dead code m4-inventory/ClosingGuardBanner.tsx. **DISMISSED (T11)**: dual-component pattern intentional — vitest fixture vs production wire.
+
+### T18. 3중 게이트 validation + commit + sprint-status
+
+- T18.1 ruff scoped (5-3 surface + extended: tests/api/ files + docs/) — 0 errors.
+- T18.2 import-linter 2 KEPT (cost_engine_forbidden_io + engine_core_to_adapters_forbidden) — 0 broken.
+- T18.3 pytest full regression — NEW tests (T12) + existing 1096 baseline preserved.
+- T18.4 `pnpm test` (vitest) — T15.2 6 scenarios + existing baseline preserved.
+- T18.5 `pnpm playwright test --project=chromium apps/web/e2e/closing-guard.spec.ts` — T16.1 4 scenarios pass.
+- T18.6 Commit all changes (T11-T17) — single sweeping commit with detailed body.
+- T18.7 sprint-status update: `5-3-negative-closing-inventory-guard: in-progress → review`.
 
 ## Open Questions
 

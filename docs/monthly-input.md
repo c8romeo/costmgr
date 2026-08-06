@@ -370,5 +370,92 @@ event_type 이 `production_output_inbound` (output 만 추적).
 `build_inventory_projection` 자체는 Epic 6 close-out retro 까지
 유지 (5-1 carry chain path 에서 여전히 사용).
 
+## §5.3 Closing Guard Stream Hook (Story 5.3)
+
+Story 5.3 은 음수 기말재고 (PRD §F4.2) 와 연결성 검증 (PRD §V3) 을
+monthly_input 흐름에 결합합니다. `ClosingGuardService` 가 4 가지
+operation 을 제공하고, `MonthlyInputStateResponse` 가 5 개의
+closing-guard field 로 확장됩니다.
+
+### ClosingGuardService — 4 operations
+
+`apps/api/modules/m4_inventory/services/closing_guard_service.py` :
+
+| Op | 호출 지점 | 책임 |
+|---|---|---|
+| `evaluate_closing_guard` | `GET /closing-guard/evaluate` handler + `get_state` extension | 5-2 ledger aggregate 종합 → `ClosingInvariant` (CLOSING_OK / NEGATIVE_CLOSING / EMPTY_PERIOD) + `negative_products` top-5 offenders + audit emit (`closing_guard_passed` or `closing_guard_violated`). |
+| `request_close_attempt` | `POST /closing-guard/close-attempt` handler + 4-2 `attempt_close` additive | 4-2 `is_blocked` check 위 additive: invariant.code = NEGATIVE_CLOSING → 409 NEGATIVE_CLOSING_INVENTORY envelope (AD-15 §4). Audit-first ordering: 409 envelope BEFORE audit INSERT (CR 1.1 lesson). |
+| `emit_production_ledger_events` | `save_row` BOM-aware emit hook (stream='production') | 5-2 `LedgerService.append_event` 호출 per event: 1 × `production_output_inbound` (output product qty) + N × `production_material_consumption` (per BOM child, 음수 qty). BOM=None or children empty → output event only (no `adjustment_positive`). |
+| `validate_closing_invariant_against_active_products` | `verify_v3_closing_invariant` dispatch | product whitelist = `SELECT id FROM products WHERE tenant_id=:tenant_id AND is_active=true`. `verify_closing_invariant` pure-kernel 호출 → V3 verdict (status='passed'/'failed'/'skipped' + failures). V3 fail → audit `closing_guard_violated`. |
+
+### 5 NEW fields on `MonthlyInputStateResponse` (AC #3 wire spec)
+
+`apps/api/modules/m2_input/services/monthly_input_service.py::get_state`
+는 closing-guard aggregate + V3 verdict + audit-trail 을 다음 5 field 로
+project 합니다:
+
+| Field | Type | Source | 비고 |
+|---|---|---|---|
+| `closing_guard_blocked` | `bool` | `ClosingGuardService.evaluate_closing_guard().invariant.code == 'NEGATIVE_CLOSING'` | Frontend [마감] button disabled gate. |
+| `closing_guard_audit_trail` | `list[AuditLogEntry]` | `audit_logs WHERE action='closing_guard_passed' OR 'closing_guard_violated'` ORDER BY `created_at DESC` LIMIT 50 | Frontend [마감 검증 이력] tab render. |
+| `production_consumption_events` | `list[InventoryLedgerEvent]` | `closing_guard_service.emit_production_ledger_events` 최근 호출 결과 (per period) | BOM-aware ledger event preview for [수불부] tab. |
+| `v3_verdict` | `V3Verdict \| None` | `ClosingInvariantVerifier.verify_v3_closing_invariant` 4-3 V3 slot fill | Status='passed'/'failed'/'skipped' + failures + skip_reason_ko. |
+| `closing_guard_invariant` | `ClosingInvariant` | `ClosingGuardService.evaluate_closing_guard().invariant` | Typed `code` + `message_ko` + `closing_per_product` dict. |
+
+### Hook 위치 (Story 5.3 wire additive on 4-2 + 5-2)
+
+1. **`save_row` BOM-aware emit** (`stream='production'`):
+   - 기존 5-2 `_emit_inventory_ledger_event_for_row` 호출 직후,
+     BOM (Story 2.2 schema) 존재 시
+     `closing_guard_service.emit_production_ledger_events` dispatch.
+   - BOM=None or `bom.children == []` → output event only
+     (P15 patch: no `adjustment_positive` emit).
+   - 모든 emit 는 audit-first + idempotent no-op skip (CR 1.1).
+
+2. **`attempt_close` additive guard** (4-2 wire 위):
+   - 기존 `is_blocked` check 통과 후,
+     `closing_guard_service.request_close_attempt` dispatch.
+   - invariant.code='NEGATIVE_CLOSING' → 409 NEGATIVE_CLOSING_INVENTORY
+     envelope (AD-15 §4 Korean message).
+
+3. **`get_state` extension** (5 NEW fields populate):
+   - `closing_guard_blocked` + `closing_guard_invariant` →
+     `evaluate_closing_guard` dispatch.
+   - `closing_guard_audit_trail` →
+     `audit_logs` query filtered by closing_guard actions.
+   - `production_consumption_events` →
+     `inventory_ledger` query filtered by stream='production' events.
+   - `v3_verdict` →
+     `ClosingInvariantVerifier.verify_v3_closing_invariant` dispatch.
+
+### AD-15 §4 Typed envelope contract
+
+`ClosingGuardService` raises 5 typed exceptions mapped in `apps/api/main.py`:
+
+| Exception | HTTP | code | 비고 |
+|---|---|---|---|
+| `ClosingGuardNegativeInventoryError` | 409 | `NEGATIVE_CLOSING_INVENTORY` | banner_ko="기말재고 음수: 마감 불가" |
+| `ClosingGuardInvalidPeriodKeyError` | 422 | `CLOSING_GUARD_INVALID_PERIOD_KEY` | AD-24 pattern check |
+| `ClosingGuardServiceOnlyTenantError` | 403 | `INDUSTRY_NOT_SUPPORTED` | service-only tenant early-return |
+| `ClosingGuardProductionConsumptionError` | 500 | `CLOSING_GUARD_PRODUCTION_CONSUMPTION_ERROR` | save_row emit failure |
+| `ClosingGuardAuditEmitError` | 500 | `CLOSING_GUARD_AUDIT_EMIT_ERROR` | audit-first fail-closed (CR 1.1) |
+
+### Capability gate
+
+- `Capability.INVENTORY_CLOSING_GUARD` — manufacturing 3종 ✅ / service-only ❌
+- `Capability.MONTHLY_INPUT_PRODUCTION` — manufacturing 3종 ✅ / service-only ❌
+
+Service-only tenant: guard 자체 disabled (`skip_reason_ko='service-only tenant은 inventory 의미 없음'`),
+v3_verdict.status='skipped', closing_guard_blocked=false.
+
+### 참조
+
+- 운영자/dev 가이드: [docs/closing-guard.md](./closing-guard.md)
+- Architecture: AD-2 (audit-first) · AD-11 (layer rule) · AD-15 §4 (typed envelope)
+- 스펙: `_bmad-output/implementation-artifacts/5-3-negative-closing-inventory-guard.md`
+- V3 verification: [docs/cost-engine.md#v3](./cost-engine.md#v3)
+- 5-1 carry-over: [docs/opening-inventory-carry.md](./opening-inventory-carry.md)
+- 5-2 ledger append-only: [docs/inventory-ledger.md](./inventory-ledger.md)
+
 ## 참조
 

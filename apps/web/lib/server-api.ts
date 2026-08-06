@@ -19,6 +19,7 @@ import "server-only";
 import type {
   BOMResponse,
   CompletionStatus,
+  MonthlyInputStateResponse,
   ProductListResponse,
 } from "./api-client";
 
@@ -141,6 +142,43 @@ export async function fetchBomServerSide(
     );
     if (!res.ok) return null;
     const data = (await res.json()) as BOMResponse;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * fetchMonthlyInputStateServerSide — Story 5.3 T15.1 (page.tsx wire).
+ *
+ * RSC fetch for `GET /api/v2/monthly-input/{period_key}/state` to seed
+ * the [월 입력] page with 5-3 NEW closing-guard fields (closing_guard_blocked,
+ * closing_guard_audit_trail, production_consumption_events, v3_verdict,
+ * closing_guard_invariant). Returns null on failure so the Client Component
+ * can fall back to polling (existing pattern from F-20).
+ */
+export async function fetchMonthlyInputStateServerSide(
+  periodKey: string,
+  accessToken: string | undefined,
+  traceId: string,
+): Promise<MonthlyInputStateResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v2/monthly-input/${periodKey}/state`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as MonthlyInputStateResponse;
     return data;
   } catch {
     return null;

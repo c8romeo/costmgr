@@ -59,7 +59,7 @@ describe("ClosingGuardBanner", () => {
     expect(screen.getByTestId("closing-guard-banner")).toBeInTheDocument();
     expect(screen.getByText(/기말재고 음수/)).toBeInTheDocument();
     // 2 offenders rendered in the list
-    expect(screen.getByText(/019200a0/)).toBeInTheDocument();
+    expect(screen.getAllByText(/019200a0/).length).toBeGreaterThanOrEqual(2);
   });
 
   // ── Case 2: banner hidden when ok ─────────────────────────────
@@ -90,7 +90,7 @@ describe("ClosingGuardBanner", () => {
 
     // After save_row, frontend calls toast.warning per OQ3 (Story 0.5 BOMEditorClient pattern)
     if (negativeResponse.invariant === INVARIANT_CODE_NEGATIVE_CLOSING) {
-      (toast.warning as ReturnType<typeof vi.fn>)(
+      (toast.warning as ReturnType<typeof vi.fn> & ((msg: string, opts?: object) => void))(
         "기말재고 음수가 발생했습니다: 원자재 X -5개",
         { duration: 5000, position: "top-right" },
       );
