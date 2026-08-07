@@ -25,6 +25,8 @@ import {
   INVARIANT_CODE_NEGATIVE_CLOSING,
   INVARIANT_CODE_CLOSING_OK,
   INVARIANT_CODE_EMPTY_PERIOD,
+  NEGATIVE_CLOSING_INVENTORY_KO,
+  formatNegativeClosingBannerKo,
 } from "@/lib/closing-guard";
 
 // Mock sonner toast for Case 3
@@ -147,5 +149,30 @@ describe("ClosingGuardBanner", () => {
       />,
     );
     expect(container.querySelector('[data-testid="closing-guard-banner"]')).toBeNull();
+  });
+
+  // ── Case 6: TS/Python SSOT parity (Epic 5 A12 / T12.2 carry-over) ──
+  // Verifies the TS-side NEGATIVE_CLOSING_INVENTORY_KO constant + the
+  // formatNegativeClosingBannerKo empty-input short-circuit match the
+  // Python SSOT (`packages/services/m4_inventory/closing_guard.py`).
+  // Drift between the two surfaces is caught by the integration parity
+  // detector `tests/integration/test_closing_guard_label_consistency.py`
+  // — this vitest case is the in-process mirror for the TS side.
+  it("test_closing_guard_ts_python_ko_parity", () => {
+    // 1. TS constant must equal Python SSOT byte-for-byte.
+    expect(NEGATIVE_CLOSING_INVENTORY_KO).toBe("기말재고 음수: 마감 불가");
+
+    // 2. formatNegativeClosingBannerKo with empty negative-products list
+    //    short-circuits to the SSOT constant (no per-product suffix).
+    const banner = formatNegativeClosingBannerKo([]);
+    expect(banner).toBe(NEGATIVE_CLOSING_INVENTORY_KO);
+
+    // 3. formatNegativeClosingBannerKo with a non-empty list appends the
+    //    top-N offender summary (P27 signature). Verify the SSOT prefix
+    //    is preserved (drift guard).
+    const withOffender = formatNegativeClosingBannerKo([
+      { product_id: "019200a0-0000-7000-8000-0000000000a1", closing_qty: "-5.0000" },
+    ]);
+    expect(withOffender.startsWith(NEGATIVE_CLOSING_INVENTORY_KO)).toBe(true);
   });
 });
