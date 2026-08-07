@@ -38,9 +38,20 @@ export type ClosingPeriodStatus =
   (typeof CLOSING_PERIOD_STATUSES)[number];
 
 // ── ClosingSnapshotEvent (AD-15 snake_case parity) ──────────────
+// Mirrors `apps/web/lib/l2-input-inventory-ledger.ts::ClosingSnapshotEvent`
+// (5-2 wire SSOT extension). 9 fields total — event_id / product_id /
+// period_key / event_type / qty / trace_id / reverses_event_id /
+// correction_group_id / finalized_at. Reversal fields (reverses_event_id +
+// correction_group_id) are populated by Epic 11 reversal module wire.
 export interface ClosingSnapshotEvent {
+  event_id: string;
   product_id: string;
-  closing_qty: string; // Decimal string (AD-8 monetary)
+  period_key: string;
+  event_type: "closing_snapshot";
+  qty: string; // Decimal string (AD-8 monetary)
+  trace_id: string;
+  reverses_event_id: string | null;
+  correction_group_id: string | null;
   finalized_at: string; // ISO-8601 UTC
 }
 
@@ -77,4 +88,29 @@ export function formatClosingPeriodBlockedKo(
     return "";
   }
   return CLOSING_PERIOD_BLOCKED_KO;
+}
+
+// ── ClosingPeriodResponse (wire envelope — backend ClosingPeriodEvaluateResponse) ──
+export interface ClosingPeriodResponse {
+  status: ClosingPeriodStatus;
+  allowed: boolean;
+  closing_per_product: Record<string, string>;
+  closing_snapshot_count: number;
+  ledger_event_count: number;
+  period_key: string;
+  trace_id: string;
+}
+
+// ── buildClosingPeriodState (wire envelope → projection) ────────
+export function buildClosingPeriodState(
+  response: ClosingPeriodResponse,
+): ClosingPeriodState {
+  return {
+    status: response.status,
+    allowed: response.allowed,
+    closing_per_product: response.closing_per_product,
+    closing_snapshot_count: response.closing_snapshot_count,
+    ledger_event_count: response.ledger_event_count,
+    period_key: response.period_key,
+  };
 }

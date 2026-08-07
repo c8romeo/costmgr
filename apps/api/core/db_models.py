@@ -407,6 +407,24 @@ class MonthlyInputPeriod(Base):
     opening_inventory: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Story 6.1 (Task T6.2) — closing period service columns.
+    # AD-6 fiscal-period close lock lifecycle:
+    #   'open' → 'closing' → 'closed' (1-way state machine).
+    # `status` defaults to 'open' (preserves 5-3 wire back-compat).
+    # `finalized_at` and `closed_by_actor_id` populated by 6-1
+    # confirm_closing_period dispatch.
+    # `closing_snapshot_event_count` = number of inventory_ledger
+    # rows with event_type='closing_snapshot' inserted at confirm.
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="open")
+    finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_by_actor_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    closing_snapshot_event_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -416,6 +434,18 @@ class MonthlyInputPeriod(Base):
         CheckConstraint(
             "baseline_revision >= 1",
             name="monthly_input_periods_revision_positive",
+        ),
+        # Story 6.1 — AD-6 1-way fiscal-period state machine (open →
+        # closing → closed). Alembic 0017 mirrors this CHECK.
+        CheckConstraint(
+            "status IN ('open', 'closing', 'closed')",
+            name="chk_closing_period_status",
+        ),
+        # Story 6.1 — closing_snapshot_event_count must be ≥ 0
+        # (defense-in-depth; service layer also enforces).
+        CheckConstraint(
+            "closing_snapshot_event_count >= 0",
+            name="chk_closing_snapshot_event_count_non_negative",
         ),
         UniqueConstraint(
             "tenant_id",

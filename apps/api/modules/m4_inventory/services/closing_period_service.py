@@ -306,12 +306,14 @@ class ClosingPeriodService:
 
         # Idempotent no-op skip — already closed.
         if period_row is not None and period_row.status == "closed":
+            existing_finalized = getattr(period_row, "finalized_at", None)
+            finalized_iso = (
+                existing_finalized.isoformat() if existing_finalized is not None else None
+            )
             raise ClosingPeriodAlreadyClosedError(
                 tenant_id=self.tenant_id,
                 period_key=period_key,
-                finalized_at=getattr(period_row, "finalized_at", None)
-                and period_row.finalized_at.isoformat()
-                or None,
+                finalized_at=finalized_iso,
                 trace_id=self.trace_id,
             )
 
@@ -518,7 +520,11 @@ class ClosingPeriodService:
         finalized_at: str,
         closing_snapshot_count: int,
     ) -> None:
-        """Audit-first emit (CR 1.1) for closing_period_confirmed."""
+        """Audit-first emit (CR 1.1) for closing_period_confirmed.
+
+        Payload is self-describing (CR 1.1 lesson) — includes actor_id
+        + tenant_id explicitly for downstream observability queries.
+        """
         try:
             await emit_audit_typed(
                 self.session,
@@ -531,6 +537,8 @@ class ClosingPeriodService:
                     "period_key": period_key,
                     "finalized_at": finalized_at,
                     "closing_snapshot_count": closing_snapshot_count,
+                    "actor_id": str(actor_id) if actor_id is not None else None,
+                    "tenant_id": str(self.tenant_id),
                     "trace_id": self.trace_id,
                 },
             )

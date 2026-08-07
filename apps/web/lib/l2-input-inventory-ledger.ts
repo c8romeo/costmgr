@@ -15,6 +15,19 @@
 
 import { Decimal } from "decimal.js";
 
+// ── 6-1 W2 ClosingSnapshotEvent re-export (5-2 W2 carry-over extension) ──
+//
+// Story 6.1 AC #2 wire: closing_snapshot ledger events flow through
+// ClosingPeriodService → LedgerService.append_event → 5-2 InventoryLedgerEvent
+// schema (11-value event_type whitelist, including "closing_snapshot" as
+// 11th value).
+//
+// Frontend consumption surface — both ClosingPeriodConfirmationPanel (to
+// preview "월 마감 확정: N건 snapshot 저장") and the ClosingGuardBanner
+// (5-3 wire) need the same wire shape. Re-exporting from closing-period.ts
+// keeps the SSOT in one place per AD-15 §11 parity.
+export type { ClosingSnapshotEvent } from "./closing-period";
+
 /**
  * Korean message SSOT (AD-15 §11 parity).
  * Mirrors `packages.services.m4_inventory.closing_guard.NEGATIVE_CLOSING_INVENTORY_KO`.
