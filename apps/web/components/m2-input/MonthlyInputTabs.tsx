@@ -26,6 +26,8 @@ import type { ClosingGuardAuditEntry, ProductionConsumptionEventWire } from "@/l
 import { cn } from "@/lib/utils";
 
 import { M2ClosingGuardBanner } from "./ClosingGuardBanner";
+import { ClosingPeriodConfirmationPanel } from "./ClosingPeriodConfirmationPanel";
+import { ClosingPeriodConfirmDialog } from "./ClosingPeriodConfirmDialog";
 import { MonthlyInputRowForm } from "./MonthlyInputRowForm";
 
 export type MonthlyInputTabId = "opening" | "subub" | "close";
@@ -64,6 +66,35 @@ export interface MonthlyInputTabsProps {
   opening_inventory_locked?: boolean;
   /** P3-3rd-sweep P25: trace ID for audit correlation. */
   trace_id?: string;
+  /**
+   * Story 6.1 T8.5 — closing period state for the [마감] tab panel.
+   * Additive on top of ClosingGuardBanner (5-3 wire).
+   */
+  closing_period_state?: import("@/lib/closing-period").ClosingPeriodState;
+  /**
+   * Story 6.1 T8.5 — MONTHLY_CLOSING_REPORT capability gate (A10).
+   * When false, ClosingPeriodConfirmationPanel is hidden entirely.
+   */
+  closing_period_capability_granted?: boolean;
+  /**
+   * Story 6.1 T8.5 — monthly_input_periods.finalized_at (ISO-8601 UTC)
+   * surfaced for ALREADY_CLOSED display.
+   */
+  closing_period_finalized_at?: string | null;
+  /**
+   * Story 6.1 T8.5 — handler fired when [마감 확정] is clicked.
+   * Wired up by the parent page to open ClosingPeriodConfirmDialog.
+   */
+  onClosingPeriodConfirmClick?: (
+    state: import("@/lib/closing-period").ClosingPeriodState,
+  ) => void;
+  /**
+   * Story 6.1 T8.5 — POST handler for closing-period confirmation.
+   * Returns the closing_snapshot_count written; throws on 409/403.
+   */
+  onClosingPeriodConfirm?: (
+    period_key: string,
+  ) => Promise<number>;
 }
 
 /**
@@ -86,8 +117,24 @@ export function MonthlyInputTabs({
   production_consumption_events,
   opening_inventory_locked = false,
   trace_id,
+  closing_period_state,
+  closing_period_capability_granted = true,
+  closing_period_finalized_at,
+  onClosingPeriodConfirmClick,
+  onClosingPeriodConfirm,
 }: MonthlyInputTabsProps): React.ReactElement {
   const is_blocked = isCloseBlocked(invariant);
+
+  // Story 6.1 T8.5 — internal dialog state. Opened when panel's
+  // onConfirmClick fires; rendered below.
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const handleConfirmClick = React.useCallback(
+    (s: import("@/lib/closing-period").ClosingPeriodState) => {
+      onClosingPeriodConfirmClick?.(s);
+      setDialogOpen(true);
+    },
+    [onClosingPeriodConfirmClick],
+  );
 
   return (
     <Tabs
@@ -162,6 +209,27 @@ export function MonthlyInputTabs({
             invariant={invariant}
             productNameLookup={productNameLookup}
           />
+          {/* Story 6.1 T8.5 — ClosingPeriodConfirmationPanel additive on top
+              of ClosingGuardBanner (5-3 wire). Same vertical stack; only
+              visible when MONTHLY_CLOSING_REPORT capability is granted (A10). */}
+          {closing_period_state && (
+            <ClosingPeriodConfirmationPanel
+              state={closing_period_state}
+              finalized_at={closing_period_finalized_at}
+              capability_granted={closing_period_capability_granted}
+              onConfirmClick={handleConfirmClick}
+            />
+          )}
+          {/* Story 6.1 T8.5 — Dialog open when panel button fires. */}
+          {closing_period_state && onClosingPeriodConfirm && (
+            <ClosingPeriodConfirmDialog
+              open={dialogOpen}
+              onOpenChange={setDialogOpen}
+              state={closing_period_state}
+              period_key={period_key}
+              onConfirm={onClosingPeriodConfirm}
+            />
+          )}
           <MonthlyInputRowForm
             is_blocked={is_blocked}
             period_key={period_key}

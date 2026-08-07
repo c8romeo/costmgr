@@ -47,5 +47,19 @@
     "opening_locked_helper": "기초재고 잠김 — 자동 이월 체인 활성. 수동 수정 불가",
     "opening_locked_toast": "기초재고는 자동 이월 체인에 의해 잠겼습니다",
     "audit_trail_title": "마감 검증 이력"
+  },
+  "closing_period": {
+    "panel_ready": "월 마감 확정 가능",
+    "panel_blocked": "마감 차단: 음수 기말재고",
+    "panel_already_closed": "이미 마감됨",
+    "panel_empty_period": "수불 event 0건: 마감 불가",
+    "confirm_button": "마감 확정",
+    "dialog_title": "월 마감 확정",
+    "dialog_description": "기말재고 snapshot 저장 후 reopen 불가. 확정하시겠습니까?",
+    "dialog_confirm": "확정",
+    "toast_success": "월 마감 확정 완료: closing_snapshot {N}건 저장",
+    "toast_error_blocked": "마감 차단: 음수 기말재고",
+    "toast_error_already_closed": "이미 마감됨",
+    "finalized_at_label": "마감 확정 시각"
   }
 }

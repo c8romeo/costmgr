@@ -640,6 +640,13 @@ export interface MonthlyInputStateResponse {
   // tenant skip path (industry='service' → invariant=null). Page falls back
   // to CLOSING_OK + guard_enabled=false (fail-closed) when null.
   closing_guard_invariant: ClosingInvariant | null;
+  // Story 6.1 T5.4 — 4 NEW closing-period fields (6-1 wire spec).
+  // Additive on top of 5-1 + 5-2 + 5-3 fields. Service-only tenant →
+  // closing_period_state=null (fail-closed fallback).
+  closing_period_state?: import("./closing-period").ClosingPeriodState | null;
+  closing_snapshot_count?: number;
+  closing_period_audit_trail?: ClosingGuardAuditEntry[];
+  closing_period_finalized_at?: string | null;
 }
 
 export async function fetchBom(

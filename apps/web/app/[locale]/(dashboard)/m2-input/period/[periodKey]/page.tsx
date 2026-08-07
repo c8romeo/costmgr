@@ -81,6 +81,12 @@ export default async function MonthlyInputPeriodPage({
   const productionConsumptionEvents =
     initialState?.production_consumption_events ?? [];
 
+  // Story 6.1 T8.6 — 4 NEW closing-period fields from MonthlyInputStateResponse.
+  const closingPeriodState = initialState?.closing_period_state ?? null;
+  const closingSnapshotCount = initialState?.closing_snapshot_count ?? 0;
+  const closingPeriodFinalizedAt =
+    initialState?.closing_period_finalized_at ?? null;
+
   return (
     <section style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem" }}>
       <header style={{ marginBottom: "1.25rem" }}>
@@ -92,7 +98,8 @@ export default async function MonthlyInputPeriodPage({
         </p>
       </header>
       {/* P3-3rd-sweep P1: project all 5 NEW fields. P3: opening locked.
-          P25: traceId. P26: productNameLookup. P27: onSubmit no-op. */}
+          P25: traceId. P26: productNameLookup. P27: onSubmit no-op.
+          Story 6.1 T8.6 — closing_period_state + capability gate + onConfirm. */}
       <MonthlyInputTabs
         period_key={periodKey}
         invariant={invariant}
@@ -101,11 +108,40 @@ export default async function MonthlyInputPeriodPage({
         opening_inventory_locked={openingInventoryLocked}
         trace_id={traceId}
         productNameLookup={{}}
+        closing_period_state={closingPeriodState ?? undefined}
+        closing_period_capability_granted={closingPeriodState != null}
+        closing_period_finalized_at={closingPeriodFinalizedAt}
         onSubmit={async (key) => {
           // P3-3rd-sweep P27: no-op save handler for [수불부] tab in
           // CLOSING_OK path. Real save flow wires through useSaveRow hook
           // in follow-up Story (currently saves via api-client directly).
           await Promise.resolve(key);
+        }}
+        onClosingPeriodConfirm={async (key) => {
+          // Story 6.1 T8.6 — POST /api/v1/inventory/closing-period/confirm.
+          // Best-effort: throw on 409/403 so the Dialog surfaces toast.error.
+          const res = await fetch("/api/v1/inventory/closing-period/confirm", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({ period_key: key }),
+          });
+          if (!res.ok) {
+            const body = (await res.json().catch(() => ({}))) as {
+              error?: { code?: string };
+            };
+            const err = new Error("ClosingPeriodConfirmError") as Error & {
+              response?: { data?: { error?: { code?: string } } };
+            };
+            err.response = { data: body };
+            throw err;
+          }
+          const data = (await res.json()) as {
+            closing_snapshot_count?: number;
+          };
+          return data.closing_snapshot_count ?? closingSnapshotCount;
         }}
       />
     </section>
