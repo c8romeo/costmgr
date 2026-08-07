@@ -397,7 +397,7 @@ project 합니다:
 | Field | Type | Source | 비고 |
 |---|---|---|---|
 | `closing_guard_blocked` | `bool` | `ClosingGuardService.evaluate_closing_guard().invariant.code == 'NEGATIVE_CLOSING'` | Frontend [마감] button disabled gate. |
-| `closing_guard_audit_trail` | `list[AuditLogEntry]` | `audit_logs WHERE action='closing_guard_passed' OR 'closing_guard_violated'` ORDER BY `created_at DESC` LIMIT 50 | Frontend [마감 검증 이력] tab render. |
+| `closing_guard_audit_trail` | `list[AuditLogEntry]` | `audit_logs WHERE action='closing_guard_passed' OR 'closing_guard_violated'` ORDER BY `created_at DESC` LIMIT 10 | Frontend [마감 검증 이력] tab render. |
 | `production_consumption_events` | `list[InventoryLedgerEvent]` | `closing_guard_service.emit_production_ledger_events` 최근 호출 결과 (per period) | BOM-aware ledger event preview for [수불부] tab. |
 | `v3_verdict` | `V3Verdict \| None` | `ClosingInvariantVerifier.verify_v3_closing_invariant` 4-3 V3 slot fill | Status='passed'/'failed'/'skipped' + failures + skip_reason_ko. |
 | `closing_guard_invariant` | `ClosingInvariant` | `ClosingGuardService.evaluate_closing_guard().invariant` | Typed `code` + `message_ko` + `closing_per_product` dict. |

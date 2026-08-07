@@ -222,3 +222,59 @@ The 6 deferred items above (T4-T9) **complement** (not replace) the 5 defer entr
 - **Dismiss**: 0 items.
 - **3중 게이트 validation**: CLEAN — ruff scoped 0 errors / import-linter 2 KEPT 0 broken / pytest 1096 passed + 118 skipped + 0 failed (matches pre-fix baseline).
 - **Story status**: review → in-progress (T2 reject noted + T4-T9 unresolved + spec-deviations D4-D15 carry).
+
+---
+
+## Deferred from: 3rd-sweep bmad-code-review of 5-3-negative-closing-inventory-guard (2026-08-07)
+
+> Re-review of T4-T9 + D4-D15 carry 재실행 (commit 3045f50). Diff = 1,227 lines / 12 files. 3 reviewers (Blind Hunter + Edge Case Hunter + Acceptance Auditor) parallel → 73 raw → 32 deduped → 0 decision + 32 patch + 16 defer + 13 dismiss. 3중 게이트 pre-sweep clean (ruff 0 / import-linter 2 KEPT / pytest 1108+ passed + 118 skipped / tsc clean / vitest 23/23). All patches left as action items in spec `### Review Findings` 3rd-sweep section.
+
+- **D1** — `tests/api/m2_input/test_monthly_input_state_extension.py` still MISSING. Continuation of 2nd-sweep T5 defer (T12.1 resolved by 3rd-sweep carry, T12.2 unresolved). ~14 cases for `get_state` extension 5 NEW fields + state-extension integration. **Epic 5 close-out retro A8 candidate** (5-1.1 follow-up test gap carry).
+
+- **D2** — vitest `test_tabs_render_three_navigation` no active tab check (defaultTab='subub' not asserted). Cosmetic. Test coverage follow-up.
+
+- **D3** — page.tsx inline styles (`#475569`, `#fef2f2`, `#991b1b`) instead of shadcn theme tokens. Pre-existing — not 5-3 specific. Design system migration follow-up.
+
+- **D4** — m2-input `ClosingGuardBanner` `<AlertDescription>` wraps `<ul>` (semantic smell). Pre-existing pattern. UX/accessibility follow-up.
+
+- **D5** — `apps/web/tsconfig.tsbuildinfo` committed (build artifact, not source). Hygiene. `.gitignore` follow-up.
+
+- **D6** — Type duplication `ClosingInvariant` / `ClosingInvariantCode` between `apps/web/lib/api-client.ts:570-580` and `apps/web/lib/l2-input-inventory-ledger.ts:73-80`. Pre-existing. Type-alias consolidation follow-up.
+
+- **D7** — `NEGATIVE_CLOSING_INVENTORY_KO` dual export with unused `_NEGATIVE_CLOSING_INVENTORY_KO_SSOT` re-export alias (`apps/web/lib/closing-guard.ts:38, 44`). Pre-existing fragile pattern. Dead-code cleanup follow-up.
+
+- **D8** — T11 dual-component pattern — git grep verification narrative-only. T11 disposition (no git rm) correct; current 3rd-sweep re-surfaced m4 sort-after-slice bug (patched as P16 high). Narrative refinement follow-up.
+
+- **D9** — T17 D5 URL function-name inconsistency — `requestClosingGuardAttempt` (verb-first function) vs route `close-attempt` (noun-first). Pre-existing. Naming-convention cleanup follow-up.
+
+- **D10** — Dual `vi.mock("sonner")` between `apps/web/__tests__/closing-guard-banner.test.tsx` and `apps/web/__tests__/monthly-input-tabs.test.tsx` — subtle mock reference risk on `await import("sonner")`. No observed failure in 3중 게이트. Mock consolidation follow-up.
+
+- **D11** — vitest `OpeningInventoryField` `dispatchEvent` synthetic click bypasses jsdom disabled-fieldset click enforcement (`apps/web/__tests__/opening-inventory-edit-reject.test.tsx:121`). Acknowledged in test comment. JSDOM limitation follow-up.
+
+- **D12** — page.tsx periodKey YYYY-MM validation missing (frontend). Validation is backend's responsibility (AD-24 typed period-key). Frontend silent fallback acceptable. Backend contract is SSOT.
+
+- **D13** — vitest `NEGATIVE_CLOSING` with empty `negative_products` case uncovered. Test coverage gap. Coverage expansion follow-up.
+
+- **D14** — vitest `EMPTY_PERIOD + guard_enabled=true` case uncovered. Test coverage gap. Coverage expansion follow-up.
+
+- **D15** — vitest non-empty `closing_per_product` rendering branch uncovered. Test coverage gap. Coverage expansion follow-up.
+
+- **D16** — vitest `closing-guard-banner.test.tsx:111-112` `getAllByText(/019200a0/).length >= 2` has no upper bound (loose assertion). Coverage expansion follow-up.
+
+### Disambiguation vs prior 5-3 sweep deferrals
+
+The 16 items above **complement** (not replace) the prior 5-3 deferrals:
+- 1st-sweep (2026-08-04): 5 items (Defer-1~5: perf micro-opt / AD-11 boundary / signature uniformity / style nit / AC#8 determinism)
+- 1st-sweep carry-over closed: 6 items (M14/L8/W1/W2/W3/W4 — 5-1/5-2 carry)
+- 2nd-sweep (2026-08-06): 6 items (T4-T9: dead code / test gap / docs / tabs structure / page.tsx / Playwright)
+
+D1 is the **only direct carry-over** (continuation of 2nd-sweep T5). D2-D16 are 3rd-sweep-surfaced items distinct from prior deferrals.
+
+### Story 5.3 3rd-sweep resolution summary
+
+- **Patches**: 32 (16 high + 16 medium). All left as action items in spec `### Review Findings` 3rd-sweep section. Patches range: page.tsx wire (P1-P3, P25-P28), Playwright E2E URL/testids/seed (P4-P5, P8, P18-P21), vitest placeholder tests (P6-P7), m3-verdict V3 omission (P9-P10), backend wire shape (P11-P13, P17, P29), reversal test quality (P14-P15, P30), m4 banner sort (P16), server-api hardening (P22-P23), page.tsx error boundary (P24), vitest toast variant (P31), service-only tenant skip type (P32).
+- **Defer**: 16 items (1 carry-over + 15 new).
+- **Dismiss**: 13 items (5 Auditor looked in wrong dir + 8 verified-clean / pre-existing / not-real-issue).
+- **3중 게이트 validation**: Pre-sweep clean (unchanged; 3rd sweep does NOT modify code).
+- **Story status**: review → in-progress (32 patches pending + 1 carry-over defer).
+

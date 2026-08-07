@@ -156,6 +156,9 @@ export async function fetchBomServerSide(
  * closing_guard_audit_trail, production_consumption_events, v3_verdict,
  * closing_guard_invariant). Returns null on failure so the Client Component
  * can fall back to polling (existing pattern from F-20).
+ *
+ * P3-3rd-sweep P22: AbortSignal timeout (5s) prevents RSC render hang on
+ * backend stall. P23: encodeURIComponent(periodKey) for safe path interpolation.
  */
 export async function fetchMonthlyInputStateServerSide(
   periodKey: string,
@@ -168,13 +171,18 @@ export async function fetchMonthlyInputStateServerSide(
   }
   headers.set("X-Trace-Id", traceId);
 
+  // P3-3rd-sweep P22: 5s AbortController timeout prevents indefinite RSC stall.
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
   try {
     const res = await fetch(
-      `${apiBaseUrl()}/api/v2/monthly-input/${periodKey}/state`,
+      `${apiBaseUrl()}/api/v2/monthly-input/${encodeURIComponent(periodKey)}/state`,
       {
         method: "GET",
         headers,
         cache: "no-store",
+        signal: abortCtl.signal,
       },
     );
     if (!res.ok) return null;
@@ -182,5 +190,7 @@ export async function fetchMonthlyInputStateServerSide(
     return data;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

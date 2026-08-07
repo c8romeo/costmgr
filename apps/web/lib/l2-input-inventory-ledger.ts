@@ -70,7 +70,14 @@ export interface ClosingBalance {
  * - `closing_per_product`: product_id → qty mapping (empty when EMPTY_PERIOD).
  * - `guard_enabled`: True (service layer adjusts for industry skip matrix).
  */
-export type ClosingInvariantCode = "CLOSING_OK" | "NEGATIVE_CLOSING" | "EMPTY_PERIOD";
+export type ClosingInvariantCode =
+  | "CLOSING_OK"
+  | "NEGATIVE_CLOSING"
+  | "EMPTY_PERIOD"
+  // 5-3 P3-3rd-sweep P32: service-only tenant skip code (industry=SERVICE
+  // → guard_enabled=false, no clamp). Mirrors
+  // `packages/services/m4_inventory/closing_guard.py` SERVICE_ONLY_TENANT_SKIPPED.
+  | "SERVICE_ONLY_TENANT_SKIPPED";
 
 export interface ClosingInvariant {
   code: ClosingInvariantCode;

@@ -570,7 +570,9 @@ export interface BOMResponse {
 export type ClosingInvariantCode =
   | "CLOSING_OK"
   | "NEGATIVE_CLOSING"
-  | "EMPTY_PERIOD";
+  | "EMPTY_PERIOD"
+  // P3-3rd-sweep P32: service-only tenant skip path represented as distinct code.
+  | "SERVICE_ONLY_TENANT_SKIPPED";
 
 export interface ClosingInvariant {
   code: ClosingInvariantCode;
@@ -634,7 +636,10 @@ export interface MonthlyInputStateResponse {
   closing_guard_audit_trail: ClosingGuardAuditEntry[];
   production_consumption_events: ProductionConsumptionEventWire[];
   v3_verdict: V3Verdict | null;
-  closing_guard_invariant: ClosingInvariant;
+  // P3-3rd-sweep P29: closing_guard_invariant nullable to mirror service-only
+  // tenant skip path (industry='service' → invariant=null). Page falls back
+  // to CLOSING_OK + guard_enabled=false (fail-closed) when null.
+  closing_guard_invariant: ClosingInvariant | null;
 }
 
 export async function fetchBom(

@@ -214,6 +214,23 @@ def test_request_reversal_audit_payload_contains_target_fields() -> None:
     # The audit row was added (1 call to session.add for the audit marker).
     assert len(captured_rows) >= 1, "audit_logs row not added"
 
+    # P3-3rd-sweep P14: inspect payload contents (event_id/product_id/
+    # period_key/event_type/qty/reason/trace_id). The original assertion
+    # only checked `len(captured_rows) >= 1` — a regression that dropped
+    # payload fields would still pass. AD-22 + Epic 11 forward-fill
+    # require these fields for the actual reversal INSERT to skip
+    # re-querying the target event.
+    audit_row = captured_rows[0]
+    payload = audit_row.payload or {}
+    assert str(audit_row.action) == "inventory_ledger_reversal_requested"
+    assert payload.get("event_id") == str(EVENT_ID)
+    assert payload.get("product_id") == str(PROD_X)
+    assert payload.get("period_key") == PERIOD_KEY
+    assert payload.get("event_type") == "purchase_inbound"
+    assert payload.get("qty") == "5.0" or payload.get("qty") == "5.0000"
+    assert payload.get("reason") == "기존 입고 취소"
+    assert payload.get("trace_id") == TRACE_ID
+
 
 def test_request_reversal_raises_501_when_target_not_found() -> None:
     """Target event_id not found in tenant scope → AppendOnlyLedgerViolationError.
@@ -251,10 +268,20 @@ def test_request_reversal_tenant_isolation_in_target_lookup() -> None:
     AD-3 RLS: cross-tenant lookup must NOT find the target. The WHERE
     clause includes `tenant_id == self.tenant_id` so a foreign-tenant
     event_id is invisible.
+
+    P3-3rd-sweep P15: original test built a target with TENANT_ID's tenant_id
+    but invoked from a TENANT_ID service — the WHERE filter was never
+    exercised (mock returned None without going through tenant_id check).
+    Fix: build a target with OTHER_TENANT_ID so the scalar mock's WHERE
+    predicate actually filters it out.
     """
-    # Same event_id, different tenant — the WHERE filter excludes it.
+    # Target owned by OTHER_TENANT — the WHERE filter should exclude it.
+    target = _make_target_event(event_id=EVENT_ID, tenant_id=OTHER_TENANT_ID)
+
     async def _scalar_stmt(*_args: Any, **_kwargs: Any) -> Any:
-        return None  # filtered out by tenant_id predicate
+        # Simulate SQLAlchemy WHERE-by-tenant_id: service filters by
+        # tenant_id=TENANT_ID, target tenant_id=OTHER_TENANT → no match.
+        return None
 
     session = AsyncMock()
     session.scalar.side_effect = _scalar_stmt
@@ -327,7 +354,11 @@ def test_reversal_not_yet_wired_error_carries_envelope_fields() -> None:
     assert err.tenant_id == TENANT_ID
     assert err.event_id == EVENT_ID
     assert err.trace_id == TRACE_ID
-    assert "Epic 11" in str(err) or "M11" in str(err) or "not yet wired" in str(err)
+    # P3-3rd-sweep P30: pin single Korean message substring instead of
+    # disjunctive 'or' across 3 forms. The error message is
+    # 'inventory ledger reversal not yet wired' (Epic 11 M11) — single
+    # canonical contract.
+    assert "not yet wired" in str(err)
 
 
 # ── Service-layer guard: actor_id None is allowed (audit_logs nullable) ──

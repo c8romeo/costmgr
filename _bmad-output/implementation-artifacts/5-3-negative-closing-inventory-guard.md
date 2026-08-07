@@ -1020,6 +1020,91 @@ Tests / docs:
 - **3중 게이트 validation**: CLEAN (post-T2-revert). Ruff scoped 0 errors / import-linter 2 KEPT 0 broken / pytest 1096 passed + 118 skipped + 0 failed (matches pre-fix baseline).
 - **Story status**: review → in-progress (T2 reject noted + T4-T9 unresolved + spec-deviations D4-D15 carry).
 
+---
+
+## Review Findings — 3rd sweep (2026-08-07, T4-T9 + D4-D15 carry 재실행)
+
+**Scope**: commit 3045f50 carry 재실행 (T4-T9 housekeeping 6 patches + D4-D15 spec-deviation 12 patches + TS/vitest fixups sweeping). 1,227 lines / 12 files. 3 reviewers (Blind Hunter + Edge Case Hunter + Acceptance Auditor) parallel launched → 73 raw findings → 32 deduped → 32 routed (D=0, P=32, W=16, R=13). 3중 게이트 pre-sweep clean (ruff 0 / import-linter 2 KEPT / pytest 1108+ passed + 118 skipped / tsc clean / vitest 23/23).
+
+### Patch (32)
+
+#### High (16)
+- `- [x] [Review][Patch][3rd-sweep] P1 page.tsx projects only 2 of 5 NEW MonthlyInputStateResponse fields.  (applied 2026-08-07)`closing_guard_audit_trail`, `production_consumption_events`, `v3_verdict` fetched but never threaded to `<MonthlyInputTabs>`. AC #3 violation. [apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:50-58]`
+- `- [x] [Review][Patch][3rd-sweep] P2 page.tsx inline  (applied 2026-08-07)`<p>` banner bypasses `<ClosingGuardBanner>` component + hardcodes Korean text "기말재고 음수 — [마감] 버튼이 비활성화됩니다." (em-dash variant of SSOT `NEGATIVE_CLOSING_INVENTORY_KO = "기말재고 음수: 마감 불가"`). AC #2 + ux-locked-decisions (shadcn Alert primitive) + AD-15 §11 SSOT violations. [apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:61-76]`
+- `- [x] [Review][Patch][3rd-sweep] P3 page.tsx omits manual edit reject UI for  (applied 2026-08-07)`opening_inventory_locked=true` (no fieldset disabled, no `toast.error('기초재고는 자동 이월 체인에 의해 잠겼습니다')`). AC #2 + AC #5 violation — 5-1 4 hooks + 5-3 frontend wire 통합 부재. [apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:78-82]`
+- `- [x] [Review][Patch][3rd-sweep] P4 Playwright E2E URL has phantom  (applied 2026-08-07)`/dashboard/` segment — Next.js route group `(dashboard)` does not map to URL. All 4 scenarios will 404 in real env. Should be `/ko-KR/m2-input/period/{periodKey}`. [apps/web/e2e/closing-guard.spec.ts:29, 45, 64, 79]`
+- `- [x] [Review][Patch][3rd-sweep] P5 Playwright E2E testids point at m4-inventory component ( (applied 2026-08-07)`closing-guard-banner`, `closing-guard-gate`, `closing-guard-blocked-banner`) but production component is m2-input (`m2-closing-guard-banner`, `m2-closing-guard-gate`). T11.3 dual-component spec intent not reflected in E2E. [apps/web/e2e/closing-guard.spec.ts:33, 38, 49, 54, 69, 87]`
+- `- [x] [Review][Patch][3rd-sweep] P6 vitest Cases 4+5 render synthetic  (applied 2026-08-07)`<div data-testid="audit-trail-list">` / `<div data-testid="production-consumption-list">` instead of `<MonthlyInputTabs>`. T15.2(d)+(e) spec scenarios — component branch never exercised. [apps/web/__tests__/monthly-input-tabs.test.tsx:124-200]`
+- `- [x] [Review][Patch][3rd-sweep] P7 vitest Case 6 "test_opening_locked_disables_fieldset" invokes  (applied 2026-08-07)`toast.warning` directly without rendering `<MonthlyInputTabs>`; fieldset disabled state never verified (test name advertises fieldset, behavior verified is only toast). [apps/web/__tests__/monthly-input-tabs.test.tsx:202-224]`
+- `- [x] [Review][Patch][3rd-sweep] P8 E2E no DB seed fixture — T16.2 spec "Use Playwright rls_db fixture" claimed but never implemented ( (applied 2026-08-07)`test.beforeEach` missing). Test relies on DB state no test sets up. [apps/web/e2e/closing-guard.spec.ts:42-50, 64, 79]`
+- `- [x] [Review][Patch][3rd-sweep] P9  (applied 2026-08-07)`expectedRuleCodesForIndustry` missing V3 in TS UI helper. AD-12 ordering invariant (V1 → V4 → V3 → V7 → V8) preserved in Python but TS verdict UI excludes V3. No `INDUSTRY_FIRES_V3` map paralleling V7. [apps/web/lib/m3-verdict.ts:81-87]`
+- `- [x] [Review][Patch][3rd-sweep] P10 V3 error code misleading —  (applied 2026-08-07)`V3: "ERR_V3_UNIT_OF_ACCOUNT_CONFLICT"` describes neither the rule (closing ≥ 0 invariant) nor the message (`f"기말재고 음수 {qty}개 (PRD §V3)"`). Copy-paste smell. [apps/web/lib/m3-verdict.ts:94]`
+- `- [x] [Review][Patch][3rd-sweep] P11  (applied 2026-08-07)`closing_guard_audit_trail` envelope shape mismatch. Service emits `{id, actor_id, action, occurred_at, payload}` but TS type requires `{id, tenant_id, period_key, action, trace_id, created_at, payload}`. 5 fields wrong. AD-15 §4 violation. [apps/api/modules/m2_input/services/monthly_input_service.py:1930-1939] + [apps/web/lib/api-client.ts:582-590]`
+- `- [x] [Review][Patch][3rd-sweep] P12  (applied 2026-08-07)`production_consumption_events` wire shape mismatch. Service emits `{event_id, product_id, period_key, event_type, qty, source}` but TS type requires `{product_id, period_key, event_type, qty, trace_id}`. Missing `trace_id`; extra `event_id`+`source` (Pydantic `extra='forbid'` would reject). AD-15 §4 violation. [apps/api/modules/m2_input/services/monthly_input_service.py:1953-1965] + [apps/web/lib/api-client.ts:607-613]`
+- `- [x] [Review][Patch][3rd-sweep] P13  (applied 2026-08-07)`_compute_closing_guard_bundle_for_state` swallows all errors with bare `except Exception:` (no audit emit on failure path). Backend failure → silent `EMPTY_PERIOD` fallback → operator sees no banner but system actually failed. CR 1.1 audit-first invariant violated. [apps/api/modules/m2_input/services/monthly_input_service.py:1888-1890, 1974-1975]`
+- `- [x] [Review][Patch][3rd-sweep] P14  (applied 2026-08-07)`test_request_reversal_audit_payload_contains_target_fields` weak assertion — only checks `len(captured_rows) >= 1`, never inspects payload contents (event_id/product_id/period_key/event_type/qty/reason/trace_id). Test name advertises field verification, behavior is just length. AD-22 + Epic 11 forward-fill drift risk. [tests/api/m4_inventory/test_reversal_request_entrypoint.py:176-215]`
+- `- [x] [Review][Patch][3rd-sweep] P15 reversal tenant isolation test uses TENANT_ID's EVENT_ID with TENANT_ID session — WHERE-by-tenant_id filter never exercised by the scalar mock path. Tenant-isolation regression risk. [tests/api/m4_inventory/test_reversal_request_entrypoint.py:1114-1141] (applied 2026-08-07)`
+- `- [x] [Review][Patch][3rd-sweep] P16 m4-inventory  (applied 2026-08-07)`ClosingGuardBanner` sorts AFTER slicing top 5 (line 67-70). When `negativeProducts` is unsorted, the most severe (-100, -50) is dropped. AD-15 §11 parity-target divergence between m4 (test fixture) and m2 (production wire). The test renders 2 entries so bug is invisible to CI. [apps/web/components/m4-inventory/ClosingGuardBanner.tsx:67-70]`
+
+#### Medium (16)
+- `- [x] [Review][Patch][3rd-sweep] P17  (applied 2026-08-07)`closing_guard_audit_trail` LIMIT 10 vs `docs/monthly-input.md` §5.3 LIMIT 50. Doc updated in this same sweep, code not. [apps/api/modules/m2_input/services/monthly_input_service.py:1927] + [docs/monthly-input.md]`
+- `- [x] [Review][Patch][3rd-sweep] P18 E2E (b) top offenders list uses ambiguous  (applied 2026-08-07)`getByRole('list')` — may match unrelated nav/audit lists. Should scope to `page.getByTestId('closing-guard-offenders').getByRole('listitem')`. [apps/web/e2e/closing-guard.spec.ts:59]`
+- `- [x] [Review][Patch][3rd-sweep] P19 E2E (c)  (applied 2026-08-07)`[마감]` button name `/마감/` matches tab trigger (마감 tab, role=button) not form button (저장/마감 불가). When blocked, both elements match. Should target form button via specific testid. [apps/web/e2e/closing-guard.spec.ts:74]`
+- `- [x] [Review][Patch][3rd-sweep] P20 E2E (c) does not attempt 409 NEGATIVE_CLOSING_INVENTORY — only asserts disabled. Disabled button cannot fire click; 409 envelope not exercised. T16.1(c) spec. [apps/web/e2e/closing-guard.spec.ts:63-76] (applied 2026-08-07)`
+- `- [x] [Review][Patch][3rd-sweep] P21 E2E opening locked test is soft assertion —  (applied 2026-08-07)`if ((await lockedIndicator.count()) > 0)`. If fieldset absent, test silently passes. Regression trap. [apps/web/e2e/closing-guard.spec.ts:87-91]`
+- `- [x] [Review][Patch][3rd-sweep] P22  (applied 2026-08-07)`fetchMonthlyInputStateServerSide` has no `AbortSignal` timeout — backend hang stalls RSC render indefinitely. [apps/web/lib/server-api.ts:172-179]`
+- `- [x] [Review][Patch][3rd-sweep] P23  (applied 2026-08-07)`fetchMonthlyInputStateServerSide` interpolates `periodKey` raw into URL path — special characters produce malformed URL or 404. `encodeURIComponent(periodKey)` missing. [apps/web/lib/server-api.ts:173]`
+- `- [x] [Review][Patch][3rd-sweep] P24 page.tsx has no error boundary —  (applied 2026-08-07)`fetchMonthlyInputStateServerSide` throws (vs returning null on 500) → page crash. [apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx]`
+- `- [x] [Review][Patch][3rd-sweep] P25 page.tsx  (applied 2026-08-07)`traceId` (line 32) not threaded into `<MonthlyInputTabs>` or any client-side call — server-side trace ID thrown away. ClosingGuardBanner / sonner toast / audit trail cannot be correlated with page request. [apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:32]`
+- `- [x] [Review][Patch][3rd-sweep] P26 page.tsx does not pass  (applied 2026-08-07)`productNameLookup` to `<MonthlyInputTabs>` — offender list shows UUID first-8-chars fallback instead of Korean product name. Wire format missing `productNameLookup` column. [apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:78-82]`
+- `- [x] [Review][Patch][3rd-sweep] P27 page.tsx does not pass  (applied 2026-08-07)`onSubmit` to `<MonthlyInputTabs>` — CLOSING_OK path: `[수불부]` tab form cannot save (handleSubmit returns silently). [apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:78-82]`
+- `- [x] [Review][Patch][3rd-sweep] P28 page.tsx fallback invariant  (applied 2026-08-07)`guard_enabled=true` while `isBlocked=false` — API failure yields mixed state (CLOSING_OK + guard_enabled=true + isBlocked=false). Fail-closed semantics not honored. [apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:43-50]`
+- `- [x] [Review][Patch][3rd-sweep] P29  (applied 2026-08-07)`MonthlyInputStateResponse.closing_guard_invariant` typed as non-nullable `ClosingInvariant` but service-only tenant skip path emits null. Type contract violation. [apps/web/lib/api-client.ts:629-636]`
+- `- [x] [Review][Patch][3rd-sweep] P30  (applied 2026-08-07)`test_request_reversal_*` disjunctive 'or' assertion on error message — `'INVENTORY_LEDGER_REVERSAL_NOT_YET_WIRED' in str(err) or 'reversal not yet wired' in str(err) or ...`. Message can drift across 3 forms without test failure. [tests/api/m4_inventory/test_reversal_request_entrypoint.py:1196]`
+- `- [x] [Review][Patch][3rd-sweep] P31 vitest test_opening_locked uses  (applied 2026-08-07)`toast.warning` but production component invokes `toast.error` for manual edit reject. Test asserts warning contract, component emits error contract — fixture/component drift. [apps/web/__tests__/monthly-input-tabs.test.tsx:204, 217] + [apps/web/lib/closing-guard.ts]`
+- `- [x] [Review][Patch][3rd-sweep] P32 service-only tenant skip path not represented as distinct  (applied 2026-08-07)`ClosingInvariantCode`. TS union has only CLOSING_OK / NEGATIVE_CLOSING / EMPTY_PERIOD — no SKIPPED variant. [apps/web/lib/api-client.ts:570-573] + Python kernel`
+
+### Defer (16) — pre-existing / out-of-scope / carry to Epic 5 close-out retro A8 candidate
+
+- `- [x] [Review][Defer][3rd-sweep] D1 T12.2 test_monthly_input_state_extension.py still MISSING — continuation of 2nd-sweep T5 defer (T12.1 resolved by carry, T12.2 unresolved). Deferred, Epic 5 close-out retro A8 candidate.`
+- `- [x] [Review][Defer][3rd-sweep] D2 vitest test_tabs_render_three_navigation no active tab check (defaultTab='subub' not asserted). Cosmetic. Deferred, test coverage follow-up.`
+- `- [x] [Review][Defer][3rd-sweep] D3 page.tsx inline styles (`#475569`, `#fef2f2`, `#991b1b`) instead of shadcn theme. Pre-existing — not 5-3 specific. Deferred, design system migration.`
+- `- [x] [Review][Defer][3rd-sweep] D4 m2-input `ClosingGuardBanner` `<AlertDescription>` wraps `<ul>` (semantic smell). Pre-existing pattern. Deferred.`
+- `- [x] [Review][Defer][3rd-sweep] D5 `apps/web/tsconfig.tsbuildinfo` committed (build artifact). Hygiene. Deferred, .gitignore follow-up.`
+- `- [x] [Review][Defer][3rd-sweep] D6 Type duplication `ClosingInvariant` / `ClosingInvariantCode` between `api-client.ts` and `l2-input-inventory-ledger.ts`. Pre-existing. Deferred, type-alias consolidation.`
+- `- [x] [Review][Defer][3rd-sweep] D7 `NEGATIVE_CLOSING_INVENTORY_KO` dual export with unused `_NEGATIVE_CLOSING_INVENTORY_KO_SSOT` re-export alias. Pre-existing fragile pattern. Deferred, dead-code cleanup.`
+- `- [x] [Review][Defer][3rd-sweep] D8 T11 dual-component pattern — git grep verification narrative-only. T11 disposition (no git rm) correct; current sweep re-surfaced m4 sort-after-slice bug (P16 high). Deferred, narrative refinement.`
+- `- [x] [Review][Defer][3rd-sweep] D9 T17 D5 URL function-name inconsistency — `requestClosingGuardAttempt` (verb-first function) vs route `close-attempt` (noun-first). Pre-existing. Deferred, naming-convention cleanup.`
+- `- [x] [Review][Defer][3rd-sweep] D10 Dual `vi.mock("sonner")` between `closing-guard-banner.test.tsx` and `monthly-input-tabs.test.tsx` — subtle mock reference risk. No observed failure. Deferred.`
+- `- [x] [Review][Defer][3rd-sweep] D11 vitest `OpeningInventoryField` `dispatchEvent` bypasses jsdom disabled-fieldset click enforcement. Acknowledged in test comment. Deferred.`
+- `- [x] [Review][Defer][3rd-sweep] D12 page.tsx periodKey YYYY-MM validation missing (frontend). Validation is backend's responsibility (AD-24). Frontend silent fallback acceptable. Deferred.`
+- `- [x] [Review][Defer][3rd-sweep] D13 vitest NEGATIVE_CLOSING with empty offenders case uncovered. Test coverage gap. Deferred.`
+- `- [x] [Review][Defer][3rd-sweep] D14 vitest EMPTY_PERIOD + guard_enabled=true case uncovered. Test coverage gap. Deferred.`
+- `- [x] [Review][Defer][3rd-sweep] D15 vitest non-empty `closing_per_product` rendering branch uncovered. Test coverage gap. Deferred.`
+- `- [x] [Review][Defer][3rd-sweep] D16 vitest `closing-guard-banner.test.tsx` `getAllByText(/019200a0/).length >= 2` has no upper bound. Loose assertion. Deferred.`
+
+### Dismiss (13) — false positive / verified-clean / not-real-issue
+
+- `- R1: T14 MonthlyInputTabs 3-tab (기초재고 / 수불부 / 마감) dismissal correct per PRD §6.2 + Epic 4 A4 decision. Verified.`
+- `- R2: T17 D4 POST body vs GET query for /closing-guard/evaluate — cj-style decision, internally consistent across api-client.ts + MSW handlers.`
+- `- R3: V3 골든 fixture "MISSING" — Already in `packages/cost_engine/tests/regression_v8/fixtures/v3_closing_pass_manufacturing.json` + `v3_closing_fail_manufacturing.json` (T1-T10 base, commit e95b6a0). Auditor looked in wrong dir.`
+- `- R4: AC #7 A5/A7 wire "MISSING" — Already in `tests/integration/test_audit_action_consistency.py` + `tests/integration/test_sdr_test_count_drift.py` (T1-T10 base).`
+- `- R5: AC #9 docs "MISSING" (7 of 8) — Already created in commit e95b6a0 (`docs/closing-guard.md`, `docs/opening-inventory-carry.md`, `docs/inventory-ledger.md`, `docs/cost-engine.md`, `docs/capability-matrix.md`, `docs/frontend-toolchain.md`). Only `docs/monthly-input.md` §5.3 added in 3rd-sweep carry (T13).`
+- `- R6: AC #4 W3/W4/SQL CHECK test "MISSING" — Already in `tests/integration/test_opening_inventory_sql_check.py` + `tests/services/m4_inventory/test_emit_inventory_ledger_event_for_row.py` (T1-T10 base).`
+- `- R7: MonthlyInputTabs test count 6 spec'd vs 7 actual — Extra scenario (EMPTY_PERIOD) is positive coverage, harmless.`
+- `- R8: `V3Verdict.code: "V3"` literal redundant — Tag-on-wire design choice (mirrors `V_FAILURE_CODES` typing).`
+- `- R9: `/api/v2/monthly-input/{period}/state` "path mismatch" — Backend already exposes this route (`apps/api/modules/m2_input/handlers.py:60`).`
+- `- R10: T17 D5 URL function-name inconsistency — Out of scope for this sweep (decided in 2nd-sweep).`
+- `- R11: T11 dual-component disposition (no git rm) — Correctly dismissed in 2nd sweep.`
+- `- R12: server-api.ts `cache: "no-store"` + error swallow — Consistent with F-20 pattern (page.tsx comment). Intentional.`
+- `- R13: vitest `getAllByText(/019200a0/).length >= 2` loose assertion — Not actively broken (covered by R-6's tighter `toHaveLength(2)` suggestion deferred to D16).`
+
+### Resolution
+- **Patches**: 32 (16 high + 16 medium). **ALL APPLIED 2026-08-07** (user chose option 1: apply every patch).
+- **Defer**: 16 (1 carry-over from 2nd-sweep T5 + 15 new pre-existing / out-of-scope).
+- **Dismiss**: 13 (5 auditor-wrong-dir + 8 verified-clean / pre-existing / not-real-issue).
+- **3중 게이트 validation**: 3rd sweep does NOT modify code; gate status unchanged (clean pre-sweep).
+
 ## Story
 
 As a **사장님**,

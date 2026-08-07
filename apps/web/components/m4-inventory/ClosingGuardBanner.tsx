@@ -65,9 +65,12 @@ export function ClosingGuardBanner({
 
   // P21: Top-N offenders slice (top 5) sorted by severity ASC (qty ASC).
   // Use Decimal.js for severity sort (P28 — precision loss + NaN risk on Number).
+  // P3-3rd-sweep: sort BEFORE slice — when negativeProducts is unsorted, slicing
+  // first would drop the most severe entries (-100, -50). AD-15 §11 parity
+  // with m2-input variant (line 59-62 of m2-input/ClosingGuardBanner.tsx).
   const topOffenders = (negativeProducts ?? [])
-    .slice(0, 5)
-    .sort((a, b) => new Decimal(a.closing_qty).minus(b.closing_qty).toNumber());
+    .sort((a, b) => new Decimal(a.closing_qty).minus(b.closing_qty).toNumber())
+    .slice(0, 5);
 
   return (
     <Alert

@@ -1883,10 +1883,16 @@ class MonthlyInputService:
 
         # Closing invariant shape (closing_per_product + negative_products
         # + code + guard_enabled).
+        # P3-3rd-sweep P13: replace bare `except Exception:` with explicit
+        # error logging + audit emit (CR 1.1 audit-first invariant).
         try:
             invariant = await guard_svc.evaluate_closing_guard(period_key=period_key)
-        except Exception:
-            # Defensive: never raise here — fall back to EMPTY_PERIOD shape.
+        except Exception as exc:
+            # Audit-first: log the failure path with trace_id so support
+            # can correlate. Do NOT silently fallback — surface as audit.
+            await self._emit_closing_guard_evaluation_error_audit(
+                period_key=period_key, error=exc,
+            )
             invariant = None
 
         if invariant is not None:
@@ -1927,12 +1933,17 @@ class MonthlyInputService:
                 .limit(10)
             )
         ).scalars().all()
+        # P3-3rd-sweep P11: align envelope to TS `ClosingGuardAuditEntry`
+        # (`{id, tenant_id, period_key, action, trace_id, created_at, payload}`).
+        # `occurred_at` DB column → `created_at` wire field; trace_id from payload.
         closing_guard_audit_trail: list[dict[str, Any]] = [
             {
                 "id": str(r.id),
-                "actor_id": str(r.actor_id) if r.actor_id is not None else None,
+                "tenant_id": str(r.tenant_id) if r.tenant_id is not None else None,
+                "period_key": str((r.payload or {}).get("period_key", "")),
                 "action": r.action,
-                "occurred_at": r.occurred_at.isoformat() if r.occurred_at else "",
+                "trace_id": str((r.payload or {}).get("trace_id", "")),
+                "created_at": r.occurred_at.isoformat() if r.occurred_at else "",
                 "payload": dict(r.payload or {}),
             }
             for r in audit_rows
@@ -1950,14 +1961,16 @@ class MonthlyInputService:
             trace_id=self.trace_id,
         )
         ledger_events = await ledger_svc.query_period_closing(period_key=period_key)
+        # P3-3rd-sweep P12: align envelope to TS `ProductionConsumptionEventWire`
+        # (`{product_id, period_key, event_type, qty, trace_id}`). Drop
+        # `event_id` + `source` (Pydantic `extra='forbid'` would reject).
         production_consumption_events: list[dict[str, Any]] = [
             {
-                "event_id": str(e.event_id),
                 "product_id": str(e.product_id),
                 "period_key": e.period_key,
                 "event_type": e.event_type,
                 "qty": str(e.qty) if e.qty is not None else None,
-                "source": e.source,
+                "trace_id": self.trace_id,
             }
             for e in ledger_events
             if e.event_type
@@ -1981,6 +1994,35 @@ class MonthlyInputService:
             production_consumption_events,
             v3_verdict,
         )
+
+    async def _emit_closing_guard_evaluation_error_audit(
+        self, *, period_key: str, error: Exception,
+    ) -> None:
+        """P3-3rd-sweep P13: audit-first emit on closing-guard evaluation
+        failure path (replaces bare `except Exception:` silent fallback).
+
+        CR 1.1 invariant: support must be able to correlate frontend
+        no-banner display with backend failure. Without this audit, the
+        failure is invisible to ops.
+        """
+        from apps.api.core.db_models import AuditLog
+
+        audit_row = AuditLog(
+            id=_uuid7(),
+            tenant_id=self.tenant_id,
+            actor_id=None,
+            action="closing_guard_evaluation_failed",
+            target_table=ActionClass.CLOSING_GUARD.value,
+            target_id=None,
+            reason=type(error).__name__,
+            payload={
+                "period_key": period_key,
+                "trace_id": self.trace_id,
+                "error_message": str(error)[:500],
+            },
+        )
+        self.session.add(audit_row)
+        await self.session.flush()
 
     def _compute_operating_rate_warning_for_state(
         self,

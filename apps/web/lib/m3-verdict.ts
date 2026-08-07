@@ -61,11 +61,11 @@ export interface Verdict {
  * Per-industry firing matrix — used by the UI to render the verdict
  * tree. Mirrors `INDUSTRY_VALUES` in `apps/api/modules/m3_calculate/services/rules/protocol.py`.
  *
- * Rules per industry (Story 4.3 AC #7):
- * - manufacturing: V1, V4, V8 (V7 silent skip)
- * - manufacturing_service: V1, V4, V8 (V7 silent skip)
- * - service: V1, V4, V7, V8 (all 4 fires)
- * - manufacturing_service_other: V1, V4, V8 (V7 silent skip)
+ * Rules per industry (Story 4.3 AC #7 + Story 5.3 AC #6):
+ * - manufacturing: V1, V3, V4, V8 (V7 silent skip; V3 = closing ≥ 0 invariant)
+ * - manufacturing_service: V1, V3, V4, V8 (V7 silent skip; V3 fires)
+ * - service: V1, V4, V7, V8 (V3 silent skip — service-only tenant has no inventory)
+ * - manufacturing_service_other: V1, V3, V4, V8 (V7 silent skip; V3 fires)
  */
 export const INDUSTRY_FIRES_V7: Readonly<Record<Industry, boolean>> = {
   manufacturing: false,
@@ -75,23 +75,41 @@ export const INDUSTRY_FIRES_V7: Readonly<Record<Industry, boolean>> = {
 };
 
 /**
+ * P3-3rd-sweep: V3 (closing ≥ 0 invariant) fires for inventory-bearing industries.
+ * service-only tenants skip V3 (no inventory semantics).
+ */
+export const INDUSTRY_FIRES_V3: Readonly<Record<Industry, boolean>> = {
+  manufacturing: true,
+  manufacturing_service: true,
+  service: false,
+  manufacturing_service_other: true,
+};
+
+/**
  * Returns the list of VerificationCode expected to fire for the given
- * industry. Mirrors the AD-12 ordering invariant (V1 → V4 → V7 → V8).
+ * industry. Mirrors the AD-12 ordering invariant
+ * (V1 → V4 → V3 → V7 → V8, P3-3rd-sweep insertion).
  */
 export function expectedRuleCodesForIndustry(industry: Industry): VerificationCode[] {
   const codes: VerificationCode[] = ["V1", "V4", "V8"];
+  if (INDUSTRY_FIRES_V3[industry]) {
+    codes.splice(2, 0, "V3"); // insert V3 between V4 and V8 (before optional V7)
+  }
   if (INDUSTRY_FIRES_V7[industry]) {
-    codes.splice(2, 0, "V7"); // insert V7 between V4 and V8
+    codes.splice(2, 0, "V7"); // insert V7 between V4 and V3 (or V4 and V8)
   }
   return codes;
 }
 
 /**
  * V* failure UI codes — surface in toast / modal when verdict.verification_status === 'failed'.
+ * P3-3rd-sweep: V3 corrected from "ERR_V3_UNIT_OF_ACCOUNT_CONFLICT" (copy-paste smell) to
+ * "ERR_V3_NEGATIVE_CLOSING_INVENTORY" matching the actual V3 rule (closing ≥ 0 invariant)
+ * and Python `V3_FAILURE_KO_MESSAGE` ("기말재고 음수").
  */
 export const V_FAILURE_CODES: Readonly<Record<VerificationCode, string>> = {
   V1: "ERR_V1_INCOMPLETE_ALLOCATION",
-  V3: "ERR_V3_UNIT_OF_ACCOUNT_CONFLICT",
+  V3: "ERR_V3_NEGATIVE_CLOSING_INVENTORY",
   V4: "ERR_V4_COST_INCOME_RECONCILIATION",
   V7: "ERR_V7_ABC_INTEGRITY",
   V8: "ERR_V8_ENGINE_REGRESSION",

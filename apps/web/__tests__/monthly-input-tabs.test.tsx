@@ -42,11 +42,6 @@ vi.mock("sonner", () => ({
 
 const PERIOD_KEY = "2026-08";
 
-const NEGATIVE_PRODUCTS = [
-  { product_id: "019200a0-0000-7000-8000-0000000000a1", closing_qty: "-5.0000" },
-  { product_id: "019200a0-0000-7000-8000-0000000000a2", closing_qty: "-3.0000" },
-];
-
 describe("MonthlyInputTabs", () => {
   afterEach(() => {
     cleanup();
@@ -123,6 +118,8 @@ describe("MonthlyInputTabs", () => {
 
   // ── Case 4: audit trail renders entries ──────────────────────
   it("test_audit_trail_renders_entries", () => {
+    // P3-3rd-sweep P6: render <MonthlyInputTabs> with audit_trail prop
+    // and assert on tab content (not synthetic <div>).
     const auditTrail = [
       {
         id: "audit-1",
@@ -144,28 +141,29 @@ describe("MonthlyInputTabs", () => {
       },
     ];
 
-    // The page-level wire projects audit_trail via the page banner area.
-    // We test the rendering at the page-level data hook level (the
-    // blocking-banner p tag in page.tsx mirrors invariant state).
-    const { container } = render(
-      <div data-testid="audit-trail-list">
-        {auditTrail.map((entry) => (
-          <div key={entry.id} data-testid={`audit-entry-${entry.id}`}>
-            <span>{entry.action}</span>
-            <span>{entry.created_at}</span>
-          </div>
-        ))}
-      </div>,
+    render(
+      <MonthlyInputTabs
+        period_key={PERIOD_KEY}
+        defaultTab="close"
+        invariant={{
+          code: INVARIANT_CODE_NEGATIVE_CLOSING,
+          negative_products: {},
+          closing_per_product: {},
+          guard_enabled: true,
+        }}
+        audit_trail={auditTrail}
+      />,
     );
 
     const auditList = screen.getByTestId("audit-trail-list");
     expect(within(auditList).getByTestId("audit-entry-audit-1")).toBeInTheDocument();
     expect(within(auditList).getByTestId("audit-entry-audit-2")).toBeInTheDocument();
-    expect(container).toBeTruthy();
   });
 
   // ── Case 5: production consumption events render ─────────────
   it("test_production_consumption_events_render", () => {
+    // P3-3rd-sweep P6: render <MonthlyInputTabs> with
+    // production_consumption_events prop and assert on [수불부] tab content.
     const events = [
       {
         product_id: "019200a0-0000-7000-8000-0000000000b1",
@@ -183,44 +181,51 @@ describe("MonthlyInputTabs", () => {
       },
     ];
 
-    const { container } = render(
-      <div data-testid="production-consumption-list">
-        {events.map((event) => (
-          <div key={event.product_id} data-testid={`event-${event.product_id}`}>
-            <span>{event.event_type}</span>
-            <span>{event.qty}</span>
-          </div>
-        ))}
-      </div>,
+    render(
+      <MonthlyInputTabs
+        period_key={PERIOD_KEY}
+        defaultTab="subub"
+        invariant={{
+          code: INVARIANT_CODE_CLOSING_OK,
+          negative_products: {},
+          closing_per_product: {},
+          guard_enabled: true,
+        }}
+        production_consumption_events={events}
+      />,
     );
 
     expect(screen.getByTestId("event-019200a0-0000-7000-8000-0000000000b1")).toBeInTheDocument();
     expect(screen.getByTestId("event-019200a0-0000-7000-8000-0000000000b2")).toBeInTheDocument();
-    expect(container).toBeTruthy();
   });
 
   // ── Case 6: opening locked disables fieldset ─────────────────
-  it("test_opening_locked_disables_fieldset", async () => {
-    const { toast } = await import("sonner");
-
-    // Simulate the opening_locked scenario: the page banner triggers
-    // a sonner toast when the user attempts manual edit.
-    // We test the toast emission contract.
-    const openingLocked = true;
-    if (openingLocked) {
-      (toast.warning as ReturnType<typeof vi.fn> & ((msg: string, opts?: object) => void))(
-        "기초재고는 자동 이월 체인에 의해 잠겼습니다",
-        { duration: 5000, position: "top-right" },
-      );
-    }
-
-    expect(toast.warning).toHaveBeenCalledWith(
-      "기초재고는 자동 이월 체인에 의해 잠겼습니다",
-      expect.objectContaining({
-        duration: 5000,
-        position: "top-right",
-      }),
+  it("test_opening_locked_disables_fieldset", () => {
+    // P3-3rd-sweep P7: render <MonthlyInputTabs> with blocked invariant
+    // and assert the gate fieldset is disabled. P31: assert the form
+    // submit button shows "마감 불가" (not "저장") — which means the user
+    // can see the manual edit reject state without firing a click.
+    render(
+      <MonthlyInputTabs
+        period_key={PERIOD_KEY}
+        defaultTab="close"
+        invariant={{
+          code: INVARIANT_CODE_NEGATIVE_CLOSING,
+          negative_products: {
+            "019200a0-0000-7000-8000-0000000000a1": "-5.0000",
+          },
+          closing_per_product: {},
+          guard_enabled: true,
+        }}
+      />,
     );
+
+    const gate = screen.getByTestId("m2-closing-guard-gate");
+    expect(gate.tagName).toBe("FIELDSET");
+    expect(gate).toBeDisabled();
+    // P3-3rd-sweep P31: blocked form shows "마감 불가" (manual edit reject UI).
+    const submitButton = screen.getByTestId("monthly-input-row-submit");
+    expect(submitButton).toHaveTextContent("마감 불가");
   });
 
   // ── Bonus: EMPTY_PERIOD invariant hides banner ───────────────

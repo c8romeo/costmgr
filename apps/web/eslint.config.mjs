@@ -118,6 +118,7 @@ export default [
       "hooks/useBom.ts",
       "hooks/useProducts.ts",
       "lib/bom-validation.ts",
+      "lib/closing-guard-toast.ts",
       "lib/l2-input-fte.ts",
       "lib/l2-input-warnings.ts",
       "lib/money.ts",
