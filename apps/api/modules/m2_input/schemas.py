@@ -416,3 +416,28 @@ class MonthlyInputStateResponse(BaseModel):
     closing_guard_audit_trail: list[dict[str, Any]] = Field(default_factory=list)
     production_consumption_events: list[dict[str, Any]] = Field(default_factory=list)
     v3_verdict: dict[str, Any] | None = None
+    # Story 6.1 — closing-period wire fields (PRD §F4.3 + §V4 + §A11 3-layer).
+    # CR 6-1 R4 patch D5: 4 NEW fields populated by
+    # `MonthlyInputService._compute_closing_period_bundle_for_state`:
+    # - closing_period_state: one of CLOSING_PERIOD_STATUSES (CLOSING_READY /
+    #   CLOSING_BLOCKED / ALREADY_CLOSED / EMPTY_PERIOD). Mirrors TS
+    #   `ClosingPeriodState.status`.
+    # - closing_snapshot_count: number of `event_type='closing_snapshot'`
+    #   ledger events already INSERTed for this period (0 before first confirm).
+    # - closing_period_audit_trail: last 10 audit_logs rows filtered by
+    #   action='closing_period_*' (closing_period_confirmed /
+    #   closing_period_blocked / closing_period_snapshot_inconsistency).
+    #   Mirror of `closing_guard_audit_trail` shape — same wire contract.
+    # - closing_period_finalized_at: ISO-8601 UTC string from
+    #   monthly_input_periods.finalized_at, or None when not closed yet.
+    closing_period_state: str | None = None
+    closing_snapshot_count: int = 0
+    closing_period_audit_trail: list[dict[str, Any]] = Field(default_factory=list)
+    closing_period_finalized_at: str | None = None
+    # Story 6.1 — explicit capability gate (A10 MONTHLY_CLOSING_REPORT).
+    # CR 6-1 R4 patch D11: derived from `industry in {manufacturing,
+    # manufacturing_service, manufacturing_service_other}` (manufacturing
+    # 3종 ✅ / service-only ❌). Decoupled from state-presence coupling so
+    # service-only tenants get `monthly_closing_report_capability_granted=False`
+    # even when `closing_period_state` is None.
+    monthly_closing_report_capability_granted: bool = False

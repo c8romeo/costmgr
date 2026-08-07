@@ -58,7 +58,7 @@ export interface ClosingPeriodConfirmationPanelProps {
 export function ClosingPeriodConfirmationPanel({
   state,
   finalized_at,
-  capability_granted = true,
+  capability_granted = false,
   onConfirmClick,
   className,
 }: ClosingPeriodConfirmationPanelProps): React.ReactElement | null {
@@ -95,10 +95,18 @@ export function ClosingPeriodConfirmationPanel({
       <>
         {state.closing_snapshot_count > 0 ? (
           <span>
-            closing_snapshot {state.closing_snapshot_count}건 이미 저장됨. 재확정 시 idempotent no-op skip.
+            {t("panel_ready_description_with_count").replace(
+              "{N}",
+              String(state.closing_snapshot_count),
+            )}
           </span>
         ) : (
-          <span>기말재고 invariant OK · ledger events {state.ledger_event_count}건</span>
+          <span>
+            {t("panel_ready_description_default").replace(
+              "{N}",
+              String(state.ledger_event_count ?? 0),
+            )}
+          </span>
         )}
       </>
     );
@@ -107,11 +115,7 @@ export function ClosingPeriodConfirmationPanel({
     variant = "destructive";
     icon = <AlertCircle className="h-4 w-4" aria-hidden="true" />;
     title = t("panel_blocked");
-    description = (
-      <span>
-        음수 기말재고 발생 — [마감 확정] 차단 (ClosingGuardBanner 위 additive)
-      </span>
-    );
+    description = <span>{t("panel_blocked_description")}</span>;
     buttonDisabled = true;
   } else if (state.status === "ALREADY_CLOSED") {
     variant = "default";
@@ -122,7 +126,7 @@ export function ClosingPeriodConfirmationPanel({
         {t("finalized_at_label")}: {finalized_at}
       </span>
     ) : (
-      <span>monthly_input_periods.status='closed' — AD-6 close lock (reopen 불가)</span>
+      <span>{t("panel_already_closed_description_locked")}</span>
     );
     buttonDisabled = true;
     buttonHidden = true; // AD-6 — 이미 마감된 경우 button 비노출
@@ -130,9 +134,7 @@ export function ClosingPeriodConfirmationPanel({
     variant = "default";
     icon = <FileText className="h-4 w-4" aria-hidden="true" />;
     title = t("panel_empty_period");
-    description = (
-      <span>수불 event 0건 → closing_snapshot emit 불가. 먼저 입출고를 입력하세요.</span>
-    );
+    description = <span>{t("panel_empty_period_description")}</span>;
     buttonDisabled = true;
   }
 

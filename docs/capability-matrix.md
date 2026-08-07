@@ -72,6 +72,8 @@ class CalcResponse(BaseModel):
 | `BOM` | 2.2 | ✅ | ❌ | ✅ | ✅ |
 | `OPENING_INVENTORY` | 5.1 | ✅ | ❌ | ✅ | ✅ |
 | `INVENTORY_LEDGER` | 5.2 | ✅ | ❌ | ✅ | ✅ |
+| `CLOSING_GUARD` | 5.3 | ✅ | ❌ | ✅ | ✅ |
+| `MONTHLY_CLOSING_REPORT` | 6.1 | ✅ | ❌ | ✅ | ✅ |
 | `COST_POOL` | 9.x | ❌ | ✅ | ✅ | ✅ |
 | `ACTIVITY` | 9.x | ❌ | ✅ | ✅ | ✅ |
 | `DRIVER` | 9.x | ❌ | ✅ | ✅ | ✅ |

@@ -33,6 +33,7 @@ import {
 import {
   CLOSING_PERIOD_STATUSES,
   type ClosingPeriodState,
+  isClosingPeriodAllowed,
 } from "@/lib/closing-period";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +77,15 @@ export function ClosingPeriodConfirmDialog({
 
   const handleConfirm = async () => {
     if (submitting || !statusKnown) return;
+    // CR 6-1 R4 patch D17: gate [확정] click on CLOSING_READY status only.
+    // Defense-in-depth — the panel disables the trigger button, but the
+    // dialog could be opened via deep-link / programmatic state. Without
+    // this gate, the user can fire POST with non-READY status (e.g.,
+    // CLOSING_BLOCKED, EMPTY_PERIOD, ALREADY_CLOSED) and receive 409.
+    if (!isClosingPeriodAllowed(state.status)) {
+      onOpenChange(false);
+      return;
+    }
     setSubmitting(true);
     try {
       const count = await onConfirm?.(period_key);
@@ -92,9 +102,9 @@ export function ClosingPeriodConfirmDialog({
       } else if (code === "ALREADY_CLOSED") {
         toast.error(t("toast_error_already_closed"));
       } else if (code === "INDUSTRY_NOT_SUPPORTED") {
-        toast.error("업종 미지원: MONTHLY_CLOSING_REPORT capability 미보유 (A10)");
+        toast.error(t("toast_error_industry_not_supported"));
       } else {
-        toast.error(t("toast_error_blocked"));
+        toast.error(t("toast_error_generic"));
       }
       onOpenChange(false);
     } finally {
@@ -153,7 +163,7 @@ export function ClosingPeriodConfirmDialog({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={submitting || !statusKnown}
+            disabled={submitting || !statusKnown || !isClosingPeriodAllowed(state.status)}
             data-testid="closing-period-dialog-confirm"
             className="px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >

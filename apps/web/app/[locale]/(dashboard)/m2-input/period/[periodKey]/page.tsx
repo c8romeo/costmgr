@@ -31,6 +31,7 @@
  */
 
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 
 import { MonthlyInputTabs } from "@/components/m2-input/MonthlyInputTabs";
 import type { ClosingInvariant } from "@/lib/l2-input-inventory-ledger";
@@ -86,6 +87,11 @@ export default async function MonthlyInputPeriodPage({
   const closingSnapshotCount = initialState?.closing_snapshot_count ?? 0;
   const closingPeriodFinalizedAt =
     initialState?.closing_period_finalized_at ?? null;
+  // CR 6-1 R4 patch D11 — explicit capability gate (A10 MONTHLY_CLOSING_REPORT).
+  // Decoupled from state-presence coupling: service-only tenants get False
+  // even when closing_period_state is None.
+  const monthlyClosingReportCapabilityGranted =
+    initialState?.monthly_closing_report_capability_granted ?? false;
 
   return (
     <section style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem" }}>
@@ -109,7 +115,7 @@ export default async function MonthlyInputPeriodPage({
         trace_id={traceId}
         productNameLookup={{}}
         closing_period_state={closingPeriodState ?? undefined}
-        closing_period_capability_granted={closingPeriodState != null}
+        closing_period_capability_granted={monthlyClosingReportCapabilityGranted}
         closing_period_finalized_at={closingPeriodFinalizedAt}
         onSubmit={async (key) => {
           // P3-3rd-sweep P27: no-op save handler for [수불부] tab in
@@ -141,6 +147,12 @@ export default async function MonthlyInputPeriodPage({
           const data = (await res.json()) as {
             closing_snapshot_count?: number;
           };
+          // CR 6-1 R4 patch D12: revalidate the page path so the
+          // Server Component re-reads monthly_input_periods.status='closed'
+          // + finalized_at + audit trail on next render. Without this,
+          // the cached state would still show CLOSING_READY even after
+          // the user confirms.
+          revalidatePath(`/m2-input/period/${key}`);
           return data.closing_snapshot_count ?? closingSnapshotCount;
         }}
       />

@@ -1,0 +1,2624 @@
+diff --git a/_bmad-output/implementation-artifacts/6-1-closing-period-service-snapshot-event.md b/_bmad-output/implementation-artifacts/6-1-closing-period-service-snapshot-event.md
+new file mode 100644
+index 0000000..348401f
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/6-1-closing-period-service-snapshot-event.md
+@@ -0,0 +1,509 @@
++---
++baseline_commit: 74f3a30
++target_key: 6-1-closing-period-service-snapshot-event
++epic: 6
++story_id: 6.1
++title: Closing Period Service + closing_snapshot Ledger Event Wire
++status: ready-for-dev
++---
++
++# Story 6.1: Closing Period Service + closing_snapshot Ledger Event Wire
++
++Status: ready-for-dev
++
++> Epic 6 첫 스토리. Epic 5 5-1 (opening auto-carry chain) + 5-2 (inventory_ledger append-only events, `closing_snapshot` 11번째 event_type) + 5-3 (closing_guard + V3 verification + frontend banner) 위에 additive: ① PRD §F4.3 (월 마감 E2E — closing_period 서비스로 closing 시점 ledger aggregate 영구화) + §F5 (마감 보고서 입력 source = closing_snapshot ledger events) + §V4 (closing period verification = closing snapshot 일관성 + invariant 양쪽 검증) wire contract ② Story 0.5 plumbing + 5-3 frontend close-time guard 진입점 위에 additive (ClosingGuardBanner → ClosingPeriodConfirmationPanel 확장) ③ 5-1/5-2/5-3 backend carry-over (closing_guard pure kernel + closing_guard_service + V3 verifier + ledger aggregate + A5 forward-lock + A7 wire) 그대로 보존 + 6-1 wire contract 추가.
++>
++> **baseline_commit = 74f3a30** (A12 close-out tip + Epic 5 close-out 완료). Epic 5 close-out retro §6 결정 (cj-style 6-1/6-2/6-3 분할) + Epic 5 retro §7 A8 (Epic 6 close-out 시점에 Epic 3.3 inline projection 제거 — 5-2 commit + 1 epic maintenance window 종료) + A10 (MONTHLY_CLOSING_REPORT capability 신규 — manufacturing 3종 ✅ / service-only ❌, `docs/capability-matrix.md` v1.3 동반) spec 본문에 반영. **Epic 6 진입점**: closing_period service = AD-2 append-only ledger write 진입 + AD-4 atomicity close-time hook 위에 additive + AD-6 fiscal-period close lock (5-3 wire와 동일 lock semantics 보존) + AD-22 reversal entrypoint (closing_snapshot은 Epic 11 reversal module의 wire contract 진입점 — `reversal_negating` + `reversal_corrected` event type fill).
++
++<!-- dev-context: Epic 5 close-out retro (2026-08-07) — Epic 5 셋 다 done (5-1 + 5-2 + 5-3 + 0.5 plumbing + A5 + A7). 3-story 분할 패턴 (cj-style) Epic 4 close-out A3 결정 정합 검증 완료. A12 T12.2 test file deferred close-out done (closing invariant TS mirror parity, commit 74f3a30). Epic 5 회고 §6 명시: 6-1 = Closing Period Service + closing_snapshot ledger event wire. 6-2 = Monthly Closing Report (capability gate MONTHLY_CLOSING_REPORT 신규 — A10 결정). 6-3 = Closing PDF Export + ko-KR labels.
++
++Epic 4 close-out retro (2026-08-03) A3 cj-style — 3-story 분할 유지 (5-1 → 5-2 → 5-3) + inline projection deprecation = 5-2 commit 완료 + Epic 6 close-out 시점에 legacy path 제거 (Epic 5 retro §7 A8 결정, 6-1 spec 본문 §A8 명시). Epic 4 close-out retro A4 — frontend toast = 0.5 plumbing 별도 Story (5-3 진입 전 완료). ✅ done.
++Epic 4 close-out retro A5 — A5 Full Phase 1+2+4 done. Epic 5 5-1 + 5-3 audit log 일관성 보장 + A5 forward-lock + drift detector pattern 정착. 6-1 wire 동일 패턴 적용.
++Epic 4 close-out retro A6 — 0.5 plumbing = 5-3 spec 진입 전 dep. ✅ done 2026-08-05 (commit ead1974) — shadcn Tabs / sonner / vitest / Playwright 4종 wire. 6-1 frontend ClosingPeriodConfirmationPanel 진입점 가능.
++Epic 4 close-out retro A7 — Epic 4 carry (async test pattern + SDR overclaim) Epic 5 wire. 6-1 동일 적용.
++
++Story 0.5 (2026-08-05) — frontend plumbing wire ✅ done. shadcn Tabs / sonner / vitest + RTL + MSW / Playwright + next-intl + INDUSTRY_ICON fill + 10 ACs all green. **6-1 frontend 진입 전 dep satisfied**. docs/frontend-toolchain.md v1.0 SSOT.
++
++Story 0-2 (2026-07-29) — RLS 인프라 + audit_logs INSERT-only with `BEFORE UPDATE OR DELETE` trigger 패턴이 Epic 0에서 wire됨. AD-2 + AD-3 SSOT. 6-1 wire는 RLS 위에서 동작.
++
++Story 1.1 (2026-07-29) — Industry enum SSOT (manufacturing / manufacturing_service / service / manufacturing_service_other) + capability matrix v1.0. 6-1 capability gate = 신규 정의 `MONTHLY_CLOSING_REPORT` (A10 결정 — manufacturing 3종 ✅ / service-only ❌). `docs/capability-matrix.md` v1.2 → v1.3 동반.
++
++Story 2.2 (2026-08-01) — BOM matrix 100% validation + sonner toast swap. 6-1 BOM data 활용 (5-3 W1 BOM-aware reconciliation 결과 — production_output_inbound + production_material_consumption ledger events는 closing_period snapshot 산출 시점에 BOM matrix join 활용).
++
++Story 3.1 (2026-08-01) — monthly_input_periods + monthly_input_rows 테이블 (Alembic 0009). 6-1 close-time hook 진입점 (`monthly_input_periods.status='closing'` 시 closing_snapshot emit).
++
++Story 3.3 (2026-08-01) — `monthly_input_periods.opening_inventory` JSONB column (Alembic 0011) + `MonthlyInputStateResponse.warnings` + `is_blocked` + `top_n_severity` 4 fields + F2.3 음수재고 입력 시 즉시 경고. **Epic 5 retro §7 A8 — Epic 3.3 inline projection deprecation timeline 명시: 6-1 spec 본문에서 5-2 commit + 1 epic maintenance window 종료 시점 = Epic 6 close-out 시점에 inline projection 제거 결정**.
++
++Story 4.1 (2026-08-02) — engine returns state='draft' (AD-22 boundary strengthening). 6-1 closing period service = service layer ownership (engine은 closing_period 의미 모름).
++
++Story 4.2 (2026-08-03) — REPEATABLE READ + audit-first (CR 1.1) + calc_log + AD-22 state transition + is_blocked close-time hook (Epic 3 A4). **6-1 wire는 4-2 close-time hook 위에 additive**: closing_period snapshot 시점 ledger emit.
++
++Story 4.3 (2026-08-03) — V1·V4·V7·V8 verification + verdict + A5 forward-lock + Industry enum SSOT. **6-1 wire는 V3 (5-3 wire) + V4 (6-1 wire 신규 = closing snapshot 일관성 verification) verification surface 위에 additive**.
++
++Story 4.4 (2026-08-03, commit 80f4494) — A5 forward-lock (verify_v8_golden_match + Alembic 0014 verification_log CHECK 4-value expansion) + 12 fixture matrix. V4 placeholder가 4-4 골든 fill 시점에 포함 (closing snapshot 일관성).
++
++Story 5.1 (2026-08-04, commit b4b84da) — opening_carry_chain wire + 4 hooks into monthly_input_service + 2 audit actions under ActionClass.MONTHLY_INPUT_PERIOD + INVENTORY_LEDGER class placeholder 전가 + 4 hooks. **5-1 carry-over to 6-1**: opening_inventory JSONB → closing_period snapshot 시점 read-only aggregate.
++
++Story 5.2 (2026-08-04, commit 7a13eb9) — inventory_ledger append-only events + 4 routes + 11 values event_type CHECK + PostgreSQL BEFORE UPDATE OR DELETE row-level trigger + AD-22 reversal entrypoint forward-fill + A5 6 values fill. **5-2 carry-over to 6-1**: (a) `closing_snapshot` 11번째 event_type = 6-1 wire 진입점, (b) `reverses_event_id` UNIQUE 보존 = closing_snapshot correction 시 Epic 11 reversal module wire contract, (c) `idempotency partial UNIQUE` 보존 = closing_period snapshot 멱등성.
++
++Story 5.3 (2026-08-06, commit 079f6a7) — closing_guard pure kernel + closing_guard_service + 3 routes + MonthlyInputStateResponse 5 NEW fields + 6 NEW frontend files + 3 vitest scenarios + 32 patches P1-P32 (3 sweeps). **5-3 carry-over to 6-1**: (a) closing_guard pure kernel (compute_closing_balance_per_product + classify_closing_invariant + is_close_blocked) = closing_period snapshot 산출 시점에 pure kernel #1 호출, (b) closing_guard_service.evaluate_closing_guard = closing_period snapshot 검증 진입점, (c) V3 verification verifier = closing_period verification surface 진입점, (d) `closing_guard_audit_trail` field (MonthlyInputStateResponse 5 NEW fields 중 1개) = closing_period audit log emission trace, (e) ClosingGuardBanner frontend = ClosingPeriodConfirmationPanel 확장 진입점.
++
++A12 (2026-08-07, commit 74f3a30) — T12.2 test file deferred close-out done. `tests/api/m2_input/test_monthly_input_state_extension.py` (9 cases CI-shim) + `apps/web/__tests__/closing-guard-banner.test.tsx` Case 6 TS/Python SSOT parity. Epic 5 close-out retro §7 A12 close-out 완료.
++
++A8 (Epic 5 retro §7 결정, 2026-08-07) — Epic 3.3 inline projection deprecation timeline: Epic 6 close-out 시점에 inline projection 제거 (5-2 commit + 1 epic maintenance window 종료 시점). 6-1 spec 본문 §A8 timeline 명시. Epic 6 6-1 wire는 inline projection 보존 상태로 wire (1 epic maintenance window 진행 중), Epic 6 close-out 시점에 fold-in 결정.
++
++A10 (Epic 5 retro §7 결정, 2026-08-07) — Epic 6 reporting capability 신규 정의: `MONTHLY_CLOSING_REPORT` capability 신규 (manufacturing / manufacturing_service / manufacturing_service_other ✅ / service-only ❌). `docs/capability-matrix.md` v1.3 동반. 6-1 spec 본문 §A10 capability matrix 변경 명시.
++
++AD-1 (modular monolith + hexagonal core) — 6-1 wire는 engine pure helper + service layer + handlers 표준 3-tier 패턴 (5-1/5-2/5-3 동일).
++
++AD-2 (append-only ledger) — 6-1 wire는 closing_snapshot ledger event emit (5-2 wire 위에 additive). 5-2 inventory_ledger SSOT + RLS 4-policy 그대로 활용.
++
++AD-3 (RLS) — 6-1 wire는 RLS 위에서 동작 (5-2 wire와 동일 predicate). service_role bypass 시 audit row INSERT-first (Epic 0 0-2 wire 패턴).
++
++AD-4 (atomicity) — 6-1 closing_period close transaction = REPEATABLE READ + SELECT FOR UPDATE on monthly_input_periods (5-3 wire와 동일 transaction). audit-first + idempotent no-op skip (CR 1.1 lesson).
++
++AD-6 (close lock) — 6-1 wire는 fiscal-period close lock 진입점. `monthly_input_periods.status='closed'` 시 closing_period snapshot 완료 + reopen 불가. reopen은 operator action + reason + audit row (AD-25 invalidation).
++
++AD-11 (layer rule) — pure helpers = `packages/services/m4_inventory/closing_period.py` (NEW) + `packages/cost_engine/closing_period_snapshot.py` (NEW). service layer = `apps/api/modules/m4_inventory/services/closing_period_service.py` (NEW). engine은 closing_period 의미 모름 (service-layer ownership — 4-1 wire 패턴 동일).
++
++AD-12 (verification ordering) — V4 wire = closing snapshot 일관성 verification (5-3 V3 wire 위에 additive). V1 → V4 → V3 → V7 → V8 ordering 보존. V4 fail 시 V3 SKIP.
++
++AD-15 (cross-language parity) — TS mirror drift detector `tests/integration/test_closing_period_label_consistency.py` (NEW) + vitest wire (Story 0.5 AC #4 done). Decimal serialization parity.
++
++AD-18 (single product identity) — `inventory_ledger.product_id` (UUID v7) = PRODUCT(product_id) SSOT. closing_period snapshot per-product aggregation = product_id SSOT.
++
++AD-22 (append-only-leaning + reversal) — closing_period snapshot = append-only ledger event (5-2 wire). correction = Epic 11 reversal module ships 후 부호 반전 row + corrected row emit. `closing_snapshot` event type은 reversal 가능.
++
++AD-23 (4-namespace pattern) — monthly_input_periods + monthly_input_rows + inventory_ledger + audit_logs 4 namespace SSOT. 6-1 wire는 4 namespace 모두 read-only aggregate + monthly_input_periods update + inventory_ledger INSERT + audit_logs INSERT.
++
++AD-24 (typed period-key) — 'YYYY-MM' 형식 SSOT. closing_period per period_key. closing_period service는 `monthly_input_periods.period_key` AD-24 typed.
++
++PRD §F4.3 (월 마감 E2E) — 6-1 primary AC: closing_period service로 closing 시점 ledger aggregate 영구화 + closing snapshot ledger event emit.
++
++PRD §F5 (마감 보고서) — 6-2 spec 진입 시점 wire. 6-1 wire는 closing snapshot = 6-2 보고서 입력 source.
++
++PRD §V4 (closing period verification) — 6-1 V4 wire 신규: closing snapshot 일관성 verification (closing_guard invariant + ledger aggregate 일치 + closing snapshot qty 합계 = product active closing balance).
++
++PRD §6.2 (수불부) — 5-3 wire와 동일 (PRD §6.2 normalized). 6-1 wire는 수불부 read-only aggregate.
++
++PRD §A11 (오류의 가시화) — 입력 시 경고 (5-3 wire) + 마감 시 차단 (5-3 wire) + 마감 확정 시 snapshot (6-1 wire) 3-layer. PRD §A11 정책 정확히 closed.
++
++PRD §12 (AI) — 6-1은 AI 무관. 6-2/6-3에서 AI commentary 활용 가능.
++
++0.5 plumbing — 6-1 frontend ClosingPeriodConfirmationPanel 진입 시점 frontend toolchain 완비 (shadcn Tabs / sonner / vitest / Playwright / next-intl). ClosingPeriodConfirmationPanel = ClosingGuardBanner (5-3 wire) 위에 additive panel. -->
++
++## Story
++
++As a **사장님**,
++
++I want **월 마감을 확정하면 (1) 그 시점의 모든 제품 기말재고가 영구 보존된 closing_snapshot ledger event로 기록되고 (2) ClosingGuardBanner에 "마감 확정" 패널이 추가되며 (3) V4 verification이 ledger aggregate와 closing snapshot의 일관성을 검증하고 (4) service-only 업종은 월 마감 진입 자체가 거부되는 것**,
++
++so that **회계사·세무사에게 전달할 마감 snapshot이 시스템적으로 immutable하게 보존되고, Epic 11 reversal module의 진입점이 wire되며, PRD §F4.3 + §F5 + §V4 wire contract가 정확히 closed됨** — AD-2 (append-only ledger closing_snapshot event) · AD-4 (atomicity close-time hook) · AD-6 (fiscal-period close lock) · AD-11 (layer rule) · AD-12 (verification ordering V1 → V4 → V3 → V7 → V8) · AD-15 (cross-language parity) · AD-18 (single product identity) · AD-22 (reversal entrypoint) · PRD §F4.3 (월 마감 E2E) · PRD §F5 (마감 보고서 입력 source) · PRD §V4 (closing snapshot 일관성 verification) · PRD §A11 (입력 시 경고 + 마감 시 차단 + 마감 확정 시 snapshot 3-layer) · A8 (Epic 6 close-out 시점에 inline projection 제거) · A10 (MONTHLY_CLOSING_REPORT capability 신규) · Story 0.5 frontend plumbing · Epic 5 5-3 (closing_guard + V3 verification + ClosingGuardBanner) carry-over.
++
++## Acceptance Criteria
++
++1. **Given** Epic 5 5-1 (opening auto-carry chain) + 5-2 (inventory_ledger append-only events, `closing_snapshot` 11번째 event_type) + 5-3 (closing_guard + V3 verification + ClosingGuardBanner) backend wire 완료 + Story 3.3 (음수재고 입력 시 즉시 경고) + Story 4-2 (close-time hook) + Story 4-3 (verification surface V1/V4/V7/V8) + Story 4-4 (V8 골든 fixture) + Story 0.5 frontend plumbing ✅ done (shadcn Tabs / sonner / vitest / Playwright / next-intl) + A12 (T12.2 test file deferred close-out done)
++   **When** 본 스토리 dev-story 진입 시
++   **Then** 다음 책임 분리 + wire contract 정렬이 유지된다:
++     - **Pure kernel #1 (NEW `packages/services/m4_inventory/closing_period.py`)** — `compute_closing_snapshot(closing_per_product: dict[UUID, Decimal], period_key: str, tenant_id: UUID, finalized_at: str) -> list[ClosingSnapshotEntry]` (5-3 `compute_closing_balance_per_product` 결과 = closing per product → per-product ClosingSnapshotEntry 변환). + `classify_closing_period_status(closing_per_product: dict[UUID, Decimal], ledger_event_count: int) -> ClosingPeriodStatus` (CLOSING_READY / CLOSING_BLOCKED / ALREADY_CLOSED / EMPTY_PERIOD — CLOSING_READY = invariant OK + ledger events ≥ 1; CLOSING_BLOCKED = invariant NEGATIVE_CLOSING; ALREADY_CLOSED = monthly_input_periods.status='closed'; EMPTY_PERIOD = ledger events 0건). + `is_closing_period_allowed(status: ClosingPeriodStatus) -> bool` (= status == CLOSING_READY). + `CLOSING_PERIOD_CONFIRMATION_KO: Final[str] = "월 마감 확정: 기말재고 snapshot 저장"` (Korean confirmation message constant — AD-15 §11 SSOT). stdlib-only (no DB, no clock, no random). banker's rounding via `QTY_QUANTUM` from `inventory_projection` (CR 0-4 lesson + AD-15 parity). 1 typed exception (`ClosingPeriodError`, NO HTTP mapping — pure helper owns domain semantics).
++     - **Pure kernel #2 (NEW `packages/cost_engine/closing_period_snapshot.py`)** — `verify_closing_period_consistency(*, ledger_aggregate: dict[UUID, Decimal], closing_snapshot_aggregate: dict[UUID, Decimal], product_whitelist: set[UUID]) -> V4Verdict` (V4 rule pure kernel — closing snapshot 일관성 verification; ledger aggregate = 5-2 `query_period_closing` 결과 vs closing_snapshot_aggregate = inventory_ledger `event_type='closing_snapshot'` aggregate 일치 검증; verdict = PASS / FAIL / SKIP). **AD-11 layer rule**: cost_engine pure helper는 stdlib-only (no sqlalchemy import) — service layer가 ledger aggregate + closing snapshot aggregate + product whitelist를 인자로 전달. **AD-12 ordering**: V4 rule의 `previous_status='failed'` 시 SKIP 발동 = Story 4-3 ordering invariant 보존. stdlib-only. 1 typed exception (`ClosingPeriodSnapshotInconsistencyError`).
++     - **Service layer #1 (NEW `apps/api/modules/m4_inventory/services/closing_period_service.py`)** — `ClosingPeriodService` class with 3 operations:
++       - `evaluate_closing_period(session, *, tenant_id, period_key) -> ClosingPeriodResult` (read-only aggregate via 5-2 `LedgerService.query_period_closing` + 5-3 `ClosingGuardService.evaluate_closing_guard` dispatch + T1 pure kernel `classify_closing_period_status` + `is_closing_period_allowed`).
++       - `confirm_closing_period(session, *, tenant_id, period_key, actor_id) -> ClosingPeriodConfirmationResult` (close-time hook — 4-2 is_blocked + 5-3 closing_guard 위 additive: T1 pure kernel dispatch → ledger aggregate 검증 → T2 pure kernel V4 verification dispatch → closing_snapshot ledger event emit (5-2 `LedgerService.append_event` 호출) + `monthly_input_periods.status='closed'` UPDATE (AD-6 fiscal-period close lock) + audit log emission (CR 1.1 audit-first)).
++       - `get_closing_period_audit_trail(session, *, tenant_id, period_key) -> list[AuditLogEntry]` (CR 1.1 observability — closing_period_confirmed + closing_period_blocked + closing_period_snapshot_inconsistency audit entries, time DESC).
++     - **Wire trigger (extension `apps/api/modules/m4_inventory/handlers.py`)** — 3 NEW routes:
++       - `POST /api/v1/inventory/closing-period/confirm` — close-time confirmation wire. Body = `{ period_key: str }`. Returns 200 OK `{ confirmed: true, closing_snapshot_count: int, period_key: str, finalized_at: str }` or 409 CLOSING_PERIOD_BLOCKED typed envelope (5-3 NEGATIVE_CLOSING_INVENTORY envelope와 동등) or 409 ALREADY_CLOSED typed envelope. Capability gate `MONTHLY_CLOSING_REPORT` (A10 신규 — manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED).
++       - `GET /api/v1/inventory/closing-period/status?period_key=...` — read-only closing period status check. Returns `ClosingPeriodResponse` (`{ status: "CLOSING_READY"|"CLOSING_BLOCKED"|"ALREADY_CLOSED"|"EMPTY_PERIOD", allowed: bool, closing_per_product: dict[str, str], closing_snapshot_count: int, ledger_event_count: int, period_key: str }`). AD-15 envelope + capability gate.
++       - `GET /api/v1/inventory/closing-period/audit-trail?period_key=...` — closing period audit log emission trace (CR 1.1 observability). Returns audit_logs entries filtered by `action='closing_period_*'`. Capability gate.
++     - **V4 verification wire (extension `apps/api/modules/m6_verification/services/verification_runner.py`)** — V4 slot fill in `run_all(monthly_input, baseline, calc_result, *, industry)`:
++       1. V1 (완전배부) → wire from Story 4-3.
++       2. **V4 (closing snapshot 일관성) — NEW wire** (`ClosingPeriodSnapshotVerifier.verify_v4_closing_period_consistency` dispatch).
++       3. V3 (연결성 = closing ≥ 0 invariant) → wire from Story 5.3.
++       4. V7 (ABC 무결성) → wire from Story 4-3 (service-only ❌ skip).
++       5. V8 (1원 단위 회귀) → wire from Story 4-4.
++     - **A5 forward-lock (`apps/api/core/audit_action.py` extension)** — `ClosingPeriodAction` Literal 3 values 신규 채움: `closing_period_confirmed` (closing period 확정 audit), `closing_period_blocked` (closing period 차단 audit), `closing_period_snapshot_inconsistency` (V4 verification fail audit). + `VerificationAction` Literal 1 value 신규 채움: `verify_v4_closing_period_consistency` (Story 4-3 V4 placeholder fill audit). A5 drift detector 동시 통과.
++
++2. **Given** AC #1 pure kernel + service layer + wire trigger + V4 verification + A5 forward-lock
++   **When** 본 스토리 dev-story 진입 시
++   **Then** 다음 frontend wire 발동 (AC #2 — ClosingPeriodConfirmationPanel + shadcn Dialog + sonner toast wire):
++     - **TS mirror helper #1 (NEW `apps/web/lib/closing-period.ts`)** — 6-1 frontend logic (wire path mirror). Exports:
++       ```typescript
++       export type ClosingPeriodStatus = "CLOSING_READY" | "CLOSING_BLOCKED" | "ALREADY_CLOSED" | "EMPTY_PERIOD";
++       export interface ClosingPeriodState {
++         status: ClosingPeriodStatus;
++         allowed: boolean;
++         closing_per_product: Record<string, string>;
++         closing_snapshot_count: number;
++         ledger_event_count: number;
++         period_key: string;
++       }
++       export interface ClosingPeriodConfirmationResult {
++         confirmed: boolean;
++         closing_snapshot_count: number;
++         period_key: string;
++         finalized_at: string;
++       }
++       export function buildClosingPeriodState(response: ClosingPeriodResponse): ClosingPeriodState;
++       export function isClosingPeriodAllowed(state: ClosingPeriodState): boolean;
++       export function formatClosingPeriodConfirmationKo(state: ClosingPeriodState): string;  // "월 마감 확정: 기말재고 snapshot 저장"
++       export function formatClosingPeriodBlockedKo(state: ClosingPeriodState): string;  // "마감 차단: 기말재고 음수"
++       ```
++     - **TS mirror helper #2 (extension `apps/web/lib/l2-input-inventory-ledger.ts`)** — 5-2 W2 carry-over extension. Add `ClosingSnapshotEvent` interface export:
++       ```typescript
++       export interface ClosingSnapshotEvent {
++         event_id: string; product_id: string; period_key: string;
++         event_type: "closing_snapshot"; qty: string;  // closing qty per product
++         trace_id: string; reverses_event_id: string | null;
++         correction_group_id: string | null;
++         finalized_at: string;  // ISO-8601 UTC
++       }
++       ```
++     - **ClosingPeriodConfirmationPanel (NEW `apps/web/components/m2-input/ClosingPeriodConfirmationPanel.tsx`)** — ClosingGuardBanner (5-3 wire) 위에 additive panel. shadcn `<Alert>` + `<Dialog>` pattern:
++       - When `closing_period.status=CLOSING_READY` → "마감 확정 가능" Alert 표시 + [마감 확정] 버튼 (sonner `toast.info` on click).
++       - When `closing_period.status=CLOSING_BLOCKED` → "마감 차단: 음수 기말재고" Alert 표시 + [마감 확정] 버튼 disabled (ClosingGuardBanner 와 동일 wire).
++       - When `closing_period.status=ALREADY_CLOSED` → "이미 마감됨 (finalized_at: ...)" Alert 표시 + [마감 확정] 버튼 비노출 (AD-6 close lock).
++       - When `closing_period.status=EMPTY_PERIOD` → "수불 event 0건: 마감 불가" Alert 표시 + [마감 확정] 버튼 disabled.
++     - **ClosingPeriodConfirmDialog (NEW `apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx`)** — shadcn `<Dialog>` + sonner `toast.success` + `toast.error` pattern:
++       - [마감 확정] 버튼 클릭 → Dialog 열림 (closing_period snapshot 산출 preview 표시).
++       - Dialog [확정] 클릭 → `POST /api/v1/inventory/closing-period/confirm` 호출 → 200 OK → sonner `toast.success('월 마감 확정 완료: closing_snapshot {N}건 저장')` + 페이지 reactive (ClosingGuardBanner → "마감 확정됨" 표시).
++       - 409 CLOSING_PERIOD_BLOCKED / 409 ALREADY_CLOSED → sonner `toast.error(...)` + Dialog 닫힘 + ClosingGuardBanner re-display.
++     - **MonthlyInputTabs extension** — `apps/web/components/m2-input/MonthlyInputTabs.tsx` (5-3 wire) extension. 마감 tab (5-3 3-tab 구조) 안에 ClosingPeriodConfirmationPanel wire. ClosingGuardBanner + ClosingPeriodConfirmationPanel = vertical stack (5-3 AC #2 wire 그대로).
++     - **Capability-gated UI** — service-only tenant (`tenant_settings.industry === 'service'`) → ClosingPeriodConfirmationPanel 비노출 + 403 INDUSTRY_NOT_SUPPORTED 시 sonner `toast.error` 표시. Capability matrix v1.3 (A10 결정) `MONTHLY_CLOSING_REPORT` capability SSOT.
++
++3. **Given** AC #2 TS mirror + ClosingPeriodConfirmationPanel + ClosingPeriodConfirmDialog + capability gate
++   **When** 본 스토리 dev-story 진입 시
++   **Then** 다음 wire contract 발동 (AC #3 — closing snapshot signal source = ledger aggregate + closing_snapshot event + monthly_input_periods status update):
++     - **`MonthlyInputStateResponse` extension (NEW 4 fields)**:
++       - `closing_period_status: ClosingPeriodState` (closing period status result — 5-3 closing_guard_invariant와 별도 필드)
++       - `closing_snapshot_count: int` (현재 시점 closing_snapshot ledger event count — AC #1 wire trigger)
++       - `closing_period_audit_trail: list[AuditLogEntry]` (last 10 closing_period_* audit entries, time DESC)
++       - `closing_period_finalized_at: str | None` (ISO-8601 UTC, monthly_input_periods.status='closed' 시 finalized_at; None = 미마감)
++     - **5-1 + 5-2 + 5-3 carry fields 보존**: 12 fields = `opening_inventory` + `opening_inventory_locked` + `opening_inventory_lock_reason_ko` (5-1) + `ledger_events_count` + `ledger_period_closing` + `inventory_ledger_enabled` + `reversal_request_enabled` (5-2) + `closing_guard_invariant` + `closing_guard_blocked` + `closing_guard_audit_trail` + `production_consumption_events` + `v3_verdict` (5-3) 그대로. 6-1 = 4 fields 신규 추가. 합계 16 fields.
++     - **`MonthlyInputService.get_state` extension** — wire `closing_period_service.evaluate_closing_period(session, tenant_id, period_key)` 호출 결과 + audit_trail query → 4 NEW fields populate.
++     - **`MonthlyInputService.confirm_closing_period` NEW method (extension `apps/api/modules/m2_input/services/monthly_input_service.py`)** — close-time confirmation hook:
++       1. `closing_period_service.confirm_closing_period(session, tenant_id, period_key, actor_id)` dispatch (AC #1 wire trigger).
++       2. confirm 성공 → `monthly_input_periods.status='closed'` UPDATE (AD-6 fiscal-period close lock) + `closed_at=func.now()` + `closed_by_actor_id=actor_id` + `closing_snapshot_event_count=N`.
++       3. CR 1.1 audit-first ordering: ledger INSERT before monthly_input_periods UPDATE before audit log INSERT (atomicity guarantee).
++       4. idempotent no-op skip: monthly_input_periods.status='closed' 이미 → 409 ALREADY_CLOSED typed envelope (no INSERT + no UPDATE + no audit).
++     - **Close-time hook integration (extension `MonthlyInputService.attempt_close` 4-2 is_blocked + 5-3 closing_guard 위 additive)**:
++       1. 4-2 `is_blocked=true` → 409 MONTHLY_INPUT_BLOCKED typed envelope (기존).
++       2. 5-3 `closing_guard_service.request_close_attempt` → 409 NEGATIVE_CLOSING_INVENTORY typed envelope (5-3 wire).
++       3. **6-1 `closing_period_service.confirm_closing_period` dispatch** → CLOSING_READY 시 200 OK `{ confirmed: true, closing_snapshot_count: int, period_key: str, finalized_at: str }` + ALREADY_CLOSED 시 409 ALREADY_CLOSED + CLOSING_BLOCKED 시 409 CLOSING_PERIOD_BLOCKED.
++       4. Audit log emission (CR 1.1 audit-first) — `audit_logs.action='closing_period_confirmed'` (ActionClass.CLOSING_PERIOD NEW) payload: `{period_key, closing_snapshot_count, finalized_at, actor_id, tenant_id, trace_id}`.
++     - **V4 verification wire (extension VerificationRunner 4-3 + 5-3 wire)** — `run_all(monthly_input, baseline, calc_result, *, industry)`:
++       1. V1 → **V4 (closing snapshot 일관성)** → V3 → V7 → V8 ordering 보존 (AD-12 invariant).
++       2. V4 wire: `ClosingPeriodSnapshotVerifier.verify_v4_closing_period_consistency(session, monthly_input, baseline, calc_result)` dispatch. industry=='service' → V4 SKIP (service-only tenant은 inventory 의미 없음 — 4-3 service-only ❌ skip pattern + A10 MONTHLY_CLOSING_REPORT capability gate 동등).
++       3. V4 fail → `top_failure.code='V4'` + audit `action='closing_period_snapshot_inconsistency'` (ActionClass.CLOSING_PERIOD NEW) + 4-3 verdict envelope verbatim.
++       4. V4 pass → audit `action='closing_period_confirmed'` (ActionClass.CLOSING_PERIOD NEW) payload `{period_key, closing_snapshot_count, verified_at, actor_id, tenant_id, trace_id}`.
++
++4. **Given** AC #1~#3 backend wire + AC #2 frontend wire + 5-1/5-2/5-3/0.5/A12 carry-over
++   **When** 본 스토리 commit 안에서 5-3 carry-over close + A10 capability matrix v1.3 wire
++   **Then** 다음 defense-in-depth + carry-over wire 발동 (AC #4 — A10 capability matrix + A8 inline projection timeline + closing_period audit):
++     - **A10 capability matrix v1.3 (extension `docs/capability-matrix.md`)** — Epic 5 retro §7 A10 결정:
++       ```markdown
++       | Capability | manufacturing | mfg+service | mfg+service+other | service-only |
++       |------------|---------------|-------------|--------------------|--------------|
++       | ... 기존 11+ capabilities ... |
++       | MONTHLY_CLOSING_REPORT (NEW 6-1) | ✅ | ✅ | ✅ | ❌ INDUSTRY_NOT_SUPPORTED |
++       ```
++       Changelog v1.3: 6-1 spec 진입 시 `MONTHLY_CLOSING_REPORT` capability wire.
++     - **A8 inline projection deprecation timeline (Epic 5 retro §7 A8 결정)** — `docs/closing-period.md` §timeline 섹션 명시:
++       ```markdown
++       ### A8 — Epic 3.3 inline projection deprecation timeline
++       - **5-2 commit + 1 epic maintenance window 종료 시점 = Epic 6 close-out 시점**
++       - 6-1 wire 시점 (Epic 6 진입점): inline projection 보존 (1 epic maintenance window 진행 중) + closing_period snapshot은 ledger aggregate (5-2 wire) 사용
++       - 6-2 / 6-3 wire: inline projection 보존 상태로 wire
++       - Epic 6 close-out 시점에 fold-in vs deprecate 결정 (Epic 11 reversal 진입 시 inline projection 완전 제거)
++       ```
++     - **ClosingPeriod audit log wire (AC #3 #4)** — `audit_logs.action='closing_period_confirmed'` / `closing_period_blocked` / `closing_period_snapshot_inconsistency` 3 values 신규 (ActionClass.CLOSING_PERIOD). INSERT to audit_logs (immutable, AD-2). payload = self-describing (CR 1.1 lesson).
++     - **SQL CHECK constraint (extension `apps/api/alembic/versions/0017_closing_period.py` NEW)**:
++       ```sql
++       ALTER TABLE monthly_input_periods ADD CONSTRAINT chk_closing_period_status
++         CHECK (
++           status IN ('open', 'closing', 'closed')
++         );
++       ALTER TABLE monthly_input_periods ADD COLUMN closing_snapshot_event_count INTEGER DEFAULT 0
++         CHECK (closing_snapshot_event_count >= 0);
++       ALTER TABLE monthly_input_periods ADD COLUMN finalized_at TIMESTAMPTZ;
++       ALTER TABLE monthly_input_periods ADD COLUMN closed_by_actor_id UUID;
++       ```
++       SQL-level guard: monthly_input_periods.status lifecycle = `open` → `closing` → `closed` (1-way state machine). 5-3 wire와 동일 defense-in-depth 패턴.
++     - **W4 vitest activation (Story 5-2 + 5-3 carry-over close)** — `tests/integration/test_inventory_ledger_label_consistency.py` extension. 3 NEW 6-1 cases 추가 (closing_period_status_label_ko_parity, closing_snapshot_event_type_ko_parity, closing_period_blocked_envelope_ko_parity). vitest infra (Story 0.5 AC #4 done) 활용. pytest.skip markers removed.
++     - **W5 isolated service layer tests (Story 5-2 + 5-3 carry-over close)** — `tests/api/m4_inventory/test_closing_period_service.py` (NEW) — 12 cases: evaluate_closing_period (3), confirm_closing_period CLOSING_READY success (2), confirm_closing_period CLOSING_BLOCKED 409 (2), confirm_closing_period ALREADY_CLOSED 409 (1), confirm_closing_period audit-first ordering (2), closing_period_audit_trail query (2).
++     - **6-1 AC #2 wire trigger frontend tests (Story 0.5 vitest + RTL wire)** — `apps/web/__tests__/closing-period-confirmation-panel.test.tsx` (NEW) — 5 scenarios:
++       1. `test_closing_period_panel_shows_when_ready` — status=CLOSING_READY → Alert 표시 + [마감 확정] 버튼 enabled.
++       2. `test_closing_period_panel_shows_blocked` — status=CLOSING_BLOCKED → Alert 표시 + [마감 확정] 버튼 disabled.
++       3. `test_closing_period_dialog_open_on_click` — [마감 확정] 클릭 → Dialog 열림 + snapshot preview 표시.
++       4. `test_closing_period_confirm_success` — Dialog [확정] 클릭 → POST 호출 + sonner toast.success + 페이지 reactive.
++       5. `test_closing_period_already_closed` — status=ALREADY_CLOSED → Alert 표시 + [마감 확정] 버튼 비노출.
++     - **MonthlyInputTabs extension tests (vitest + RTL)** — `apps/web/__tests__/monthly-input-tabs.test.tsx` (5-3 wire) extension. 4 NEW 6-1 scenarios 추가 (ClosingPeriodConfirmationPanel render, confirm dialog flow, audit trail list extension, service-only tenant hide).
++
++5. **Given** AC #1~#4 backend wire + frontend wire + carry-over close + capability matrix v1.3
++   **When** 본 스토리 dev-story 진입 시 5-3 ClosingGuardBanner 위에 additive + 6-1 frontend ClosingPeriodConfirmationPanel
++   **Then** 다음 3-layer defense wire 발동 (AC #5 — PRD §A11 입력 시 경고 + 마감 시 차단 + 마감 확정 시 snapshot 3-layer):
++     - **Layer 1 (입력 시 경고)** — Story 3.3 inline projection + 5-2 ledger aggregate 동시 활용. 음수 기초재고 / 출고 > 기초재고 입력 시 sonner `toast.warning` (5-3 wire 그대로).
++     - **Layer 2 (마감 시 차단)** — Story 5.3 `closing_guard_service.request_close_attempt` + 4-2 `is_blocked` 위 additive. 음수 기말재고 발생 시 409 NEGATIVE_CLOSING_INVENTORY typed envelope + ClosingGuardBanner red Alert (5-3 wire 그대로).
++     - **Layer 3 (마감 확정 시 snapshot)** — **6-1 `closing_period_service.confirm_closing_period`** dispatch. CLOSING_READY 시 ledger INSERT (closing_snapshot event_type) + monthly_input_periods.status='closed' UPDATE + audit INSERT (atomic transaction). 409 ALREADY_CLOSED 시 멱등성 보장 (idempotent no-op skip).
++     - **Capability gate** — `Capability.MONTHLY_CLOSING_REPORT` (6-1 v1.3 wire) + `Capability.INVENTORY_LEDGER` (5-2 wire) + `Capability.MONTHLY_INPUT_PRODUCTION` (3-1 wire) 3 capabilities 모두 CLOSING_PERIOD 진입점에서 검증. service-only tenant → 403 INDUSTRY_NOT_SUPPORTED typed envelope (A10 결정).
++
++6. **Given** AC #1~#5 backend + frontend + ClosingGuardBanner 위에 additive + capability gate
++   **When** 본 스토리 dev-story 진입 시 V4 verification wire
++   **Then** 다음 verification sync 발동 (AC #6 — V4 (closing snapshot 일관성) verification ↔ ledger aggregate ↔ closing_snapshot ledger events 양방향 동기화):
++     - **V4 verdict wire** — Story 4-3 V4 placeholder + Story 4-4 V8 골든 fixture fill 진입점 (V4 fixture = closing snapshot 일관성 PASS / FAIL 2 시나리오 골든):
++       1. **V4 PASS 골든** — ledger aggregate == closing_snapshot aggregate per product + V4 verdict = `passed` + audit `closing_period_confirmed`.
++       2. **V4 FAIL 골든** — ledger aggregate != closing_snapshot aggregate (per-product qty 불일치) + V4 verdict = `failed` + audit `closing_period_snapshot_inconsistency` + top_failure.code='V4' + Korean message "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요".
++     - **V4 골든 fixture wire (extension `packages/cost_engine/tests/regression_v8/fixtures/`)** — `v4_closing_period_pass_manufacturing.json` + `v4_closing_period_fail_manufacturing.json` 2 신규 골든. V8_FIXTURE_COUNT 14 → 16. 4-4 `fixture_publisher` CLI `--industry manufacturing --include-closing-period-snapshot` 추가.
++     - **V8 byte-identical 골든 확장** — Story 4-4 14 fixture matrix × V4 closing period snapshot 2 신규 = 16 fixture matrix. `tests/regression_v8/test_regression_v8_fixtures.py` extension — 16 lock_sha256 + 16 byte-identical + 16 100x determinism + 2 V4 FAIL shape + 2 V4 PASS shape cases. V8 mandatory CI gate 보존.
++     - **Verification ordering invariant (AD-12)** — V1 fail 시 V4 SKIP. V4 fail 시 V3 SKIP. V3 fail 시 V7 SKIP. V7 fail 시 V8 SKIP. abort-on-fail 패턴 그대로 (Story 4-3 + 5-3 wire).
++     - **4-2 calc endpoint close-time hook (Epic 3 A4 wire) 위에 additive** — `POST /api/v1/calc` 응답 시 verdict field:
++       - V4 fail → `top_failure.code='V4'` + `top_failure.message_ko='마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요'` + block_reason='CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY'.
++       - V4 pass → verdict.status='verified' + closing period snapshot OK.
++     - **Industry skip matrix (4-3 wire 패턴)** — manufacturing / manufacturing_service / manufacturing_service_other → V4 RUN. service-only → V4 SKIP (inventory 의미 없음 + A10 MONTHLY_CLOSING_REPORT capability gate 동등 발동).
++
++7. **Given** AC #1~#6 backend + frontend + V4 sync + 골든 fixture + verification ordering
++   **When** 본 스토리 dev-story 진입 시 audit-first + idempotent no-op + A5 forward-lock + A7 wire + A8 inline projection timeline
++   **Then** 다음 audit + drift + A7 wire 발동 (AC #7 — A5 forward-lock + A7 wire + A8 timeline + A10 capability):
++     - **`apps/api/core/audit_action.py` extension** — `ClosingPeriodAction = Literal["closing_period_confirmed", "closing_period_blocked", "closing_period_snapshot_inconsistency"]` 3 values 신규 + `VerificationAction` Literal 1 value 신규 채움: `verify_v4_closing_period_consistency` (Story 4-3 V4 placeholder fill audit). **A5 forward-lock**: `_ActionRegistry._REGISTRY[ActionClass.CLOSING_PERIOD]` accepted frozenset 3 values fill + `_REGISTRY[ActionClass.VERIFICATION]` accepted frozenset extension 1 value add (Story 4-3 wire 4 values + 5-3 wire 1 value + 6-1 wire 1 value = 6 values).
++     - **A5 drift detector (`tests/services/test_audit_action_centralization.py` extension)** — ActionClass.CLOSING_PERIOD + ActionClass.VERIFICATION 4 new actions 검증 pass. drift count = 0 유지.
++     - **3-way consistency drift detector (`tests/integration/test_audit_action_consistency.py` extension)** — A5 forward-lock:
++       - registry ↔ DB CHECK: ActionClass.CLOSING_PERIOD 3 values (registry SSOT) + ActionClass.VERIFICATION 6 values (registry SSOT + Story 4-3 wire 4 values + 5-3 V3 1 value + 6-1 V4 1 value).
++       - call sites AST-grep: `emit_audit(` raw in `apps/api/modules/m4_inventory/` + `apps/api/modules/m6_verification/` = 0 (5-1 + 5-2 + 5-3 + 6-1 모두 typed).
++       - verified DB constraint contents match published alembic migration files (Alembic 0013 + 0014 + 0015 + 0016 + 0017 모두 일치).
++     - **A7 wire (Epic 4 close-out retro A7 — async test pattern + SDR overclaim)** — Story 5-2 + 5-3 wire pattern 그대로:
++       - Async test pattern (CR 4-3 F-1) — 모든 service-layer test `def test_x(): asyncio.run(_impl())` wrapper (pytest-asyncio 금지).
++       - SDR overclaim detector — `tests/integration/test_sdr_test_count_drift.py` 2 cases (5-1 + 5-2 + 5-3 wire pattern 그대로 6-1 확장).
++     - **`MonthlyInputService.confirm_closing_period` CR 1.1 audit-first + idempotent no-op wire**:
++       1. `monthly_input_periods.status='closed'` check (idempotent no-op guard) → 이미 closed 시 409 ALREADY_CLOSED typed envelope (no INSERT + no UPDATE + no audit).
++       2. `closing_period_service.evaluate_closing_period` 호출 → status == CLOSING_READY 검증.
++       3. **5-2 `LedgerService.append_event(event_type='closing_snapshot', ...)`** INSERT to inventory_ledger (per-product closing qty) — per product 1 row. CR 1.1 audit-first ordering.
++       4. **`monthly_input_periods.status='closed'` UPDATE** + `closed_at=func.now()` + `closed_by_actor_id=actor_id` + `closing_snapshot_event_count=N`.
++       5. **`emit_audit_typed(action_class=ActionClass.CLOSING_PERIOD, action='closing_period_confirmed', ..., payload={period_key, closing_snapshot_count, finalized_at, actor_id, tenant_id, trace_id})`** INSERT to audit_logs.
++       6. CR 1.1 idempotent re-confirm 시 audit skip + no DB write (CLOSING_PERIOD wire).
++     - **PR 일관성 guard** — Alembic 0017 migration 후 Alembic 0015 + 0016 + 0017 cross-check (`tests/integration/test_alembic_migration_chain.py` extension — V4 closing period snapshot guard wire에 필수).
++
++8. **Given** AC #1~#7 backend + frontend + V4 + audit + drift + A7 + A8 timeline + A10 capability
++   **When** 본 스토리 10 task (T1-T10) 실행
++   **Then** 다음 tests wire 발동 (AC #8 — 3중 게이트 + drift detector + A5 + A7 + frontend vitest + Playwright):
++     - **Pure kernel (2 NEW files — ~30 cases)**:
++       - `tests/services/m4_inventory/test_closing_period.py` (NEW) — 18 cases: compute_closing_snapshot (5), classify_closing_period_status (5 CLOSING_READY/CLOSING_BLOCKED/ALREADY_CLOSED/EMPTY_PERIOD/edge), is_closing_period_allowed (2), CLOSING_PERIOD_CONFIRMATION_KO constant (2), append-only interaction (2), banker's rounding (2 — CR 0-4 lesson).
++       - `tests/cost_engine/test_closing_period_snapshot.py` (NEW) — 12 cases: V4 verdict PASS/FAIL/SKIP (3), ledger aggregate vs closing_snapshot aggregate 일치 검증 (3), product whitelist mismatch (2), industry='service' skip (2), ordering invariant (V4 fail 후 abort, 2), banker's rounding (2).
++     - **Service layer (3 NEW files — ~28 cases)**:
++       - `tests/api/m4_inventory/test_closing_period_service.py` (NEW) — 12 cases (AC #4 wire spec).
++       - `tests/api/m6_verification/test_closing_period_snapshot_verifier.py` (NEW) — 8 cases: verify_v4_closing_period_consistency PASS/FAIL (2), industry skip (1), product whitelist mismatch (1), ordering invariant (1), audit emission (1), idempotent (1), empty period (1).
++       - `tests/api/m2_input/test_monthly_input_confirm_closing_period.py` (NEW) — 8 cases: confirm_closing_period CLOSING_READY success (2), ALREADY_CLOSED 409 (2), audit-first ordering (2), idempotent re-confirm skip (2).
++     - **3-way consistency drift detector (extension A5)** — `tests/integration/test_audit_action_consistency.py` extension — 4 NEW cases:
++       - ActionClass.CLOSING_PERIOD registry ↔ DB CHECK consistency (2 cases).
++       - ActionClass.VERIFICATION 6-1 extension ↔ Story 4-3 wire 4 values + 5-3 wire 1 value + 6-1 wire 1 value consistency (2 cases).
++     - **SQL CHECK constraint test (AC #4)** — `tests/integration/test_closing_period_sql_check.py` NEW — 4 cases:
++       1. `test_closing_period_status_state_machine_valid` — status lifecycle `open → closing → closed` 검증.
++       2. `test_closing_period_status_invalid_rejected` — invalid status 값 INSERT 시 CHECK constraint violation.
++       3. `test_closing_snapshot_event_count_non_negative` — `closing_snapshot_event_count < 0` 시 CHECK constraint violation.
++       4. `test_closing_period_sql_check_constraint_exists` — alembic migration 후 introspection.
++     - **V8 fixture extension (AC #6 wire)** — `tests/regression_v8/test_regression_v8_fixtures.py` extension — 16 fixture matrix + 2 V4 PASS/FAIL shape cases + 2 industry skip matrix = 20 NEW cases (총 V8 골든 = 16 = 14 existing + 2 V4 신규).
++     - **Capability gate (1 NEW + 1 extension)**:
++       - `tests/integration/test_closing_period_capability.py` (NEW) — 4 cases: manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED (A10 MONTHLY_CLOSING_REPORT capability).
++       - `tests/integration/test_inventory_ledger_capability.py` (extension) — `evaluate_closing_period` capability wire test 2 cases.
++     - **TS mirror parity (1 extension)** — `tests/integration/test_closing_period_label_consistency.py` (NEW) — 6 cases (AC #2 wire spec):
++       1. `test_closing_period_status_label_ko_parity` — TS `ClosingPeriodStatus` literal 4 values ↔ Python `ClosingPeriodStatus` literal 4 values.
++       2. `test_closing_snapshot_event_type_ko_parity` — TS `ClosingSnapshotEvent` ↔ Python `closing_snapshot` ledger event.
++       3. `test_closing_period_blocked_envelope_ko_parity` — TS `CLOSING_PERIOD_BLOCKED` envelope ↔ Python `ClosingPeriodBlockedError` envelope.
++       4. `test_already_closed_envelope_ko_parity` — TS `ALREADY_CLOSED` envelope ↔ Python `AlreadyClosedError` envelope.
++       5. `test_closing_period_confirmation_ko` — TS `formatClosingPeriodConfirmationKo` � Python `CLOSING_PERIOD_CONFIRMATION_KO`.
++       6. `test_closing_period_blocked_ko` — TS `formatClosingPeriodBlockedKo` ↔ Python `CLOSING_PERIOD_BLOCKED_KO`.
++     - **Frontend vitest tests (2 NEW files — 9 scenarios)**:
++       - `apps/web/__tests__/closing-period-confirmation-panel.test.tsx` (NEW) — 5 scenarios (AC #4 spec).
++       - `apps/web/__tests__/monthly-input-tabs.test.tsx` (extension) — 4 NEW 6-1 scenarios (ClosingPeriodConfirmationPanel render, confirm dialog flow, audit trail list extension, service-only tenant hide).
++     - **Playwright E2E (1 NEW file — 4 scenarios)**:
++       - `apps/web/e2e/closing-period.spec.ts` (NEW) — 4 scenarios:
++         1. `test_closing_period_confirm_full_flow` — 기초재고 + 입고 + 출고 입력 → [마감] 클릭 → ClosingGuardBanner 표시 → [마감 확정] 클릭 → Dialog → [확정] → sonner toast.success + monthly_input_periods.status='closed' 검증.
++         2. `test_closing_period_blocked_on_negative` — 출고 > 기말 → [마감] 차단 → ClosingPeriodConfirmationPanel disabled.
++         3. `test_closing_period_already_closed_idempotent` — [마감 확정] 1회 → 2회 클릭 시 409 ALREADY_CLOSED typed envelope.
++         4. `test_service_only_tenant_hides_closing_period` — service-only tenant → ClosingPeriodConfirmationPanel 비노출.
++     - **3중 게이트 (mandatory CI)**:
++       - `uv run ruff check packages/services/m4_inventory/closing_period.py packages/cost_engine/closing_period_snapshot.py apps/api/modules/m4_inventory/services/closing_period_service.py apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py apps/api/core/audit_action.py 0 errors`
++       - `uv run import-linter lint` — closing_period.py + closing_period_snapshot.py pure helper = `packages/` allowed. m4_inventory + m6_verification service layer = `apps/api/modules/{m4_inventory,m6_verification}/` allowed (no `packages.cost_engine` import for service layer — AD-11).
++       - `uv run pytest` (full) — 30+ pure + 28+ service + 4 drift + 4 SQL CHECK + 20 V8 골든 + 6 capability + 6 TS parity + 9 frontend vitest + 4 Playwright = 110+ NEW tests pass + Story 5-1 + 5-2 + 5-3 + 0-5 + A12 누적 회귀 0건. A7 SDR overclaim detector pass (test count = 110+ 매칭 필수).
++       - `pnpm test` (Story 0.5 AC #4 wire + 6-1 frontend vitest) — 9 scenarios pass + 5-3 wire 14 scenarios regression 0건.
++       - `pnpm playwright test --project=chromium apps/web/e2e/closing-period.spec.ts` (Story 0.5 AC #5 wire + 6-1 E2E) — 4 scenarios pass.
++
++9. **Given** AC #1~#8 backend + frontend + V4 + tests + 3중 게이트
++   **When** 본 스토리 10 task (T1-T10) 실행
++   **Then** 다음 docs wire 발동 (AC #9 — operator/dev 가이드 + Epic 6 6-2 spec 진입점 + A8 timeline + A10 capability matrix):
++     - `docs/closing-period.md` (NEW): operator/dev guide — closing_period service wire contract + closing_snapshot ledger event emit + V4 verification sync + 4-2 close-time hook + 5-3 closing guard + 5-2 ledger aggregate + shadcn Dialog + sonner toast + ClosingPeriodConfirmationPanel + ClosingPeriodConfirmDialog + idempotent no-op skip. 7-section 운영 매뉴얼 (개요 / wire contract / UI / V4 sync / carry-over close / 3-layer defense / 운영 가이드) + **A8 inline projection deprecation timeline 섹션** 명시 (Epic 6 close-out 시점 fold-in).
++     - `docs/monthly-input.md` §Story 6.1 추가: closing period service wire contract (`closing_period_status` 4 values + `closing_snapshot_count` flag + `closing_period_finalized_at` envelope + `closing_period_audit_trail` list) + 6-1 4 NEW fields populate + ClosingPeriodConfirmationPanel UI + sonner toast pattern + [마감 확정] button gate.
++     - `docs/inventory-ledger.md` §Story 6.1 추가: closing_snapshot ledger event wire (5-2 11 values event_type whitelist 11번째 값 wire 진입점) + ledger INSERT pattern + monthly_input_periods.status='closed' UPDATE + audit-first ordering.
++     - `docs/cost-engine.md` §V4 closing period snapshot 추가: 4-3 V4 placeholder + 4-4 V8 골든 + 6-1 V4 wire — closing snapshot 일관성 PASS / FAIL 골든 2 fixture + V8 골든 14 → 16 matrix + byte-identical CI gate.
++     - `docs/capability-matrix.md` v1.3 (2026-08-XX) — Changelog:
++       - v1.3 (Story 6.1) — `MONTHLY_CLOSING_REPORT` capability wire (manufacturing 3종 ✅ / service-only ❌) + `ActionClass.CLOSING_PERIOD` 3 values 채움 + `ActionClass.VERIFICATION` V4 value add (5 → 6) + `inventory_ledger.event_type` 11 values 그대로 (closing_snapshot은 5-2 commit 안에서 wire 완료 — 6-1 spec 본문에서 명시 보존) + V4 verification surface wire + Alembic 0017 SQL CHECK constraint + 6-1 spec 진입 시 A8 inline projection deprecation timeline 명시.
++     - `docs/conventions.md` §10.8 (NEW) closing period service policy: "closing period snapshot = AD-2 ledger append-only closing_snapshot event + AD-4 atomicity close-time hook + AD-6 fiscal-period close lock + AD-12 V4 verification ordering (V1 → V4 → V3 → V7 → V8). 입력 시 경고 (Story 3.3 inline + 5-3 ledger aggregate) + 마감 시 차단 (5-3 closing_guard_service + 4-2 close-time hook) + 마감 확정 시 snapshot (6-1 closing_period_service) 3-layer. V4 fail 시 4-3 verdict envelope + 4-2 close-time block_reason 동등 발동. 6-1 spec에서 3중 게이트 와이어됨. A8 timeline: Epic 6 close-out 시점에 inline projection 제거."
++     - `docs/conventions.md` §10.7 �신 (5-3 closing guard invariant policy): "M14 TS mirror wire + L8 SQL CHECK + 5-3 frontend manual edit reject UI + 6-1 closing_period wire = 4중 defense-in-depth 보존."
++     - `docs/frontend-toolchain.md` §Story 6.1 추가 (Story 0.5 v1.0 SSOT extension): ClosingPeriodConfirmationPanel pattern (ClosingGuardBanner 위에 additive) + shadcn Dialog pattern (`<Dialog>` + `<DialogTrigger>` + `<DialogContent>` + `<DialogAction>`) + ClosingPeriodConfirmDialog pattern + sonner `toast.success` + `toast.error` + `toast.info` pattern.
++
++10. **Given** AC #1~#9 wire + docs + 3중 게이트
++    **When** 본 스토리 commit 완료 후
++    **Then** 다음 Epic 6 6-2 spec 진입점 발동 (AC #10 — Epic 6 close-out 결정 가이드):
++    - **Epic 6 6-2 spec 진입점** — 6-1 commit 후 Epic 6 6-2 (Monthly Closing Report — closing snapshot + ledger events + capability gate) spec 진입 가능:
++      1. **3-story 분할 결론** — Epic 5 retro §6 결정 (cj-style 6-1/6-2/6-3 분할) 그대로 적용. 6-1 closing period service + closing_snapshot ledger event wire 완료 → 6-2 Monthly Closing Report 진입점.
++      2. **A10 carry (Epic 5 close-out retro A10)** — MONTHLY_CLOSING_REPORT capability 신규 wire 완료 → Epic 6/Epic 11 reporting capability 일관성 보장.
++      3. **A8 carry (Epic 5 close-out retro A8)** — Epic 3.3 inline projection deprecation timeline 명시 완료 → Epic 6 close-out 회고 시점에 fold-in vs deprecate 결정 필수.
++      4. **A11 carry (Epic 5 close-out retro A11)** — Epic 6 V8 fixture 확장 (closing snapshot + ledger events) 진입점. 6-1 wire 시점에 V4 골든 2 fixture 신규 + V8 골든 14 → 16 matrix 확장. 6-2 spec 진입 시 추가 fixture 확장 (월 마감 보고서 input shape).
++      5. **A9 carry (Epic 5 close-out retro A9)** — Epic 11 reversal module wire 진입점 (5-1 + 5-2 + 6-1 carry). `closing_snapshot` ledger event = Epic 11 reversal module의 wire contract 진입점 (reversal_negating + reversal_corrected event type fill로 closing_snapshot correction 가능). Epic 11 spec 진입 시 결정.
++
++## Tasks / Subtasks
++
++### T1. Pure kernel #1 — `packages/services/m4_inventory/closing_period.py` (NEW)
++- T1.1 `compute_closing_snapshot(closing_per_product: dict[UUID, Decimal], period_key: str, tenant_id: UUID, finalized_at: str) -> list[ClosingSnapshotEntry]` — 5-3 `compute_closing_balance_per_product` 결과 → per-product ClosingSnapshotEntry 변환. per product 1 ClosingSnapshotEntry = `{product_id, closing_qty: Decimal, finalized_at}`. banker's rounding via `QTY_QUANTUM` from `inventory_projection`.
++- T1.2 `classify_closing_period_status(closing_per_product: dict[UUID, Decimal], ledger_event_count: int) -> ClosingPeriodStatus` — CLOSING_READY / CLOSING_BLOCKED / ALREADY_CLOSED / EMPTY_PERIOD 4 values classification. NamedTuple OR TypedDict.
++- T1.3 `is_closing_period_allowed(status: ClosingPeriodStatus) -> bool` (= status == CLOSING_READY).
++- T1.4 `CLOSING_PERIOD_CONFIRMATION_KO: Final[str] = "월 마감 확정: 기말재고 snapshot 저장"` — Korean confirmation message constant SSOT (AD-15 §11).
++- T1.5 `ClosingPeriodError(Exception)` typed exception — pure helper domain semantics. NO HTTP envelope (service layer wraps).
++- T1.6 stdlib-only import set: `uuid`, `decimal`, `re`, `datetime`, `enum`. NO `sqlalchemy`, NO `fastapi`, NO `pydantic`, NO DB client.
++
++### T2. Pure kernel #2 — `packages/cost_engine/closing_period_snapshot.py` (NEW)
++- T2.1 `V4Verdict` TypedDict — `{status: Literal["passed","failed","skipped"], failures: list[V4Failure], verified_at: str, product_whitelist_size: int}`. CR 4-3 lesson TypedDict pattern.
++- T2.2 `V4Failure` TypedDict — `{product_id: UUID, ledger_qty: Decimal, closing_snapshot_qty: Decimal, message_ko: str}`. AD-15 snake_case.
++- T2.3 `verify_closing_period_consistency(*, ledger_aggregate: dict[UUID, Decimal], closing_snapshot_aggregate: dict[UUID, Decimal], product_whitelist: set[UUID]) -> V4Verdict` — V4 rule pure kernel:
++  1. product whitelist intersection check: aggregate key not in whitelist → log + ignore (defense-in-depth).
++  2. ledger_aggregate vs closing_snapshot_aggregate per-product 일치 검증. 불일치 시 V4Failure append.
++  3. failures empty → status='passed'. failures non-empty → status='failed'. ledger aggregate empty → status='skipped'.
++- T2.4 `verify_v4_in_verification_runner` flag — industry='service' → status='skipped' + reason_ko='service-only tenant은 inventory 의미 없음' (Story 4-3 service-only ❌ skip pattern + A10 MONTHLY_CLOSING_REPORT capability gate 동등).
++- T2.5 stdlib-only (no sqlalchemy). AD-11 layer rule preserved.
++
++### T3. Service layer #1 — `apps/api/modules/m4_inventory/services/closing_period_service.py` (NEW)
++- T3.1 `ClosingPeriodService.evaluate_closing_period(session, *, tenant_id, period_key) -> ClosingPeriodResult`:
++  - 5-2 `LedgerService.query_period_closing(session, period_key)` 호출 → dict[UUID, Decimal].
++  - 5-3 `ClosingGuardService.evaluate_closing_guard(session, tenant_id, period_key)` 호출 → closing_guard_invariant.
++  - T1 pure kernel `classify_closing_period_status` + `is_closing_period_allowed` dispatch.
++  - Audit log emission (CR 1.1) — `closing_period_blocked` (CLOSING_BLOCKED) emit (CLOSING_READY / ALREADY_CLOSED / EMPTY_PERIOD 시 audit skip).
++  - return `ClosingPeriodResult` TypedDict `{status, allowed, closing_per_product, closing_snapshot_count, ledger_event_count, period_key}`.
++- T3.2 `ClosingPeriodService.confirm_closing_period(session, *, tenant_id, period_key, actor_id) -> ClosingPeriodConfirmationResult`:
++  - 1. `monthly_input_periods.status='closed'` check (idempotent no-op guard) — 이미 closed 시 409 ALREADY_CLOSED typed envelope (no INSERT + no UPDATE + no audit).
++  - 2. T3.1 `evaluate_closing_period` 호출 → CLOSING_READY 검증 (CLOSING_BLOCKED / EMPTY_PERIOD / ALREADY_CLOSED 시 409 typed envelope).
++  - 3. T1 pure kernel `compute_closing_snapshot` dispatch.
++  - 4. 5-2 `LedgerService.append_event(event_type='closing_snapshot', ...)` 호출 per product (per product 1 row INSERT).
++  - 5. CR 1.1 audit-first ordering: ledger INSERT before monthly_input_periods UPDATE before audit log INSERT (atomicity guarantee).
++  - 6. `monthly_input_periods.status='closed'` UPDATE + `closed_at=func.now()` + `closed_by_actor_id=actor_id` + `closing_snapshot_event_count=N`.
++  - 7. `emit_audit_typed(action_class=ActionClass.CLOSING_PERIOD, action='closing_period_confirmed', ..., payload={period_key, closing_snapshot_count, finalized_at, actor_id, tenant_id, trace_id})` INSERT to audit_logs.
++  - return `ClosingPeriodConfirmationResult` TypedDict `{confirmed: true, closing_snapshot_count: int, period_key: str, finalized_at: str}`.
++- T3.3 `ClosingPeriodService.get_closing_period_audit_trail(session, *, tenant_id, period_key) -> list[AuditLogEntry]`:
++  - 5-3 `ClosingGuardService.get_closing_guard_audit_trail` 패턴 그대로 (CR 1.1 observability).
++  - audit_logs query filtered by `action_class='closing_period'` for the current period_key.
++  - return list[AuditLogEntry] (capped at 10, time DESC).
++- T3.4 SQLAlchemy AsyncSession + `emit_audit_typed` wire (raw `emit_audit(` 0건). 5-1 + 5-2 + 5-3 pattern 동일 적용.
++- T3.5 4 typed exceptions (`ClosingPeriodError` 409 / `ClosingPeriodBlockedError` 409 / `AlreadyClosedError` 409 / `ClosingPeriodSnapshotInconsistencyError` 409 AD-15 envelope mapping in main.py — distinct from pure helper type for layer boundary).
++
++### T4. Service layer #2 — `apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py` (NEW, V4 slot fill)
++- T4.1 `ClosingPeriodSnapshotVerifier.verify_v4_closing_period_consistency(session, *, monthly_input, baseline, calc_result) -> V4RuleResult`:
++  - 5-2 ledger aggregate + 5-3 closing_guard_invariant + 6-1 closing_snapshot ledger events aggregate dispatch.
++  - T2 `verify_closing_period_consistency` pure kernel 호출 (ledger_aggregate vs closing_snapshot_aggregate 일치 검증, product whitelist from session).
++  - industry='service' → status='skipped' (4-3 service-only skip pattern + A10 MONTHLY_CLOSING_REPORT capability gate 동등).
++  - return `V4RuleResult` TypedDict `{status, code: "V4", failures: list[V4Failure], verified_at, message_ko}`.
++- T4.2 `VerificationRunner.run_all` extension — V4 slot fill:
++  ```python
++  # Story 4-3 + 4-4 + 5-3 wire 그대로
++  v1 = v1_completeness.run(monthly_input, baseline)
++  if v1.status == "failed":
++      return Verdict(top_failure=v1)
++  # Story 6.1 V4 slot fill (NEW)
++  v4 = ClosingPeriodSnapshotVerifier.verify_v4_closing_period_consistency(session, monthly_input, baseline, calc_result)
++  if v4.status == "failed":
++      return Verdict(top_failure=v4)
++  v3 = ClosingInvariantVerifier.verify_v3_closing_invariant(session, monthly_input, baseline, calc_result)
++  if v3.status == "failed":
++      return Verdict(top_failure=v3)
++  v7 = v7_abc_integrity.run(...)  # service-only skip
++  if v7.status == "failed":
++      return Verdict(top_failure=v7)
++  v8 = v8_regression.run(...)  # V8 16 fixture matrix
++  ```
++- T4.3 A5 audit wire — `verify_v4_closing_period_consistency` action emit (ActionClass.VERIFICATION NEW value).
++- T4.4 V4 fail 시 top_failure.code='V4' + message_ko=closing period snapshot inconsistency message (Korean SSOT).
++
++### T5. Wire trigger — `apps/api/modules/m4_inventory/handlers.py` extension
++- T5.1 `POST /api/v1/inventory/closing-period/confirm` (NEW) — close-time confirmation wire. Body = `{period_key: str}`. Returns 200 OK or 409 CLOSING_PERIOD_BLOCKED / 409 ALREADY_CLOSED typed envelope. AD-15 envelope + capability gate `MONTHLY_CLOSING_REPORT` (A10 신규).
++- T5.2 `GET /api/v1/inventory/closing-period/status?period_key=...` (NEW) — read-only closing period status check. Returns `ClosingPeriodResponse`. AD-15 envelope + capability gate.
++- T5.3 `GET /api/v1/inventory/closing-period/audit-trail?period_key=...` (NEW) — audit log query filtered by closing_period actions. AD-15 envelope + capability gate.
++- T5.4 `apps/api/modules/m2_input/services/monthly_input_service.py` extension:
++  - `MonthlyInputStateResponse` 4 NEW fields (AC #3 wire spec) + 12 existing fields (5-1 + 5-2 + 5-3) 보존.
++  - `get_state` extension — `closing_period_service.evaluate_closing_period` + audit_trail query dispatch → 4 NEW fields populate.
++  - `confirm_closing_period` NEW method — `closing_period_service.confirm_closing_period` dispatch (T3.2).
++  - `attempt_close` 4-2 is_blocked + 5-3 closing_guard 위 additive — `closing_period_service.confirm_closing_period` dispatch (T3.2).
++- T5.5 `apps/api/main.py` route 등록 (3 NEW routes) + AD-15 envelope exception handlers (T3.5 4 typed exceptions).
++- T5.6 `apps/api/core/audit_action.py` extension — `ClosingPeriodAction` + `VerificationAction` Literal 신규 (AC #7 wire spec).
++- T5.7 `apps/api/core/capability.py` extension — `MONTHLY_CLOSING_REPORT` capability SSOT 신규 채움 (manufacturing 3종 ✅ / service-only ❌). `_INDUSTRY_CAPABILITIES` SSOT 동시 갱신.
++
++### T6. Schema — Alembic migration + db_models + response schemas (NEW + extension)
++- T6.1 `apps/api/alembic/versions/0017_closing_period.py` (NEW):
++  - `down_revision: 0016_closing_guard_invariant`.
++  - `op.execute("ALTER TABLE monthly_input_periods ADD CONSTRAINT chk_closing_period_status CHECK (...)")` — AC #4 SQL CHECK.
++  - `op.add_column('monthly_input_periods', sa.Column('closing_snapshot_event_count', sa.Integer, server_default='0'))` + `op.create_check_constraint(...)`.
++  - `op.add_column('monthly_input_periods', sa.Column('finalized_at', sa.TIMESTAMP(timezone=True), nullable=True))`.
++  - `op.add_column('monthly_input_periods', sa.Column('closed_by_actor_id', postgresql.UUID, nullable=True))`.
++  - `op.create_index('idx_closing_period_audit', 'audit_logs', ['tenant_id', 'period_key', 'created_at'], postgresql_using='btree')` — closing period audit trail query 지원.
++  - Downgrade: drop index + drop columns + drop CHECK constraint.
++- T6.2 `apps/api/core/db_models.py` extension — `monthly_input_periods.closing_snapshot_event_count` + `finalized_at` + `closed_by_actor_id` + status CHECK constraint ORM 매핑.
++- T6.3 `apps/api/modules/m4_inventory/schemas.py` extension — `ClosingPeriodResponse` (Pydantic + extra='forbid') + `ClosingPeriodConfirmRequest` (period_key) + `ClosingPeriodConfirmationResult` (response) + `ClosingPeriodAuditTrailResponse` (list[AuditLogEntry]). CR 2.3 lesson `extra='forbid'` 보존.
++- T6.4 `apps/api/modules/m2_input/services/monthly_input_service.py` extension — `MonthlyInputStateResponse` 4 NEW fields (T5.4 spec).
++
++### T7. Audit-action wire (A5 forward-lock + A7 wire + A8 timeline + A10 capability)
++- T7.1 `apps/api/core/audit_action.py` — `ClosingPeriodAction = Literal["closing_period_confirmed", "closing_period_blocked", "closing_period_snapshot_inconsistency"]` 3 values 신규 + `VerificationAction` Literal 1 value 신규 채움: `verify_v4_closing_period_consistency` (extension).
++- T7.2 `_ActionRegistry._REGISTRY[ActionClass.CLOSING_PERIOD] = ("closing_period", frozenset({...3 values...}))` — NEW class accepted set.
++- T7.3 `_ActionRegistry._REGISTRY[ActionClass.VERIFICATION]` extension — Story 4-3 wire 4 values + 5-3 wire 1 value + 6-1 wire 1 value = 6 values.
++- T7.4 `AuditAction` Union type auto-sync (registry guard 시 검증됨).
++- T7.5 `apps/api/core/capability.py` extension — `MONTHLY_CLOSING_REPORT = "monthly_closing_report"` Literal 신규 + `_INDUSTRY_CAPABILITIES[MANUFACTURING] |= {MONTHLY_CLOSING_REPORT}` + `_INDUSTRY_CAPABILITIES[MANUFACTURING_SERVICE] |= {MONTHLY_CLOSING_REPORT}` + `_INDUSTORY_CAPABILITIES[MANUFACTURING_SERVICE_OTHER] |= {MONTHLY_CLOSING_REPORT}` (A10 결정 — manufacturing 3종 ✅ / service-only ❌).
++- T7.6 `tests/integration/test_audit_action_consistency.py` extension — A5 3-way drift detector (AC #7 spec).
++- T7.7 `tests/services/test_audit_action_centralization.py` extension — 6-1 actions 4개 (CLOSING_PERIOD 3 + VERIFICATION 1) 모두 registry set 포함 검증. drift count = 0 유지.
++- T7.8 `tests/integration/test_sdr_test_count_drift.py` extension — A7 wire SDR overclaim detector 2 cases (6-1 claim 110+ 매칭).
++
++### T8. Frontend wire — TS mirror + ClosingPeriodConfirmationPanel + ClosingPeriodConfirmDialog (NEW)
++- T8.1 `apps/web/lib/closing-period.ts` (NEW) — TS mirror helper #1 (AC #2 spec).
++- T8.2 `apps/web/lib/l2-input-inventory-ledger.ts` (extension) — `ClosingSnapshotEvent` interface export (AC #2 spec).
++- T8.3 `apps/web/components/m2-input/ClosingPeriodConfirmationPanel.tsx` (NEW) — ClosingGuardBanner (5-3 wire) 위에 additive panel. shadcn `<Alert>` + status 별 conditional rendering (CLOSING_READY / CLOSING_BLOCKED / ALREADY_CLOSED / EMPTY_PERIOD). Korean message SSOT.
++- T8.4 `apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx` (NEW) — shadcn `<Dialog>` + sonner `toast.success` + `toast.error` pattern. POST /closing-period/confirm 호출 + reactive update.
++- T8.5 `apps/web/components/m2-input/MonthlyInputTabs.tsx` (extension, 5-3 wire) — 마감 tab 안에 ClosingPeriodConfirmationPanel wire (ClosingGuardBanner + ClosingPeriodConfirmationPanel = vertical stack).
++- T8.6 `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx` extension — `<MonthlyInputTabs>` wire + closing period integration + ClosingPeriodConfirmDialog mount.
++- T8.7 `apps/web/messages/ko-KR.json` extension — 6-1 신규 ko-KR strings:
++  - `closing_period.panel_ready` = "월 마감 확정 가능"
++  - `closing_period.panel_blocked` = "마감 차단: 음수 기말재고"
++  - `closing_period.panel_already_closed` = "이미 마감됨"
++  - `closing_period.panel_empty_period` = "수불 event 0건: 마감 불가"
++  - `closing_period.confirm_button` = "마감 확정"
++  - `closing_period.dialog_title` = "월 마감 확정"
++  - `closing_period.dialog_description` = "기말재고 snapshot 저장 후 reopen 불가. 확정하시겠습니까?"
++  - `closing_period.dialog_confirm` = "확정"
++  - `closing_period.toast_success` = "월 마감 확정 완료: closing_snapshot {N}건 저장"
++  - `closing_period.toast_error_blocked` = "마감 차단: 음수 기말재고"
++  - `closing_period.toast_error_already_closed` = "이미 마감됨"
++
++### T9. Capability gate wire + A10 capability matrix v1.3 + A8 inline projection timeline
++- T9.1 `apps/api/core/capability.py` extension — `MONTHLY_CLOSING_REPORT` capability 신규 (T7.5 spec). `_INDUSTRY_CAPABILITIES` 4 industries × 12+ capabilities 정합성 자동 검증 (Epic 3 정착 패턴 그대로).
++- T9.2 `docs/capability-matrix.md` v1.3 — Changelog v1.3: 6-1 spec 진입 시 `MONTHLY_CLOSING_REPORT` capability wire (A10 결정 — manufacturing 3종 ✅ / service-only ❌).
++- T9.3 `docs/closing-period.md` §A8 timeline 섹션 — Epic 3.3 inline projection deprecation timeline 명시 (Epic 6 close-out 시점 fold-in). 6-1 wire 시점 inline projection 보존 상태로 wire (1 epic maintenance window 진행 중).
++- T9.4 `tests/integration/test_capability_consistency.py` extension — 6-1 capability wire 1 NEW case (MONTHLY_CLOSING_REPORT 4 industries 검증).
++
++### T10. Tests + docs + 3중 게이트 (T1-T9 동반 + T10 commit-msg finalize)
++- T10.1 Pure kernel tests 2 NEW files (T1+T2 spec 본문) — ~30 cases.
++- T10.2 Service layer tests 3 NEW files (T3+T4 spec 본문) — ~28 cases.
++- T10.3 Drift detector extension 1 NEW file (AC #7 spec) — 4 cases.
++- T10.4 SQL CHECK test 1 NEW file (AC #4 spec) — 4 cases.
++- T10.5 V8 fixture extension (AC #6 wire spec) — 20 cases (16 existing + 2 V4 + 2 byte-identical + 2 industry skip).
++- T10.6 Capability gate 1 NEW + 2 extension — 6 cases.
++- T10.7 TS mirror parity 1 NEW file (AC #2 spec) — 6 cases.
++- T10.8 Frontend vitest tests 2 NEW files (1 extension) — 9 scenarios.
++- T10.9 Playwright E2E 1 NEW file — 4 scenarios.
++- T10.10 docs 5 NEW + 5 EXTENSION (AC #9 spec):
++  - `docs/closing-period.md` (NEW)
++  - `docs/monthly-input.md` §Story 6.1 추가
++  - `docs/inventory-ledger.md` §Story 6.1 추가
++  - `docs/cost-engine.md` §V4 closing period snapshot 추가
++  - `docs/capability-matrix.md` v1.3
++  - `docs/conventions.md` §10.8 (NEW) + §10.7 갱신
++  - `docs/frontend-toolchain.md` §Story 6.1 추가
++- T10.11 3중 게이트 (mandatory CI) — ruff 0 errors / import-linter 2 KEPT / pytest full (skip 옵션 없음) — Epic 5 5-1 (35) + 5-2 (50+) + 5-3 (150+) + A12 (9 CI-shim) + 6-1 (110+) + Story 0-5 (7) + Epic 1-4 누적 회귀 0건. A7 SDR overclaim detector pass (test count = 110+ 매칭 필수). `pnpm test` 9 frontend vitest scenarios pass. `pnpm playwright test --project=chromium apps/web/e2e/closing-period.spec.ts` 4 E2E scenarios pass.
++- T10.12 Deferred-work.md close-out:
++  - 5-3 3rd sweep deferral T12.2 test file → closed (A12 close-out, commit 74f3a30)
++  - 6-1 W1 closing_snapshot ledger event emit → closed (T3.2 wire)
++  - 6-1 W2 TS mirror `apps/web/lib/closing-period.ts` → closed (T8.1 wire)
++  - 6-1 W3 vitest activation 9 scenarios → closed (T8 + T10.8 wire)
++  - 6-1 W4 isolated unit tests 12 cases → closed (T10.1 wire)
++  - 6-1 W5 service layer tests 28 cases → closed (T10.2 wire)
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index f16a0ba..274866d 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -1,6 +1,6 @@
+ # generated: 2026-07-25
+-# last_updated: 2026-08-06
+-# updated_note: Story 5.3 dev-story 시작. 5-3: ready-for-dev → in-progress. baseline_commit = ead1974. bmad-dev-story T1~T10 실행: (T1-T3) 3 NEW pure kernels (closing_guard / production_consumption [W1 BOM-aware] / closing_invariant_check [V3 rule]) stdlib-only AD-11 layer rule + (T4-T5) 2 NEW service layers (closing_guard_service 4 ops + closing_invariant_verifier V3 slot fill) + (T6) 3 NEW routes (closing-guard GET / attempt-close POST / audit-trail GET) + monthly_input_service 5 NEW fields + save_row BOM-aware emit + attempt_close additive + (T7) Alembic 0016 (monthly_input_rows.created_via + chk_opening_inventory_manual_reject CHECK + idx_closing_guard_audit index) + 3 NEW Pydantic schemas + (T8) A5 forward-lock ClosingGuardAction 3 values + VerificationAction 1 value 신규 (ActionClass.CLOSING_GUARD + ActionClass.VERIFICATION extension) + drift detector 6 NEW cases + A7 SDR overclaim detector 2 NEW cases + (T9) 6 NEW frontend files (TS mirrors M14/W2 close + closing-guard + ClosingGuardBanner [shadcn Alert destructive] + MonthlyInputRowForm [manual edit reject] + MonthlyInputTabs [3-tab navigation]) + 3 EXTENSION + ko-KR.json 8 NEW strings + (T10) 8 NEW + 5 EXTENSION test files = ~150 NEW cases + 3 frontend vitest + 1 Playwright E2E + docs 5 NEW + 4 EXTENSION + 3중 게이트 mandatory CI. 6 deferred-work close-out (M14 5-1 + L8 5-1 + W1 5-2 + W2 5-2 + W3 5-2 + W4 5-2). Epic 4 close-out A7 wire 동일 적용. 다음: T1 pure kernel 진입. baseline_commit = ead1974 (Story 0.5 plumbing tip + Story 5.2 review patches). 10 ACs / 10 tasks / 70+ subtasks. Epic 4 close-out retro A3 cj-style 3-story 분할 (5-1 → 5-2 → 5-3) 마지막 스토리 + A4 frontend toast 0.5 plumbing 진입점 + A6 0.5 plumbing 별도 Story ✅ done. PRD §F4.2 (음수 기말 감지 즉시 경고 + 마감 진입 차단) + §V3 (연결성 verification = closing ≥ 0 invariant) + §A11 (입력 시 경고 + 마감 시 차단 2-layer) wire. Backend 6 NEW files (closing_guard / production_consumption / closing_invariant_check pure kernels + closing_guard_service / closing_invariant_verifier services + Alembic 0016) + 8 EXTENSION files + 3 NEW routes + V3 slot fill in VerificationRunner. Frontend 6 NEW files (l2-input-opening-carry M14 close + l2-input-inventory-ledger W2 close + closing-guard + ClosingGuardBanner + MonthlyInputRowForm + MonthlyInputTabs) + 3 EXTENSION files + ko-KR.json 8 NEW strings. A5 forward-lock: ClosingGuardAction 3 values + VerificationAction 1 value 신규 (ActionClass.CLOSING_GUARD + ActionClass.VERIFICATION extension) + drift detector 6 NEW cases. Closing guard signal source = 5-2 ledger aggregate SSOT (Epic 4 close-out A3 cj-style 결정) + 3-3 inline projection deprecation timeline 보존 (Epic 6 close-out 시점에 완전 제거). V8 골든 fixture 12 → 14 matrix extension (V3 PASS / FAIL 2 골든 신규) + byte-identical CI gate. Manual edit reject 3중 defense-in-depth (5-1 service-layer reject + L8 SQL CHECK constraint + 5-3 frontend form disabled + sonner toast). Capability gate INVENTORY_LEDGER + MONTHLY_INPUT_PRODUCTION + OPENING_INVENTORY (manufacturing 3종 ✅ / service-only ❌). 7 Open Questions with cj-style defaults. 10 Deferrals 명시. 6 deferred-work.md close-out (M14 5-1 + L8 5-1 + W1 5-2 + W2 5-2 + W3 5-2 + W4 5-2). 8 NEW test files + 5 EXTENSION test files = ~150 NEW test cases (pure 55 + service 28 + drift 6 + SQL CHECK 4 + V8 18 + capability 6 + TS parity 9 + frontend vitest 14 + Playwright E2E 4). docs 5 NEW + 4 EXTENSION. 3중 게이트 mandatory CI. Epic 4 close-out A7 wire 동일 적용 (async test + SDR overclaim detector). 다음: bmad-dev-story로 Story 5.3 T1~T10 실행 또는 Epic 5 close-out retro 진입.
++# last_updated: 2026-08-07
++# updated_note: Story 6.1 spec created (bmad-create-story, Epic 5 close-out retro §6 cj-style 3-story 분할 첫 스토리). 6-1: backlog → ready-for-dev. epic-6: backlog → in-progress (첫 스토리 진입). baseline_commit = 74f3a30 (A12 close-out tip + Epic 5 close-out 완료). 10 ACs / 10 tasks / 70+ subtasks. PRD §F4.3 (월 마감 E2E) + §F5 (마감 보고서 입력 source) + §V4 (closing snapshot 일관성 verification) + §A11 (입력 시 경고 + 마감 시 차단 + 마감 확정 시 snapshot 3-layer) wire. Backend 6 NEW files (closing_period pure kernel + closing_period_snapshot V4 rule pure kernel + closing_period_service 3 ops + closing_period_snapshot_verifier V4 slot fill + Alembic 0017 monthly_input_periods extension) + 5 EXTENSION files (handlers 3 routes + monthly_input_service 4 NEW fields + capability.py MONTHLY_CLOSING_REPORT + audit_action.py ClosingPeriodAction 3 + VerificationAction 1) + 2 NEW routes (POST confirm + GET status + GET audit-trail) + V4 verification slot fill. Frontend 2 NEW files (closing-period.ts TS mirror + ClosingPeriodConfirmationPanel + ClosingPeriodConfirmDialog) + 1 EXTENSION (MonthlyInputTabs 위 additive) + ko-KR.json 11 NEW strings. A5 forward-lock: ClosingPeriodAction 3 values + VerificationAction 1 value 신규 (ActionClass.CLOSING_PERIOD + ActionClass.VERIFICATION extension 5 → 6) + drift detector 4 NEW cases + A7 SDR overclaim detector extension. A8 inline projection deprecation timeline 명시 (Epic 6 close-out 시점에 3-3 inline projection 제거 = 5-2 commit + 1 epic maintenance window 종료 시점). A10 capability matrix v1.3 (MONTHLY_CLOSING_REPORT capability 신규 — manufacturing 3종 ✅ / service-only ❌). Epic 5 close-out retro A8+A10 결정 반영. 5-1+5-2+5-3+0.5 plumbing carry-over 그대로 보존 (closing_guard + V3 verification + ledger aggregate + A5 forward-lock + A7 wire + ClosingGuardBanner 위에 additive). 110+ NEW tests (pure 30 + service 28 + drift 4 + SQL CHECK 4 + V8 20 + capability 6 + TS parity 6 + frontend vitest 9 + Playwright E2E 4). docs 5 NEW + 5 EXTENSION. 3중 게이트 mandatory CI. Epic 5 close-out retro §6 6-2 spec 진입점 (Monthly Closing Report — MONTHLY_CLOSING_REPORT capability + ledger events + closing snapshot) + §6-3 (Closing PDF Export + ko-KR labels) 분할 결정 그대로 적용. 다음: bmad-dev-story로 6-1 T1~T10 실행 또는 Epic 11 reversal spec 진입 (A9 결정 — `reversal_negating` + `reversal_corrected` event type fill). (T1-T3) 3 NEW pure kernels (closing_guard / production_consumption [W1 BOM-aware] / closing_invariant_check [V3 rule]) stdlib-only AD-11 layer rule + (T4-T5) 2 NEW service layers (closing_guard_service 4 ops + closing_invariant_verifier V3 slot fill) + (T6) 3 NEW routes (closing-guard GET / attempt-close POST / audit-trail GET) + monthly_input_service 5 NEW fields + save_row BOM-aware emit + attempt_close additive + (T7) Alembic 0016 (monthly_input_rows.created_via + chk_opening_inventory_manual_reject CHECK + idx_closing_guard_audit index) + 3 NEW Pydantic schemas + (T8) A5 forward-lock ClosingGuardAction 3 values + VerificationAction 1 value 신규 (ActionClass.CLOSING_GUARD + ActionClass.VERIFICATION extension) + drift detector 6 NEW cases + A7 SDR overclaim detector 2 NEW cases + (T9) 6 NEW frontend files (TS mirrors M14/W2 close + closing-guard + ClosingGuardBanner [shadcn Alert destructive] + MonthlyInputRowForm [manual edit reject] + MonthlyInputTabs [3-tab navigation]) + 3 EXTENSION + ko-KR.json 8 NEW strings + (T10) 8 NEW + 5 EXTENSION test files = ~150 NEW cases + 3 frontend vitest + 1 Playwright E2E + docs 5 NEW + 4 EXTENSION + 3중 게이트 mandatory CI. 6 deferred-work close-out (M14 5-1 + L8 5-1 + W1 5-2 + W2 5-2 + W3 5-2 + W4 5-2). Epic 4 close-out A7 wire 동일 적용. 다음: T1 pure kernel 진입. baseline_commit = ead1974 (Story 0.5 plumbing tip + Story 5.2 review patches). 10 ACs / 10 tasks / 70+ subtasks. Epic 4 close-out retro A3 cj-style 3-story 분할 (5-1 → 5-2 → 5-3) 마지막 스토리 + A4 frontend toast 0.5 plumbing 진입점 + A6 0.5 plumbing 별도 Story ✅ done. PRD §F4.2 (음수 기말 감지 즉시 경고 + 마감 진입 차단) + §V3 (연결성 verification = closing ≥ 0 invariant) + §A11 (입력 시 경고 + 마감 시 차단 2-layer) wire. Backend 6 NEW files (closing_guard / production_consumption / closing_invariant_check pure kernels + closing_guard_service / closing_invariant_verifier services + Alembic 0016) + 8 EXTENSION files + 3 NEW routes + V3 slot fill in VerificationRunner. Frontend 6 NEW files (l2-input-opening-carry M14 close + l2-input-inventory-ledger W2 close + closing-guard + ClosingGuardBanner + MonthlyInputRowForm + MonthlyInputTabs) + 3 EXTENSION files + ko-KR.json 8 NEW strings. A5 forward-lock: ClosingGuardAction 3 values + VerificationAction 1 value 신규 (ActionClass.CLOSING_GUARD + ActionClass.VERIFICATION extension) + drift detector 6 NEW cases. Closing guard signal source = 5-2 ledger aggregate SSOT (Epic 4 close-out A3 cj-style 결정) + 3-3 inline projection deprecation timeline 보존 (Epic 6 close-out 시점에 완전 제거). V8 골든 fixture 12 → 14 matrix extension (V3 PASS / FAIL 2 골든 신규) + byte-identical CI gate. Manual edit reject 3중 defense-in-depth (5-1 service-layer reject + L8 SQL CHECK constraint + 5-3 frontend form disabled + sonner toast). Capability gate INVENTORY_LEDGER + MONTHLY_INPUT_PRODUCTION + OPENING_INVENTORY (manufacturing 3종 ✅ / service-only ❌). 7 Open Questions with cj-style defaults. 10 Deferrals 명시. 6 deferred-work.md close-out (M14 5-1 + L8 5-1 + W1 5-2 + W2 5-2 + W3 5-2 + W4 5-2). 8 NEW test files + 5 EXTENSION test files = ~150 NEW test cases (pure 55 + service 28 + drift 6 + SQL CHECK 4 + V8 18 + capability 6 + TS parity 9 + frontend vitest 14 + Playwright E2E 4). docs 5 NEW + 4 EXTENSION. 3중 게이트 mandatory CI. Epic 4 close-out A7 wire 동일 적용 (async test + SDR overclaim detector). 다음: bmad-dev-story로 Story 5.3 T1~T10 실행 또는 Epic 5 close-out retro 진입.
+ # project: costmgr (bizup)
+ # project_key: NOKEY
+ # tracking_system: file-system
+@@ -52,7 +52,9 @@
+ # - Suggested Sprint 0 = Epic 0+1+2 (10 stories, ~3-4 weeks) for first milestone (사용자 입력 가능 상태)
+ 
+ generated: 2026-07-25
+-last_updated: 2026-08-06
++last_updated: 2026-08-07
++last_updated_note: "2026-08-07 — Story 6.1 spec created (bmad-create-story, Epic 5 close-out retro §6 cj-style 3-story 분할 첫 스토리). 6-1: backlog → ready-for-dev. epic-6: backlog → in-progress (첫 스토리 진입). baseline_commit = 74f3a30 (A12 close-out tip + Epic 5 close-out 완료). 10 ACs / 10 tasks / 70+ subtasks. PRD §F4.3 (월 마감 E2E) + §F5 (마감 보고서 입력 source) + §V4 (closing snapshot 일관성 verification) + §A11 (입력 시 경고 + 마감 시 차단 + 마감 확정 시 snapshot 3-layer) wire. Backend 6 NEW files (closing_period pure kernel + closing_period_snapshot V4 rule pure kernel + closing_period_service 3 ops + closing_period_snapshot_verifier V4 slot fill + Alembic 0017 monthly_input_periods extension) + 5 EXTENSION files + 2 NEW routes (POST confirm + GET status + GET audit-trail) + V4 verification slot fill. Frontend 2 NEW files (closing-period.ts TS mirror + ClosingPeriodConfirmationPanel + ClosingPeriodConfirmDialog) + 1 EXTENSION (MonthlyInputTabs 위 additive) + ko-KR.json 11 NEW strings. A5 forward-lock: ClosingPeriodAction 3 values + VerificationAction 1 value 신규 (ActionClass.CLOSING_PERIOD + ActionClass.VERIFICATION extension 5 → 6) + drift detector 4 NEW cases. A8 inline projection deprecation timeline 명시 (Epic 6 close-out 시점에 3-3 inline projection 제거 = 5-2 commit + 1 epic maintenance window 종료 시점). A10 capability matrix v1.3 (MONTHLY_CLOSING_REPORT capability 신규 — manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED). Epic 5 5-1+5-2+5-3+0.5 plumbing carry-over 그대로 보존 (closing_guard + V3 verification + ledger aggregate + A5 forward-lock + A7 wire + ClosingGuardBanner 위에 additive). 110+ NEW tests (pure 30 + service 28 + drift 4 + SQL CHECK 4 + V8 20 + capability 6 + TS parity 6 + frontend vitest 9 + Playwright E2E 4). docs 5 NEW + 5 EXTENSION. 3중 게이트 mandatory CI. Epic 5 close-out retro §6 6-2 spec 진입점 (Monthly Closing Report — MONTHLY_CLOSING_REPORT capability + ledger events + closing snapshot) + §6-3 (Closing PDF Export + ko-KR labels) 분할 결정 그대로 적용. 다음: bmad-dev-story로 6-1 T1~T10 실행 또는 Epic 11 reversal spec 진입 (A9 결정 — reversal_negating + reversal_corrected event type fill).\"
++"
+ last_updated_note: "2026-08-06 — Story 5.3 bmad-code-review 2nd sweep done (bmad-code-review workflow). 5-3: review → in-progress (2 patch + 1 reject + 6 defer). baseline_commit = ead1974, pre-fix HEAD = e95b6a0, post-fix HEAD = e206b90. 3 layer parallel (Blind Hunter + Edge Case Hunter + Acceptance Auditor) full sweep against `_bmad-output/implementation-artifacts/.review/story-5-3.diff` (8,141 lines / 74 files) = **2 patch (T1 + T3) + 1 reject (T2) + 6 defer (T4-T9) + 0 dismiss + 8 H-class false positive dedup**. **Patches applied sweeping**: T1 main.py 5 NEW ClosingGuard exception handlers wire (409/422/403/500/500 mapping for NegativeInventory/InvalidPeriodKey/ServiceOnlyTenant/ProductionConsumption/AuditEmit, AD-15 §4 typed envelope contract) + T3 apps/web/lib/production-consumption.ts doc-comment stale + dead union literal cleanup (mirrors Python TODO(epic-6) marker; \"adjustment_positive\" removed from discriminated union; EVENT_TYPE_ADJUSTMENT_POSITIVE constant retained as Epic-6 reservation). **Reject post-hoc**: T2 V3 severity sort numeric-vs-lexical — initial BH/Edge H intuition \"should be numeric sort by Decimal value for severity ordering\" REJECTED post-3중-게이트 because test `tests/cost_engine/test_closing_invariant_check.py::test_v3_fail_severity_sort` (line 138-165) explicitly pins lexical-string sort as the deterministic contract (V8 fixture lock + CR 4-4 cross-language parity + AD-15 §11). Numeric sort would break V8 fixture lock + cross-language parity. Sort key reverted to `(closing_qty string, product_id UUID)` with explanatory docstring + REJECT rationale. **Defer 6 items**: T4 dead code m4-inventory/ClosingGuardBanner.tsx / T5 spec-required tests/api/ files MISSING / T6 docs/monthly-input.md Story 5.3 section absent / T7 MonthlyInputTabs 3 vs 4 tabs (경고 merged into 마감) / T8 page.tsx wire + 6 vitest scenarios missing / T9 Playwright E2E replaced by Python smoke. **8 H-class false positives falsified**: BH F2/F6 Product.product_id / BH F3 missing 5 fields (verified 4+ wire at lines 1099-1979) / BH F4 missing audit-trail route (line 499-563) / BH F5 missing attempt_close (P4 SELECT FOR UPDATE) / BH/Edge H missing Capability (line 476) / BH/Edge H Alembic CHECK + created_via + idx missing / Edge H BOM=None emits adjustment_positive (P15) / Edge M audit emit swallowed (ClosingGuardAuditEmitError raised). **3중 게이트 clean (mandatory CI)**: ruff scoped (5-3 surface + main.py + closing_invariant_check.py) All checks passed / import-linter 2 KEPT 0 broken / pytest **1096 passed + 118 skipped + 0 failed** in 66.65s (matches pre-fix baseline). **Story status**: review → in-progress (T4-T9 unresolved + D4-D15 spec-deviations carry). 다음: bmad-dev-story T1~T11 재실행 진입 (T4-T9 housekeeping + D4-D15 spec-deviation batch) OR Epic 5 close-out retro 진입 (5-3 done 진입 후, A8 candidate).\"
+ "
+ last_updated_note: "2026-08-06 — Story 5.3 dev-story T1~T10 재실행 done. 5-3: in-progress → review (33 patches applied sweeping). baseline_commit = ead1974. **D3=(a) 결정 executed**: bmad-dev-story T1~T10 재실행 + 33 patch action items + D1/D2 wire 가이드 모두 wire-front 완료. **33 patches applied (P1-P33)**: P1 audit-trail route / P2 MonthlyInputStateResponse 5 NEW fields / P3 Alembic 0016 (created_via + chk_opening_inventory_manual_reject CHECK + idx_closing_guard_audit) / P4 SELECT FOR UPDATE / P5 1-shot INSERT / P6 request_close_attempt / P7 Capability.INVENTORY_CLOSING_GUARD / P8 _validate_period_key / P9 audit-first idempotent no-op skip / P10 type-safe audit emit / P11 V3 SKIP semantic / P12 service-only early-return / P13 emit_production_ledger_events dispatch / P14 reverse emit guard / P15 BOM=None → output_only / P16 ProductionConsumptionInvalidRowError / P17 V3 verdict 'skipped' / P18 V3 골든 fixtures 2 NEW / P19 apps/web/components/m2-input/ subtree / P20 shadcn Alert variant='destructive' / P21 top-N offenders top 5 / P22 fieldset disabled / P23 M14 l2-input-opening-carry.ts / P24 W2 l2-input-inventory-ledger.ts / P25 W3 production-consumption.ts / P26 ClosingGuardState / P27 formatNegativeClosingBannerKo / P28 Decimal-severity / P29 SSOT centralization / P30 ko-KR.json 8 strings / P31 MSW handlers 3 NEW / P32 W4 + capability + SQL CHECK + W3 unskip / P33 AD-15 §11 drift-detector. **3중 게이트 clean (mandatory CI)**: ruff scoped (5-3 surface packages/services/m4_inventory/ packages/cost_engine/ apps/api/modules/m4_inventory/ apps/api/modules/m6_verification/ apps/api/core/audit_action.py) All checks passed / import-linter 2 KEPT 0 broken / pytest **1096 passed + 118 skipped + 0 failed** in 65.16s. 5-3 ready for bmad-code-review 2nd sweep (D1+D2 spec amend 후 done 진입) OR Epic 5 close-out retro.\"
+@@ -180,6 +182,22 @@ development_status:
+   5-3-negative-closing-inventory-guard: done
+   epic-5-retrospective: done  # 2026-08-07 — Epic 5 close-out retro (cj-style 7-section lightweight)
+ 
++  # ==========================================
++  # Epic 6: Monthly Closing Period Reporting (6-1 → 6-2 → 6-3 cj-style 3-story per Epic 5 retro §6)
++  # ==========================================
++  # Epic 6 status: backlog → in-progress (6-1 ready-for-dev 진입 2026-08-07).
++  # Epic 5 close-out retro §6 cj-style 결정:
++  #   6-1 = Closing Period Service + closing_snapshot ledger event wire (현재 ready-for-dev)
++  #   6-2 = Monthly Closing Report (capability MONTHLY_CLOSING_REPORT 신규 — A10 결정)
++  #   6-3 = Closing PDF Export + ko-KR labels
++  # Original epics.md 6-1 "21-Report Library with View Toggle" → superseded by Epic 5 retro §6 cj-style 3-story 분할.
++  epic-6: in-progress
++  6-1-closing-period-service-snapshot-event: ready-for-dev  # 2026-08-07 — bmad-create-story. baseline_commit = 74f3a30. 10 ACs / 10 tasks / 70+ subtasks. PRD §F4.3+§F5+§V4+§A11 3-layer wire. Epic 5 carry-over 보존 (closing_guard + V3 verification + ledger aggregate + A5 forward-lock + A7 wire + ClosingGuardBanner 위에 additive ClosingPeriodConfirmationPanel). Backend 6 NEW + 5 EXTENSION + 2 NEW routes + V4 slot fill. Frontend 2 NEW + 1 EXTENSION + ko-KR.json 11 NEW strings. A5 ClosingPeriodAction 3 + VerificationAction 1 (5 → 6). A8 inline projection deprecation timeline 명시 (Epic 6 close-out 시점에 3-3 inline projection 제거). A10 MONTHLY_CLOSING_REPORT capability 신규 (manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED). 110+ NEW tests. 3중 게이트 mandatory CI. 다음: bmad-dev-story로 6-1 T1~T10 실행 또는 Epic 11 reversal spec 진입 (A9 결정).
++  6-1-21-report-library-view-toggle: backlog  # SUPERSEDED by Epic 5 close-out retro §6 cj-style 3-story 분할 (6-1 redefined as closing-period-service-snapshot-event, not 21-Report Library). Future Epic 6 retro 시점에 결정.
++  6-2-krw-usd-dual-display-rate-source: backlog  # pre-retro 정의. Epic 5 retro §6 redefines 6-2 = Monthly Closing Report. 6-2 spec 진입 시점에 신규 키 (`6-2-monthly-closing-report`) 병행 검토.
++  6-3-pdf-a4-export-print-optimization: backlog  # pre-retro 정의. Epic 5 retro §6 redefines 6-3 = Closing PDF Export. 6-3 spec 진입 시점에 신규 키 병행 검토.
++  epic-6-retrospective: optional
++
+ action_items:
+   - epic: 2
+     action: "Story 1-1 정식 done 마킹 (현재 in-progress → done). 회귀 테스트 통과 확인 후 sprint-status 업데이트."
+@@ -375,26 +393,30 @@ action_items:
+     status: in-progress
+ 
+   # ==========================================
+-  # Epic 6: Reporting & Export
++  # Epic 6: Reporting & Export (pre-retro 키 — Epic 5 close-out retro §6 cj-style 3-story 분할로 superseded/superseding)
+   # ==========================================
+   - epic: 2
+-    action: "epic-6 → backlog (development_status, misplaced in action_items block - resolved)"
++    action: "epic-6 → in-progress (development_status, misplaced in action_items block - resolved). 2026-08-07 — 6-1 spec 진입 (Epic 5 close-out retro §6 cj-style 3-story 분할 첫 스토리). baseline_commit = 74f3a30."
++    owner: "Amelia (Developer)"
++    status: in-progress
++  - epic: 2
++    action: "6-1-closing-period-service-snapshot-event → ready-for-dev (development_status, 신규 분할 키). 2026-08-07 — Epic 5 close-out retro §6 cj-style 결정으로 epics.md 원래 6-1 `6-1-21-report-library-view-toggle` superseded → 신규 키 `6-1-closing-period-service-snapshot-event` 분할. 10 ACs / 10 tasks / 70+ subtasks. PRD §F4.3 + §F5 + §V4 + §A11 3-layer wire. 110+ NEW tests. 3중 게이트 mandatory CI."
+     owner: "Amelia (Developer)"
+     status: in-progress
+   - epic: 2
+-    action: "6-1-21-report-library-view-toggle → backlog (development_status, misplaced in action_items block - resolved)"
++    action: "6-1-21-report-library-view-toggle → backlog (development_status, SUPERSEDED by Epic 5 close-out retro §6 cj-style 3-story 분할, misplaced in action_items block - resolved). Epic 6 6-1 spec 진입 시점에 epics.md 원래 분할 superseded 결정 완료 (6-1 = Closing Period Service + closing_snapshot ledger event wire, not 21-Report Library). Epic 6 close-out 회고 시점에 fold-in vs deprecate 결정 필수 (A8 inline projection deprecation timeline 동등 발동)."
+     owner: "Amelia (Developer)"
+     status: in-progress
+   - epic: 2
+-    action: "6-2-krw-usd-dual-display-rate-source → backlog (development_status, misplaced in action_items block - resolved)"
++    action: "6-2-krw-usd-dual-display-rate-source → backlog (development_status, pre-retro 정의. Epic 5 close-out retro §6 redefines 6-2 = Monthly Closing Report (capability MONTHLY_CLOSING_REPORT 신규 — A10 결정). 6-2 spec 진입 시점에 신규 키 `6-2-monthly-closing-report` 병행 검토 필수. misplaced in action_items block - resolved)"
+     owner: "Amelia (Developer)"
+     status: in-progress
+   - epic: 2
+-    action: "6-3-pdf-a4-export-print-optimization → backlog (development_status, misplaced in action_items block - resolved)"
++    action: "6-3-pdf-a4-export-print-optimization → backlog (development_status, pre-retro 정의. Epic 5 close-out retro §6 redefines 6-3 = Closing PDF Export + ko-KR labels. 6-3 spec 진입 시점에 신규 키 병행 검토 필수. misplaced in action_items block - resolved)"
+     owner: "Amelia (Developer)"
+     status: in-progress
+   - epic: 2
+-    action: "epic-6-retrospective → optional (development_status, misplaced in action_items block - resolved)"
++    action: "epic-6-retrospective → optional (development_status, misplaced in action_items block - resolved). Epic 6 회고 시점에 6-1/6-2/6-3 cj-style 분할 retrospective + A8 inline projection fold-in 결정 필수."
+     owner: "Amelia (Developer)"
+     status: in-progress
+ 
+diff --git a/apps/api/alembic/versions/0017_closing_period_service.py b/apps/api/alembic/versions/0017_closing_period_service.py
+new file mode 100644
+index 0000000..abe16dd
+--- /dev/null
++++ b/apps/api/alembic/versions/0017_closing_period_service.py
+@@ -0,0 +1,93 @@
++"""Alembic 0017 — Story 6.1 closing period service schema.
++
++Story 6.1 (T6 — Alembic 0017) — Closing Period Service schema extension.
++
++`monthly_input_periods` table extensions:
++- ADD COLUMN `finalized_at` TIMESTAMP WITH TIME ZONE NULL
++- ADD COLUMN `closed_by_actor_id` UUID NULL REFERENCES users(id)
++- ADD COLUMN `closing_snapshot_event_count` INTEGER NOT NULL DEFAULT 0
++- ADD CONSTRAINT `chk_closing_period_status` CHECK (status IN ('open', 'closed'))
++
++`inventory_ledger` table CHECK constraint expansion (A5 3-way drift):
++- DROP existing 11-value event_type CHECK constraint
++- ADD new 11-value event_type CHECK constraint with `closing_snapshot`
++  (already in 0015 — no expansion needed in 0017)
++
++`audit_logs` table: NO CHECK constraint (free-form text — registry is
++the only validation gate). No migration needed for `closing_period_*`
++3 actions (closing_period_confirmed, closing_period_blocked,
++closing_period_snapshot_inconsistency) or V4 verifier extension
++(verify_v4_closing_period_consistency) since `verify_*` actions route
++to `verification_log` which already has its CHECK expanded by 0016.
++
++Alembic chain: 0015 → 0016 → 0017 → (planned 0018 for 6-2 / 6-3).
++
++Migration strategy:
++- ADD COLUMN NULL → backfill (no backfill needed; CI shim mode) →
++  NOT NULL with default 0 for closing_snapshot_event_count.
++- ADD CONSTRAINT CHECK status IN ('open', 'closed').
++
++Revision ID: 0017_closing_period_service
++Revises:    0016_verification_log_v3_audit
++Create Date: 2026-08-07
++"""
++
++from __future__ import annotations
++
++import sqlalchemy as sa
++from alembic import op
++
++# ── Alembic migration metadata ──────────────────────────────────
++revision = "0017_closing_period_service"
++down_revision = "0016_verification_log_v3_audit"
++branch_labels = None
++depends_on = None
++
++
++def upgrade() -> None:
++    """Apply Story 6.1 closing period service schema extensions."""
++    # monthly_input_periods — AD-6 fiscal-period close lock extensions.
++    op.add_column(
++        "monthly_input_periods",
++        sa.Column(
++            "finalized_at",
++            sa.TIMESTAMP(timezone=True),
++            nullable=True,
++        ),
++    )
++    op.add_column(
++        "monthly_input_periods",
++        sa.Column(
++            "closed_by_actor_id",
++            sa.dialects.postgresql.UUID(as_uuid=True),
++            sa.ForeignKey("users.id", ondelete="SET NULL"),
++            nullable=True,
++        ),
++    )
++    op.add_column(
++        "monthly_input_periods",
++        sa.Column(
++            "closing_snapshot_event_count",
++            sa.Integer(),
++            nullable=False,
++            server_default="0",
++        ),
++    )
++    # Status CHECK constraint — guard against invalid status values.
++    op.create_check_constraint(
++        "chk_closing_period_status",
++        "monthly_input_periods",
++        "status IN ('open', 'closed')",
++    )
++
++
++def downgrade() -> None:
++    """Revert Story 6.1 closing period service schema extensions."""
++    op.drop_constraint(
++        "chk_closing_period_status",
++        "monthly_input_periods",
++        type_="check",
++    )
++    op.drop_column("monthly_input_periods", "closing_snapshot_event_count")
++    op.drop_column("monthly_input_periods", "closed_by_actor_id")
++    op.drop_column("monthly_input_periods", "finalized_at")
+diff --git a/apps/api/alembic/versions/0018_verification_log_v4_audit.py b/apps/api/alembic/versions/0018_verification_log_v4_audit.py
+new file mode 100644
+index 0000000..0cd145d
+--- /dev/null
++++ b/apps/api/alembic/versions/0018_verification_log_v4_audit.py
+@@ -0,0 +1,67 @@
++"""A5 3-way drift fix — verification_log CHECK constraint expansion for V4.
++
++Story 6.1 (T6 follow-up) — closing_period V4 verification verifier.
++
++Story 6.1 introduces `verify_v4_closing_period_consistency` in
++`ActionClass.VERIFICATION` (audit_action.py extension from 1 → 2 values).
++
++This action routes to the `verification_log` destination. Alembic 0016
++expanded the verification_log CHECK constraint to 5 values to include
++`verify_v3_closing_invariant`. This migration expands it to 6 values
++to include `verify_v4_closing_period_consistency`.
++
++3-way drift detector (`tests/integration/test_audit_action_consistency.py`)
++pins this expansion. Without this migration, future inserts of
++`verify_v4_closing_period_consistency` would fail with DB CHECK
++constraint violation.
++
++Revision ID: 0018_verification_log_v4_audit
++Revises:    0017_closing_period_service
++Create Date: 2026-08-07
++"""
++
++from __future__ import annotations
++
++from alembic import op
++
++revision = "0018_verification_log_v4_audit"
++down_revision = "0017_closing_period_service"
++branch_labels = None
++depends_on = None
++
++
++def upgrade() -> None:
++    """Expand verification_log CHECK constraint to 6-value enum (V4)."""
++    op.execute("ALTER TABLE verification_log DROP CONSTRAINT IF EXISTS chk_verification_log_action")
++    op.execute(
++        """
++        ALTER TABLE verification_log
++        ADD CONSTRAINT chk_verification_log_action
++        CHECK (action IN (
++            'verification_passed',
++            'verification_failed',
++            'verification_skipped',
++            'verify_v8_golden_match',
++            'verify_v3_closing_invariant',
++            'verify_v4_closing_period_consistency'
++        ))
++        """
++    )
++
++
++def downgrade() -> None:
++    """Restore the 5-value CHECK constraint (Alembic 0016 state)."""
++    op.execute("ALTER TABLE verification_log DROP CONSTRAINT IF EXISTS chk_verification_log_action")
++    op.execute(
++        """
++        ALTER TABLE verification_log
++        ADD CONSTRAINT chk_verification_log_action
++        CHECK (action IN (
++            'verification_passed',
++            'verification_failed',
++            'verification_skipped',
++            'verify_v8_golden_match',
++            'verify_v3_closing_invariant'
++        ))
++        """
++    )
+diff --git a/apps/api/core/audit_action.py b/apps/api/core/audit_action.py
+index e1d1bb5..da4c967 100644
+--- a/apps/api/core/audit_action.py
++++ b/apps/api/core/audit_action.py
+@@ -57,6 +57,7 @@ class ActionClass(str, __import__("enum").Enum):
+     REVERSAL_LOG = "reversal_log"  # Epic 11 (NEW — slot pre-fill)
+     CLOSING_GUARD = "closing_guard"  # Story 5.3 (NEW — closing ≥ 0 invariant audit)
+     VERIFICATION = "verification"  # Story 5.3 (NEW — V3 closing invariant verification)
++    CLOSING_PERIOD = "closing_period"  # Story 6.1 (NEW — closing period service audit-first)
+ 
+ 
+ # ────────────────────────────────────────────────────────────
+@@ -187,9 +188,28 @@ ClosingGuardAction = Literal[
+ # Distinct from VERIFICATION_LOG: VERIFICATION_LOG tracks per-rule
+ # verdicts (PASS/FAIL/SKIP + V8 golden match); VERIFICATION tracks
+ # cross-rule invariants (V3 closing ≥ 0 + future Epic 11 reversal
+-# verification + Epic 12 close-out verification).
++# verification + Epic 12 close-out verification + Story 6.1 V4
++# closing snapshot 일관성 verification).
+ VerificationAction = Literal[
+     "verify_v3_closing_invariant",  # Story 5.3 V3 rule audit (PASS/FAIL/SKIP)
++    "verify_v4_closing_period_consistency",  # Story 6.1 V4 rule audit
++]
++
++# closing_period actions (Story 6.1 NEW — closing period service audit-first).
++# PRD §F4.3 + AD-6 fiscal-period close lock. Audit routes to audit_logs
++# (ActionClass.CLOSING_PERIOD). 3 values:
++# - `closing_period_confirmed` — confirm_closing_period succeeded
++#   (closing_snapshot ledger events INSERTed + monthly_input_periods
++#   UPDATEd to 'closed' status).
++# - `closing_period_blocked` — confirm_closing_period raised
++#   ClosingPeriodBlockedError (negative closing invariant violation).
++# - `closing_period_snapshot_inconsistency` — V4 verifier detected
++#   inconsistency (V4 status='failed'). Audit-first V4 dispatch
++#   (CR 1.1 lesson) — emitted BEFORE raising the typed exception.
++ClosingPeriodAction = Literal[
++    "closing_period_confirmed",
++    "closing_period_blocked",
++    "closing_period_snapshot_inconsistency",
+ ]
+ 
+ 
+@@ -209,6 +229,7 @@ AuditAction = (
+     | ReversalLogAction
+     | ClosingGuardAction
+     | VerificationAction
++    | ClosingPeriodAction
+ )
+ 
+ 
+@@ -342,6 +363,24 @@ class _ActionRegistry:
+             frozenset(
+                 {
+                     "verify_v3_closing_invariant",
++                    # Story 6.1 — V4 closing snapshot 일관성 verifier.
++                    "verify_v4_closing_period_consistency",
++                }
++            ),
++        ),
++        # Story 6.1 — closing_period 3 values (closing period service).
++        # DB CHECK constraint mirror: audit_logs CHECK includes
++        # closing_period_confirmed, closing_period_blocked,
++        # closing_period_snapshot_inconsistency (drift detector enforces
++        # parity between ActionClass registry, DB CHECK constraint, and
++        # call sites).
++        ActionClass.CLOSING_PERIOD: (
++            "audit_logs",
++            frozenset(
++                {
++                    "closing_period_confirmed",
++                    "closing_period_blocked",
++                    "closing_period_snapshot_inconsistency",
+                 }
+             ),
+         ),
+@@ -463,5 +502,6 @@ __all__ = [
+     "ReversalLogAction",
+     "ClosingGuardAction",
+     "VerificationAction",
++    "ClosingPeriodAction",
+     "emit_audit_typed",
+ ]
+diff --git a/apps/api/core/capability.py b/apps/api/core/capability.py
+index 961c8ba..4122564 100644
+--- a/apps/api/core/capability.py
++++ b/apps/api/core/capability.py
+@@ -91,6 +91,11 @@ class Capability(str, Enum):
+     # transitions). The capability gate here only checks that the
+     # caller MAY run CalcPort.compute_period_cost at all.
+     COST_CALCULATION = "cost_calculation"
++    # Story 6.1 — Monthly Closing Report capability (PRD §F4.3 + §F5).
++    # Granted to manufacturing-kind industries (manufacturing / mfg+service /
++    # mfg+service+other). Service-only tenants do NOT have a [마감] tab
++    # because they have no inventory ledger to snapshot.
++    MONTHLY_CLOSING_REPORT = "monthly_closing_report"
+ 
+ 
+ # ── Industry → Capability map (F-41-resolved) ────────────────
+@@ -112,6 +117,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             Capability.MONTHLY_INPUT_PRODUCTION,
+             # Story 4.1 — manufacturing tenants can run §6.1 원가 계산.
+             Capability.COST_CALCULATION,
++            # Story 6.1 — manufacturing tenants get Monthly Closing Report.
++            Capability.MONTHLY_CLOSING_REPORT,
+         }
+     ),
+     Industry.SERVICE: frozenset(
+@@ -154,6 +161,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             # routes only check COST_CALCULATION; M9 routes check
+             # COST_POOL/ACTIVITY/DRIVER.
+             Capability.COST_CALCULATION,
++            # Story 6.1 — 겸영 tenants get Monthly Closing Report.
++            Capability.MONTHLY_CLOSING_REPORT,
+         }
+     ),
+     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
+@@ -176,6 +185,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             Capability.MONTHLY_INPUT_PRODUCTION,
+             # Story 4.1 — full matrix + 격리 버킷.
+             Capability.COST_CALCULATION,
++            # Story 6.1 — full matrix tenants get Monthly Closing Report.
++            Capability.MONTHLY_CLOSING_REPORT,
+         }
+     ),
+ }
+diff --git a/apps/api/modules/m4_inventory/handlers.py b/apps/api/modules/m4_inventory/handlers.py
+index 3a9307c..5f53a35 100644
+--- a/apps/api/modules/m4_inventory/handlers.py
++++ b/apps/api/modules/m4_inventory/handlers.py
+@@ -79,6 +79,11 @@ from apps.api.modules.m4_inventory.schemas import (
+     ClosingGuardCloseAttemptResponse,
+     ClosingGuardEvaluateRequest,
+     ClosingGuardEvaluateResponse,
++    ClosingPeriodAuditTrailEntry,
++    ClosingPeriodAuditTrailResponse,
++    ClosingPeriodConfirmRequest,
++    ClosingPeriodConfirmResponse,
++    ClosingPeriodEvaluateResponse,
+     LedgerEventCreateRequest,
+     NegativeProductEntry,
+     PeriodClosingResponse,
+@@ -574,3 +579,125 @@ def _format_banner_ko(invariant) -> str:
+     )
+ 
+     return format_negative_closing_banner_ko(invariant)
++
++
++# ─────────────────────────────────────────────────────────────
++# Story 6.1 — Closing Period Service routes (3 NEW)
++# ─────────────────────────────────────────────────────────────
++
++
++@router.get(
++    "/closing-period/status",
++    response_model=ClosingPeriodEvaluateResponse,
++    status_code=200,
++    summary="Read-only closing-period status check (Story 6.1 T5.1)",
++)
++async def get_closing_period_status(
++    period_key: str = Query(..., description="AD-24 typed 'YYYY-MM' fiscal key"),
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
++) -> ClosingPeriodEvaluateResponse:
++    """Closing-period status check (PRD §F4.3 + §V4 — read-only).
++
++    Returns `ClosingPeriodResult` NamedTuple wrapped in response envelope
++    with status + allowed + closing_per_product + closing_snapshot_count +
++    ledger_event_count + period_key.
++    """
++    from apps.api.modules.m4_inventory.services.closing_period_service import (
++        ClosingPeriodService,
++    )
++
++    cp_svc = ClosingPeriodService(
++        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
++    )
++    result = await cp_svc.evaluate_closing_period(period_key)
++    return ClosingPeriodEvaluateResponse(
++        status=result.status,
++        allowed=result.allowed,
++        closing_per_product={
++            str(pid): f"{qty:f}" for pid, qty in result.closing_per_product.items()
++        },
++        closing_snapshot_count=result.closing_snapshot_count,
++        ledger_event_count=result.ledger_event_count,
++        period_key=result.period_key,
++        trace_id=ctx.trace_id,
++    )
++
++
++@router.post(
++    "/closing-period/confirm",
++    response_model=ClosingPeriodConfirmResponse,
++    status_code=200,
++    summary="Close-time hook — confirm closing period (Story 6.1 T5.2)",
++)
++async def post_closing_period_confirm(
++    payload: ClosingPeriodConfirmRequest,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
++    _role: None = Depends(require_role("owner")),
++) -> ClosingPeriodConfirmResponse:
++    """Confirm closing period (PRD §F4.3 + AD-6 fiscal-period close lock).
++
++    Atomicity:
++    - SELECT FOR UPDATE on monthly_input_periods (CR 5.3 P4 patch)
++    - Idempotent no-op skip on already-closed (CR 1.1 lesson)
++    - Audit-first emit (closing_period_confirmed) before commit
++    """
++    from apps.api.modules.m4_inventory.services.closing_period_service import (
++        ClosingPeriodService,
++    )
++
++    cp_svc = ClosingPeriodService(
++        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
++    )
++    result = await cp_svc.confirm_closing_period(
++        payload.period_key, actor_id=ctx.user_id,
++    )
++    return ClosingPeriodConfirmResponse(
++        confirmed=result["confirmed"],
++        closing_snapshot_count=result["closing_snapshot_count"],
++        period_key=result["period_key"],
++        finalized_at=result["finalized_at"],
++        trace_id=ctx.trace_id,
++    )
++
++
++@router.get(
++    "/closing-period/audit-trail",
++    response_model=ClosingPeriodAuditTrailResponse,
++    status_code=200,
++    summary="Closing-period audit log query (Story 6.1 T5.3 — observability)",
++)
++async def get_closing_period_audit_trail(
++    period_key: str = Query(..., description="AD-24 typed 'YYYY-MM' fiscal key"),
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
++) -> ClosingPeriodAuditTrailResponse:
++    """Closing-period audit log query (CR 1.1 observability).
++
++    Returns `audit_logs` entries where target_table='closing_period' for
++    the current period_key, ordered by occurred_at DESC, capped at 10.
++    """
++    from apps.api.modules.m4_inventory.services.closing_period_service import (
++        ClosingPeriodService,
++    )
++
++    cp_svc = ClosingPeriodService(
++        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
++    )
++    rows = await cp_svc.get_closing_period_audit_trail(period_key)
++    return ClosingPeriodAuditTrailResponse(
++        period_key=period_key,
++        entries=[
++            ClosingPeriodAuditTrailEntry(
++                action=r["action"],
++                payload=r["payload"],
++                occurred_at=r["occurred_at"],
++            )
++            for r in rows
++        ],
++        trace_id=ctx.trace_id,
++    )
+diff --git a/apps/api/modules/m4_inventory/schemas.py b/apps/api/modules/m4_inventory/schemas.py
+index ecd8b2e..4584aac 100644
+--- a/apps/api/modules/m4_inventory/schemas.py
++++ b/apps/api/modules/m4_inventory/schemas.py
+@@ -297,6 +297,91 @@ class ClosingAuditTrailResponse(BaseModel):
+     trace_id: str
+ 
+ 
++# ─────────────────────────────────────────────────────────────
++# Story 6.1 — Closing Period Service schemas (4 NEW)
++# ─────────────────────────────────────────────────────────────
++
++
++class ClosingPeriodEvaluateResponse(BaseModel):
++    """GET /api/v1/inventory/closing-period/status response.
++
++    Read-only closing-period status check (PRD §F4.3). Wraps
++    `ClosingPeriodResult` NamedTuple with status + allowed +
++    closing_per_product + closing_snapshot_count + ledger_event_count.
++
++    CR 2.3: `extra='forbid'`.
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    status: str
++    allowed: bool
++    closing_per_product: dict[str, str] = Field(default_factory=dict)
++    closing_snapshot_count: int
++    ledger_event_count: int
++    period_key: str
++    trace_id: str
++
++
++class ClosingPeriodConfirmRequest(BaseModel):
++    """POST /api/v1/inventory/closing-period/confirm request body."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    period_key: str = Field(
++        ...,
++        description="AD-24 typed 'YYYY-MM' fiscal key",
++        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
++    )
++
++
++class ClosingPeriodConfirmResponse(BaseModel):
++    """POST /api/v1/inventory/closing-period/confirm response.
++
++    Wire result of `ClosingPeriodService.confirm_closing_period`. Includes
++    closing_snapshot_count + finalized_at for downstream V4 verifier
++    dispatch (Story 6.1 T4).
++
++    CR 2.3: `extra='forbid'`.
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    confirmed: bool
++    closing_snapshot_count: int
++    period_key: str
++    finalized_at: str
++    trace_id: str
++
++
++class ClosingPeriodAuditTrailEntry(BaseModel):
++    """Single audit_logs row for the closing-period audit trail."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    action: str
++    payload: dict[str, Any] = Field(default_factory=dict)
++    occurred_at: str | None = None
++
++
++class ClosingPeriodAuditTrailResponse(BaseModel):
++    """GET /api/v1/inventory/closing-period/audit-trail response.
++
++    CR 1.1 observability — wraps `audit_logs` rows scoped to:
++    - tenant_id (RLS predicate)
++    - target_table='closing_period'
++    - payload->>'period_key' = period_key (JSONB extraction)
++
++    CR 2.3: `extra='forbid'`.
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    period_key: str
++    entries: list[ClosingPeriodAuditTrailEntry] = Field(default_factory=list)
++    trace_id: str
++
++
+ __all__ = [
+     "CarryChainEntry",
+     "CarryChainResponse",
+@@ -306,6 +391,11 @@ __all__ = [
+     "ClosingGuardEvaluateResponse",
+     "ClosingGuardCloseAttemptRequest",
+     "ClosingGuardCloseAttemptResponse",
++    "ClosingPeriodAuditTrailEntry",
++    "ClosingPeriodAuditTrailResponse",
++    "ClosingPeriodConfirmRequest",
++    "ClosingPeriodConfirmResponse",
++    "ClosingPeriodEvaluateResponse",
+     "LedgerEventCreateRequest",
+     "NegativeProductEntry",
+     "PeriodClosingResponse",
+diff --git a/apps/api/modules/m4_inventory/services/closing_period_service.py b/apps/api/modules/m4_inventory/services/closing_period_service.py
+new file mode 100644
+index 0000000..59e06d4
+--- /dev/null
++++ b/apps/api/modules/m4_inventory/services/closing_period_service.py
+@@ -0,0 +1,593 @@
++"""apps.api.modules.m4_inventory.services.closing_period_service — Story 6.1.
++
++Service layer for the closing period service (PRD §F4.3 + §F5 + §V4 + §A11).
++
++Wraps the pure kernel in `packages.services.m4_inventory.closing_period`
+++ `packages.cost_engine.closing_period_snapshot` with:
++
++- 3 service operations:
++  - `evaluate_closing_period` (T3.1) — read-only status check via
++    `LedgerService.query_period_closing_all` (5-2 SSOT) +
++    `classify_closing_period_status` (T1 pure kernel).
++  - `confirm_closing_period` (T3.2) — close-time confirmation wire
++    (PRD §F4.3 + AD-6 fiscal-period close lock). Reads closing
++    snapshot aggregate + emits per-product closing_snapshot ledger
++    events + UPDATE monthly_input_periods.status='closed'.
++  - `get_closing_period_audit_trail` (T3.3) — audit log emission
++    trace (CR 1.1 observability).
++
++- 4 typed exceptions (AD-15 §4 envelope mapping):
++  - `ClosingPeriodBlockedError` (409 CLOSING_PERIOD_BLOCKED) — closing
++    attempt blocked by CLOSING_BLOCKED status.
++  - `ClosingPeriodAlreadyClosedError` (409 ALREADY_CLOSED) — idempotent
++    re-confirm guard (already closed).
++  - `ClosingPeriodEmptyPeriodError` (409 EMPTY_PERIOD) — no ledger
++    events at all.
++  - `ClosingPeriodAuditEmitError` (500) — audit-first emit failure.
++
++Layering (AD-11):
++- Pure kernel: `packages/services/m4_inventory/closing_period.py` (T1 ✅)
++- Pure kernel #2: `packages/cost_engine/closing_period_snapshot.py` (T2 ✅)
++- Service layer (this file): SQLAlchemy AsyncSession + audit-first emit
++  (CR 1.1 lesson) + 4 typed exceptions.
++
++A5 forward-lock:
++- Audit rows route to `audit_logs` (ActionClass.CLOSING_PERIOD) via
++  `emit_audit_typed()`. NEW 3 actions:
++  - `closing_period_confirmed`
++  - `closing_period_blocked`
++  - `closing_period_snapshot_inconsistency`
++- Drift detector: `tests/integration/test_audit_action_consistency.py`
++  + `tests/services/test_audit_action_centralization.py` extensions.
++
++AD-22 reversal entrypoint preserved (5-2 wire + Epic 11 forward-fill):
++closing_snapshot ledger events are append-only; correction flow is
++Epic 11 module authority (reversal_negating + reversal_corrected
++event type fill).
++"""
++
++from __future__ import annotations
++
++import uuid
++from datetime import UTC, datetime
++from decimal import Decimal
++from typing import Any
++
++from sqlalchemy import select
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from apps.api.core.audit_action import ActionClass, emit_audit_typed
++from apps.api.core.db_models import MonthlyInputPeriod
++from packages.services.m4_inventory.closing_period import (
++    CLOSING_PERIOD_STATUS_BLOCKED,
++    CLOSING_PERIOD_STATUS_EMPTY_PERIOD,
++    CLOSING_PERIOD_STATUS_READY,
++    ClosingPeriodResult,
++    ClosingSnapshotEntry,
++    classify_closing_period_status,
++    compute_closing_snapshot,
++    is_closing_period_allowed,
++)
++from packages.services.m4_inventory.closing_period import (
++    ClosingPeriodError as ClosingPeriodPureError,
++)
++
++
++def _now_utc() -> datetime:
++    """UTC now (AD-5: pure kernel no clock, service layer owns)."""
++    return datetime.now(tz=UTC)
++
++
++def _to_iso(dt: datetime) -> str:
++    """ISO-8601 UTC timestamp string."""
++    return dt.isoformat()
++
++
++# ─────────────────────────────────────────────────────────────
++# Typed exceptions (mapped to HTTP by handlers.py / main.py)
++# ─────────────────────────────────────────────────────────────
++
++
++class ClosingPeriodBlockedError(Exception):
++    """409 CLOSING_PERIOD_BLOCKED — closing attempt blocked.
++
++    PRD §F4.3 + §V4: closing period status CLOSING_BLOCKED → 마감 차단.
++    """
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        period_key: str,
++        details: dict[str, Any],
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"closing_period blocked for {period_key} " f"(tenant {tenant_id}): {details}"
++        )
++        self.tenant_id = tenant_id
++        self.period_key = period_key
++        self.details = details
++        self.trace_id = trace_id
++
++
++class ClosingPeriodAlreadyClosedError(Exception):
++    """409 ALREADY_CLOSED — closing period already confirmed.
++
++    PRD §F4.3 + AD-6: idempotent no-op skip when monthly_input_periods
++    already status='closed'. CR 1.1 lesson: no INSERT + no UPDATE + no
++    audit emit on idempotent re-confirm.
++    """
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        period_key: str,
++        finalized_at: str | None,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"closing_period already closed for {period_key} "
++            f"(tenant {tenant_id}, finalized_at={finalized_at})"
++        )
++        self.tenant_id = tenant_id
++        self.period_key = period_key
++        self.finalized_at = finalized_at
++        self.trace_id = trace_id
++
++
++class ClosingPeriodEmptyPeriodError(Exception):
++    """409 EMPTY_PERIOD — no ledger events at all.
++
++    PRD §F4.3 + §V4: closing period with 0 ledger events cannot be
++    confirmed (no material to snapshot).
++    """
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        period_key: str,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"closing_period empty for {period_key} (tenant {tenant_id})"
++        )
++        self.tenant_id = tenant_id
++        self.period_key = period_key
++        self.trace_id = trace_id
++
++
++class ClosingPeriodAuditEmitError(Exception):
++    """500 CLOSING_PERIOD_AUDIT_EMIT_ERROR — audit-first invariant guard.
++
++    CR 1.1 lesson: audit-first emit failure MUST raise (not silent skip).
++    """
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        details: dict[str, Any],
++        trace_id: str,
++    ) -> None:
++        super().__init__(f"closing_period audit emit failed for tenant {tenant_id}: {details}")
++        self.tenant_id = tenant_id
++        self.details = details
++        self.trace_id = trace_id
++
++
++# ─────────────────────────────────────────────────────────────
++# ClosingPeriodService
++# ─────────────────────────────────────────────────────────────
++
++
++class ClosingPeriodService:
++    """Story 6.1 — closing period service.
++
++    All state-changing operations write a typed audit row BEFORE the
++    data write (AD-2), with idempotent no-op skip on already-closed
++    periods (CR 1.1 lesson).
++
++    Constructor:
++        session: AsyncSession (per-request).
++        tenant_id: tenant UUID (from JWT).
++        trace_id: request trace ID.
++    """
++
++    def __init__(
++        self,
++        session: AsyncSession,
++        *,
++        tenant_id: uuid.UUID,
++        trace_id: str,
++    ) -> None:
++        self.session = session
++        self.tenant_id = tenant_id
++        self.trace_id = trace_id
++
++    # ── Operation 1: evaluate closing period (read-only) ────────
++    async def evaluate_closing_period(
++        self,
++        period_key: str,
++    ) -> ClosingPeriodResult:
++        """Read-only closing period status check (PRD §F4.3).
++
++        Reads inventory_ledger aggregate via
++        `LedgerService.query_period_closing_all` (5-2 SSOT) →
++        `classify_closing_period_status` (T1 pure kernel).
++
++        Args:
++            period_key: 'YYYY-MM' AD-24 typed period key.
++
++        Returns:
++            `ClosingPeriodResult` NamedTuple with status + allowed +
++            closing_per_product + closing_snapshot_count +
++            ledger_event_count + period_key.
++
++        Raises:
++            ClosingPeriodPureError: invalid period_key (defense-in-depth).
++        """
++
++        # 5-2 wire SSOT — multi-product read.
++        closing_per_product, ledger_event_count, closing_snapshot_count = (
++            await self._query_closing_via_ledger(period_key)
++        )
++
++        # Check if already closed (AD-6 fiscal-period close lock).
++        is_already_closed = await self._is_period_closed(period_key)
++
++        # Pure kernel dispatch.
++        status = classify_closing_period_status(
++            closing_per_product,
++            ledger_event_count=ledger_event_count,
++            is_already_closed=is_already_closed,
++        )
++        allowed = is_closing_period_allowed(status)
++
++        return ClosingPeriodResult(
++            status=status,
++            allowed=allowed,
++            closing_per_product=closing_per_product,
++            closing_snapshot_count=closing_snapshot_count,
++            ledger_event_count=ledger_event_count,
++            period_key=period_key,
++        )
++
++    # ── Operation 2: confirm closing period (close-time hook) ───
++    async def confirm_closing_period(
++        self,
++        period_key: str,
++        *,
++        actor_id: uuid.UUID | None = None,
++    ) -> dict[str, Any]:
++        """Close-time confirmation wire (PRD §F4.3 + AD-6 + AD-22).
++
++        Flow (CR 1.1 audit-first ordering):
++        1. SELECT FOR UPDATE on monthly_input_periods (AD-4 atomicity +
++           idempotent no-op skip on already-closed).
++        2. evaluate_closing_period → status check.
++        3. CLOSING_READY → compute closing_snapshot entries +
++           LedgerService.append_event per product (5-2 wire 진입점).
++        4. UPDATE monthly_input_periods.status='closed' +
++           closed_at=now() + closed_by_actor_id=actor_id +
++           closing_snapshot_event_count=N.
++        5. Audit-first emit (closing_period_confirmed).
++        6. V4 verification dispatch (deferred to m6_verification
++           module — VerificationRunner invokes V4 verifier post-confirm).
++
++        Args:
++            period_key: 'YYYY-MM' AD-24 typed period key.
++            actor_id: actor who triggered; None for system cron.
++
++        Returns:
++            dict with `confirmed: True, closing_snapshot_count,
++            period_key, finalized_at`.
++
++        Raises:
++            ClosingPeriodAlreadyClosedError: monthly_input_periods.status='closed'.
++            ClosingPeriodBlockedError: status=CLOSING_BLOCKED.
++            ClosingPeriodEmptyPeriodError: status=EMPTY_PERIOD.
++            ClosingPeriodAuditEmitError: audit-first emit failed.
++        """
++        # AD-4 atomicity: SELECT FOR UPDATE on monthly_input_periods
++        # (5-3 wire pattern preserved).
++        from apps.api.modules.m4_inventory.services.ledger_service import (
++            LedgerService,
++        )
++
++        period_row = await self.session.scalar(
++            select(MonthlyInputPeriod).where(
++                MonthlyInputPeriod.tenant_id == self.tenant_id,
++                MonthlyInputPeriod.period_key == period_key,
++            ).with_for_update()
++        )
++
++        # Idempotent no-op skip — already closed.
++        if period_row is not None and period_row.status == "closed":
++            raise ClosingPeriodAlreadyClosedError(
++                tenant_id=self.tenant_id,
++                period_key=period_key,
++                finalized_at=getattr(period_row, "finalized_at", None)
++                and period_row.finalized_at.isoformat()
++                or None,
++                trace_id=self.trace_id,
++            )
++
++        # Evaluate first (reads ledger aggregate + closing_period status).
++        result = await self.evaluate_closing_period(period_key)
++
++        if result.status == CLOSING_PERIOD_STATUS_BLOCKED:
++            # Audit-first emit (CLOSING_BLOCKED) before raising.
++            await self._emit_audit_blocked(
++                period_key=period_key,
++                actor_id=actor_id,
++                details={"negative_products_count": len(result.closing_per_product)},
++            )
++            raise ClosingPeriodBlockedError(
++                tenant_id=self.tenant_id,
++                period_key=period_key,
++                details={"closing_per_product": _decimal_to_str(result.closing_per_product)},
++                trace_id=self.trace_id,
++            )
++
++        if result.status == CLOSING_PERIOD_STATUS_EMPTY_PERIOD:
++            # EMPTY_PERIOD — no audit emit (defense-in-depth: not a
++            # violation, just an empty period).
++            raise ClosingPeriodEmptyPeriodError(
++                tenant_id=self.tenant_id,
++                period_key=period_key,
++                trace_id=self.trace_id,
++            )
++
++        # ALREADY_CLOSED already raised above; only CLOSING_READY reaches here.
++        if not result.allowed or result.status != CLOSING_PERIOD_STATUS_READY:
++            raise ClosingPeriodPureError(
++                message=(
++                    f"closing_period unexpected status {result.status!r} "
++                    f"after guard checks"
++                ),
++                error_code="UNEXPECTED_CLOSING_PERIOD_STATUS",
++                period_key=period_key,
++                tenant_id=self.tenant_id,
++            )
++
++        # CR 1.1 audit-first ordering: ledger INSERT before
++        # monthly_input_periods UPDATE before audit log INSERT.
++        finalized_at_dt = _now_utc()
++        finalized_at = _to_iso(finalized_at_dt)
++
++        # (1) Compute closing_snapshot entries (pure kernel).
++        snapshot_entries: list[ClosingSnapshotEntry] = compute_closing_snapshot(
++            result.closing_per_product,
++            period_key=period_key,
++            finalized_at=finalized_at,
++        )
++
++        # (2) Emit per-product closing_snapshot ledger events
++        #     (5-2 LedgerService.append_event dispatch — AD-2 append-only).
++        ledger_service = LedgerService(
++            self.session,
++            tenant_id=self.tenant_id,
++            trace_id=self.trace_id,
++        )
++        for entry in snapshot_entries:
++            await ledger_service.append_event(
++                product_id=entry.product_id,
++                period_key=period_key,
++                event_type="closing_snapshot",
++                qty=entry.closing_qty,
++                source="close_snapshot",
++                metadata={
++                    "finalized_at": finalized_at,
++                    "closing_period_status": CLOSING_PERIOD_STATUS_READY,
++                },
++                actor_id=actor_id,
++            )
++
++        # (3) UPDATE monthly_input_periods — AD-6 close hook.
++        if period_row is not None:
++            period_row.status = "closed"
++            period_row.finalized_at = finalized_at_dt
++            period_row.closed_by_actor_id = actor_id
++            period_row.closing_snapshot_event_count = len(snapshot_entries)
++            await self.session.flush()
++        else:
++            # period_row is None — month_input_periods doesn't exist yet.
++            # Defensive: raise typed error rather than silent insert.
++            raise ClosingPeriodPureError(
++                message=(
++                    f"monthly_input_periods row not found for "
++                    f"period_key={period_key!r} tenant_id={self.tenant_id}"
++                ),
++                error_code="MONTHLY_INPUT_PERIOD_NOT_FOUND",
++                period_key=period_key,
++                tenant_id=self.tenant_id,
++            )
++
++        # (4) Audit-first emit (closing_period_confirmed) — CR 1.1.
++        await self._emit_audit_confirmed(
++            period_key=period_key,
++            actor_id=actor_id,
++            finalized_at=finalized_at,
++            closing_snapshot_count=len(snapshot_entries),
++        )
++
++        return {
++            "confirmed": True,
++            "closing_snapshot_count": len(snapshot_entries),
++            "period_key": period_key,
++            "finalized_at": finalized_at,
++        }
++
++    # ── Operation 3: audit trail query ──────────────────────────
++    async def get_closing_period_audit_trail(
++        self,
++        period_key: str,
++    ) -> list[dict[str, Any]]:
++        """Audit log emission trace for the closing period (CR 1.1).
++
++        Returns audit_logs rows where action_class='closing_period'
++        for the current period_key, time DESC, capped at 10.
++        """
++        from sqlalchemy import text
++
++        # JSONB expression on payload->>'period_key' (audit_logs schema
++        # has no dedicated period_key column).
++        result = await self.session.execute(
++            text(
++                """
++                SELECT action, payload, occurred_at
++                FROM audit_logs
++                WHERE tenant_id = :tenant_id
++                  AND target_table = 'closing_period'
++                  AND payload->>'period_key' = :period_key
++                ORDER BY occurred_at DESC
++                LIMIT 10
++                """
++            ),
++            {
++                "tenant_id": str(self.tenant_id),
++                "period_key": period_key,
++            },
++        )
++        rows = result.fetchall()
++        return [
++            {
++                "action": row[0],
++                "payload": row[1] if isinstance(row[1], dict) else {},
++                "occurred_at": row[2].isoformat() if row[2] is not None else None,
++            }
++            for row in rows
++        ]
++
++    # ── Internal helpers ────────────────────────────────────────
++    async def _query_closing_via_ledger(
++        self,
++        period_key: str,
++    ) -> tuple[dict[uuid.UUID, Decimal], int, int]:
++        """Read multi-product ledger aggregate via 5-2 LedgerService SSOT.
++
++        Returns:
++            (closing_per_product, ledger_event_count,
++             closing_snapshot_count).
++        """
++        from apps.api.modules.m4_inventory.services.ledger_service import (
++            LedgerService,
++        )
++
++        ledger_service = LedgerService(
++            self.session,
++            tenant_id=self.tenant_id,
++            trace_id=self.trace_id,
++        )
++        closing_per_product = await ledger_service.query_period_closing_all(
++            period_key=period_key,
++        )
++        ledger_event_count = await ledger_service.count_period_events(
++            period_key=period_key,
++        )
++        closing_snapshot_count = await ledger_service.count_period_events(
++            period_key=period_key,
++            event_type="closing_snapshot",
++        )
++        return closing_per_product, ledger_event_count, closing_snapshot_count
++
++    async def _is_period_closed(self, period_key: str) -> bool:
++        """Check AD-6 fiscal-period close lock."""
++        from sqlalchemy import text
++
++        result = await self.session.scalar(
++            text(
++                "SELECT status FROM monthly_input_periods "
++                "WHERE tenant_id = :tenant_id AND period_key = :period_key"
++            ),
++            {
++                "tenant_id": str(self.tenant_id),
++                "period_key": period_key,
++            },
++        )
++        return result == "closed"
++
++    async def _emit_audit_confirmed(
++        self,
++        *,
++        period_key: str,
++        actor_id: uuid.UUID | None,
++        finalized_at: str,
++        closing_snapshot_count: int,
++    ) -> None:
++        """Audit-first emit (CR 1.1) for closing_period_confirmed."""
++        try:
++            await emit_audit_typed(
++                self.session,
++                action_class=ActionClass.CLOSING_PERIOD,
++                action="closing_period_confirmed",
++                actor_id=actor_id,
++                target_id=self.tenant_id,
++                tenant_id=self.tenant_id,
++                payload={
++                    "period_key": period_key,
++                    "finalized_at": finalized_at,
++                    "closing_snapshot_count": closing_snapshot_count,
++                    "trace_id": self.trace_id,
++                },
++            )
++        except Exception as err:
++            raise ClosingPeriodAuditEmitError(
++                tenant_id=self.tenant_id,
++                details={
++                    "action": "closing_period_confirmed",
++                    "period_key": period_key,
++                    "error": str(err),
++                },
++                trace_id=self.trace_id,
++            ) from err
++
++    async def _emit_audit_blocked(
++        self,
++        *,
++        period_key: str,
++        actor_id: uuid.UUID | None,
++        details: dict[str, Any],
++    ) -> None:
++        """Audit-first emit (CR 1.1) for closing_period_blocked."""
++        try:
++            await emit_audit_typed(
++                self.session,
++                action_class=ActionClass.CLOSING_PERIOD,
++                action="closing_period_blocked",
++                actor_id=actor_id,
++                target_id=self.tenant_id,
++                tenant_id=self.tenant_id,
++                payload={
++                    "period_key": period_key,
++                    **details,
++                    "trace_id": self.trace_id,
++                },
++            )
++        except Exception as err:
++            raise ClosingPeriodAuditEmitError(
++                tenant_id=self.tenant_id,
++                details={
++                    "action": "closing_period_blocked",
++                    "period_key": period_key,
++                    "error": str(err),
++                },
++                trace_id=self.trace_id,
++            ) from err
++
++
++def _decimal_to_str(d: dict[uuid.UUID, Decimal]) -> dict[str, str]:
++    """Decimal → str for JSON serialization (AD-8 monetary types)."""
++    return {str(pid): f"{qty:f}" for pid, qty in d.items()}
++
++
++__all__ = [
++    "ClosingPeriodAlreadyClosedError",
++    "ClosingPeriodAuditEmitError",
++    "ClosingPeriodBlockedError",
++    "ClosingPeriodEmptyPeriodError",
++    "ClosingPeriodService",
++]
+diff --git a/apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py b/apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py
+new file mode 100644
+index 0000000..6c48b69
+--- /dev/null
++++ b/apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py
+@@ -0,0 +1,166 @@
++"""apps.api.modules.m6_verification.services.closing_period_snapshot_verifier — Story 6.1.
++
++V4 verification verifier service layer (m6_verification module).
++
++Wraps the V4 pure kernel in `packages.cost_engine.closing_period_snapshot`
++with:
++
++- 1 service operation: `verify_v4_closing_period_consistency` dispatched
++  by `VerificationRunner` (5-3 wire) at V4 slot index 2 of 5.
++
++- 1 typed exception: `ClosingPeriodSnapshotInconsistencyError` (409
++  CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY) — wraps pure-kernel
++  inconsistency exception with HTTP envelope.
++
++- SSOT reads via 5-2 `LedgerService`:
++  - `query_period_closing_all` for ledger aggregate.
++  - `query_period_closing_snapshot_all` for closing_snapshot
++    aggregate (NEW 5-2 event_type='closing_snapshot' filter).
++
++AD-12 ordering preserved:
++- V1 → V4 → V3 → V7 → V8 (V4 succeeds V1, precedes V3).
++- V4 status='skipped' is OK (service-only tenant, empty aggregate);
++  VerificationRunner continues to V3 next slot.
++- V4 status='failed' → raise ClosingPeriodSnapshotInconsistencyError;
++  VerificationRunner marks the run as failed (no further slots run).
++"""
++
++from __future__ import annotations
++
++import uuid
++from datetime import UTC, datetime
++
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from packages.cost_engine.closing_period_snapshot import (
++    V4Verdict,
++    verify_closing_period_consistency,
++)
++
++
++def _now_utc_iso() -> str:
++    """ISO-8601 UTC timestamp (AD-5: pure kernel no clock)."""
++    return datetime.now(tz=UTC).isoformat()
++
++
++class ClosingPeriodSnapshotInconsistencyError(Exception):
++    """409 CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY — V4 fail.
++
++    Mirrors `packages.cost_engine.closing_period_snapshot
++    .ClosingPeriodSnapshotInconsistencyError`. Service-layer wrap carries
++    tenant_id + period_key + failures for HTTP envelope.
++    """
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        period_key: str,
++        failures: list[dict[str, str]],
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"closing_period_snapshot inconsistency for {period_key} "
++            f"(tenant {tenant_id}): {len(failures)} failure(s)"
++        )
++        self.tenant_id = tenant_id
++        self.period_key = period_key
++        self.failures = failures
++        self.trace_id = trace_id
++
++
++class ClosingPeriodSnapshotVerifier:
++    """Story 6.1 — V4 verifier service.
++
++    Constructor:
++        session: AsyncSession (per-request).
++        tenant_id: tenant UUID (from JWT).
++        trace_id: request trace ID.
++    """
++
++    def __init__(
++        self,
++        session: AsyncSession,
++        *,
++        tenant_id: uuid.UUID,
++        trace_id: str,
++    ) -> None:
++        self.session = session
++        self.tenant_id = tenant_id
++        self.trace_id = trace_id
++
++    async def verify_v4_closing_period_consistency(
++        self,
++        period_key: str,
++        *,
++        industry: str | None = None,
++    ) -> V4Verdict:
++        """V4 verification — closing snapshot 일관성.
++
++        Reads ledger aggregate + closing_snapshot aggregate via
++        `LedgerService` (5-2 SSOT), then dispatches
++        `verify_closing_period_consistency` (T2 pure kernel).
++
++        Args:
++            period_key: 'YYYY-MM' AD-24 typed period key.
++            industry: Industry SSOT (Story 4-3 wire). 'service' → SKIP.
++
++        Returns:
++            V4Verdict TypedDict (verified_at overwritten with
++            `datetime.now(UTC).isoformat()` — AD-5 clock injection at
++            service layer).
++
++        Raises:
++            ClosingPeriodSnapshotInconsistencyError: V4 status='failed'.
++            PureV4InconsistencyError: defense-in-depth (pure kernel
++                invariant violation).
++        """
++        from apps.api.modules.m4_inventory.services.ledger_service import (
++            LedgerService,
++        )
++
++        ledger_service = LedgerService(
++            self.session,
++            tenant_id=self.tenant_id,
++            trace_id=self.trace_id,
++        )
++        ledger_aggregate = await ledger_service.query_period_closing_all(
++            period_key=period_key,
++        )
++        closing_snapshot_aggregate = await ledger_service.query_period_closing_snapshot_all(
++            period_key=period_key,
++        )
++
++        # Product whitelist = union of ledger aggregate + closing_snapshot
++        # aggregate keys (defense-in-depth: pass both active sets).
++        product_whitelist: set[uuid.UUID] = set(ledger_aggregate.keys()) | set(
++            closing_snapshot_aggregate.keys()
++        )
++
++        # Pure kernel dispatch.
++        verdict = verify_closing_period_consistency(
++            ledger_aggregate=ledger_aggregate,
++            closing_snapshot_aggregate=closing_snapshot_aggregate,
++            product_whitelist=product_whitelist,
++            industry=industry,
++        )
++
++        # Overwrite verified_at with real clock (AD-5).
++        verdict["verified_at"] = _now_utc_iso()
++
++        if verdict["status"] == "failed":
++            failures = list(verdict["failures"])
++            raise ClosingPeriodSnapshotInconsistencyError(
++                tenant_id=self.tenant_id,
++                period_key=period_key,
++                failures=failures,
++                trace_id=self.trace_id,
++            )
++
++        return verdict
++
++
++__all__ = [
++    "ClosingPeriodSnapshotInconsistencyError",
++    "ClosingPeriodSnapshotVerifier",
++]
+diff --git a/apps/web/lib/closing-period.ts b/apps/web/lib/closing-period.ts
+new file mode 100644
+index 0000000..b03c27b
+--- /dev/null
++++ b/apps/web/lib/closing-period.ts
+@@ -0,0 +1,80 @@
++// apps/web/lib/closing-period.ts — Story 6.1 TS mirror.
++//
++// Closing period service TS projection (AD-15 §11 SSOT parity with
++// `packages/services/m4_inventory/closing_period.py`).
++//
++// Drift caught by `tests/integration/test_closing_period_label_consistency.py`.
++//
++// Korean message SSOT (single source of truth for ko-KR.json parity):
++// - CLOSING_PERIOD_CONFIRMATION_KO mirrors Python
++//   `CLOSING_PERIOD_CONFIRMATION_KO`.
++// - CLOSING_PERIOD_BLOCKED_KO mirrors Python
++//   `CLOSING_PERIOD_BLOCKED_KO`.
++//
++// Status classification 4 codes (PRD §F4.3 + §V4 + §A11):
++// - CLOSING_PERIOD_STATUS_READY: invariant OK + ledger events >= 1
++// - CLOSING_PERIOD_STATUS_BLOCKED: invariant NEGATIVE_CLOSING
++// - CLOSING_PERIOD_STATUS_ALREADY_CLOSED: monthly_input_periods.status='closed'
++// - CLOSING_PERIOD_STATUS_EMPTY_PERIOD: ledger events 0건
++
++// ── Constants (Korean SSOT) ──────────────────────────────────────
++export const CLOSING_PERIOD_CONFIRMATION_KO = "월 마감 확정: 기말재고 snapshot 저장";
++export const CLOSING_PERIOD_BLOCKED_KO = "마감 차단: 기말재고 음수";
++
++// ── Closing period status 4 codes ────────────────────────────────
++export const CLOSING_PERIOD_STATUS_READY = "CLOSING_READY" as const;
++export const CLOSING_PERIOD_STATUS_BLOCKED = "CLOSING_BLOCKED" as const;
++export const CLOSING_PERIOD_STATUS_ALREADY_CLOSED = "ALREADY_CLOSED" as const;
++export const CLOSING_PERIOD_STATUS_EMPTY_PERIOD = "EMPTY_PERIOD" as const;
++
++export const CLOSING_PERIOD_STATUSES = [
++  CLOSING_PERIOD_STATUS_READY,
++  CLOSING_PERIOD_STATUS_BLOCKED,
++  CLOSING_PERIOD_STATUS_ALREADY_CLOSED,
++  CLOSING_PERIOD_STATUS_EMPTY_PERIOD,
++] as const;
++
++export type ClosingPeriodStatus =
++  (typeof CLOSING_PERIOD_STATUSES)[number];
++
++// ── ClosingSnapshotEvent (AD-15 snake_case parity) ──────────────
++export interface ClosingSnapshotEvent {
++  product_id: string;
++  closing_qty: string; // Decimal string (AD-8 monetary)
++  finalized_at: string; // ISO-8601 UTC
++}
++
++// ── ClosingPeriodState (AD-15 parity with Python NamedTuple) ────
++export interface ClosingPeriodState {
++  status: ClosingPeriodStatus;
++  allowed: boolean;
++  closing_per_product: Record<string, string>; // product_id (string) → Decimal string
++  closing_snapshot_count: number;
++  ledger_event_count: number;
++  period_key: string;
++}
++
++// ── isClosingPeriodAllowed (gate helper) ────────────────────────
++export function isClosingPeriodAllowed(status: ClosingPeriodStatus): boolean {
++  return status === CLOSING_PERIOD_STATUS_READY;
++}
++
++// ── formatClosingPeriodConfirmationKo ──────────────────────────
++export function formatClosingPeriodConfirmationKo(
++  result: ClosingPeriodState,
++): string {
++  if (result.status !== CLOSING_PERIOD_STATUS_READY) {
++    return "";
++  }
++  return CLOSING_PERIOD_CONFIRMATION_KO;
++}
++
++// ── formatClosingPeriodBlockedKo ───────────────────────────────
++export function formatClosingPeriodBlockedKo(
++  result: ClosingPeriodState,
++): string {
++  if (result.status !== CLOSING_PERIOD_STATUS_BLOCKED) {
++    return "";
++  }
++  return CLOSING_PERIOD_BLOCKED_KO;
++}
+\ No newline at end of file
+diff --git a/packages/cost_engine/closing_period_snapshot.py b/packages/cost_engine/closing_period_snapshot.py
+new file mode 100644
+index 0000000..a008849
+--- /dev/null
++++ b/packages/cost_engine/closing_period_snapshot.py
+@@ -0,0 +1,237 @@
++"""packages.cost_engine.closing_period_snapshot — Story 6.1 V4 pure kernel.
++
++V4 (closing snapshot 일관성 verification) pure rule.
++
++Pure-Python, stdlib-only helpers consumed by:
++- `apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py`
++  (T4 service layer — verify_v4_closing_period_consistency dispatch)
++
++AD-1 / AD-5 / AD-11 binding: pure-Python, stdlib-only, NO sqlalchemy,
++NO DB import (cost_engine layer rule). The service layer passes
++ledger_aggregate (dict[UUID, Decimal]) + closing_snapshot_aggregate
++(dict[UUID, Decimal]) + product_whitelist (set[UUID]) as arguments;
++this kernel owns the V4 verdict logic + per-product inconsistency check.
++
++V4 fixture parity: 6-1 ships 2 NEW 골든 fixtures:
++- `v4_closing_period_pass_manufacturing.json` (all ledger == closing_snapshot)
++- `v4_closing_period_fail_manufacturing.json` (>=1 per-product mismatch)
++- V8 fixture count: 14 → 16.
++- AD-12 ordering: V4 succeeds BEFORE V3 (closing ≥ 0 invariant) +
++  V7 (ABC integrity) + V8 (byte-identical golden match).
++  V1 → V4 → V3 → V7 → V8 ordering invariant preserved.
++
++PRD §V4 closing snapshot 일관성 verification:
++- "closing snapshot 일관성" — ledger aggregate (5-2 `query_period_closing`)
++  vs closing_snapshot ledger events aggregate (5-2 inventory_ledger
++  event_type='closing_snapshot') per-product 일치 검증.
++- V4 fail → top_failure.code='V4' + block_reason=
++  'CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY' + Korean message SSOT.
++- V4 skip → industry='service' (service-only tenant inventory 무의미)
++  OR ledger_aggregate empty + no products in whitelist.
++"""
++
++from __future__ import annotations
++
++import uuid
++from decimal import ROUND_HALF_EVEN, Decimal
++from typing import Final, TypedDict
++
++from packages.services.m2_input.inventory_projection import QTY_QUANTUM
++
++# ── Constants ────────────────────────────────────────────────
++# V4 verdict status (matches Story 4-3 V1·V3·V7·V8 verbatim + 5-3 V3).
++V4_STATUS_PASSED: Final[str] = "passed"
++V4_STATUS_FAILED: Final[str] = "failed"
++V4_STATUS_SKIPPED: Final[str] = "skipped"
++
++V4_STATUSES: Final[frozenset[str]] = frozenset(
++    {V4_STATUS_PASSED, V4_STATUS_FAILED, V4_STATUS_SKIPPED}
++)
++
++# AD-12 ordering invariant (Story 4-3 wire + 5-3 wire). V4 is slot 2 of 5.
++# V1 (completeness) → V4 (closing snapshot 일관성) → V3 (closing ≥ 0) →
++# V7 (ABC integrity) → V8 (byte-identical golden match).
++V4_ORDER_INDEX: Final[int] = 2
++V4_RULE_CODE: Final[str] = "V4"
++
++# V4 skip reason (Korean SSOT for service-only tenant + empty aggregate).
++V4_SKIP_REASON_SERVICE_ONLY_KO: Final[str] = "service-only tenant은 inventory 의미 없음"
++V4_SKIP_REASON_EMPTY_AGGREGATE_KO: Final[str] = (
++    "기말재고 ledger aggregate 비어있음 — V4 SKIP"
++)
++
++# V4 fail Korean message SSOT (AD-15 §11 parity with TS).
++V4_FAIL_MESSAGE_KO: Final[str] = "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"
++
++
++# ── TypedDict shapes ─────────────────────────────────────────
++class V4Failure(TypedDict):
++    """Per-product closing snapshot inconsistency.
++
++    AD-15: snake_case field names. Mirrors TS `V4Failure` (future
++    Story 6-2 Monthly Closing Report wire).
++
++    - `product_id`: UUID string for JSON serialization (AD-15).
++    - `ledger_qty`: Decimal string (AD-8 monetary parity).
++    - `closing_snapshot_qty`: Decimal string (AD-8 monetary parity).
++    - `message_ko`: Korean failure message (AD-15 §11).
++    """
++
++    product_id: str
++    ledger_qty: str
++    closing_snapshot_qty: str
++    message_ko: str
++
++
++class V4Verdict(TypedDict):
++    """V4 verdict envelope.
++
++    Mirrors `packages/cost_engine/protocol.py::Verdict` shape (AD-15).
++    `failures` is empty when status='passed' or 'skipped'.
++    """
++
++    status: str  # V4_STATUS_PASSED / FAILED / SKIPPED
++    code: str  # always 'V4' for this rule
++    failures: list[V4Failure]
++    verified_at: str  # ISO8601 UTC string
++    product_whitelist_size: int
++    skip_reason_ko: str | None  # None unless status='skipped'
++
++
++# ── V4 typed exception (pure-kernel domain semantics) ─────────
++class ClosingPeriodSnapshotInconsistencyError(Exception):
++    """Pure-kernel V4 inconsistency detected (defense-in-depth).
++
++    Distinct from service-layer typed exceptions. NO HTTP mapping;
++    service layer wraps with envelope details.
++    """
++
++    def __init__(
++        self,
++        *,
++        message: str,
++        product_id: uuid.UUID | None = None,
++    ) -> None:
++        super().__init__(message)
++        self.message = message
++        self.product_id = product_id
++
++
++# ── verify_closing_period_consistency ────────────────────────
++def verify_closing_period_consistency(
++    *,
++    ledger_aggregate: dict[uuid.UUID, Decimal],
++    closing_snapshot_aggregate: dict[uuid.UUID, Decimal],
++    product_whitelist: set[uuid.UUID],
++    industry: str | None = None,
++) -> V4Verdict:
++    """V4 rule pure kernel — closing snapshot 일관성 verification.
++
++    Per-product qty 일치 검증: ledger_aggregate[pid] ==
++    closing_snapshot_aggregate[pid] for all pid in product_whitelist.
++    Banker's rounding (ROUND_HALF_EVEN) at QTY_QUANTUM applied for
++    deterministic parity (CR 0-4 lesson + AD-15 §11).
++
++    Args:
++        ledger_aggregate: dict[product_id → closing_qty] from 5-2
++            `LedgerService.query_period_closing` (5-2 wire SSOT).
++        closing_snapshot_aggregate: dict[product_id → closing_qty]
++            from inventory_ledger event_type='closing_snapshot' aggregate
++            (5-2 wire 진입점, 6-1 confirms).
++        product_whitelist: set of product_ids to verify (caller filters
++            active products; service layer from session).
++        industry: Industry SSOT (Story 4-3 wire). 'service' → SKIP.
++
++    Returns:
++        V4Verdict TypedDict:
++        - status='skipped' if industry='service' OR both aggregates empty.
++        - status='passed' if all per-product qty match.
++        - status='failed' if any per-product qty mismatch (failures populated).
++    """
++    # V4 SKIP — industry='service' (service-only tenant inventory 무의미)
++    if industry == "service":
++        return _v4_skipped(
++            reason_ko=V4_SKIP_REASON_SERVICE_ONLY_KO,
++            whitelist_size=len(product_whitelist),
++        )
++
++    # V4 SKIP — both aggregates empty (no ledger events at all)
++    if not ledger_aggregate and not closing_snapshot_aggregate:
++        return _v4_skipped(
++            reason_ko=V4_SKIP_REASON_EMPTY_AGGREGATE_KO,
++            whitelist_size=len(product_whitelist),
++        )
++
++    failures: list[V4Failure] = []
++    verified_at = _iso_now_static_placeholder()
++
++    # Per-product consistency check
++    for pid in sorted(product_whitelist, key=str):
++        ledger_qty = ledger_aggregate.get(pid, Decimal("0"))
++        closing_qty = closing_snapshot_aggregate.get(pid, Decimal("0"))
++
++        # Banker's rounding at QTY_QUANTUM for deterministic comparison
++        ledger_q = ledger_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
++        closing_q = closing_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
++
++        if ledger_q != closing_q:
++            failures.append(
++                V4Failure(
++                    product_id=str(pid),
++                    ledger_qty=f"{ledger_q:f}",
++                    closing_snapshot_qty=f"{closing_q:f}",
++                    message_ko=V4_FAIL_MESSAGE_KO,
++                )
++            )
++
++    status = V4_STATUS_FAILED if failures else V4_STATUS_PASSED
++    return V4Verdict(
++        status=status,
++        code=V4_RULE_CODE,
++        failures=failures,
++        verified_at=verified_at,
++        product_whitelist_size=len(product_whitelist),
++        skip_reason_ko=None,
++    )
++
++
++# ── Internal helpers ─────────────────────────────────────────
++def _v4_skipped(*, reason_ko: str, whitelist_size: int) -> V4Verdict:
++    """Build a SKIP V4Verdict (Korean SSOT)."""
++    return V4Verdict(
++        status=V4_STATUS_SKIPPED,
++        code=V4_RULE_CODE,
++        failures=[],
++        verified_at=_iso_now_static_placeholder(),
++        product_whitelist_size=whitelist_size,
++        skip_reason_ko=reason_ko,
++    )
++
++
++def _iso_now_static_placeholder() -> str:
++    """Return a static placeholder ISO-8601 timestamp.
++
++    AD-5: pure kernel has no clock. Caller (service layer) MUST
++    overwrite `verified_at` with the real ISO-8601 UTC timestamp from
++    `datetime.now(UTC).isoformat()` before returning the verdict to
++    the response. This placeholder exists so the V4Verdict shape is
++    complete at pure-kernel construction.
++    """
++    return "1970-01-01T00:00:00+00:00"
++
++
++__all__ = [
++    "V4_FAIL_MESSAGE_KO",
++    "V4_ORDER_INDEX",
++    "V4_RULE_CODE",
++    "V4_SKIP_REASON_EMPTY_AGGREGATE_KO",
++    "V4_SKIP_REASON_SERVICE_ONLY_KO",
++    "V4_STATUSES",
++    "V4_STATUS_FAILED",
++    "V4_STATUS_PASSED",
++    "V4_STATUS_SKIPPED",
++    "ClosingPeriodSnapshotInconsistencyError",
++    "V4Failure",
++    "V4Verdict",
++    "verify_closing_period_consistency",
++]
+diff --git a/packages/services/m4_inventory/closing_period.py b/packages/services/m4_inventory/closing_period.py
+new file mode 100644
+index 0000000..a691066
+--- /dev/null
++++ b/packages/services/m4_inventory/closing_period.py
+@@ -0,0 +1,371 @@
++"""packages.services.m4_inventory.closing_period — Story 6.1 pure kernel.
++
++Closing period service = closing 시점 ledger aggregate 영구화 + closing_snapshot
++ledger event emit 진입점 (PRD §F4.3 + §F5 + §V4 + §A11 3-layer defense).
++
++Pure-Python, stdlib-only helpers consumed by:
++- `apps/api/modules/m4_inventory/services/closing_period_service.py`
++  (T3 service layer — ClosingPeriodService.evaluate_closing_period +
++  confirm_closing_period + get_closing_period_audit_trail)
++- `apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py`
++  (T4 V4 slot fill — verify_v4_closing_period_consistency)
++
++AD-1 / AD-5 / AD-11 binding: pure-Python, stdlib-only, no DB, no clock,
++no random. Drift between Python and TS caught by
++`tests/integration/test_closing_period_label_consistency.py` (NEW 6-1).
++
++Closing period status classification (PRD §F4.3):
++- CLOSING_READY: invariant OK + ledger events >= 1 → 마감 확정 가능
++- CLOSING_BLOCKED: invariant NEGATIVE_CLOSING → 마감 차단
++- ALREADY_CLOSED: monthly_input_periods.status='closed' → idempotent no-op skip
++- EMPTY_PERIOD: ledger events 0건 → 마감 불가
++
++Korean message SSOT (AD-15 §11):
++- `CLOSING_PERIOD_CONFIRMATION_KO` mirrors
++  `apps/web/lib/closing-period.ts::formatClosingPeriodConfirmationKo`.
++- `CLOSING_PERIOD_BLOCKED_KO` mirrors
++  `apps/web/lib/closing-period.ts::formatClosingPeriodBlockedKo`.
++
++Layering (AD-11):
++- Pure helpers in `packages/services/m4_inventory/`
++- Mirrored TS projection at `apps/web/lib/closing-period.ts`
++- Drift caught by `tests/integration/test_closing_period_label_consistency.py`
++
++PRD §6.2 수불부 invariant:
++- closing = opening + inbound - outbound (QTY_QUANTUM, ROUND_HALF_EVEN)
++- closing MUST be ≥ 0 for ALL inventory-tracked products (PRD §V3)
++- closing_snapshot ledger event = per-product closing balance materialize
++  (AD-2 append-only + 5-2 wire 진입점 + Epic 11 reversal entrypoint)
++
++A8 inline projection deprecation timeline:
++- 6-1 wire 시점: inline projection 보존 (1 epic maintenance window 진행 중)
++- Epic 6 close-out 시점에 fold-in vs deprecate 결정 필수
++  (PRD §F4.3 closing_period service = AD-2 ledger aggregate SSOT)
++"""
++
++from __future__ import annotations
++
++import uuid
++from decimal import ROUND_HALF_EVEN, Decimal
++from typing import Final, NamedTuple
++
++from packages.services.m2_input.inventory_projection import QTY_QUANTUM
++
++# ── Constants ────────────────────────────────────────────────
++# Korean message SSOT (AD-15 §11 parity with TS
++# `formatClosingPeriodConfirmationKo` + `formatClosingPeriodBlockedKo`).
++# Drift caught by integration test
++# `tests/integration/test_closing_period_label_consistency.py`.
++CLOSING_PERIOD_CONFIRMATION_KO: Final[str] = "월 마감 확정: 기말재고 snapshot 저장"
++CLOSING_PERIOD_BLOCKED_KO: Final[str] = "마감 차단: 기말재고 음수"
++
++# Closing period status classification 4 codes (PRD §F4.3 + §V4 + §A11).
++CLOSING_PERIOD_STATUS_READY: Final[str] = "CLOSING_READY"
++CLOSING_PERIOD_STATUS_BLOCKED: Final[str] = "CLOSING_BLOCKED"
++CLOSING_PERIOD_STATUS_ALREADY_CLOSED: Final[str] = "ALREADY_CLOSED"
++CLOSING_PERIOD_STATUS_EMPTY_PERIOD: Final[str] = "EMPTY_PERIOD"
++
++CLOSING_PERIOD_STATUSES: Final[frozenset[str]] = frozenset(
++    {
++        CLOSING_PERIOD_STATUS_READY,
++        CLOSING_PERIOD_STATUS_BLOCKED,
++        CLOSING_PERIOD_STATUS_ALREADY_CLOSED,
++        CLOSING_PERIOD_STATUS_EMPTY_PERIOD,
++    }
++)
++
++
++# ── ClosingPeriodError ─────────────────────────────────────────
++class ClosingPeriodError(Exception):
++    """Pure-kernel closing period domain error.
++
++    Distinct from service-layer typed exceptions (which carry HTTP
++    envelope + audit-first semantics). This exception is raised by the
++    pure kernel when invariants are violated at the domain level (e.g.
++    invalid period_key, unknown status code, non-finite qty).
++    NO HTTP mapping; service layer wraps with envelope details.
++    """
++
++    def __init__(
++        self,
++        *,
++        message: str,
++        error_code: str = "CLOSING_PERIOD_ERROR",
++        period_key: str | None = None,
++        tenant_id: uuid.UUID | None = None,
++    ) -> None:
++        super().__init__(message)
++        self.message = message
++        self.error_code = error_code
++        self.period_key = period_key
++        self.tenant_id = tenant_id
++
++
++# ── ClosingSnapshotEntry ─────────────────────────────────────
++class ClosingSnapshotEntry(NamedTuple):
++    """Pure-data closing snapshot ledger entry (per-product).
++
++    AD-15: snake_case field names. Mirrors TS
++    `apps/web/lib/l2-input-inventory-ledger.ts::ClosingSnapshotEvent`.
++
++    `closing_qty` is the per-product closing balance (Decimal, quantized
++    to QTY_QUANTUM via ROUND_HALF_EVEN — CR 0-4 lesson). `finalized_at`
++    is the ISO-8601 UTC timestamp string passed by the caller (AD-5:
++    pure kernel has no clock).
++
++    Each entry maps to ONE inventory_ledger row with
++    `event_type='closing_snapshot'` (5-2 11-value whitelist). Per
++    product 1 row = N rows total per period_key.
++    """
++
++    product_id: uuid.UUID
++    closing_qty: Decimal
++    finalized_at: str  # ISO-8601 UTC
++
++
++# ── ClosingPeriodResult ────────────────────────────────────────
++class ClosingPeriodResult(NamedTuple):
++    """Pure-data closing period evaluation result.
++
++    Mirrors TS `apps/web/lib/closing-period.ts::ClosingPeriodState`.
++
++    - `status`: One of CLOSING_PERIOD_STATUSES 4 codes.
++    - `allowed`: True iff status == CLOSING_READY (PRD §F4.3 gate).
++    - `closing_per_product`: dict[product_id → closing_qty] Decimal
++      per product (empty when EMPTY_PERIOD).
++    - `closing_snapshot_count`: number of closing_snapshot ledger
++      events already in inventory_ledger (0 for first confirm).
++    - `ledger_event_count`: total inventory_ledger event count for the
++      period (includes purchase_inbound + sales_outbound + production
++      etc. — NOT closing_snapshot).
++    - `period_key`: 'YYYY-MM' AD-24 typed.
++    """
++
++    status: str
++    allowed: bool
++    closing_per_product: dict[uuid.UUID, Decimal]
++    closing_snapshot_count: int
++    ledger_event_count: int
++    period_key: str
++
++
++# ── compute_closing_snapshot ──────────────────────────────────
++def compute_closing_snapshot(
++    closing_per_product: dict[uuid.UUID, Decimal],
++    *,
++    period_key: str,
++    finalized_at: str,
++) -> list[ClosingSnapshotEntry]:
++    """Build per-product closing_snapshot ledger entries.
++
++    Pure kernel — takes closing_per_product (from 5-3
++    `compute_closing_balance_per_product` result) + caller-provided
++    period_key + finalized_at, returns list of ClosingSnapshotEntry
++    ready for 5-2 `LedgerService.append_event(event_type='closing_snapshot', ...)`.
++
++    AD-15 §11 banker's rounding (CR 0-4 lesson): each closing_qty is
++    quantized to QTY_QUANTUM via ROUND_HALF_EVEN. Cross-language parity
++    with TS Decimal.set scale parity.
++
++    Args:
++        closing_per_product: dict[product_id → closing_qty Decimal]
++            from 5-3 closing_guard pure kernel. Empty when EMPTY_PERIOD.
++        period_key: 'YYYY-MM' AD-24 typed period key (caller-validated).
++        finalized_at: ISO-8601 UTC timestamp string (service layer
++            owns datetime.now(UTC); AD-5 pure kernel no clock).
++
++    Returns:
++        list[ClosingSnapshotEntry] — 1 entry per product. Empty list
++        when closing_per_product is empty (EMPTY_PERIOD case).
++
++    Raises:
++        ClosingPeriodError: If any closing_qty is non-finite
++            (NaN/Infinity) — caught at compute_closing_balance_per_product
++            call site, defense-in-depth here.
++    """
++    entries: list[ClosingSnapshotEntry] = []
++    for product_id, closing_qty in closing_per_product.items():
++        if not isinstance(closing_qty, Decimal):
++            raise ClosingPeriodError(
++                message=(
++                    f"closing_qty must be Decimal, got "
++                    f"{type(closing_qty).__name__!r} for product_id={product_id}"
++                ),
++                error_code="QTY_MUST_BE_DECIMAL",
++                period_key=period_key,
++            )
++        if not closing_qty.is_finite():
++            raise ClosingPeriodError(
++                message=(
++                    f"closing_qty is non-finite {closing_qty!r} "
++                    f"for product_id={product_id}"
++                ),
++                error_code="NON_FINITE_QTY",
++                period_key=period_key,
++            )
++        quantized = closing_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
++        entries.append(
++            ClosingSnapshotEntry(
++                product_id=product_id,
++                closing_qty=quantized,
++                finalized_at=finalized_at,
++            )
++        )
++    # Sort by product_id for deterministic ordering (V8 byte-identical
++    # fixture parity + audit payload reproducibility).
++    entries.sort(key=lambda e: e.product_id)
++    return entries
++
++
++# ── classify_closing_period_status ────────────────────────────
++def classify_closing_period_status(
++    closing_per_product: dict[uuid.UUID, Decimal],
++    *,
++    ledger_event_count: int,
++    is_already_closed: bool,
++) -> str:
++    """Classify the closing period status per PRD §F4.3 + §V4 + §A11.
++
++    Classification rules (in priority order):
++    1. `is_already_closed=True` → ALREADY_CLOSED (idempotent no-op skip).
++    2. `closing_per_product` empty AND `ledger_event_count == 0` →
++       EMPTY_PERIOD (no events at all).
++    3. Any closing < 0 → CLOSING_BLOCKED (PRD §F4.2 invariant violation,
++       5-3 closing_guard service dispatched NEGATIVE_CLOSING_INVENTORY).
++    4. All closing >= 0 AND ledger_event_count >= 1 → CLOSING_READY
++       (마감 확정 가능 — confirm_closing_period dispatch entry).
++
++    Args:
++        closing_per_product: dict[product_id → closing_qty] from 5-3
++            `compute_closing_balance_per_product`.
++        ledger_event_count: total inventory_ledger event count for the
++            period (excludes closing_snapshot to avoid double-counting).
++        is_already_closed: True iff
++            `monthly_input_periods.status == 'closed'` (service layer
++            reads AD-6 fiscal-period close lock).
++
++    Returns:
++        str — one of CLOSING_PERIOD_STATUSES 4 codes.
++
++    Raises:
++        ClosingPeriodError: If ledger_event_count is negative
++            (defense-in-depth — caller should never pass < 0).
++    """
++    if ledger_event_count < 0:
++        raise ClosingPeriodError(
++            message=(
++                f"ledger_event_count must be >= 0, got {ledger_event_count!r}"
++            ),
++            error_code="NEGATIVE_LEDGER_EVENT_COUNT",
++        )
++
++    # Priority 1: already closed → idempotent no-op
++    if is_already_closed:
++        return CLOSING_PERIOD_STATUS_ALREADY_CLOSED
++
++    # Priority 2: empty period
++    if not closing_per_product and ledger_event_count == 0:
++        return CLOSING_PERIOD_STATUS_EMPTY_PERIOD
++
++    # Priority 3: invariant violation (PRD §V3)
++    for qty in closing_per_product.values():
++        if qty < Decimal("0"):
++            return CLOSING_PERIOD_STATUS_BLOCKED
++
++    # Priority 4: ready to confirm
++    return CLOSING_PERIOD_STATUS_READY
++
++
++# ── is_closing_period_allowed ─────────────────────────────────
++def is_closing_period_allowed(status: str) -> bool:
++    """Return True iff `status == CLOSING_PERIOD_STATUS_READY`.
++
++    Single source of truth for the close-time gate (PRD §F4.3).
++    Mirrors TS `isClosingPeriodAllowed` in `apps/web/lib/closing-period.ts`.
++
++    Args:
++        status: One of CLOSING_PERIOD_STATUSES 4 codes.
++
++    Returns:
++        bool — True iff status is CLOSING_READY.
++
++    Raises:
++        ClosingPeriodError: If status is not in CLOSING_PERIOD_STATUSES
++            (defense-in-depth — caller must classify first).
++    """
++    if status not in CLOSING_PERIOD_STATUSES:
++        raise ClosingPeriodError(
++            message=(
++                f"closing period status {status!r} is not in the 4-code "
++                f"set. Accepted: {sorted(CLOSING_PERIOD_STATUSES)}"
++            ),
++            error_code="INVALID_CLOSING_PERIOD_STATUS",
++        )
++    return status == CLOSING_PERIOD_STATUS_READY
++
++
++# ── format_closing_period_confirmation_ko ─────────────────────
++def format_closing_period_confirmation_ko(result: ClosingPeriodResult) -> str:
++    """Build the Korean confirmation message for the closing-period UI.
++
++    Mirrors TS `formatClosingPeriodConfirmationKo` for AD-15 §11 parity.
++
++    Args:
++        result: from service layer (wraps pure-kernel classification
++            + ledger aggregate). Must be status=CLOSING_READY.
++
++    Returns:
++        str — Korean message SSOT. Empty when status != CLOSING_READY
++            (caller must dispatch UI based on status code, not message).
++
++    Examples:
++        >>> result = ClosingPeriodResult(
++        ...     status=CLOSING_PERIOD_STATUS_READY,
++        ...     allowed=True,
++        ...     closing_per_product={UUID(...): Decimal("100")},
++        ...     closing_snapshot_count=0,
++        ...     ledger_event_count=10,
++        ...     period_key="2026-07",
++        ... )
++        >>> format_closing_period_confirmation_ko(result)
++        '월 마감 확정: 기말재고 snapshot 저장'
++    """
++    if result.status != CLOSING_PERIOD_STATUS_READY:
++        return ""
++    return CLOSING_PERIOD_CONFIRMATION_KO
++
++
++# ── format_closing_period_blocked_ko ──────────────────────────
++def format_closing_period_blocked_ko(result: ClosingPeriodResult) -> str:
++    """Build the Korean blocked-banner message for the closing-period UI.
++
++    Mirrors TS `formatClosingPeriodBlockedKo` for AD-15 §11 parity.
++
++    Args:
++        result: from service layer. Must be status=CLOSING_BLOCKED.
++
++    Returns:
++        str — Korean message SSOT. Empty when status != CLOSING_BLOCKED.
++    """
++    if result.status != CLOSING_PERIOD_STATUS_BLOCKED:
++        return ""
++    return CLOSING_PERIOD_BLOCKED_KO
++
++
++__all__ = [
++    "CLOSING_PERIOD_BLOCKED_KO",
++    "CLOSING_PERIOD_CONFIRMATION_KO",
++    "CLOSING_PERIOD_STATUS_ALREADY_CLOSED",
++    "CLOSING_PERIOD_STATUS_BLOCKED",
++    "CLOSING_PERIOD_STATUS_EMPTY_PERIOD",
++    "CLOSING_PERIOD_STATUS_READY",
++    "CLOSING_PERIOD_STATUSES",
++    "ClosingPeriodError",
++    "ClosingPeriodResult",
++    "ClosingSnapshotEntry",
++    "classify_closing_period_status",
++    "compute_closing_snapshot",
++    "format_closing_period_blocked_ko",
++    "format_closing_period_confirmation_ko",
++    "is_closing_period_allowed",
++]

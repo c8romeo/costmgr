@@ -60,15 +60,18 @@ def test_classify_closing_period_status_blocked_negative_closing() -> None:
 
 
 def test_classify_closing_period_status_empty_period_zero_events() -> None:
-    """closing empty + ledger events 0건 → EMPTY_PERIOD (non-already)."""
+    """ledger events 0건 → EMPTY_PERIOD regardless of opening carry chain.
+
+    Spec §AC #4: opening_inventory auto-carry populates closing_per_product
+    from prev period, but the period itself has 0 events → still EMPTY_PERIOD.
+    The kernel priority 2 fix (CR 6-1 R4 patch D1) decouples EMPTY_PERIOD
+    from the opening-carry map.
+    """
     closing = {uuid.uuid4(): Decimal("10")}
     status = classify_closing_period_status(
         closing, ledger_event_count=0, is_already_closed=False
     )
-    # Per spec: closing empty + 0 events → EMPTY_PERIOD
-    # But this test passes a non-empty closing. Real EMPTY_PERIOD requires
-    # both empty closing dict AND 0 events. Adjust assertion accordingly.
-    assert status == CLOSING_PERIOD_STATUS_READY
+    assert status == CLOSING_PERIOD_STATUS_EMPTY_PERIOD
 
 
 def test_classify_closing_period_status_already_closed_priority() -> None:

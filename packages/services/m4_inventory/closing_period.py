@@ -228,8 +228,9 @@ def classify_closing_period_status(
 
     Classification rules (in priority order):
     1. `is_already_closed=True` → ALREADY_CLOSED (idempotent no-op skip).
-    2. `closing_per_product` empty AND `ledger_event_count == 0` →
-       EMPTY_PERIOD (no events at all).
+    2. `ledger_event_count == 0` → EMPTY_PERIOD (no events at all in this
+       period, regardless of opening carry chain populating
+       `closing_per_product` from prev period).
     3. Any closing < 0 → CLOSING_BLOCKED (PRD §F4.2 invariant violation,
        5-3 closing_guard service dispatched NEGATIVE_CLOSING_INVENTORY).
     4. All closing >= 0 AND ledger_event_count >= 1 → CLOSING_READY
@@ -263,8 +264,9 @@ def classify_closing_period_status(
     if is_already_closed:
         return CLOSING_PERIOD_STATUS_ALREADY_CLOSED
 
-    # Priority 2: empty period
-    if not closing_per_product and ledger_event_count == 0:
+    # Priority 2: empty period (ledger_event_count == 0 regardless of
+    # opening carry chain populating closing_per_product)
+    if ledger_event_count == 0:
         return CLOSING_PERIOD_STATUS_EMPTY_PERIOD
 
     # Priority 3: invariant violation (PRD §V3)

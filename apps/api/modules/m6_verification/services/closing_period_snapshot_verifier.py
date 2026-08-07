@@ -6,7 +6,8 @@ Wraps the V4 pure kernel in `packages.cost_engine.closing_period_snapshot`
 with:
 
 - 1 service operation: `verify_v4_closing_period_consistency` dispatched
-  by `VerificationRunner` (5-3 wire) at V4 slot index 2 of 5.
+  by `ClosingPeriodService.confirm_closing_period` (T3.2 wire) AFTER
+  closing_snapshot ledger events INSERT, as a post-emit consistency check.
 
 - 1 typed exception: `ClosingPeriodSnapshotInconsistencyError` (409
   CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY) — wraps pure-kernel
@@ -17,12 +18,17 @@ with:
   - `query_period_closing_snapshot_all` for closing_snapshot
     aggregate (NEW 5-2 event_type='closing_snapshot' filter).
 
-AD-12 ordering preserved:
-- V1 → V4 → V3 → V7 → V8 (V4 succeeds V1, precedes V3).
+AD-12 ordering preserved (calc-time V* registry is unrelated — V4 closing
+period consistency is a separate post-confirm verification, NOT a calc-time
+slot):
+- VerificationRunner.run_all: V1 → V4(cost-income) → V3 → V7 → V8
+  (slot 2 = cost-income reconciliation).
+- ClosingPeriodService.confirm_closing_period: ... INSERT closing_snapshot
+  → V4 closing-period consistency check → UPDATE monthly_input_periods.status
 - V4 status='skipped' is OK (service-only tenant, empty aggregate);
-  VerificationRunner continues to V3 next slot.
-- V4 status='failed' → raise ClosingPeriodSnapshotInconsistencyError;
-  VerificationRunner marks the run as failed (no further slots run).
+  caller continues.
+- V4 status='failed' → audit-first emit `closing_period_snapshot_inconsistency`
+  THEN raise ClosingPeriodSnapshotInconsistencyError.
 """
 
 from __future__ import annotations
@@ -32,6 +38,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from packages.cost_engine.closing_period_snapshot import (
     V4Verdict,
     verify_closing_period_consistency,
@@ -94,6 +101,7 @@ class ClosingPeriodSnapshotVerifier:
         period_key: str,
         *,
         industry: str | None = None,
+        actor_id: uuid.UUID | None = None,
     ) -> V4Verdict:
         """V4 verification — closing snapshot 일관성.
 
@@ -101,9 +109,16 @@ class ClosingPeriodSnapshotVerifier:
         `LedgerService` (5-2 SSOT), then dispatches
         `verify_closing_period_consistency` (T2 pure kernel).
 
+        CR 6-1 R4 patch D4: V4 status='failed' → audit-first emit
+        `closing_period_snapshot_inconsistency` (ActionClass.CLOSING_PERIOD)
+        BEFORE raising `ClosingPeriodSnapshotInconsistencyError`. CR 1.1
+        invariant — support must correlate frontend no-confirm response
+        with backend failure via audit_logs row.
+
         Args:
             period_key: 'YYYY-MM' AD-24 typed period key.
             industry: Industry SSOT (Story 4-3 wire). 'service' → SKIP.
+            actor_id: actor who triggered; None for system cron.
 
         Returns:
             V4Verdict TypedDict (verified_at overwritten with
@@ -111,7 +126,8 @@ class ClosingPeriodSnapshotVerifier:
             service layer).
 
         Raises:
-            ClosingPeriodSnapshotInconsistencyError: V4 status='failed'.
+            ClosingPeriodSnapshotInconsistencyError: V4 status='failed'
+                (audit emit precedes raise).
             PureV4InconsistencyError: defense-in-depth (pure kernel
                 invariant violation).
         """
@@ -150,6 +166,24 @@ class ClosingPeriodSnapshotVerifier:
 
         if verdict["status"] == "failed":
             failures = list(verdict["failures"])
+            # CR 6-1 R4 patch D4 — audit-first emit BEFORE raise (CR 1.1).
+            # Without this emit, V4 fail is invisible to support. We pass
+            # best-effort and let the raise proceed even if audit fails
+            # (ClosingPeriodAuditEmitError would propagate to caller).
+            await emit_audit_typed(
+                self.session,
+                action_class=ActionClass.CLOSING_PERIOD,
+                action="closing_period_snapshot_inconsistency",
+                actor_id=actor_id,
+                target_id=self.tenant_id,
+                tenant_id=self.tenant_id,
+                payload={
+                    "period_key": period_key,
+                    "failures": failures,
+                    "failures_count": len(failures),
+                    "trace_id": self.trace_id,
+                },
+            )
             raise ClosingPeriodSnapshotInconsistencyError(
                 tenant_id=self.tenant_id,
                 period_key=period_key,

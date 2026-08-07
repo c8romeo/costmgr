@@ -139,8 +139,8 @@ INDUSTRY_NOT_SUPPORTED 시 sonner `toast.error('업종 미지원...')`.
 
 ## 4. V4 Sync
 
-V4 (closing snapshot 일관성) verification � ledger aggregate ↔
-closing_snapshot ledger events 양방향 동기화:
+V4 (closing snapshot 일관성) verification는 ledger aggregate ↔
+closing_snapshot ledger events 양방향 동기화입니다.
 
 1. **Backend:** ledger aggregate (`LedgerService.query_period_closing`) +
    closing_snapshot aggregate (per period event_type='closing_snapshot'
@@ -149,8 +149,12 @@ closing_snapshot ledger events 양방향 동기화:
 2. **V4 골든 fixture:** `packages/cost_engine/tests/regression_v8/fixtures/`
    의 `v4_closing_period_pass_manufacturing.json` +
    `v4_closing_period_fail_manufacturing.json` 2 NEW 골든 (Story 4-4
-   골든 매트릭스 14 → 16 extension).
-3. **byte-identical CI gate:** `tests/regression_v8/test_regression_v8_fixtures.py`
+   골든 매트릭스 14 → 16 extension). **구현 상태: deferred to T10.5
+   follow-up session** — 6-1 carry-over scope 외. V4 pure kernel + service
+   layer wire는 완성 (`packages/cost_engine/closing_period_snapshot.py`
+   + `apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py`),
+   골든 fixture + 16-fixture matrix CI gate은 T10.5 진입 시점에 wire.
+3. **byte-identical CI gate (planned, T10.5):** `tests/regression_v8/test_regression_v8_fixtures.py`
    의 16 fixture matrix × 3 (lock_sha256 / byte-identical / 100x determinism)
    + 2 industry skip matrix = 50+ cases.
 4. **Audit emit:** V4 pass → `closing_period_confirmed` (ActionClass.CLOSING_PERIOD).

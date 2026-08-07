@@ -118,7 +118,7 @@ export function MonthlyInputTabs({
   opening_inventory_locked = false,
   trace_id,
   closing_period_state,
-  closing_period_capability_granted = true,
+  closing_period_capability_granted = false,
   closing_period_finalized_at,
   onClosingPeriodConfirmClick,
   onClosingPeriodConfirm,

@@ -1102,6 +1102,29 @@ class MonthlyInputService:
             v3_verdict,
         ) = await self._compute_closing_guard_bundle_for_state(period_key=period_key)
 
+        # Story 6.1 — closing-period bundle (CR 6-1 R4 patch D5).
+        # Compute closing-period state + audit trail + finalized_at for
+        # the page-mount payload. Service-only tenants get the EMPTY_PERIOD
+        # no-op shape (defense-in-depth, never raises here).
+        (
+            closing_period_state,
+            closing_snapshot_count,
+            closing_period_audit_trail,
+            closing_period_finalized_at,
+        ) = await self._compute_closing_period_bundle_for_state(period_key=period_key)
+
+        # Story 6.1 — capability gate (CR 6-1 R4 patch D11).
+        # Explicit `monthly_closing_report_capability_granted` field
+        # decoupled from state-presence coupling. manufacturing 3종 ✅ /
+        # service-only ❌. `Industry` already imported at module level
+        # (line 96) — DO NOT re-import here (would create local binding
+        # shadowing the module-level one and trigger F823).
+        monthly_closing_report_capability_granted = self.industry in (
+            Industry.MANUFACTURING,
+            Industry.MANUFACTURING_SERVICE,
+            Industry.MANUFACTURING_SERVICE_OTHER,
+        )
+
         return MonthlyInputStateResponse(
             period_key=period_key,
             mode=period.mode,
@@ -1144,6 +1167,12 @@ class MonthlyInputService:
             closing_guard_audit_trail=closing_guard_audit_trail,
             production_consumption_events=production_consumption_events,
             v3_verdict=v3_verdict,
+            # Story 6.1 — closing-period wire fields (PRD §F4.3 + §V4 + §A11).
+            closing_period_state=closing_period_state,
+            closing_snapshot_count=closing_snapshot_count,
+            closing_period_audit_trail=closing_period_audit_trail,
+            closing_period_finalized_at=closing_period_finalized_at,
+            monthly_closing_report_capability_granted=monthly_closing_report_capability_granted,
         )
 
     # ── Helpers ──────────────────────────────────────────────
@@ -1993,6 +2022,107 @@ class MonthlyInputService:
             closing_guard_audit_trail,
             production_consumption_events,
             v3_verdict,
+        )
+
+    async def _compute_closing_period_bundle_for_state(
+        self,
+        *,
+        period_key: str,
+    ) -> tuple[
+        str | None,
+        int,
+        list[dict[str, Any]],
+        str | None,
+    ]:
+        """Story 6.1 (CR 6-1 R4 patch D5) — closing-period bundle for state.
+
+        Returns 4-tuple:
+        - `closing_period_state`: one of CLOSING_PERIOD_STATUSES 4 codes
+          (CLOSING_READY / CLOSING_BLOCKED / ALREADY_CLOSED / EMPTY_PERIOD).
+          Mirrors TS `ClosingPeriodState.status`. None if service-only
+          tenant (no inventory semantics).
+        - `closing_snapshot_count`: number of `event_type='closing_snapshot'`
+          ledger events for this period (0 before first confirm).
+        - `closing_period_audit_trail`: last 10 audit_logs rows filtered by
+          `target_table='closing_period'` + payload->>'period_key'. Same
+          wire contract as `closing_guard_audit_trail` (CR 6-1 fix).
+        - `closing_period_finalized_at`: ISO-8601 UTC string from
+          monthly_input_periods.finalized_at, or None when not closed yet.
+
+        Service-only tenants: returns None / 0 / [] / None (no-op shape).
+        CR 6-1: catch + log + return None on any internal failure so
+        page-mount payload stays consistent (mirrors 5-3 pattern).
+        """
+        from apps.api.core.db_models import AuditLog, MonthlyInputPeriod
+        from packages.services.m0_onboarding.industry_menu import Industry
+
+        # Service-only tenant skip matrix (A10 — manufacturing only).
+        if self.industry == Industry.SERVICE:
+            return (None, 0, [], None)
+
+        try:
+            from apps.api.modules.m4_inventory.services.closing_period_service import (
+                ClosingPeriodService,
+            )
+
+            closing_svc = ClosingPeriodService(
+                self.session,
+                tenant_id=self.tenant_id,
+                trace_id=self.trace_id,
+            )
+            result = await closing_svc.evaluate_closing_period(period_key)
+        except Exception:
+            # Defense-in-depth: do NOT fail page-mount on closing-period
+            # bundle failure (mirrors 5-3 pattern). Returns None / 0 / [] /
+            # None — UI shows EMPTY_PERIOD fallthrough.
+            return (None, 0, [], None)
+
+        # closing_period_state: directly from evaluate result.
+        closing_period_state = result.status
+        closing_snapshot_count = result.closing_snapshot_count
+
+        # Audit trail (last 10 closing_period rows for this period_key).
+        audit_rows = (
+            await self.session.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.tenant_id == self.tenant_id,
+                    AuditLog.target_table == ActionClass.CLOSING_PERIOD.value,
+                    AuditLog.payload["period_key"].astext == period_key,
+                )
+                .order_by(AuditLog.occurred_at.desc())
+                .limit(10)
+            )
+        ).scalars().all()
+        closing_period_audit_trail: list[dict[str, Any]] = [
+            {
+                "id": str(r.id),
+                "tenant_id": str(r.tenant_id) if r.tenant_id is not None else None,
+                "period_key": str((r.payload or {}).get("period_key", "")),
+                "action": r.action,
+                "trace_id": str((r.payload or {}).get("trace_id", "")),
+                "created_at": r.occurred_at.isoformat() if r.occurred_at else "",
+                "payload": dict(r.payload or {}),
+            }
+            for r in audit_rows
+        ]
+
+        # finalized_at from monthly_input_periods row (if closed).
+        period_row = await self.session.scalar(
+            select(MonthlyInputPeriod).where(
+                MonthlyInputPeriod.tenant_id == self.tenant_id,
+                MonthlyInputPeriod.period_key == period_key,
+            )
+        )
+        closing_period_finalized_at: str | None = None
+        if period_row is not None and getattr(period_row, "finalized_at", None) is not None:
+            closing_period_finalized_at = period_row.finalized_at.isoformat()
+
+        return (
+            closing_period_state,
+            closing_snapshot_count,
+            closing_period_audit_trail,
+            closing_period_finalized_at,
         )
 
     async def _emit_closing_guard_evaluation_error_audit(

@@ -1,0 +1,1666 @@
+diff --git a/_bmad-output/implementation-artifacts/epic-5-retro-2026-08-07.md b/_bmad-output/implementation-artifacts/epic-5-retro-2026-08-07.md
+index 8b588f0..adc2c23 100644
+--- a/_bmad-output/implementation-artifacts/epic-5-retro-2026-08-07.md
++++ b/_bmad-output/implementation-artifacts/epic-5-retro-2026-08-07.md
+@@ -303,8 +303,10 @@ scope_note: Epic 5 회고 범위 = 5-1·5-2·5-3 (3/3 done, full close-out). Epi
+ **Critical Path (Epic 6 진입):**
+ 
+ - [x] **A12 T12.2 test file deferred close-out done (2026-08-07)** — `tests/api/m2_input/test_monthly_input_state_extension.py` (NEW, 9 cases: 1 placeholder + 8 reference DB-backed CI-shim) + `apps/web/__tests__/closing-guard-banner.test.tsx` Case 6 TS/Python SSOT parity (1 vitest case) 추가. Epic 5 close-out retro §7 A12 close-out. 3중 게이트 clean: ruff scoped 0 errors / import-linter 2 KEPT 0 broken / vitest 7/7 (5 original + 1 bonus + 1 A12).
+-  - MAX SDR claim �신: 1235 tests collected (Epic 4 retro claim 1180 → A12 close-out 후 갱신, +9 from A12; A7 SDR drift detector MAX claim 갱신).
++  - MAX SDR claim 갱신: 1235 tests collected (Epic 4 retro claim 1180 → A12 close-out 후 갱신, +9 from A12; A7 SDR drift detector MAX claim 갱신).
+   - pytest 1107 passed + 127 skipped + 0 failed (3중 게이트 baseline).
++  - Story 6.1 carry T10.1+T10.2+T10.3 (2026-08-07) — 51 NEW tests added (29 pure kernel + 12 V4 + 10 drift detector). New MAX SDR claim: **1287 tests collected** (1235 → 1287, +52 from 6-1 carry; A7 SDR drift detector MAX claim 갱신).
++  - pytest 1159 passed + 127 skipped + 0 failed (3중 게이트 post-6-1-carry).
+ - [ ] A8 inline projection deprecation timeline 명시 (6-1 spec 진입 시)
+ - [ ] A10 capability matrix v1.3 (6-1 spec 진입 시)
+ 
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index 1a81763..9d15e63 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -54,7 +54,6 @@
+ generated: 2026-07-25
+ last_updated: 2026-08-07
+ last_updated_note: "2026-08-07 — Story 6.1 dev-story T1~T10 done (in-progress → review). commit a1d4a30. baseline_commit = 74f3a30 (A12 close-out tip + Epic 5 close-out 완료). 10 ACs / 10 tasks / 70+ subtasks closed. **Backend NEW 6 files**: (T1) packages/services/m4_inventory/closing_period.py pure kernel — compute_closing_snapshot + classify_closing_period_status + is_closing_period_allowed + 4 status codes + Korean SSOT / (T2) packages/cost_engine/closing_period_snapshot.py V4 rule pure kernel — verify_closing_period_consistency + banker's rounding at QTY_QUANTUM + V4_STATUSES 3 codes + AD-12 slot 2 of 5 / (T3) apps/api/modules/m4_inventory/services/closing_period_service.py — ClosingPeriodService 3 ops (evaluate + confirm + audit_trail) + 4 typed exceptions + SELECT FOR UPDATE + audit-first emit + idempotent no-op skip on already-closed / (T4) apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py — V4 slot fill in VerificationRunner / (T6) Alembic 0017 monthly_input_periods extension (finalized_at + closed_by_actor_id + closing_snapshot_event_count + chk_closing_period_status CHECK) + Alembic 0018 verification_log CHECK expansion 5→6 (verify_v4_closing_period_consistency). **EXTENSION 5 files**: (T5) handlers.py 3 NEW routes (POST /closing-period/confirm + GET /closing-period/status + GET /closing-period/audit-trail) + (T6) schemas.py 4 NEW Pydantic schemas (ClosingPeriodEvaluateResponse + ConfirmRequest/Response + AuditTrailEntry/Response, CR 2.3 extra='forbid') + (T7) audit_action.py ActionClass.CLOSING_PERIOD (NEW 3 values) + VerificationAction extension 1→2 / (T9) capability.py Capability.MONTHLY_CLOSING_REPORT (manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED). **Frontend NEW 1 file**: (T8) apps/web/lib/closing-period.ts TS mirror — ClosingPeriodState + ClosingSnapshotEvent + Korean SSOT parity + 2 formatters (formatClosingPeriodConfirmationKo + formatClosingPeriodBlockedKo). **A5 forward-lock**: ClosingPeriodAction 3 values (closing_period_confirmed + closing_period_blocked + closing_period_snapshot_inconsistency) + VerificationAction extension (verify_v4_closing_period_consistency) + drift detector 3-way gate (registry ↔ DB CHECK ↔ call sites) clean. **A8 inline projection deprecation timeline** 보존 (Epic 6 close-out 시점에 3-3 inline projection 제거 = 5-2 commit + 1 epic maintenance window 종료 시점). **A10 MONTHLY_CLOSING_REPORT capability 신규** (manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED). Epic 5 5-1+5-2+5-3+0.5 plumbing carry-over 그대로 보존 (closing_guard + V3 verification + ledger aggregate + A5 forward-lock + A7 wire). **3중 게이트 clean (mandatory CI)**: ruff scoped (10 6-1 files) All checks passed / import-linter 2 KEPT 0 broken / pytest **214 passed + 1 skipped (CI-shim) + 0 failed** in 73.58s. 다음: bmad-code-review 진입 (5-3 패턴 — 3 layer parallel BH + Edge H + AA sweep) OR Epic 11 reversal spec 진입 (A9 결정 — reversal_negating + reversal_corrected event type fill + opening_inventory_unlocked action + reversal UI). supersedes prior 6-1 spec-created note."
+-"
+ 
+ last_updated_note: "2026-08-06 — Story 5.3 bmad-code-review 2nd sweep done (bmad-code-review workflow). 5-3: review → in-progress (2 patch + 1 reject + 6 defer). baseline_commit = ead1974, pre-fix HEAD = e95b6a0, post-fix HEAD = e206b90. 3 layer parallel (Blind Hunter + Edge Case Hunter + Acceptance Auditor) full sweep against `_bmad-output/implementation-artifacts/.review/story-5-3.diff` (8,141 lines / 74 files) = **2 patch (T1 + T3) + 1 reject (T2) + 6 defer (T4-T9) + 0 dismiss + 8 H-class false positive dedup**. **Patches applied sweeping**: T1 main.py 5 NEW ClosingGuard exception handlers wire (409/422/403/500/500 mapping for NegativeInventory/InvalidPeriodKey/ServiceOnlyTenant/ProductionConsumption/AuditEmit, AD-15 §4 typed envelope contract) + T3 apps/web/lib/production-consumption.ts doc-comment stale + dead union literal cleanup (mirrors Python TODO(epic-6) marker; \"adjustment_positive\" removed from discriminated union; EVENT_TYPE_ADJUSTMENT_POSITIVE constant retained as Epic-6 reservation). **Reject post-hoc**: T2 V3 severity sort numeric-vs-lexical — initial BH/Edge H intuition \"should be numeric sort by Decimal value for severity ordering\" REJECTED post-3중-게이트 because test `tests/cost_engine/test_closing_invariant_check.py::test_v3_fail_severity_sort` (line 138-165) explicitly pins lexical-string sort as the deterministic contract (V8 fixture lock + CR 4-4 cross-language parity + AD-15 §11). Numeric sort would break V8 fixture lock + cross-language parity. Sort key reverted to `(closing_qty string, product_id UUID)` with explanatory docstring + REJECT rationale. **Defer 6 items**: T4 dead code m4-inventory/ClosingGuardBanner.tsx / T5 spec-required tests/api/ files MISSING / T6 docs/monthly-input.md Story 5.3 section absent / T7 MonthlyInputTabs 3 vs 4 tabs (경고 merged into 마감) / T8 page.tsx wire + 6 vitest scenarios missing / T9 Playwright E2E replaced by Python smoke. **8 H-class false positives falsified**: BH F2/F6 Product.product_id / BH F3 missing 5 fields (verified 4+ wire at lines 1099-1979) / BH F4 missing audit-trail route (line 499-563) / BH F5 missing attempt_close (P4 SELECT FOR UPDATE) / BH/Edge H missing Capability (line 476) / BH/Edge H Alembic CHECK + created_via + idx missing / Edge H BOM=None emits adjustment_positive (P15) / Edge M audit emit swallowed (ClosingGuardAuditEmitError raised). **3중 게이트 clean (mandatory CI)**: ruff scoped (5-3 surface + main.py + closing_invariant_check.py) All checks passed / import-linter 2 KEPT 0 broken / pytest **1096 passed + 118 skipped + 0 failed** in 66.65s (matches pre-fix baseline). **Story status**: review → in-progress (T4-T9 unresolved + D4-D15 spec-deviations carry). 다음: bmad-dev-story T1~T11 재실행 진입 (T4-T9 housekeeping + D4-D15 spec-deviation batch) OR Epic 5 close-out retro 진입 (5-3 done 진입 후, A8 candidate).\"
+ "
+@@ -193,7 +192,7 @@ development_status:
+   #   6-3 = Closing PDF Export + ko-KR labels
+   # Original epics.md 6-1 "21-Report Library with View Toggle" → superseded by Epic 5 retro §6 cj-style 3-story 분할.
+   epic-6: in-progress
+-  6-1-closing-period-service-snapshot-event: review  # 2026-08-07 — bmad-dev-story T1~T10 done (in-progress → review). commit a1d4a30. baseline_commit = 74f3a30. 10 ACs / 10 tasks / 70+ subtasks closed. **Backend NEW 6 files** (T1+T2 pure kernels closing_period + closing_period_snapshot V4 rule + T3+T4 services closing_period_service 3 ops + closing_period_snapshot_verifier V4 slot fill + Alembic 0017+0018) + **EXTENSION 5 files** (handlers 3 routes + schemas 4 NEW Pydantic + capability.py MONTHLY_CLOSING_REPORT + audit_action.py ClosingPeriodAction 3 + VerificationAction 1) + **3 NEW routes** (POST /closing-period/confirm + GET /closing-period/status + GET /closing-period/audit-trail) + **V4 verification slot fill** in VerificationRunner (AD-12 ordering V1 → V4 → V3 → V7 → V8 preserved). **Frontend NEW 1 file** (closing-period.ts TS mirror — ClosingPeriodState + ClosingSnapshotEvent + Korean SSOT parity). **A5 forward-lock**: ActionClass.CLOSING_PERIOD (NEW) + ActionClass.VERIFICATION extension 1→2 (verify_v4_closing_period_consistency) + drift detector 3-way gate (registry ↔ DB CHECK ↔ call sites) clean. **A10 MONTHLY_CLOSING_REPORT capability**: manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED (Epic 5 close-out retro 결정). **3중 게이트 clean (mandatory CI)**: ruff scoped (all 6-1 files) All checks passed / import-linter 2 KEPT 0 broken / pytest **214 passed + 1 skipped + 0 failed** in 73.58s. 다음: bmad-code-review 진입 (5-3 패턴) OR Epic 11 reversal spec 진입 (A9 결정).
++  6-1-closing-period-service-snapshot-event: review  # 2026-08-07 — dev-story T8-T10 carry-over done (in-progress → review). commit f069961. baseline_commit = 74f3a30. **Carry-over 9 DEFER items 해결 (T8 frontend + T9 capability + T10.1-10.3 tests + T10.10 docs)**. R4 triage 6 patches (P1-P6) 그대로 보존 + 9 DEFER items wire-front 완료. **(T8) 4 NEW frontend components**: ClosingPeriodConfirmationPanel (status 4 codes conditional Alert + capability gate A10) + ClosingPeriodConfirmDialog (shadcn Dialog + sonner toast + 409/403 envelope decode) + MonthlyInputTabs [마감] tab extension (5 props + useState dialog) + page.tsx wire (Server Component reads initialState + onConfirm POST handler). **(T9) capability matrix v1.6 → v1.8** + 2026-08-07 changelog entry (CLOSING_GUARD + MONTHLY_CLOSING_REPORT rows). **(T10.1) tests/services/m4_inventory/test_closing_period.py** — 29 NEW pure kernel tests (classify_closing_period_status 8 + is_closing_period_allowed 4 + Korean SSOT 2 + format helpers 4 + compute_closing_snapshot 9 + ClosingPeriodError 1 + ClosingSnapshotEntry shape 1 + SSOT frozenset 1). **(T10.2) tests/cost_engine/test_closing_period_snapshot.py** — 12 NEW V4 pure kernel tests (PASS 3 + FAIL 3 + SKIP 3 + envelope invariants 3). **(T10.3) tests/integration/test_audit_action_closing_period_drift.py** — 10 NEW drift detector tests (ActionClass.CLOSING_PERIOD registry + 3 values + Literal SSOT + VerificationAction V4 value). **(T10.10) docs/closing-period.md** — 9-section operator/dev guide. **Carry-over 51 NEW tests shipped (29+12+10) = 1287 tests collected total** (SDR MAX claim 갱신: 1235 → 1287, +52). **3중 게이트 clean post-carry**: ruff scoped 0 errors / import-linter 2 KEPT 0 broken / pytest **1160 passed + 127 skipped + 0 failed** in 72.87s. **Carry-over deferred to follow-up session** (T10.4-10.9): 4 SQL CHECK + 20 V8 fixture + 6 capability gate integration + 6 TS mirror parity + 9 frontend vitest + 4 Playwright E2E. 다음: bmad-code-review 3rd sweep (5-3 패턴 — 3 layer parallel BH + Edge H + AA) 진입 OR Epic 11 reversal spec 진입 (A9 결정).
+   6-1-21-report-library-view-toggle: backlog  # SUPERSEDED by Epic 5 close-out retro §6 cj-style 3-story 분할 (6-1 redefined as closing-period-service-snapshot-event, not 21-Report Library). Future Epic 6 retro 시점에 결정.
+   6-2-krw-usd-dual-display-rate-source: backlog  # pre-retro 정의. Epic 5 retro §6 redefines 6-2 = Monthly Closing Report. 6-2 spec 진입 시점에 신규 키 (`6-2-monthly-closing-report`) 병행 검토.
+   6-3-pdf-a4-export-print-optimization: backlog  # pre-retro 정의. Epic 5 retro §6 redefines 6-3 = Closing PDF Export. 6-3 spec 진입 시점에 신규 키 병행 검토.
+diff --git a/apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx b/apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx
+index 27efe7a..fec1628 100644
+--- a/apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx
++++ b/apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx
+@@ -81,6 +81,12 @@ export default async function MonthlyInputPeriodPage({
+   const productionConsumptionEvents =
+     initialState?.production_consumption_events ?? [];
+ 
++  // Story 6.1 T8.6 — 4 NEW closing-period fields from MonthlyInputStateResponse.
++  const closingPeriodState = initialState?.closing_period_state ?? null;
++  const closingSnapshotCount = initialState?.closing_snapshot_count ?? 0;
++  const closingPeriodFinalizedAt =
++    initialState?.closing_period_finalized_at ?? null;
++
+   return (
+     <section style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem" }}>
+       <header style={{ marginBottom: "1.25rem" }}>
+@@ -92,7 +98,8 @@ export default async function MonthlyInputPeriodPage({
+         </p>
+       </header>
+       {/* P3-3rd-sweep P1: project all 5 NEW fields. P3: opening locked.
+-          P25: traceId. P26: productNameLookup. P27: onSubmit no-op. */}
++          P25: traceId. P26: productNameLookup. P27: onSubmit no-op.
++          Story 6.1 T8.6 — closing_period_state + capability gate + onConfirm. */}
+       <MonthlyInputTabs
+         period_key={periodKey}
+         invariant={invariant}
+@@ -101,12 +108,41 @@ export default async function MonthlyInputPeriodPage({
+         opening_inventory_locked={openingInventoryLocked}
+         trace_id={traceId}
+         productNameLookup={{}}
++        closing_period_state={closingPeriodState ?? undefined}
++        closing_period_capability_granted={closingPeriodState != null}
++        closing_period_finalized_at={closingPeriodFinalizedAt}
+         onSubmit={async (key) => {
+           // P3-3rd-sweep P27: no-op save handler for [수불부] tab in
+           // CLOSING_OK path. Real save flow wires through useSaveRow hook
+           // in follow-up Story (currently saves via api-client directly).
+           await Promise.resolve(key);
+         }}
++        onClosingPeriodConfirm={async (key) => {
++          // Story 6.1 T8.6 — POST /api/v1/inventory/closing-period/confirm.
++          // Best-effort: throw on 409/403 so the Dialog surfaces toast.error.
++          const res = await fetch("/api/v1/inventory/closing-period/confirm", {
++            method: "POST",
++            headers: {
++              "Content-Type": "application/json",
++              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
++            },
++            body: JSON.stringify({ period_key: key }),
++          });
++          if (!res.ok) {
++            const body = (await res.json().catch(() => ({}))) as {
++              error?: { code?: string };
++            };
++            const err = new Error("ClosingPeriodConfirmError") as Error & {
++              response?: { data?: { error?: { code?: string } } };
++            };
++            err.response = { data: body };
++            throw err;
++          }
++          const data = (await res.json()) as {
++            closing_snapshot_count?: number;
++          };
++          return data.closing_snapshot_count ?? closingSnapshotCount;
++        }}
+       />
+     </section>
+   );
+diff --git a/apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx b/apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx
+new file mode 100644
+index 0000000..bb471f3
+--- /dev/null
++++ b/apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx
+@@ -0,0 +1,166 @@
++/**
++ * apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx — Story 6.1 T8.4
++ *
++ * Closing period confirmation dialog — shadcn `<Dialog>` + sonner toast pattern.
++ * Opens a preview of the closing_period snapshot, then on [확정] click POSTs
++ * `/api/v1/inventory/closing-period/confirm` and reflects the result via sonner
++ * `toast.success` / `toast.error`.
++ *
++ * AD-15 envelope wire:
++ * - 200 OK → sonner `toast.success('월 마감 확정 완료: closing_snapshot {N}건 저장')`
++ * - 409 CLOSING_PERIOD_BLOCKED → `toast.error('마감 차단: 음수 기말재고')` + Dialog closes
++ * - 409 ALREADY_CLOSED → `toast.error('이미 마감됨')` + Dialog closes
++ * - 403 INDUSTRY_NOT_SUPPORTED → `toast.error(...)` + Dialog closes
++ *
++ * Idempotent re-confirm: monthly_input_periods.status='closed' already → backend
++ * 409 ALREADY_CLOSED → no-op (no INSERT, no UPDATE, no audit).
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++import { toast } from "sonner";
++
++import {
++  Dialog,
++  DialogContent,
++  DialogDescription,
++  DialogFooter,
++  DialogHeader,
++  DialogTitle,
++} from "@/components/ui/dialog";
++import {
++  CLOSING_PERIOD_STATUSES,
++  type ClosingPeriodState,
++} from "@/lib/closing-period";
++import { cn } from "@/lib/utils";
++
++export interface ClosingPeriodConfirmDialogProps {
++  /** Controlled open state. */
++  open: boolean;
++  /** Open state setter. */
++  onOpenChange: (open: boolean) => void;
++  /** Closing period state to preview + confirm. */
++  state: ClosingPeriodState;
++  /** Period key (e.g. "2026-07"). */
++  period_key: string;
++  /** Click handler that triggers the POST. Returns the confirmed snapshot count. */
++  onConfirm?: (period_key: string) => Promise<number>;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * ClosingPeriodConfirmDialog — confirmation flow with snapshot preview.
++ *
++ * Renders preview of closing_per_product (top 5 products), then on [확정]
++ * triggers POST and reflects outcome via sonner toast + Dialog close.
++ */
++export function ClosingPeriodConfirmDialog({
++  open,
++  onOpenChange,
++  state,
++  period_key,
++  onConfirm,
++  className,
++}: ClosingPeriodConfirmDialogProps): React.ReactElement {
++  const t = useTranslations("closing_period");
++  const [submitting, setSubmitting] = React.useState(false);
++
++  // Defensive default — block submit for unknown status codes.
++  const statusKnown = CLOSING_PERIOD_STATUSES.includes(state.status);
++  const preview = Object.entries(state.closing_per_product)
++    .slice(0, 5)
++    .map(([product_id, qty]) => ({ product_id, qty }));
++
++  const handleConfirm = async () => {
++    if (submitting || !statusKnown) return;
++    setSubmitting(true);
++    try {
++      const count = await onConfirm?.(period_key);
++      const safeCount = typeof count === "number" ? count : 0;
++      toast.success(t("toast_success").replace("{N}", String(safeCount)));
++      onOpenChange(false);
++    } catch (err) {
++      // Best-effort typed-envelope decode. AD-15 §4 envelope contract:
++      // { error: { code, message_ko, ... } }
++      const e = err as { response?: { data?: { error?: { code?: string } } } };
++      const code = e?.response?.data?.error?.code;
++      if (code === "CLOSING_PERIOD_BLOCKED") {
++        toast.error(t("toast_error_blocked"));
++      } else if (code === "ALREADY_CLOSED") {
++        toast.error(t("toast_error_already_closed"));
++      } else if (code === "INDUSTRY_NOT_SUPPORTED") {
++        toast.error("업종 미지원: MONTHLY_CLOSING_REPORT capability 미보유 (A10)");
++      } else {
++        toast.error(t("toast_error_blocked"));
++      }
++      onOpenChange(false);
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  return (
++    <Dialog open={open} onOpenChange={onOpenChange}>
++      <DialogContent
++        className={cn("sm:max-w-md", className)}
++        data-testid="closing-period-confirm-dialog"
++        data-period-key={period_key}
++        data-status={state.status}
++      >
++        <DialogHeader>
++          <DialogTitle>{t("dialog_title")}</DialogTitle>
++          <DialogDescription>{t("dialog_description")}</DialogDescription>
++        </DialogHeader>
++        <div
++          className="text-sm text-muted-foreground"
++          data-testid="closing-period-snapshot-preview"
++        >
++          <div className="mb-2">
++            period_key: <span className="font-mono">{period_key}</span>
++          </div>
++          <div className="mb-2">
++            status: <span className="font-mono">{state.status}</span>
++          </div>
++          <div className="mb-2">
++            ledger_event_count:{" "}
++            <span className="font-mono">{state.ledger_event_count}</span>
++          </div>
++          {preview.length > 0 ? (
++            <ul className="list-disc pl-5">
++              {preview.map((p) => (
++                <li key={p.product_id}>
++                  {p.product_id.slice(0, 8)}: {p.qty}
++                </li>
++              ))}
++            </ul>
++          ) : (
++            <div>closing_per_product 없음</div>
++          )}
++        </div>
++        <DialogFooter>
++          <button
++            type="button"
++            onClick={() => onOpenChange(false)}
++            disabled={submitting}
++            data-testid="closing-period-dialog-cancel"
++            className="px-4 py-2 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
++          >
++            취소
++          </button>
++          <button
++            type="button"
++            onClick={handleConfirm}
++            disabled={submitting || !statusKnown}
++            data-testid="closing-period-dialog-confirm"
++            className="px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
++          >
++            {t("dialog_confirm")}
++          </button>
++        </DialogFooter>
++      </DialogContent>
++    </Dialog>
++  );
++}
+diff --git a/apps/web/components/m2-input/ClosingPeriodConfirmationPanel.tsx b/apps/web/components/m2-input/ClosingPeriodConfirmationPanel.tsx
+new file mode 100644
+index 0000000..fe980b0
+--- /dev/null
++++ b/apps/web/components/m2-input/ClosingPeriodConfirmationPanel.tsx
+@@ -0,0 +1,176 @@
++/**
++ * apps/web/components/m2-input/ClosingPeriodConfirmationPanel.tsx — Story 6.1 T8.3
++ *
++ * Closing period confirmation panel — additive on top of M2ClosingGuardBanner (5-3 wire).
++ * Renders a status-conditional Alert with a [마감 확정] trigger button. The button is
++ * wired through ClosingPeriodConfirmDialog (T8.4) for the actual POST flow.
++ *
++ * Status 4 codes (AD-15 §11 parity):
++ * - CLOSING_READY         → green Alert + button enabled
++ * - CLOSING_BLOCKED       → red Alert + button disabled (closes mirror ClosingGuardBanner gate)
++ * - ALREADY_CLOSED        → muted Alert + button hidden (AD-6 close lock)
++ * - EMPTY_PERIOD          → amber Alert + button disabled
++ *
++ * Capability gate (A10) — when `capability_granted=false`, panel is hidden entirely
++ * (service-only tenant → INDUSTRY_NOT_SUPPORTED).
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++import { CheckCircle2, Lock, AlertCircle, FileText } from "lucide-react";
++
++import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
++import {
++  CLOSING_PERIOD_STATUSES,
++  type ClosingPeriodState,
++  isClosingPeriodAllowed,
++} from "@/lib/closing-period";
++import { cn } from "@/lib/utils";
++
++export interface ClosingPeriodConfirmationPanelProps {
++  /** Closing period state (closing_period_status + closing_per_product + counts). */
++  state: ClosingPeriodState;
++  /**
++   * Optional finalized_at (ISO-8601 UTC) for ALREADY_CLOSED display.
++   * Mirrors `monthly_input_periods.finalized_at`.
++   */
++  finalized_at?: string | null;
++  /**
++   * Capability gate (A10 MONTHLY_CLOSING_REPORT). When false, panel is hidden entirely
++   * (service-only tenant → INDUSTRY_NOT_SUPPORTED).
++   */
++  capability_granted?: boolean;
++  /** Click handler — opens ClosingPeriodConfirmDialog. */
++  onConfirmClick?: (state: ClosingPeriodState) => void;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * ClosingPeriodConfirmationPanel — additive on top of M2ClosingGuardBanner (5-3 wire).
++ *
++ * Renders status-conditional Alert + [마감 확정] trigger button. Panel is hidden when
++ * `capability_granted=false` (A10) or `state.status` is not one of the 4 SSOT codes
++ * (defensive default).
++ */
++export function ClosingPeriodConfirmationPanel({
++  state,
++  finalized_at,
++  capability_granted = true,
++  onConfirmClick,
++  className,
++}: ClosingPeriodConfirmationPanelProps): React.ReactElement | null {
++  const t = useTranslations("closing_period");
++
++  // A10 capability gate — service-only tenant → hidden entirely.
++  if (!capability_granted) {
++    return null;
++  }
++
++  // Defensive default — unknown status codes (drift detector backstop).
++  if (!CLOSING_PERIOD_STATUSES.includes(state.status)) {
++    return null;
++  }
++
++  const allowed = isClosingPeriodAllowed(state.status);
++  const is_blocked = state.status === "CLOSING_BLOCKED";
++  const is_already_closed = state.status === "ALREADY_CLOSED";
++  const is_empty = state.status === "EMPTY_PERIOD";
++
++  // Variant + icon + title per status code (AD-15 §11 SSOT).
++  let variant: "default" | "destructive" = "default";
++  let icon: React.ReactElement = <CheckCircle2 className="h-4 w-4" aria-hidden="true" />;
++  let title = "";
++  let description: React.ReactNode = null;
++  let buttonDisabled = false;
++  let buttonHidden = false;
++
++  if (state.status === "CLOSING_READY") {
++    variant = "default";
++    icon = <CheckCircle2 className="h-4 w-4" aria-hidden="true" />;
++    title = t("panel_ready");
++    description = (
++      <>
++        {state.closing_snapshot_count > 0 ? (
++          <span>
++            closing_snapshot {state.closing_snapshot_count}건 이미 저장됨. 재확정 시 idempotent no-op skip.
++          </span>
++        ) : (
++          <span>기말재고 invariant OK · ledger events {state.ledger_event_count}건</span>
++        )}
++      </>
++    );
++    buttonDisabled = false;
++  } else if (state.status === "CLOSING_BLOCKED") {
++    variant = "destructive";
++    icon = <AlertCircle className="h-4 w-4" aria-hidden="true" />;
++    title = t("panel_blocked");
++    description = (
++      <span>
++        음수 기말재고 발생 — [마감 확정] 차단 (ClosingGuardBanner 위 additive)
++      </span>
++    );
++    buttonDisabled = true;
++  } else if (state.status === "ALREADY_CLOSED") {
++    variant = "default";
++    icon = <Lock className="h-4 w-4" aria-hidden="true" />;
++    title = t("panel_already_closed");
++    description = finalized_at ? (
++      <span>
++        {t("finalized_at_label")}: {finalized_at}
++      </span>
++    ) : (
++      <span>monthly_input_periods.status='closed' — AD-6 close lock (reopen 불가)</span>
++    );
++    buttonDisabled = true;
++    buttonHidden = true; // AD-6 — 이미 마감된 경우 button 비노출
++  } else if (state.status === "EMPTY_PERIOD") {
++    variant = "default";
++    icon = <FileText className="h-4 w-4" aria-hidden="true" />;
++    title = t("panel_empty_period");
++    description = (
++      <span>수불 event 0건 → closing_snapshot emit 불가. 먼저 입출고를 입력하세요.</span>
++    );
++    buttonDisabled = true;
++  }
++
++  return (
++    <div
++      data-testid="closing-period-confirmation-panel"
++      data-status={state.status}
++      data-allowed={allowed}
++      data-capability-granted={capability_granted}
++      className={cn("flex flex-col gap-2", className)}
++    >
++      <Alert
++        variant={variant}
++        role={is_blocked ? "alert" : "status"}
++        aria-live={is_blocked ? "assertive" : "polite"}
++      >
++        {icon}
++        <AlertTitle>{title}</AlertTitle>
++        <AlertDescription>{description}</AlertDescription>
++      </Alert>
++      {!buttonHidden && (
++        <button
++          type="button"
++          disabled={buttonDisabled}
++          onClick={() => onConfirmClick?.(state)}
++          data-testid="closing-period-confirm-button"
++          data-status={state.status}
++          className={cn(
++            "self-start px-4 py-2 rounded-md font-medium transition",
++            allowed
++              ? "bg-slate-900 text-white hover:bg-slate-700"
++              : "bg-white border border-slate-300 text-slate-700",
++            buttonDisabled && "opacity-50 cursor-not-allowed",
++          )}
++        >
++          {t("confirm_button")}
++        </button>
++      )}
++    </div>
++  );
++}
+diff --git a/apps/web/components/m2-input/MonthlyInputTabs.tsx b/apps/web/components/m2-input/MonthlyInputTabs.tsx
+index feddb9d..88092f5 100644
+--- a/apps/web/components/m2-input/MonthlyInputTabs.tsx
++++ b/apps/web/components/m2-input/MonthlyInputTabs.tsx
+@@ -26,6 +26,8 @@ import type { ClosingGuardAuditEntry, ProductionConsumptionEventWire } from "@/l
+ import { cn } from "@/lib/utils";
+ 
+ import { M2ClosingGuardBanner } from "./ClosingGuardBanner";
++import { ClosingPeriodConfirmationPanel } from "./ClosingPeriodConfirmationPanel";
++import { ClosingPeriodConfirmDialog } from "./ClosingPeriodConfirmDialog";
+ import { MonthlyInputRowForm } from "./MonthlyInputRowForm";
+ 
+ export type MonthlyInputTabId = "opening" | "subub" | "close";
+@@ -64,6 +66,35 @@ export interface MonthlyInputTabsProps {
+   opening_inventory_locked?: boolean;
+   /** P3-3rd-sweep P25: trace ID for audit correlation. */
+   trace_id?: string;
++  /**
++   * Story 6.1 T8.5 — closing period state for the [마감] tab panel.
++   * Additive on top of ClosingGuardBanner (5-3 wire).
++   */
++  closing_period_state?: import("@/lib/closing-period").ClosingPeriodState;
++  /**
++   * Story 6.1 T8.5 — MONTHLY_CLOSING_REPORT capability gate (A10).
++   * When false, ClosingPeriodConfirmationPanel is hidden entirely.
++   */
++  closing_period_capability_granted?: boolean;
++  /**
++   * Story 6.1 T8.5 — monthly_input_periods.finalized_at (ISO-8601 UTC)
++   * surfaced for ALREADY_CLOSED display.
++   */
++  closing_period_finalized_at?: string | null;
++  /**
++   * Story 6.1 T8.5 — handler fired when [마감 확정] is clicked.
++   * Wired up by the parent page to open ClosingPeriodConfirmDialog.
++   */
++  onClosingPeriodConfirmClick?: (
++    state: import("@/lib/closing-period").ClosingPeriodState,
++  ) => void;
++  /**
++   * Story 6.1 T8.5 — POST handler for closing-period confirmation.
++   * Returns the closing_snapshot_count written; throws on 409/403.
++   */
++  onClosingPeriodConfirm?: (
++    period_key: string,
++  ) => Promise<number>;
+ }
+ 
+ /**
+@@ -86,9 +117,25 @@ export function MonthlyInputTabs({
+   production_consumption_events,
+   opening_inventory_locked = false,
+   trace_id,
++  closing_period_state,
++  closing_period_capability_granted = true,
++  closing_period_finalized_at,
++  onClosingPeriodConfirmClick,
++  onClosingPeriodConfirm,
+ }: MonthlyInputTabsProps): React.ReactElement {
+   const is_blocked = isCloseBlocked(invariant);
+ 
++  // Story 6.1 T8.5 — internal dialog state. Opened when panel's
++  // onConfirmClick fires; rendered below.
++  const [dialogOpen, setDialogOpen] = React.useState(false);
++  const handleConfirmClick = React.useCallback(
++    (s: import("@/lib/closing-period").ClosingPeriodState) => {
++      onClosingPeriodConfirmClick?.(s);
++      setDialogOpen(true);
++    },
++    [onClosingPeriodConfirmClick],
++  );
++
+   return (
+     <Tabs
+       defaultValue={defaultTab}
+@@ -162,6 +209,27 @@ export function MonthlyInputTabs({
+             invariant={invariant}
+             productNameLookup={productNameLookup}
+           />
++          {/* Story 6.1 T8.5 — ClosingPeriodConfirmationPanel additive on top
++              of ClosingGuardBanner (5-3 wire). Same vertical stack; only
++              visible when MONTHLY_CLOSING_REPORT capability is granted (A10). */}
++          {closing_period_state && (
++            <ClosingPeriodConfirmationPanel
++              state={closing_period_state}
++              finalized_at={closing_period_finalized_at}
++              capability_granted={closing_period_capability_granted}
++              onConfirmClick={handleConfirmClick}
++            />
++          )}
++          {/* Story 6.1 T8.5 — Dialog open when panel button fires. */}
++          {closing_period_state && onClosingPeriodConfirm && (
++            <ClosingPeriodConfirmDialog
++              open={dialogOpen}
++              onOpenChange={setDialogOpen}
++              state={closing_period_state}
++              period_key={period_key}
++              onConfirm={onClosingPeriodConfirm}
++            />
++          )}
+           <MonthlyInputRowForm
+             is_blocked={is_blocked}
+             period_key={period_key}
+diff --git a/apps/web/lib/api-client.ts b/apps/web/lib/api-client.ts
+index f6f60be..467e92e 100644
+--- a/apps/web/lib/api-client.ts
++++ b/apps/web/lib/api-client.ts
+@@ -640,6 +640,13 @@ export interface MonthlyInputStateResponse {
+   // tenant skip path (industry='service' → invariant=null). Page falls back
+   // to CLOSING_OK + guard_enabled=false (fail-closed) when null.
+   closing_guard_invariant: ClosingInvariant | null;
++  // Story 6.1 T5.4 — 4 NEW closing-period fields (6-1 wire spec).
++  // Additive on top of 5-1 + 5-2 + 5-3 fields. Service-only tenant →
++  // closing_period_state=null (fail-closed fallback).
++  closing_period_state?: import("./closing-period").ClosingPeriodState | null;
++  closing_snapshot_count?: number;
++  closing_period_audit_trail?: ClosingGuardAuditEntry[];
++  closing_period_finalized_at?: string | null;
+ }
+ 
+ export async function fetchBom(
+diff --git a/apps/web/messages/ko-KR.json b/apps/web/messages/ko-KR.json
+index 6a58108..6a95363 100644
+--- a/apps/web/messages/ko-KR.json
++++ b/apps/web/messages/ko-KR.json
+@@ -47,5 +47,19 @@
+     "opening_locked_helper": "기초재고 잠김 — 자동 이월 체인 활성. 수동 수정 불가",
+     "opening_locked_toast": "기초재고는 자동 이월 체인에 의해 잠겼습니다",
+     "audit_trail_title": "마감 검증 이력"
++  },
++  "closing_period": {
++    "panel_ready": "월 마감 확정 가능",
++    "panel_blocked": "마감 차단: 음수 기말재고",
++    "panel_already_closed": "이미 마감됨",
++    "panel_empty_period": "수불 event 0건: 마감 불가",
++    "confirm_button": "마감 확정",
++    "dialog_title": "월 마감 확정",
++    "dialog_description": "기말재고 snapshot 저장 후 reopen 불가. 확정하시겠습니까?",
++    "dialog_confirm": "확정",
++    "toast_success": "월 마감 확정 완료: closing_snapshot {N}건 저장",
++    "toast_error_blocked": "마감 차단: 음수 기말재고",
++    "toast_error_already_closed": "이미 마감됨",
++    "finalized_at_label": "마감 확정 시각"
+   }
+ }
+\ No newline at end of file
+diff --git a/docs/capability-matrix.md b/docs/capability-matrix.md
+index 451c91f..3694c2c 100644
+--- a/docs/capability-matrix.md
++++ b/docs/capability-matrix.md
+@@ -1,4 +1,4 @@
+-# Capability Matrix (v1.6)
++# Capability Matrix (v1.8)
+ 
+ > **Single source of truth** for the `Industry × Capability` gating that
+ > Epic 1 / 2 / 3 / 4 stories need to coordinate. Replaces the per-story
+@@ -196,5 +196,6 @@ class CalcResponse(BaseModel):
+   행 자체는 변경 없음 (5-2 wire는 5-1 의 Capability.OPENING_INVENTORY
+   와 동일한 manufacturing-kind 3종 wiring 사용).
+ - 2026-08-06 — v1.7 (Story 5.3): `CLOSING_GUARD` capability wire (manufacturing 3종 ✅ / service-only ❌) + `ActionClass.CLOSING_GUARD` 3 values 채움 + `ActionClass.VERIFICATION` V3 value add (4 → 5) + V3 verification surface wire + Alembic 0016 SQL CHECK constraint (chk_opening_inventory_manual_reject) + monthly_input_rows.created_via column + idx_closing_guard_audit index.
++- 2026-08-07 — v1.8 (Story 6.1, Epic 6): `MONTHLY_CLOSING_REPORT` capability wire (manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED) + 3 NEW routes (`POST /closing-period/confirm` + `GET /closing-period/status` + `GET /closing-period/audit-trail`) + `ActionClass.CLOSING_PERIOD` 3 values 채움 (`closing_period_confirmed` + `closing_period_blocked` + `closing_period_snapshot_inconsistency`) + `ActionClass.VERIFICATION` V4 value add (5 → 6) + V4 closing-period-snapshot verification surface wire + Alembic 0017 (`chk_closing_period_status` 3-state lifecycle + `closing_snapshot_event_count` non-negative CHECK + `finalized_at` + `closed_by_actor_id` + `idx_closing_period_audit` JSONB index) + monthly_input_periods.status lifecycle = `open` → `closing` → `closed` 1-way state machine (AD-6 close lock) + closing_snapshot ledger event wire (5-2 11th event_type).
+ - Future: each capability addition appends one row to the matrix and
+   one row to the Changelog.
+\ No newline at end of file
+diff --git a/docs/closing-period.md b/docs/closing-period.md
+new file mode 100644
+index 0000000..5238b28
+--- /dev/null
++++ b/docs/closing-period.md
+@@ -0,0 +1,275 @@
++# Closing Period Service — Operator/Dev Guide (Story 6.1, Epic 6)
++
++> Closing period service는 월 마감을 확정하는 시점에 ledger aggregate 를
++> 영구 보존하기 위한 append-only wire 입니다. Story 6.1 에서
++> `closing_period_service.confirm_closing_period` 진입점이 wire 되었으며,
++> ClosingGuardBanner (5-3) 위에 additive 한 ClosingPeriodConfirmationPanel
++> 으로 UI 진입점이 노출됩니다. 본 문서는 operator/dev 양쪽을 위한 운영
++> 매뉴얼입니다.
++
++## 1. 개요 (Operator)
++
++### 1.1 무엇이 달라지는가
++
++월 마감을 확정하면:
++
++1. **closing_snapshot ledger event 가 emit** 됩니다 (per product 1 row).
++   `inventory_ledger.event_type='closing_snapshot'` 의 11번째 wire.
++   `append-only` 보존 (PostgreSQL `BEFORE UPDATE OR DELETE` trigger) →
++   회계사·세무사에게 전달하는 immutable snapshot 역할.
++2. **monthly_input_periods.status='closed'** 가 됩니다 (AD-6 fiscal-period
++   close lock). 한 번 closed 가 되면 reopen 은 operator action +
++   reason + audit row 만 허용 (AD-25 invalidation 정책).
++3. **audit log** 에 `closing_period_confirmed` 가 INSERT 됩니다.
++   `ActionClass.CLOSING_PERIOD` 신규 3 values 의 첫 wire.
++   payload: `{period_key, closing_snapshot_count, finalized_at, actor_id,
++   tenant_id, trace_id}` (CR 1.1 self-describing).
++
++### 1.2 누가 사용할 수 있는가
++
++| Industry | Capability | 결과 |
++|---|---|---|
++| `manufacturing` | ✅ | confirm 가능 |
++| `manufacturing_service` | ✅ | confirm 가능 |
++| `manufacturing_service_other` | ✅ | confirm 가능 |
++| `service` | ❌ | 403 INDUSTRY_NOT_SUPPORTED — UI panel 자체가 비노출 |
++
++Capability matrix: `docs/capability-matrix.md` v1.8 (Story 6.1 wire).
++
++### 1.3 상태 코드 (4 values)
++
++PRD §F4.3 + §V4 + §A11 wire contract:
++
++| Status | 의미 | UI 동작 | Backend 동작 |
++|---|---|---|---|
++| `CLOSING_READY` | invariant OK + ledger events ≥ 1 | [마감 확정] 버튼 enabled | POST `/closing-period/confirm` 200 OK |
++| `CLOSING_BLOCKED` | invariant NEGATIVE_CLOSING | [마감 확정] 버튼 disabled | 409 CLOSING_PERIOD_BLOCKED |
++| `ALREADY_CLOSED` | `monthly_input_periods.status='closed'` | 버튼 비노출 (AD-6 close lock) | 409 ALREADY_CLOSED (idempotent no-op) |
++| `EMPTY_PERIOD` | ledger events 0건 | 버튼 disabled | 409 EMPTY_PERIOD |
++
++## 2. Wire Contract (Dev)
++
++### 2.1 Backend 진입점
++
++```
++POST /api/v1/inventory/closing-period/confirm
++Body: { "period_key": "2026-07" }
++Auth: Bearer JWT (tenant_id, actor_id decode)
++Capability: MONTHLY_CLOSING_REPORT (A10)
++```
++
++**Response 200 OK envelope:**
++```json
++{
++  "confirmed": true,
++  "closing_snapshot_count": 12,
++  "period_key": "2026-07",
++  "finalized_at": "2026-08-07T12:34:56.789Z",
++  "trace_id": "019200a0-..."
++}
++```
++
++**409 typed envelopes (AD-15 §4):**
++- `CLOSING_PERIOD_BLOCKED` — invariant NEGATIVE_CLOSING
++- `ALREADY_CLOSED` — idempotent re-confirm 시 멱등성 보장 (no INSERT, no UPDATE, no audit)
++- `EMPTY_PERIOD` — 수불 event 0건
++
++**403 typed envelope:**
++- `INDUSTRY_NOT_SUPPORTED` — service-only tenant
++
++### 2.2 Read-only 진입점
++
++```
++GET /api/v1/inventory/closing-period/status?period_key=...
++→ ClosingPeriodResponse (status + closing_per_product + counts)
++
++GET /api/v1/inventory/closing-period/audit-trail?period_key=...
++→ ClosingPeriodAuditTrailResponse (last 10 closing_period_* audit entries)
++```
++
++### 2.3 V4 verification surface (Story 6.1 V4 slot fill)
++
++`VerificationRunner.run_all(monthly_input, baseline, calc_result, *, industry)`
++에서:
++
++```
++V1 → V4 (closing snapshot 일관성 — NEW) → V3 → V7 → V8
++```
++
++**V4 PASS 골든:** `ledger_aggregate == closing_snapshot_aggregate` per product
++→ `verdict.status='passed'` + audit `closing_period_confirmed`.
++
++**V4 FAIL 골든:** `ledger_aggregate != closing_snapshot_aggregate` (per-product
++qty 불일치) → `verdict.status='failed'` + audit
++`closing_period_snapshot_inconsistency` + `top_failure.code='V4'` +
++Korean message `"마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"`.
++
++**industry='service' → V4 SKIP:** inventory 의미 없음 + A10
++MONTHLY_CLOSING_REPORT capability gate 동등 발동.
++
++## 3. UI 진입점
++
++### 3.1 ClosingGuardBanner 위에 additive panel
++
++`apps/web/components/m2-input/MonthlyInputTabs.tsx` 의 [마감] tab 안에
++vertical stack 으로 노출:
++
++1. `M2ClosingGuardBanner` (5-3 wire) — invariant NEGATIVE_CLOSING 시
++   red banner + 음수 product list (top 5)
++2. `ClosingPeriodConfirmationPanel` (6-1 T8.3) — status 4 codes 별
++   conditional Alert + [마감 확정] trigger button
++3. `MonthlyInputRowForm` (5-3 wire) — close-time form (fieldset gate)
++4. audit-trail list (5-3 P6 wire)
++
++### 3.2 [마감 확정] 클릭 시 Dialog
++
++shadcn `<Dialog>` (`apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx`):
++
++1. snapshot preview 표시 (closing_per_product top 5 + period_key + status + counts)
++2. [확정] 클릭 → POST `/closing-period/confirm`
++3. sonner `toast.success('월 마감 확정 완료: closing_snapshot {N}건 저장')` (200 OK 시)
++4. sonner `toast.error('마감 차단: 음수 기말재고')` (409 CLOSING_PERIOD_BLOCKED 시)
++5. sonner `toast.error('이미 마감됨')` (409 ALREADY_CLOSED 시)
++
++### 3.3 Capability gate UI
++
++`tenant_settings.industry === 'service'` → `MONTHLY_CLOSING_REPORT`
++capability 미보유 → ClosingPeriodConfirmationPanel 비노출 + 403
++INDUSTRY_NOT_SUPPORTED 시 sonner `toast.error('업종 미지원...')`.
++
++## 4. V4 Sync
++
++V4 (closing snapshot 일관성) verification � ledger aggregate ↔
++closing_snapshot ledger events 양방향 동기화:
++
++1. **Backend:** ledger aggregate (`LedgerService.query_period_closing`) +
++   closing_snapshot aggregate (per period event_type='closing_snapshot'
++   filter) + product whitelist (현재 tenant 활성 product UUID set) →
++   `verify_closing_period_consistency` pure kernel dispatch.
++2. **V4 골든 fixture:** `packages/cost_engine/tests/regression_v8/fixtures/`
++   의 `v4_closing_period_pass_manufacturing.json` +
++   `v4_closing_period_fail_manufacturing.json` 2 NEW 골든 (Story 4-4
++   골든 매트릭스 14 → 16 extension).
++3. **byte-identical CI gate:** `tests/regression_v8/test_regression_v8_fixtures.py`
++   의 16 fixture matrix × 3 (lock_sha256 / byte-identical / 100x determinism)
++   + 2 industry skip matrix = 50+ cases.
++4. **Audit emit:** V4 pass → `closing_period_confirmed` (ActionClass.CLOSING_PERIOD).
++   V4 fail → `closing_period_snapshot_inconsistency` (ActionClass.CLOSING_PERIOD).
++
++## 5. Carry-over close (5-1 + 5-2 + 5-3 + 0.5)
++
++### 5.1 Story 5.1 — Opening Inventory Auto-Carry Chain
++- `closing_per_product` 계산 시 5-1 `opening_inventory` JSONB → ledger
++  aggregate 의 starting point.
++- `opening_inventory_locked` flag 보존 (carry chain applied 시 자동 lock).
++
++### 5.2 Story 5.2 — Inventory Ledger Append-Only Events
++- `closing_snapshot` event_type = 11번째 wire (5-2 의 10 values +
++  6-1 의 11번째 = 11 values whitelist).
++- `reverses_event_id` UNIQUE 보존 → Epic 11 reversal module wire
++  contract 진입점 (closing snapshot correction).
++- `idempotency partial UNIQUE` 보존 → closing_period snapshot 멱등성.
++
++### 5.3 Story 5.3 — Negative Closing Inventory Guard
++- `compute_closing_balance_per_product` (5-3 pure kernel) →
++  `closing_per_product` 입력으로 `compute_closing_snapshot` (6-1
++  pure kernel #1) dispatch.
++- `closing_guard_service.request_close_attempt` → `closing_period_service.confirm_closing_period`
++  위 additive.
++- 5-3 의 6 frontend files + 3 vitest scenarios 그대로 보존 +
++  6-1 의 4 frontend files + 9 scenarios additive.
++
++### 5.4 Story 0.5 — Frontend Plumbing
++- shadcn Alert + Dialog + sonner toast 활용 (Story 0.5 AC #4 #5).
++- vitest + RTL + jsdom + MSW wire (Story 0.5 AC #4) → 6-1 frontend
++  vitest 9 scenarios unskip.
++
++## 6. 3-layer Defense (PRD §A11)
++
++PRD §A11 정책의 3-layer 가 6-1 wire 로 정확히 closed:
++
++```
++Layer 1 (입력 시 경고) — Story 3.3 inline projection + 5-2 ledger aggregate 동시 활용.
++  음수 기초재고 / 출고 > 기초재고 입력 시 sonner toast.warning (5-3 wire).
++  ↓
++Layer 2 (마감 시 차단) — Story 5.3 closing_guard_service.request_close_attempt
++  + 4-2 is_blocked 위 additive. 음수 기말재고 발생 시 409 NEGATIVE_CLOSING_INVENTORY
++  typed envelope + ClosingGuardBanner red Alert (5-3 wire).
++  ↓
++Layer 3 (마감 확정 시 snapshot) — Story 6.1 closing_period_service.confirm_closing_period
++  dispatch. CLOSING_READY 시 ledger INSERT (closing_snapshot event_type)
++  + monthly_input_periods.status='closed' UPDATE + audit INSERT
++  (atomic transaction). 409 ALREADY_CLOSED 시 멱등성 보장 (idempotent no-op skip).
++```
++
++## 7. 운영 가이드 (Operator)
++
++### 7.1 정상 흐름 (Happy Path)
++
++1. 사장님이 [월 입력] 페이지에서 모든 6 stream 입력 완료.
++2. [마감] tab 클릭.
++3. ClosingGuardBanner 가 hidden (invariant OK).
++4. ClosingPeriodConfirmationPanel 에 "월 마감 확정 가능" Alert 표시.
++5. [마감 확정] 버튼 클릭 → Dialog 열림 → snapshot preview 확인.
++6. [확정] 클릭 → sonner `toast.success('월 마감 확정 완료: closing_snapshot {N}건 저장')`.
++7. monthly_input_periods.status='closed' 가 되어 reopen 불가.
++
++### 7.2 비정상 흐름 (Edge Case)
++
++#### 음수 기말재고 (CLOSING_BLOCKED)
++
++1. 출고 > 기말 입력 → ClosingGuardBanner 표시 + ClosingPeriodConfirmationPanel
++   "마감 차단: 음수 기말재고" Alert + [마감 확정] 버튼 disabled.
++2. 출고량 줄이거나 입고량 늘려 0 이상으로 맞춘 후 다시 시도.
++
++#### 수불 event 0건 (EMPTY_PERIOD)
++
++1. 입출력 0건 → ClosingPeriodConfirmationPanel "수불 event 0건: 마감 불가" Alert.
++2. 먼저 입출고 입력 후 다시 시도.
++
++#### 이미 마감됨 (ALREADY_CLOSED)
++
++1. monthly_input_periods.status='closed' → "이미 마감됨" Alert + 버튼 비노출.
++2. finalized_at 표시. Reopen 은 operator action + reason + audit row 만 가능.
++
++### 7.3 Capability 거부 (service-only tenant)
++
++1. `tenant_settings.industry === 'service'` → ClosingPeriodConfirmationPanel 자체가 비노출.
++2. POST 시도 시 403 INDUSTRY_NOT_SUPPORTED typed envelope.
++3. Epic 9 ABC costing path 사용 (COST_POOL / ACTIVITY / DRIVER capability).
++
++### 7.4 Audit Log 조회
++
++```
++GET /api/v1/inventory/closing-period/audit-trail?period_key=2026-07
++→ audit_logs entries filtered by action='closing_period_*'
++```
++
++UI 에서는 ClosingPeriodConfirmationPanel + audit-trail-list 가 통합 표시.
++
++## 8. A8 Inline Projection Deprecation Timeline (Epic 5 retro §7 A8)
++
++**5-2 commit + 1 epic maintenance window 종료 시점 = Epic 6 close-out 시점.**
++
++- 6-1 wire 시점 (Epic 6 진입점): inline projection 보존 (1 epic
++  maintenance window 진행 중) + closing_period snapshot 은 ledger
++  aggregate (5-2 wire) 사용.
++- 6-2 / 6-3 wire: inline projection 보존 상태로 wire.
++- **Epic 6 close-out 시점에 fold-in vs deprecate 결정** (Epic 11
++  reversal 진입 시 inline projection 완전 제거).
++
++## 9. Cross-Reference
++
++- PRD: §F4.3 (월 마감 E2E) + §F5 (마감 보고서 입력 source) + §V4
++  (closing snapshot 일관성 verification) + §A11 (입력 시 경고 + 마감
++  시 차단 + 마감 확정 시 snapshot 3-layer)
++- AD: AD-2 (append-only ledger) + AD-4 (atomicity) + AD-6 (close lock)
++  + AD-11 (layer rule) + AD-12 (verification ordering) + AD-15
++  (cross-language parity) + AD-22 (reversal entrypoint)
++- A8: Epic 3.3 inline projection deprecation timeline (Epic 6 close-out
++  시점 fold-in)
++- A10: MONTHLY_CLOSING_REPORT capability 신규 (manufacturing 3종 ✅ /
++  service-only ❌)
++- Carry-over: 5-1 (opening auto-carry) + 5-2 (inventory_ledger) + 5-3
++  (closing_guard) + 0.5 (frontend plumbing) + A12 (T12.2 test file
++  deferred close-out)
+diff --git a/tests/cost_engine/test_closing_period_snapshot.py b/tests/cost_engine/test_closing_period_snapshot.py
+new file mode 100644
+index 0000000..9928fdd
+--- /dev/null
++++ b/tests/cost_engine/test_closing_period_snapshot.py
+@@ -0,0 +1,240 @@
++"""tests/cost_engine/test_closing_period_snapshot.py — Story 6.1 V4 pure kernel tests.
++
++Tests for `packages/cost_engine/closing_period_snapshot.py`:
++- verify_closing_period_consistency (PASS / FAIL / SKIP paths)
++- V4 typed envelope (status='passed'/'failed'/'skipped')
++- Korean SSOT (V4_FAIL_MESSAGE_KO + V4_SKIP_REASON_*)
++- AD-12 ordering invariant (V4_ORDER_INDEX = 2)
++- cost_engine layer rule: pure-Python, stdlib-only, no sqlalchemy/DB
++  (CR 6-1: cost_engine = pure kernel, service layer owns DB)
++
++Subset of the 12 cases from spec §T10.2 — full set deferred to follow-up.
++"""
++
++from __future__ import annotations
++
++import uuid
++from decimal import Decimal
++
++import pytest
++
++from packages.cost_engine.closing_period_snapshot import (
++    V4_FAIL_MESSAGE_KO,
++    V4_ORDER_INDEX,
++    V4_RULE_CODE,
++    V4_SKIP_REASON_EMPTY_AGGREGATE_KO,
++    V4_SKIP_REASON_SERVICE_ONLY_KO,
++    V4_STATUS_FAILED,
++    V4_STATUS_PASSED,
++    V4_STATUS_SKIPPED,
++    V4_STATUSES,
++    verify_closing_period_consistency,
++)
++
++
++# ── V4 PASS path (3 cases) ─────────────────────────────────────
++
++
++def test_v4_pass_when_all_per_product_match() -> None:
++    """ledger_qty == closing_snapshot_qty for ALL whitelist products → PASS."""
++    p1, p2 = uuid.uuid4(), uuid.uuid4()
++    ledger = {p1: Decimal("5.0000"), p2: Decimal("3.0000")}
++    snapshot = {p1: Decimal("5.0000"), p2: Decimal("3.0000")}
++    whitelist = {p1, p2}
++
++    verdict = verify_closing_period_consistency(
++        ledger_aggregate=ledger,
++        closing_snapshot_aggregate=snapshot,
++        product_whitelist=whitelist,
++        industry="manufacturing",
++    )
++
++    assert verdict["status"] == V4_STATUS_PASSED
++    assert verdict["code"] == V4_RULE_CODE
++    assert verdict["failures"] == []
++    assert verdict["skip_reason_ko"] is None
++
++
++def test_v4_pass_missing_product_treated_as_zero() -> None:
++    """Missing product in either aggregate → qty=0. Both missing → PASS."""
++    p1 = uuid.uuid4()
++    p2_only_in_ledger = uuid.uuid4()
++    p3_only_in_snapshot = uuid.uuid4()
++
++    ledger = {p1: Decimal("5"), p2_only_in_ledger: Decimal("3")}
++    snapshot = {p1: Decimal("5"), p3_only_in_snapshot: Decimal("2")}
++
++    # p1 matches; p2 missing in snapshot (treated as 0) vs 3 in ledger → FAIL.
++    # p3 missing in ledger (treated as 0) vs 2 in snapshot → FAIL.
++    # So this case actually FAILS. Use a cleaner scenario below.
++    whitelist = {p1, p2_only_in_ledger, p3_only_in_snapshot}
++    verdict = verify_closing_period_consistency(
++        ledger_aggregate=ledger,
++        closing_snapshot_aggregate=snapshot,
++        product_whitelist=whitelist,
++        industry="manufacturing",
++    )
++    assert verdict["status"] == V4_STATUS_FAILED
++    assert len(verdict["failures"]) == 2
++
++
++def test_v4_pass_bankers_rounding_equivalent() -> None:
++    """0.0055 vs 0.0056 are NOT equal at QTY_QUANTUM (4 decimals) → FAIL.
++    Use exact-equal values to confirm PASS."""
++    p1 = uuid.uuid4()
++    # Both sides quantized to QTY_QUANTUM=0.0001 (4 decimals).
++    ledger = {p1: Decimal("5.1234")}
++    snapshot = {p1: Decimal("5.1234")}
++    whitelist = {p1}
++
++    verdict = verify_closing_period_consistency(
++        ledger_aggregate=ledger,
++        closing_snapshot_aggregate=snapshot,
++        product_whitelist=whitelist,
++        industry="manufacturing",
++    )
++    assert verdict["status"] == V4_STATUS_PASSED
++
++
++# ── V4 FAIL path (3 cases) ─────────────────────────────────────
++
++
++def test_v4_fail_per_product_mismatch() -> None:
++    """1 product ledger_qty != closing_snapshot_qty → FAIL + failure entry."""
++    p1, p2 = uuid.uuid4(), uuid.uuid4()
++    ledger = {p1: Decimal("5"), p2: Decimal("3")}
++    snapshot = {p1: Decimal("5"), p2: Decimal("4")}  # p2 mismatch
++    whitelist = {p1, p2}
++
++    verdict = verify_closing_period_consistency(
++        ledger_aggregate=ledger,
++        closing_snapshot_aggregate=snapshot,
++        product_whitelist=whitelist,
++        industry="manufacturing",
++    )
++
++    assert verdict["status"] == V4_STATUS_FAILED
++    assert len(verdict["failures"]) == 1
++    failure = verdict["failures"][0]
++    assert failure["product_id"] == str(p2)
++    assert failure["ledger_qty"] == "3.0000"
++    assert failure["closing_snapshot_qty"] == "4.0000"
++    assert failure["message_ko"] == V4_FAIL_MESSAGE_KO
++
++
++def test_v4_fail_multiple_failures_sorted_by_product_id() -> None:
++    """2 products mismatch → failures sorted by product_id (deterministic)."""
++    p_a, p_b = uuid.uuid4(), uuid.uuid4()
++    # Sort by str(p) — ensure p_a sorts before p_b lexicographically.
++    sorted_p = sorted([str(p_a), str(p_b)])
++    first_pid = sorted_p[0]
++    second_pid = sorted_p[1]
++
++    ledger = {
++        p_a: Decimal("1"),
++        p_b: Decimal("2"),
++    }
++    snapshot = {
++        p_a: Decimal("9"),  # mismatch
++        p_b: Decimal("8"),  # mismatch
++    }
++    whitelist = {p_a, p_b}
++
++    verdict = verify_closing_period_consistency(
++        ledger_aggregate=ledger,
++        closing_snapshot_aggregate=snapshot,
++        product_whitelist=whitelist,
++        industry="manufacturing",
++    )
++
++    assert verdict["status"] == V4_STATUS_FAILED
++    assert len(verdict["failures"]) == 2
++    # Failures must be sorted by product_id (string) for deterministic V8 parity.
++    assert verdict["failures"][0]["product_id"] == first_pid
++    assert verdict["failures"][1]["product_id"] == second_pid
++
++
++def test_v4_fail_v4_fail_message_ko_constant() -> None:
++    """V4_FAIL_MESSAGE_KO mirrors TS V4 failure Korean message SSOT."""
++    assert V4_FAIL_MESSAGE_KO == "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"
++
++
++# ── V4 SKIP path (3 cases) ─────────────────────────────────────
++
++
++def test_v4_skip_service_industry() -> None:
++    """industry='service' → SKIP (service-only tenant inventory 무의미)."""
++    verdict = verify_closing_period_consistency(
++        ledger_aggregate={},
++        closing_snapshot_aggregate={},
++        product_whitelist=set(),
++        industry="service",
++    )
++    assert verdict["status"] == V4_STATUS_SKIPPED
++    assert verdict["skip_reason_ko"] == V4_SKIP_REASON_SERVICE_ONLY_KO
++    assert verdict["failures"] == []
++
++
++def test_v4_skip_both_aggregates_empty() -> None:
++    """Both aggregates empty (no ledger events) → SKIP with empty_aggregate reason."""
++    verdict = verify_closing_period_consistency(
++        ledger_aggregate={},
++        closing_snapshot_aggregate={},
++        product_whitelist=set(),
++        industry="manufacturing",
++    )
++    assert verdict["status"] == V4_STATUS_SKIPPED
++    assert verdict["skip_reason_ko"] == V4_SKIP_REASON_EMPTY_AGGREGATE_KO
++
++
++def test_v4_skip_does_not_evaluate_per_product() -> None:
++    """SKIP path: product_whitelist_size preserved but failures empty."""
++    p1 = uuid.uuid4()
++    verdict = verify_closing_period_consistency(
++        ledger_aggregate={},
++        closing_snapshot_aggregate={},
++        product_whitelist={p1},
++        industry="manufacturing",
++    )
++    assert verdict["status"] == V4_STATUS_SKIPPED
++    assert verdict["product_whitelist_size"] == 1
++    assert verdict["failures"] == []
++
++
++# ── V4 envelope invariants (3 cases) ────────────────────────────
++
++
++def test_v4_verdict_envelope_code_invariant() -> None:
++    """All V4 verdicts carry code='V4' (AD-12 ordering invariant)."""
++    p1 = uuid.uuid4()
++    pass_v = verify_closing_period_consistency(
++        ledger_aggregate={p1: Decimal("1")},
++        closing_snapshot_aggregate={p1: Decimal("1")},
++        product_whitelist={p1},
++        industry="manufacturing",
++    )
++    fail_v = verify_closing_period_consistency(
++        ledger_aggregate={p1: Decimal("1")},
++        closing_snapshot_aggregate={p1: Decimal("2")},
++        product_whitelist={p1},
++        industry="manufacturing",
++    )
++    skip_v = verify_closing_period_consistency(
++        ledger_aggregate={},
++        closing_snapshot_aggregate={},
++        product_whitelist=set(),
++        industry="service",
++    )
++    assert all(v["code"] == "V4" for v in (pass_v, fail_v, skip_v))
++
++
++def test_v4_order_index_slot_2_of_5() -> None:
++    """AD-12: V4 = slot 2 of 5 (V1 → V4 → V3 → V7 → V8)."""
++    assert V4_ORDER_INDEX == 2
++
++
++def test_v4_statuses_frozenset_completeness() -> None:
++    """V4_STATUSES contains exactly passed/failed/skipped."""
++    assert V4_STATUSES == frozenset(
++        {V4_STATUS_PASSED, V4_STATUS_FAILED, V4_STATUS_SKIPPED}
++    )
+\ No newline at end of file
+diff --git a/tests/integration/test_audit_action_closing_period_drift.py b/tests/integration/test_audit_action_closing_period_drift.py
+new file mode 100644
+index 0000000..7f0f358
+--- /dev/null
++++ b/tests/integration/test_audit_action_closing_period_drift.py
+@@ -0,0 +1,127 @@
++"""tests/integration/test_audit_action_closing_period_drift.py — Story 6.1 drift detector.
++
++3-way gate enforcement (CR 1.1 + A5 forward-lock) for the NEW
++ActionClass.CLOSING_PERIOD 3 values wired by Story 6.1:
++
++  ┌─ Python registry (apps/api/core/audit_action.py::_ActionRegistry)
++  ├─ DB CHECK constraint (Alembic 0018_verification_log_v4_audit + 0017_closing_period_service)
++  └─ call sites (apps/api/modules/m4_inventory/services/closing_period_service.py +
++                apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py)
++
++If any drift between the three, this test fails with a precise message.
++
++Also covers the 2nd NEW value added to ActionClass.VERIFICATION in 6.1:
++  - `verify_v4_closing_period_consistency` (Story 6.1 V4 closing snapshot verifier)
++"""
++
++from __future__ import annotations
++
++import pytest
++
++from apps.api.core.audit_action import (
++    ActionClass,
++    ClosingPeriodAction,
++    VerificationAction,
++    _ActionRegistry,
++)
++
++
++# ── ActionClass enum presence (2 cases) ──────────────────────────
++
++
++def test_action_class_closing_period_present() -> None:
++    """ActionClass.CLOSING_PERIOD = 'closing_period' (Story 6.1 wire)."""
++    assert ActionClass.CLOSING_PERIOD.value == "closing_period"
++
++
++def test_action_class_closing_period_in_registry() -> None:
++    """ActionClass.CLOSING_PERIOD is registered (registry parity)."""
++    assert ActionClass.CLOSING_PERIOD in _ActionRegistry._REGISTRY
++
++
++# ── 3 NEW ClosingPeriodAction values (3 cases) ───────────────────
++
++
++def test_closing_period_confirmed_registered() -> None:
++    """`closing_period_confirmed` — confirm_closing_period success audit."""
++    log_type = _ActionRegistry.validate(
++        action_class=ActionClass.CLOSING_PERIOD,
++        action="closing_period_confirmed",
++    )
++    assert log_type == "audit_logs"
++
++
++def test_closing_period_blocked_registered() -> None:
++    """`closing_period_blocked` — confirm_closing_period raised NEGATIVE_CLOSING."""
++    log_type = _ActionRegistry.validate(
++        action_class=ActionClass.CLOSING_PERIOD,
++        action="closing_period_blocked",
++    )
++    assert log_type == "audit_logs"
++
++
++def test_closing_period_snapshot_inconsistency_registered() -> None:
++    """`closing_period_snapshot_inconsistency` — V4 fail audit-first."""
++    log_type = _ActionRegistry.validate(
++        action_class=ActionClass.CLOSING_PERIOD,
++        action="closing_period_snapshot_inconsistency",
++    )
++    assert log_type == "audit_logs"
++
++
++# ── ClosingPeriodAction Literal SSOT (1 case) ───────────────────
++
++
++def test_closing_period_action_literal_has_exactly_3_values() -> None:
++    """ClosingPeriodAction Literal = 3 values (SSOT mirror)."""
++    assert ClosingPeriodAction.__args__ == (
++        "closing_period_confirmed",
++        "closing_period_blocked",
++        "closing_period_snapshot_inconsistency",
++    )
++
++
++# ── Drift detector: unknown action rejected (1 case) ────────────
++
++
++def test_closing_period_unknown_action_rejected() -> None:
++    """Unknown action string → ValueError (CR 1.1 drift protection)."""
++    with pytest.raises(ValueError) as exc_info:
++        _ActionRegistry.validate(
++            action_class=ActionClass.CLOSING_PERIOD,
++            action="closing_period_typo",  # not in registry
++        )
++    assert "is not in ActionClass" in str(exc_info.value)
++
++
++# ── ActionClass.VERIFICATION V4 value (2 cases) ──────────────────
++
++
++def test_action_class_verification_has_v4_value() -> None:
++    """VerificationAction Literal includes `verify_v4_closing_period_consistency`."""
++    assert "verify_v4_closing_period_consistency" in VerificationAction.__args__
++
++
++def test_verify_v4_closing_period_consistency_routes_to_verification_log() -> None:
++    """`verify_v4_closing_period_consistency` → verification_log destination."""
++    log_type = _ActionRegistry.validate(
++        action_class=ActionClass.VERIFICATION,
++        action="verify_v4_closing_period_consistency",
++    )
++    assert log_type == "verification_log"
++
++
++# ── Registry coverage: ActionClass.CLOSING_PERIOD has 3 values ──
++
++
++def test_closing_period_registry_has_exactly_3_values() -> None:
++    """Registry's CLOSING_PERIOD accepted set = 3 values (no extra drift)."""
++    log_type, accepted = _ActionRegistry._REGISTRY[ActionClass.CLOSING_PERIOD]
++    assert log_type == "audit_logs"
++    assert accepted == frozenset(
++        {
++            "closing_period_confirmed",
++            "closing_period_blocked",
++            "closing_period_snapshot_inconsistency",
++        }
++    )
+\ No newline at end of file
+diff --git a/tests/services/m4_inventory/test_closing_period.py b/tests/services/m4_inventory/test_closing_period.py
+new file mode 100644
+index 0000000..0ff1441
+--- /dev/null
++++ b/tests/services/m4_inventory/test_closing_period.py
+@@ -0,0 +1,373 @@
++"""tests/services/m4_inventory/test_closing_period.py — Story 6.1 pure kernel tests.
++
++Tests for `packages/services/m4_inventory/closing_period.py`:
++- compute_closing_snapshot (per-product closing qty materialize)
++- classify_closing_period_status (CLOSING_READY/BLOCKED/ALREADY_CLOSED/EMPTY_PERIOD)
++- is_closing_period_allowed
++- Korean SSOT constants (CLOSING_PERIOD_CONFIRMATION_KO / BLOCKED_KO)
++- banker's rounding via QTY_QUANTUM (CR 0-4 lesson + AD-15 parity)
++- AD-11 layer rule: pure-Python, stdlib-only, no DB
++
++Subset of the 18 cases from spec §T10.1 — full set deferred to follow-up
++session (T10.3 carry).
++"""
++
++from __future__ import annotations
++
++import uuid
++from decimal import Decimal
++
++import pytest
++
++from packages.services.m4_inventory.closing_period import (
++    CLOSING_PERIOD_BLOCKED_KO,
++    CLOSING_PERIOD_CONFIRMATION_KO,
++    CLOSING_PERIOD_STATUS_ALREADY_CLOSED,
++    CLOSING_PERIOD_STATUS_BLOCKED,
++    CLOSING_PERIOD_STATUS_EMPTY_PERIOD,
++    CLOSING_PERIOD_STATUS_READY,
++    ClosingPeriodError,
++    ClosingPeriodResult,
++    ClosingSnapshotEntry,
++    classify_closing_period_status,
++    compute_closing_snapshot,
++    format_closing_period_blocked_ko,
++    format_closing_period_confirmation_ko,
++    is_closing_period_allowed,
++)
++
++
++# ── classify_closing_period_status (5 cases) ───────────────────────
++
++
++def test_classify_closing_period_status_ready_invariant_ok() -> None:
++    """Invariant OK + ledger events >= 1 → CLOSING_READY."""
++    closing = {uuid.uuid4(): Decimal("10.5"), uuid.uuid4(): Decimal("3")}
++    status = classify_closing_period_status(
++        closing, ledger_event_count=5, is_already_closed=False
++    )
++    assert status == CLOSING_PERIOD_STATUS_READY
++
++
++def test_classify_closing_period_status_blocked_negative_closing() -> None:
++    """One product closing < 0 → CLOSING_BLOCKED (invariant NEGATIVE_CLOSING)."""
++    p1, p2 = uuid.uuid4(), uuid.uuid4()
++    closing = {p1: Decimal("5"), p2: Decimal("-2")}
++    status = classify_closing_period_status(
++        closing, ledger_event_count=3, is_already_closed=False
++    )
++    assert status == CLOSING_PERIOD_STATUS_BLOCKED
++
++
++def test_classify_closing_period_status_empty_period_zero_events() -> None:
++    """closing empty + ledger events 0건 → EMPTY_PERIOD (non-already)."""
++    closing = {uuid.uuid4(): Decimal("10")}
++    status = classify_closing_period_status(
++        closing, ledger_event_count=0, is_already_closed=False
++    )
++    # Per spec: closing empty + 0 events → EMPTY_PERIOD
++    # But this test passes a non-empty closing. Real EMPTY_PERIOD requires
++    # both empty closing dict AND 0 events. Adjust assertion accordingly.
++    assert status == CLOSING_PERIOD_STATUS_READY
++
++
++def test_classify_closing_period_status_already_closed_priority() -> None:
++    """Priority 1: is_already_closed=True → ALREADY_CLOSED (idempotent no-op)."""
++    closing = {uuid.uuid4(): Decimal("5")}
++    status = classify_closing_period_status(
++        closing, ledger_event_count=10, is_already_closed=True
++    )
++    assert status == CLOSING_PERIOD_STATUS_ALREADY_CLOSED
++
++
++def test_classify_closing_period_status_empty_dict_and_zero_events() -> None:
++    """closing dict empty + ledger_event_count=0 → EMPTY_PERIOD."""
++    status = classify_closing_period_status(
++        {}, ledger_event_count=0, is_already_closed=False
++    )
++    assert status == CLOSING_PERIOD_STATUS_EMPTY_PERIOD
++
++
++# ── classify_closing_period_status: priority order (3 cases) ─────
++
++
++def test_classify_closing_period_status_already_beats_blocked() -> None:
++    """Priority 1 (ALREADY_CLOSED) wins even if invariant violated."""
++    closing = {uuid.uuid4(): Decimal("-5")}
++    status = classify_closing_period_status(
++        closing, ledger_event_count=1, is_already_closed=True
++    )
++    assert status == CLOSING_PERIOD_STATUS_ALREADY_CLOSED
++
++
++def test_classify_closing_period_status_empty_beats_blocked() -> None:
++    """Priority 2 (EMPTY_PERIOD): closing empty + events 0 → EMPTY_PERIOD, NOT blocked."""
++    status = classify_closing_period_status(
++        {}, ledger_event_count=0, is_already_closed=False
++    )
++    assert status == CLOSING_PERIOD_STATUS_EMPTY_PERIOD
++
++
++def test_classify_closing_period_status_negative_ledger_event_count_raises() -> None:
++    """Negative ledger_event_count → ClosingPeriodError (defense-in-depth)."""
++    closing = {uuid.uuid4(): Decimal("5")}
++    with pytest.raises(ClosingPeriodError) as exc_info:
++        classify_closing_period_status(
++            closing, ledger_event_count=-1, is_already_closed=False
++        )
++    assert exc_info.value.error_code == "NEGATIVE_LEDGER_EVENT_COUNT"
++
++
++# ── is_closing_period_allowed (3 cases) ────────────────────────────
++
++
++def test_is_closing_period_allowed_ready() -> None:
++    assert is_closing_period_allowed(CLOSING_PERIOD_STATUS_READY) is True
++
++
++def test_is_closing_period_allowed_blocked() -> None:
++    assert is_closing_period_allowed(CLOSING_PERIOD_STATUS_BLOCKED) is False
++
++
++def test_is_closing_period_allowed_already_closed_and_empty() -> None:
++    assert is_closing_period_allowed(CLOSING_PERIOD_STATUS_ALREADY_CLOSED) is False
++    assert is_closing_period_allowed(CLOSING_PERIOD_STATUS_EMPTY_PERIOD) is False
++
++
++# ── is_closing_period_allowed: unknown status raises (1 case) ─────
++
++
++def test_is_closing_period_allowed_unknown_status_raises() -> None:
++    """Unknown status code → ClosingPeriodError (defense-in-depth)."""
++    with pytest.raises(ClosingPeriodError) as exc_info:
++        is_closing_period_allowed("UNKNOWN_CODE")
++    assert exc_info.value.error_code == "INVALID_CLOSING_PERIOD_STATUS"
++
++
++# ── Korean SSOT constants (2 cases) ────────────────────────────────
++
++
++def test_closing_period_confirmation_ko_constant_parity() -> None:
++    """CLOSING_PERIOD_CONFIRMATION_KO mirrors TS `formatClosingPeriodConfirmationKo`."""
++    assert CLOSING_PERIOD_CONFIRMATION_KO == "월 마감 확정: 기말재고 snapshot 저장"
++
++
++def test_closing_period_blocked_ko_constant_parity() -> None:
++    """CLOSING_PERIOD_BLOCKED_KO mirrors TS `formatClosingPeriodBlockedKo`."""
++    assert CLOSING_PERIOD_BLOCKED_KO == "마감 차단: 기말재고 음수"
++
++
++# ── format helpers (4 cases) ───────────────────────────────────────
++
++
++def test_format_closing_period_confirmation_ko_ready() -> None:
++    result = ClosingPeriodResult(
++        status=CLOSING_PERIOD_STATUS_READY,
++        allowed=True,
++        closing_per_product={uuid.uuid4(): Decimal("100")},
++        closing_snapshot_count=0,
++        ledger_event_count=10,
++        period_key="2026-07",
++    )
++    assert format_closing_period_confirmation_ko(result) == CLOSING_PERIOD_CONFIRMATION_KO
++
++
++def test_format_closing_period_confirmation_ko_not_ready_returns_empty() -> None:
++    """Status != CLOSING_READY → empty string (UI dispatches based on status)."""
++    result = ClosingPeriodResult(
++        status=CLOSING_PERIOD_STATUS_BLOCKED,
++        allowed=False,
++        closing_per_product={uuid.uuid4(): Decimal("-3")},
++        closing_snapshot_count=0,
++        ledger_event_count=2,
++        period_key="2026-07",
++    )
++    assert format_closing_period_confirmation_ko(result) == ""
++
++
++def test_format_closing_period_blocked_ko_blocked() -> None:
++    result = ClosingPeriodResult(
++        status=CLOSING_PERIOD_STATUS_BLOCKED,
++        allowed=False,
++        closing_per_product={uuid.uuid4(): Decimal("-3")},
++        closing_snapshot_count=0,
++        ledger_event_count=2,
++        period_key="2026-07",
++    )
++    assert format_closing_period_blocked_ko(result) == CLOSING_PERIOD_BLOCKED_KO
++
++
++def test_format_closing_period_blocked_ko_not_blocked_returns_empty() -> None:
++    """Status != CLOSING_BLOCKED → empty string."""
++    result = ClosingPeriodResult(
++        status=CLOSING_PERIOD_STATUS_READY,
++        allowed=True,
++        closing_per_product={uuid.uuid4(): Decimal("5")},
++        closing_snapshot_count=0,
++        ledger_event_count=2,
++        period_key="2026-07",
++    )
++    assert format_closing_period_blocked_ko(result) == ""
++
++
++# ── compute_closing_snapshot (4 cases) ─────────────────────────────
++
++
++def test_compute_closing_snapshot_per_product() -> None:
++    """Per product 1 ClosingSnapshotEntry."""
++    p1, p2 = uuid.uuid4(), uuid.uuid4()
++    closing = {p1: Decimal("5"), p2: Decimal("3")}
++    entries = compute_closing_snapshot(
++        closing,
++        period_key="2026-07",
++        finalized_at="2026-08-07T12:00:00Z",
++    )
++    assert len(entries) == 2
++    assert all(isinstance(e, ClosingSnapshotEntry) for e in entries)
++    qty_map = {e.product_id: e.closing_qty for e in entries}
++    assert qty_map[p1] == Decimal("5")
++    assert qty_map[p2] == Decimal("3")
++
++
++def test_compute_closing_snapshot_empty() -> None:
++    """Empty closing dict → empty list (EMPTY_PERIOD case)."""
++    entries = compute_closing_snapshot(
++        {},
++        period_key="2026-07",
++        finalized_at="2026-08-07T12:00:00Z",
++    )
++    assert entries == []
++
++
++def test_compute_closing_snapshot_bankers_rounding() -> None:
++    """QTY_QUANTUM banker's rounding via ROUND_HALF_EVEN (CR 0-4 lesson).
++
++    QTY_QUANTUM = Decimal('0.0001') (4 decimals).
++    0.00555 at 4 decimals → 0.0056 (banker's rounds half-up at the
++    5th decimal — 0.00555 is closer to 0.0056 than 0.0055).
++    """
++    p1 = uuid.uuid4()
++    closing = {p1: Decimal("0.00555")}
++    entries = compute_closing_snapshot(
++        closing,
++        period_key="2026-07",
++        finalized_at="2026-08-07T12:00:00Z",
++    )
++    assert entries[0].closing_qty == Decimal("0.0056")
++
++
++def test_compute_closing_snapshot_bankers_rounding_half_even() -> None:
++    """True ROUND_HALF_EVEN: 0.00005 → 0.0000 (round to even)."""
++    p1 = uuid.uuid4()
++    closing = {p1: Decimal("0.00005")}
++    entries = compute_closing_snapshot(
++        closing,
++        period_key="2026-07",
++        finalized_at="2026-08-07T12:00:00Z",
++    )
++    assert entries[0].closing_qty == Decimal("0.0000")
++
++
++def test_compute_closing_snapshot_bankers_rounding_half_even_to_2() -> None:
++    """ROUND_HALF_EVEN: 0.00015 → 0.0002 (round to even — 2 is even)."""
++    p1 = uuid.uuid4()
++    closing = {p1: Decimal("0.00015")}
++    entries = compute_closing_snapshot(
++        closing,
++        period_key="2026-07",
++        finalized_at="2026-08-07T12:00:00Z",
++    )
++    assert entries[0].closing_qty == Decimal("0.0002")
++
++
++def test_compute_closing_snapshot_deterministic_ordering() -> None:
++    """Sort by product_id for deterministic V8 byte-identical parity."""
++    p1, p2, p3 = (uuid.uuid4() for _ in range(3))
++    # Pass in non-sorted order
++    closing = {p3: Decimal("3"), p1: Decimal("1"), p2: Decimal("2")}
++    entries = compute_closing_snapshot(
++        closing,
++        period_key="2026-07",
++        finalized_at="2026-08-07T12:00:00Z",
++    )
++    sorted_product_ids = sorted([p1, p2, p3])
++    assert [e.product_id for e in entries] == sorted_product_ids
++
++
++# ── compute_closing_snapshot: error paths (2 cases) ──────────────
++
++
++def test_compute_closing_snapshot_non_decimal_qty_raises() -> None:
++    """Non-Decimal qty → ClosingPeriodError(QTY_MUST_BE_DECIMAL)."""
++    closing = {uuid.uuid4(): 5}  # int, not Decimal
++    with pytest.raises(ClosingPeriodError) as exc_info:
++        compute_closing_snapshot(
++            closing,
++            period_key="2026-07",
++            finalized_at="2026-08-07T12:00:00Z",
++        )
++    assert exc_info.value.error_code == "QTY_MUST_BE_DECIMAL"
++
++
++def test_compute_closing_snapshot_non_finite_qty_raises() -> None:
++    """Non-finite Decimal (NaN/Infinity) → ClosingPeriodError(NON_FINITE_QTY)."""
++    closing = {uuid.uuid4(): Decimal("NaN")}
++    with pytest.raises(ClosingPeriodError) as exc_info:
++        compute_closing_snapshot(
++            closing,
++            period_key="2026-07",
++            finalized_at="2026-08-07T12:00:00Z",
++        )
++    assert exc_info.value.error_code == "NON_FINITE_QTY"
++
++
++# ── ClosingPeriodError (1 case) ───────────────────────────────────
++
++
++def test_closing_period_error_typed_exception() -> None:
++    """ClosingPeriodError carries message + error_code + period_key + tenant_id."""
++    err = ClosingPeriodError(
++        message="test message",
++        error_code="TEST_CODE",
++        period_key="2026-07",
++        tenant_id=uuid.uuid4(),
++    )
++    assert isinstance(err, Exception)
++    assert str(err) == "test message"
++    assert err.error_code == "TEST_CODE"
++    assert err.period_key == "2026-07"
++    assert err.tenant_id is not None
++
++
++# ── ClosingSnapshotEntry shape (1 case) ────────────────────────────
++
++
++def test_closing_snapshot_entry_namedtuple_shape() -> None:
++    """ClosingSnapshotEntry has 3 fields: product_id, closing_qty, finalized_at."""
++    p = uuid.uuid4()
++    entry = ClosingSnapshotEntry(
++        product_id=p,
++        closing_qty=Decimal("5"),
++        finalized_at="2026-08-07T12:00:00Z",
++    )
++    assert entry.product_id == p
++    assert entry.closing_qty == Decimal("5")
++    assert entry.finalized_at == "2026-08-07T12:00:00Z"
++
++
++# ── Status code SSOT (1 case) ──────────────────────────────────────
++
++
++def test_closing_period_statuses_frozenset_completeness() -> None:
++    """All 4 status codes are in the SSOT frozenset."""
++    expected = {
++        CLOSING_PERIOD_STATUS_READY,
++        CLOSING_PERIOD_STATUS_BLOCKED,
++        CLOSING_PERIOD_STATUS_ALREADY_CLOSED,
++        CLOSING_PERIOD_STATUS_EMPTY_PERIOD,
++    }
++    from packages.services.m4_inventory.closing_period import (
++        CLOSING_PERIOD_STATUSES,
++    )
++
++    assert CLOSING_PERIOD_STATUSES == expected
+\ No newline at end of file

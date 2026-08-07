@@ -270,12 +270,18 @@ class ClosingPeriodService:
         2. evaluate_closing_period → status check.
         3. CLOSING_READY → compute closing_snapshot entries +
            LedgerService.append_event per product (5-2 wire 진입점).
-        4. UPDATE monthly_input_periods.status='closed' +
+        4. **Story 6.1 V4 wire (CR 6-1 R4 patch D3):** post-emit V4
+           closing-period consistency check via
+           `ClosingPeriodSnapshotVerifier.verify_v4_closing_period_consistency`.
+           Verifies ledger aggregate == closing_snapshot aggregate per
+           product (PRD §V4 + §A11 3-layer defense). Catches race conditions
+           where another writer inserted events between read and write.
+           V4 fail → audit-first emit `closing_period_snapshot_inconsistency`
+           (D4) → raise typed error.
+        5. UPDATE monthly_input_periods.status='closed' +
            closed_at=now() + closed_by_actor_id=actor_id +
            closing_snapshot_event_count=N.
-        5. Audit-first emit (closing_period_confirmed).
-        6. V4 verification dispatch (deferred to m6_verification
-           module — VerificationRunner invokes V4 verifier post-confirm).
+        6. Audit-first emit (closing_period_confirmed).
 
         Args:
             period_key: 'YYYY-MM' AD-24 typed period key.
@@ -289,6 +295,7 @@ class ClosingPeriodService:
             ClosingPeriodAlreadyClosedError: monthly_input_periods.status='closed'.
             ClosingPeriodBlockedError: status=CLOSING_BLOCKED.
             ClosingPeriodEmptyPeriodError: status=EMPTY_PERIOD.
+            ClosingPeriodSnapshotInconsistencyError: V4 fail (post-emit).
             ClosingPeriodAuditEmitError: audit-first emit failed.
         """
         # AD-4 atomicity: SELECT FOR UPDATE on monthly_input_periods
@@ -387,6 +394,37 @@ class ClosingPeriodService:
                 },
                 actor_id=actor_id,
             )
+
+        # (2.5) **Story 6.1 V4 wire (CR 6-1 R4 patch D3 + D4)** —
+        # post-emit consistency check. Verifies ledger aggregate ==
+        # closing_snapshot aggregate per product (PRD §V4 + §A11 3-layer
+        # defense). Catches race conditions where another writer inserted
+        # events between our read (step 0 — `evaluate_closing_period`) and
+        # write (step 2). V4 fail → audit-first emit
+        # `closing_period_snapshot_inconsistency` (D4 fix is INSIDE the
+        # verifier, before raise) → ClosingPeriodSnapshotInconsistencyError
+        # propagates up to handler → 409 envelope.
+        from apps.api.modules.m6_verification.services.closing_period_snapshot_verifier import (
+            ClosingPeriodSnapshotInconsistencyError,
+            ClosingPeriodSnapshotVerifier,
+        )
+
+        v4_verifier = ClosingPeriodSnapshotVerifier(
+            self.session,
+            tenant_id=self.tenant_id,
+            trace_id=self.trace_id,
+        )
+        try:
+            await v4_verifier.verify_v4_closing_period_consistency(
+                period_key=period_key,
+                actor_id=actor_id,
+            )
+        except ClosingPeriodSnapshotInconsistencyError:
+            # V4 fail — audit-first emit already done inside verifier (D4).
+            # Rollback the closing_snapshot INSERTs so the ledger stays clean
+            # (the failure is reported, not silently swallowed).
+            await self.session.rollback()
+            raise
 
         # (3) UPDATE monthly_input_periods — AD-6 close hook.
         if period_row is not None:

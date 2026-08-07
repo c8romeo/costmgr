@@ -591,6 +591,28 @@ export interface ClosingGuardAuditEntry {
   payload: Record<string, unknown>;
 }
 
+// Story 6.1 (CR 6-1 R4 patch D13) — distinct audit entry type for the
+// closing-period action surface. Mirrors the wire shape returned by
+// `apps/api/modules/m2_input/services/monthly_input_service.py
+// ._compute_closing_period_bundle_for_state` — same 7 fields as
+// `ClosingGuardAuditEntry` but a distinct union discriminator
+// (`action in {closing_period_confirmed, closing_period_blocked,
+// closing_period_snapshot_inconsistency}`). Reusing
+// `ClosingGuardAuditEntry` was incorrect — drift detector catches the
+// mismatch via the action discriminator.
+export interface ClosingPeriodAuditEntry {
+  id: string;
+  tenant_id: string;
+  period_key: string;
+  action:
+    | "closing_period_confirmed"
+    | "closing_period_blocked"
+    | "closing_period_snapshot_inconsistency";
+  trace_id: string;
+  created_at: string;
+  payload: Record<string, unknown>;
+}
+
 export interface V3Failure {
   product_id: string;
   closing_qty: string;
@@ -645,8 +667,11 @@ export interface MonthlyInputStateResponse {
   // closing_period_state=null (fail-closed fallback).
   closing_period_state?: import("./closing-period").ClosingPeriodState | null;
   closing_snapshot_count?: number;
-  closing_period_audit_trail?: ClosingGuardAuditEntry[];
+  closing_period_audit_trail?: ClosingPeriodAuditEntry[];
   closing_period_finalized_at?: string | null;
+  // Story 6.1 (CR 6-1 R4 patch D11) — explicit capability gate
+  // (A10 MONTHLY_CLOSING_REPORT). Decoupled from state-presence coupling.
+  monthly_closing_report_capability_granted?: boolean;
 }
 
 export async function fetchBom(

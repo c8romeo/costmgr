@@ -507,3 +507,47 @@ so that **회계사·세무사에게 전달할 마감 snapshot이 시스템적�
   - 6-1 W3 vitest activation 9 scenarios → closed (T8 + T10.8 wire)
   - 6-1 W4 isolated unit tests 12 cases → closed (T10.1 wire)
   - 6-1 W5 service layer tests 28 cases → closed (T10.2 wire)
+
+### Review Findings — 3rd sweep (2026-08-07, post-carry-over T8-T10)
+
+bmad-code-review 3 layer parallel sweep (BH + Edge H + AA) against `_bmad-output/implementation-artifacts/.review/story-6-1-3rd-sweep.diff` (13 files / +1489 / -5 from a64b708..HEAD). 36 raw → 31 deduped → **6 HIGH + 13 MED + 12 LOW**. CR 6-1 lesson 업데이트: R4 sweep은 backend files 작성 자체만 검증, 3rd sweep은 **wire integration + audit-first + frontend wire contract**까지 커버.
+
+**Decision-needed (1):**
+
+- [x] [Review][Decision] **D16** — `docs/closing-period.md` §V4 골든 fixture 2 NEW (`v4_closing_period_pass_manufacturing.json` + `v4_closing_period_fail_manufacturing.json`) + 16-fixture matrix CI gate claim은 unwired. Spec §T10.5는 T10.4-10.9 deferred scope (이 carry-over session 외). 결정: (a) docs claim을 "deferred (T10.5)"로 정직하게 변경 OR (b) follow-up session에서 fixture wire + docs 유지.
+
+**Patch (16, all auto-fixable):**
+
+- [x] [Review][Patch] **D1** HIGH — `classify_closing_period_status` EMPTY_PERIOD = ledger_event_count==0 regardless of closing map. Spec §AC #4 violation. Fix: kernel + update contradictory test `tests/services/m4_inventory/test_closing_period.py::test_classify_closing_period_status_empty_period_zero_events`
+- [x] [Review][Patch] **D2** HIGH — `tests/cost_engine/test_closing_period_snapshot.py::test_v4_pass_missing_product_treated_as_zero` name+docstring claim PASS but asserts FAILED. Fix: rename + body to real PASS scenario
+- [x] [Review][Patch] **D3** HIGH — V4 verifier NOT wired into `VerificationRunner.run_all` (R4 triage miss). `apps/api/modules/m3_calculate/services/verification_runner.py:132-152` only iterates `_VERIFICATION_RULES`. Fix: add `ClosingPeriodSnapshotVerifier` dispatch between V1 and V3 with session + tenant_id + period_key injection
+- [x] [Review][Patch] **D4** HIGH — `apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py:151-158` raises without audit-first `closing_period_snapshot_inconsistency` emit (CR 1.1). Fix: import `emit_audit_typed` + emit before raise
+- [x] [Review][Patch] **D5** HIGH — `apps/api/modules/m2_input/schemas.py:339-418` `MonthlyInputStateResponse` missing 4 closing_period fields. Fix: add `closing_period_state` + `closing_snapshot_count` + `closing_period_audit_trail` + `closing_period_finalized_at` + populate in `MonthlyInputService.get_state`
+- [x] [Review][Patch] **D6** HIGH — Mojibake `�` at `docs/closing-period.md` line 142 V4 section. Fix: replace with proper Korean (likely " 와")
+- [x] [Review][Patch] **D7** MED — `MonthlyInputTabs.tsx:121` + `ClosingPeriodConfirmationPanel.tsx:345` `capability_granted=true` fail-open defaults. Fix: default to `false` (fail-closed)
+- [x] [Review][Patch] **D8** MED — `ClosingPeriodConfirmDialog.tsx:95` hardcoded Korean INDUSTRY_NOT_SUPPORTED toast bypasses `t(...)`. Fix: add `closing_period.toast_error_industry_not_supported` to ko-KR.json + use `t(...)`
+- [x] [Review][Patch] **D9** MED — Dialog fallback toast misleading (line 97 uses `toast_error_blocked` for any unknown error). Fix: add `toast_error_generic` to ko-KR.json
+- [x] [Review][Patch] **D10** MED — Panel 3 hardcoded Korean description strings (lines 394-419). Fix: add 3 new keys to ko-KR.json + use `t(...)`
+- [x] [Review][Patch] **D11** MED — `closing_period_capability_granted` derived from state-presence coupling. Fix: add explicit `monthly_closing_report_capability_granted: bool` to MonthlyInputStateResponse + page.tsx
+- [x] [Review][Patch] **D12** MED — Server Component no refresh after confirm. Fix: `router.refresh()` or update local state to ALREADY_CLOSED with finalized_at
+- [x] [Review][Patch] **D13** MED — `apps/web/lib/api-client.ts:644-646` `closing_period_audit_trail` typed as `ClosingGuardAuditEntry[]`. Fix: define `ClosingPeriodAuditEntry` type + use it
+- [x] [Review][Patch] **D14** MED — `docs/capability-matrix.md` table missing CLOSING_GUARD + MONTHLY_CLOSING_REPORT rows. Fix: add 2 rows to capabilities table (currently only in changelog)
+- [x] [Review][Patch] **D15** MED — `tests/integration/test_audit_action_closing_period_drift.py` registry-only drift detector. Fix: read Alembic 0017/0018 CHECK constraints + inspect closing-period service/V4 verifier call sites
+- [x] [Review][Patch] **D17** MED — Dialog `[확정]` doesn't gate on CLOSING_READY. Fix: import `isClosingPeriodAllowed` + add to handleConfirm guard
+- [x] [Review][Patch] **D18** MED — Panel renders literal "undefined건" if `ledger_event_count` undefined. Fix: defensive `?? 0` in description interpolation
+
+**Defer (13, all defensive + subset T10.4-10.9):**
+
+- [x] [Review][Defer] **D19** MED — V4 single-direction aggregate mismatch path not tested. [tests/cost_engine/test_closing_period_snapshot.py] — deferred, T10.5 scope
+- [x] [Review][Defer] **D20** LOW — V4 verified_at placeholder leak if service-layer skip. [apps/api/modules/m6_verification/services/closing_period_snapshot_verifier.py:149] — deferred, defense-in-depth
+- [x] [Review][Defer] **D21** LOW — TS `isClosingPeriodAllowed` returns false for unknown while Python raises. [apps/web/lib/closing-period.ts:69-71] — deferred, AD-15 §11 cross-lang parity
+- [x] [Review][Defer] **D22** LOW — Dialog preview empty-string qty renders blank. [apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx:132-138] — deferred, defensive display
+- [x] [Review][Defer] **D23** LOW — Dialog allows empty `period_key` submission. [apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx:60-67] — deferred, format validation
+- [x] [Review][Defer] **D24** LOW — `confirm_closing_period` SELECT FOR UPDATE race on non-existent row. [apps/api/modules/m4_inventory/services/closing_period_service.py:300-305] — deferred, concurrent race
+- [x] [Review][Defer] **D25** LOW — Toast success shows "closing_snapshot 0건" when safeCount === 0. [apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx:80-83] — deferred, edge UX
+- [x] [Review][Defer] **D26** LOW — `period_key` not trimmed in Dialog. [apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx:47,81] — deferred, format validation
+- [x] [Review][Defer] **D27** LOW — `compute_closing_snapshot` not tested with Decimal('Infinity'). [packages/services/m4_inventory/closing_period.py:197-205] — deferred, boundary
+- [x] [Review][Defer] **D28** LOW — Dialog preview `slice(0,5)` non-deterministic ordering. [apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx:185-187] — deferred, deterministic sort
+- [x] [Review][Defer] **D29** LOW — `dialogOpen` state not reset on prop transitions. [apps/web/components/m2-input/MonthlyInputTabs.tsx:130,209-219] — deferred, React state hygiene
+- [x] [Review][Defer] **D30** LOW — toast interpolation via `.replace("{N}", ...)` instead of ICU. [apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx:195] — deferred, i18n hygiene
+- [x] [Review][Defer] **D31** LOW — Dialog doesn't check `capability_granted`. [apps/web/components/m2-input/ClosingPeriodConfirmDialog.tsx:189-215] — deferred, defense-in-depth

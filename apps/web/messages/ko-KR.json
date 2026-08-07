@@ -53,6 +53,11 @@
     "panel_blocked": "마감 차단: 음수 기말재고",
     "panel_already_closed": "이미 마감됨",
     "panel_empty_period": "수불 event 0건: 마감 불가",
+    "panel_ready_description_with_count": "closing_snapshot {N}건 이미 저장됨. 재확정 시 idempotent no-op skip.",
+    "panel_ready_description_default": "기말재고 invariant OK · ledger events {N}건",
+    "panel_blocked_description": "음수 기말재고 발생 — [마감 확정] 차단 (ClosingGuardBanner 위 additive)",
+    "panel_already_closed_description_locked": "monthly_input_periods.status='closed' — AD-6 close lock (reopen 불가)",
+    "panel_empty_period_description": "수불 event 0건 → closing_snapshot emit 불가. 먼저 입출고를 입력하세요.",
     "confirm_button": "마감 확정",
     "dialog_title": "월 마감 확정",
     "dialog_description": "기말재고 snapshot 저장 후 reopen 불가. 확정하시겠습니까?",
@@ -60,6 +65,8 @@
     "toast_success": "월 마감 확정 완료: closing_snapshot {N}건 저장",
     "toast_error_blocked": "마감 차단: 음수 기말재고",
     "toast_error_already_closed": "이미 마감됨",
+    "toast_error_industry_not_supported": "업종 미지원: MONTHLY_CLOSING_REPORT capability 미보유 (A10)",
+    "toast_error_generic": "마감 확정 실패: 잠시 후 다시 시도하세요",
     "finalized_at_label": "마감 확정 시각"
   }
 }

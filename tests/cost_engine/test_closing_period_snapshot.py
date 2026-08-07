@@ -16,8 +16,6 @@ from __future__ import annotations
 import uuid
 from decimal import Decimal
 
-import pytest
-
 from packages.cost_engine.closing_period_snapshot import (
     V4_FAIL_MESSAGE_KO,
     V4_ORDER_INDEX,
@@ -55,27 +53,27 @@ def test_v4_pass_when_all_per_product_match() -> None:
     assert verdict["skip_reason_ko"] is None
 
 
-def test_v4_pass_missing_product_treated_as_zero() -> None:
-    """Missing product in either aggregate → qty=0. Both missing → PASS."""
-    p1 = uuid.uuid4()
-    p2_only_in_ledger = uuid.uuid4()
-    p3_only_in_snapshot = uuid.uuid4()
+def test_v4_pass_when_only_common_products_match() -> None:
+    """Only common products in both aggregates — all match → PASS.
 
-    ledger = {p1: Decimal("5"), p2_only_in_ledger: Decimal("3")}
-    snapshot = {p1: Decimal("5"), p3_only_in_snapshot: Decimal("2")}
+    CR 6-1 R4 patch D2: rename from `test_v4_pass_missing_product_treated_as_zero`
+    (which actually asserted FAILED). The renamed test now exercises the
+    PASS path: when both ledger + snapshot contain the same products and
+    all qty values match, V4 returns passed.
+    """
+    p1, p2 = uuid.uuid4(), uuid.uuid4()
+    ledger = {p1: Decimal("5"), p2: Decimal("3")}
+    snapshot = {p1: Decimal("5"), p2: Decimal("3")}
+    whitelist = {p1, p2}
 
-    # p1 matches; p2 missing in snapshot (treated as 0) vs 3 in ledger → FAIL.
-    # p3 missing in ledger (treated as 0) vs 2 in snapshot → FAIL.
-    # So this case actually FAILS. Use a cleaner scenario below.
-    whitelist = {p1, p2_only_in_ledger, p3_only_in_snapshot}
     verdict = verify_closing_period_consistency(
         ledger_aggregate=ledger,
         closing_snapshot_aggregate=snapshot,
         product_whitelist=whitelist,
         industry="manufacturing",
     )
-    assert verdict["status"] == V4_STATUS_FAILED
-    assert len(verdict["failures"]) == 2
+    assert verdict["status"] == V4_STATUS_PASSED
+    assert verdict["failures"] == []
 
 
 def test_v4_pass_bankers_rounding_equivalent() -> None:
