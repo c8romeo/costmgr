@@ -91,6 +91,11 @@ class Capability(str, Enum):
     # transitions). The capability gate here only checks that the
     # caller MAY run CalcPort.compute_period_cost at all.
     COST_CALCULATION = "cost_calculation"
+    # Story 6.1 — Monthly Closing Report capability (PRD §F4.3 + §F5).
+    # Granted to manufacturing-kind industries (manufacturing / mfg+service /
+    # mfg+service+other). Service-only tenants do NOT have a [마감] tab
+    # because they have no inventory ledger to snapshot.
+    MONTHLY_CLOSING_REPORT = "monthly_closing_report"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -112,6 +117,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.MONTHLY_INPUT_PRODUCTION,
             # Story 4.1 — manufacturing tenants can run §6.1 원가 계산.
             Capability.COST_CALCULATION,
+            # Story 6.1 — manufacturing tenants get Monthly Closing Report.
+            Capability.MONTHLY_CLOSING_REPORT,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -154,6 +161,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # routes only check COST_CALCULATION; M9 routes check
             # COST_POOL/ACTIVITY/DRIVER.
             Capability.COST_CALCULATION,
+            # Story 6.1 — 겸영 tenants get Monthly Closing Report.
+            Capability.MONTHLY_CLOSING_REPORT,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -176,6 +185,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.MONTHLY_INPUT_PRODUCTION,
             # Story 4.1 — full matrix + 격리 버킷.
             Capability.COST_CALCULATION,
+            # Story 6.1 — full matrix tenants get Monthly Closing Report.
+            Capability.MONTHLY_CLOSING_REPORT,
         }
     ),
 }

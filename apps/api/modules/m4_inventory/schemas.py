@@ -297,6 +297,91 @@ class ClosingAuditTrailResponse(BaseModel):
     trace_id: str
 
 
+# ─────────────────────────────────────────────────────────────
+# Story 6.1 — Closing Period Service schemas (4 NEW)
+# ─────────────────────────────────────────────────────────────
+
+
+class ClosingPeriodEvaluateResponse(BaseModel):
+    """GET /api/v1/inventory/closing-period/status response.
+
+    Read-only closing-period status check (PRD §F4.3). Wraps
+    `ClosingPeriodResult` NamedTuple with status + allowed +
+    closing_per_product + closing_snapshot_count + ledger_event_count.
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str
+    allowed: bool
+    closing_per_product: dict[str, str] = Field(default_factory=dict)
+    closing_snapshot_count: int
+    ledger_event_count: int
+    period_key: str
+    trace_id: str
+
+
+class ClosingPeriodConfirmRequest(BaseModel):
+    """POST /api/v1/inventory/closing-period/confirm request body."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str = Field(
+        ...,
+        description="AD-24 typed 'YYYY-MM' fiscal key",
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+    )
+
+
+class ClosingPeriodConfirmResponse(BaseModel):
+    """POST /api/v1/inventory/closing-period/confirm response.
+
+    Wire result of `ClosingPeriodService.confirm_closing_period`. Includes
+    closing_snapshot_count + finalized_at for downstream V4 verifier
+    dispatch (Story 6.1 T4).
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    confirmed: bool
+    closing_snapshot_count: int
+    period_key: str
+    finalized_at: str
+    trace_id: str
+
+
+class ClosingPeriodAuditTrailEntry(BaseModel):
+    """Single audit_logs row for the closing-period audit trail."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    occurred_at: str | None = None
+
+
+class ClosingPeriodAuditTrailResponse(BaseModel):
+    """GET /api/v1/inventory/closing-period/audit-trail response.
+
+    CR 1.1 observability — wraps `audit_logs` rows scoped to:
+    - tenant_id (RLS predicate)
+    - target_table='closing_period'
+    - payload->>'period_key' = period_key (JSONB extraction)
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str
+    entries: list[ClosingPeriodAuditTrailEntry] = Field(default_factory=list)
+    trace_id: str
+
+
 __all__ = [
     "CarryChainEntry",
     "CarryChainResponse",
@@ -306,6 +391,11 @@ __all__ = [
     "ClosingGuardEvaluateResponse",
     "ClosingGuardCloseAttemptRequest",
     "ClosingGuardCloseAttemptResponse",
+    "ClosingPeriodAuditTrailEntry",
+    "ClosingPeriodAuditTrailResponse",
+    "ClosingPeriodConfirmRequest",
+    "ClosingPeriodConfirmResponse",
+    "ClosingPeriodEvaluateResponse",
     "LedgerEventCreateRequest",
     "NegativeProductEntry",
     "PeriodClosingResponse",

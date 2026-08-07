@@ -79,6 +79,11 @@ from apps.api.modules.m4_inventory.schemas import (
     ClosingGuardCloseAttemptResponse,
     ClosingGuardEvaluateRequest,
     ClosingGuardEvaluateResponse,
+    ClosingPeriodAuditTrailEntry,
+    ClosingPeriodAuditTrailResponse,
+    ClosingPeriodConfirmRequest,
+    ClosingPeriodConfirmResponse,
+    ClosingPeriodEvaluateResponse,
     LedgerEventCreateRequest,
     NegativeProductEntry,
     PeriodClosingResponse,
@@ -574,3 +579,125 @@ def _format_banner_ko(invariant) -> str:
     )
 
     return format_negative_closing_banner_ko(invariant)
+
+
+# ─────────────────────────────────────────────────────────────
+# Story 6.1 — Closing Period Service routes (3 NEW)
+# ─────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/closing-period/status",
+    response_model=ClosingPeriodEvaluateResponse,
+    status_code=200,
+    summary="Read-only closing-period status check (Story 6.1 T5.1)",
+)
+async def get_closing_period_status(
+    period_key: str = Query(..., description="AD-24 typed 'YYYY-MM' fiscal key"),
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
+) -> ClosingPeriodEvaluateResponse:
+    """Closing-period status check (PRD §F4.3 + §V4 — read-only).
+
+    Returns `ClosingPeriodResult` NamedTuple wrapped in response envelope
+    with status + allowed + closing_per_product + closing_snapshot_count +
+    ledger_event_count + period_key.
+    """
+    from apps.api.modules.m4_inventory.services.closing_period_service import (
+        ClosingPeriodService,
+    )
+
+    cp_svc = ClosingPeriodService(
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+    )
+    result = await cp_svc.evaluate_closing_period(period_key)
+    return ClosingPeriodEvaluateResponse(
+        status=result.status,
+        allowed=result.allowed,
+        closing_per_product={
+            str(pid): f"{qty:f}" for pid, qty in result.closing_per_product.items()
+        },
+        closing_snapshot_count=result.closing_snapshot_count,
+        ledger_event_count=result.ledger_event_count,
+        period_key=result.period_key,
+        trace_id=ctx.trace_id,
+    )
+
+
+@router.post(
+    "/closing-period/confirm",
+    response_model=ClosingPeriodConfirmResponse,
+    status_code=200,
+    summary="Close-time hook — confirm closing period (Story 6.1 T5.2)",
+)
+async def post_closing_period_confirm(
+    payload: ClosingPeriodConfirmRequest,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
+    _role: None = Depends(require_role("owner")),
+) -> ClosingPeriodConfirmResponse:
+    """Confirm closing period (PRD §F4.3 + AD-6 fiscal-period close lock).
+
+    Atomicity:
+    - SELECT FOR UPDATE on monthly_input_periods (CR 5.3 P4 patch)
+    - Idempotent no-op skip on already-closed (CR 1.1 lesson)
+    - Audit-first emit (closing_period_confirmed) before commit
+    """
+    from apps.api.modules.m4_inventory.services.closing_period_service import (
+        ClosingPeriodService,
+    )
+
+    cp_svc = ClosingPeriodService(
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+    )
+    result = await cp_svc.confirm_closing_period(
+        payload.period_key, actor_id=ctx.user_id,
+    )
+    return ClosingPeriodConfirmResponse(
+        confirmed=result["confirmed"],
+        closing_snapshot_count=result["closing_snapshot_count"],
+        period_key=result["period_key"],
+        finalized_at=result["finalized_at"],
+        trace_id=ctx.trace_id,
+    )
+
+
+@router.get(
+    "/closing-period/audit-trail",
+    response_model=ClosingPeriodAuditTrailResponse,
+    status_code=200,
+    summary="Closing-period audit log query (Story 6.1 T5.3 — observability)",
+)
+async def get_closing_period_audit_trail(
+    period_key: str = Query(..., description="AD-24 typed 'YYYY-MM' fiscal key"),
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
+) -> ClosingPeriodAuditTrailResponse:
+    """Closing-period audit log query (CR 1.1 observability).
+
+    Returns `audit_logs` entries where target_table='closing_period' for
+    the current period_key, ordered by occurred_at DESC, capped at 10.
+    """
+    from apps.api.modules.m4_inventory.services.closing_period_service import (
+        ClosingPeriodService,
+    )
+
+    cp_svc = ClosingPeriodService(
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+    )
+    rows = await cp_svc.get_closing_period_audit_trail(period_key)
+    return ClosingPeriodAuditTrailResponse(
+        period_key=period_key,
+        entries=[
+            ClosingPeriodAuditTrailEntry(
+                action=r["action"],
+                payload=r["payload"],
+                occurred_at=r["occurred_at"],
+            )
+            for r in rows
+        ],
+        trace_id=ctx.trace_id,
+    )

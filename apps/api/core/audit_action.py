@@ -57,6 +57,7 @@ class ActionClass(str, __import__("enum").Enum):
     REVERSAL_LOG = "reversal_log"  # Epic 11 (NEW — slot pre-fill)
     CLOSING_GUARD = "closing_guard"  # Story 5.3 (NEW — closing ≥ 0 invariant audit)
     VERIFICATION = "verification"  # Story 5.3 (NEW — V3 closing invariant verification)
+    CLOSING_PERIOD = "closing_period"  # Story 6.1 (NEW — closing period service audit-first)
 
 
 # ────────────────────────────────────────────────────────────
@@ -187,9 +188,28 @@ ClosingGuardAction = Literal[
 # Distinct from VERIFICATION_LOG: VERIFICATION_LOG tracks per-rule
 # verdicts (PASS/FAIL/SKIP + V8 golden match); VERIFICATION tracks
 # cross-rule invariants (V3 closing ≥ 0 + future Epic 11 reversal
-# verification + Epic 12 close-out verification).
+# verification + Epic 12 close-out verification + Story 6.1 V4
+# closing snapshot 일관성 verification).
 VerificationAction = Literal[
     "verify_v3_closing_invariant",  # Story 5.3 V3 rule audit (PASS/FAIL/SKIP)
+    "verify_v4_closing_period_consistency",  # Story 6.1 V4 rule audit
+]
+
+# closing_period actions (Story 6.1 NEW — closing period service audit-first).
+# PRD §F4.3 + AD-6 fiscal-period close lock. Audit routes to audit_logs
+# (ActionClass.CLOSING_PERIOD). 3 values:
+# - `closing_period_confirmed` — confirm_closing_period succeeded
+#   (closing_snapshot ledger events INSERTed + monthly_input_periods
+#   UPDATEd to 'closed' status).
+# - `closing_period_blocked` — confirm_closing_period raised
+#   ClosingPeriodBlockedError (negative closing invariant violation).
+# - `closing_period_snapshot_inconsistency` — V4 verifier detected
+#   inconsistency (V4 status='failed'). Audit-first V4 dispatch
+#   (CR 1.1 lesson) — emitted BEFORE raising the typed exception.
+ClosingPeriodAction = Literal[
+    "closing_period_confirmed",
+    "closing_period_blocked",
+    "closing_period_snapshot_inconsistency",
 ]
 
 
@@ -209,6 +229,7 @@ AuditAction = (
     | ReversalLogAction
     | ClosingGuardAction
     | VerificationAction
+    | ClosingPeriodAction
 )
 
 
@@ -342,6 +363,24 @@ class _ActionRegistry:
             frozenset(
                 {
                     "verify_v3_closing_invariant",
+                    # Story 6.1 — V4 closing snapshot 일관성 verifier.
+                    "verify_v4_closing_period_consistency",
+                }
+            ),
+        ),
+        # Story 6.1 — closing_period 3 values (closing period service).
+        # DB CHECK constraint mirror: audit_logs CHECK includes
+        # closing_period_confirmed, closing_period_blocked,
+        # closing_period_snapshot_inconsistency (drift detector enforces
+        # parity between ActionClass registry, DB CHECK constraint, and
+        # call sites).
+        ActionClass.CLOSING_PERIOD: (
+            "audit_logs",
+            frozenset(
+                {
+                    "closing_period_confirmed",
+                    "closing_period_blocked",
+                    "closing_period_snapshot_inconsistency",
                 }
             ),
         ),
@@ -463,5 +502,6 @@ __all__ = [
     "ReversalLogAction",
     "ClosingGuardAction",
     "VerificationAction",
+    "ClosingPeriodAction",
     "emit_audit_typed",
 ]
