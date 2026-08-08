@@ -278,3 +278,6 @@ D1 is the **only direct carry-over** (continuation of 2nd-sweep T5). D2-D16 are 
 - **3중 게이트 validation**: Pre-sweep clean (unchanged; 3rd sweep does NOT modify code).
 - **Story status**: review → in-progress (32 patches pending + 1 carry-over defer).
 
+
+## Deferred from: code review of 11-1-m11-reversal-ledger (2026-08-08)
+

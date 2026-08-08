@@ -96,6 +96,13 @@ class Capability(str, Enum):
     # mfg+service+other). Service-only tenants do NOT have a [마감] tab
     # because they have no inventory ledger to snapshot.
     MONTHLY_CLOSING_REPORT = "monthly_closing_report"
+    # Story 11.1 (Epic 11) — Reversal request capability (PRD §F11.3).
+    # Granted to manufacturing-kind industries (manufacturing / mfg+service /
+    # mfg+service+other). Service-only tenants do NOT have inventory ledger
+    # so the reversal entrypoint is denied at the capability gate (PRISM).
+    # Wired through `m11_close` module authority (M11) for AD-22 reversal
+    # sequence + AD-25 cache invalidation publisher.
+    REVERSAL_REQUEST = "reversal_request"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -119,6 +126,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.COST_CALCULATION,
             # Story 6.1 — manufacturing tenants get Monthly Closing Report.
             Capability.MONTHLY_CLOSING_REPORT,
+            # Story 11.1 — manufacturing tenants get REVERSAL_REQUEST
+            # (PRD §F11.3 — AD-22 reversal sequence + AD-25 publisher).
+            Capability.REVERSAL_REQUEST,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -163,6 +173,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.COST_CALCULATION,
             # Story 6.1 — 겸영 tenants get Monthly Closing Report.
             Capability.MONTHLY_CLOSING_REPORT,
+            # Story 11.1 — 겸영 tenants get REVERSAL_REQUEST.
+            Capability.REVERSAL_REQUEST,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -187,6 +199,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.COST_CALCULATION,
             # Story 6.1 — full matrix tenants get Monthly Closing Report.
             Capability.MONTHLY_CLOSING_REPORT,
+            # Story 11.1 — full matrix tenants get REVERSAL_REQUEST.
+            Capability.REVERSAL_REQUEST,
         }
     ),
 }

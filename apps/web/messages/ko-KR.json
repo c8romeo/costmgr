@@ -85,5 +85,16 @@
     "toast_view_empty": "마감 데이터 없음",
     "toast_error_krw_usd_rate_missing": "KRW/USD 환율 누락: tenant_settings.baseline.currency_pair 미설정",
     "toast_error_industry_not_supported": "업종 미지원: MONTHLY_CLOSING_REPORT capability 미보유 (A10)"
+  },
+  "reversal_request": {
+    "dialog_title": "역분개 요청",
+    "reason_label": "역분개 사유",
+    "reason_placeholder": "예: 입력 오류 정정 — 단가 잘못 입력",
+    "corrected_qty_label": "정정 수량 (선택)",
+    "corrected_period_key_label": "정정 기간 (선택)",
+    "submit": "역분개 실행",
+    "cancel": "취소",
+    "success_ko": "역분개 완료",
+    "error_ko": "역분개 실패"
   }
 }

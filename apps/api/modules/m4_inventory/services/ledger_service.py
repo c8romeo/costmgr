@@ -533,6 +533,99 @@ class LedgerService:
             )
         )
 
+    # ── Operation 6: count_period_events (Story 11.1 H6 fix) ─────
+    async def count_period_events(
+        self,
+        *,
+        period_key: str,
+        event_type: str | None = None,
+    ) -> int:
+        """Count inventory_ledger rows for (tenant, period_key[, event_type]).
+
+        Story 11.1 H6 fix — wire `ClosingPeriodService._aggregate_period_metrics`
+        call sites that read event counts for ledger_event_count +
+        closing_snapshot_count. AD-24 typed 'YYYY-MM' period_key.
+
+        Args:
+            period_key: AD-24 fiscal 'YYYY-MM' (e.g., '2026-08').
+            event_type: Optional event_type filter. When None, counts
+                ALL event types for the (tenant, period). When set,
+                counts only that event_type (e.g., 'closing_snapshot').
+
+        Returns:
+            int: row count (0 if no rows).
+
+        Raises:
+            InventoryLedgerPeriodKeyFormatError (422): period_key not
+                'YYYY-MM' AD-24 typed pattern (defense-in-depth).
+        """
+        from packages.services.m4_inventory.ledger import _validate_period_key
+
+        _validate_period_key(period_key)
+
+        # Build the COUNT query — pure-Python SQL fragment (CR 6-2 lesson:
+        # avoid raw text() concatenation when possible; this is a static
+        # COUNT(*) so we use select() with func.count()).
+        from sqlalchemy import func
+
+        stmt = (
+            select(func.count())
+            .select_from(InventoryLedger)
+            .where(
+                InventoryLedger.tenant_id == self.tenant_id,
+                InventoryLedger.period_key == period_key,
+            )
+        )
+        if event_type is not None:
+            stmt = stmt.where(InventoryLedger.event_type == event_type)
+        result = await self.session.scalar(stmt)
+        return int(result) if result is not None else 0
+
+    # ── Operation 7: query_period_closing_snapshot_all (Story 11.1 H6 fix) ─
+    async def query_period_closing_snapshot_all(
+        self,
+        *,
+        period_key: str,
+    ) -> dict[uuid.UUID, Decimal]:
+        """Read all `closing_snapshot` rows for a period keyed by product_id.
+
+        Story 11.1 H6 fix — wire `ClosingPeriodService._aggregate_period_metrics`
+        call site that reads the snapshot ledger aggregate. Returns the
+        materialised closing balance per product (PRD §6.2 + §V4).
+
+        Args:
+            period_key: AD-24 fiscal 'YYYY-MM'.
+
+        Returns:
+            dict[UUID, Decimal]: product_id → closing_snapshot qty.
+                Empty dict when no closing_snapshot rows exist for the period.
+
+        Raises:
+            InventoryLedgerPeriodKeyFormatError (422): period_key not
+                'YYYY-MM' AD-24 typed pattern.
+        """
+        from packages.services.m4_inventory.ledger import _validate_period_key
+
+        _validate_period_key(period_key)
+
+        from sqlalchemy import select
+
+        rows = await self.session.execute(
+            select(
+                InventoryLedger.product_id,
+                InventoryLedger.qty,
+            ).where(
+                InventoryLedger.tenant_id == self.tenant_id,
+                InventoryLedger.period_key == period_key,
+                InventoryLedger.event_type == "closing_snapshot",
+            )
+        )
+        result: dict[uuid.UUID, Decimal] = {}
+        for row in rows:
+            qty_value = row.qty if row.qty is not None else Decimal("0")
+            result[row.product_id] = Decimal(str(qty_value))
+        return result
+
     # ── Internal: AST guard (AC #3 3중 방어 — 2nd axis) ────────
     def _assert_not_modifying(self, sql_text: str) -> None:
         """Reject any UPDATE/DELETE/TRUNCATE on inventory_ledger.

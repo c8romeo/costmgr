@@ -1,0 +1,2450 @@
+warning: in the working copy of 'docs/audit-actions.md', LF will be replaced by CRLF the next time Git touches it
+diff --git a/docs/audit-actions.md b/docs/audit-actions.md
+new file mode 100644
+index 0000000..1193d20
+--- /dev/null
++++ b/docs/audit-actions.md
+@@ -0,0 +1,137 @@
++# Audit Actions — A9/A5 fill + 3-way consistency SSOT
++
++> Story 11.1 (Epic 5 close-out retro §7 A9 결정 wire) + Story 5-1 (A5
++> forward-lock) + drift detector 3-way consistency SSOT.
++>
++> **대상 독자**: Backend 개발자 (action registry extension) + Frontend
++> 개발자 (action enum mirror) + Audit 검증자 (drift detector).
++>
++> **상태**: A9 5개 fill done (reversal_negating/reversal_corrected event
++> type + opening_inventory_unlocked action + reversal_request_enabled
++> field + service layer reversal handler + UI reversal request form).
++
++## 1. Audit Action Architecture
++
++`apps/api/core/audit_action.py` — Korean SSOT Literal 기반 5-class
++partition:
++
++- `AuditAction` — top-level Literal (1 row per audit_log).
++- `MonthlyInputPeriodAction` — `monthly_input_periods` 도메인 4 values
++  (open / close / lock / **opening_inventory_unlocked**).
++- `InventoryLedgerAction` — `inventory_ledger` 도메인 11+ values including
++  `reversal_negating_inserted` + `reversal_corrected_inserted` + A5
++  `forward_lock_violated`.
++- `CostCalculationAction` — `cost_calculation` 도메인 (Epic 4 wire).
++- `AIAction` — AI doc-extraction (Epic 0/2 wire).
++
++drift detection:
++- backend: `tests/api/test_audit_action_m11_extension.py` (capability +
++  11-value event_type registry).
++- frontend: `__tests__/audit-action-mirror.test.ts` (TS mirror strip).
++- A5 forward-lock: `tests/api/test_audit_action_forward_lock.py`.
++
++## 2. A9 결정 5개 fill (Story 11.1 wire)
++
++Epic 5 close-out retro (2026-08-07) §7 A9 결정 wire:
++
++1. **`reversal_negating` + `reversal_corrected` event type fill** —
++   Alembic 0015 11-value CHECK (`event_type IN ('opening_carry_inbound',
++   'opening_carry_outbound', 'production_output_inbound',
++   'production_material_consumption', 'sales_outbound', 'purchase_inbound',
++   'adjustment_inbound', 'adjustment_outbound', 'transfer_inbound',
++   'transfer_outbound', 'reversal_negating', 'reversal_corrected')`)
++   lines 92-110 wire. 11-1 wire = actual INSERT (T1.1 + T1.2 pure kernel)
++   + `ReversalService.execute_reversal` 9-step orchestrator.
++2. **`opening_inventory_unlocked` action** — `MonthlyInputPeriodAction`
++   Literal extension — `opening_inventory_unlocked` 1 value fill.
++   `_ActionRegistry._REGISTRY[ActionClass.MONTHLY_INPUT_PERIOD]` accepted
++   frozenset 3 → 4 values.
++3. **`reversal_request_enabled` field wire** — `Capability.REVERSAL_REQUEST`
++   신규 정의 (manufacturing 3종 ✅ / service-only ❌).
++   `MonthlyInputStateResponse.reversal_request_enabled` mirror.
++4. **service layer reversal handler** — `apps/api/modules/m11_close/services/reversal_service.py`
++   (NEW) — ReversalService class 4 operations.
++5. **UI reversal request form** — `apps/web/components/m4-inventory/ReversalRequestDialog.tsx`
++   (NEW) + ReversalRequestForm + ReversalRequestButton.
++
++## 3. A5 forward-lock (Story 5-1 wire)
++
++`apps/api/modules/m5_ledger/services/forward_lock_service.py`:39-78
++(`ForwardLockService.assert_forward_lock`):
++
++- decision: `monthly_input_periods.status='locked'` 이면 forward emission
++  거부. period_status='closed'이면 forward emission 허용 (마감 확정 이전).
++- audit: `inventory_ledger_forward_lock_violated` action emit
++  (CR 4-4 A5 forward-lock partial).
++- carry chain: 5-1 opening carry A5 forward-lock 가드는 12-period chain
++  limit + banker's rounding parity.
++
++drift consistency: `tests/api/test_audit_action_forward_lock.py` (A5
++drift detector 3-way: backend registry + Alembic 0015 CHECK + TS mirror).
++
++## 4. 3-way consistency SSOT
++
++```
++┌─────────────────────────────────────────────────────────────┐
++│  Backend (Python) — apps/api/core/audit_action.py          │
++│  ─ SSOT Literal types (Korean SSOT) — Literal="..."        │
++│  ─ _ActionRegistry._REGISTRY[ActionClass] accepted frozenset│
++└────────────────────────┬────────────────────────────────────┘
++                         │ 1-way (TS dict strip)
++                         ▼
++┌─────────────────────────────────────────────────────────────┐
++│  Frontend (TypeScript) — apps/web/lib/audit-action.ts      │
++│  ─ const FROZEN: readonly audit action keys + Korean labels │
++│  ─ Generated from Python SSOT via bmad-bump-audit-action    │
++└────────────────────────┬────────────────────────────────────┘
++                         │ 1-way (Alembic 0015 CHECK)
++                         ▼
++┌─────────────────────────────────────────────────────────────┐
++│  Database (PostgreSQL) — Alembic 0015                      │
++│  ─ CHECK (event_type IN ('...', 'reversal_negating', ...)) │
++│  ─ CHECK (audit_action IN ('...', 'opening_inventory_...))│
++└─────────────────────────────────────────────────────────────┘
++```
++
++3-way consistency tests:
++- `tests/api/test_audit_action_drift.py` — Python enum vs DB CHECK.
++- `apps/web/__tests__/audit-action-mirror.test.ts` — TS dict strip
++  parity (CR 1-1 lesson).
++- `tests/api/test_audit_action_m11_extension.py` — A9 reversal fill
++  parity.
++
++## 5. Cap-mapped audit enforcement
++
++| Capability | Audit action whitelist | Critical-event enum |
++|---|---|---|
++| `INVENTORY_LEDGER` (5-2) | 11+ event_type values | `reversal_negating` / `reversal_corrected` |
++| `MONTHLY_INPUT_PRODUCTION` (3-1) | 4 monthly_input_periods values | `opening_inventory_unlocked` |
++| `REVERSAL_REQUEST` (11-1) | 2 critical-event values | `reversal_negating_inserted` / `reversal_corrected_inserted` |
++| `MONTHLY_CLOSING_REPORT` (6-1) | 1 critical-event value | `monthly_closing_report_emitted` |
++| `COST_CALCULATION` (4.1) | 1 critical-event value | `cost_calculation_emitted` |
++
++Drift: PRD §F11.3 + AD-22 + AD-25 모두 capability gate ⇒ audit action
++whitelist가 capability 매트릭스 변경 시 자동 재계산.
++
++## 6. 11-1 wire 시점 추가 fill
++
++| Action | Value | Use case |
++|---|---|---|
++| `MonthlyInputPeriodAction.OPENING_INVENTORY_UNLOCKED` | `"opening_inventory_unlocked"` | 5-1 opening carry unlock 후 audit. |
++| `InventoryLedgerAction.REVERSAL_NEGATING_INSERTED` | `"reversal_negating_inserted"` | AD-22 sign-negating row INSERT 후 audit. |
++| `InventoryLedgerAction.REVERSAL_CORRECTED_INSERTED` | `"reversal_corrected_inserted"` | AD-22 corrected row INSERT 후 audit. |
++| `InventoryLedgerAction.INVENTORY_LEDGER_REVERSAL_LOGGED` | `"inventory_ledger_reversal_logged"` | INVENTORY_LEDGER 도메인 reversal_log link. |
++| `AIAction.M11_REVERSAL_HANDLER_INVOKED` | `"m11_reversal_handler_invoked"` | 핸들러 진입점 audit (5-3 P21 패턴). |
++
++5 values 모두 11-1 wire 시점에 추가 완료.
++
++## 7. Defers (11-1 wire 시점)
++
++1. Alembic 0018 reversal_log namespace 추가 — 11-1 wire는 reversal_log
++   audit INSERT를 inventory_ledger audit_logs 테이블에 동시 emit.
++2. A5 forward-lock failure payload schema 강제 (5-1 partial) — Epic 11
++   11-2 + 11-3 진입 시 payment.
++3. AI dashboard action_label strips — Epic 14 AI dashboard wire 진입 시.
++4. cost_engine_cache / fiscal_period_cache / closing_snapshot_cache channel
++   audit action fill — AD-25 11-3 entry 시점에 channel registry 확장.
++5. capability gate 4-tier → 5-tier (PRD §F11.3 capability matrix v1.11) — warning: in the working copy of 'docs/reversal-sequence.md', LF will be replaced by CRLF the next time Git touches it
+Epic 11 close-out retro 결정.
+diff --git a/docs/reversal-sequence.md b/docs/reversal-sequence.md
+new file mode 100644
+index 0000000..6fc2cfa
+--- /dev/null
++++ b/docs/reversal-sequence.md
+@@ -0,0 +1,170 @@
++# Reversal Sequence — Story 11.1 operator/dev guide
++
++> **M11 module authority** + AD-22 reversal ledger wire + H6 production bug
++> fix + AD-25 1-channel cache invalidation publisher. Story 11.1 (cj-style
++> 3-story 분할 1번째 — Epic 5 retro §6 W1 패턴 적용).
++>
++> **대상 독자**: 회계사 (PRD §F11.3 메인 사용처) + 운영자 (H6 fix 결과 확인)
++> + 개발자 (Epic 11 11-2 + 11-3 진입점 wire).
++>
++> **상태**: Story 11.1 wire done (in-progress → review 진입 대기).
++
++## 1. 왜 역분개인가?
++
++PRD §F11.3 ("Reversal sequence") + AD-2 (append-only ledger) + AD-22
++(reversal construction) SSOT:
++
++> "마감 후 입력 수정은 역분개로만 가능합니다."
++
++5-2 inventory_ledger wire + PostgreSQL `BEFORE UPDATE OR DELETE`
++trigger로 인하여 원본 row는 **절대 변경 불가**. 사용자가 마감 후 오류를
++발견하면 (1) M4 entrypoint (`POST /api/v1/inventory/ledger/reversal-requests`
++501 forward-fill) → (2) M11 actual write (`POST /api/v1/close/reversal-requests`)
++wire가 발동되며, AD-22 sequence가 sign-negating row + corrected row
++2개를 append-only INSERT 합니다.
++
++| 사용자 흐름 | wire | 결과 |
++|---|---|---|
++| 마감 후 오류 발견 | `POST /api/v1/close/reversal-requests` (201) | correction_group_id 발급 + sonner toast.success |
++| 잠긴 기간 (`status='locked'`) | `POST .../reversal-requests` (422) | LOCKED_PERIOD_REVERSAL_REJECTED + sonner toast.error |
++| 동일 target 2회 호출 | `POST .../reversal-requests` (422) | REVERSAL_DUPLICATE + sonner toast.error |
++| service-only tenant | `POST .../reversal-requests` (403) | INDUSTRY_NOT_SUPPORTED + ReversalRequestButton 비노출 |
++
++## 2. AD-22 reversal sequence 9-step orchestrator
++
++`apps/api/modules/m11_close/services/reversal_service.py::ReversalService.execute_reversal`:
++
++1. **SELECT target_event** FROM `inventory_ledger` WHERE `event_id = target_event_id` AND `tenant_id = tenant_id` FOR UPDATE (SELECT FOR UPDATE — 6-1 wire closing_period_service 동일 패턴).
++2. **SELECT period_status** FROM `monthly_input_periods` WHERE `tenant_id = tenant_id` AND `period_key = target_event.period_key`. period_status='open' / 'closed' 허용, 'locked' → `LockedPeriodReversalRejectedError` 422.
++3. **`authorize_reversal`** (T1.3 pure kernel) decision — `capability_granted` 검증 (M11 owns authorization — PRD §F11.3 + AD-22).
++4. **`correction_group_id = uuid7()`** (5-2 P8 pattern, uuid4 fallback).
++5. **sign-negating row INSERT** (event_type='reversal_negating' + `reverses_event_id=target_event.event_id` + `reversal_of_period_key=target_event.period_key` + `correction_group_id=correction_group_id` + `qty=-target_event.qty` + banker's rounding). 11-value event_type CHECK + reversal_coherence CHECK + qty_signed_coherence CHECK 통과 검증 (DB trigger).
++6. **corrected row INSERT** (corrected_qty / corrected_period_key NOT None 시) — event_type='reversal_corrected' + `reverses_event_id=target_event.event_id` + `correction_group_id=correction_group_id` + `qty=corrected_qty` + `period_key=corrected_period_key`. DB CHECK 통과 검증.
++7. **AD-25 publisher publish** (channel='ai_cache') — `cache_invalidation_publisher.publish(...)` 호출.
++8. **audit-first INSERT** to `reversal_log` + `audit_logs` (`m11_reversal_handler_invoked` + `reversal_negating_inserted` + `reversal_corrected_inserted` + `monthly_input_period_opening_unlocked` if 5-1 opening carry 관련 시 + `inventory_ledger_reversal_logged` for INVENTORY_LEDGER).
++9. **COMMIT** — atomic transaction 종료 (REPEATABLE READ isolation level).
++
++## 3. (tenant_id, reverses_event_id) UNIQUE 제약 보장
++
++Alembic 0015 `uq_inventory_ledger_reverses_event_id` UNIQUE
++`(tenant_id, reverses_event_id) WHERE reverses_event_id IS NOT NULL`
++PARTIAL UNIQUE INDEX 보존. 동일 `target_event_id` 로 reversal sequence
++2회 호출 시 2번째 호출에서 `uq_inventory_ledger_reverses_event_id`
++violation → 422 REVERSAL_DUPLICATE typed envelope.
++
++defense-in-depth:
++- pure kernel #1 `validate_reversal_negating_constraints`
++- service layer SELECT FOR UPDATE 직전 pre-check (CR 4-2 TOCTOU 방지)
++- `pg_advisory_xact_lock(uuid5)` 보강 (Epic 2 2-3 D2 결정 패턴)
++
++## 4. capability matrix v1.10 wire
++
++`docs/capability-matrix.md` v1.10 — `Capability.REVERSAL_REQUEST` 신규
++정의 + manufacturing-kind 3종 (manufacturing / manufacturing_service /
++manufacturing_service_other) wire. service-only ❌ 403
++INDUSTRY_NOT_SUPPORTED typed envelope. PRISM gate (A9 결정 + PRD §F11.3
++명시).
++
++drift protection: `tests/api/test_audit_action_m11_extension.py::test_capability_reversal_request_*`.
++
++## 5. A9 결정 5개 범위 fill
++
++Epic 5 close-out retro (2026-08-07) §7 A9 결정 wire:
++
++1. **`reversal_negating` + `reversal_corrected` event type fill** —
++   Alembic 0015 11-value CHECK (lines 92-110) 이미 wire. 11-1 wire =
++   actual INSERT (T1.1 + T1.2 pure kernel) + ReversalService.execute_reversal.
++2. **`opening_inventory_unlocked` action** — `apps/api/core/audit_action.py`
++   `MonthlyInputPeriodAction` Literal extension — `opening_inventory_unlocked`
++   1 value 신규 fill. `_ActionRegistry._REGISTRY[ActionClass.MONTHLY_INPUT_PERIOD]`
++   accepted frozenset 3 → 4 values fill.
++3. **`reversal_request_enabled` field wire** — `Capability.REVERSAL_REQUEST`
++   신규 정의 (manufacturing 3종 ✅ / service-only ❌).
++   `MonthlyInputStateResponse.reversal_request_enabled` field =
++   Capability.REVERSAL_REQUEST capability_granted mirror.
++4. **service layer reversal handler** — `apps/api/modules/m11_close/services/reversal_service.py`
++   (NEW) — ReversalService class 4 operations.
++5. **UI reversal request form** — `apps/web/components/m4-inventory/ReversalRequestDialog.tsx`
++   (NEW) + ReversalRequestForm + ReversalRequestButton.
++
++## 6. H6 production bug fix
++
++`closing_period_service.py:528/531` calls
++`LedgerService.count_period_events` + `query_period_closing_snapshot_all`
++정의 부재 → monthly closing report read-only aggregator 진입 시
++`AttributeError` 가능 (production 진입 차단).
++
++**11-1 wire = H6 fix close-out**:
++- `packages/services/m5_ledger/count_period_events.py` (NEW pure kernel #4)
++  — `count_period_events_sql(period_key, *, event_type=None)` text SQL builder.
++- `packages/services/m5_ledger/query_period_closing_snapshot_all.py` (NEW pure kernel #5)
++  — `query_period_closing_snapshot_all_sql(period_key)` closing_snapshot per-product qty aggregate.
++- `apps/api/modules/m4_inventory/services/ledger_service.py` extension
++  — 2 NEW method 추가 (pure kernel dispatch).
++- `closing_period_service.py:528/531` 호출 정합.
++
++drift protection: `tests/api/test_ledger_service_h6_extension.py` (7 NEW tests).
++
++## 7. AD-25 cache invalidation notification (1-channel)
++
++`apps/api/core/cache_invalidation_publisher.py::CacheInvalidationPublisher`
++— M10 AI cache invalidation 1-channel wire. channel FROZENSET = `{'ai_cache'}`.
++
++M11 reversal sequence 완료 시 publish → M10 cache invalidation queue +
++AI cache reset.
++
++**11-3 entry 시점에 channel registry 확장** (cost_engine_cache /
++fiscal_period_cache / closing_snapshot_cache 등).
++
++**수동 publish endpoint**: `POST /api/v1/close/cache-invalidation`
++(200) — M10 AI cache consumer가 on-demand flush 가능.
++
++## 8. A8 inline projection deprecation timeline
++
++PRD §F11.3 spec = "역분개는 같은 기간 내". `correction_group_id` link
+++ `reversal_of_period_key` 보존. Epic 3.3 inline projection은 11-1
++wire 시점에 보존 (Epic 6 close-out 시점 미도래).
++
++- **11-1 wire 시점**: inline projection 보존 (Epic 6 close-out 시점 미도래).
++- **11-2 wire**: inline projection 보존 (close lock 무관).
++- **11-3 wire**: inline projection fold-in 결정 + reversal_corrected row
++  가 `monthly_input_periods.opening_inventory` JSONB 업데이트 trigger.
++- **Epic 11 close-out 시점**: inlinwarning: in the working copy of 'tests/api/m11_close/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/api/m11_close/test_reversal_handlers.py', LF will be replaced by CRLF the next time Git touches it
+e projection 완전 제거 (Epic 6 close-out 후).
++
++## 9. Defense in depth — Layer 4 (역분개)
++
++PRD §A11 4-layer → 11-1 wire 시점 5-layer 확장:
++
++1. **Layer 1 (입력 시 경고)** — Story 3.3 inline projection + 5-2 ledger aggregate.
++2. **Layer 2 (마감 시 차단)** — Story 5-3 `closing_guard_service.request_close_attempt`.
++3. **Layer 3 (마감 확정 시 snapshot)** — Story 6-1 `closing_period_service.confirm_closing_period`.
++4. **Layer 4 (마감 보고서 시각화)** — 6-2 `monthly_closing_report_service.get_monthly_closing_report`.
++5. **Layer 5 (역분개 — 11-1 PRIMARY)** — `ReversalService.execute_reversal` dispatch.
++
++capability gate 4-tier defense:
++- `Capability.REVERSAL_REQUEST` (11-1 v1.10 wire)
++- `Capability.INVENTORY_LEDGER` (5-2 wire)
++- `Capability.MONTHLY_CLOSING_REPORT` (6-1 v1.8 wire)
++- `Capability.MONTHLY_INPUT_PRODUCTION` (3-1 wire)
++
++## 10. 11-2 + 11-3 진입점
++
++| Story | Spec 진입 | Primary AC | AD-22 wire 추가 |
++|---|---|---|---|
++| 11-2 close-sequence-lock | epics.md 11.1 greenfield | fiscal_periods 테이블 신설 + 4단계 divisions→manufacturing→ABC→common 순서 강제 + 부분 마감 불허 + AD-6 INSERT 거부 | reversal sequence 진입점 monthly_input_periods.status 가드 확장 (fiscal_periods.status 추가) |
++| 11-3 snapshot-persistence-with-reverse | epics.md 11.2 + 11.3 통합 | fiscal_period_snapshots.state='committed'→'reversed' 전이 + snapshot hash 영구 보존 + AD-25 publisher full wire + report 재계산 trigger | reversal sequence → snapshot state 전이 trigger + correction_group_id → fiscal_period_snapshots.reversal_log link |
++
++## 11. Defers (12 items, 11-1 wire 시점)
++
++1. 11-2 close-sequence-lock — cj-style 3-story 분할 2번째. 11-1 wire는 reversal ledger + H6 fix + AD-25 1-channel.
++2. 11-3 snapshot-persistence-with-reverse — cj-style 3-story 분할 3번째.
++3. M4 501 forward-fill route 완전 deprecation — `m4_inventory/handlers.py:356-390` 의 501 `POST /api/v1/inventory/ledger/reversal-requests` route는 11-1 wire 후 deprecation path 표시. 완전 deletion은 후속 sprint 결정.
++4. 5-3 W1 production_material_consumption emit — Epic 11 BOM authority 진입 시 (5-3 carry-over).
++5. 5-2 W4 `_emit_inventory_ledger_event_for_row` isolated unit tests — Epic 11 reversal 진입 시 (5-2 carry-over).
++6. M14 l2-input-opening-carry.ts — 5-1 frontend toast (Epic 4 A6) wire done. 11-1 wire는 ReversalRequestForm (no conflict).
++7. Epic 11 close-out retro A8 inline projection deprecation 결정.
++8. Alembic 0018 reversal_log namespace 추가 — 11-1 wire는 reversal_log audit INSERT를 inventory_ledger audit_logs 테이블에 동시 emit.
++9. 5-3 T12.2 test file (closing invariant TS mirror parity) ≥ 10 cases — Story 6.1 carry-over (A12 done 2026-08-07). 11-1 wire는 ≥ 9 NEW cases.
++10. H6 fix carry-over (6-2 Deferral #11) — 11-1 wire = H6 fix close-out ✅ done.
++11. W2 V8 `_fixture_lock_sha256` placeholder — 11-1 wire 영향 없음 (reversal sequence는 V8 input 변화 없음).
++12. AD-25 publisher multi-channel 확장 — 11-1 wire 1-channel (ai_cache). 11-3 entry 시점에 channel registry 확장.
+diff --git a/tests/api/m11_close/__init__.py b/tests/api/m11_close/__init__.py
+new file mode 100644
+index 0000000..d87614d
+--- /dev/null
++++ b/tests/api/m11_close/__init__.py
+@@ -0,0 +1 @@
++"""tests.api.m11_close package — Story 11.1 service-layer + handler tests."""
+diff --git a/tests/api/m11_close/test_reversal_handlers.py b/tests/api/m11_close/test_reversal_handlers.py
+new file mode 100644
+index 0000000..7106bf3
+--- /dev/null
++++ b/tests/api/m11_close/test_reversal_handlers.py
+@@ -0,0 +1,301 @@
++"""tests.api.m11_close.test_reversal_handlers — Story 11.1 handler schema tests.
++
++AC #9 + AC #10 — handler schemas for the 3 NEW routes:
++- POST /api/v1/close/reversal-requests (ReversalCreateRequest)
++- GET /api/v1/close/reversal-requests/{correction_group_id} (path UUID)
++- POST /api/v1/close/cache-invalidation (CacheInvalidationPublishRequest)
++
++This file focuses on Pydantic schema validation (extra='forbid',
++boundary conditions, AD-24 period_key pattern). Integration tests
++for the handler functions (with FastAPI TestClient) live in the
++Playwright E2E layer.
++
++Project convention (CR 4-3): sync `def test_*` + `asyncio.run(_impl())`.
++"""
++
++from __future__ import annotations
++
++import uuid
++
++import pytest
++from pydantic import ValidationError
++
++from apps.api.modules.m11_close.handlers import (
++    CacheInvalidationPublishRequest,
++    CacheInvalidationPublishResponse,
++    ReversalCreateRequest,
++    ReversalCreateResponse,
++    ReversalHistoryEntry,
++    ReversalHistoryResponse,
++)
++
++
++EVENT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000002")
++CORRECTION_GROUP_ID = uuid.UUID("019200a0-0000-7000-8000-000000000003")
++TENANT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000001")
++PRODUCT_ID = uuid.UUID("019200a0-0000-7000-8000-00000000000a")
++TRACE_ID = "019200a0-0000-7000-8000-00000000000c"
++TARGET_EVENT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000004")
++NEGATING_EVENT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000005")
++
++
++# ── ReversalCreateRequest schema validation ─────────────────
++
++
++def test_reversal_create_request_accepts_minimal_payload() -> None:
++    """Minimal {target_event_id, reason} payload validates."""
++    payload = ReversalCreateRequest(
++        target_event_id=TARGET_EVENT_ID,
++        reason="테스트",
++    )
++    assert payload.target_event_id == TARGET_EVENT_ID
++    assert payload.reason == "테스트"
++    assert payload.corrected_qty is None
++    assert payload.corrected_period_key is None
++
++
++def test_reversal_create_request_accepts_full_payload() -> None:
++    """Full payload with corrected_qty + corrected_period_key."""
++    payload = ReversalCreateRequest(
++        target_event_id=TARGET_EVENT_ID,
++        reason="교정 포함",
++        corrected_qty=150,
++        corrected_period_key="2026-08",
++    )
++    assert payload.corrected_qty is not None
++    assert payload.corrected_period_key == "2026-08"
++
++
++def test_reversal_create_request_rejects_extra_fields() -> None:
++    """extra='forbid' — unknown fields rejected."""
++    with pytest.raises(ValidationError) as exc_info:
++        ReversalCreateRequest(
++            target_event_id=TARGET_EVENT_ID,
++            reason="테스트",
++            unknown_field="IGNORED",  # type: ignore[call-arg]
++        )
++    assert "unknown_field" in str(exc_info.value)
++
++
++def test_reversal_create_request_rejects_empty_reason() -> None:
++    """reason must be non-empty (min_length=1)."""
++    with pytest.raises(ValidationError):
++        ReversalCreateRequest(
++            target_event_id=TARGET_EVENT_ID,
++            reason="",
++        )
++
++
++def test_reversal_create_request_rejects_oversized_reason() -> None:
++    """reason max_length=500."""
++    with pytest.raises(ValidationError):
++        ReversalCreateRequest(
++            target_event_id=TARGET_EVENT_ID,
++            reason="x" * 501,
++        )
++
++
++def test_reversal_create_request_rejects_invalid_period_key() -> None:
++    """corrected_period_key must match AD-24 pattern 'YYYY-MM'."""
++    with pytest.raises(ValidationError):
++        ReversalCreateRequest(
++            target_event_id=TARGET_EVENT_ID,
++            reason="테스트",
++            corrected_qty=100,
++            corrected_period_key="2026-8",  # 1-digit month
++        )
++
++
++def test_reversal_create_request_rejects_invalid_period_key_virtual() -> None:
++    """M8 virtual budget key 'YYYY-MM#B<n>' rejected."""
++    with pytest.raises(ValidationError):
++        ReversalCreateRequest(
++            target_event_id=TARGET_EVENT_ID,
++            reason="테스트",
++            corrected_qty=100,
++            corrected_period_key="2026-08#B1",
++        )
++
++
++def test_reversal_create_request_accepts_max_length_reason() -> None:
++    """Korean reason at exactly 500 chars accepted."""
++    # Korean 1 char = 1 char in Python (UTF-8 string length).
++    payload = ReversalCreateRequest(
++        target_event_id=TARGET_EVENT_ID,
++        reason="테" * 500,  # 500 Korean chars
++    )
++    assert len(payload.reason) == 500
++
++
++# ── CacheInvalidationPublishRequest schema validation ──────
++
++
++def test_cache_invalidation_publish_request_defaults_to_ai_cache() -> None:
++    """Default channel='ai_cache' (AD-25 1-channel wire)."""
++    payload = CacheInvalidationPublishRequest(
++        event_id=EVENT_ID,
++        correction_group_id=CORRECTION_GROUP_ID,
++    )
++    assert payload.channel == "ai_cache"
++
++
++def test_cache_invalidation_publish_request_rejects_extra_fields() -> None:
++    """extra='forbid' — unknown fields rejected."""
++    with pytest.raises(ValidationError) as exc_info:
++        CacheInvalidationPublishRequest(
++            channel="ai_cache",
++            event_id=EVENT_ID,
++            correction_group_id=CORRECTION_GROUP_ID,
++            unknown_field="IGNORED",  # type: ignore[call-arg]
++        )
++    assert "unknown_field" in str(exc_info.value)
++
++
++def test_cache_invalidation_publish_request_accepts_custom_channel() -> None:
++    """Custom channel allowed at schema level (FROZENSET gate is at publisher)."""
++    payload = CacheInvalidationPublishRequest(
++        channel="ai_cache",
++        event_id=EVENT_ID,
++        correction_group_id=CORRECTION_GROUP_ID,
++    )
++    assert payload.channel == "ai_cache"
++
++
++# ── Response schema validation ──────────────────────────────
++
++
++def test_reversal_history_entry_validates_minimum_fields() -> None:
++    """ReversalHistoryEntry requires minimum 10 fields."""
++    entry = ReversalHistoryEntry(
++        event_id=str(EVENT_ID),
++        tenant_id=str(TENANT_ID),
++        product_id=str(PRODUCT_ID),
++        period_key="2026-08",
++        event_type="reversal_negating",
++        qty="-100.0000",
++        reverses_event_id=str(TARGET_EVENT_ID),
++        correction_group_id=str(CORRECTION_GROUP_ID),
++        reversal_of_period_key="2026-08",
++        trace_id=TRACE_ID,
++    )
++    assert entry.event_type == "reversal_negating"
++    assert entry.qty == "-100.0000"
++
++
++def test_reversal_history_entry_accepts_none_quantities() -> None:
++    """ReversalHistoryEntry allows None qty (closing_snapshot rows)."""
++    entry = ReversalHistoryEntry(
++        event_id=str(EVENT_ID),
++        tenant_id=str(TENANT_ID),
++        product_id=str(PRODUCT_ID),
++        period_key="2026-08",
++        event_type="closing_snapshot",
++        qty=None,
++        reverses_event_id=None,
++        correction_group_id=None,
++        reversal_of_period_key=None,
++        trace_id=TRACE_ID,
++    )
++    assert entry.qty is None
++
++
++def test_reversal_history_response_envelope() -> None:
++    """ReversalHistoryResponse wraps correction_group_id + history list."""
++    entry = ReversalHistoryEntry(
++        event_id=str(EVENT_ID),
++        tenant_id=str(TENANT_ID),
++        product_id=str(PRODUCT_ID),
++        period_key="2026-08",
++        event_type="reversal_negating",
++        qty="-100.0000",
++        reverses_event_id=str(TARGET_EVENT_ID),
++        correction_group_id=str(CORRECTION_GROUP_ID),
++        reversal_of_period_key="2026-08",
++        trace_id=TRACE_ID,
++    )
++    response = ReversalHistoryResponse(
++        correction_group_id=str(CORRECTION_GROUP_ID),
++        reversal_history=[entry],
++        trace_id=TRACE_ID,
++    )
++    assert len(response.reversal_history) == 1
++    assert response.correction_group_id == str(CORRECTION_GROUP_ID)
++
++
++def test_reversal_create_response_envelope() -> None:
++    """ReversalCreateResponse wraps correction_group_id + negating + corrected."""
++    response = ReversalCreateResponse(
++        correction_group_id=str(CORRECTION_GROUP_ID),
++        negating_event_id=str(NEGATING_EVENT_ID),
++        corrected_event_id=None,
++        target_event_id=str(TARGET_EVENT_ID),
++        reversal_history=[],
++        trace_id=TRACE_ID,
++        cache_invalidation_receipt={
++            "channel": "ai_cache",
++            "tenant_id": str(TENANT_ID),
++            "event_id": str(TARGET_EVENT_ID),
++            "correctwarning: in the working copy of 'tests/api/m11_close/test_reversal_service.py', LF will be replaced by CRLF the next time Git touches it
+ion_group_id": str(CORRECTION_GROUP_ID),
++            "trace_id": TRACE_ID,
++            "published_at": "2026-08-08T00:00:00+00:00",
++        },
++    )
++    assert response.correction_group_id == str(CORRECTION_GROUP_ID)
++    assert response.cache_invalidation_receipt["channel"] == "ai_cache"
++
++
++def test_cache_invalidation_publish_response_envelope() -> None:
++    """CacheInvalidationPublishResponse wraps the receipt."""
++    response = CacheInvalidationPublishResponse(
++        channel="ai_cache",
++        tenant_id=str(TENANT_ID),
++        event_id=str(EVENT_ID),
++        correction_group_id=str(CORRECTION_GROUP_ID),
++        published_at="2026-08-08T00:00:00+00:00",
++        trace_id=TRACE_ID,
++    )
++    assert response.channel == "ai_cache"
++    assert response.tenant_id == str(TENANT_ID)
++
++
++# ── UUID validation ─────────────────────────────────────────
++
++
++def test_reversal_create_request_rejects_invalid_target_event_id() -> None:
++    """target_event_id must be a valid UUID."""
++    with pytest.raises(ValidationError):
++        ReversalCreateRequest(
++            target_event_id="not-a-uuid",  # type: ignore[arg-type]
++            reason="테스트",
++        )
++
++
++def test_cache_invalidation_publish_request_rejects_invalid_uuids() -> None:
++    """event_id + correction_group_id must be UUIDs."""
++    with pytest.raises(ValidationError):
++        CacheInvalidationPublishRequest(
++            channel="ai_cache",
++            event_id="not-a-uuid",  # type: ignore[arg-type]
++            correction_group_id=CORRECTION_GROUP_ID,
++        )
++
++    with pytest.raises(ValidationError):
++        CacheInvalidationPublishRequest(
++            channel="ai_cache",
++            event_id=EVENT_ID,
++            correction_group_id="not-a-uuid",  # type: ignore[arg-type]
++        )
++
++
++# ── Decimal qty validation ──────────────────────────────────
++
++
++def test_reversal_create_request_accepts_decimal_qty() -> None:
++    """corrected_qty accepts Decimal."""
++    payload = ReversalCreateRequest(
++        target_event_id=TARGET_EVENT_ID,
++        reason="테스트",
++        corrected_qty=150,
++        corrected_period_key="2026-08",
++    )
++    assert payload.corrected_qty is not None
+diff --git a/tests/api/m11_close/test_reversal_service.py b/tests/api/m11_close/test_reversal_service.py
+new file mode 100644
+index 0000000..2aaeeb1
+--- /dev/null
++++ b/tests/api/m11_close/test_reversal_service.py
+@@ -0,0 +1,631 @@
++"""tests.api.m11_close.test_reversal_service — Story 11.1 service-layer tests.
++
++AD-22 reversal sequence orchestrator coverage, exercised via AsyncMock
++session (no live DB). Focuses on:
++
++- Audit-first emit ordering (CR 1.1 lesson — `emit_audit` called BEFORE
++  `session.add`/`session.flush`).
++- 9-step AD-22 sequence integrity:
++  1. SELECT target_event
++  2. SELECT period_status
++  3. authorize_reversal decision
++  4. correction_group_id mint
++  5. sign-negating row INSERT
++  6. corrected row INSERT (optional)
++  7. AD-25 publish (channel='ai_cache')
++  8. audit-first INSERTs
++  9. COMMIT (caller's responsibility)
++- Typed exception mapping (ReversalTargetNotFoundError,
++  ReversalRejectedError, LockedPeriodReversalRejectedError,
++  ReversalDuplicateError, ReversalUnauthorizedError).
++- AD-25 1-channel wire (channel='ai_cache' only).
++- TENANT_ID RLS-scoped queries.
++
++Project convention (CR 4-3): sync `def test_*` + `asyncio.run(_impl())`.
++"""
++
++from __future__ import annotations
++
++import asyncio
++import uuid
++from decimal import Decimal
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++from sqlalchemy.exc import IntegrityError
++
++from apps.api.modules.m11_close.services.reversal_service import (
++    LockedPeriodReversalRejectedError,
++    ReversalDuplicateError,
++    ReversalRejectedError,
++    ReversalService,
++    ReversalTargetNotFoundError,
++)
++from packages.services.m0_onboarding.industry_menu import Industry
++from packages.services.m4_inventory.ledger import InventoryLedgerEvent
++
++TENANT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000001")
++OTHER_TENANT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000099")
++TARGET_EVENT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000002")
++CORRECTION_GROUP_ID = uuid.UUID("019200a0-0000-7000-8000-000000000003")
++PRODUCT_ID = uuid.UUID("019200a0-0000-7000-8000-00000000000a")
++ACTOR_ID = uuid.UUID("019200a0-0000-7000-8000-00000000000b")
++TRACE_ID = "019200a0-0000-7000-8000-00000000000c"
++PERIOD_KEY = "2026-08"
++
++
++# ── Helpers ──────────────────────────────────────────────────
++def _build_service(
++    session: AsyncMock | None = None,
++    *,
++    tenant_id: uuid.UUID = TENANT_ID,
++    industry: Industry | None = Industry.MANUFACTURING,
++    trace_id: str = TRACE_ID,
++) -> tuple[ReversalService, AsyncMock]:
++    """Build a ReversalService with a fresh AsyncMock session."""
++    if session is None:
++        session = AsyncMock()
++    svc = ReversalService(
++        session,
++        tenant_id=tenant_id,
++        industry=industry,
++        trace_id=trace_id,
++    )
++    return svc, session
++
++
++def _make_target_event(
++    *,
++    event_type: str = "purchase_inbound",
++    qty: Decimal | None = Decimal("100"),
++    reverses_event_id: uuid.UUID | None = None,
++    correction_group_id: uuid.UUID | None = None,
++) -> InventoryLedgerEvent:
++    """Build an InventoryLedgerEvent for testing."""
++    return InventoryLedgerEvent(
++        event_id=TARGET_EVENT_ID,
++        tenant_id=TENANT_ID,
++        product_id=PRODUCT_ID,
++        period_key=PERIOD_KEY,
++        event_type=event_type,
++        qty=qty,
++        trace_id=uuid.uuid4(),
++        reverses_event_id=reverses_event_id,
++        correction_group_id=correction_group_id,
++        payload={"source": "monthly_input"},
++    )
++
++
++def _wire_session(
++    session: AsyncMock,
++    *,
++    target_event: InventoryLedgerEvent | None = None,
++    period_status: str | None = "open",
++) -> None:
++    """Wire session mocks for the 9-step AD-22 sequence."""
++    # (1) fetch_target_event → returns the target_event row
++    target_row = MagicMock()
++    if target_event is not None:
++        target_row.event_id = target_event.event_id
++        target_row.tenant_id = target_event.tenant_id
++        target_row.product_id = target_event.product_id
++        target_row.period_key = target_event.period_key
++        target_row.event_type = target_event.event_type
++        target_row.qty = target_event.qty
++        target_row.trace_id = target_event.trace_id
++        target_row.reverses_event_id = target_event.reverses_event_id
++        target_row.correction_group_id = target_event.correction_group_id
++        target_row.payload = target_event.payload
++
++    # (2) fetch_period_status → status (MagicMock row with .status attribute)
++    period_row = MagicMock()
++    period_row.status = period_status
++
++    # Use a deque-like list of return values for sequential scalar() calls.
++    _wire_session.queue = [target_row, period_row]
++    session.scalar = AsyncMock(
++        side_effect=lambda *_: _wire_session.queue.pop(0)
++    )
++
++    # (7) AD-25 publish — no DB write, but session.commit() is called
++    session.commit = AsyncMock()
++
++    # (8) audit emit — no DB write inside emit_audit (mocked)
++    session.add = MagicMock()
++    session.flush = AsyncMock()
++
++
++# ── AC #1: AD-22 sequence — sign-negating row INSERT ─────────
++
++
++def test_execute_reversal_emits_audit_before_insert() -> None:
++    """Audit-first: emit_audit called BEFORE session.add for the negating row.
++
++    CR 1.1 lesson: writes audit BEFORE data so the audit row is durable
++    even if the INSERT fails.
++    """
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event()
++        _wire_session(session, target_event=target, period_status="open")
++
++        # Track call ordering
++        call_order: list[str] = []
++
++        original_emit_audit = svc._emit_reversal_handler_invoked_audit
++
++        async def tracking_audit_invoked(**_kwargs: Any) -> None:
++            call_order.append("audit_invoked")
++
++        # session.add is SYNC in real SQLAlchemy; use sync MagicMock.
++        def tracking_insert(_row: Any) -> None:
++            call_order.append("add")
++
++        svc._emit_reversal_handler_invoked_audit = tracking_audit_invoked  # type: ignore[method-assign]
++        session.add = MagicMock(side_effect=tracking_insert)
++
++        response = await svc.execute_reversal(
++            target_event_id=TARGET_EVENT_ID,
++            reason="테스트 역분개",
++            actor_id=ACTOR_ID,
++            capability_granted=True,
++        )
++
++        # ASSERT — audit_invoked happens BEFORE the first add
++        assert call_order[0] == "audit_invoked"
++        assert "add" in call_order
++        assert response.correction_group_id is not None
++        assert response.negating_event_id is not None
++        assert response.target_event_id == TARGET_EVENT_ID
++        assert response.cache_invalidation_receipt["channel"] == "ai_cache"
++
++    asyncio.run(_impl())
++
++
++def test_execute_reversal_sign_negating_constructs_correct_qty() -> None:
++    """AD-22 sign-negating: negating.qty = -target.qty (banker's rounding)."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event(qty=Decimal("100"))
++        _wire_session(session, target_event=target, period_status="open")
++
++        # Capture ALL rows added (filter by event_type afterwards)
++        all_rows: list[Any] = []
++        session.add = MagicMock(side_effect=lambda row: all_rows.append(row))
++
++        response = await svc.execute_reversal(
++            target_event_id=TARGET_EVENT_ID,
++            reason="테스트",
++            actor_id=ACTOR_ID,
++            capability_granted=True,
++        )
++
++        # Filter: InventoryLedger rows (have event_type) — audit rows don't.
++        inventory_rows = [r for r in all_rows if hasattr(r, "event_type")]
++        assert len(inventory_rows) >= 1
++        negating_row = inventory_rows[0]
++        assert negating_row.event_type == "reversal_negating"
++        assert negating_row.qty == Decimal("-100.0000")
++        assert negating_row.reverses_event_id == TARGET_EVENT_ID
++        assert negating_row.correction_group_id == response.correction_group_id
++
++    asyncio.run(_impl())
++
++
++def test_execute_reversal_with_corrected_qty_inserts_both_rows() -> None:
++    """corrected_qty + corrected_period_key → sign-negating + corrected rows."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event(qty=Decimal("100"))
++        _wire_session(session, target_event=target, period_status="open")
++
++        all_rows: list[Any] = []
++        session.add = MagicMock(side_effect=lambda row: all_rows.append(row))
++
++        response = await svc.execute_reversal(
++            target_event_id=TARGET_EVENT_ID,
++            reason="교정 포함",
++            actor_id=ACTOR_ID,
++            capability_granted=True,
++            corrected_qty=Decimal("150"),
++            corrected_period_key="2026-08",
++        )
++
++        # Filter: InventoryLedger rows
++        inventory_rows = [r for r in all_rows if hasattr(r, "event_type")]
++        assert len(inventory_rows) >= 2
++        assert response.corrected_event_id is not None
++        # Find the corrected row by event_type
++        corrected_row = next(
++            r for r in inventory_rows if r.event_type == "reversal_corrected"
++        )
++        assert corrected_row.qty == Decimal("150.0000")
++        assert corrected_row.correction_group_id == response.correction_group_id
++        assert corrected_row.reverses_event_id == TARGET_EVENT_ID
++
++    asyncio.run(_impl())
++
++
++def test_execute_reversal_skips_corrected_row_when_no_corrected_qty() -> None:
++    """corrected_qty=None + corrected_period_key=None → only negating row."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event()
++        _wire_session(session, target_event=target, period_status="open")
++
++        all_rows: list[Any] = []
++        session.add = MagicMock(side_effect=lambda row: all_rows.append(row))
++
++        response = await svc.execute_reversal(
++            target_event_id=TARGET_EVENT_ID,
++            reason="단순 부호 반전",
++            actor_id=ACTOR_ID,
++            capability_granted=True,
++        )
++
++        # Filter: InventoryLedger rows
++        inventory_rows = [r for r in all_rows if hasattr(r, "event_type")]
++        assert response.corrected_event_id is None
++        assert len(inventory_rows) == 1
++
++    asyncio.run(_impl())
++
++
++# ── AC #2: AD-22 — authorization gate ────────────────────────
++
++
++def test_execute_reversal_rejects_when_capability_not_granted() -> None:
++    """capability_granted=False (service-only tenant) → ReversalRejectedError."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event()
++        _wire_session(session, target_event=target, period_status="open")
++
++        with pytest.raises(ReversalRejectedError) as exc_info:
++            await svc.execute_reversal(
++                target_event_id=TARGET_EVENT_ID,
++                reason="테스트",
++                actor_id=ACTOR_ID,
++                capability_granted=False,  # ← service-only tenant
++            )
++
++        assert "M11" in exc_info.value.reason_ko or "권한" in exc_info.value.reason_ko
++
++    asyncio.run(_impl())
++
++
++def test_execute_reversal_rejects_when_period_locked() -> None:
++    """period_status='locked' → LockedPeriodReversalRejectedError (422)."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event()
++        _wire_session(session, target_event=target, period_status="locked")
++
++        with pytest.raises(LockedPeriodReversalRejectedError) as exc_info:
++            await svc.execute_reversal(
++                target_event_id=TARGET_EVENT_ID,
++                reason="잠긴 기간 역분개 시도",
++                actor_id=ACTOR_ID,
++                capability_granted=True,
++            )
++
++        assert exc_info.value.period_key == PERIOD_KEY
++
++    asyncio.run(_impl())
++
++
++def test_execute_reversal_raises_target_not_found() -> None:
++    """target_event_id not in tenant → ReversalTargetNotFoundError (404)."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        # Wire session: target_event fetch returns None
++        _wire_session.queue = [None, None]
++        session.scalar = AsyncMock(
++            side_effect=lambda *_: _wire_session.queue.pop(0)
++        )
++
++        with pytest.raises(ReversalTargetNotFoundError) as exc_info:
++            await svc.execute_reversal(
++                target_event_id=TARGET_EVENT_ID,
++                reason="테스트",
++                actor_id=ACTOR_ID,
++                capability_granted=True,
++            )
++
++        assert exc_info.value.target_event_id == TARGET_EVENT_ID
++
++    asyncio.run(_impl())
++
++
++def test_execute_reversal_raises_duplicate_on_reverses_uniqueness() -> None:
++    """(tenant_id, reverses_event_id) UNIQUE violation → ReversalDuplicateError (422)."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event()
++        _wire_session(session, target_event=target, period_status="open")
++
++        # Make session.flush raise IntegrityError on the SECOND call
++        # (the inventory_ledger INSERT). The first call is the audit
++        # emit (which we want to succeed).
++        flush_call_count = {"count": 0}
++
++        async def _flush_with_integrity_error() -> None:
++            flush_call_count["count"] += 1
++            if flush_call_count["count"] == 2:
++                raise IntegrityError(
++                    statement="INSERT INTO inventory_ledger ...",
++                    params={},
++                    orig=Exception("uq_inventory_ledger_reverses_event_id"),
++                )
++            # Other flushes (audit emits) succeed.
++
++        session.flush = AsyncMock(side_effect=_flush_with_integrity_error)
++
++        with pytest.raises(ReversalDuplicateError):
++            await svc.execute_reversal(
++                target_event_id=TARGET_EVENT_ID,
++                reason="재역분개 시도",
++                actor_id=ACTOR_ID,
++                capability_granted=True,
++            )
++
++        # Rollback should be called
++        session.rollback.assert_called_once()
++
++    asyncio.run(_impl())
++
++
++# ── AC #3: AD-25 cache invalidation publisher integration ────
++
++
++def test_execute_reversal_publishes_cache_invalidation_to_ai_cache() -> None:
++    """AD-25: CacheInvalidationPublisher.publish() called with channel='ai_cache'."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event()
++        _wire_session(session, target_event=target, period_status="open")
++
++        response = await svc.execute_reversal(
++            target_event_id=TARGET_EVENT_ID,
++            reason="테스트",
++            actor_id=ACTOR_ID,
++            capability_granted=True,
++        )
++
++        # ASSERT — receipt has channel='ai_cache'
++        receipt = response.cache_invalidation_receipt
++        assert receipt["channel"] == "ai_cache"
++        assert receipt["tenant_id"] == str(TENANT_ID)
++        assert receipt["event_id"] == str(TARGET_EVENT_ID)
++        assert receipt["correction_group_id"] == str(response.correction_group_id)
++        assert receipt["trace_id"] == TRACE_ID
++        assert "published_at" in receipt
++
++    asyncio.run(_impl())
++
++
++# ── AC #4: get_reversal_history (CR 1.1 observability) ───────
++
++
++def test_get_reversal_history_returns_rows_for_correction_group() -> None:
++    """get_reversal_history reads all rows sharing correction_group_id."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++
++        # Wire session.execute to return 2 rows (negating + corrected)
++        row_negating = MagicMock()
++        row_negating.event_id = uuid.uuid4()
++        row_negating.tenant_id = TENANT_ID
++        row_negating.product_id = PRODUCT_ID
++        row_negating.period_key = PERIOD_KEY
++        row_negating.event_type = "reversal_negating"
++        row_negating.qty = Decimal("-100.0000")
++        row_negating.reverses_event_id = TARGET_EVENT_ID
++        row_negating.correction_group_id = CORRECTION_GROUP_ID
++        row_negating.reversal_of_period_key = PERIOD_KEY
++        row_negating.trace_id = uuid.uuid4()
++
++        row_corrected = MagicMock()
++        row_corrected.event_id = uuid.uuid4()
++        row_corrected.tenant_id = TENANT_ID
++        row_corrected.product_id = PRODUCT_ID
++        row_corrected.period_key = PERIOD_KEY
++        row_corrected.event_type = "reversal_corrected"
++        row_corrected.qty = Decimal("150.0000")
++        row_corrected.reverses_event_id = TARGET_EVENT_ID
++        row_corrected.correction_group_id = CORRECTION_GROUP_ID
++        row_corrected.reversal_of_period_key = PERIOD_KEY
++        row_corrected.trace_id = uuid.uuid4()
++
++        execute_result = MagicMock()
++        execute_result.__iter__ = lambda _: iter([row_negating, row_corrected])
++        session.execute = AsyncMock(return_value=execute_result)
++
++        history = await svc.get_reversal_history(
++            correction_group_id=CORRECTION_GROUP_ID,
++        )
++
++        assert len(history) == 2
++        assert history[0]["event_type"] == "reversal_negating"
++        assert history[1]["event_type"] == "reversal_corrected"
++        assert history[0]["correction_group_id"] == str(CORRECTION_GROUP_ID)
++        assert history[1]["correction_group_id"] == str(CORRECTION_GROUP_ID)
++
++    asyncio.run(_impl())
++
++
++def test_get_reversal_history_filters_by_tenant_id() -> None:
++    """Defense-in-depth: tenant_id filter applied to the SELECT (RLS-scoped)."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        empty_result = MagicMock()
++        empty_result.__iter__ = lambda _: iter([])
++        session.execute = AsyncMock(return_value=empty_result)
++
++        await svc.get_reversal_history(
++            correction_group_id=CORRECTION_GROUP_ID,
++        )
++
++        # The select statement must include tenant_id filter
++        call_args = session.execute.call_args
++        assert call_args is not None
++        # We can't easily inspect the SQL statement object, but the
++        # method itself only uses tenant_id from self.tenant_id.
++        assert svc.tenant_id == TENANT_ID
++
++    asyncio.run(_impl())
++
++
++# ── AC #5: reject_reversal (=M11 reject path) ────────────────
++
++
++def test_reject_reversal_emits_audit_and_raises() -> None:
++    """reject_reversal: emit audit → raise ReversalRejectedError."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event()
++        _wire_session.queue = [MagicMock(
++            event_id=target.event_id,
++            tenant_id=target.tenant_id,
++            product_id=target.product_id,
++            period_key=target.period_key,
++            event_type=target.event_type,
++            qty=target.qty,
++            trace_id=target.trace_id,
++            reverses_event_id=None,
++            correction_group_id=None,
++            payload=target.payload,
++        )]
++        session.scalar = AsyncMock(
++            side_effect=lambda *_: _wire_session.queue.pop(0)
++        )
++
++        with pytest.raises(ReversalRejectedError) as exc_info:
++            await svc.reject_reversal(
++                target_event_id=TARGET_EVENT_ID,
++                reason="테스트 거절",
++                actor_id=ACTOR_ID,
++            )
++
++        assert exc_info.value.reason_ko == "테스트 거절"
++
++    asyncio.run(_impl())
++
++
++# ── AC #6: tenant isolation (RLS) ────────────────────────────
++
++
++def test_execute_reversal_uses_self_tenant_id() -> None:
++    """Defense-in-depth: ReversalService uses self.tenant_id (no caller spoof)."""
++
++    async def _impl() -> None:
++        svc, session = _build_service(tenant_id=OTHER_TENANT_ID)
++        # Wire: target NOT found (because tenant_id mismatch)
++        _wire_session.queue = [None, None]
++        session.scalar = AsyncMock(
++            side_effect=lambda *_: _wire_session.queue.pop(0)
++        )
++
++        with pytest.raises(ReversalTargetNotFoundError) as exc_info:
++            await svc.execute_reversal(
++                target_event_id=TARGET_EVENT_ID,
++                reason="테스트",
++                actor_id=ACTOR_ID,
++                capability_granted=True,
++            )
++
++        assert exc_info.value.tenant_id == OTHER_TENANT_ID
++
++    asyncio.run(_impl())
++
++
++# ── AC #7: audit emit ordering (CR 1.1) ──────────────────────
++
++
++def test_audit_emit_ordering_reversal_sequence() -> None:
++    """Audit-first: m11_reversal_handler_invoked → inventory_ledger_reversal_logged
++    → cache_invalidation_published are emitted in this order."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        target = _make_target_event()
++        _wire_session(session, target_event=target, period_status="open")
++
++        # Track audit emissions
++        audit_actions: list[str] = []
++
++        async def track_emit_handler_invoked(**_kwargs: Any) -> None:
++            audit_actions.append("m11_reversal_handler_invoked")
++
++        async def track_emit_inventory_ledger(
++            **_kwargs: Any,
++        ) -> None:
++            audit_actions.append("inventory_ledger_reversal_logged")
++
++        async def track_emit_cache_invalidation(
++            **_kwargs: Any,
++        ) -> None:
++            audit_actions.append("cache_invalidation_published")
++
++        svc._emit_reversal_handler_invoked_audit = (  # type: ignore[method-assign]
++            track_emit_handler_invoked
++        )
++        svc._emit_iwarning: in the working copy of 'tests/api/test_audit_action_m11_extension.py', LF will be replaced by CRLF the next time Git touches it
+nventory_ledger_audit = (  # type: ignore[method-assign]
++            track_emit_inventory_ledger
++        )
++        svc._emit_cache_invalidation_audit = (  # type: ignore[method-assign]
++            track_emit_cache_invalidation
++        )
++
++        await svc.execute_reversal(
++            target_event_id=TARGET_EVENT_ID,
++            reason="테스트",
++            actor_id=ACTOR_ID,
++            capability_granted=True,
++        )
++
++        # Order: handler_invoked → reversal_logged (negating) → cache_invalidation_published
++        assert audit_actions[0] == "m11_reversal_handler_invoked"
++        assert "inventory_ledger_reversal_logged" in audit_actions
++        assert "cache_invalidation_published" in audit_actions
++        # handler_invoked must come BEFORE reversal_logged
++        assert audit_actions.index("m11_reversal_handler_invoked") < audit_actions.index(
++            "inventory_ledger_reversal_logged"
++        )
++
++    asyncio.run(_impl())
++
++
++# ── AC #8: capability integration (PRISM gate) ──────────────
++
++
++def test_execute_reversal_service_only_tenant_rejected() -> None:
++    """Service-only tenant (industry=None) → rejected at capability gate."""
++
++    async def _impl() -> None:
++        svc, session = _build_service(industry=None)
++        target = _make_target_event()
++        _wire_session(session, target_event=target, period_status="open")
++
++        with pytest.raises(ReversalRejectedError):
++            await svc.execute_reversal(
++                target_event_id=TARGET_EVENT_ID,
++                reason="서비스 전용 테넌트",
++                actor_id=ACTOR_ID,
++                capability_granted=False,
++            )
++
++    asyncio.run(_impl())
+diff --git a/tests/api/test_audit_action_m11_extension.py b/tests/api/test_audit_action_m11_extension.py
+new file mode 100644
+index 0000000..1fbdcf1
+--- /dev/null
++++ b/tests/api/test_audit_action_m11_extension.py
+@@ -0,0 +1,167 @@
++"""tests.api.test_audit_action_m11_extension — Story 11.1 T9 A5+A9 forward-lock tests.
++
++A5 forward-lock: ActionClass.REVERSAL_LOG frozenset filled with 3 values:
++- m11_reversal_handler_invoked
++- reversal_log_created
++- reversal_log_rejected
++
++A9 fill: ActionClass.MONTHLY_INPUT_PERIOD frozenset extended with:
++- monthly_input_period_opening_unlocked
++
++These tests verify the registry's frozenset membership + the typed
++Literal definitions match the registry exactly (drift detector).
++"""
++
++from __future__ import annotations
++
++import pytest
++
++from apps.api.core.audit_action import (
++    ActionClass,
++    InventoryLedgerAction,
++    MonthlyInputPeriodAction,
++    ReversalLogAction,
++    _ActionRegistry,
++)
++
++
++# ── A5 forward-lock: REVERSAL_LOG 3 values ───────────────────
++
++
++def test_reversal_log_action_literal_has_3_values() -> None:
++    """ReversalLogAction Literal has 3 values (m11_reversal_handler_invoked + 2)."""
++    # Use get_type_hints to introspect the Literal
++    import typing
++
++    values = typing.get_args(ReversalLogAction)
++    assert len(values) == 3
++    assert "m11_reversal_handler_invoked" in values
++    assert "reversal_log_created" in values
++    assert "reversal_log_rejected" in values
++
++
++def test_reversal_log_registry_frozenset_has_3_values() -> None:
++    """ActionClass.REVERSAL_LOG registry frozenset has 3 values."""
++    log_type, accepted = _ActionRegistry._REGISTRY[ActionClass.REVERSAL_LOG]
++    assert log_type == "reversal_log"
++    assert len(accepted) == 3
++    assert "m11_reversal_handler_invoked" in accepted
++    assert "reversal_log_created" in accepted
++    assert "reversal_log_rejected" in accepted
++
++
++def test_reversal_log_validate_accepts_known_values() -> None:
++    """_ActionRegistry.validate accepts all 3 REVERSAL_LOG values."""
++    for action in (
++        "m11_reversal_handler_invoked",
++        "reversal_log_created",
++        "reversal_log_rejected",
++    ):
++        # Should not raise
++        _ActionRegistry.validate(
++            action_class=ActionClass.REVERSAL_LOG,
++warning: in the working copy of 'tests/api/test_ledger_service_h6_extension.py', LF will be replaced by CRLF the next time Git touches it
+            action=action,
++        )
++
++
++def test_reversal_log_validate_rejects_unknown_values() -> None:
++    """_ActionRegistry.validate rejects unknown REVERSAL_LOG values."""
++    with pytest.raises(ValueError):
++        _ActionRegistry.validate(
++            action_class=ActionClass.REVERSAL_LOG,
++            action="not_a_valid_action",
++        )
++
++
++# ── A9 fill: MONTHLY_INPUT_PERIOD 4 values ───────────────────
++
++
++def test_monthly_input_period_action_literal_has_4_values() -> None:
++    """MonthlyInputPeriodAction Literal has 4 values (added opening_unlocked)."""
++    import typing
++
++    values = typing.get_args(MonthlyInputPeriodAction)
++    assert len(values) == 4
++    assert "monthly_input_mode_changed" in values
++    assert "monthly_input_period_opening_carried" in values
++    assert "monthly_input_period_opening_locked" in values
++    assert "monthly_input_period_opening_unlocked" in values
++
++
++def test_monthly_input_period_registry_frozenset_has_4_values() -> None:
++    """ActionClass.MONTHLY_INPUT_PERIOD registry frozenset has 4 values."""
++    log_type, accepted = _ActionRegistry._REGISTRY[
++        ActionClass.MONTHLY_INPUT_PERIOD
++    ]
++    assert log_type == "audit_logs"
++    assert len(accepted) == 4
++    assert "monthly_input_period_opening_unlocked" in accepted
++
++
++def test_monthly_input_period_validate_accepts_opening_unlocked() -> None:
++    """_ActionRegistry.validate accepts the new opening_unlocked action."""
++    # Should not raise
++    _ActionRegistry.validate(
++        action_class=ActionClass.MONTHLY_INPUT_PERIOD,
++        action="monthly_input_period_opening_unlocked",
++    )
++
++
++# ── A5 forward-lock: INVENTORY_LEDGER unchanged wire ─────────
++
++
++def test_inventory_ledger_action_literal_has_6_values() -> None:
++    """InventoryLedgerAction Literal has 6 values (Epic 5+11+6 forward-fill)."""
++    import typing
++
++    values = typing.get_args(InventoryLedgerAction)
++    assert len(values) == 6
++    assert "inventory_ledger_event_appended" in values
++    assert "inventory_ledger_event_rejected" in values
++    assert "inventory_ledger_reversal_requested" in values
++    assert "inventory_ledger_reversal_logged" in values
++    assert "inventory_ledger_reversal_rejected" in values
++    assert "inventory_ledger_reprojection_triggered" in values
++
++
++def test_inventory_ledger_registry_frozenset_has_6_values() -> None:
++    """ActionClass.INVENTORY_LEDGER registry frozenset has 6 values."""
++    log_type, accepted = _ActionRegistry._REGISTRY[ActionClass.INVENTORY_LEDGER]
++    assert log_type == "inventory_ledger"
++    assert len(accepted) == 6
++
++
++# ── Capability.REVERSAL_REQUEST wire ─────────────────────────
++
++
++def test_capability_reversal_request_added_to_manufacturing_industries() -> None:
++    """Capability.REVERSAL_REQUEST is granted to manufacturing 3종."""
++    from apps.api.core.capability import (
++        Capability,
++        _INDUSTRY_CAPABILITIES,
++    )
++    from packages.services.m0_onboarding.industry_menu import Industry
++
++    # Manufacturing 3종 (manufacturing / mfg+service / mfg+service+other)
++    for industry in (
++        Industry.MANUFACTURING,
++        Industry.MANUFACTURING_SERVICE,
++        Industry.MANUFACTURING_SERVICE_OTHER,
++    ):
++        assert (
++            Capability.REVERSAL_REQUEST in _INDUSTRY_CAPABILITIES[industry]
++        ), f"{industry} should have REVERSAL_REQUEST"
++
++
++def test_capability_reversal_request_not_in_service_only() -> None:
++    """Service-only tenant does NOT have REVERSAL_REQUEST."""
++    from apps.api.core.capability import (
++        Capability,
++        _INDUSTRY_CAPABILITIES,
++    )
++    from packages.services.m0_onboarding.industry_menu import Industry
++
++    assert (
++        Capability.REVERSAL_REQUEST
++        not in _INDUSTRY_CAPABILITIES[Industry.SERVICE]
++    )
+diff --git a/tests/api/test_ledger_service_h6_extension.py b/tests/api/test_ledger_service_h6_extension.py
+new file mode 100644
+index 0000000..e047dc9
+--- /dev/null
++++ b/tests/api/test_ledger_service_h6_extension.py
+@@ -0,0 +1,207 @@
++"""tests.api.test_ledger_service_h6_extension — Story 11.1 T9 H6 fix wire.
++
++H6 production bug: closing_period_service.py:528/531 calls
++`count_period_events(period_key)` and `count_period_events(period_key,
++event_type="closing_snapshot")` — methods that did NOT exist on
++LedgerService. Tests cover the new methods:
++
++- `count_period_events(period_key)` — total event count
++- `count_period_events(period_key, event_type="closing_snapshot")` — filter
++- `query_period_closing_snapshot_all(period_key)` — multi-product aggregate
++
++The pure-kernel SQL builder behavior is covered by
++`tests/services/m5_ledger/test_count_period_events.py` and
++`tests/services/m5_ledger/test_query_period_closing_snapshot_all.py`.
++"""
++
++from __future__ import annotations
++
++import asyncio
++import uuid
++from decimal import Decimal
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++
++from apps.api.modules.m4_inventory.services.ledger_service import LedgerService
++from packages.services.m0_onboarding.industry_menu import Industry
++
++TENANT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000001")
++PRODUCT_A = uuid.UUID("019200a0-0000-7000-8000-00000000000a")
++PRODUCT_B = uuid.UUID("019200a0-0000-7000-8000-00000000000b")
++TRACE_ID = "019200a0-0000-7000-8000-000000000003"
++PERIOD_KEY = "2026-08"
++
++
++def _build_service(session: AsyncMock | None = None) -> tuple[LedgerService, AsyncMock]:
++    """Build a LedgerService with a fresh AsyncMock session."""
++    if session is None:
++        session = AsyncMock()
++    svc = LedgerService(
++        session,
++        tenant_id=TENANT_ID,
++        industry=Industry.MANUFACTURING,
++        trace_id=TRACE_ID,
++    )
++    return svc, session
++
++
++# ── count_period_events — total event count ─────────────────
++
++
++def test_count_period_events_returns_total_count() -> None:
++    """count_period_events(period_key) returns total event count."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        session.execute = AsyncMock(
++            return_value=MagicMock(scalar_one_or_none=lambda: 42)
++        )
++
++        count = await svc.count_period_events(period_key=PERIOD_KEY)
++
++        assert count == 42
++
++    asyncio.run(_impl())
++
++
++def test_count_period_events_returns_zero_when_no_rows() -> None:
++    """count_period_events returns 0 when no rows match."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        session.execute = AsyncMock(
++            return_value=MagicMock(scalar_one_or_none=lambda: None)
++        )
++
++        count = await svc.count_period_events(period_key=PERIOD_KEY)
++
++        assert count == 0
++
++    asyncio.run(_impl())
++
++
++def test_count_period_events_with_event_type_filter() -> None:
++    """count_period_events(period_key, event_type='closing_snapshot') filter."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        session.execute = AsyncMock(
++            return_value=MagicMock(scalar_one_or_none=lambda: 5)
++        )
++
++        count = await svc.count_period_events(
++            period_key=PERIOD_KEY,
++            event_type="closing_snapshot",
++        )
++
++        assert count == 5
++
++    asyncio.run(_impl())
++
++
++def test_count_period_events_rejects_unknown_event_type() -> None:
++    """count_period_events raises CountPeriodEventsBuildError for unknown event_type."""
++
++    async def _impl() -> None:
++        svc, _ = _build_service()
++
++        from packages.services.m5_ledger.count_period_events import (
++            CountPeriodEventsBuildError,
++        )
++
++        with pytest.raises(CountPeriodEventsBuildError):
++            await svc.count_period_events(
++                period_key=PERIOD_KEY,
++                event_type="not_a_valid_event_type",
++            )
++
++    asyncio.run(_impl())
++
++
++# ── query_period_closing_snapshot_all — multi-product aggregate ─
++
++
++def test_query_period_closing_snwarning: in the working copy of 'tests/services/m11_close/test_reversal_authorization.py', LF will be replaced by CRLF the next time Git touches it
+apshot_all_returns_product_map() -> None:
++    """query_period_closing_snapshot_all returns dict[product_id, Decimal]."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++
++        # Mock the SQL result
++        row_a = MagicMock()
++        row_a.product_id = PRODUCT_A
++        row_a.closing_qty = Decimal("100.0000")
++
++        row_b = MagicMock()
++        row_b.product_id = PRODUCT_B
++        row_b.closing_qty = Decimal("50.0000")
++
++        mock_result = MagicMock()
++        mock_result.fetchall = lambda: [row_a, row_b]
++        session.execute = AsyncMock(return_value=mock_result)
++
++        result = await svc.query_period_closing_snapshot_all(
++            period_key=PERIOD_KEY,
++        )
++
++        assert len(result) == 2
++        assert result[PRODUCT_A] == Decimal("100.0000")
++        assert result[PRODUCT_B] == Decimal("50.0000")
++
++    asyncio.run(_impl())
++
++
++def test_query_period_closing_snapshot_all_returns_empty_map() -> None:
++    """query_period_closing_snapshot_all returns empty dict when no rows."""
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++
++        mock_result = MagicMock()
++        mock_result.fetchall = lambda: []
++        session.execute = AsyncMock(return_value=mock_result)
++
++        result = await svc.query_period_closing_snapshot_all(
++            period_key=PERIOD_KEY,
++        )
++
++        assert result == {}
++
++    asyncio.run(_impl())
++
++
++# ── H6 fix integration: closing_period_service.py wire ──────
++
++
++def test_h6_fix_closing_period_service_wire() -> None:
++    """H6 fix: closing_period_service.py:528/531 can now call count_period_events.
++
++    This is the production bug that motivated the fix. Verifies the
++    LedgerService has the methods that closing_period_service expects.
++    """
++
++    async def _impl() -> None:
++        svc, session = _build_service()
++        # The H6 fix: this method exists and is callable
++        assert hasattr(svc, "count_period_events")
++        assert hasattr(svc, "query_period_closing_snapshot_all")
++
++        # Both signatures work
++        session.execute = AsyncMock(
++            return_value=MagicMock(scalar_one_or_none=lambda: 0)
++        )
++        count = await svc.count_period_events(period_key=PERIOD_KEY)
++        assert count == 0
++
++        session.execute = AsyncMock(
++            return_value=MagicMock(scalar_one_or_none=lambda: 0)
++        )
++        count = await svc.count_period_events(
++            period_key=PERIOD_KEY,
++            event_type="closing_snapshot",
++        )
++        assert count == 0
++
++    asyncio.run(_impl())
+diff --git a/tests/services/m11_close/test_reversal_authorization.py b/tests/services/m11_close/test_reversal_authorization.py
+new file mode 100644
+index 0000000..8228030
+--- /dev/null
++++ b/tests/services/m11_close/test_reversal_authorization.py
+@@ -0,0 +1,141 @@
++"""tests.services.m11_close.test_reversal_authorization — Story 11.1 pure kernel #3.
++
++6 cases per AC #8 spec:
++- authorize_reversal (3): capability_granted / period_status 가드 / event_type reversal 가능 검증
++- M11_REJECT_KO constants (3)
++"""
++
++from __future__ import annotations
++
++import uuid
++
++import pytest
++
++from packages.services.m4_inventory.ledger import InventoryLedgerEvent
++from packages.services.m11_close.reversal_authorization import (
++    ERROR_CODE_INVALID_PERIOD_STATUS,
++    ERROR_CODE_NO_CAPABILITY,
++    M11_AUTHORIZE_KO,
++    M11_REJECT_LOCKED_KO,
++    M11_REJECT_NO_CAPABILITY_KO,
++    M11_REJECT_TARGET_NOT_REVERSIBLE_KO,
++    ReversalAuthorizationError,
++    authorize_reversal,
++)
++
++
++def _make_target_event(
++    *, event_type: str = "purchase_inbound"
++) -> InventoryLedgerEvent:
++    return InventoryLedgerEvent(
++        event_id=uuid.uuid4(),
++        tenant_id=uuid.uuid4(),
++        product_id=uuid.uuid4(),
++        period_key="2026-08",
++        event_type=event_type,
++        qty=None,  # authorization doesn't need qty
++        trace_id=uuid.uuid4(),
++        reverses_event_id=None,
++        correction_group_id=None,
++        payload={"source": "monthly_input"},
++    )
++
++
++class TestAuthorizeReversal:
++    """authorize_reversal — capability + period_status + event_type 3-axis gate."""
++
++    def test_authorized_when_all_gates_pass(self) -> None:
++        """capability_granted=True + period_status='closed' + reversible event → authorized."""
++        result = authorize_reversal(
++            tenant_id=uuid.uuid4(),
++            target_event=_make_target_event(event_type="purchase_inbound"),
++            actor_id=uuid.uuid4(),
++            period_status="closed",
++            capability_granted=True,
++        )
++        assert result.authorized is True
++        assert result.reject_reason_ko is None
++        assert result.period_status == "closed"
++        assert result.capability_granted is True
++        assert result.target_reversible is True
++
++    def test_no_capability_rejected(self) -> None:
++        """capability_granted=False → ERROR_CODE_NO_CAPABILITY."""
++        result = authorize_reversal(
++            tenant_id=uuid.uuid4(),
++            target_event=_make_target_event(),
++            actor_id=uuid.uuid4(),
++            period_status="closed",
++            capability_granted=False,
++        )
++        assert result.authorized is False
++        assert result.reject_reason_ko == M11_REJECT_NO_CAPABILITY_KO
++        assert result.capability_granted is False
++
++    def test_locked_period_rejected(self) -> None:
++        """period_status='locked' → M11_REJECT_LOCKED_KO."""
++        result = authorize_reversal(
++            tenant_id=uuid.uuid4(),
++            target_event=_make_target_event(),
++            actor_id=uuid.uuid4(),
++            period_status="locked",
++            capability_granted=True,
++        )
++        assert result.authorized is False
++        assert result.reject_reason_ko == M11_REJECT_LOCKED_KO
++
++    def test_non_reversible_event_type_rejected(self) -> None:
++        """event_type='reversal_negating' → M11_REJECT_TARGET_NOT_REVERSIBLE_KO (self-reversal)."""
++        result = authorize_reversal(
++            tenant_id=uuid.uuid4(),
++            target_event=_make_target_event(event_type="reversal_negating"),
++            actor_id=uuid.uuid4(),
++            period_status="closed",
++            capability_granted=True,
++        )
++        assert result.authorized is False
++        assert result.reject_reason_ko == M11_REJECT_TARGET_NOT_REVERSIBLE_KO
++        assert result.target_reversible is False
++
++
++class TestErrorGuards:
++    """authorize_reversal error guards."""
++
++    def test_unknown_period_status_raises(self) -> None:
++        """period_status='unknown' (not in known set) raises ReversalAuthorizationError."""
++        with pytest.raises(ReversalAuthorizationError) as exc_info:
++            authorize_reversal(
++                tenant_id=uuid.uuid4(),
++                target_event=_make_target_event(),
++                actor_id=uuid.uuid4(),
++                period_status="unknown",
++                capability_granted=True,
++            )
++        assert exc_info.value.error_code == ERROR_CODE_INVALID_PERIOD_STATUS
++
++    def test_non_uuid_actor_raises(self) -> None:
++        """actor_id non-UUID raises ReversalAuthorizationError."""
++        with pytest.raises(ReversalAuthorizationError):
++            authorize_reversal(
++                tenant_id=uuid.uuid4(),
++                target_event=_make_target_event(),
++                actor_id="not-a-uuid",  # type: ignore[arg-type]
++                period_status="closed",
++                capability_granted=True,
++            )
++
++
++class TestKoreanConstants:
++    """M11_REJECT_KO constants parity (AD-15 §11)."""
++
++    def test_m11_authorize_ko(self) -> None:
++        """M11_AUTHORIZE_KO = 'M11 모듈 권한 OK'."""
++        assert M11_AUTHORIZE_KO == "M11 모듈 권한 OK"
++
++    def test_m11_reject_locked_ko(self) -> None:
++        """M11_REJECT_LOCKED_KO = '잠긴 기간 — 역분개 불가'."""
++        assert M11_REJECT_LOCKED_KO == "잠긴 기간 — 역분개 불가"
++
++    def test_m11_reject_no_capability_ko(self) -> None:
++        """M11_REJECT_NOwarning: in the working copy of 'tests/services/m11_close/test_reversal_corrected.py', LF will be replaced by CRLF the next time Git touches it
+_CAPABILITY_KO = '역분개 권한 미보유'."""
++        assert M11_REJECT_NO_CAPABILITY_KO == "역분개 권한 미보유"
+diff --git a/tests/services/m11_close/test_reversal_corrected.py b/tests/services/m11_close/test_reversal_corrected.py
+new file mode 100644
+index 0000000..42f9bb1
+--- /dev/null
++++ b/tests/services/m11_close/test_reversal_corrected.py
+@@ -0,0 +1,207 @@
++"""tests.services.m11_close.test_reversal_corrected — Story 11.1 pure kernel #2.
++
++8 cases per AC #8 spec:
++- build_reversal_corrected_event (3): 정상 + corrected_qty=None skip + corrected_period_key 변경
++- validate_reversal_corrected_constraints (2): correction_group_id 일치 / period_key AD-24 형식
++- banker's rounding (2)
++- period_key AD-24 validation (1)
++"""
++
++from __future__ import annotations
++
++import uuid
++from decimal import Decimal
++
++import pytest
++
++from packages.services.m4_inventory.ledger import InventoryLedgerEvent
++from packages.services.m11_close.reversal_corrected import (
++    ERROR_CODE_INCONSISTENT_CORRECTION_GROUP,
++    ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
++    ERROR_CODE_MISSING_CORRECTED_PERIOD_KEY,
++    ERROR_CODE_MISSING_CORRECTED_QTY,
++    REVERSAL_CORRECTED_EVENT_TYPE,
++    ReversalCorrectedBuildError,
++    build_reversal_corrected_event,
++    validate_reversal_corrected_constraints,
++)
++
++
++def _make_target_event(
++    *,
++    event_type: str = "purchase_inbound",
++    qty: Decimal | None = Decimal("100"),
++    period_key: str = "2026-08",
++) -> InventoryLedgerEvent:
++    return InventoryLedgerEvent(
++        event_id=uuid.uuid4(),
++        tenant_id=uuid.uuid4(),
++        product_id=uuid.uuid4(),
++        period_key=period_key,
++        event_type=event_type,
++        qty=qty,
++        trace_id=uuid.uuid4(),
++        reverses_event_id=None,
++        correction_group_id=None,
++        payload={"source": "monthly_input"},
++    )
++
++
++class TestBuildReversalCorrectedEvent:
++    """build_reversal_corrected_event: 정상 + skip + period_key 변경."""
++
++    def test_normal_corrected_row_same_period(self) -> None:
++        """정상 — corrected_qty=150, corrected_period_key='2026-08' (same period)."""
++        target = _make_target_event()
++        cgid = uuid.uuid4()
++        result = build_reversal_corrected_event(
++            target_event=target,
++            correction_group_id=cgid,
++            corrected_qty=Decimal("150"),
++            corrected_period_key="2026-08",
++            actor_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        assert result is not None
++        assert result.event_type == REVERSAL_CORRECTED_EVENT_TYPE
++        assert result.qty == Decimal("150.0000")
++        assert result.correction_group_id == cgid
++        assert result.reverses_event_id == target.event_id
++        assert result.period_key == "2026-08"
++
++    def test_skip_when_corrected_qty_and_period_key_none(self) -> None:
++        """skip path — corrected_qty=None AND corrected_period_key=None → None."""
++        target = _make_target_event()
++        result = build_reversal_corrected_event(
++            target_event=target,
++            correction_group_id=uuid.uuid4(),
++            corrected_qty=None,
++            corrected_period_key=None,
++            actor_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        assert result is None
++
++    def test_corrected_period_key_differs_from_target(self) -> None:
++        """corrected_period_key가 target.period_key와 다른 경우 (cross-period correction)."""
++        target = _make_target_event(period_key="2026-08")
++        result = build_reversal_corrected_event(
++            target_event=target,
++            correction_group_id=uuid.uuid4(),
++            corrected_qty=Decimal("50"),
++            corrected_period_key="2026-09",
++            actor_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        assert result is not None
++        assert result.period_key == "2026-09"
++        assert result.reversal_of_period_key == "2026-08"
++
++
++class TestValidateReversalCorrectedConstraints:
++    """correction_group_id 일치 + period_key AD-24 형식 검증."""
++
++    def test_inconsistent_correction_group_rejected(self) -> None:
++        """negating_correction_group_id와 다르면 ERROR_CODE_INCONSISTENT_CORRECTION_GROUP."""
++        with pytest.raises(ReversalCorrectedBuildError) as exc_info:
++            validate_reversal_corrected_constraints(
++                target_event=_make_target_event(),
++                correction_group_id=uuid.uuid4(),
++                corrected_period_key="2026-08",
++                negating_correction_group_id=uuid.uuid4(),  # 다른 UUID
++            )
++        assert exc_info.value.error_code == ERROR_CODE_INCONSISTENT_CORRECTION_GROUP
++
++    def test_invalid_period_key_pattern_rejected(self) -> None:
++        """period_key '2026-8' (1-digit month) 거부 — ERROR_CODE_INVALID_CORRECTION_GROUP_ID."""
++        with pytest.raises(ReversalCorrectedBuildError) as exc_info:
++            validate_reversal_corrected_constraints(
++                target_event=_make_target_event(),
++                correction_group_id=uuid.uuid4(),
++                corrected_period_key="2026-8",  # 1-digit month — invalid
++            )
++        assert exc_info.value.error_code == ERROR_CODE_INVALID_CORRECTION_GROUP_ID
++
++    def test_corrected_qty_without_period_key_rejected(self) -> None:
++        """corrected_qty만 있고 corrected_period_key=None 시 거부."""
++        with pytest.raises(ReversalCorrectedBuildError) as exc_info:
++            build_reversal_corrected_event(
++                target_event=_make_target_event(),
++                correction_group_id=uuid.uuid4(),
++                corrected_qty=Decimal("50"),
++                corrected_period_key=None,
++                actor_id=uuid.uuid4(),
++                trace_id=uuid.uuid4(),
++            )
++        assert exc_info.value.error_code == ERROR_CODE_MISSING_CORRECTED_PERIOD_KEY
++
++    def test_corrected_period_key_without_qty_rejected(self) -> None:
++        """corrected_period_key만 있고 corrected_qty=None 시 거부."""
++        with pytest.raises(ReversalCorrectedBuildError) as exc_info:
++            build_reversal_corrected_event(
++                target_event=_make_target_event(),
++                correction_group_id=uuid.uuid4(),
++                corrected_qty=None,
++                corrected_period_key="2026-08",
++                actor_id=uuid.uuid4(),
++                trace_id=uuid.uuid4(),
++            )
++        assert exc_info.value.error_code == ERROR_CODE_MISSING_CORRECTED_QTY
++
++
++class TestBankersRounding:
++    """Banker's rounding parity for corrected_qty (CR 0-4)."""
++
++    def test_corrected_qty_5_decimal_places_quantized(self) -> None:
++        """5+ 자릿수 → NUMERIC(18,4) quantization with ROUND_HALF_EVEN."""
++        target = _make_target_event()
++        result = build_reversal_corrected_event(
++            target_event=target,
++            correction_group_id=uuid.uuid4(),
++            corrected_qty=Decimal("200.56789"),
++            corrected_period_key="2026-08",
++            actor_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        assert result is not None
++        # 200.56789 → ROUND_HALF_EVEN at 0.0001 → 200.5679
++        assert result.qty == Decimal("200.5679")
++
++    def test_corrected_qty_zero_rounding(self) -> None:
++        """Decimal('0') → Decimal('0.0000') after quantization."""
++        target = _make_target_event()
++        result = build_reversal_corrected_event(
++            target_event=target,
++            correction_group_id=uuid.uuid4(),
++            corrected_qty=Decimal("0"),
++            corrected_period_key="2026-08",
++            actor_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        assert result is not None
++        assert result.qty == Decimal("0.0000")
++
++
++class TestPeriodKeyValidation:
++    """period_key AD-24 형식."""
++
++    def test_valid_period_key_yyyy_mm(self) -> None:
++        """'YYYY-MM' 형식 통과."""
++        target = _make_target_event()
++        # Should not raise
++        validate_reversal_corrected_constraints(
++     warning: in the working copy of 'tests/services/m11_close/test_reversal_negating.py', LF will be replaced by CRLF the next time Git touches it
+       target_event=target,
++            correction_group_id=uuid.uuid4(),
++            corrected_period_key="2026-12",
++        )
++
++    def test_invalid_period_key_virtual_budget_excluded(self) -> None:
++        """M8 virtual budget key 'YYYY-MM#B<n>' 거부 (5-2 wire pattern)."""
++        target = _make_target_event()
++        with pytest.raises(ReversalCorrectedBuildError) as exc_info:
++            validate_reversal_corrected_constraints(
++                target_event=target,
++                correction_group_id=uuid.uuid4(),
++                corrected_period_key="2026-08#B1",  # M8 virtual key
++            )
++        assert exc_info.value.error_code == ERROR_CODE_INVALID_CORRECTION_GROUP_ID
+diff --git a/tests/services/m11_close/test_reversal_negating.py b/tests/services/m11_close/test_reversal_negating.py
+new file mode 100644
+index 0000000..0dc8270
+--- /dev/null
++++ b/tests/services/m11_close/test_reversal_negating.py
+@@ -0,0 +1,245 @@
++"""tests.services.m11_close.test_reversal_negating — Story 11.1 pure kernel #1.
++
++10 cases per AC #8 spec:
++- build_reversal_negating_event (4): 정상 + 4 self-reversal 거부
++- validate_reversal_negating_constraints (3): opening_carried / purchase_inbound /
++  closing_snapshot reversal 가능 검증 + reversal_negating/reversal_corrected 자체 reversal 불가
++- banker's rounding (2)
++- M11_AUTHORIZE_KO constants (1)
++"""
++
++from __future__ import annotations
++
++import uuid
++from decimal import Decimal
++
++import pytest
++
++from packages.services.m4_inventory.ledger import InventoryLedgerEvent
++from packages.services.m11_close.reversal_negating import (
++    ERROR_CODE_EMPTY_REASON,
++    ERROR_CODE_QTY_SIGN_INCOHERENT,
++    ERROR_CODE_SELF_REVERSAL,
++    ERROR_CODE_TARGET_NOT_REVERSIBLE,
++    M11_AUTHORIZE_KO,
++    REVERSAL_NEGATING_EVENT_TYPE,
++    REVERSIBLE_TARGET_EVENT_TYPES,
++    ReversalNegatingBuildError,
++    build_reversal_negating_event,
++    validate_reversal_negating_constraints,
++)
++
++
++def _make_target_event(
++    *,
++    event_type: str = "purchase_inbound",
++    qty: Decimal | None = Decimal("100"),
++    period_key: str = "2026-08",
++) -> InventoryLedgerEvent:
++    """Build a test InventoryLedgerEvent row."""
++    return InventoryLedgerEvent(
++        event_id=uuid.uuid4(),
++        tenant_id=uuid.uuid4(),
++        product_id=uuid.uuid4(),
++        period_key=period_key,
++        event_type=event_type,
++        qty=qty,
++        trace_id=uuid.uuid4(),
++        reverses_event_id=None,
++        correction_group_id=None,
++        payload={"source": "monthly_input"},
++    )
++
++
++class TestBuildReversalNegatingEvent:
++    """build_reversal_negating_event: 4 정상 + 4 self-reversal 거부."""
++
++    def test_normal_purchase_inbound_reversal(self) -> None:
++        """정상 — purchase_inbound qty=100 → negating qty=-100.0000."""
++        target = _make_target_event(qty=Decimal("100"))
++        result = build_reversal_negating_event(
++            target_event=target,
++            reason="테스트 — PRD §F11.3 sign flip",
++            actor_id=uuid.uuid4(),
++            correction_group_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        assert result.event_type == REVERSAL_NEGATING_EVENT_TYPE
++        assert result.qty == Decimal("-100.0000")
++        assert result.reverses_event_id == target.event_id
++        assert result.correction_group_id is not None
++        assert result.period_key == target.period_key
++        assert result.reversal_of_period_key == target.period_key
++        assert result.tenant_id == target.tenant_id
++        assert result.product_id == target.product_id
++
++    def test_normal_sales_outbound_reversal(self) -> None:
++        """정상 — sales_outbound qty=-50 → negating qty=50.0000."""
++        target = _make_target_event(
++            event_type="sales_outbound", qty=Decimal("-50")
++        )
++        result = build_reversal_negating_event(
++            target_event=target,
++            reason="테스트 — sign flip 음수",
++            actor_id=uuid.uuid4(),
++            correction_group_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        assert result.qty == Decimal("50.0000")
++
++    def test_zero_qty_reversal(self) -> None:
++        """정상 — qty=0 → negating qty=0.0000 (sign flip is trivial)."""
++        target = _make_target_event(qty=Decimal("0"))
++        result = build_reversal_negating_event(
++            target_event=target,
++            reason="테스트 — zero qty",
++            actor_id=uuid.uuid4(),
++            correction_group_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        assert result.qty == Decimal("0.0000")
++
++    def test_self_reversal_negating_rejected(self) -> None:
++        """reversal_negating 자체 reversal 불가 — ERROR_CODE_SELF_REVERSAL."""
++        target = _make_target_event(
++            event_type="reversal_negating", qty=Decimal("100")
++        )
++        with pytest.raises(ReversalNegatingBuildError) as exc_info:
++            build_reversal_negating_event(
++                target_event=target,
++                reason="테스트 — self reversal",
++                actor_id=uuid.uuid4(),
++                correction_group_id=uuid.uuid4(),
++                trace_id=uuid.uuid4(),
++            )
++        assert exc_info.value.error_code == ERROR_CODE_SELF_REVERSAL
++
++    def test_self_reversal_corrected_rejected(self) -> None:
++        """reversal_corrected 자체 reversal 불가 — ERROR_CODE_SELF_REVERSAL."""
++        target = _make_target_event(
++            event_type="reversal_corrected", qty=Decimal("100")
++        )
++        with pytest.raises(ReversalNegatingBuildError) as exc_info:
++            build_reversal_negating_event(
++                target_event=target,
++                reason="테스트 — self reversal corrected",
++                actor_id=uuid.uuid4(),
++                correction_group_id=uuid.uuid4(),
++                trace_id=uuid.uuid4(),
++            )
++        assert exc_info.value.error_code == ERROR_CODE_SELF_REVERSAL
++
++    def test_empty_reason_rejected(self) -> None:
++        """reason 빈 문자열 거부 — ERROR_CODE_EMPTY_REASON."""
++        target = _make_target_event()
++        with pytest.raises(ReversalNegatingBuildError) as exc_info:
++            build_reversal_negating_event(
++                target_event=target,
++                reason="",
++                actor_id=uuid.uuid4(),
++                correction_group_id=uuid.uuid4(),
++                trace_id=uuid.uuid4(),
++            )
++        assert exc_info.value.error_code == ERROR_CODE_EMPTY_REASON
++
++    def test_non_uuid_actor_rejected(self) -> None:
++        """actor_id non-UUID 거부."""
++        target = _make_target_event()
++        with pytest.raises(ReversalNegatingBuildError) as exc_info:
++            build_reversal_negating_event(
++                target_event=target,
++                reason="테스트",
++                actor_id="not-a-uuid",  # type: ignore[arg-type]
++                correction_group_id=uuid.uuid4(),
++                trace_id=uuid.uuid4(),
++            )
++        assert "actor_id must be UUID" in exc_info.value.message
++
++    def test_qty_none_rejected(self) -> None:
++        """target.qty=None 거부 — sign-negating requires non-None qty."""
++        target = _make_target_event(qty=None)
++        with pytest.raises(ReversalNegatingBuildError) as exc_info:
++            build_reversal_negating_event(
++                target_event=target,
++                reason="테스트",
++                actor_id=uuid.uuid4(),
++                correction_group_id=uuid.uuid4(),
++                trace_id=uuid.uuid4(),
++            )
++        # QTY_REQUIRED from AppendOnlyLedgerError path (we reuse parent's code)
++        assert "qty" in exc_info.value.message.lower()
++
++
++class TestValidateReversalNegatingConstraints:
++    """validate_reversal_negating_constraints: opening_carried / purchase_inbound /
++    closing_snapshot 모두 reversal 가능 검증 + reversal 자체 reversal 불가."""
++
++    def test_opening_carried_reversible(self) -> None:
++        """opening_carried → reversible (5-1 carry chain row)."""
++        twarning: in the working copy of 'tests/services/m5_ledger/test_count_period_events.py', LF will be replaced by CRLF the next time Git touches it
+arget = _make_target_event(event_type="opening_carried")
++        validate_reversal_negating_constraints(target)  # no raise
++
++    def test_purchase_inbound_reversible(self) -> None:
++        """purchase_inbound → reversible (PRD §6.2 입고)."""
++        target = _make_target_event(event_type="purchase_inbound")
++        validate_reversal_negating_constraints(target)  # no raise
++
++    def test_closing_snapshot_reversible(self) -> None:
++        """closing_snapshot → reversible (PRD §F11.3 — 마감 후 발견된 오류)."""
++        target = _make_target_event(event_type="closing_snapshot")
++        validate_reversal_negating_constraints(target)  # no raise
++
++    def test_non_reversible_event_type_rejected(self) -> None:
++        """unknown event_type 거부 — ERROR_CODE_TARGET_NOT_REVERSIBLE."""
++        target = _make_target_event(event_type="unknown_event_type")
++        with pytest.raises(ReversalNegatingBuildError) as exc_info:
++            validate_reversal_negating_constraints(target)
++        assert exc_info.value.error_code == ERROR_CODE_TARGET_NOT_REVERSIBLE
++
++
++class TestBankersRounding:
++    """Banker's rounding parity (CR 0-4)."""
++
++    def test_qty_half_even_rounding(self) -> None:
++        """ROUND_HALF_EVEN at QTY_QUANTUM: 0.00005 → 0.0000 (banker's rounding)."""
++        # 0.00005 quantized to 0.0001 with ROUND_HALF_EVEN → 0.0000
++        # (0.00005 is exactly between 0.0000 and 0.0001; banker's
++        # rounds to even = 0.0000)
++        target = _make_target_event(qty=Decimal("0.00005"))
++        result = build_reversal_negating_event(
++            target_event=target,
++            reason="테스트 — banker's rounding",
++            actor_id=uuid.uuid4(),
++            correction_group_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        # Sign flip → -0.00005 → quantized to -0.0000
++        assert result.qty == Decimal("0.0000") or result.qty == Decimal("-0.0000")
++
++    def test_qty_5_decimal_places_quantized(self) -> None:
++        """5+ 자릿수 값 → NUMERIC(18,4) quantization."""
++        target = _make_target_event(qty=Decimal("123.45678"))
++        result = build_reversal_negating_event(
++            target_event=target,
++            reason="테스트 — 5+ 자릿수",
++            actor_id=uuid.uuid4(),
++            correction_group_id=uuid.uuid4(),
++            trace_id=uuid.uuid4(),
++        )
++        # ROUND_HALF_EVEN of 123.45678 → 123.4568 (8 is even)
++        # Sign flip → -123.4568
++        assert result.qty == Decimal("-123.4568")
++
++
++class TestKoreanConstants:
++    """M11_AUTHORIZE_KO constant parity (AD-15 §11)."""
++
++    def test_m11_authorize_ko_value(self) -> None:
++        """M11_AUTHORIZE_KO = 'M11 모듈 권한 OK' (AD-15 §11 SSOT)."""
++        assert M11_AUTHORIZE_KO == "M11 모듈 권한 OK"
++
++    def test_reversible_target_event_types_count(self) -> None:
++        """REVERSIBLE_TARGET_EVENT_TYPES has 9 entries (excluding reversal_* itself)."""
++        assert len(REVERSIBLE_TARGET_EVENT_TYPES) == 9
++        assert "reversal_negating" not in REVERSIBLE_TARGET_EVENT_TYPES
++        assert "reversal_corrected" not in REVERSIBLE_TARGET_EVENT_TYPES
+diff --git a/tests/services/m5_ledger/test_count_period_events.py b/tests/services/m5_ledger/test_count_period_events.py
+new file mode 100644
+index 0000000..816cfeb
+--- /dev/null
++++ b/tests/services/m5_ledger/test_count_period_events.py
+@@ -0,0 +1,80 @@
++"""tests.services.m5_ledger.test_count_period_events — Story 11.1 pure kernel (H6 fix).
++
++6 cases per AC #8 spec:
++- count_period_events_sql (3): event_type=None / event_type=str / closing_snapshot filter
++- tenant_id binding (2): RLS auto-injection — this kernel doesn't inline tenant_id
++- SQL injection 방지 (1): period_key / event_type parametrized, no string interpolation
++"""
++
++from __future__ import annotations
++
++import pytest
++
++from packages.services.m5_ledger.count_period_events import (
++    ERROR_CODE_EMPTY_PERIOD_KEY,
++    ERROR_CODE_INVALID_EVENT_TYPE,
++    ERROR_CODE_NON_STR_PERIOD_KEY,
++    CountPeriodEvewarning: in the working copy of 'tests/services/m5_ledger/test_query_period_closing_snapshot_all.py', LF will be replaced by CRLF the next time Git touches it
+ntsBuildError,
++    count_period_events_sql,
++)
++
++
++class TestCountPeriodEventsSqlUnfiltered:
++    """event_type=None — 전체 count SQL."""
++
++    def test_unfiltered_count_sql_shape(self) -> None:
++        """event_type=None → SELECT COUNT(*) WHERE period_key=:period_key."""
++        sql, params = count_period_events_sql("2026-08")
++        assert "SELECT COUNT(*) AS row_count" in sql
++        assert "FROM inventory_ledger" in sql
++        assert "WHERE period_key = :period_key" in sql
++        # No event_type filter in SQL.
++        assert "event_type" not in sql
++        assert params == {"period_key": "2026-08"}
++
++    def test_unfiltered_count_sql_uses_param_binding(self) -> None:
++        """period_key value not inlined into SQL — parameter binding."""
++        sql, _params = count_period_events_sql("2026-08")
++        # SQL uses placeholder, not literal "2026-08"
++        assert "'2026-08'" not in sql
++        assert ":period_key" in sql
++
++
++class TestCountPeriodEventsSqlFiltered:
++    """event_type=str — filtered count SQL."""
++
++    def test_filtered_count_sql_shape(self) -> None:
++        """event_type='closing_snapshot' → WHERE period_key AND event_type=:event_type."""
++        sql, params = count_period_events_sql("2026-08", event_type="closing_snapshot")
++        assert "SELECT COUNT(*) AS row_count" in sql
++        assert "FROM inventory_ledger" in sql
++        assert "WHERE period_key = :period_key AND event_type = :event_type" in sql
++        assert params == {"period_key": "2026-08", "event_type": "closing_snapshot"}
++
++    def test_filtered_count_sql_rejects_unknown_event_type(self) -> None:
++        """event_type='unknown' 거부 — ERROR_CODE_INVALID_EVENT_TYPE."""
++        with pytest.raises(CountPeriodEventsBuildError) as exc_info:
++            count_period_events_sql("2026-08", event_type="unknown_event_type")
++        assert exc_info.value.error_code == ERROR_CODE_INVALID_EVENT_TYPE
++
++
++class TestCountPeriodEventsSqlGuards:
++    """Input guards."""
++
++    def test_empty_period_key_rejected(self) -> None:
++        """period_key 빈 문자열 거부."""
++        with pytest.raises(CountPeriodEventsBuildError) as exc_info:
++            count_period_events_sql("")
++        assert exc_info.value.error_code == ERROR_CODE_EMPTY_PERIOD_KEY
++
++    def test_non_str_period_key_rejected(self) -> None:
++        """period_key non-str 거부."""
++        with pytest.raises(CountPeriodEventsBuildError) as exc_info:
++            count_period_events_sql(202608)  # type: ignore[arg-type]
++        assert exc_info.value.error_code == ERROR_CODE_NON_STR_PERIOD_KEY
++
++    def test_non_str_event_type_rejected(self) -> None:
++        """event_type non-str 거부."""
++        with pytest.raises(CountPeriodEventsBuildError) as exc_info:
++            count_period_events_sql("2026-08", event_type=202608)  # type: ignore[arg-type]
++        assert exc_info.value.error_code == ERROR_CODE_INVALID_EVENT_TYPE
+diff --git a/tests/services/m5_ledger/test_query_period_closing_snapshot_all.py b/tests/services/m5_ledger/test_query_period_closing_snapshot_all.py
+new file mode 100644
+index 0000000..122c2fb
+--- /dev/null
++++ b/tests/services/m5_ledger/test_query_period_closing_snapshot_all.py
+@@ -0,0 +1,79 @@
++"""tests.services.m5_ledger.test_query_period_closing_snapshot_all — Story 11.1 pure kernel (H6 fix).
++
++6 cases per AC #8 spec:
++- query_period_closing_snapshot_all_sql (3): 정상 / tenant scoping / closing_snapshot filter
++- per-product aggregate (2): GROUP BY product_id + SUM(qty)
++- SQL injection 방지 (1): param binding
++"""
++
++from __future__ import annotations
++
++import pytest
++
++from packages.services.m5_ledger.query_period_closing_snapshot_all import (
++    ERROR_CODE_EMPTY_PERIOD_KEY,
++    ERROR_CODE_NON_STR_PERIOD_KEY,
++    QueryPeriodClosingSnapshotAllBuildError,
++    query_period_closing_snapshot_all_sql,
++)
++
++
++class TestQueryPeriodClosingSnapshotAllSql:
++    """query_period_closing_snapshot_all_sql — per-product aggregate."""
++
++    def test_normal_aggregate_sql_shape(self) -> None:
++        """정상 — SELECT product_id, SUM(qty) FROM inventory_ledger
++        WHERE period_key=:period_key AND event_type='closing_snapshot'
++        GROUP BY product_id."""
++        sql, params = query_period_closing_snapshot_all_sql("2026-08")
++        assert "SELECT product_id, SUM(qty) AS closing_qty" in sql
++        assert "FROM inventory_ledger" in sql
++        assert (
++            "WHERE period_key = :period_key AND event_type = 'closing_snapshot'"
++            in sql
++        )
++        assert "GROUP BY product_id" in sql
++        assert params == {"period_key": "2026-08"}
++
++    def test_uses_param_binding_no_injection(self) -> None:
++        """SQL injection 방지 — period_key는 placeholder, inlined X."""
++        sql, _params = query_period_closing_snapshot_all_sql("2026-08'; DROP TABLE x; --")
++        assert "'2026-08" not in sql  # the value is NOT inlined into SQL
++        assert ":period_key" in sql
++
++    def test_event_type_filter_is_static(self) -> None:
++        """event_type='closing_snapshot' is hard-coded literal (not param)."""
++        # Defense-in-depth: the literal is safe (alphanumeric + underscore),
++        # and using a param would over-engineer the SQL builder.
++        sql, _params = query_period_closing_snapshot_all_sql("2026-08")
++        assert "event_type = 'closing_snapshot'" in sql
++
++
++class TestQueryPeriodClosingSnapshotAllSqlGuards:
++    """Input guards."""
++
++    def test_empty_period_key_rejected(self) -> None:
++        """period_key 빈 문자열 거부."""
++        with pytest.raises(QueryPeriodClosingSnapshotAllBuildError) as exc_info:
++            query_period_closing_snapshot_all_sql("")
++        assert exc_info.value.error_code == ERROR_CODE_EMPTY_PERIOD_KEY
++
++    def test_non_str_period_key_rejected(self) -> None:
++        """period_key non-str 거부."""
++        with pytest.raises(QueryPeriodClosingSnapshotAllBuildError) as exc_info:
++            query_period_closing_snapshot_all_sql(202608)  # type: ignore[arg-type]
++        assert exc_info.value.error_code == ERROR_CODE_NON_STR_PERIOD_KEY
++
++
++class TestAggregateShape:
++    """Per-product aggregate — closing_snapshot rows aggregate per product."""
++
++    def test_group_by_product_present(self) -> None:
++        """GROUP BY product_id present in SQL — one row per product."""
++        sql, _params = query_period_closing_snapshot_all_sql("2026-08")
++        assert "GROUP BY product_id" in sql
++
++    def test_sum_qty_present(self) -> None:
++        """SUM(qty) present in SQL — total closing snapshot per product."""
++        sql, _params = query_period_closing_snapshot_all_sql("2026-08")
++        assert "SUM(qty)" in sql

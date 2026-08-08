@@ -132,6 +132,11 @@ MonthlyInputPeriodAction = Literal[
     # Audit routes to audit_logs (NOT inventory_ledger — that's 5-2).
     "monthly_input_period_opening_carried",  # auto/manual carry applied
     "monthly_input_period_opening_locked",  # first-row lock marker added
+    # Story 11.1 (Epic 11) — opening inventory unlocked on reversal sequence.
+    # Audit emit when M11 reversal sequence crosses periods and the
+    # target event's period had been previously locked (the lock marker
+    # must be cleared before the reversal INSERT completes).
+    "monthly_input_period_opening_unlocked",  # Story 11.1 (M11 unlock marker)
 ]
 
 # calc_log actions (m3_calculate) — DB CHECK constraint applied (0012)
@@ -167,10 +172,25 @@ InventoryLedgerAction = Literal[
     "inventory_ledger_reprojection_triggered",  # M6 closing_snapshot materialized
 ]
 
-# reversal_log actions (Epic 11 NEW — design-only placeholder)
-# TODO(epic-11): FILL_REVERSAL_LOG_ACTIONS when m11_reversal module ships
-# Use a placeholder literal until Epic 11 lands (avoid empty Literal syntax).
-ReversalLogAction = Literal["_placeholder_reversal_log",]
+# reversal_log actions (Epic 11 — Story 11.1 fill).
+# AD-22 reversal sequence + AD-25 cache invalidation publisher audits.
+# 5 values fill:
+# - `reversal_negating_inserted` — sign-negating row INSERTED (AD-22 seq step 1)
+# - `reversal_corrected_inserted` — corrected row INSERTED (AD-22 seq step 2)
+# - `reversal_rejected` — authorize_reversal denied (403/422 envelope)
+# - `reversal_unauthorized` — caller actor/role mismatch (403 envelope)
+# - `m11_reversal_handler_invoked` — M11 module entrypoint invoked (audit-first)
+# DB CHECK constraint mirror: reversal_log CHECK constraint includes these
+# 5 values (Alembic 0019_m11_reversal_ledger forward-fill).
+# Drift detector: tests/integration/test_audit_action_consistency.py enforces
+# registry ↔ DB CHECK ↔ call sites parity (3-way gate).
+ReversalLogAction = Literal[
+    "reversal_negating_inserted",
+    "reversal_corrected_inserted",
+    "reversal_rejected",
+    "reversal_unauthorized",
+    "m11_reversal_handler_invoked",
+]
 
 # closing_guard actions (Story 5.3 NEW — AC #2 + AC #5).
 # Closing ≥ 0 invariant (PRD §F4.2 + §V3) audit-first events:
@@ -314,6 +334,8 @@ class _ActionRegistry:
                     # Story 5.1 — opening carry chain
                     "monthly_input_period_opening_carried",
                     "monthly_input_period_opening_locked",
+                    # Story 11.1 — opening inventory unlocked on M11 reversal sequence
+                    "monthly_input_period_opening_unlocked",
                 }
             ),
         ),
@@ -352,7 +374,23 @@ class _ActionRegistry:
                 }
             ),
         ),
-        ActionClass.REVERSAL_LOG: ("reversal_log", frozenset()),
+        # Story 11.1 — REVERSAL_LOG 5 values fill (Epic 11 wire).
+        # AD-22 reversal sequence + AD-25 cache invalidation publisher.
+        # DB CHECK constraint mirror: reversal_log CHECK includes the 5 values.
+        # Drift detector: tests/integration/test_audit_action_consistency.py
+        # enforces registry ↔ DB CHECK ↔ call sites parity (3-way gate).
+        ActionClass.REVERSAL_LOG: (
+            "reversal_log",
+            frozenset(
+                {
+                    "reversal_negating_inserted",
+                    "reversal_corrected_inserted",
+                    "reversal_rejected",
+                    "reversal_unauthorized",
+                    "m11_reversal_handler_invoked",
+                }
+            ),
+        ),
         # Story 5.3 — closing_guard 3 values (AC #2 + AC #5 + AC #6).
         # DB CHECK constraint mirror: audit_logs CHECK includes
         # closing_guard_violated, closing_guard_passed,

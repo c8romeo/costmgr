@@ -163,6 +163,17 @@ def test_api_root_does_not_import_services() -> None:
             # Story 6.2 — monthly closing report pure kernel (PRD §F5 + §F5.2 + §V4).
             "packages.services.m4_inventory.monthly_closing_report",
             "packages.services.m4_inventory",
+            # Story 11.1 (Epic 11) — M11 reversal sequence pure kernels
+            # (AD-22 sign-negating + corrected row builders + AD-25 publisher).
+            "packages.services.m11_close",
+            "packages.services.m11_close.reversal_negating",
+            "packages.services.m11_close.reversal_corrected",
+            "packages.services.m11_close.reversal_authorization",
+            # Story 11.1 (Epic 11) — M5 ledger extended pure kernels for
+            # H6 fix (count_period_events + query_period_closing_snapshot_all).
+            "packages.services.m5_ledger",
+            "packages.services.m5_ledger.count_period_events",
+            "packages.services.m5_ledger.query_period_closing_snapshot_all",
             # m10_ai (Epic 10 — AI document extraction port)
             "packages.services.m10_ai.extraction_port",
             "packages.services.m10_ai",

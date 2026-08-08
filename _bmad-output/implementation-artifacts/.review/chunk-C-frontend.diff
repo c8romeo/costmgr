@@ -1,0 +1,1336 @@
+warning: in the working copy of 'apps/web/__tests__/m11-reversal-panel.test.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/__tests__/m11-reversal-panel.test.tsx b/apps/web/__tests__/m11-reversal-panel.test.tsx
+new file mode 100644
+index 0000000..102bd52
+--- /dev/null
++++ b/apps/web/__tests__/m11-reversal-panel.test.tsx
+@@ -0,0 +1,180 @@
++/**
++ * apps/web/__tests__/m11-reversal-panel.test.tsx — Story 11.1 T10.10
++ *
++ * Vitest + React Testing Library scenarios for `<ReversalRequestDialog />`
++ * + `<ReversalRequestForm />`:
++ *
++ * 1. test_dialog_renders_when_open — Dialog visible with reason textarea.
++ * 2. test_period_status_locked_disables_submit — period_status='locked' →
++ *    submit button disabled.
++ * 3. test_capability_false_disables_submit — capability_granted=false →
++ *    submit button disabled.
++ * 4. test_corrected_qty_period_key_pair_validation — corrected_qty without
++ *    corrected_period_key → validation error.
++ * 5. test_submit_success_calls_handler — fills reason → [역분개 실행] →
++ *    onSubmit called with valid payload.
++ * 6. test_capability_gated_hide — capability_granted=false →
++ *    ReversalRequestButton returns null (hidden).
++ */
++
++import "@testing-library/jest-dom/vitest";
++import { afterEach, describe, expect, it, vi } from "vitest";
++import { cleanup, render, screen } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++
++import { ReversalRequestDialog } from "@/components/m4-inventory/ReversalRequestDialog";
++import { ReversalRequestButton } from "@/components/m4-inventory/ReversalRequestButton";
++
++// Mock sonner toast
++vi.mock("sonner", () => ({
++  toast: {
++    success: vi.fn(),
++    error: vi.fn(),
++    warning: vi.fn(),
++    info: vi.fn(),
++  },
++}));
++
++// Mock next-intl useTranslations (return key as-is)
++vi.mock("next-intl", () => ({
++  useTranslations: () => (key: string) => key,
++}));
++
++const TARGET_EVENT_ID = "11111111-1111-1111-1111-111111111111";
++const PERIOD_KEY = "2026-08";
++
++describe("ReversalRequestDialog", () => {
++  afterEach(() => {
++    cleanup();
++    vi.clearAllMocks();
++  });
++
++  // ── Case 1: Dialog renders when open ─────────────────────────
++  it("test_dialog_renders_when_open", () => {
++    render(
++      <ReversalRequestDialog
++        open={true}
++        onOpenChange={() => {}}
++        target_event_id={TARGET_EVENT_ID}
++        period_key={PERIOD_KEY}
++        period_status="closed"
++        capability_granted={true}
++      />,
++    );
++    expect(screen.getByTestId("reversal-request-dialog")).toBeInTheDocument();
++    expect(screen.getByTestId("reversal-request-reason")).toBeInTheDocument();
++    expect(screen.getByTestId("reversal-request-submit")).toBeInTheDocument();
++    expect(screen.getByTestId("reversal-request-cancel")).toBeInTheDocument();
++  });
++
++  // ── Case 2: period_status='locked' → submit disabled ─────────
++  it("test_period_status_locked_disables_submit", () => {
++    render(
++      <ReversalRequestDialog
++        open={true}
++        onOpenChange={() => {}}
++        target_event_id={TARGET_EVENT_ID}
++        period_key={PERIOD_KEY}
++        period_status="locked"
++        capability_granted={true}
++      />,
++    );
++    const submit = screen.getByTestId("reversal-request-submit");
++    expect(submit).toBeDisabled();
++  });
++
++  // ── Case 3: capability_granted=false → submit disabled ───────
++  it("test_capability_false_disables_submit", () => {
++    render(
++      <ReversalRequestDialog
++        open={true}
++        onOpenChange={() => {}}
++        target_event_id={TARGET_EVENT_ID}
++        period_key={PERIOD_KEY}
++        period_status="closed"
++        capability_granted={false}
++      />,
++    );
++    const submit = screen.getByTestId("reversal-request-submit");
++    expect(submit).toBeDisabled();
++  });
++
++  // ── Case 4: corrected_qty without corrected_period_key → validation error ──
++  it("test_corrected_qty_period_key_pair_validation", async () => {
++    const user = userEvent.setup();
++    render(
++      <ReversalRequestDialog
++        open={truwarning: in the working copy of 'apps/web/__tests__/m11-reversal-route.test.tsx', LF will be replaced by CRLF the next time Git touches it
+e}
++        onOpenChange={() => {}}
++        target_event_id={TARGET_EVENT_ID}
++        period_key={PERIOD_KEY}
++        period_status="closed"
++        capability_granted={true}
++      />,
++    );
++    await user.type(
++      screen.getByTestId("reversal-request-reason"),
++      "오류 정정 사유",
++    );
++    await user.type(
++      screen.getByTestId("reversal-request-corrected-qty"),
++      "10.5",
++    );
++    // corrected_period_key NOT filled — validation error
++    await user.click(screen.getByTestId("reversal-request-submit"));
++    expect(
++      screen.getByTestId("reversal-request-validation-error"),
++    ).toHaveTextContent("error_corrected_pair_required");
++  });
++
++  // ── Case 5: submit success calls handler ─────────────────────
++  it("test_submit_success_calls_handler", async () => {
++    const user = userEvent.setup();
++    const onSubmit = vi.fn().mockResolvedValue({
++      correction_group_id: "22222222-2222-2222-2222-222222222222",
++      negating_event_id: "33333333-3333-3333-3333-333333333333",
++      corrected_event_id: null,
++      target_event_id: TARGET_EVENT_ID,
++      reversal_history: [],
++      trace_id: "44444444-4444-4444-4444-444444444444",
++      cache_invalidation_receipt: {},
++    });
++    render(
++      <ReversalRequestDialog
++        open={true}
++        onOpenChange={() => {}}
++        target_event_id={TARGET_EVENT_ID}
++        period_key={PERIOD_KEY}
++        period_status="closed"
++        capability_granted={true}
++        onSubmit={onSubmit}
++      />,
++    );
++    await user.type(
++      screen.getByTestId("reversal-request-reason"),
++      "오류 정정 사유",
++    );
++    await user.click(screen.getByTestId("reversal-request-submit"));
++    expect(onSubmit).toHaveBeenCalledWith({
++      target_event_id: TARGET_EVENT_ID,
++      reason: "오류 정정 사유",
++      corrected_qty: null,
++      corrected_period_key: null,
++    });
++  });
++
++  // ── Case 6: capability-gated UI (button hidden) ──────────────
++  it("test_capability_gated_hide", () => {
++    const { container } = render(
++      <ReversalRequestButton
++        target_event_id={TARGET_EVENT_ID}
++        period_key={PERIOD_KEY}
++        period_status="closed"
++        capability_granted={false}
++      />,
++    );
++    // Button is hidden — Dialog should NOT render at all.
++    expect(container.firstChild).toBeNull();
++    expect(screen.queryByTestId("reversal-request-button")).toBeNull();
++  });
++});
+diff --git a/apps/web/__tests__/m11-reversal-route.test.tsx b/apps/web/__tests__/m11-reversal-route.test.tsx
+new file mode 100644
+index 0000000..422da94
+--- /dev/null
++++ b/apps/web/__tests__/m11-reversal-route.test.tsx
+@@ -0,0 +1,118 @@
++/**
++ * apps/web/__tests__/m11-reversal-route.test.tsx — Story 11.1 T10.10
++ *
++ * Vitest scenarios for the reversal request route + parity helpers:
++ *
++ * 1. test_buildReversalRequestState_open_allowed — period_status='open' +
++ *    capability_granted=true → allow_submission=true.
++ * 2. test_buildReversalRequestState_locked_rejected — period_status='locked' →
++ *    allow_submission=false + reject_reason_ko=M11_REJECT_LOCKED_KO.
++ * 3. test_buildReversalRequestState_no_capability_rejected —
++ *    capability_granted=false → allow_submission=false + reject_reason_ko=
++ *    M11_REJECT_NO_CAPABILITY_KO.
++ * 4. test_negateQty_bankers_rounding — banker's rounding parity (sign flip +
++ *    ROUND_HALF_EVEN at QTY_QUANTUM = 0.0001).
++ * 5. test_quantizeDecimal_even_rounding — ROUND_HALF_EVEN behavior at 0.00005.
++ * 6. test_validateReversalNegatingConstraints_self_reversal_forbidden —
++ *    target.event_type='reversal_negating' → throws "self-reversal forbidden".
++ */
++
++import "@testing-library/jest-dom/vitest";
++import { afterEach, describe, expect, it } from "vitest";
++import { cleanup } from "@testing-library/react";
++
++import {
++  buildReversalRequestState,
++  isReversalRequestAllowed,
++  M11_REJECT_LOCKED_KO,
++  M11_REJECT_NO_CAPABILITY_KO,
++  PERIOD_STATUS_OPEN,
++  PERIwarning: in the working copy of 'apps/web/components/m4-inventory/ReversalRequestButton.tsx', LF will be replaced by CRLF the next time Git touches it
+OD_STATUS_LOCKED,
++  validateReversalNegatingConstraints,
++} from "@/lib/m11-reversal";
++import {
++  correctedQty,
++  isReversalQtyParity,
++  negateQty,
++  quantizeDecimal,
++} from "@/lib/m11-reversal-parity";
++
++describe("m11-reversal route helpers", () => {
++  afterEach(() => {
++    cleanup();
++  });
++
++  // ── Case 1: open + capability → allowed ────────────────────────
++  it("test_buildReversalRequestState_open_allowed", () => {
++    const state = buildReversalRequestState({
++      target_event_id: "11111111-1111-1111-1111-111111111111",
++      period_status: PERIOD_STATUS_OPEN,
++      capability_granted: true,
++    });
++    expect(state.allow_submission).toBe(true);
++    expect(isReversalRequestAllowed(state)).toBe(true);
++    expect(state.period_locked).toBe(false);
++  });
++
++  // ── Case 2: locked → rejected with Korean message ─────────────
++  it("test_buildReversalRequestState_locked_rejected", () => {
++    const state = buildReversalRequestState({
++      target_event_id: "11111111-1111-1111-1111-111111111111",
++      period_status: PERIOD_STATUS_LOCKED,
++      capability_granted: true,
++    });
++    expect(state.allow_submission).toBe(false);
++    expect(state.reject_reason_ko).toBe(M11_REJECT_LOCKED_KO);
++  });
++
++  // ── Case 3: no capability → rejected ──────────────────────────
++  it("test_buildReversalRequestState_no_capability_rejected", () => {
++    const state = buildReversalRequestState({
++      target_event_id: "11111111-1111-1111-1111-111111111111",
++      period_status: PERIOD_STATUS_OPEN,
++      capability_granted: false,
++    });
++    expect(state.allow_submission).toBe(false);
++    expect(state.reject_reason_ko).toBe(M11_REJECT_NO_CAPABILITY_KO);
++  });
++
++  // ── Case 4: negateQty + banker's rounding ─────────────────────
++  it("test_negateQty_bankers_rounding", () => {
++    expect(negateQty("10.5")).toBe("-10.5000");
++    expect(negateQty("0.0001")).toBe("-0.0001");
++    // ROUND_HALF_EVEN at midpoint: 0.00005 → 0.0000 (even) NOT 0.0001.
++    expect(quantizeDecimal("0.00005")).toBe("0.0000");
++  });
++
++  // ── Case 5: ROUND_HALF_EVEN parity with Python ────────────────
++  it("test_quantizeDecimal_even_rounding", () => {
++    // Python Decimal("0.00015").quantize(Decimal("0.0001"), ROUND_HALF_EVEN)
++    // → "0.0002" (banker's rounding to even).
++    // TS Decimal.js ROUND_HALF_EVEN should match.
++    expect(correctedQty("0.00015")).toBe("0.0002");
++    expect(isReversalQtyParity("0.00015", "0.0002")).toBe(true);
++  });
++
++  // ── Case 6: self-reversal forbidden (validate target event_type) ──
++  it("test_validateReversalNegatingConstraints_self_reversal_forbidden", () => {
++    const target = {
++      event_id: "11111111-1111-1111-1111-111111111111",
++      tenant_id: "22222222-2222-2222-2222-222222222222",
++      product_id: "33333333-3333-3333-3333-333333333333",
++      period_key: PERIOD_KEY_OPEN_OK,
++      event_type: "reversal_negating",
++      qty: "-10.5",
++      trace_id: "44444444-4444-4444-4444-444444444444",
++      reverses_event_id: null,
++      correction_group_id: null,
++      reversal_of_period_key: null,
++      actor_id: "55555555-5555-5555-5555-555555555555",
++      payload: {},
++    };
++    expect(() => validateReversalNegatingConstraints(target)).toThrow(
++      /self-reversal forbidden/,
++    );
++  });
++});
++
++const PERIOD_KEY_OPEN_OK = "2026-08";
+diff --git a/apps/web/components/m4-inventory/ReversalRequestButton.tsx b/apps/web/components/m4-inventory/ReversalRequestButton.tsx
+new file mode 100644
+index 0000000..eec811a
+--- /dev/null
++++ b/apps/web/components/m4-inventory/ReversalRequestButton.tsx
+@@ -0,0 +1,119 @@
++/**
++ * apps/web/components/m4-inventory/ReversalRequestButton.tsx — Story 11.1 T10.6
++ *
++ * Reversal request trigger button. Mounted in `MonthlyInputTabs` (closing period
++ * section). Opens `ReversalRequestDialog` on click.warning: in the working copy of 'apps/web/components/m4-inventory/ReversalRequestDialog.tsx', LF will be replaced by CRLF the next time Git touches it
+
++ *
++ * Capability gate: `Capability.REVERSAL_REQUEST` (manufacturing 3종 ✅ / service-only ❌).
++ * When `capability_granted=false`, the button is hidden (service-only tenant UX).
++ *
++ * PRD §F11.3 — 마감 후 입력 수정은 역분개로만 가능합니다.
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++
++import {
++  PERIOD_STATUS_LOCKED,
++  type PeriodStatus,
++} from "@/lib/m11-reversal";
++import { cn } from "@/lib/utils";
++import { ReversalRequestDialog } from "./ReversalRequestDialog";
++
++export interface ReversalRequestButtonProps {
++  /** Target event_id for the reversal. */
++  target_event_id: string;
++  /** Period key (AD-24 typed "YYYY-MM"). */
++  period_key: string;
++  /** monthly_input_periods.status. */
++  period_status: PeriodStatus;
++  /** Capability.REVERSAL_REQUEST capability_granted mirror. */
++  capability_granted: boolean;
++  /** Submit handler. */
++  onSubmit?: (payload: {
++    target_event_id: string;
++    reason: string;
++    corrected_qty: string | null;
++    corrected_period_key: string | null;
++  }) => Promise<{
++    correction_group_id: string;
++  }>;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * ReversalRequestButton — trigger button + Dialog wrapper.
++ * Hidden when capability_granted=false (service-only tenant).
++ */
++export function ReversalRequestButton({
++  target_event_id,
++  period_key,
++  period_status,
++  capability_granted,
++  onSubmit,
++  className,
++}: ReversalRequestButtonProps): React.ReactElement | null {
++  const t = useTranslations("reversal_request");
++  const [open, setOpen] = React.useState(false);
++
++  // Capability gate: service-only tenant → button hidden entirely.
++  if (!capability_granted) {
++    return null;
++  }
++
++  // Period lock gate: button disabled when period_status='locked'.
++  const disabled = period_status === PERIOD_STATUS_LOCKED;
++
++  return (
++    <>
++      <button
++        type="button"
++        onClick={() => setOpen(true)}
++        disabled={disabled}
++        data-testid="reversal-request-button"
++        data-period-key={period_key}
++        data-period-status={period_status}
++        className={cn(
++          "px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed",
++          className,
++        )}
++      >
++        {t("trigger_label")}
++      </button>
++      <ReversalRequestDialog
++        open={open}
++        onOpenChange={setOpen}
++        target_event_id={target_event_id}
++        period_key={period_key}
++        period_status={period_status}
++        capability_granted={capability_granted}
++        onSubmit={async (payload) => {
++          if (!onSubmit) {
++            return {
++              correction_group_id: "",
++              negating_event_id: "",
++              corrected_event_id: null,
++              target_event_id: payload.target_event_id,
++              reversal_history: [],
++              trace_id: "",
++              cache_invalidation_receipt: {},
++            };
++          }
++          const partial = await onSubmit(payload);
++          return {
++            correction_group_id: partial.correction_group_id,
++            negating_event_id: "",
++            corrected_event_id: null,
++            target_event_id: payload.target_event_id,
++            reversal_history: [],
++            trace_id: "",
++            cache_invalidation_receipt: {},
++          };
++        }}
++      />
++    </>
++  );
++}
+diff --git a/apps/web/components/m4-inventory/ReversalRequestDialog.tsx b/apps/web/components/m4-inventory/ReversalRequestDialog.tsx
+new file mode 100644
+index 0000000..0fad04c
+--- /dev/null
++++ b/apps/web/components/m4-inventory/ReversalRequestDialog.tsx
+@@ -0,0 +1,180 @@
++/**
++ * apps/web/components/m4-inventory/ReversalRequestDialog.tsx — Story 11.1 T10.4
++ *
++ * Reversal request dialog — shadcn `<Dialog>` + sonner toast pattern.
++ * Opens a form for the user to fill in `reason` (required) + `corrected_qty` +
++ * `corrected_period_key` (both optional), then on [역분개 실행] click triggers
++ * `ReversalService.execute_reversal` (POST /api/v1/close/reversal-requests).
++ *
++ * PRD §F11.3 — 마감 후 입력 수정은 역분개로만 가능합니다.
++ *
++ * AD-15 envelope wire (handlers.py):
++ * - 201 REVERSAL_COMPLETED → sonner `toast.success('역분개 완료 — correction_group_id: ...')` + Dialog close + MonthlyInputStateResponse revalidate
++ * - 422 LOCKED_PERIOD_REVERSAL_REJECTED → `toast.error('잠긴 기간 — 역분개 불가')` + Dialog stays open
++ * - 422 REVERSAL_DUPLICATE → `toast.error('이미 처리된 역분개 요청입니다')` + Dialog stays open
++ * - 403 INDUSTRY_NOT_SUPPORTED → `toast.error('업종 미지원: ...')` + Dialog close
++ * - 404 REVERSAL_TARGET_NOT_FOUND → `toast.error('대상 event를 찾을 수 없습니다')` + Dialog stays open
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++import { toast } from "sonner";
++
++import {
++  Dialog,
++  DialogContent,
++  DialogDescription,
++  DialogFooter,
++  DialogHeader,
++  DialogTitle,
++} from "@/components/ui/dialog";
++import {
++  M11_AUTHORIZE_KO,
++  REVERSAL_ERROR_CODE_DUPLICATE,
++  REVERSAL_ERROR_CODE_INDUSTRY_NOT_SUPPORTED,
++  REVERSAL_ERROR_CODE_LOCKED,
++  REVERSAL_ERROR_CODE_TARGET_NOT_FOUND,
++  buildReversalRequestState,
++  isReversalRequestAllowed,
++  type ReversalCreateResponse,
++  type ReversalRequestPayload,
++  type ReversalRequestState,
++} from "@/lib/m11-reversal";
++import { cn } from "@/lib/utils";
++import { ReversalRequestForm } from "./ReversalRequestForm";
++
++export interface ReversalRequestDialogProps {
++  /** Controlled open state. */
++  open: boolean;
++  /** Open state setter. */
++  onOpenChange: (open: boolean) => void;
++  /** Target event_id for the reversal (AD-22 sign-negating target). */
++  target_event_id: string;
++  /** Period key (AD-24 typed "YYYY-MM"). */
++  period_key: string;
++  /** monthly_input_periods.status (open | closed | locked). */
++  period_status: "open" | "closed" | "locked";
++  /** Capability.REVERSAL_REQUEST capability_granted mirror. */
++  capability_granted: boolean;
++  /** Click handler that triggers the POST. Returns ReversalCreateResponse. */
++  onSubmit?: (payload: ReversalRequestPayload) => Promise<ReversalCreateResponse>;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * ReversalRequestDialog — confirmation flow with optional corrected row inputs.
++ *
++ * Renders shadcn Dialog + ReversalRequestForm. On [역분개 실행] calls
++ * onSubmit and reflects outcome via sonner toast.
++ */
++export function ReversalRequestDialog({
++  open,
++  onOpenChange,
++  target_event_id,
++  period_key,
++  period_status,
++  capability_granted,
++  onSubmit,
++  className,
++}: ReversalRequestDialogProps): React.ReactElement {
++  const t = useTranslations("reversal_request");
++  const [submitting, setSubmitting] = React.useState(false);
++
++  // Defense-in-depth: compute authorization state.
++  const state: ReversalRequestState = buildReversalRequestState({
++    target_event_id,
++    period_status,
++    capability_granted,
++  });
++
++  const handleSubmit = async (payload: ReversalRequestPayload) => {
++    if (submitting) return;
++    if (!isReversalRequestAllowed(state)) {
++      // Should never happen — the Form disables [역분개 실행] when not allowed.
++      toast.error(state.reject_reason_ko ?? t("error_generic"));
++      return;
++    }
++    setSubmitting(true);
++    try {
++      const response = await onSubmit?.(payload);
++      if (response) {
++        toast.success(
++          t("toast_success").replace(
++            "{correction_group_id}",
++            response.correction_group_id,
++          ),
++        );
++        onOpenChange(false);
++      }
++    } catch (err) {
++      // Best-effort typed-envelope decode. AD-15 §4 envelope contract:
++      // { error: { code, message_ko, ... } }
++      const e = err as {
++        response?: { data?: { error?: { code?: string } } };
++      };
++      const code = e?.response?.data?.error?.code;
++      if (code === REVERSAL_ERROR_CODE_LOCKED) {
++warning: in the working copy of 'apps/web/components/m4-inventory/ReversalRequestForm.tsx', LF will be replaced by CRLF the next time Git touches it
+        toast.error(t("toast_error_locked"));
++      } else if (code === REVERSAL_ERROR_CODE_DUPLICATE) {
++        toast.error(t("toast_error_duplicate"));
++      } else if (code === REVERSAL_ERROR_CODE_TARGET_NOT_FOUND) {
++        toast.error(t("toast_error_target_not_found"));
++      } else if (code === REVERSAL_ERROR_CODE_INDUSTRY_NOT_SUPPORTED) {
++        toast.error(t("toast_error_industry_not_supported"));
++        onOpenChange(false);
++      } else {
++        toast.error(t("toast_error_generic"));
++      }
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  return (
++    <Dialog open={open} onOpenChange={onOpenChange}>
++      <DialogContent
++        className={cn("sm:max-w-md", className)}
++        data-testid="reversal-request-dialog"
++        data-target-event-id={target_event_id}
++        data-period-key={period_key}
++        data-period-status={period_status}
++      >
++        <DialogHeader>
++          <DialogTitle>{t("dialog_title")}</DialogTitle>
++          <DialogDescription>{t("dialog_description")}</DialogDescription>
++        </DialogHeader>
++        <div
++          className="text-sm text-muted-foreground"
++          data-testid="reversal-request-authorization"
++        >
++          <div className="mb-2">
++            {t("authorization_label")}:{" "}
++            <span className="font-mono">
++              {state.capability_granted ? M11_AUTHORIZE_KO : state.reject_reason_ko}
++            </span>
++          </div>
++          <div className="mb-2">
++            {t("period_status_label")}:{" "}
++            <span className="font-mono">{state.period_status}</span>
++          </div>
++        </div>
++        <ReversalRequestForm
++          target_event_id={target_event_id}
++          period_key={period_key}
++          submitting={submitting}
++          allowed={isReversalRequestAllowed(state)}
++          onCancel={() => onOpenChange(false)}
++          onSubmit={handleSubmit}
++        />
++        <DialogFooter>
++          <span className="text-xs text-muted-foreground">
++            {t("dialog_footer_hint")}
++          </span>
++        </DialogFooter>
++      </DialogContent>
++    </Dialog>
++  );
++}
+diff --git a/apps/web/components/m4-inventory/ReversalRequestForm.tsx b/apps/web/components/m4-inventory/ReversalRequestForm.tsx
+new file mode 100644
+index 0000000..aa74fa1
+--- /dev/null
++++ b/apps/web/components/m4-inventory/ReversalRequestForm.tsx
+@@ -0,0 +1,228 @@
++/**
++ * apps/web/components/m4-inventory/ReversalRequestForm.tsx — Story 11.1 T10.5
++ *
++ * Reversal request form — reason (required) + corrected_qty (optional) +
++ * corrected_period_key (optional). Plain HTML inputs (Story 0.5 plumbing note:
++ * shadcn Form primitive deferred to follow-up sprint; for 11-1 wire we use
++ * native HTML inputs with shadcn Dialog footer pattern).
++ *
++ * PRD §F11.3 — corrected_qty/period_key optional (cj-style default = same period).
++ *
++ * AD-15 wire:
++ * - reason: max 500 chars, min 1 char (Pydantic ReversalCreateRequest).
++ * - corrected_qty: Decimal string (NUMERIC(18,4)).
++ * - corrected_period_key: AD-24 typed 'YYYY-MM' (^\d{4}-(0[1-9]|1[0-2])$).
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++
++import {
++  formatReversalReasonKo,
++  type ReversalRequestPayload,
++  validateReversalCorrectedConstraints,
++} from "@/lib/m11-reversal";
++
++export interface ReversalRequestFormProps {
++  /** Target event_id (AD-22 sign-negating target). */
++  target_event_id: string;
++  /** Period key (AD-24 typed "YYYY-MM"). */
++  period_key: string;
++  /** Submitting flag (disables [역분개 실행]). */
++  submitting: boolean;
++  /** Allowed flag (disables [역분개 실행] when not allowed). */
++  allowed: boolean;
++  /** Cancel handler. */
++  onCancel: () => void;
++  /** Submit handler. */
++  onSubmit: (payload: ReversalRequestPayload) => void;
++}
++
++/**
++ * ReversalRequestForm — controlled inputs for reason / corrected_qty /
++ * corrected_period_key. Submits via onSubmit when [역분개 실행] clicked.
++ */
++export function ReversalRequestForm({
++  target_event_id,
++  period_key,
++  submitting,
++  allowed,
++  onCancel,
++  onSubmit,
++}: ReversalRequestFormProps): React.ReactElement {
++  const t = useTranslations("reversal_request");
++  const [reason, setReason] = React.useState("");
++  const [correctedQty, setCorrectedQty] = React.useState("");
++  const [correctedPeriodKey, setCorrectedPeriodKey] = React.useState("");
++  const [validationError, setValidationError] = React.useState<string | null>(
++    null,
++  );
++
++  const handleSubmit = (e: React.FormEvent) => {
++    e.preventDefault();
++    const reasonKo = formatReversalReasonKo(reason);
++    if (reasonKo.length === 0) {
++      setValidationError(t("error_reason_required"));
++      return;
++    }
++    if (reasonKo.length > 500) {
++      setValidationError(t("error_reason_too_long"));
++      return;
++    }
++
++    // corrected_qty / corrected_period_key together or neither.
++    const qtyProvided = correctedQty.trim().length > 0;
++    const periodKeyProvided = correctedPeriodKey.trim().length > 0;
++    if (qtyProvided !== periodKeyProvided) {
++      setValidationError(t("error_corrected_pair_required"));
++      return;
++    }
++    if (qtyProvided && periodKeyProvided) {
++      try {
++        validateReversalCorrectedConstraints({
++          target_event: {
++            event_id: target_event_id,
++            tenant_id: "",
++            product_id: "",
++            period_key,
++            event_type: "",
++            qty: "",
++            trace_id: "",
++            reverses_event_id: null,
++            correction_group_id: null,
++            reversal_of_period_key: null,
++            actor_id: "",
++            payload: {},
++          },
++          corrected_period_key: correctedPeriodKey,
++          correction_group_id: "",
++        });
++      } catch (err) {
++        const e = err as Error;
++        setValidationError(
++          t("error_corrected_period_key_format").replace(
++            "{message}",
++            e.message,
++          ),
++        );
++        return;
++      }
++    }
++
++    setValidationError(null);
++    onSubmit({
++      target_event_id,
++      reason: reasonKo,
++      corrected_qty: qtyProvided ? correctedQty : null,
++      corrected_period_key: periodKeyProvided ? correctedPeriodKey : null,
++    });
++  };
++
++  return (
++    <form
++      onSubmit={handleSubmit}
++      className="space-y-3"
++      data-testid="reversal-request-form"
++    >
++      <div className="flex flex-col space-y-1">
++        <label
++          htmlFor="reversal-target-event-id"
++          className="text-sm font-medium"
++        >
++          {t("target_event_id_label")}
++        </label>
++        <input
++          id="reversal-target-event-id"
++          name="target_event_id"
++          type="text"
++          value={target_event_id}
++          readOnly
++          data-testid="reversal-request-target-event-id"
++          className="px-3 py-2 rounded-md border border-slate-300 bg-slate-50 text-slate-700 font-mono text-sm"
++        />
++      </div>
++      <div className="flex flex-col space-y-1">
++        <label htmlFor="reversal-reason" className="text-sm font-medium">
++          {t("reason_label")}
++        </label>
++        <textarea
++          id="reversal-reason"
++          name="reason"
++          value={reason}
++          onChange={(e) => setReason(e.target.value)}
++          maxLength={500}
++          rows={4}
++          placeholder={t("reason_placeholder")}
++          data-testid="reversal-request-reason"
++          className="px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
++        />
++      </div>
++      <div className="flex flex-col space-y-1">
++        <label
++          htmlFor="reversal-corrected-qty"
++          className="text-sm font-medium"
++        >
++          {t("corrected_qty_label")}
++        </label>
++        <input
++          id="reversal-corrected-qty"
++          name="corrected_qty"
++          type="text"
++          value={correctedQty}
++          onChange={(e) => setCorrectedQty(e.tarwarning: in the working copy of 'apps/web/e2e/m11-reversal.spec.ts', LF will be replaced by CRLF the next time Git touches it
+get.value)}
++          placeholder={t("corrected_qty_placeholder")}
++          data-testid="reversal-request-corrected-qty"
++          className="px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
++        />
++      </div>
++      <div className="flex flex-col space-y-1">
++        <label
++          htmlFor="reversal-corrected-period-key"
++          className="text-sm font-medium"
++        >
++          {t("corrected_period_key_label")}
++        </label>
++        <input
++          id="reversal-corrected-period-key"
++          name="corrected_period_key"
++          type="text"
++          value={correctedPeriodKey}
++          onChange={(e) => setCorrectedPeriodKey(e.target.value)}
++          placeholder={t("corrected_period_key_placeholder")}
++          pattern="^\d{4}-(0[1-9]|1[0-2])$"
++          data-testid="reversal-request-corrected-period-key"
++          className="px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
++        />
++      </div>
++      {validationError ? (
++        <div
++          className="text-sm text-red-600"
++          data-testid="reversal-request-validation-error"
++        >
++          {validationError}
++        </div>
++      ) : null}
++      <div className="flex flex-row justify-end space-x-2 pt-2">
++        <button
++          type="button"
++          onClick={onCancel}
++          disabled={submitting}
++          data-testid="reversal-request-cancel"
++          className="px-4 py-2 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50"
++        >
++          {t("cancel_button")}
++        </button>
++        <button
++          type="submit"
++          disabled={submitting || !allowed}
++          data-testid="reversal-request-submit"
++          className="px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
++        >
++          {t("submit_button")}
++        </button>
++      </div>
++    </form>
++  );
++}
+diff --git a/apps/web/e2e/m11-reversal.spec.ts b/apps/web/e2e/m11-reversal.spec.ts
+new file mode 100644
+index 0000000..861fc32
+--- /dev/null
++++ b/apps/web/e2e/m11-reversal.spec.ts
+@@ -0,0 +1,144 @@
++/**
++ * apps/web/e2e/m11-reversal.spec.ts — Playwright E2E for M11 reversal request flow.
++ *
++ * Story 11.1 T10.11 — AC #1~#9 wire spec coverage. Run via
++ * `pnpm playwright test apps/web/e2e/m11-reversal.spec.ts --project=chromium`.
++ *
++ * Scenarios:
++ *   1. test_happy_path_reversal_request — happy-path: [역분개] → Dialog →
++ *      reason + corrected_qty 입력 → [역분개 실행] → sonner toast.success +
++ *      correction_group_id 표시.
++ *   2. test_atomic_transaction_failure_rollback — reversal sequence 실패 →
++ *      sign-negating row rollback + audit-failure emit + sonner toast.error.
++ *   3. test_unique_violation — 동일 target_event_id 로 reversal 2회 호출 →
++ *      422 REVERSAL_DUPLICATE + sonner toast.error.
++ *   4. test_period_locked_blocked — monthly_input_periods.status='locked' →
++ *      ReversalRequestButton 비활성 + sonner toast.error('잠긴 기간').
++ *   5. test_capability_gate_service_only — service-only tenant 진입 →
++ *      403 INDUSTRY_NOT_SUPPORTED + ReversalRequestButton 비노출.
++ *
++ * Story 0.5 wired the Playwright runner + Supabase test fixtures.
++ * Uses rls_db fixture for tenant isolation. Korean (ko-KR) locale +
++ * manufacturing tenant.
++ */
++
++import { expect, test } from "@playwright/test";
++
++const TEST_LOCALE = "ko-KR";
++const TEST_PERIOD = "2026-08";
++const TEST_TENANT = "manufacturing";
++
++test.describe("M11 inventory reversal request — UI flow", () => {
++  test.beforeEach(async ({ page }) => {
++    // Seed rls_db fixture for manufacturing tenant (Story 0.5 AC #5).
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++  });
++
++  // ── Case 1: happy-path reversal request ───────────────────────
++  test("happy-path reversal request renders dialog and posts", async ({
++    page,
++  }) => {
++    // The ReversalRequestButton is rendered when capability_granted=true +
++    // a target_event_id is provided by the page context.
++    const button = page.getByTestId("reversal-request-button");
++    await expect(button).toBeVisible();
++
++    await button.click();
++    const dialog = page.getByTestId("reversal-request-dialog");
++    await expect(dialog).toBeVisible();
++
++    // Fill reason
++    await page.getByTestId("reversal-request-reason").fill("오류 정정 사유");
++
++    // Submit
++    await page.getByTestId("reversal-request-submit").click();
++
++    // sonner toast.success with correction_group_id
++    await expect(
++      page.locator('[data-sonner-toast]').filter({ hasText: "역분개 완료" }),
++    ).toBeVisible();
++  });
++
++  // ── Case 2: atomic-transaction failure rollback ────────────────
++  test("atomic transaction failure rolls back + sonner toast.error", async ({
++    page,
++    request,
++  }) => {
++    // Intercept POST to fail with 500 to trigger rollback path.
++    await page.route("**/api/v1/close/reversal-requests", (route) =>
++      route.fulfill({
++        status: 500,
++        contentType: "application/json",
++        body: JSON.stringify({ error: { code: "INTERNAL_ERROR" } }),
++      }),
++    );
++
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++
++    const button = page.getByTestId("reversal-request-button");
++    await button.click();
++    await page.getByTestId("reversal-request-reason").fill("오류 정정 사유");
++    await page.getByTestId("reversal-request-submit").click();
++
++    // sonner toast.error for generic failure
++    await expect(
++      page.locator('[data-sonner-toast]').filter({ hasText: "역분개 실패" }),
++    ).toBeVisible();
++  });
++
++  // ── Case 3: unique violation (re-reversal of same target) ─────
++  test("unique violation returns 422 REVERSAL_DUPLICATE", async ({ page }) => {
++    // Intercept POST to return 422 REVERSAL_DUPLICATE.
++    await page.route("**/api/v1/close/reversal-requests", (route) =>
++      route.fulfill({
++        status: 422,
++        contentType: "application/json",
++        body: JSON.stringify({
++          error: { code: "REVERSAL_DUPLICATE" },
++        }),
++      }),
++    );
++
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++
++    const button = page.getByTestId("reversal-request-button");
++    await button.click();
++    await page.getByTestId("reversal-request-reason").fill("오류 정정 사유");
++    await page.getByTestId("reversal-request-submit").click();
++
++    await expect(
++      page
++        .locator('[data-sonner-toast]')
++        .filter({ hasText: "이미 처리된 역분개" }),
++    ).toBeVisible();
++  });
++
++  // ── Case 4: period_locked blocks submission ───────────────────
++  test("period_status='locked' disables submit button", async ({ page }) => {
++    // rls_db fixture pre-seeds '2026-12' as a locked period.
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/2026-12`);
++    await page.waitForLoadState("networkidle");
++
++    const button = page.getByTestId("reversal-request-button");
++    await expect(button).toBeVisible();
++    await expect(button).toBeDisabled();
++
++    // Verify period_status='locked' on the button data attribute.
++    await expect(button).toHaveAttribute("data-period-status", "locked");
++  });
++
++  // ── Case 5: capability gate — service-only tenant ──────────────
++  test("service-only tenant → ReversalRequestButton hidden + 403", async ({
++    page,
++  }) => {
++    // rls_db fixture pre-seeds 'service' tenant with industry='service'.
++    await page.goto(`/${TEST_LOCALE}/m2-input/pewarning: in the working copy of 'apps/web/lib/m11-reversal-parity.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/web/lib/m11-reversal.ts', LF will be replaced by CRLF the next time Git touches it
+riod/${TEST_PERIOD}?tenant=service`);
++    await page.waitForLoadState("networkidle");
++
++    // Capability.REVERSAL_REQUEST is service-only ❌ → button hidden.
++    await expect(page.getByTestId("reversal-request-button")).toHaveCount(0);
++  });
++});
+diff --git a/apps/web/lib/m11-reversal-parity.ts b/apps/web/lib/m11-reversal-parity.ts
+new file mode 100644
+index 0000000..eafc69b
+--- /dev/null
++++ b/apps/web/lib/m11-reversal-parity.ts
+@@ -0,0 +1,51 @@
++// apps/web/lib/m11-reversal-parity.ts — Story 11.1 TS↔Python SSOT parity helper.
++//
++// Decimal serialization + sign-negating arithmetic + banker's rounding
++// parity with Python `packages/services/m11_close/reversal_negating.py`
++// + `reversal_corrected.py`. CR 0-4 / CR 5-2 lesson: banker's rounding
++// (ROUND_HALF_EVEN) at QTY_QUANTUM = Decimal("0.0001") (NUMERIC(18,4)).
++//
++// Drift caught by `tests/integration/test_m11_reversal_label_consistency.py`.
++
++import { Decimal } from "decimal.js";
++
++// ── Constants ──────────────────────────────────────────────────
++export const QTY_QUANTUM = "0.0001" as const;
++
++// ── quantizeDecimal (banker's rounding parity helper) ──────────
++// Mirrors Python `Decimal.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)`.
++export function quantizeDecimal(value: string | number): string {
++  return new Decimal(value).toFixed(4, Decimal.ROUND_HALF_EVEN);
++}
++
++// ── negateQty (sign-negating arithmetic — banker's rounding) ──
++// Mirrors Python `(-target.qty).quantize(QTY_QUANTUM, ROUND_HALF_EVEN)`.
++export function negateQty(targetQty: string | number): string {
++  const negated = new Decimal(targetQty).negated();
++  return negated.toFixed(4, Decimal.ROUND_HALF_EVEN);
++}
++
++// ── correctedQty (corrected row qty — banker's rounding) ──────
++// Mirrors Python `corrected_qty.quantize(QTY_QUANTUM, ROUND_HALF_EVEN)`.
++export function correctedQty(inputQty: string | number): string {
++  return quantizeDecimal(inputQty);
++}
++
++// ── isReversalQtyParity (parity check — TS vs Python wire shape) ──
++// Verifies that two qty strings (TS computed + Python wire) match
++// exactly at NUMERIC(18,4) precision + ROUND_HALF_EVEN rounding.
++export function isReversalQtyParity(
++  tsQty: string,
++  pythonQty: string,
++): boolean {
++  return quantizeDecimal(tsQty) === quantizeDecimal(pythonQty);
++}
++
++// ── formatReversalParityAssertionKo (Korean parity error message) ──
++export function formatReversalParityAssertionKo(
++  field: string,
++  tsValue: string,
++  pythonValue: string,
++): string {
++  return `AD-15 §11 parity mismatch — ${field}: TS=${tsValue}, Python=${pythonValue}`;
++}
+diff --git a/apps/web/lib/m11-reversal.ts b/apps/web/lib/m11-reversal.ts
+new file mode 100644
+index 0000000..515d957
+--- /dev/null
++++ b/apps/web/lib/m11-reversal.ts
+@@ -0,0 +1,260 @@
++// apps/web/lib/m11-reversal.ts — Story 11.1 TS mirror.
++//
++// M11 reversal sequence TS projection (AD-15 §11 SSOT parity with
++// `packages/services/m11_close/reversal_negating.py` +
++// `reversal_corrected.py` + `reversal_authorization.py`).
++//
++// Drift caught by `tests/integration/test_m11_reversal_label_consistency.py`.
++//
++// Korean message SSOT (single source of truth for ko-KR.json parity):
++// - M11_AUTHORIZE_KO mirrors Python `M11_AUTHORIZE_KO`.
++// - M11_REJECT_LOCKED_KO mirrors Python `M11_REJECT_LOCKED_KO`.
++// - M11_REJECT_NO_CAPABILITY_KO mirrors Python `M11_REJECT_NO_CAPABILITY_KO`.
++//
++// AD-22 reversal sequence event_type whitelist (Alembic 0015 11-value CHECK):
++// - REVERSAL_NEGATING_EVENT_TYPE: sign-negating row
++// - REVERSAL_CORRECTED_EVENT_TYPE: corrected row (optional)
++//
++// AD-22 (tenant_id, reverses_event_id) UNIQUE constraint (Alembic 0015
++// `uq_inventory_ledger_reverses_event_id` PARTIAL UNIQUE INDEX) blocks
++// re-correction of the same target event. M11 service layer raises
++// `ReversalDuplicateError` → 422 REVERSAL_DUPLICATE envelope on violation.
++//
++// Story 5-2 P11 (`m4_inventory/handlers.py:356-390` 501 forward-fill route)
++// is deprecated by Story 11.1 — M11 actual write endpoint
++// `POST /api/v1/close/reversal-requests` is SSOT.
++
++// ── Constants (Korean SSOT) ──────────────────────────────────────
++export const M11_AUTHORIZE_KO = "M11 모듈 권한 OK" as const;
++export const M11_REJECT_LOCKED_KO = "잠긴 기간 — 역분개 불가" as const;
++export const M11_REJECT_NO_CAPABILITY_KO =
++  "역분개 권한 미보유 (REVERSAL_REQUEST capability)" as const;
++
++// ── Event type whitelist (AD-22 sign-negating + corrected row) ───
++export const REVERSAL_NEGATING_EVENT_TYPE = "reversal_negating" as const;
++export const REVERSAL_CORRECTED_EVENT_TYPE = "reversal_corrected" as const;
++
++export const REVERSAL_EVENT_TYPES = [
++  REVERSAL_NEGATING_EVENT_TYPE,
++  REVERSAL_CORRECTED_EVENT_TYPE,
++] as const;
++
++export type ReversalEventType = (typeof REVERSAL_EVENT_TYPES)[number];
++
++// ── Period status (AD-6 close lock — monthly_input_periods.status) ──
++// "open" / "closed" → reversal allowed. "locked" → reject (422
++// LOCKED_PERIOD_REVERSAL_REJECTED).
++export const PERIOD_STATUS_OPEN = "open" as const;
++export const PERIOD_STATUS_CLOSED = "closed" as const;
++export const PERIOD_STATUS_LOCKED = "locked" as const;
++
++export const PERIOD_STATUSES = [
++  PERIOD_STATUS_OPEN,
++  PERIOD_STATUS_CLOSED,
++  PERIOD_STATUS_LOCKED,
++] as const;
++
++export type PeriodStatus = (typeof PERIOD_STATUSES)[number];
++
++// ── ReversalRequestState (frontend mirror of authorize_reversal result) ──
++export interface ReversalRequestState {
++  target_event_id: string;
++  period_status: PeriodStatus;
++  capability_granted: boolean;
++  period_locked: boolean;
++  allow_submission: boolean;
++  reject_reason_ko: string | null;
++}
++
++// ── ReversalRequestPayload (POST /api/v1/close/reversal-requests body) ──
++// Mirrors Pydantic `ReversalCreateRequest` (handlers.py).
++export interface ReversalRequestPayload {
++  target_event_id: string;
++  reason: string;
++  corrected_qty: string | null;       // Decimal string (AD-8)
++  corrected_period_key: string | null; // AD-24 typed "YYYY-MM"
++}
++
++// ── InventoryLedgerEvent (reversal target — 5-2 wire extension) ──
++// Mirrors Python `InventoryLedgerEvent` NamedTuple (9 reversal fields).
++export interface InventoryLedgerEvent {
++  event_id: string;
++  tenant_id: string;
++  product_id: string;
++  period_key: string;
++  event_type: string;
++  qty: string;                        // Decimal string (AD-8)
++  trace_id: string;
++  reverses_event_id: string | null;
++  correction_group_id: string | null;
++  reversal_of_period_key: string | null;
++  actor_id: string;
++  payload: Record<string, unknown>;
++}
++
++// ── ReversalHistoryEntry (GET /reversal-requests/{cid} row) ──
++export interface ReversalHistoryEntry {
++  event_id: string;
++  tenant_id: string;
++  product_id: string;
++  period_key: string;
++  event_type: string;
++  qty: string | null;
++  reverses_event_id: string | null;
++  correction_group_id: string | null;
++  reversal_of_period_key: string | null;
++  trace_id: string;
++}
++
++// ── ReversalCreateResponse (POST /reversal-requests response envelope) ──
++// Mirrors Pydantic `ReversalCreateResponse`.
++export interface ReversalCreateResponse {
++  correction_group_id: string;
++  negating_event_id: string;
++  corrected_event_id: string | null;
++  target_event_id: string;
++  reversal_history: ReversalHistoryEntry[];
++  trace_id: string;
++  cache_invalidation_receipt: Record<string, string>;
++}
++
++// ── ReversalHistoryResponse (GET /reversal-requests/{cid} envelope) ──
++export interface ReversalHistoryResponse {
++  correction_group_id: string;
++  reversal_history: ReversalHistoryEntry[];
++  trace_id: string;
++}
++
++// ── CacheInvalidationPublishRequest (POST /cache-invalidation body) ──
++export interface CacheInvalidationPublishRequest {
++  channel: string;                    // FROZENSET = {'ai_cache'} for 11-1 wire
++  event_id: string;
++  correction_group_id: string;
++}
++
++// ── CacheInvalidationPublishResponse (POST /cache-invalidation envelope) ──
++export interface CacheInvalidationPublishResponse {
++  channel: string;
++  tenant_id: string;
++  event_id: string;
++  correction_group_id: string;
++  published_at: string;
++  trace_id: string;
++}
++
++// ── Error code constants (AD-15 §4 typed envelope) ──────────────
++export const REVERSAL_ERROR_CODE_TARGET_NOT_FOUND =
++  "REVERSAL_TARGET_NOT_FOUND" as const;
++export const REVERSAL_ERROR_CODE_REJECTED = "REVERSAL_REJECTED" as const;
++export const REVERSAL_ERROR_CODE_UNAUTHORIZED =
++  "REVERSAL_UNAUTHORIZED" as const;
++export const REVERSAL_ERROR_CODE_DUPLICATE = "REVERSAL_DUPLICATE" as const;
++export const REVERSAL_ERROR_CODE_LOCKED =
++  "LOCKED_PERIOD_REVERSAL_REJECTED" as const;
++export const REVERSAL_ERROR_CODE_INDUSTRY_NOT_SUPPORTED =
++  "INDUSTRY_NOT_SUPPORTED" as const;
++
++// ── buildReversalRequestState (frontend authorization gate) ─────
++// Mirrors Python `authorize_reversal` pure-kernel decision.
++export function buildReversalRequestState(input: {
++  target_event_id: string;
++  period_status: PeriodStatus;
++  capability_granted: boolean;
++}): ReversalRequestState {
++  const period_locked = input.period_status === PERIOD_STATUS_LOCKED;
++  const allow_submission =
++    !period_locked &&
++    input.capability_granted &&
++    input.target_event_id.length > 0;
++
++  let reject_reason_ko: string | null = null;
++  if (!input.capability_granted) {
++    reject_reason_ko = M11_REJECT_NO_CAPABILITY_KO;
++  } else if (period_locked) {
++    reject_reason_ko = M11_REJECT_LOCKED_KO;
++  }
++
++  return {
++    target_event_id: input.target_event_id,
++    period_status: input.period_status,
++    capability_granted: input.capability_granted,
++    period_locked,
++    allow_submission,
++    reject_reason_ko,
++  };
++}
++
++// ── isReversalRequestAllowed (defense-in-depth gate) ────────────
++export function isReversalRequestAllowed(state: ReversalRequestState): boolean {
++  return state.allow_submission;
++}
++
++// ── formatReversalReasonKo (Korean SSOT — reason field) ─────────
++export function formatReversalReasonKo(reason: string): string {
++  const trimmed = reason.trim();
++  if (trimmed.length === 0) {
++    return "";
++  }
++  return trimmed;
++}
++
++// ── validateReversalNegatingConstraints (defense-in-depth) ─────
++// Mirrors Python `validate_reversal_negating_constraints`.
++// Reversal target event_type must be in the reversal-eligible whitelist
++// (8 values from the 11-value inventory_ledger event_type CHECK).
++const REVERSAL_ELIGIBLE_EVENT_TYPES: ReadonlySet<string> = new Set([
++  "opening_carried",
++  "opening_carried_stale_overwrite",
++  "purchase_inbound",
++  "sales_outbound",
++  "production_output_inbound",
++  "production_material_consumption",
++  "adjustment_positive",
++  "adjustment_negative",
++  "closing_snapshot",
++]);
++
++const NON_REVERSIBLE_EVENT_TYPES: ReadonlySet<string> = new Set([
++  REVERSAL_NEGATING_EVENT_TYPE,
++  REVERSAL_CORRECTED_EVENT_TYPE,
++]);
++
++export function validateReversalNegatingConstraints(
++  target: InventoryLedgerEvent,
++): void {
++  if (!target.event_id) {
++    throw new Error("target_event_id is required");
++  }
++  if (NON_REVERSIBLE_EVENT_TYPES.has(target.event_type)) {
++    throw new Error(
++      `self-reversal forbidden — cannot reverse event_type=${target.event_type}`,
++    );
++  }
++  if (!REVERSAL_ELIGIBLE_EVENT_TYPES.has(target.event_type)) {
++    throw new Error(
++      `event_type=${target.event_type} is not reversal-eligible`,
++    );
++  }
++}
++
++// ── validateReversalCorrectedConstraints (defense-in-depth) ────
++// Mirrors Python `validate_reversal_corrected_constraints`. Pure-KO.
++const PERIOD_KEY_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
++
++export function validateReversalCorrectedConstraints(input: {
++  target_event: InventoryLedgerEvent;
++  corrected_period_key: string;
++  correction_group_id: string;
++}): void {
++  if (!PERIOD_KEY_PATTERN.test(input.corrected_period_key)) {
++    throw new Error(
++      `corrected_period_key=${input.corrected_period_key} must match AD-24 typed 'YYYY-MM' pattern`,
++    );
++  }
++  if (!input.correction_group_id) {
++    throw new Error("correction_group_id is required");
++  }
++  if (!input.target_event.event_id) {
++    throw new Error("target_event.event_id is required");
++  }
++}

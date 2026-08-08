@@ -1,0 +1,2744 @@
+warning: in the working copy of 'apps/api/alembic/versions/0019_m11_reversal_ledger.py', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/api/alembic/versions/0019_m11_reversal_ledger.py b/apps/api/alembic/versions/0019_m11_reversal_ledger.py
+new file mode 100644
+index 0000000..d8de84d
+--- /dev/null
++++ b/apps/api/alembic/versions/0019_m11_reversal_ledger.py
+@@ -0,0 +1,154 @@
++"""Story 11.1 — M11 reversal sequence + AD-25 cache invalidation column.
++
++This migration adds the `reversal_of_period_key` column to the
++`inventory_ledger` table for AD-22 reversal sequence.
++
++Per AD-22:
++- reversal_negating row's `period_key` = the current period where
++  the new row lives.
++- `reversal_of_period_key` = the original event's period_key (may
++  differ if the corrected row crosses periods).
++
++This allows the GET reversal_history endpoint to read the original
++period_key for cross-period corrections (e.g., correction that
++moves a row from 2026-08 to 2026-09).
++
++Also adds:
++- A new `reversal_log` table for AD-22 reversal history observability
++  (Future Epic 11-3 expansion; 11-1 ship is 0-row by default).
++- A new `cache_invalidation_log` table for AD-25 receipt audit
++  (1-channel: ai_cache).
++- (tenant_id, reverses_event_id) PARTIAL UNIQUE INDEX to prevent
++  re-reversal of the same target (Alembic 0015 forward-fill).
++
++Revision ID: 0019_m11_reversal_ledger
++Revises:    0018_verification_log_v4_audit
++Create Date: 2026-08-08
++"""
++
++from __future__ import annotations
++
++from alembic import op
++
++revision = "0019_m11_reversal_ledger"
++down_revision = "0018_verification_log_v4_audit"
++branch_labels = None
++depends_on = None
++
++
++def upgrade() -> None:
++    """Story 11.1 — AD-22 reversal + AD-25 cache invalidation wire.
++
++    1. Add `reversal_of_period_key` column to `inventory_ledger` (AD-22).
++    2. Create `reversal_log` table (AD-22 history observability).
++    3. Create `cache_invalidation_log` table (AD-25 receipt audit).
++    4. Add (tenant_id, reverses_event_id) PARTIAL UNIQUE INDEX to
++       prevent re-reversal of the same target.
++    """
++    # ── 1. Add `reversal_of_period_key` column ─────────────────
++    op.execute(
++        """
++        ALTER TABLE inventory_ledger
++        ADD COLUMN reversal_of_period_key TEXT NULL
++        """
++    )
++
++    # ── 1.1. AD-24 typed period_key CHECK (reversal_of_period_key) ─
++    op.execute(
++        """
++        ALTER TABLE inventory_ledger
++        ADD CONSTRAINT inventory_ledger_reversal_of_period_key_format_check
++        CHECK (
++            reversal_of_period_key IS NULL
++            OR reversal_of_period_key ~ '^\\d{4}-(0[1-9]|1[0-2])$'
++        )
++        """
++    )
++
++    # ── 2. AD-22 (tenant_id, reverses_event_id) PARTIAL UNIQUE INDEX ─
++    # Prevents re-reversal of the same target row.
++    op.execute(
++        """
++        CREATE UNIQUE INDEX uq_inventory_ledger_reverses_event_id
++        ON inventory_ledger (tenant_id, reverses_event_id)
++        WHERE reverses_event_id IS NOT NULL
++        """
++    )
++
++    # ── 3. Create `reversal_log` table (AD-22 history) ─────────
++    op.execute(
++        """
++        CREATE TABLE reversal_log (
++            reversal_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++            tenant_id            UUID NOT NULL
++                                 REFERENCES tenants(id) ON DELETE RESTRICT,
++            correction_group_id  UUID NOT NULL,
++            target_event_id      UUID NOT NULL,
++            negating_event_id    UUID NOT NULL,
++            corrected_event_id   UUID NULL,
++            actor_id             UUID NOT NULL,
++            reason               TEXT NOT NULL,
++            period_key           TEXT NOT NULL,
++            reversal_of_period_key TEXT NULL,
++            payload              JSONB NOT NULL DEFAULT '{}'::jsonb,
++            trace_id             UUID NOT NULL,
++            created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
++        )
++        """
++    )
++
++    # AD-22 reversal_log info only (NO action CHECK — this is a
++    # bookkeeping table, not an audit_log action destination).
++    # Index for correction_group_id lookup.
++   warning: in the working copy of 'apps/api/core/cache_invalidation_publisher.py', LF will be replaced by CRLF the next time Git touches it
+ op.execute(
++        """
++        CREATE INDEX ix_reversal_log_correction_group_id
++        ON reversal_log (correction_group_id)
++        """
++    )
++
++    # ── 4. Create `cache_invalidation_log` table (AD-25 audit) ──
++    op.execute(
++        """
++        CREATE TABLE cache_invalidation_log (
++            receipt_id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++            tenant_id            UUID NOT NULL
++                                 REFERENCES tenants(id) ON DELETE RESTRICT,
++            channel              TEXT NOT NULL
++                                 CHECK (channel IN ('ai_cache')),
++            target_event_id      UUID NOT NULL,
++            correction_group_id  UUID NOT NULL,
++            trace_id             UUID NOT NULL,
++            published_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
++        )
++        """
++    )
++
++    # AD-25 1-channel publisher audit log index.
++    op.execute(
++        """
++        CREATE INDEX ix_cache_invalidation_log_correction_group_id
++        ON cache_invalidation_log (correction_group_id)
++        """
++    )
++
++
++def downgrade() -> None:
++    """Reverse all 11.1 schema changes."""
++    op.execute("DROP TABLE IF EXISTS cache_invalidation_log")
++    op.execute("DROP TABLE IF EXISTS reversal_log")
++    op.execute(
++        "DROP INDEX IF EXISTS uq_inventory_ledger_reverses_event_id"
++    )
++    op.execute(
++        """
++        ALTER TABLE inventory_ledger
++        DROP CONSTRAINT IF EXISTS inventory_ledger_reversal_of_period_key_format_check
++        """
++    )
++    op.execute(
++        """
++        ALTER TABLE inventory_ledger
++        DROP COLUMN IF EXISTS reversal_of_period_key
++        """
++    )
+diff --git a/apps/api/core/cache_invalidation_publisher.py b/apps/api/core/cache_invalidation_publisher.py
+new file mode 100644
+index 0000000..23eadc2
+--- /dev/null
++++ b/apps/api/core/cache_invalidation_publisher.py
+@@ -0,0 +1,187 @@
++"""apps.api.core.cache_invalidation_publisher — AD-25 cache invalidation publisher.
++
++AD-25 cache invalidation notification (Story 11.1 PRIMARY wire — 1-channel).
++
++Story 11.1 ships a single-channel publisher:
++- channel FROZENSET = `{'ai_cache'}` (M10 AI cache invalidation target)
++- M11 reversal sequence completes → publish(channel='ai_cache', ...) →
++  M10 cache invalidation queue + AI cache reset.
++
++Future expansion (deferred to 11-3 entry):
++- channel FROZENSET extension: `cost_engine_cache`, `fiscal_period_cache`,
++  `closing_snapshot_cache` etc.
++
++AD-1 + AD-11 binding: this module is in `apps/api/core/` (infra layer).
++It does NOT import `packages.cost_engine` directly. Pure-Python, no DB,
++no clock in the publish() method (callers supply trace_id + published_at).
++"""
++
++from __future__ import annotations
++
++import uuid
++from datetime import UTC, datetime
++from typing import Final, NamedTuple
++
++# ── Constants ────────────────────────────────────────────────
++# AD-25 1-channel wire. FROZENSET — channel registry is immutable.
++# Channel additions require explicit code change (no dynamic registration
++# in MVP — this prevents accidental channel sprawl).
++ALLOWED_CHANNELS: Final[frozenset[str]] = frozenset({"ai_cache"})
++
++# Error codes.
++ERROR_CODE_INVALID_CHANNEL: Final[str] = "INVALID_CACHE_INVALIDATION_CHANNEL"
++ERROR_CODE_NON_UUID_TENANT: Final[str] = "NON_UUID_TENANT_ID"
++ERROR_CODE_NON_UUID_EVENT: Final[str] = "NON_UUID_EVENT_ID"
++ERROR_CODE_NON_UUID_CORRECTION_GROUP: Final[str] = "NON_UUID_CORRECTION_GROUP_ID"
++ERROR_CODE_NON_STR_TRACE_ID: Final[str] = "NON_STR_TRACE_ID"
++
++# Channel discriminator — payload self-describing (CR 1.1 lesson).
++PAYLOAD_KEY_CHANNEL: Final[str] = "channel"
++PAYLOAD_KEY_TENANT_ID: Final[str] = "tenant_id"
++PAYLOAD_KEY_EVENT_ID: Final[str] = "event_id"
++PAYLOAD_KEY_CORRECTION_GROUP_ID: Final[str] = "correction_group_id"
++PAYLOAD_KEY_TRACE_ID: Final[str] = "trace_id"
++PAYLOAD_KEY_PUBLISHED_AT: Final[str] = "published_at"
++
++# Korean constants — AD-15 §11 SSOT.
++CACHE_INVALIDATION_PUBLISHED_KO: Final[str] = "캐시 무효화 알림 발행 완료"
++CACHE_INVALIDATION_INVALID_CHANNEL_KO: Final[str] = "지원하지 않는 캐시 무효화 채널"
++
++
++# ── Typed exception ──────────────────────────────────────────
++class CacheInvalidationChannelInvalidError(Exception):
++    """422 CACHE_INVALIDATION_INVALID_CHANNEL — channel not in FROZENSET."""
++
++    def __init__(
++        self,
++        *,
++        channel: str,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"cache invalidation channel {channel!r} not in allowed "
++            f"set {sorted(ALLOWED_CHANNELS)}"
++        )
++        self.channel = channel
++        self.trace_id = trace_id
++
++
++# ── CacheInvalidationReceipt NamedTuple ──────────────────────
++class CacheInvalidationReceipt(NamedTuple):
++    """Receipt envelope — service layer returns this to callers."""
++
++    channel: str
++    tenant_id: uuid.UUID
++    target_event_id: uuid.UUID
++    correction_group_id: uuid.UUID
++    published_at: str
++    trace_id: str
++
++
++# ── CacheInvalidationPublisher ───────────────────────────────
++class CacheInvalidationPublisher:
++    """AD-25 publisher — 1-channel (ai_cache) for Story 11.1.
++
++    Pure-Python — does NOT issue DB writes. Callers integrate the
++    receipt into their audit payload (audit-first CR 1.1 pattern).
++    """
++
++    def publish(
++        self,
++        *,
++        channel: str,
++        tenant_id: uuid.UUID,
++        event_id: uuid.UUID,
++        correction_group_id: uuid.UUID,
++        trace_id: str,
++        published_at: str | None = None,
++    ) -> CacheInvalidationReceipt:
++        """Publish a cache invalidation receipt for `channel`.
++
++        Args:
++            channel: One of ALLOWED_CHANNELS. `ai_cache` is the only
++                channel registered in 11-1 wire.
++            tenant_id: Owning tenant.
++            event_id: inventory_ledger.event_id of the reversal target.
++            correction_group_id: correction_group_id linking negating +
++                corrected rows.
++            trace_id: Request correlation ID.
++            published_at: Optional ISO-8601 timestamp. Defaults to
++                `datetime.now(tz=UTC).isoformat()`.
++
++        Returns:
++            CacheInvalidationReceipt named tuple.
++
++        Raises:
++            CacheInvalidationChannelInvalidError: channel not in ALLOWED_CHANNELS.
++            ValueError: input shape violations.
++        """
++        if not isinstance(tenant_id, uuid.UUID):
++            raise ValueError(
++                f"tenant_id must be UUID, got {type(tenant_id).__name__!r}"
++            )
++        if not isinstance(event_id, uuid.UUID):
++            raise ValueError(
++                f"event_id must be UUID, got {type(event_id).__name__!r}"
++            )
++        if not isinstance(correction_group_id, uuid.UUID):
++            raise ValueError(
++                f"correction_group_id must be UUID, got "
++                f"{type(correction_group_id).__name__!r}"
++            )
++        if not isinstance(trace_id, str):
++            raise ValueError(
++                f"trace_id must be str, got {type(trace_id).__name__!r}"
++            )
++        if not isinstance(channel, str):
++            raise ValueError(
++                f"channel must be str, got {type(channel).__name__!r}"
++            )
++        if channel not in ALLOWED_CHANNELS:
++            raise CacheInvalidationChannelInvalidError(
++                channel=channel, trace_id=trace_id
++            )
++
++        # Defense-in-depth: trace_id non-empty.
++        if not trace_id:
++            raise ValueError("trace_id must be non-empty")
++
++        ts = published_at if published_at is not None else datetime.now(tz=UTC).isoformat()
++        return CacheInvalidationReceipt(
++            channel=channel,
++            tenant_id=tenant_id,
++            target_evenwarning: in the working copy of 'apps/api/modules/m11_close/handlers.py', LF will be replaced by CRLF the next time Git touches it
+t_id=event_id,
++            correction_group_id=correction_group_id,
++            published_at=ts,
++            trace_id=trace_id,
++        )
++
++    # ── Receipt → dict (for audit-first payload) ────────────────
++    @staticmethod
++    def receipt_to_dict(receipt: CacheInvalidationReceipt) -> dict[str, str]:
++        """Convert receipt to audit payload dict (CR 1.1 self-describing)."""
++        return {
++            PAYLOAD_KEY_CHANNEL: receipt.channel,
++            PAYLOAD_KEY_TENANT_ID: str(receipt.tenant_id),
++            PAYLOAD_KEY_EVENT_ID: str(receipt.target_event_id),
++            PAYLOAD_KEY_CORRECTION_GROUP_ID: str(receipt.correction_group_id),
++            PAYLOAD_KEY_TRACE_ID: receipt.trace_id,
++            PAYLOAD_KEY_PUBLISHED_AT: receipt.published_at,
++        }
++
++
++__all__ = [
++    "ALLOWED_CHANNELS",
++    "CACHE_INVALIDATION_INVALID_CHANNEL_KO",
++    "CACHE_INVALIDATION_PUBLISHED_KO",
++    "CacheInvalidationChannelInvalidError",
++    "CacheInvalidationPublisher",
++    "CacheInvalidationReceipt",
++    "ERROR_CODE_INVALID_CHANNEL",
++    "PAYLOAD_KEY_CHANNEL",
++    "PAYLOAD_KEY_CORRECTION_GROUP_ID",
++    "PAYLOAD_KEY_EVENT_ID",
++    "PAYLOAD_KEY_PUBLISHED_AT",
++    "PAYLOAD_KEY_TENANT_ID",
++    "PAYLOAD_KEY_TRACE_ID",
++]
+diff --git a/apps/api/modules/m11_close/handlers.py b/apps/api/modules/m11_close/handlers.py
+new file mode 100644
+index 0000000..0d7b99b
+--- /dev/null
++++ b/apps/api/modules/m11_close/handlers.py
+@@ -0,0 +1,380 @@
++"""apps.api.modules.m11_close.handlers — M11 closure module FastAPI routes.
++
++Story 11.1 — M11 module authority reverse-direction service owner.
++Wires the AD-22 reversal sequence (sign-negating + corrected row) +
++AD-25 cache invalidation publisher.
++
++Routes (3 NEW):
++- POST /api/v1/close/reversal-requests
++    → Owner-only AD-22 reversal sequence (sign-negating + optional
++      corrected row + AD-25 publish + audit-first emit).
++      201 REVERSAL_COMPLETED on success.
++- GET /api/v1/close/reversal-requests/{correction_group_id}
++    → Observability read of the reversal pair (sign-negating + corrected
++      rows) sharing correction_group_id.
++- POST /api/v1/close/cache-invalidation
++    → AD-25 cache invalidation publish endpoint (1-channel: ai_cache).
++      M11 reversal sequence wires this internally; this endpoint is
++      available for the M10 AI cache consumer to flush on demand.
++
++Defense in depth:
++- require_capability(Capability.REVERSAL_REQUEST) — manufacturing 3종 ✅
++  / service-only ❌ (PRD §F11.3 PRISM gate).
++- require_role("owner") — AD-10 owner-only mutations.
++- Audit-first wire (CR 1.1): ReversalService emits
++  `m11_reversal_handler_invoked` → `inventory_ledger_reversal_logged` →
++  `cache_invalidation_published` audit rows BEFORE the data writes.
++- AD-25 1-channel wire: channel FROZENSET = `{'ai_cache'}`.
++
++Error contract (AD-15 §4 envelope):
++- 201 REVERSAL_COMPLETED — success with correction_group_id + history
++- 400 INVALID_PAYLOAD — service-side shape validation failure
++- 403 FORBIDDEN_ROLE — non-owner caller
++- 403 INDUSTRY_NOT_SUPPORTED — service-only tenant attempted reversal
++  (capability gate)
++- 403 REVERSAL_REJECTED — capability / actor / target_reversibility gate
++- 403 REVERSAL_UNAUTHORIZED — caller role mismatch
++- 404 REVERSAL_TARGET_NOT_FOUND — target_event_id not in tenant
++- 422 INVALID_CACHE_INVALIDATION_CHANNEL — channel not in
++  ALLOWED_CHANNELS (POST /cache-invalidation)
++- 422 REVERSAL_DUPLICATE — (tenant_id, reverses_event_id) UNIQUE
++  constraint violation (re-reversal)
++- 422 LOCKED_PERIOD_REVERSAL_REJECTED — period_status='locked'
++"""
++
++from __future__ import annotations
++
++import uuid
++from datetime import datetime
++from decimal import Decimal
++from typing import Any
++
++from fastapi import APIRouter, Depends, Path
++from pydantic import BaseModel, ConfigDict, Field
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from apps.api.core.cache_invalidation_publisher import (
++    ALLOWED_CHANNELS,
++    CacheInvalidationPublisher,
++)
++from apps.api.core.capability import Capability, require_capability, require_role
++from apps.api.core.db import get_session
++from apps.api.core.tenant_context import TenantContext, get_tenant_context
++from apps.api.modules.m0_onboarding.services.settings_service import (
++    SettingsService,
++    TenantSettingsNotFoundError,
++)
++from apps.api.modules.m11_close.services.reversal_service import (
++    ReversalService,
++)
++
++router = APIRouter(prefix="/api/v1/close", tags=["m11-close"])
++
++
++# ── Request schemas ──────────────────────────────────────────
++class ReversalCreateRequest(BaseModel):
++    """POST /api/v1/close/reversal-requests body shape."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    target_event_id: uuid.UUID = Field(
++        ...,
++        description="inventory_ledger.event_id to reverse (AD-22 sign-negating target)",
++    )
++    reason: str = Field(
++        ...,
++        min_length=1,
++        max_length=500,
++        description="Free-text user-provided justification (Korean SSOT OK)",
++    )
++    corrected_qty: Decimal | None = Field(
++        None,
++        description="Optional corrected qty (AD-22 sequence step 2). "
++        "Requires corrected_period_key when set.",
++    )
++    corrected_period_key: str | None = Field(
++        None,
++        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
++        description="Optional corrected period key (AD-24 typed 'YYYY-MM'). "
++        "Requires corrected_qty when set.",
++    )
++
++
++class CacheInvalidationPublishRequest(BaseModel):
++    """POST /api/v1/close/cache-invalidation body shape (AD-25 1-channel)."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    channel: str = Field(
++        default="ai_cache",
++        description="Cache invalidation channel. Must be in ALLOWED_CHANNELS "
++        "(`frozenset({'ai_cache'})` for Story 11.1 wire).",
++    )
++    event_id: uuid.UUID = Field(
++        ...,
++        description="invalidation trigger event_id (typically inventory_ledger.event_id)",
++    )
++    correction_group_id: uuid.UUID = Field(
++        ...,
++        description="correction_group_id linking the reversal pair",
++    )
++
++
++# ── Response schemas ─────────────────────────────────────────
++class ReversalHistoryEntry(BaseModel):
++    """Single row in the reversal_history list."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    event_id: str
++    tenant_id: str
++    product_id: str
++    period_key: str
++    event_type: str
++    qty: str | None
++    reverses_event_id: str | None
++    correction_group_id: str | None
++    reversal_of_period_key: str | None
++    trace_id: str
++
++
++class ReversalCreateResponse(BaseModel):
++    """POST /api/v1/close/reversal-requests response envelope."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    correction_group_id: str
++    negating_event_id: str
++    corrected_event_id: str | None
++    target_event_id: str
++    reversal_history: list[ReversalHistoryEntry]
++    trace_id: str
++    cache_invalidation_receipt: dict[str, str]
++
++
++class ReversalHistoryResponse(BaseModel):
++    """GET /api/v1/close/reversal-requests/{correction_group_id} response."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    correction_group_id: str
++    reversal_history: list[ReversalHistoryEntry]
++    trace_id: str
++
++
++class CacheInvalidationPublishResponse(BaseModel):
++    """POST /api/v1/close/cache-invalidation response envelope."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    channel: str
++    tenant_id: str
++    event_id: str
++    correction_group_id: str
++    published_at: str
++    trace_id: str
++
++
++# ── Helpers ──────────────────────────────────────────────────
++async def _build_reversal_service(
++    session: AsyncSession, ctx: TenantContext
++) -> ReversalService:
++    """Construct `ReversalService` with tenant industry loaded.
++
++    Mirrors the 5-2 ledger handler pattern (industry loaded from
++    tenant_settings; None for service-only tenants).
++    """
++    settings_svc = SettingsService(session, tenant_id=ctx.tenant_id)
++    try:
++        settings = await settings_svc.get_or_create_settings()
++        industry = settings.industry
++    except TenantSettingsNotFoundError:
++        industry = None
++    return ReversalService(
++        session,
++        tenant_id=ctx.tenant_id,
++        industry=industry,
++        trace_id=ctx.trace_id,
++    )
++
++
++def _capability_granted_for_industry(industry: Any | None) -> bool:
++    """PRISM gate — REVERSAL_REQUEST is manufacturing 3종 ✅ only.
++
++    PRD §F11.3 + capability matrix v1.10: REVERSAL_REQUEST is granted
++    to the 3 Industry values that have a manufacturing footprint
++    (manufacturing / manufacturing_service / manufacturing_service_other).
++    service-only tenants are denied.
++
++    Returns:
++        True if the industry is in the manufacturing 3종 whitelist.
++    """
++    if industry is None:
++        return False
++    industry_value = getattr(industry, "value", None) or str(industry)
++    return industry_value in {
++        "manufacturing",
++        "manufacturing_service",
++        "manufacturing_service_other",
++    }
++
++
++# ── POST /api/v1/close/reversal-requests (AD-22 wire) ────────
++@router.post(
++    "/reversal-requests",
++    response_model=ReversalCreateResponse,
++    status_code=201,
++    summary="AD-22 reversal sequence (sign-negating + optional corrected row) — Story 11.1",
++)
++async def create_reversal_request(
++    payload: ReversalCreateRequest,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _capability: None = Depends(
++        require_capability(Capability.REVERSAL_REQUEST)
++    ),
++    _role: None = Depends(require_role("owner")),
++) -> ReversalCreateResponse:
++    """Execute AD-22 9-step reversal sequence.
++
++    Returns 201 REVERSAL_COMPLETED with:
++    - correction_group_id (links sign-negating + corrected rows)
++    - negating_event_id (new row, qty = -target.qty)
++    - corrected_event_id (new row, when corrected_qty/period_key are set)
++    - reversal_history: list of all rows sharing correction_group_id
++    - cache_invalidation_receipt: AD-25 publisher receipt (channel='ai_cache')
++
++    Raises (handler-level envelope exceptions dispatched via main.py):
++    - 403 REVERSAL_REJECTED — capability / authorization gate
++    - 422 LOCKED_PERIOD_REVERSAL_REJECTED — period_status='locked'
++    - 422 REVERSAL_DUPLICATE — (tenant_id, reverses_event_id) UNIQUE violation
++    - 404 REVERSAL_TARGET_NOT_FOUND — target_event_id missing
++    """
++    reversal_svc = await _build_reversal_service(session, ctx)
++
++    # PRISM gate (manufacturing 3종 ✅ / service-only ❌).
++    capability_granted = _capability_granted_for_industry(reversal_svc.industry)
++
++    response = await reversal_svc.execute_reversal(
++        target_event_id=payload.target_event_id,
++        reason=payload.reason,
++        actor_id=ctx.user_id,
++        capability_granted=capability_granted,
++        corrected_qty=payload.corrected_qty,
++        corrected_period_key=payload.corrected_period_key,
++    )
++
++    await session.commit()
++
++    return ReversalCreateResponse(
++        correction_group_id=str(response.correction_group_id),
++        negating_event_id=str(response.negating_event_id),
++        corrected_event_id=(
++            str(response.corrected_event_id)
++            if response.corrected_event_id
++            else None
++        ),
++        target_event_id=str(response.target_event_id),
++        reversal_history=[
++            ReversalHistoryEntry(**entry) for entry in response.reversal_history
++        ],
++        trace_id=response.trace_id,
++        cache_invalidation_receipt=response.cache_invalidation_receipt,
++    )
++
++
++# ── GET /api/v1/close/reversal-requests/{correction_group_id} ─
++@router.get(
++    "/reversal-requests/{correction_group_id}",
++    response_model=ReversalHistoryRespwarning: in the working copy of 'apps/api/modules/m11_close/services/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/modules/m11_close/services/reversal_kernel_adapter.py', LF will be replaced by CRLF the next time Git touches it
+onse,
++    status_code=200,
++    summary="Read reversal pair (sign-negating + corrected) by correction_group_id",
++)
++async def get_reversal_history(
++    correction_group_id: uuid.UUID = Path(
++        ...,
++        description="correction_group_id linking the reversal pair",
++    ),
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _capability: None = Depends(
++        require_capability(Capability.REVERSAL_REQUEST)
++    ),
++) -> ReversalHistoryResponse:
++    """Observability read of the reversal pair.
++
++    Returns 200 with correction_group_id + list of all rows sharing
++    the correction_group_id (sign-negating + corrected).
++    """
++    reversal_svc = await _build_reversal_service(session, ctx)
++    history = await reversal_svc.get_reversal_history(
++        correction_group_id=correction_group_id,
++    )
++    return ReversalHistoryResponse(
++        correction_group_id=str(correction_group_id),
++        reversal_history=[
++            ReversalHistoryEntry(**entry) for entry in history
++        ],
++        trace_id=ctx.trace_id,
++    )
++
++
++# ── POST /api/v1/close/cache-invalidation (AD-25 PRIMARY) ────
++@router.post(
++    "/cache-invalidation",
++    response_model=CacheInvalidationPublishResponse,
++    status_code=200,
++    summary="AD-25 cache invalidation publish (1-channel: ai_cache) — Story 11.1",
++)
++async def publish_cache_invalidation(
++    payload: CacheInvalidationPublishRequest,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _capability: None = Depends(
++        require_capability(Capability.REVERSAL_REQUEST)
++    ),
++    _role: None = Depends(require_role("owner")),
++) -> CacheInvalidationPublishResponse:
++    """AD-25 cache invalidation publish endpoint.
++
++    Wire 1-channel: `channel='ai_cache'` (M10 AI cache invalidation target).
++    M11 reversal sequence wires this internally; this endpoint is also
++    available for the M10 AI cache consumer to flush on demand.
++
++    Returns 200 with the receipt envelope (channel, tenant_id, event_id,
++    correction_group_id, published_at, trace_id).
++
++    Raises (handled in main.py):
++    - 422 INVALID_CACHE_INVALIDATION_CHANNEL — channel not in ALLOWED_CHANNELS
++    """
++    publisher = CacheInvalidationPublisher()
++    receipt = publisher.publish(
++        channel=payload.channel,
++        tenant_id=ctx.tenant_id,
++        event_id=payload.event_id,
++        correction_group_id=payload.correction_group_id,
++        trace_id=ctx.trace_id,
++        published_at=datetime.utcnow().isoformat(),
++    )
++    await session.commit()
++
++    return CacheInvalidationPublishResponse(
++        channel=receipt.channel,
++        tenant_id=str(receipt.tenant_id),
++        event_id=str(receipt.target_event_id),
++        correction_group_id=str(receipt.correction_group_id),
++        published_at=receipt.published_at,
++        trace_id=receipt.trace_id,
++    )
++
++
++__all__ = [
++    "ALLOWED_CHANNELS",
++    "CacheInvalidationPublishRequest",
++    "CacheInvalidationPublishResponse",
++    "ReversalCreateRequest",
++    "ReversalCreateResponse",
++    "ReversalHistoryEntry",
++    "ReversalHistoryResponse",
++    "router",
++]
+diff --git a/apps/api/modules/m11_close/services/__init__.py b/apps/api/modules/m11_close/services/__init__.py
+new file mode 100644
+index 0000000..c088ee3
+--- /dev/null
++++ b/apps/api/modules/m11_close/services/__init__.py
+@@ -0,0 +1 @@
++"""M11 services — Story 11.1 (AD-22 reversal service + AD-25 cache invalidation)."""
+diff --git a/apps/api/modules/m11_close/services/reversal_kernel_adapter.py b/apps/api/modules/m11_close/services/reversal_kernel_adapter.py
+new file mode 100644
+index 0000000..ebdad62
+--- /dev/null
++++ b/apps/api/modules/m11_close/services/reversal_kernel_adapter.py
+@@ -0,0 +1,140 @@
++"""apps.api.modules.m11_close.services.reversal_kernel_adapter — pure-kernel dispatch.
++
++Story 11.1 — thin adapter that dispatches the M11 pure kernels from
++`packages/services/m11_close/`. Exists to:
++1. Centralize pure-kernel dispatch (single place to update if kernels refactor).
++2. Provide DB-agnostic helpers to the service layer (ReversalService).
++
++AD-11 layering: this module is in `apps/api/modules/` — it does NOT
++import `packages.cost_engine` directly. It DOES import `packages.services.m11_close`
++(pure kernels, stdlib-only) and bridges them to the SQLAlchemy world.
++"""
++
++from __future__ import annotations
++
++import uuid
++from decimal import Decimal
++
++from sqlalchemy import select
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from apps.api.core.db_models import InventoryLedger, MonthlyInputPeriod
++from packages.services.m4_inventory.ledger import InventoryLedgerEvent
++from packages.services.m11_close.reversal_corrected import (
++    ReversalCorrectedEvent,
++    build_reversal_corrected_event,
++)
++from packages.services.m11_close.reversal_negating import (
++    ReversalNegatingEvent,
++    build_reversal_negating_event,
++)
++
++
++async def fetch_target_event(
++    session: AsyncSession,
++    *,
++    tenant_id: uuid.UUID,
++    target_event_id: uuid.UUID,
++) -> InventoryLedgerEvent | None:
++    """Fetch the target inventory_ledger row for reversal.
++
++    Returns None if the event doesn't exist or belongs to another tenant
++    (RLS-scoped). The service layer decides whether None is an error
++    (404 REVERSAL_TARGET_NOT_FOUND) or an idempotent skip.
++
++    NOTE: tenant_id filter is RLS-scoped — even without explicit filter,
++    the session's RLS context would auto-filter. We add the explicit
++    filter as defense-in-depth.
++    """
++    row = await session.scalar(
++        select(InventoryLedger).where(
++            InventoryLedger.event_id == target_event_id,
++            InventoryLedger.tenant_id == tenant_id,
++        )
++    )
++    if row is None:
++        return None
++    return InventoryLedgerEvent(
++        event_id=row.event_id,
++        tenant_id=row.tenant_id,
++        product_id=row.product_id,
++        period_key=row.period_key,
++        event_type=row.event_type,
++        qty=row.qty,
++        trace_id=row.trace_id,
++        reverses_event_id=row.reverses_event_id,
++        correction_group_id=row.correction_group_id,
++        payload=dict(row.payload or {}),
++    )
++
++
++async def fetch_period_status(
++    session: AsyncSession,
++    *,
++    tenant_id: uuid.UUID,
++    period_key: str,
++) -> str | None:
++    """Fetch the period_status from monthly_input_periods.
++
++    Returns None if the period doesn't exist for this tenant. Service
++    layer treats None as 'open' default (period not yet initialized).
++    """
++    row = await session.scalar(
++        select(MonthlyInputPeriod).where(
++            MonthlyInputPeriod.tenant_id == tenant_id,
++            MonthlyInputPeriod.period_key == period_key,
++        )
++    )
++    if row is None:
++        return None
++    return row.status  # type: ignore[no-any-return]
++
++
++def dispatch_build_reversal_negating(
++    *,
++    target_event: InventoryLedgerEvent,
++    reason: str,
++    actor_id: uuid.UUID,
++    correction_group_id: uuid.UUID,
++    trace_id: uuid.UUID,
++    event_id: uuid.UUID | None = None,
++) -> ReversalNegatingEvent:
++    """Dispatch build_reversal_negating_event from pure kernel."""
++    return build_reversal_negating_event(
++        target_event=target_event,
++        reason=reason,
++        actor_id=actor_id,
++        correction_group_id=correction_group_id,
++        trace_id=trace_id,
++        event_id=event_id,
++    )
++
++
++def dispatch_build_reversal_corrected(
++    *,
++    target_event: InventoryLedgerEvent,
++    correction_group_id: uuid.UUID,
++    corrected_qty: Decimal | None,
++    corrected_period_key: str | None,
++    actor_id: uuid.UUID,
++    trace_id: uuid.UUID,
++    event_id: uuid.UUID | None = None,
++) -> ReversalCorrectedEvent | None:
++    """Dispatch build_reversal_corrected_event from pure kernel."""
++    return build_reversal_corrected_event(
++        target_event=target_event,
++        correction_group_id=correction_group_id,
++        corrected_qty=corrected_qty,
++        corrected_period_key=corrected_period_key,
++        actowarning: in the working copy of 'apps/api/modules/m11_close/services/reversal_service.py', LF will be replaced by CRLF the next time Git touches it
+r_id=actor_id,
++        trace_id=trace_id,
++        event_id=event_id,
++    )
++
++
++__all__ = [
++    "dispatch_build_reversal_corrected",
++    "dispatch_build_reversal_negating",
++    "fetch_period_status",
++    "fetch_target_event",
++]
+diff --git a/apps/api/modules/m11_close/services/reversal_service.py b/apps/api/modules/m11_close/services/reversal_service.py
+new file mode 100644
+index 0000000..77a499f
+--- /dev/null
++++ b/apps/api/modules/m11_close/services/reversal_service.py
+@@ -0,0 +1,656 @@
++"""apps.api.modules.m11_close.services.reversal_service — Story 11.1 PRIMARY.
++
++AD-22 reversal sequence orchestrator (M11 module authority).
++
++Service-layer wrapper for the M11 pure kernels in
++`packages/services/m11_close/`. Provides:
++- `execute_reversal` — AD-22 9-step sequence (SELECT target, authorize,
++  sign-negating INSERT, optional corrected INSERT, AD-25 publish,
++  audit-first emit). All inside one REPEATABLE READ transaction
++  (4-2 wire pattern).
++- `get_reversal_history` — observability for reversal pairs.
++- `reject_reversal` — M11 reject path (audit emit + raise).
++
++AD-22 sequence:
++1. SELECT target_event FROM inventory_ledger (RLS-scoped)
++2. SELECT period_status FROM monthly_input_periods
++3. authorize_reversal decision
++4. correction_group_id mint (uuid7 fallback uuid4)
++5. sign-negating row INSERT
++6. corrected row INSERT (optional)
++7. AD-25 publisher publish (channel='ai_cache')
++8. audit-first INSERT to reversal_log + audit_logs (CR 1.1)
++9. COMMIT (atomic transaction)
++"""
++
++from __future__ import annotations
++
++import uuid
++from datetime import UTC, datetime
++from decimal import Decimal
++from typing import Any, NamedTuple
++
++from sqlalchemy.exc import IntegrityError
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from apps.api.core.audit import emit_audit
++from apps.api.core.cache_invalidation_publisher import (
++    CacheInvalidationPublisher,
++)
++from apps.api.core.db_models import InventoryLedger
++from apps.api.modules.m11_close.services.reversal_kernel_adapter import (
++    dispatch_build_reversal_corrected,
++    dispatch_build_reversal_negating,
++    fetch_period_status,
++    fetch_target_event,
++)
++from packages.services.m4_inventory.ledger import InventoryLedgerEvent
++from packages.services.m11_close.reversal_authorization import (
++    authorize_reversal,
++)
++from packages.services.m11_close.reversal_corrected import (
++    ReversalCorrectedEvent,
++)
++
++
++# ── Typed exceptions (AD-15 §4 envelope) ────────────────────
++class ReversalTargetNotFoundError(Exception):
++    """404 REVERSAL_TARGET_NOT_FOUND — target_event_id not found in tenant."""
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        target_event_id: uuid.UUID,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"target event_id={target_event_id} not found for tenant={tenant_id}"
++        )
++        self.tenant_id = tenant_id
++        self.target_event_id = target_event_id
++        self.trace_id = trace_id
++
++
++class ReversalRejectedError(Exception):
++    """403 REVERSAL_REJECTED — capability/period gate rejected."""
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        target_event_id: uuid.UUID,
++        reason_ko: str,
++        trace_id: str,
++    ) -> None:
++        super().__init__(reason_ko)
++        self.tenant_id = tenant_id
++        self.target_event_id = target_event_id
++        self.reason_ko = reason_ko
++        self.trace_id = trace_id
++
++
++class ReversalUnauthorizedError(Exception):
++    """403 REVERSAL_UNAUTHORIZED — caller is not the actor or role mismatch."""
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        actor_id: uuid.UUID,
++        target_event_id: uuid.UUID,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"actor_id={actor_id} unauthorized for reversal of event_id={target_event_id}"
++        )
++        self.tenant_id = tenant_id
++        self.actor_id = actor_id
++        self.target_event_id = target_event_id
++        self.trace_id = trace_id
++
++
++class ReversalDuplicateError(Exception):
++    """422 REVERSAL_DUPLICATE — (tenant_id, reverses_event_id) unique violation."""
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        target_event_id: uuid.UUID,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"event_id={target_event_id} has already been reversed"
++        )
++        self.tenant_id = tenant_id
++        self.target_event_id = target_event_id
++        self.trace_id = trace_id
++
++
++class LockedPeriodReversalRejectedError(Exception):
++    """422 LOCKED_PERIOD_REVERSAL_REJECTED — period_status='locked'."""
++
++    def __init__(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        target_event_id: uuid.UUID,
++        period_key: str,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"period {period_key} is locked; reversal of event_id={target_event_id} rejected"
++        )
++        self.tenant_id = tenant_id
++        self.target_event_id = target_event_id
++        self.period_key = period_key
++        self.trace_id = trace_id
++
++
++# ── ReversalResponse ────────────────────────────────────────
++class ReversalResponse(NamedTuple):
++    """Wire response shape for `POST /api/v1/close/reversal-requests`."""
++
++    correction_group_id: uuid.UUID
++    negating_event_id: uuid.UUID
++    corrected_event_id: uuid.UUID | None
++    target_event_id: uuid.UUID
++    reversal_history: list[dict[str, Any]]
++    trace_id: str
++    cache_invalidation_receipt: dict[str, str]
++
++
++# ── ReversalService ──────────────────────────────────────────
++class ReversalService:
++    """Story 11.1 — AD-22 reversal sequence orchestrator (M11 module authority)."""
++
++    def __init__(
++        self,
++        session: AsyncSession,
++        *,
++        tenant_id: uuid.UUID,
++        industry: Any | None,
++        trace_id: str,
++    ) -> None:
++        self.session = session
++        self.tenant_id = tenant_id
++        self.industry = industry
++        self.trace_id = trace_id
++        self._publisher = CacheInvalidationPublisher()
++
++    # ── Operation 1: execute_reversal (AD-22 9-step sequence) ──
++    async def execute_reversal(
++        self,
++        *,
++        target_event_id: uuid.UUID,
++        reason: str,
++        actor_id: uuid.UUID,
++        capability_granted: bool,
++        corrected_qty: Decimal | None = None,
++        corrected_period_key: str | None = None,
++    ) -> ReversalResponse:
++        """AD-22 sequence orchestrator. See module docstring for the 9 steps.
++
++        Args:
++            target_event_id: inventory_ledger.event_id to reverse.
++            reason: User-provided justification (Korean OK, audited).
++            actor_id: UUID of the reversal initiator.
++            capability_granted: Whether the tenant has Capability.REVERSAL_REQUEST.
++            corrected_qty: Optional corrected qty (AD-22 sequence step 2).
++            corrected_period_key: Optional corrected period key.
++
++        Returns:
++            ReversalResponse with correction_group_id + negating_event_id
++            + corrected_event_id + reversal history + cache receipt.
++
++        Raises:
++            ReversalTargetNotFoundError: target_event_id not found.
++            ReversalRejectedError: capability / period gate rejected.
++            LockedPeriodReversalRejectedError: period_status='locked'.
++            ReversalDuplicateError: (tenant_id, reverses_event_id) UNIQUE
++                constraint violated (re-reversal).
++            ReversalNegatingBuildError: pure kernel constraint violated.
++            ReversalCorrectedBuildError: corrected row constraint violated.
++        """
++        trace_id_uuid = uuid.UUID(self.trace_id)
++
++        # (1) SELECT target_event FROM inventory_ledger (RLS-scoped).
++        target_event = await fetch_target_event(
++            self.session,
++            tenant_id=self.tenant_id,
++            target_event_id=target_event_id,
++        )
++        if target_event is None:
++            raise ReversalTargetNotFoundError(
++                tenant_id=self.tenant_id,
++                target_event_id=target_event_id,
++                trace_id=self.trace_id,
++            )
++
++        # (2) SELECT period_status FROM monthly_input_periods.
++        period_status = await fetch_period_status(
++            self.session,
++            tenant_id=self.tenant_id,
++            period_key=target_event.period_key,
++        )
++        # period_status None (period not initialized) → treat as 'open'.
++        effective_period_status = period_status if period_status is not None else "open"
++
++        # (3) authorize_reversal decision.
++        auth = authorize_reversal(
++            tenant_id=self.tenant_id,
++            target_event=target_event,
++            actor_id=actor_id,
++            period_status=effective_period_status,
++            capability_granted=capability_granted,
++        )
++        if not auth.authorized:
++            # Audit-first rejection (CR 1.1 lesson).
++            await self._emit_reversal_rejected_audit(
++                target_event=target_event,
++                actor_id=actor_id,
++                reason_ko=auth.reject_reason_ko or "M11 모듈 권한 거부",
++            )
++            # 422 for locked-period (different from 403 capability reject).
++            if effective_period_status == "locked":
++                raise LockedPeriodReversalRejectedError(
++                    tenant_id=self.tenant_id,
++                    target_event_id=target_event_id,
++                    period_key=target_event.period_key,
++                    trace_id=self.trace_id,
++                )
++            raise ReversalRejectedError(
++                tenant_id=self.tenant_id,
++                target_event_id=target_event_id,
++                reason_ko=auth.reject_reason_ko or "M11 모듈 권한 거부",
++                trace_id=self.trace_id,
++            )
++
++        # (4) correction_group_id mint (uuid7 fallback uuid4).
++        mint_v7 = getattr(uuid, "uuid7", None)
++        correction_group_id = mint_v7() if mint_v7 is not None else uuid.uuid4()
++        negating_event_id = mint_v7() if mint_v7 is not None else uuid.uuid4()
++        corrected_event_id = (
++            mint_v7() if mint_v7 is not None else uuid.uuid4()
++        ) if (corrected_qty is not None and corrected_period_key is not None) else None
++
++        # (5) sign-negating row INSERT (T1.1 pure kernel).
++        negating_event = dispatch_build_reversal_negating(
++            target_event=target_event,
++            reason=reason,
++            actor_id=actor_id,
++            correction_group_id=correction_group_id,
++            trace_id=trace_id_uuid,
++            event_id=negating_event_id,
++        )
++
++        # Audit-first: m11_reversal_handler_invoked + reversal_negating_inserted
++        await self._emit_reversal_handler_invoked_audit(
++            target_event=target_event,
++            actor_id=actor_id,
++            correction_group_id=correction_group_id,
++        )
++
++        # INSERT sign-negating row.
++        negating_row = InventoryLedger(
++            event_id=negating_event.event_id,
++            tenant_id=negating_event.tenant_id,
++            product_id=negating_event.product_id,
++            period_key=negating_event.period_key,
++            event_type=negating_event.event_type,
++            qty=negating_event.qty,
++            trace_id=negating_event.trace_id,
++            reverses_event_id=negating_event.reverses_event_id,
++            correction_group_id=negating_event.correction_group_id,
++            reversal_of_period_key=negating_event.reversal_of_period_key,
++            payload=negating_event.payload,
++            inserted_at=_now_utc(),
++        )
++        self.session.add(negating_row)
++        try:
++            await self.session.flush()
++        except IntegrityError as err:
++            # DB CHECK constraint violation — likely the (tenant_id, reverses_event_id)
++            # PARTIAL UNIQUE INDEX (re-reversal attempt).
++            await self._emit_reversal_rejected_audit(
++                target_event=target_event,
++                actor_id=actor_id,
++                reason_ko="이미 역분개된 행",
++            )
++            await self.session.rollback()
++            raise ReversalDuplicateError(
++                tenant_id=self.tenant_id,
++                target_event_id=target_event_id,
++                trace_id=self.trace_id,
++            ) from err
++
++        # Audit-first: reversal_negating_inserted.
++        await self._emit_inventory_ledger_audit(
++            action="inventory_ledger_reversal_logged",
++            event_id=negating_event.event_id,
++            payload={
++                "correction_group_id": str(correction_group_id),
++                "negating_event_id": str(negating_event.event_id),
++                "target_event_id": str(target_event.event_id),
++                "qty": str(negating_event.qty),
++                "actor_id": str(actor_id),
++                "trace_id": str(trace_id_uuid),
++                "source": "reversal_request",
++            },
++            actor_id=actor_id,
++        )
++
++        # (6) corrected row INSERT (optional).
++        corrected_event: ReversalCorrectedEvent | None = None
++        if corrected_qty is not None and corrected_period_key is not None:
++            corrected_event = dispatch_build_reversal_corrected(
++                target_event=target_event,
++                correction_group_id=correction_group_id,
++                corrected_qty=corrected_qty,
++                corrected_period_key=corrected_period_key,
++                actor_id=actor_id,
++                trace_id=trace_id_uuid,
++                event_id=corrected_event_id,
++            )
++
++        if corrected_event is not None:
++            corrected_row = InventoryLedger(
++                event_id=corrected_event.event_id,
++                tenant_id=corrected_event.tenant_id,
++                product_id=corrected_event.product_id,
++                period_key=corrected_event.period_key,
++                event_type=corrected_event.event_type,
++                qty=corrected_event.qty,
++                trace_id=corrected_event.trace_id,
++                reverses_event_id=corrected_event.reverses_event_id,
++                correction_group_id=corrected_event.correction_group_id,
++                reversal_of_period_key=corrected_event.reversal_of_period_key,
++                payload=corrected_event.payload,
++                inserted_at=_now_utc(),
++            )
++            self.session.add(corrected_row)
++            try:
++                await self.session.flush()
++            except IntegrityError as err:
++                await self.session.rollback()
++                raise ReversalDuplicateError(
++                    tenant_id=self.tenant_id,
++                    target_event_id=target_event_id,
++                    trace_id=self.trace_id,
++                ) from err
++
++            # Audit-first: reversal_corrected_inserted.
++            await self._emit_inventory_ledger_audit(
++                action="inventory_ledger_reversal_logged",
++                event_id=corrected_event.event_id,
++                payload={
++                    "correction_group_id": str(correction_group_id),
++                    "corrected_event_id": str(corrected_event.event_id),
++                    "target_event_id": str(target_event.event_id),
++                    "qty": str(corrected_event.qty),
++                    "actor_id": str(actor_id),
++                    "trace_id": str(trace_id_uuid),
++                    "source": "reversal_request",
++                },
++                actor_id=actor_id,
++            )
++
++        # (7) AD-25 publisher publish (channel='ai_cache').
++        receipt = self._publisher.publish(
++            channel="ai_cache",
++            tenant_id=self.tenant_id,
++            event_id=target_event_id,
++            correction_group_id=correction_group_id,
++            trace_id=self.trace_id,
++        )
++        receipt_dict = CacheInvalidationPublisher.receipt_to_dict(receipt)
++
++        # Audit-first: cache invalidation receipt into audit_logs.
++        await self._emit_cache_invalidation_audit(
++            receipt_dict=receipt_dict,
++            actor_id=actor_id,
++        )
++
++        # (8) Audit-first INSERT to reversal_log via audit_logs.
++        # Done above via _emit_inventory_ledger_audit (ActionClass.INVENTORY_LEDGER).
++        # ActionClass.REVERSAL_LOG placeholder is design-only (11-3 wire).
++
++        # (9) COMMIT — atomic transaction. Caller is responsible for
++        # committing the session.
++
++        # Build reversal history for the response.
++        reversal_history = await self._fetch_reversal_rows(
++            correction_group_id=correction_group_id,
++        )
++
++        return ReversalResponse(
++            correction_group_id=correction_group_id,
++            negating_event_id=negating_event.event_id,
++            corrected_event_id=corrected_event.event_id if corrected_event else None,
++            target_event_id=target_event.event_id,
++            reversal_history=reversal_history,
++            trace_id=self.trace_id,
++            cache_invalidation_receipt=receipt_dict,
++        )
++
++    # ── Operation 2: get_reversal_history (CR 1.1 observability) ─
++    async def get_reversal_history(
++        self,
++        *,
++        correction_group_id: uuid.UUID,
++    ) -> list[dict[str, Any]]:
++        """Read reversal pair (sign-negating + corrected) by correction_group_id."""
++        return await self._fetch_reversal_rows(
++            correction_group_id=correction_group_id,
++        )
++
++    # ── Operation 3: reject_reversal (M11 reject path) ─────────
++    async def reject_reversal(
++        self,
++        *,
++        target_event_id: uuid.UUID,
++        reason: str,
++        actor_id: uuid.UUID,
++    ) -> None:
++        """Audit emit + raise ReversalRejectedError for caller-driven reject."""
++        # Build a placeholder target_event for audit attribution.
++        target_event = await fetch_target_event(
++            self.session,
++            tenant_id=self.tenant_id,
++            target_event_id=target_event_id,
++        )
++        await self._emit_reversal_rejected_audit(
++            target_event=target_event,
++            actor_id=actor_id,
++            reason_ko=reason,
++        )
++        raise ReversalRejectedError(
++            tenant_id=self.tenant_id,
++            target_event_id=target_event_id,
++            reason_ko=reason,
++            trace_id=self.trace_id,
++        )
++
++    # ── Internal: audit emit helpers ───────────────────────────
++    async def _emit_reversal_handler_invoked_audit(
++        self,
++        *,
++        target_event: InventoryLedgerEvent | None,
++        actor_id: uuid.UUID,
++        correction_group_id: uuid.UUID,
++    ) -> None:
++        """m11_reversal_handler_invoked audit-first (pre-check 통과 시점).
++
++        Routes to audit_logs (the bookkeeping table) via emit_audit.
++        The reversal_log destination is INSERTed by the reversal_service
++        itself (not via emit_audit_typed — that helper only handles
++        audit_logs + calc_log destinations).
++        """
++        from apps.api.core.audit_action import ActionClass, _ActionRegistry
++
++        _ActionRegistry.validate(
++            action_class=ActionClass.REVERSAL_LOG,
++            action="m11_reversal_handler_invoked",
++        )
++        await emit_audit(
++            self.session,
++            actor_id=actor_id,
++            action="m11_reversal_handler_invoked",
++            target_table="reversal_log",
++            target_id=correction_group_id,
++            payload={
++                "correction_group_id": str(correction_group_id),
++                "target_event_id": (
++                    str(target_event.event_id) if target_event else None
++                ),
++                "actor_id": str(actor_id),
++                "trace_id": self.trace_id,
++                "tenant_id": str(self.tenant_id),
++                "source": "reversal_request",
++            },
++            tenant_id=self.tenant_id,
++            flush=True,
++        )
++
++    async def _emit_inventory_ledger_audit(
++        self,
++        *,
++        action: str,
++        event_id: uuid.UUID,
++        payload: dict[str, Any],
++        actor_id: uuid.UUID,
++    ) -> None:
++        """inventory_ledger audit emit (A5 forward-lock).
++
++        Routes to audit_logs via emit_audit. The inventory_ledger
++        destination is INSERTed by the LedgerService itself (not via
++        emit_audit_typed — that helper only handles audit_logs +
++        calc_log destinations).
++        """
++        from apps.api.core.audit_action import ActionClass, _ActionRegistry
++
++        _ActionRegistry.validate(
++            action_class=ActionClass.INVENTORY_LEDGER,
++            action=action,
++        )
++        await emit_audit(
++            self.session,
++            actor_id=actor_id,
++            action=action,
++            target_table="inventory_ledger",
++            target_id=event_id,
++            payload={
++                **payload,
++                "trace_id": self.trace_id,
++                "tenant_id": str(self.tenant_id),
++            },
++            tenant_id=self.tenant_id,
++            flush=True,
++        )
++
++    async def _emit_cache_invalidation_audit(
++        self,
++        *,
++        receipt_dict: dict[str, str],
++        actor_id: uuid.UUID,
++    ) -> None:
++        """AD-25 cache invalidation receipt → audit_logs (ActionClass.SYSTEM)."""
++        await emit_audit(
++            self.session,
++            actor_id=actor_id,
++            action="cache_invalidation_published",
++            target_table="system",
++            target_id=uuid.UUID(receipt_dict["correction_group_id"]),
++            payload={
++                **receipt_dict,
++                "actor_id": str(actor_id),
++                "source": "m11_reversal",
++            },
++            tenant_id=self.tenant_id,
++            flush=True,
++        )
++
++    async def _emit_reversal_rejected_audit(
++        self,
++        *,
++        target_event: InventoryLedgerEvent | None,
++        actor_id: uuid.UUID,
++        reason_ko: str,
++    ) -> None:
++        """Audit emit on reversal rejection (capability / period / duplicate)."""
++        from apps.api.core.audit_action import ActionClass, _ActionRegistry
++
++        _ActionRegistry.validate(
++            action_class=ActionClass.INVENTORY_LEDGER,
++            action="inventory_ledger_reversal_rejected",
++        )
++        await emit_audit(
++            self.session,
++            actor_id=actor_id,
++            action="inventory_ledger_reversal_rejected",
++            target_table="inventory_ledger",
++            target_id=target_event.event_id if target_event else None,
++            payload={
++                "reason_ko": reason_ko,
++                "actor_id": str(actor_id),
++                "trace_id": self.trace_id,
++                "tenant_id": str(self.tenant_id),
++                "target_event_id": (
++                    str(target_event.event_id) if target_event else None
++                ),
++            },
++            tenant_id=self.tenant_id,
++            flush=True,
++        )
++
++    async def _fetch_reversal_rows(
++        self,
++        *,
++        correction_group_id: uuid.UUID,
++    ) -> list[dict[str, Any]]:
++        """Read all rows sharing correction_group_id (sign-negating + corrected)."""
++        from sqlalchemy import select
++
++        rows = await self.session.execute(
++            select(InventoryLedger).where(
++                InventoryLedger.tenant_id == self.tenant_id,
++                InventoryLedger.correction_group_id == correction_group_id,
++            )
++        )
++        return [
++            {
++                "event_id": str(row.event_id),
++                "tenant_id": str(row.tenant_id),
++                "product_id": str(row.product_id),
++                "period_key": row.period_key,
++                "event_type": row.event_type,
++                "qty": str(row.qty) if row.qty is not None else None,
++      warning: in the working copy of 'packages/services/m11_close/reversal_authorization.py', LF will be replaced by CRLF the next time Git touches it
+          "reverses_event_id": (
++                    str(row.reverses_event_id) if row.reverses_event_id else None
++                ),
++                "correction_group_id": (
++                    str(row.correction_group_id)
++                    if row.correction_group_id
++                    else None
++                ),
++                "reversal_of_period_key": row.reversal_of_period_key,
++                "trace_id": str(row.trace_id),
++            }
++            for row in rows
++        ]
++
++
++def _now_utc() -> datetime:
++    return datetime.now(tz=UTC)
++
++
++__all__ = [
++    "LockedPeriodReversalRejectedError",
++    "ReversalDuplicateError",
++    "ReversalRejectedError",
++    "ReversalResponse",
++    "ReversalService",
++    "ReversalTargetNotFoundError",
++    "ReversalUnauthorizedError",
++]
+diff --git a/packages/services/m11_close/reversal_authorization.py b/packages/services/m11_close/reversal_authorization.py
+new file mode 100644
+index 0000000..32f8743
+--- /dev/null
++++ b/packages/services/m11_close/reversal_authorization.py
+@@ -0,0 +1,206 @@
++"""packages.services.m11_close.reversal_authorization — Story 11.1 pure kernel #3.
++
++Authorization decision for AD-22 reversal sequence. Decides whether a
++reversal is permitted given:
++- capability_granted (Capability.REVERSAL_REQUEST — manufacturing 3종 ✅
++  / service-only ❌ per A9 결정 + PRD §F11.3)
++- period_status (monthly_input_periods.status — 'open' / 'closed' 허용,
++  'locked' 거부; 11-2 wire 시점에 fiscal_periods.status 추가 가드 예정)
++- target_event's event_type (closing_snapshot 자체 reversal 불가 —
++  AD-6 close lock + PRD §F11.3; reversibility는 reversal_negating
++  pure kernel의 REVERSIBLE_TARGET_EVENT_TYPES에 위임)
++
++AD-1 / AD-11 binding: pure-Python, stdlib-only, NO DB, NO clock, NO
++random. Service layer passes all inputs explicitly.
++
++Korean constants — AD-15 §11 SSOT. Mirrored verbatim in
++`apps/web/lib/m11-reversal.ts`.
++"""
++
++from __future__ import annotations
++
++import uuid
++from typing import Final, NamedTuple
++
++from packages.services.m4_inventory.ledger import InventoryLedgerEvent
++from packages.services.m11_close.reversal_negating import (
++    REVERSIBLE_TARGET_EVENT_TYPES,
++)
++
++# ── Constants ────────────────────────────────────────────────
++# Period status allowed for reversal. 'locked' is rejected here;
++# 11-2 wire will introduce fiscal_periods.status='locked' guard.
++PERIOD_STATUS_ALLOWED: Final[frozenset[str]] = frozenset({"open", "closed"})
++PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset({"locked"})
++
++# Error codes — pure-kernel domain semantics.
++ERROR_CODE_INVALID_PERIOD_STATUS: Final[str] = "INVALID_PERIOD_STATUS"
++ERROR_CODE_NO_CAPABILITY: Final[str] = "NO_CAPABILITY"
++ERROR_CODE_TARGET_NOT_REVERSIBLE: Final[str] = "TARGET_NOT_REVERSIBLE"
++ERROR_CODE_NON_UUID_ACTOR: Final[str] = "NON_UUID_ACTOR_ID"
++ERROR_CODE_NON_UUID_TENANT: Final[str] = "NON_UUID_TENANT_ID"
++
++# Korean constants — AD-15 §11 SSOT. Mirrored verbatim in TS.
++M11_AUTHORIZE_KO: Final[str] = "M11 모듈 권한 OK"
++M11_REJECT_LOCKED_KO: Final[str] = "잠긴 기간 — 역분개 불가"
++M11_REJECT_NO_CAPABILITY_KO: Final[str] = "역분개 권한 미보유"
++M11_REJECT_TARGET_NOT_REVERSIBLE_KO: Final[str] = (
++    "이 이벤트 타입은 역분개 대상이 아닙니다"
++)
++
++
++# ── Typed exception ──────────────────────────────────────────
++class ReversalAuthorizationError(Exception):
++    """Pure-kernel authorization decision violation.
++
++    Distinct from service-layer `ReversalUnauthorizedError`. NO HTTP
++    mapping; service layer wraps with envelope details.
++
++    Service-layer dispatch uses `err.error_code` (stable Literal).
++    """
++
++    def __init__(
++        self,
++        *,
++        message: str,
++        error_code: str = ERROR_CODE_NO_CAPABILITY,
++        target_event_id: uuid.UUID | None = None,
++    ) -> None:
++        super().__init__(message)
++        self.message = message
++        self.error_code = error_code
++        self.target_event_id = target_event_id
++
++
++# ── ReversalAuthorizationResult NamedTuple ───────────────────
++class ReversalAuthorizationResult(NamedTuple):
++    """Authorization outcome — service layer wraps this in the wire response."""
++
++    authorized: bool
++    reject_reason_ko: str | None
++    period_status: str  # "open" | "closed" | "locked"
++    capability_granted: bool
++    target_reversible: bool
++    actor_id: uuid.UUID
++    tenant_id: uuid.UUID
++
++
++# ── authorize_reversal ───────────────────────────────────────
++def authorize_reversal(
++    *,
++    tenant_id: uuid.UUID,
++    target_event: InventoryLedgerEvent,
++    actor_id: uuid.UUID,
++    period_status: str,
++    capability_granted: bool,
++) -> ReversalAuthorizationResult:
++    """Decide whether a reversal of `target_event` is permitted.
++
++    Args:
++        tenant_id: Owning tenant (audit attribution).
++        target_event: Original InventoryLedgerEvent row.
++        actor_id: UUID of the reversal initiator.
++        period_status: `monthly_input_periods.status` snapshot — must be
++            "open" or "closed" for reversal; "locked" is rejected.
++        capability_granted: Whether the tenant has `Capability.REVERSAL_REQUEST`
++            (manufacturing 3종 ✅ / service-only ❌).
++
++    Returns:
++        ReversalAuthorizationResult with `authorized` flag +
++        `reject_reason_ko` (Korean SSOT) when rejected.
++
++    Raises:
++        ReversalAuthorizationError: On invalid input shape (non-UUID
++            actor / tenant / unknown period_status). These represent
++            caller bugs and should not normally surface at runtime.
++    """
++    if not isinstance(tenant_id, uuid.UUID):
++        raise ReversalAuthorizationError(
++            message=f"tenant_id must be UUID, got {type(tenant_id).__name__!r}",
++            error_code=ERROR_CODE_NON_UUID_TENANT,
++        )
++    if not isinstance(actor_id, uuid.UUID):
++        raise ReversalAuthorizationError(
++            message=f"actor_id must be UUID, got {type(actor_id).__name__!r}",
++            error_code=ERROR_CODE_NON_UUID_ACTOR,
++        )
++    if target_event is None:
++        raise ReversalAuthorizationError(
++            message="target_event must not be None",
++            error_code=ERROR_CODE_TARGET_NOT_REVERSIBLE,
++        )
++
++    # Target reversibility (defense-in-depth — same set as reversal_negating).
++    target_reversible = target_event.event_type in REVERSIBLE_TARGET_EVENT_TYPES
++    if not target_reversible:
++        return ReversalAuthorizationResult(
++            authorized=False,
++            reject_reason_ko=M11_REJECT_TARGET_NOT_REVERSIBLE_KO,
++            period_status=period_status,
++            capability_granted=capability_granted,
++            target_reversible=False,
++            actor_id=actor_id,
++            tenant_id=tenant_id,
++        )
++
++    # Capability gate.
++    if not capability_granted:
++        return ReversalAuthorizationResult(
++            authorized=False,
++            reject_reason_ko=M11_REJECT_NO_CAPABILITY_KO,
++            period_status=period_status,
++            capability_granted=False,
++            target_reversible=True,
++            actor_id=actor_id,
++            tenant_id=tenant_id,
++        )
++
++    # Period status gate.
++    if period_status not in PERIOD_STATUS_ALLOWED and period_status not in PERIOD_STATUS_REJECTED:
++        raise ReversalAuthorizationError(
++            message=(
++                f"period_status {period_status!r} is not in the known set "
++                f"({sorted(PERIOD_STATUS_ALLOWED | PERIOD_STATUS_REJECTED)})"
++            ),
++            error_code=ERROR_CODE_INVALID_PERIOD_STATUS,
++            target_event_id=target_event.event_id,
++        )
++    if period_status in PERIOD_STATUS_REJECTED:
++        return ReversalAuthorizationResult(
++            authorized=warning: in the working copy of 'packages/services/m11_close/reversal_corrected.py', LF will be replaced by CRLF the next time Git touches it
+False,
++            reject_reason_ko=M11_REJECT_LOCKED_KO,
++            period_status=period_status,
++            capability_granted=True,
++            target_reversible=True,
++            actor_id=actor_id,
++            tenant_id=tenant_id,
++        )
++
++    # Authorized.
++    return ReversalAuthorizationResult(
++        authorized=True,
++        reject_reason_ko=None,
++        period_status=period_status,
++        capability_granted=True,
++        target_reversible=True,
++        actor_id=actor_id,
++        tenant_id=tenant_id,
++    )
++
++
++__all__ = [
++    "ERROR_CODE_INVALID_PERIOD_STATUS",
++    "ERROR_CODE_NO_CAPABILITY",
++    "ERROR_CODE_TARGET_NOT_REVERSIBLE",
++    "ERROR_CODE_NON_UUID_ACTOR",
++    "ERROR_CODE_NON_UUID_TENANT",
++    "M11_AUTHORIZE_KO",
++    "M11_REJECT_LOCKED_KO",
++    "M11_REJECT_NO_CAPABILITY_KO",
++    "M11_REJECT_TARGET_NOT_REVERSIBLE_KO",
++    "PERIOD_STATUS_ALLOWED",
++    "PERIOD_STATUS_REJECTED",
++    "ReversalAuthorizationError",
++    "ReversalAuthorizationResult",
++    "authorize_reversal",
++]
+diff --git a/packages/services/m11_close/reversal_corrected.py b/packages/services/m11_close/reversal_corrected.py
+new file mode 100644
+index 0000000..7c7458e
+--- /dev/null
++++ b/packages/services/m11_close/reversal_corrected.py
+@@ -0,0 +1,340 @@
++"""packages.services.m11_close.reversal_corrected — Story 11.1 pure kernel #2.
++
++AD-22 corrected row constructor for reversal sequence. When a ledger
++event is reversed and a *new* corrected value is needed (OQ1 cj-style
++default — same period; OQ2 cj-style default — optional corrected_qty
++input), this kernel builds a second *new* row sharing the same
++`correction_group_id` as the sign-negating row.
++
++AD-1 / AD-11 binding: pure-Python, stdlib-only, NO DB, NO clock, NO
++random. Caller passes actor_id + trace_id explicitly. Decimal arithmetic
++uses banker's rounding (ROUND_HALF_EVEN) at QTY_QUANTUM = NUMERIC(18,4)
++to keep parity with the TS mirror (`apps/web/lib/m11-reversal.ts`).
++
++Drift between Python and TS is caught by
++`tests/integration/test_m11_reversal_label_consistency.py`.
++
++PRD §F11.3 AC ↔ ledger invariants:
++- "corrected row INSERT (correction_group_id share)" — this kernel
++- "재무 효과 0 수렴" — corrected row + negating row share correction_group_id;
++  their qty sum must equal target.qty (sign-negating + correction = original effect)
++- "(tenant_id, reverses_event_id) unique" — corrected row's
++  `reverses_event_id` equals `target_event.event_id` so the unique
++  constraint blocks re-correction of the same target
++
++Korean constants — AD-15 §11 SSOT. Mirrored verbatim in
++`apps/web/lib/m11-reversal.ts`.
++"""
++
++from __future__ import annotations
++
++import re
++import uuid
++from decimal import ROUND_HALF_EVEN, Decimal
++from typing import Any, Final, NamedTuple
++
++from packages.services.m2_input.inventory_projection import QTY_QUANTUM
++from packages.services.m4_inventory.ledger import (
++    ERROR_CODE_QTY_MUST_BE_DECIMAL,
++    InventoryLedgerEvent,
++)
++from packages.services.m11_close.reversal_negating import (
++    ERROR_CODE_EMPTY_TARGET_EVENT,
++    ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
++    ERROR_CODE_NON_UUID_ACTOR_ID,
++    ERROR_CODE_NON_UUID_TRACE_ID,
++)
++
++# ── Constants ────────────────────────────────────────────────
++REVERSAL_CORRECTED_EVENT_TYPE: Final[str] = "reversal_corrected"
++
++# Error codes — pure-kernel domain semantics.
++ERROR_CODE_INCONSISTENT_CORRECTION_GROUP: Final[str] = "INCONSISTENT_CORRECTION_GROUP_ID"
++ERROR_CODE_MISSING_CORRECTED_QTY: Final[str] = "MISSING_CORRECTED_QTY"
++ERROR_CODE_MISSING_CORRECTED_PERIOD_KEY: Final[str] = "MISSING_CORRECTED_PERIOD_KEY"
++
++# AD-24 typed period-key pattern.
++_PERIOD_KEY_PATTERN: Final[re.Pattern[str]] = re.compile(
++    r"^\d{4}-(0[1-9]|1[0-2])$"
++)
++
++# Korean constants — AD-15 §11 SSOT.
++M11_CORRECTED_BUILT_KO: Final[str] = "역분개 정정 row 생성 완료"
++M11_CORRECTED_SKIPPED_KO: Final[str] = "정정 수량 미입력 — sign-negating만 emit"
++M11_INCONSISTENT_CORRECTION_GROUP_KO: Final[str] = (
++    "정정 row의 correction_group_id가 sign-negating row와 일치하지 않습니다"
++)
++M11_INVALID_CORRECTED_PERIOD_KEY_KO: Final[str] = (
++    "정정 기간 키가 'YYYY-MM' AD-24 형식에 맞지 않습니다"
++)
++
++
++# ── Typed exception ──────────────────────────────────────────
++class ReversalCorrectedBuildError(Exception):
++    """Pure-kernel corrected row construction violation.
++
++    Distinct from service-layer `ReversalRejectedError`. NO HTTP mapping;
++    service layer wraps with envelope details.
++
++    Service-layer dispatch uses `err.error_code` (stable Literal).
++    """
++
++    def __init__(
++        self,
++        *,
++        message: str,
++        error_code: str = ERROR_CODE_INCONSISTENT_CORRECTION_GROUP,
++        target_event_id: uuid.UUID | None = None,
++    ) -> None:
++        super().__init__(message)
++        self.message = message
++        self.error_code = error_code
++        self.target_event_id = target_event_id
++
++
++# ── ReversalCorrectedEvent NamedTuple ────────────────────────
++class ReversalCorrectedEvent(NamedTuple):
++    """Immutable corrected row shape — built by `build_reversal_corrected_event`.
++
++    Mirrors `InventoryLedgerEvent` (5-2 wire) but `event_type` is locked
++    to `reversal_corrected`. The corrected row's `reverses_event_id` is
++    the *original* target event_id (NOT the negating row), so the
++    `(tenant_id, reverses_event_id)` UNIQUE constraint (Alembic 0015)
++    blocks re-correction of the same target.
++
++    `qty` is the user-corrected value (NOT sign-flipped).
++    `period_key` is the period the corrected row belongs to (may equal
++    `target_event.period_key` for same-period correction, or differ if
++    the correction targets a different period).
++    """
++
++    event_id: uuid.UUID
++    tenant_id: uuid.UUID
++    product_id: uuid.UUID
++    period_key: str
++    event_type: str
++    qty: Decimal
++    trace_id: uuid.UUID
++    reverses_event_id: uuid.UUID
++    correction_group_id: uuid.UUID
++    reversal_of_period_key: str
++    actor_id: uuid.UUID
++    payload: dict[str, Any]
++
++
++# ── build_reversal_corrected_event ───────────────────────────
++def build_reversal_corrected_event(
++    *,
++    target_event: InventoryLedgerEvent,
++    correction_group_id: uuid.UUID,
++    corrected_qty: Decimal | None,
++    corrected_period_key: str | None,
++    actor_id: uuid.UUID,
++    trace_id: uuid.UUID,
++    event_id: uuid.UUID | None = None,
++) -> ReversalCorrectedEvent | None:
++    """Build a corrected row sharing `correction_group_id` with the negating row.
++
++    AD-22 sequence step 2 (optional): if `corrected_qty` and
++    `corrected_period_key` are both provided, a corrected row is built
++    with `qty = corrected_qty` (NOT sign-flipped — this is the new
++    truth). If either is None, returns None — the caller should skip
++    the corrected row INSERT.
++
++    AD-15 parity: corrected_qty is quantized to QTY_QUANTUM via
++    ROUND_HALF_EVEN.
++
++    Args:
++        target_event: Original InventoryLedgerEvent row whose correction
++            the new row represents.
++        correction_group_id: UUID shared with the sign-negating row.
++        corrected_qty: New corrected qty (NOT sign-flipped). None skips.
++        corrected_period_key: Period key the corrected row belongs to.
++            None skips.
++        actor_id: UUID of the reversal initiator.
++        trace_id: UUID for end-to-end request correlation.
++        event_id: Optional pre-minted UUID for the new row.
++
++    Returns:
++        ReversalCorrectedEvent NamedTuple ready for INSERT, or None
++        if corrected_qty / corrected_period_key are None.
++
++    Raises:
++        ReversalCorrectedBuildError: On shape / correction_group_id /
++            period_key mismatch.
++    """
++    # Skip path — corrected row is optional (PRD §F11.3 spec).
++    if corrected_qty is None and corrected_period_key is None:
++        return None
++    if corrected_qty is None:
++        raise ReversalCorrectedBuildError(
++            message=(
++                "corrected_qty must be provided together with corrected_period_key"
++            ),
++            error_code=ERROR_CODE_MISSING_CORRECTED_QTY,
++            target_event_id=target_event.event_id,
++        )
++    if corrected_period_key is None:
++        raise ReversalCorrectedBuildError(
++            message=(
++                "corrected_period_key must be provided together with corrected_qty"
++            ),
++            error_code=ERROR_CODE_MISSING_CORRECTED_PERIOD_KEY,
++            target_event_id=target_event.event_id,
++        )
++
++    if target_event is None:
++        raise ReversalCorrectedBuildError(
++            message="target_event must not be None",
++            error_code=ERROR_CODE_EMPTY_TARGET_EVENT,
++            target_event_id=None,
++        )
++    if not isinstance(actor_id, uuid.UUID):
++        raise ReversalCorrectedBuildError(
++            message=f"actor_id must be UUID, got {type(actor_id).__name__!r}",
++            error_code=ERROR_CODE_NON_UUID_ACTOR_ID,
++            target_event_id=target_event.event_id,
++        )
++    if not isinstance(trace_id, uuid.UUID):
++        raise ReversalCorrectedBuildError(
++            message=f"trace_id must be UUID, got {type(trace_id).__name__!r}",
++            error_code=ERROR_CODE_NON_UUID_TRACE_ID,
++            target_event_id=target_event.event_id,
++        )
++    if not isinstance(correction_group_id, uuid.UUID):
++        raise ReversalCorrectedBuildError(
++            message=(
++                f"correction_group_id must be UUID, got "
++                f"{type(correction_group_id).__name__!r}"
++            ),
++            error_code=ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
++            target_event_id=target_event.event_id,
++        )
++    if not isinstance(corrected_qty, Decimal):
++        raise ReversalCorrectedBuildError(
++            message=(
++                f"corrected_qty must be Decimal, got "
++                f"{type(corrected_qty).__name__!r}"
++            ),
++            error_code=ERROR_CODE_QTY_MUST_BE_DECIMAL,
++            target_event_id=target_event.event_id,
++        )
++
++    # Defense-in-depth: validate constraints (correction_group_id
++    # consistency + period_key AD-24 typed pattern).
++    validate_reversal_corrected_constraints(
++        target_event=target_event,
++        correction_group_id=correction_group_id,
++        corrected_period_key=corrected_period_key,
++    )
++
++    # Banker's rounding parity (CR 0-4).
++    quantized_corrected_qty = corrected_qty.quantize(
++        QTY_QUANTUM, rounding=ROUND_HALF_EVEN
++    )
++
++    new_event_id = event_id if event_id is not None else uuid.uuid4()
++
++    return ReversalCorrectedEvent(
++        event_id=new_event_id,
++        tenant_id=target_event.tenant_id,
++        product_id=target_event.product_id,
++        period_key=corrected_period_key,
++        event_type=REVERSAL_CORRECTED_EVENT_TYPE,
++        qty=quantized_corrected_qty,
++        trace_id=trace_id,
++        reverses_event_id=target_event.event_id,
++        correction_group_id=correction_group_id,
++        reversal_of_period_key=target_event.period_key,
++        actor_id=actor_id,
++        payload={
++            "source": "reversal_request",
++            "corrected_period_key": corrected_period_key,
++            "target_event_id": str(target_event.event_id),
++            "actor_id": str(actor_id),
++            "trace_id": str(trace_id),
++        },
++    )
++
++
++# ── validate_reversal_corrected_constraints ──────────────────
++def validate_reversal_corrected_constraints(
++    *,
++    target_event: InventoryLedgerEvent,
++    correction_group_id: uuid.UUID,
++    corrected_period_key: str,
++    negating_correction_group_id: uuid.UUID | None = None,
++) -> None:
++    """Defense-in-depth check for corrected row construction.
++
++    AD-22 sequence gate (corrected row side):
++    - `correction_group_id` must be a UUIDwarning: in the working copy of 'packages/services/m11_close/reversal_negating.py', LF will be replaced by CRLF the next time Git touches it
+ (validated by caller too).
++    - `corrected_period_key` must match `^\\d{4}-(0[1-9]|1[0-2])$`
++      (AD-24 typed).
++    - If `negating_correction_group_id` is provided (service-layer
++      cross-check after negating row INSERT), it must match the
++      corrected row's `correction_group_id`.
++
++    Raises:
++        ReversalCorrectedBuildError: On any constraint violation.
++    """
++    if target_event is None:
++        raise ReversalCorrectedBuildError(
++            message="target_event must not be None",
++            error_code=ERROR_CODE_EMPTY_TARGET_EVENT,
++            target_event_id=None,
++        )
++    if not isinstance(correction_group_id, uuid.UUID):
++        raise ReversalCorrectedBuildError(
++            message=(
++                f"correction_group_id must be UUID, got "
++                f"{type(correction_group_id).__name__!r}"
++            ),
++            error_code=ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
++            target_event_id=target_event.event_id,
++        )
++    if not isinstance(corrected_period_key, str):
++        raise ReversalCorrectedBuildError(
++            message=(
++                f"corrected_period_key must be str, got "
++                f"{type(corrected_period_key).__name__!r}"
++            ),
++            error_code=ERROR_CODE_INCONSISTENT_CORRECTION_GROUP,
++            target_event_id=target_event.event_id,
++        )
++    if not _PERIOD_KEY_PATTERN.match(corrected_period_key):
++        raise ReversalCorrectedBuildError(
++            message=(
++                f"corrected_period_key {corrected_period_key!r} must match "
++                f"'YYYY-MM' AD-24 typed pattern"
++            ),
++            error_code=ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
++            target_event_id=target_event.event_id,
++        )
++    if negating_correction_group_id is not None and correction_group_id != negating_correction_group_id:
++        raise ReversalCorrectedBuildError(
++            message=(
++                f"corrected row's correction_group_id {correction_group_id!s} "
++                f"does not match negating row's "
++                f"{negating_correction_group_id!s}"
++            ),
++            error_code=ERROR_CODE_INCONSISTENT_CORRECTION_GROUP,
++            target_event_id=target_event.event_id,
++        )
++
++
++__all__ = [
++    "ERROR_CODE_INCONSISTENT_CORRECTION_GROUP",
++    "ERROR_CODE_MISSING_CORRECTED_QTY",
++    "ERROR_CODE_MISSING_CORRECTED_PERIOD_KEY",
++    "ERROR_CODE_INVALID_CORRECTION_GROUP_ID",
++    "M11_CORRECTED_BUILT_KO",
++    "M11_CORRECTED_SKIPPED_KO",
++    "M11_INCONSISTENT_CORRECTION_GROUP_KO",
++    "M11_INVALID_CORRECTED_PERIOD_KEY_KO",
++    "REVERSAL_CORRECTED_EVENT_TYPE",
++    "ReversalCorrectedBuildError",
++    "ReversalCorrectedEvent",
++    "build_reversal_corrected_event",
++    "validate_reversal_corrected_constraints",
++]
+diff --git a/packages/services/m11_close/reversal_negating.py b/packages/services/m11_close/reversal_negating.py
+new file mode 100644
+index 0000000..18928e8
+--- /dev/null
++++ b/packages/services/m11_close/reversal_negating.py
+@@ -0,0 +1,366 @@
++"""packages.services.m11_close.reversal_negating — Story 11.1 pure kernel #1.
++
++AD-22 sign-negating row constructor for reversal sequence. When a ledger
++event is reversed, this kernel builds a *new* row with `qty = -target.qty`
++(AD-22 sign-negating invariant) + `reverses_event_id` link + optional
++`correction_group_id` share + `reversal_of_period_key = target.period_key`
++(AD-24 typed). The original row never changes (AD-2 append-only).
++
++AD-1 / AD-11 binding: pure-Python, stdlib-only, NO DB, NO clock, NO
++random. Caller passes actor_id + trace_id explicitly. Decimal arithmetic
++uses banker's rounding (ROUND_HALF_EVEN) at QTY_QUANTUM = NUMERIC(18,4)
++to keep parity with the TS mirror (`apps/web/lib/m11-reversal.ts`) and
++the closing_snapshot ledger column precision.
++
++Drift between Python and TS is caught by
++`tests/integration/test_m11_reversal_label_consistency.py`.
++
++PRD §F11.3 AC ↔ ledger invariants:
++- "부호 반전 row 1개 INSERT" — reversal_negating INSERT 1 row
++- "원본 row 변경 없음" — append-only (handled at DB trigger, 5-2 wire)
++- "재무 효과 0 수렴" — sign-negating qty = -target.qty (this kernel)
++- "(tenant_id, reverses_event_id) unique" — Alembic 0015 PARTIAL UNIQUE
++
++Korean constants — AD-15 §11 SSOT. Mirrored verbatim in
++`apps/web/lib/m11-reversal.ts`.
++"""
++
++from __future__ import annotations
++
++import uuid
++from decimal import ROUND_HALF_EVEN, Decimal
++from typing import Any, Final, NamedTuple
++
++from packages.services.m2_input.inventory_projection import QTY_QUANTUM
++from packages.services.m4_inventory.ledger import (
++    ERROR_CODE_INVALID_EVENT_TYPE,
++    ERROR_CODE_QTY_MUST_BE_DECIMAL,
++    InventoryLedgerEvent,
++)
++
++# ── Constants ────────────────────────────────────────────────
++# Sign-negating row uses the same 11-value event_type whitelist as the
++# parent kernel (5-2 wire). The `reversal_negating` value lives in
++# `INVENTORY_LEDGER_EVENT_TYPES` (story 5.2).
++REVERSAL_NEGATING_EVENT_TYPE: Final[str] = "reversal_negating"
++
++# Error codes — pure-kernel domain semantics. Stable Literals; service
++# layer dispatches via `err.error_code` NOT substring matching
++# (CR review 2026-08-04 lesson).
++ERROR_CODE_EMPTY_TARGET_EVENT: Final[str] = "EMPTY_TARGET_EVENT"
++ERROR_CODE_INVALID_CORRECTION_GROUP_ID: Final[str] = "INVALID_CORRECTION_GROUP_ID"
++ERROR_CODE_NON_UUID_ACTOR_ID: Final[str] = "NON_UUID_ACTOR_ID"
++ERROR_CODE_NON_UUID_TRACE_ID: Final[str] = "NON_UUID_TRACE_ID"
++ERROR_CODE_NON_STR_REASON: Final[str] = "NON_STR_REASON"
++ERROR_CODE_EMPTY_REASON: Final[str] = "EMPTY_REASON"
++ERROR_CODE_SELF_REVERSAL: Final[str] = "SELF_REVERSAL_REJECTED"
++ERROR_CODE_TARGET_NOT_REVERSIBLE: Final[str] = "TARGET_NOT_REVERSIBLE"
++ERROR_CODE_INVALID_REVERSAL_OF_PERIOD_KEY: Final[str] = "INVALID_REVERSAL_OF_PERIOD_KEY"
++ERROR_CODE_QTY_SIGN_INCOHERENT: Final[str] = "QTY_SIGN_INCOHERENT"
++
++# Korean constants — AD-15 §11 SSOT (mirrored verbatim in TS).
++M11_AUTHORIZE_KO: Final[str] = "M11 모듈 권한 OK"
++M11_NEGATING_BUILT_KO: Final[str] = "역분개 부호 반전 row 생성 완료"
++M11_SELF_REVERSAL_REJECTED_KO: Final[str] = "이미 역분개된 행은 재역분개 불가"
++M11_TARGET_NOT_REVERSIBLE_KO: Final[str] = (
++    "이 이벤트 타입은 역분개 대상이 아닙니다"
++)
++
++# Reversible event_types — anything that carries a qty term and was
++# emitted from monthly input / carry chain / production / closing
++# snapshot can be reversed. Self-reversal (reversal_negating /
++# reversal_corrected → reversal) is rejected at validate_reversal_negating_constraints.
++REVERSIBLE_TARGET_EVENT_TYPES: Final[frozenset[str]] = frozenset(
++    {
++        "opening_carried",
++        "opening_carried_stale_overwrite",
++        "purchase_inbound",
++        "sales_outbound",
++        "production_output_inbound",
++        "production_material_consumption",
++        "adjustment_positive",
++        "adjustment_negative",
++        "closing_snapshot",
++    }
++)
++
++
++# ── Typed exception (pure-kernel domain semantics) ───────────
++class ReversalNegatingBuildError(Exception):
++    """Pure-kernel sign-negating row construction violation.
++
++    Distinct from service-layer `ReversalRejectedError` (which carries
++    HTTP envelope + audit-first semantics). NO HTTP mapping; service
++    layer wraps with envelope details.
++
++    Service-layer dispatch uses `err.error_code` (stable Literal) NOT
++    `err.message` substring matching.
++    """
++
++    def __init__(
++        self,
++        *,
++        message: str,
++        error_code: str = ERROR_CODE_EMPTY_TARGET_EVENT,
++        target_event_id: uuid.UUID | None = None,
++    ) -> None:
++        super().__init__(message)
++        self.message = message
++        self.error_code = error_code
++        self.target_event_id = target_event_id
++
++
++# ── ReversalNegatingEvent NamedTuple ─────────────────────────
++class ReversalNegatingEvent(NamedTuple):
++    """Immutable sign-negating row shape — built by `build_reversal_negating_event`.
++
++    Mirrors `InventoryLedgerEvent` (5-2 wire) but `event_type` is locked
++    to `reversal_negating`. Original event_id is preserved in
++    `reverses_event_id` for AD-22 traceability.
++
++    `qty` is always present (sign-negating of a quantitative event).
++    `period_key` of the new row equals `target_event.period_key` (PRD
++    §F11.3 default — same-period reversal).
++
++    `reversal_of_period_key` is the original event's period_key (may
++    differ if corrected row crosses periods).
++    """
++
++    event_id: uuid.UUID
++    tenant_id: uuid.UUID
++    product_id: uuid.UUID
++    period_key: str
++    event_type: str
++    qty: Decimal
++    trace_id: uuid.UUID
++    reverses_event_id: uuid.UUID
++    correction_group_id: uuid.UUID
++    reversal_of_period_key: str
++    actor_id: uuid.UUID
++    payload: dict[str, Any]
++
++
++# ── build_reversal_negating_event ────────────────────────────
++def build_reversal_negating_event(
++    *,
++    target_event: InventoryLedgerEvent,
++    reason: str,
++    actor_id: uuid.UUID,
++    correction_group_id: uuid.UUID,
++    trace_id: uuid.UUID,
++    event_id: uuid.UUID | None = None,
++) -> ReversalNegatingEvent:
++    """Build a sign-negating row mirroring `target_event` with qty = -target.qty.
++
++    AD-22 sequence step 1: the original row's qty is sign-flipped to
++    produce a *new* row. `(tenant_id, reverses_event_id)` unique
++    constraint (Alembic 0015 `uq_inventory_ledger_reverses_event_id`)
++    prevents re-reversal of the same target.
++
++    Args:
++        target_event: Original InventoryLedgerEvent row to reverse.
++            Must be in REVERSIBLE_TARGET_EVENT_TYPES.
++        reason: Free-text user-provided justification (Korean SSOT — AD-15).
++        actor_id: UUID of the reversal initiator (audit-first attribution).
++        correction_group_id: UUID linking this negating row with its
++            optional corrected row (single correction_group_id per
++            reversal sequence).
++        trace_id: UUID for end-to-end request correlation.
++        event_id: Optional pre-minted UUID for the new row (service
++            layer usually mints via uuid7()). Defaults to uuid4() — but
++            service layer should override to maintain AD-15 v7 identity.
++
++    Returns:
++        ReversalNegatingEvent NamedTuple ready for INSERT.
++
++    Raises:
++        ReversalNegatingBuildError: On any shape / sign violation.
++    """
++    if target_event is None:
++        raise ReversalNegatingBuildError(
++            message="target_event must not be None",
++            error_code=ERROR_CODE_EMPTY_TARGET_EVENT,
++        )
++    if not isinstance(actor_id, uuid.UUID):
++        raise ReversalNegatingBuildError(
++            message=f"actor_id must be UUID, got {type(actor_id).__name__!r}",
++            error_code=ERROR_CODE_NON_UUID_ACTOR_ID,
++        )
++    if not isinstance(trace_id, uuid.UUID):
++        raise ReversalNegatingBuildError(
++            message=f"trace_id must be UUID, got {type(trace_id).__name__!r}",
++            error_code=ERROR_CODE_NON_UUID_TRACE_ID,
++        )
++    if not isinstance(correction_group_id, uuid.UUID):
++        raise ReversalNegatingBuildError(
++            message=(
++                f"correction_group_id must be UUID, got "
++                f"{type(correction_group_id).__name__!r}"
++            ),
++            error_code=ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
++        )
++    if not isinstance(reason, str):
++        raise ReversalNegatingBuildError(
++            message=f"reason must be str, got {type(reason).__name__!r}",
++            error_code=ERROR_CODE_NON_STR_REASON,
++        )
++    if not reason:
++        raise ReversalNegatingBuildError(
++            message="reason must be non-empty (audit-first attribution)",
++            error_code=ERROR_CODE_EMPTY_REASON,
++        )
++
++    # Defense-in-depth: target_event must be reversible.
++    validate_reversal_negating_constraints(target_event)
++
++    if target_event.qty is None:
++        raise ReversalNegatingBuildError(
++            message=(
++                f"target_event {target_event.event_id} has None qty — "
++                f"sign-negating requires non-None qty (PRD §6.2 inventory eq)"
++            ),
++            error_code="QTY_REQUIRED",
++            target_event_id=target_event.event_id,
++        )
++    if not isinstance(target_event.qty, Decimal):
++        raise ReversalNegatingBuildError(
++            message=(
++                f"target_event.qty must be Decimal, got "
++                f"{type(target_event.qty).__name__!r}"
++            ),
++            error_code=ERROR_CODE_QTY_MUST_BE_DECIMAL,
++            target_event_id=target_event.event_id,
++        )
++
++    # Sign flip + banker's rounding to QTY_QUANTUM (NUMERIC(18,4)).
++    # CR 0-4 lesson: banker's rounding parity TS/Python.
++    negating_qty = (-target_event.qty).quantize(
++        QTY_QUANTUM, rounding=ROUND_HALF_EVEN
++    )
++
++    # Self-reversal prevention — defense-in-depth on top of the
++    # REVERSIBLE_TARGET_EVENT_TYPES check.
++    if target_event.event_type in ("reversal_negating", "reversal_corrected"):
++        # Should already be rejected by validate_reversal_negating_constraints,
++        # but explicit re-check keeps the message specific.
++        raise ReversalNegatingBuildError(
++            message=(
++                f"target_event {target_event.event_id} is itself a reversal "
++                f"({target_event.event_type!r}); self-reversal is rejected"
++            ),
++            error_code=ERROR_CODE_SELF_REVERSAL,
++            target_event_id=target_event.event_id,
++        )
++
++    # Sign coherence: sign-negating qty must be the opposite sign of
++    # target.qty (or both zero). AD-22 sign-negating invariant.
++    # Normalize -0.0000 → 0.0000 for sign check (banker's rounding quirk).
++    if target_event.qty != Decimal("0") and (
++        (target_event.qty > 0 and negating_qty > 0)
++        or (target_event.qty < 0 and negating_qty < 0)
++    ):
++        raise ReversalNegatingBuildError(
++            message=(
++                f"sign flip violated: target.qty={target_event.qty!s} → "
++                f"negating.qty={negating_qty!s}; expected opposite sign"
++            ),
++            error_code=ERROR_CODE_QTY_SIGN_INCOHERENT,
++            target_event_id=target_event.event_id,
++        )
++
++    new_event_id = event_id if event_id is not None else uuid.uuid4()
++
++    return ReversalNegatingEvent(
++        event_id=new_event_id,
++        tenant_id=target_event.tenant_id,
++        product_id=target_event.product_id,
++        period_key=target_event.period_key,
++        event_type=REVERSAL_NEGATING_EVENT_TYPE,
++        qty=negating_qty,
++        trace_id=trace_id,
++        reverses_event_id=target_event.event_id,
++        correction_group_id=correction_group_id,
++        reversal_of_period_key=target_event.period_key,
++        actor_id=actor_id,
++        payload={
++            "reason": reason,
++            "source": "reversal_request",
++            "target_event_id": str(target_event.event_id),
++            "actor_id": str(actor_id),
++            "trace_id": str(trace_id),
++        },
++    )
++
++
++# ── validate_reversal_negating_constraints ───────────────────
++def validate_reversal_negating_constraints(target_event: InventoryLedgerEvent) -> None:
++    """Defense-in-depth check that target_event is eligible for reversal.
++
++    AD-22 sequence gate. Reversal must NOT target:
++    - another reversal_negating / reversal_corrected (self-reversal)
++    - any non-whitelisted event_type (defense-in-depth even though the
++      parent kernel already validates event_type on INSERT)
++
++    Raises:
++        ReversalNegatingBuildError: With one of:
++        - ERROR_CODE_SELF_REVERSAL (event_type is reversal_negating / corrected)
++        - ERROR_CODE_TARGET_NOT_REVERSIBLE (event_type not in whitelist)
++        - propagated from parent `validate_event_type` for unknown types
++    """
++    if target_event is None:
++        raise ReversalNegatingBuildError(
++      warning: in the working copy of 'packages/services/m5_ledger/count_period_events.py', LF will be replaced by CRLF the next time Git touches it
+      message="target_event must not be None",
++            error_code=ERROR_CODE_EMPTY_TARGET_EVENT,
++        )
++    if not isinstance(target_event, InventoryLedgerEvent):
++        raise ReversalNegatingBuildError(
++            message=(
++                f"target_event must be InventoryLedgerEvent, got "
++                f"{type(target_event).__name__!r}"
++            ),
++            error_code=ERROR_CODE_INVALID_EVENT_TYPE,
++        )
++
++    if target_event.event_type in ("reversal_negating", "reversal_corrected"):
++        raise ReversalNegatingBuildError(
++            message=(
++                f"target_event {target_event.event_id} is itself a reversal "
++                f"({target_event.event_type!r}); self-reversal is rejected"
++            ),
++            error_code=ERROR_CODE_SELF_REVERSAL,
++            target_event_id=target_event.event_id,
++        )
++
++    if target_event.event_type not in REVERSIBLE_TARGET_EVENT_TYPES:
++        raise ReversalNegatingBuildError(
++            message=(
++                f"target_event.event_type {target_event.event_type!r} is not "
++                f"reversible. Reversible types: {sorted(REVERSIBLE_TARGET_EVENT_TYPES)}"
++            ),
++            error_code=ERROR_CODE_TARGET_NOT_REVERSIBLE,
++            target_event_id=target_event.event_id,
++        )
++
++
++__all__ = [
++    "ERROR_CODE_EMPTY_TARGET_EVENT",
++    "ERROR_CODE_INVALID_CORRECTION_GROUP_ID",
++    "ERROR_CODE_NON_UUID_ACTOR_ID",
++    "ERROR_CODE_NON_UUID_TRACE_ID",
++    "ERROR_CODE_NON_STR_REASON",
++    "ERROR_CODE_EMPTY_REASON",
++    "ERROR_CODE_SELF_REVERSAL",
++    "ERROR_CODE_TARGET_NOT_REVERSIBLE",
++    "ERROR_CODE_INVALID_REVERSAL_OF_PERIOD_KEY",
++    "ERROR_CODE_QTY_SIGN_INCOHERENT",
++    "M11_AUTHORIZE_KO",
++    "M11_NEGATING_BUILT_KO",
++    "M11_SELF_REVERSAL_REJECTED_KO",
++    "M11_TARGET_NOT_REVERSIBLE_KO",
++    "REVERSAL_NEGATING_EVENT_TYPE",
++    "REVERSIBLE_TARGET_EVENT_TYPES",
++    "ReversalNegatingBuildError",
++    "ReversalNegatingEvent",
++    "build_reversal_negating_event",
++    "validate_reversal_negating_constraints",
++]
+diff --git a/packages/services/m5_ledger/count_period_events.py b/packages/services/m5_ledger/count_period_events.py
+new file mode 100644
+index 0000000..218c96b
+--- /dev/null
++++ b/packages/services/m5_ledger/count_period_events.py
+@@ -0,0 +1,146 @@
++"""packages.services.m5_ledger.count_period_events — Story 11.1 pure kernel (H6 fix).
++
++H6 production bug fix: `closing_period_service.py:528/531` calls
++`LedgerService.count_period_events(period_key)` and
++`LedgerService.count_period_events(period_key, event_type="closing_snapshot")`.
++These methods were not defined (pre-6-2 wire). This pure kernel
++provides the SQL builder + kwargs guard so the service-layer method
++can dispatch without an AttributeError.
++
++AD-1 / AD-11 binding: pure-Python, stdlib-only, NO SQLAlchemy, NO DB,
++NO clock, NO random. Returns `(sql_text, params_dict)` ready for
++`session.execute(text(sql), params)`.
++
++Drift caught by `tests/services/m5_ledger/test_count_period_events.py`.
++"""
++
++from __future__ import annotations
++
++from typing import Any, Final
++
++# ── Constants ────────────────────────────────────────────────
++# 11-value event_type whitelist (mirror of `ledger.INVENTORY_LEDGER_EVENT_TYPES`).
++# The SQL builder only filters by event_type when the caller passes
++# a non-None value; the parent kernel's whitelist guard runs at
++# INSERT-time (not COUNT-time).
++_VALID_EVENT_TYPES: Final[frozenset[str]] = frozenset(
++    {
++        "opening_carried",
++        "opening_carried_stale_overwrite",
++        "purchase_inbound",
++        "sales_outbound",
++        "production_output_inbound",
++        "production_material_consumption",
++        "adjustment_positive",
++        "adjustment_negative",
++        "reversal_negating",
++        "reversal_corrected",
++        "closing_snapshot",
++    }
++)
++
++# Error codes — pure-kernel domain semantics.
++ERROR_CODE_EMPTY_PERIOD_KEY: Final[str] = "EMPTY_PERIOD_KEY"
++warning: in the working copy of 'packages/services/m5_ledger/query_period_closing_snapshot_all.py', LF will be replaced by CRLF the next time Git touches it
+ERROR_CODE_NON_STR_PERIOD_KEY: Final[str] = "NON_STR_PERIOD_KEY"
++ERROR_CODE_INVALID_EVENT_TYPE: Final[str] = "INVALID_EVENT_TYPE"
++
++
++# ── Typed exception ──────────────────────────────────────────
++class CountPeriodEventsBuildError(Exception):
++    """Pure-kernel count SQL builder violation.
++
++    NO HTTP mapping; service layer wraps with envelope details.
++    Service-layer dispatch uses `err.error_code` (stable Literal).
++    """
++
++    def __init__(
++        self,
++        *,
++        message: str,
++        error_code: str = ERROR_CODE_EMPTY_PERIOD_KEY,
++    ) -> None:
++        super().__init__(message)
++        self.message = message
++        self.error_code = error_code
++
++
++# ── count_period_events_sql ──────────────────────────────────
++def count_period_events_sql(
++    period_key: str,
++    *,
++    event_type: str | None = None,
++) -> tuple[str, dict[str, Any]]:
++    """Build (text SQL, params dict) for counting inventory_ledger rows.
++
++    AD-11 layer rule: text-only SQL builder. Caller (service layer)
++    wraps with `text(sql)` and `session.execute(text(sql), params)`.
++    The `tenant_id` parameter is auto-injected by RLS context — this
++    builder does NOT inline tenant_id (DRY with the RLS-scoped session).
++
++    Args:
++        period_key: AD-24 typed period-key ('YYYY-MM'). Required.
++        event_type: Optional event_type filter. If None, counts all
++            rows for the period. If provided, must be in the 11-value
++            whitelist (defense-in-depth — though SQL would simply
++            return 0 for unknown types).
++
++    Returns:
++        Tuple of (sql_text, params_dict). `params_dict` keys: period_key,
++        optional event_type.
++
++    Raises:
++        CountPeriodEventsBuildError: On invalid period_key / event_type.
++    """
++    if not isinstance(period_key, str):
++        raise CountPeriodEventsBuildError(
++            message=f"period_key must be str, got {type(period_key).__name__!r}",
++            error_code=ERROR_CODE_NON_STR_PERIOD_KEY,
++        )
++    if not period_key:
++        raise CountPeriodEventsBuildError(
++            message="period_key must be non-empty",
++            error_code=ERROR_CODE_EMPTY_PERIOD_KEY,
++        )
++
++    if event_type is None:
++        # Unfiltered count — used by closing_period_service.py:528.
++        sql = (
++            "SELECT COUNT(*) AS row_count "
++            "FROM inventory_ledger "
++            "WHERE period_key = :period_key"
++        )
++        params: dict[str, Any] = {"period_key": period_key}
++        return sql, params
++
++    if not isinstance(event_type, str):
++        raise CountPeriodEventsBuildError(
++            message=f"event_type must be str when provided, got {type(event_type).__name__!r}",
++            error_code=ERROR_CODE_INVALID_EVENT_TYPE,
++        )
++    if event_type not in _VALID_EVENT_TYPES:
++        raise CountPeriodEventsBuildError(
++            message=(
++                f"event_type {event_type!r} is not in the 11-value whitelist. "
++                f"Accepted: {sorted(_VALID_EVENT_TYPES)}"
++            ),
++            error_code=ERROR_CODE_INVALID_EVENT_TYPE,
++        )
++
++    # Filtered count — used by closing_period_service.py:531
++    # (`event_type="closing_snapshot"` for closing_snapshot_count).
++    sql = (
++        "SELECT COUNT(*) AS row_count "
++        "FROM inventory_ledger "
++        "WHERE period_key = :period_key AND event_type = :event_type"
++    )
++    params = {"period_key": period_key, "event_type": event_type}
++    return sql, params
++
++
++__all__ = [
++    "ERROR_CODE_EMPTY_PERIOD_KEY",
++    "ERROR_CODE_NON_STR_PERIOD_KEY",
++    "ERROR_CODE_INVALID_EVENT_TYPE",
++    "CountPeriodEventsBuildError",
++    "count_period_events_sql",
++]
+diff --git a/packages/services/m5_ledger/query_period_closing_snapshot_all.py b/packages/services/m5_ledger/query_period_closing_snapshot_all.py
+new file mode 100644
+index 0000000..7c8325a
+--- /dev/null
++++ b/packages/services/m5_ledger/query_period_closing_snapshot_all.py
+@@ -0,0 +1,91 @@
++"""packages.services.m5_ledger.query_period_closing_snapshot_all — Story 11.1 pure kernel (H6 fix).
++
++H6 production bug fix: `closing_period_service.py:528/531` (closing
++period aggregator) calls `LedgerService.query_period_closing_snapshot_all(period_key)`.
++This method was not defined. This pure kernel provides the SQL builder
++for the per-product closing_snapshot aggregate so the service-layer
++method can dispatch without an AttributeError.
++
++AD-1 / AD-11 binding: pure-Python, stdlib-only, NO SQLAlchemy, NO DB,
++NO clock, NO random. Returns `(sql_text, params_dict)` ready for
++`session.execute(text(sql), params)`.
++
++Drift caught by `tests/services/m5_ledger/test_query_period_closing_snapshot_all.py`.
++"""
++
++from __future__ import annotations
++
++from typing import Any, Final
++
++# ── Constants ────────────────────────────────────────────────
++ERROR_CODE_EMPTY_PERIOD_KEY: Final[str] = "EMPTY_PERIOD_KEY"
++ERROR_CODE_NON_STR_PERIOD_KEY: Final[str] = "NON_STR_PERIOD_KEY"
++
++
++# ── Typed exception ──────────────────────────────────────────
++class QueryPeriodClosingSnapshotAllBuildError(Exception):
++    """Pure-kernel closing_snapshot aggregate SQL builder violation.
++
++    NO HTTP mapping; service layer wraps with envelope details.
++    Service-layer dispatch uses `err.error_code` (stable Literal).
++    """
++
++    def __init__(
++        self,
++        *,
++        message: str,
++        error_code: str = ERROR_CODE_EMPTY_PERIOD_KEY,
++    ) -> None:
++        super().__init__(message)
++        self.message = message
++        self.error_code = error_code
++
++
++# ── query_period_closing_snapshot_all_sql ────────────────────
++def query_period_closing_snapshot_all_sql(
++    period_key: str,
++) -> tuple[str, dict[str, Any]]:
++    """Build (text SQL, params dict) for per-product closing_snapshot aggregate.
++
++    Used by `closing_period_service.py` after the M4 forward-fill fix
++    (`LedgerService.count_period_events` companion). Returns one row
++    per product with `SUM(qty)` over all `event_type='closing_snapshot'`
++    rows for the period. RLS auto-filters by tenant_id.
++
++    Args:
++        period_key: AD-24 typed period-key ('YYYY-MM'). Required.
++
++    Returns:
++        Tuple of (sql_text, params_dict). Result rows: product_id (UUID
++        str), closing_qty (Decimal string).
++
++    Raises:
++        QueryPeriodClosingSnapshotAllBuildError: On invalid period_key.
++    """
++    if not isinstance(period_key, str):
++        raise QueryPeriodClosingSnapshotAllBuildError(
++            message=f"period_key must be str, got {type(period_key).__name__!r}",
++            error_code=ERROR_CODE_NON_STR_PERIOD_KEY,
++        )
++    if not period_key:
++        raise QueryPeriodClosingSnapshotAllBuildError(
++            message="period_key must be non-empty",
++            error_code=ERROR_CODE_EMPTY_PERIOD_KEY,
++        )
++
++    sql = (
++        "SELECT product_id, SUM(qty) AS closing_qty "
++        "FROM inventory_ledger "
++        "WHERE period_key = :period_key AND event_type = 'closing_snapshot' "
++        "GROUP BY product_id"
++    )
++    params: dict[str, Any] = {"period_key": period_key}
++    return sql, params
++
++
++__all__ = [
++    "ERROR_CODE_EMPTY_PERIOD_KEY",
++    "ERROR_CODE_NON_STR_PERIOD_KEY",
++    "QueryPeriodClosingSnapshotAllBuildError",
++    "query_period_closing_snapshot_all_sql",
++]

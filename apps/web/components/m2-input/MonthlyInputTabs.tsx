@@ -30,6 +30,7 @@ import { ClosingPeriodConfirmationPanel } from "./ClosingPeriodConfirmationPanel
 import { ClosingPeriodConfirmDialog } from "./ClosingPeriodConfirmDialog";
 import { MonthlyClosingReportPanel } from "./MonthlyClosingReportPanel";
 import { MonthlyInputRowForm } from "./MonthlyInputRowForm";
+import { ReversalRequestButton } from "@/components/m4-inventory/ReversalRequestButton";
 
 export type MonthlyInputTabId = "opening" | "subub" | "close";
 
@@ -115,6 +116,27 @@ export interface MonthlyInputTabsProps {
     actor_id: string | null;
     created_at: string;
   }>;
+  /**
+   * Story 11.1 T10.7 — ReversalRequestTrigger composite state from
+   * `MonthlyInputStateResponse`. When provided, ReversalRequestButton is
+   * rendered as the 3rd component in the [마감] tab vertical stack
+   * (ClosingPeriodConfirmationPanel + MonthlyClosingReportPanel +
+   * ReversalRequestButton). Capability gate handled internally by the
+   * button (returns null when capability_granted=false).
+   */
+  reversal_request_trigger?: import("@/lib/closing-period").ReversalRequestTrigger;
+  /**
+   * Story 11.1 T10.7 — monthly_input_periods.status mirror. Used by
+   * ReversalRequestButton to gate the disabled state (locked → reject).
+   */
+  reversal_request_period_status?: import("@/lib/m11-reversal").PeriodStatus;
+  /**
+   * Story 11.1 T10.7 — POST handler for reversal-request confirmation.
+   * Returns correction_group_id; throws on 422/403/404.
+   */
+  onReversalRequestSubmit?: (
+    payload: import("@/lib/m11-reversal").ReversalRequestPayload,
+  ) => Promise<import("@/lib/m11-reversal").ReversalCreateResponse>;
 }
 
 /**
@@ -145,6 +167,9 @@ export function MonthlyInputTabs({
   monthly_closing_report,
   monthly_closing_report_v4_verdict,
   monthly_closing_report_audit_trail,
+  reversal_request_trigger,
+  reversal_request_period_status = "open",
+  onReversalRequestSubmit,
 }: MonthlyInputTabsProps): React.ReactElement {
   const is_blocked = isCloseBlocked(invariant);
 
@@ -263,6 +288,34 @@ export function MonthlyInputTabs({
               v4_verdict={monthly_closing_report_v4_verdict ?? null}
               audit_trail={monthly_closing_report_audit_trail ?? []}
               capability_granted={closing_period_capability_granted}
+            />
+          )}
+          {/* Story 11.1 T10.7 — ReversalRequestButton wire as the 3rd
+              component in the [마감] tab vertical stack. Capability gate
+              handled internally (returns null when capability_granted=false).
+              Hidden when reversal_request_trigger is not provided (page-level
+              MonthlyInputStateResponse determines trigger shape). */}
+          {reversal_request_trigger && (
+            <ReversalRequestButton
+              target_event_id={reversal_request_trigger.target_event_id}
+              period_key={period_key}
+              period_status={reversal_request_period_status}
+              capability_granted={reversal_request_trigger.capability_granted}
+              onSubmit={async (payload) => {
+                if (!onReversalRequestSubmit) {
+                  return {
+                    correction_group_id: "",
+                    negating_event_id: "",
+                    corrected_event_id: null,
+                    target_event_id: payload.target_event_id,
+                    reversal_history: [],
+                    trace_id: "",
+                    cache_invalidation_receipt: {},
+                  };
+                }
+                const response = await onReversalRequestSubmit(payload);
+                return response;
+              }}
             />
           )}
           <MonthlyInputRowForm

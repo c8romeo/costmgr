@@ -356,7 +356,16 @@ async def get_carry_chain(
 @router.post(
     "/ledger/reversal-requests",
     status_code=501,  # 501 Not Implemented — Epic 11 forward-fill
-    summary="M4 reversal entrypoint forward-fill (Story 5.2 AC #6; Epic 11 ships actual write)",
+    summary="DEPRECATED — use /api/v1/close/reversal-requests. M11 actual write route is SSOT.",
+    deprecated=True,
+    description=(
+        "DEPRECATED since Story 11.1 (Epic 11). The M11 actual write route is "
+        "`POST /api/v1/close/reversal-requests` (see `apps/api/modules/m11_close/handlers.py`). "
+        "This endpoint remains as a 501 forward-fill for backward compatibility "
+        "with Story 5.2 AC #6 clients until the deprecation is fully retired in "
+        "a follow-up sprint. The `Deprecation` header is set so clients can "
+        "discover the replacement route."
+    ),
 )
 async def request_reversal(
     payload: ReversalRequestCreate,
@@ -365,13 +374,18 @@ async def request_reversal(
     _capability: None = Depends(require_capability(Capability.INVENTORY_LEDGER)),
     _role: None = Depends(require_role("owner")),
 ) -> dict[str, str]:
-    """M4 reversal entrypoint stub.
+    """M4 reversal entrypoint stub (DEPRECATED since Story 11.1).
 
     AC #6 + OQ5 cj-style default: this endpoint emits the audit marker
     `inventory_ledger_reversal_requested` and verifies the target event
     exists for the tenant. The actual reversal sequence INSERT
     (negating row + optional corrected row) is owned by Epic 11 module
-    authority. Until M11 ships, the endpoint returns 501.
+    authority at `POST /api/v1/close/reversal-requests` (M11 module).
+    Until M11 ships, the endpoint returns 501.
+
+    Deprecation: this route is the M4 forward-fill; the M11 SSOT is
+    `POST /api/v1/close/reversal-requests`. The `Deprecation: true`
+    header is emitted so clients can discover the replacement.
 
     The 501 envelope is mapped from
     `InventoryLedgerReversalNotYetWiredError` in `apps/api/main.py`.

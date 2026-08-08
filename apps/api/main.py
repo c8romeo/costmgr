@@ -15,6 +15,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from apps.api.core.cache_invalidation_publisher import (
+    CacheInvalidationChannelInvalidError,
+)
 from apps.api.core.capability import (
     ForbiddenRoleError,
     IndustryCapabilityError,
@@ -66,6 +69,14 @@ from apps.api.modules.m4_inventory.services.opening_carry_service import (
 from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
+from apps.api.modules.m11_close import router as m11_close_router
+from apps.api.modules.m11_close.services.reversal_service import (
+    LockedPeriodReversalRejectedError,
+    ReversalDuplicateError,
+    ReversalRejectedError,
+    ReversalTargetNotFoundError,
+    ReversalUnauthorizedError,
+)
 
 app = FastAPI(
     title="bizup/costmgr API",
@@ -96,6 +107,13 @@ app.include_router(m3_calculate_router)
 # Auto-carry chain hooks into m2_input_service (get_state + save_row);
 # this router only exposes the explicit manual trigger.
 app.include_router(m4_inventory_router)
+
+# Story 11.1 — M11 reversal sequence (AD-22 sign-negating + corrected row +
+# AD-25 cache invalidation publisher). 3 NEW routes:
+# - POST /api/v1/close/reversal-requests (201 REVERSAL_COMPLETED)
+# - GET /api/v1/close/reversal-requests/<correction_group_id> (200)  # noqa: ERA001 — FastAPI path template syntax
+# - POST /api/v1/close/cache-invalidation (200 AD-25 publish receipt)
+app.include_router(m11_close_router)
 
 
 @app.exception_handler(AuthError)
@@ -839,6 +857,124 @@ async def _m4_closing_guard_audit_emit_handler(
             "details": {
                 "tenant_id": str(exc.tenant_id),
                 **exc.details,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# Story 11.1 — M11 reversal sequence exception handlers.
+# Without these, FastAPI returns HTTP 500 for any reversal-flow typed error,
+# violating the AD-15 `{code, message_ko, details, trace_id}` contract.
+@app.exception_handler(ReversalTargetNotFoundError)
+async def _m11_reversal_target_not_found_handler(
+    request: Request, exc: ReversalTargetNotFoundError
+) -> JSONResponse:
+    """404 REVERSAL_TARGET_NOT_FOUND — target_event_id not in tenant ledger."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "REVERSAL_TARGET_NOT_FOUND",
+            "message_ko": "반전 대상 이벤트를 찾을 수 없습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "target_event_id": str(exc.target_event_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ReversalRejectedError)
+async def _m11_reversal_rejected_handler(
+    request: Request, exc: ReversalRejectedError
+) -> JSONResponse:
+    """403 REVERSAL_REJECTED — capability/period gate rejected."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "REVERSAL_REJECTED",
+            "message_ko": exc.reason_ko,
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "target_event_id": str(exc.target_event_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ReversalUnauthorizedError)
+async def _m11_reversal_unauthorized_handler(
+    request: Request, exc: ReversalUnauthorizedError
+) -> JSONResponse:
+    """403 REVERSAL_UNAUTHORIZED — caller is not the actor or role mismatch."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "REVERSAL_UNAUTHORIZED",
+            "message_ko": "반전 권한이 없습니다 (발행자 본인 또는 admin만 가능)",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "actor_id": str(exc.actor_id),
+                "target_event_id": str(exc.target_event_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ReversalDuplicateError)
+async def _m11_reversal_duplicate_handler(
+    request: Request, exc: ReversalDuplicateError
+) -> JSONResponse:
+    """422 REVERSAL_DUPLICATE — (tenant_id, reverses_event_id) unique violation."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "REVERSAL_DUPLICATE",
+            "message_ko": "이미 반전된 이벤트입니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "target_event_id": str(exc.target_event_id),
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(LockedPeriodReversalRejectedError)
+async def _m11_locked_period_reversal_rejected_handler(
+    request: Request, exc: LockedPeriodReversalRejectedError
+) -> JSONResponse:
+    """422 LOCKED_PERIOD_REVERSAL_REJECTED — period_status='locked'."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "LOCKED_PERIOD_REVERSAL_REJECTED",
+            "message_ko": "잠금(locked)된 기간의 이벤트는 반전할 수 없습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "target_event_id": str(exc.target_event_id),
+                "period_key": exc.period_key,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(CacheInvalidationChannelInvalidError)
+async def _cache_invalidation_channel_invalid_handler(
+    request: Request, exc: CacheInvalidationChannelInvalidError
+) -> JSONResponse:
+    """422 CACHE_INVALIDATION_INVALID_CHANNEL — channel not in ALLOWED_CHANNELS."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "CACHE_INVALIDATION_INVALID_CHANNEL",
+            "message_ko": "허용되지 않은 캐시 무효화 채널입니다",
+            "details": {
+                "channel": exc.channel,
             },
             "trace_id": exc.trace_id,
         },

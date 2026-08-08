@@ -121,3 +121,33 @@ export function buildClosingPeriodState(
 // without re-importing from `monthly-closing-report.ts`. Single source
 // of truth for panel props stays in `monthly-closing-report.ts`.
 export type { MonthlyClosingReportAggregate } from "./monthly-closing-report";
+
+// ── ReversalRequestTrigger (Story 11.1 T10.3 — composite state shape) ──
+//
+// Composite trigger state passed from `MonthlyInputStateResponse` to
+// `<ReversalRequestButton>`. Carries the target event id + reason +
+// corrected row fields + industry + capability_granted in a single typed
+// object so the button can render via one prop and the dialog/form can
+// consume the same shape via `ReversalRequestPayload`.
+//
+// Mirrors Python `packages/services/m11_close/reversal_authorization.py
+// ::ReversalAuthorizationContext` (composite authorization state SSOT).
+// AD-22 reversal-eligible target event_type whitelist + AD-25 cache
+// invalidation publisher 1-channel contract apply transitively.
+//
+// Field reference (PRD §F11.3 + AD-22 + AD-25):
+// - target_event_id — sign-negating target (reverses_event_id wire)
+// - reason — operator-supplied justification (required, AD-15 §4 envelope)
+// - corrected_qty — optional Decimal-string override (AD-8 monetary)
+// - corrected_period_key — optional "YYYY-MM" override (AD-24 typed)
+// - industry — service-only tenants → null (Capability.REVERSAL_REQUEST gate)
+// - capability_granted — Capability.REVERSAL_REQUEST mirror (manufacturing 3종 ✅)
+import type { Industry } from "./menu-config";
+export interface ReversalRequestTrigger {
+  target_event_id: string;
+  reason: string;
+  corrected_qty: string | null;
+  corrected_period_key: string | null;
+  industry: Industry | null;
+  capability_granted: boolean;
+}

@@ -778,6 +778,9 @@ class InventoryLedger(Base):
     # AD-22 reversal sequence (Epic 11 forward-fill).
     reverses_event_id: Mapped[UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
     correction_group_id: Mapped[UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
+    # AD-22 reversal_of_period_key — original event's period_key (may differ
+    # from period_key if corrected row crosses periods). Added in Alembic 0019.
+    reversal_of_period_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     inserted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
