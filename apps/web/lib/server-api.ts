@@ -22,6 +22,11 @@ import type {
   MonthlyInputStateResponse,
   ProductListResponse,
 } from "./api-client";
+import type {
+  MonthlyClosingReportResponse,
+  MonthlyClosingReportAuditTrailResponse,
+  MonthlyClosingReportV4VerdictResponse,
+} from "./monthly-closing-report";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8765";
 
@@ -187,6 +192,115 @@ export async function fetchMonthlyInputStateServerSide(
     );
     if (!res.ok) return null;
     const data = (await res.json()) as MonthlyInputStateResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ── Story 6.2 — Monthly closing report server-side fetcher ──────
+//
+// RSC fetch for `GET /api/v1/inventory/monthly-closing-report?period_key=...`
+// to seed the [월 마감 보고서] page with the 4-source read-only aggregate.
+// Returns null on failure so the Client Component can fall back to polling.
+export async function fetchMonthlyClosingReportServerSide(
+  periodKey: string,
+  accessToken: string | undefined,
+  traceId: string,
+): Promise<MonthlyClosingReportResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/inventory/monthly-closing-report?period_key=${encodeURIComponent(periodKey)}`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as MonthlyClosingReportResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ── Story 6.2 — Monthly closing report audit trail fetcher ─────
+export async function fetchMonthlyClosingReportAuditTrailServerSide(
+  periodKey: string,
+  accessToken: string | undefined,
+  traceId: string,
+): Promise<MonthlyClosingReportAuditTrailResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/inventory/monthly-closing-report/audit-trail?period_key=${encodeURIComponent(periodKey)}`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as MonthlyClosingReportAuditTrailResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ── Story 6.2 — V4 verdict fetcher ──────────────────────────────
+export async function fetchMonthlyClosingReportV4VerdictServerSide(
+  periodKey: string,
+  accessToken: string | undefined,
+  traceId: string,
+): Promise<MonthlyClosingReportV4VerdictResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/inventory/monthly-closing-report/v4-verdict?period_key=${encodeURIComponent(periodKey)}`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as MonthlyClosingReportV4VerdictResponse;
     return data;
   } catch {
     return null;

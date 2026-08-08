@@ -68,5 +68,22 @@
     "toast_error_industry_not_supported": "업종 미지원: MONTHLY_CLOSING_REPORT capability 미보유 (A10)",
     "toast_error_generic": "마감 확정 실패: 잠시 후 다시 시도하세요",
     "finalized_at_label": "마감 확정 시각"
+  },
+  "monthly_closing_report": {
+    "panel_title_ko": "월 마감 보고서",
+    "panel_subtitle_ko": "PRD §F5 — 마감 보고서 + §F5.2 KRW/USD dual display + §V4 closing snapshot 일관성",
+    "kpi_closing_snapshot_count": "closing_snapshot 수",
+    "kpi_ledger_event_count": "ledger event 수",
+    "kpi_fiscal_period_snapshot_count": "fiscal_period_snapshot 수",
+    "kpi_v4_verdict": "V4 verdict",
+    "table_opening_qty": "기초 수량",
+    "table_closing_qty": "기말 수량",
+    "table_closing_qty_usd": "기말 금액 (KRW/USD)",
+    "table_delta": "변동 수량",
+    "table_delta_usd": "변동 금액 (USD)",
+    "toast_view_partial": "마감 데이터 일부만 표시됩니다 — 잠시 후 갱신됩니다",
+    "toast_view_empty": "마감 데이터 없음",
+    "toast_error_krw_usd_rate_missing": "KRW/USD 환율 누락: tenant_settings.baseline.currency_pair 미설정",
+    "toast_error_industry_not_supported": "업종 미지원: MONTHLY_CLOSING_REPORT capability 미보유 (A10)"
   }
 }

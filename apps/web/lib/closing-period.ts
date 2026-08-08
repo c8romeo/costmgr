@@ -114,3 +114,10 @@ export function buildClosingPeriodState(
     period_key: response.period_key,
   };
 }
+
+// ── MonthlyClosingReportView (Story 6.2 T7.3 — view projection) ────────
+// Re-exports the monthly closing report aggregate shape so the
+// `MonthlyClosingReportPanel` component can accept a single typed view
+// without re-importing from `monthly-closing-report.ts`. Single source
+// of truth for panel props stays in `monthly-closing-report.ts`.
+export type { MonthlyClosingReportAggregate } from "./monthly-closing-report";

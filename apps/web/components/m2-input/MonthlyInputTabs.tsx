@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { M2ClosingGuardBanner } from "./ClosingGuardBanner";
 import { ClosingPeriodConfirmationPanel } from "./ClosingPeriodConfirmationPanel";
 import { ClosingPeriodConfirmDialog } from "./ClosingPeriodConfirmDialog";
+import { MonthlyClosingReportPanel } from "./MonthlyClosingReportPanel";
 import { MonthlyInputRowForm } from "./MonthlyInputRowForm";
 
 export type MonthlyInputTabId = "opening" | "subub" | "close";
@@ -95,6 +96,25 @@ export interface MonthlyInputTabsProps {
   onClosingPeriodConfirm?: (
     period_key: string,
   ) => Promise<number>;
+  /**
+   * Story 6.2 T7.6 — Monthly closing report aggregate (read-only join).
+   * When provided, MonthlyClosingReportPanel is rendered below the
+   * ClosingPeriodConfirmationPanel in the [마감] tab.
+   */
+  monthly_closing_report?: import("@/lib/monthly-closing-report").MonthlyClosingReportAggregate;
+  /**
+   * Story 6.2 T7.6 — V4 verdict for monthly closing report (6-1 carry-over + 6-2 extension).
+   */
+  monthly_closing_report_v4_verdict?: import("@/lib/monthly-closing-report").MonthlyClosingReportV4Verdict | null;
+  /**
+   * Story 6.2 T7.6 — Audit trail entries (last 10 — CR 1.1 observability).
+   */
+  monthly_closing_report_audit_trail?: Array<{
+    id: string;
+    action: string;
+    actor_id: string | null;
+    created_at: string;
+  }>;
 }
 
 /**
@@ -122,6 +142,9 @@ export function MonthlyInputTabs({
   closing_period_finalized_at,
   onClosingPeriodConfirmClick,
   onClosingPeriodConfirm,
+  monthly_closing_report,
+  monthly_closing_report_v4_verdict,
+  monthly_closing_report_audit_trail,
 }: MonthlyInputTabsProps): React.ReactElement {
   const is_blocked = isCloseBlocked(invariant);
 
@@ -228,6 +251,18 @@ export function MonthlyInputTabs({
               state={closing_period_state}
               period_key={period_key}
               onConfirm={onClosingPeriodConfirm}
+            />
+          )}
+          {/* Story 6.2 T7.6 — MonthlyClosingReportPanel wire below
+              ClosingPeriodConfirmationPanel. Renders 4 KPI cards + table +
+              V4 verdict envelope + audit-trail. Hidden when
+              monthly_closing_report_capability_granted=false. */}
+          {monthly_closing_report && (
+            <MonthlyClosingReportPanel
+              aggregate={monthly_closing_report}
+              v4_verdict={monthly_closing_report_v4_verdict ?? null}
+              audit_trail={monthly_closing_report_audit_trail ?? []}
+              capability_granted={closing_period_capability_granted}
             />
           )}
           <MonthlyInputRowForm
