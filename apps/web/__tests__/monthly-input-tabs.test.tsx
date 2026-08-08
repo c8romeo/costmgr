@@ -40,6 +40,11 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// Mock next-intl useTranslations (return key as-is)
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 const PERIOD_KEY = "2026-08";
 
 describe("MonthlyInputTabs", () => {
@@ -243,5 +248,151 @@ describe("MonthlyInputTabs", () => {
       />,
     );
     expect(screen.queryByTestId("m2-closing-guard-banner")).toBeNull();
+  });
+
+  // ── Story 6.2 T8.2 — 3 NEW 6-2 scenarios ─────────────────────
+
+  // Case 7: monthly_closing_report=READY → panel renders in [마감] tab
+  it("test_monthly_closing_report_ready_panel_renders", () => {
+    const aggregate = {
+      period_key: PERIOD_KEY,
+      view_mode: "READY" as const,
+      closing_snapshot_count: 4,
+      ledger_event_count: 12,
+      fiscal_period_snapshot_count: 4,
+      opening_inventory_count: 4,
+      closing_per_product: [
+        {
+          product_id: "019200a0-0000-7000-8000-0000000000a1",
+          opening_qty: "100.0000",
+          closing_qty: "90.0000",
+          delta_qty: "-10.0000",
+          closing_qty_krw: "1200000",
+          closing_qty_usd: "909.09",
+          delta_usd: "-101.01",
+        },
+      ],
+      audit_emitted: false,
+      currency_pair: {
+        base: "KRW",
+        quote: "USD",
+        rate: "1320.50",
+        source: "한국은행 2026-08-08",
+      },
+      trace_id: "trace-001",
+      report_generated_at: "2026-08-08T00:00:00Z",
+    };
+
+    render(
+      <MonthlyInputTabs
+        period_key={PERIOD_KEY}
+        defaultTab="close"
+        invariant={{
+          code: INVARIANT_CODE_CLOSING_OK,
+          negative_products: {},
+          closing_per_product: {},
+          guard_enabled: true,
+        }}
+        monthly_closing_report={aggregate}
+        closing_period_capability_granted={true}
+      />,
+    );
+
+    const panel = screen.getByTestId("monthly-closing-report-panel");
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveAttribute("data-view-mode", "READY");
+    expect(screen.getByTestId("kpi-closing-snapshot-count")).toHaveTextContent("4");
+  });
+
+  // Case 8: monthly_closing_report_capability_granted=false → panel hidden
+  it("test_monthly_closing_report_panel_hidden_when_capability_denied", () => {
+    const aggregate = {
+      period_key: PERIOD_KEY,
+      view_mode: "READY" as const,
+      closing_snapshot_count: 4,
+      ledger_event_count: 12,
+      fiscal_period_snapshot_count: 4,
+      opening_inventory_count: 4,
+      closing_per_product: [],
+      audit_emitted: false,
+      currency_pair: null,
+      trace_id: "trace-001",
+      report_generated_at: "2026-08-08T00:00:00Z",
+    };
+
+    const { container } = render(
+      <MonthlyInputTabs
+        period_key={PERIOD_KEY}
+        defaultTab="close"
+        invariant={{
+          code: INVARIANT_CODE_CLOSING_OK,
+          negative_products: {},
+          closing_per_product: {},
+          guard_enabled: true,
+        }}
+        monthly_closing_report={aggregate}
+        closing_period_capability_granted={false}
+      />,
+    );
+
+    // Panel hidden when capability denied
+    expect(
+      container.querySelector('[data-testid="monthly-closing-report-panel"]'),
+    ).toBeNull();
+  });
+
+  // Case 9: monthly_closing_report V4 FAIL verdict → KPI 빨강
+  it("test_monthly_closing_report_v4_fail_kpi_red", () => {
+    const aggregate = {
+      period_key: PERIOD_KEY,
+      view_mode: "READY" as const,
+      closing_snapshot_count: 4,
+      ledger_event_count: 12,
+      fiscal_period_snapshot_count: 4,
+      opening_inventory_count: 4,
+      closing_per_product: [],
+      audit_emitted: false,
+      currency_pair: null,
+      trace_id: "trace-001",
+      report_generated_at: "2026-08-08T00:00:00Z",
+    };
+
+    const v4_verdict = {
+      status: "FAIL" as const,
+      source_count: 4 as const,
+      failures: [
+        {
+          product_id: "019200a0-0000-7000-8000-0000000000a1",
+          ledger_qty: "10.0000",
+          closing_snapshot_qty: "11.0000",
+          fiscal_period_snapshot_qty: "100.0000",
+          message_ko: "마감 snapshot 불일치",
+        },
+      ],
+      skip_reason_ko: null,
+      industry: "manufacturing",
+      verified_at: "2026-08-08T00:00:00Z",
+      trace_id: "trace-v4",
+    };
+
+    render(
+      <MonthlyInputTabs
+        period_key={PERIOD_KEY}
+        defaultTab="close"
+        invariant={{
+          code: INVARIANT_CODE_CLOSING_OK,
+          negative_products: {},
+          closing_per_product: {},
+          guard_enabled: true,
+        }}
+        monthly_closing_report={aggregate}
+        monthly_closing_report_v4_verdict={v4_verdict}
+        closing_period_capability_granted={true}
+      />,
+    );
+
+    const kpi = screen.getByTestId("kpi-v4-verdict");
+    expect(kpi).toHaveAttribute("data-status", "FAIL");
+    expect(screen.getByTestId("v4-failures-list")).toBeInTheDocument();
   });
 });
