@@ -367,7 +367,7 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
         3. `apps/api/modules/m4_inventory/services/monthly_closing_report_service.py` (NEW service layer) — MonthlyClosingReportService class with 3 operations.
         4. `apps/api/modules/m4_inventory/handlers.py` (extension) — 3 NEW routes (GET /monthly-closing-report + GET /monthly-closing-report/audit-trail + GET /monthly-closing-report/v4-verdict).
         5. `apps/api/core/audit_action.py` (extension) — MonthlyClosingReportAction = Literal["monthly_closing_report_viewed"] 1 value 신규 + ActionClass.MONTHLY_CLOSING_REPORT 1 NEW class + _REGISTRY 1 value fill.
-        6. `apps/api/modules/m2_input/services/monthly_input_service.py` (extension) — MonthlyInputService.get_monthly_closing_report NEW method + get_state 5 NEW fields populate.
+        6. *(D3 de-scoped to 6-3+)* — `apps/api/modules/m2_input/services/monthly_input_service.py` (extension) — MonthlyInputService.get_monthly_closing_report NEW method + get_state 5 NEW fields populate. **bmad-code-review D3 결정 (2026-08-08)**: 본 AC #3 wire는 6-3+ 진입점으로 de-scope. 6-2 wire는 standalone `MonthlyClosingReportService.get_monthly_closing_report` 만 출하.
       - **Backend 8 EXTENSION files**:
         1. `apps/api/alembic/versions/0017_closing_period.py` (6-1 wire) — 그대로 활용 (NEW Alembic migration 추가 불요요).
         2. `apps/api/main.py` (extension) — 0 NEW exception handlers (6-2 wire는 read-only aggregator, 6-1 wire 5 NEW exception handlers 그대로 활용).
@@ -453,7 +453,7 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
 3. `apps/api/modules/m4_inventory/services/monthly_closing_report_service.py` (NEW service layer) — MonthlyClosingReportService class.
 4. `apps/api/modules/m4_inventory/handlers.py` (extension) — 3 NEW routes (read-only).
 5. `apps/api/core/audit_action.py` (extension) — MonthlyClosingReportAction 1 value + ActionClass.MONTHLY_CLOSING_REPORT 1 NEW class.
-6. `apps/api/modules/m2_input/services/monthly_input_service.py` (extension) — MonthlyInputService.get_monthly_closing_report NEW method.
+6. *(D3 de-scoped to 6-3+)* — `apps/api/modules/m2_input/services/monthly_input_service.py` (extension) — MonthlyInputService.get_monthly_closing_report NEW method. **bmad-code-review D3 결정 (2026-08-08)**: 6-3+ 진입점으로 de-scope.
 
 #### Backend 8 EXTENSION files
 
@@ -584,7 +584,7 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
 - T10.9 — `docs/closing-guard.md` (extension) — §5.3 (5-3 wire) + §6.2 (Story 6.2 closing report 시각화 layer)
 - T10.10 — 3중 게이트 mandatory CI (carry-over 갱신): ruff scoped (6-2 surface + 6-1 carry-over close 33 files) — carry-over 직전 실측 21 errors → T10 후 0 errors / import-linter 2 KEPT 0 broken / pytest 1,164 + 110 + 49 = 1,323 passed + 127 skipped + 0 failed (carry-over 진입 시점 1 failed → SDR regenerate 후 0 failed) / frontend vitest 21 + 23 = 44 scenarios (T6 panel mock 재작성 후 re-run) / Playwright E2E 6 + 11 = 17 scenarios.
 
-## Deferrals (10 items)
+## Deferrals (12 items)
 
 1. **6-3 closing PDF export + ko-KR labels** — Epic 6 3-story 분할 3번째. 6-2 wire는 read-only web report + KRW/USD dual display. 6-3 wire = PDF A4 인쇄 최적화 + ko-KR labels (next-intl + Recharts SVG → PDF 변환).
 2. **Epic 11 reversal module wire 진입점 (`reversal_negating` + `reversal_corrected` event type fill + `opening_inventory_unlocked` action)** — Epic 11 spec 진입 시점에 결정 (A9 carry-over). 6-2 wire는 read-only (correction은 Epic 11 reversal module ships 후).
@@ -596,6 +596,8 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
 8. **Epic 6 close-out retro A9 carry-over 결정** — Epic 11 reversal module wire 진입점 (A9).
 9. **5-3 T12.2 test file (closing invariant TS mirror parity) ≥ 10 cases** — Story 6.1 carry-over (A12 done 2026-08-07). 6-2 wire는 ≥ 9 NEW cases (AC #4 wire spec).
 10. **6-2 T10.5 closing_period.md §V4 골든 fixture deferred to T10.5 → 6-2 carry-over close-out 명시** — 6-2 A11 wire (T6.1 + T6.2) + 6-2 docs (T10.2 + T10.5) 통합 close-out.
+11. **H6 (bmad-code-review R4 triage 2026-08-08) pre-existing 6-1 LedgerService runtime crash** — `closing_period_service.py:528` `LedgerService.count_period_events` / `:531` `LedgerService.query_period_closing_snapshot_all` 두 메서드가 `packages/services/m5_ledger/` 에 정의 부재. 6-1 carry-over + 6-2 monthly closing report 동일 hot path 노출. **DOCUMENTED DEFER** to dedicated Story (6-3 진입 시 또는 Epic 11 reversal 진입 시 결정). 6-2 wire 영향: read-only aggregator 진입 시 AttributeError 가능 → production 진입 차단. 명시적 defer 보존.
+12. **W2 (bmad-code-review R4 triage 2026-08-08) V8 `_fixture_lock_sha256` placeholder** — 6 NEW fixtures (v3_closing_{pass,fail}_manufacturing.json + v4_closing_period_{pass,fail}_manufacturing.json + closing_snapshot_manufacturing.json + ledger_period_closing_manufacturing.json) 모두 `PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER` 마커 보유. **A11 publisher CLI extension** (`--include-closing-period-snapshot --include-closing-snapshot` 추가) 후 일회성 regen 필요. Pre-existing 5-3 패턴 (deferred to A11 publisher). 6-2 wire 영향: V8 runner `_fixture_lock_sha256` 검증 skip (fixture content drift detector 미작동). 후속 A11 sweep 또는 6-3 진입 시 결정.
 
 ## Open Questions (7 with cj-style defaults)
 
