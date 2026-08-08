@@ -4,7 +4,7 @@ target_key: 6-2-monthly-closing-report
 epic: 6
 story_id: 6.2
 title: Monthly Closing Report — closing snapshot + ledger events + capability gate
-status: ready-for-dev
+status: review
 ---
 
 # Story 6.2: Monthly Closing Report — closing snapshot + ledger events + capability gate
