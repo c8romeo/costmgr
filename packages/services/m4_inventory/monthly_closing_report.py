@@ -68,9 +68,9 @@ MONTHLY_CLOSING_REPORT_EMPTY_KO: Final[str] = "마감 데이터 없음"
 CURRENCY_PAIR_DISPLAY_KO_FORMAT: Final[str] = "1 USD = {rate_krw} KRW ({source_ko} {rate_as_of})"
 
 # Closing report view mode classification 3 codes (PRD §F5 + §V4 + §A11).
-REPORT_VIEW_MODE_READY: Final[str] = "CLOSING_REPORT_READY"
-REPORT_VIEW_MODE_PARTIAL: Final[str] = "CLOSING_REPORT_PARTIAL"
-REPORT_VIEW_MODE_EMPTY: Final[str] = "CLOSING_REPORT_EMPTY"
+REPORT_VIEW_MODE_READY: Final[str] = "READY"
+REPORT_VIEW_MODE_PARTIAL: Final[str] = "PARTIAL"
+REPORT_VIEW_MODE_EMPTY: Final[str] = "EMPTY"
 
 REPORT_VIEW_MODES: Final[frozenset[str]] = frozenset(
     {
