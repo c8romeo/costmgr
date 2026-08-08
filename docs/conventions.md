@@ -615,6 +615,47 @@ Drift protection: `tests/integration/test_monthly_closing_report_label_consisten
 (12 cases) + `tests/integration/test_monthly_closing_report_v4_verdict.py`
 (4 cases).
 
+### §10.9 Close Sequence Lock Audit Policy (Story 11.2)
+
+`CLOSE_SEQUENCE_LOCK` capability (manufacturing 3종 ✅ / service-only ❌)
+audit-first wire = AD-2 ledger read-only join + AD-4 atomicity close-time
+hook + AD-12 V4 verification ordering + AD-6 close lock + AD-22 reversal/
+correction exception. **4-stage close_sequence_state 1-way state machine**
+(divisions → manufacturing → abc → common → confirmed) + **partial close
+guard** (4단계 미완료 시 confirm 거부) + **AD-6 INSERT 거부** (fiscal_periods
+.status='closed' 후 business-data INSERT 거부, AD-22 reversal/correction
+events만 허용) + **11-1 reversal authorization 양쪽 가드** (period_status +
+fiscal_period_status).
+
+| Trigger | audit action | ActionClass | enforcement |
+|---|---|---|---|
+| Initiate sequence | `closing_sequence_initiated` | `ActionClass.MONTHLY_CLOSING` | fiscal_periods INSERT + close_sequence_state='divisions' |
+| Step complete (per stage) | `closing_sequence_step_completed` | `ActionClass.MONTHLY_CLOSING` | step column UPDATE + state advance |
+| Partial close block | `closing_sequence_blocked` | `ActionClass.MONTHLY_CLOSING` | 409 PARTIAL_CLOSE_BLOCKED typed envelope |
+| Confirm sequence success | `closing_sequence_confirmed` | `ActionClass.MONTHLY_CLOSING` | 4단계 모두 완료 + fiscal_periods.status='closed' + ledger INSERT + audit-first |
+
+**11-2 wire 시 추가 fill** (5 values, `ActionClass.MONTHLY_CLOSING` 별도
+frozenset — `ActionClass.CLOSING_PERIOD` 6-1 wire 3 values와 별개):
+
+- `closing_sequence_initiated`
+- `closing_sequence_step_completed`
+- `closing_sequence_blocked`
+- `closing_sequence_confirmed`
+
+11-1 wire 보존: `ActionClass.REVERSAL_LOG` 5 values +
+`ActionClass.MONTHLY_INPUT_PERIOD` `opening_inventory_unlocked` 1 value.
+
+**Drift protection**:
+- `tests/integration/test_audit_action_consistency.py` — 3-way drift
+  detector 4 NEW cases (initiated / step_completed / blocked / confirmed).
+  **Task 7.4 EXTENSION은 bmad-code-review carry-over sweep 대상.**
+- `tests/services/test_audit_action_centralization.py` — registry
+  `ActionClass.MONTHLY_CLOSING` 4 NEW values registered verification (AST-grep
+  `emit_audit_typed` hits = 0 유지). **Task 7.3 EXTENSION은 bmad-code-review
+  carry-over sweep 대상.**
+
+상세: [docs/close-sequence-lock.md](./close-sequence-lock.md) SSOT.
+
 ---
 
 ## §11 Frontend Tooling (Story 0.5)

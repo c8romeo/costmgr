@@ -135,3 +135,31 @@ whitelist가 capability 매트릭스 변경 시 자동 재계산.
 4. cost_engine_cache / fiscal_period_cache / closing_snapshot_cache channel
    audit action fill — AD-25 11-3 entry 시점에 channel registry 확장.
 5. capability gate 4-tier → 5-tier (PRD §F11.3 capability matrix v1.11) — Epic 11 close-out retro 결정.
+
+## 8. Story 11.2 EXTENSION — `ActionClass.MONTHLY_CLOSING` 4 NEW values
+
+Epic 11 cj-style 3-story 분할 2번째 (Epic 5 retro §6 W1) — 11-2 wire는 별도
+`ActionClass.MONTHLY_CLOSING` frozenset에 4 NEW values fill:
+
+| Action | Value | Use case |
+|---|---|---|
+| `MONTHLY_CLOSING_INITIATED` | `"closing_sequence_initiated"` | `initiate_close_sequence` succeeded — `fiscal_periods` INSERT + `close_sequence_state='divisions'` |
+| `MONTHLY_CLOSING_STEP_COMPLETED` | `"closing_sequence_step_completed"` | `step_complete` 호출 시 단계별 완료 (divisions / manufacturing / abc / common) |
+| `MONTHLY_CLOSING_BLOCKED` | `"closing_sequence_blocked"` | partial close guard 거부 — 4단계 미완료 → 409 `PARTIAL_CLOSE_BLOCKED` |
+| `MONTHLY_CLOSING_CONFIRMED` | `"closing_sequence_confirmed"` | `confirm_close_sequence` succeeded — 4단계 모두 완료 + `fiscal_periods.status='closed'` |
+
+Wire contract: `apps/api/core/audit_action.py` `ActionClass.MONTHLY_CLOSING`
+frozenset extension + 11-1 `ActionClass.REVERSAL_LOG` 5 values + 11-1
+`ActionClass.MONTHLY_INPUT_PERIOD` `opening_inventory_unlocked` 1 value 보존.
+
+`ActionClass.CLOSING_PERIOD` (6-1 wire, 3 values: `closing_period_confirmed` /
+`closing_period_blocked` / `closing_period_snapshot_inconsistency`) 별도
+frozenset — 11-2 본문 SSOT. 11-2 wire = monthly_input_periods.status 차원
+확장이며, fiscal_periods.status 차원의 close sequence event는
+`ActionClass.MONTHLY_CLOSING` 별도.
+
+Drift: 3-way detector (`tests/integration/test_audit_action_consistency.py`)
+4 NEW cases (initiated / step_completed / blocked / confirmed) — registry ↔ DB
+CHECK (Alembic 0020 fiscal_periods 5 CHECK + audit_logs CHECK via 5-1 wire) ↔
+call sites 4 NEW (close_sequence_service.emit_audit_typed()). **Task 7.3 / 7.4
+EXTENSION** 은 bmad-code-review carry-over sweep 대상.

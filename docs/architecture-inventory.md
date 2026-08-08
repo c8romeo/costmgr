@@ -344,3 +344,62 @@ service ❌. Service-only tenant 가 POST 시도 → 403 INDUSTRY_NOT_SUPPORTED.
   includes `"packages.services.m4_inventory.monthly_closing_report"`
 
 총 ~70+ cases 추가 (3-way drift + parity + service + e2e).
+
+## Story 11.2 EXTENSION — M11 모듈 권한 본문 + fiscal_periods + 4-stage close_sequence_state
+
+Epic 11 cj-style 3-story 분할 2번째 (Epic 5 retro §6 W1) — 11-2 wire는 M11
+모듈 authority (11-1 wire) 위에 fiscal_periods 테이블 + 4-stage
+close_sequence_state 추가:
+
+### 모듈 권한 (apps/api/modules/m11_close/)
+
+- `apps/api/modules/m11_close/__init__.py` — 11-1 populated
+- `apps/api/modules/m11_close/handlers.py` — 11-1 3 routes + **11-2 3 NEW routes EXTENSION**
+  (POST /api/v1/close/sequence/initiate + POST /api/v1/close/sequence/step-complete +
+  GET /api/v1/close/sequence/state)
+- `apps/api/modules/m11_close/services/__init__.py` — 11-1 reversal_service +
+  reversal_kernel_adapter + **11-2 close_sequence_service EXTENSION**
+- `apps/api/modules/m11_close/services/reversal_service.py` — 11-1 wire
+  EXTENSION (`execute_reversal` 양쪽 status dispatch)
+- `apps/api/modules/m11_close/services/close_sequence_service.py` — **11-2
+  NEW** (565 lines, 4 operations + 5 typed exceptions + REPEATABLE READ +
+  audit-first + idempotent no-op skip)
+
+### 데이터 (apps/api/alembic/versions/0020_fiscal_periods_close_sequence.py)
+
+`fiscal_periods` 테이블 greenfield:
+
+- `id` (UUID PK)
+- `tenant_id` (FK → tenants)
+- `period_key` (TEXT, AD-24 pattern `^\d{4}-(0[1-9]|1[0-2])$`)
+- `status` (TEXT, CHECK ∈ `('open', 'closing', 'closed', 'reversed')`)
+- `close_sequence_state` (TEXT, CHECK ∈
+  `('divisions', 'manufacturing', 'abc', 'common', 'confirmed')`)
+- `divisions_completed_at` / `manufacturing_completed_at` /
+  `abc_completed_at` / `common_completed_at` (TIMESTAMPTZ, NULL)
+- `closed_at` (TIMESTAMPTZ, NULL)
+- `closed_by` (UUID, NULL)
+- 5 CHECK + 1 UNIQUE (`(tenant_id, period_key)`) + 2 INDEX (period_key, status)
+
+`down_revision='0019_m11_reversal_ledger'` — 11-1 wire tip 그대로.
+
+### Pure kernels (packages/services/m11_close/)
+
+| Kernel | File | Role |
+| --- | --- | --- |
+| `close_sequence_order.validate_close_sequence_order` | `close_sequence_order.py` | 4-stage 순서 + chronological invariant |
+| `close_sequence_state.compute_close_sequence_state` | `close_sequence_state.py` | state machine |
+| `close_sequence_state.check_ad6_insert_allowed` | `close_sequence_state.py` | AD-6 INSERT 거부 |
+| `partial_close_guard.check_partial_close_attempt` | `partial_close_guard.py` | 부분 마감 거부 |
+| `reversal_authorization.authorize_reversal` (양쪽 가드) | `reversal_authorization.py` | 11-1 wire EXTENSION |
+
+### RLS (supabase/policies/0011_fiscal_periods_rls.sql)
+
+ENABLE + FORCE RLS + 4-policy split (`tenant_select_own` +
+`tenant_insert_own` + `tenant_update_own_blocked_status` +
+`tenant_delete_blocked`) — 5-2/6-1 RLS 패턴 동일.
+
+### Capability matrix v1.11
+
+`Capability.CLOSE_SEQUENCE_LOCK` 신규 (manufacturing 3종 ✅ / service-only ❌).
+상세: [docs/capability-matrix.md](./capability-matrix.md) + [docs/close-sequence-lock.md](./close-sequence-lock.md) SSOT.

@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-import re
-
 import pytest
 
 from apps.api.core.db_models import FiscalPeriod
@@ -82,7 +80,8 @@ def test_fiscal_period_period_key_format_check() -> None:
     from sqlalchemy import CheckConstraint, inspect
 
     mapper = inspect(FiscalPeriod)
-    pk_col = mapper.columns["period_key"]
+    # Reference the column to assert it is reachable through mapper.columns.
+    assert "period_key" in mapper.columns
     # Find the CHECK constraint that references period_key
     found_format_check = False
     for ck in FiscalPeriod.__table_args__:

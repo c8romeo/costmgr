@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-import pytest
-
 from packages.services.m11_close.partial_close_guard import (
     ERROR_CODE_PARTIAL_CLOSE,
     MISSING_STEP_ABC_KO,
@@ -23,7 +21,6 @@ from packages.services.m11_close.partial_close_guard import (
     PartialCloseGuardError,
     check_partial_close_attempt,
 )
-
 
 _BASE_TS = datetime(2026, 8, 1, 0, 0, 0)
 
@@ -167,12 +164,12 @@ def test_reject_reason_ko_uses_korean_specific_messages() -> None:
 
 # ── Idempotency ─────────────────────────────────────────────
 def test_repeated_calls_return_same_verdict() -> None:
-    args = dict(
-        divisions_completed_at=_ts(0),
-        manufacturing_completed_at=_ts(10),
-        abc_completed_at=None,
-        common_completed_at=None,
-    )
+    args = {
+        "divisions_completed_at": _ts(0),
+        "manufacturing_completed_at": _ts(10),
+        "abc_completed_at": None,
+        "common_completed_at": None,
+    }
     first = check_partial_close_attempt(**args)
     second = check_partial_close_attempt(**args)
     assert first == second

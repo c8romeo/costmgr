@@ -19,13 +19,12 @@ from packages.services.m11_close.close_sequence_order import (
     CHRONOLOGICAL_VIOLATION_KO,
     CLOSE_SEQUENCE_STAGES,
     COMMON_MISSING_KO,
-    CloseSequenceOrderError,
     DIVISIONS_MISSING_KO,
     MANUFACTURING_MISSING_KO,
     STEP_TIMESTAMP_ATTRS,
+    CloseSequenceOrderError,
     validate_close_sequence_order,
 )
-
 
 _BASE_TS = datetime(2026, 8, 1, 0, 0, 0)
 

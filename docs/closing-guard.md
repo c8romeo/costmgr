@@ -257,3 +257,60 @@ Top 5 까지 list 형식으로 동시 노출.
 - [`docs/conventions.md`](./conventions.md) §10.7 closing guard invariant policy + §10.8 monthly closing report audit policy.
 - [`docs/frontend-toolchain.md`](./frontend-toolchain.md) §Story 5.3 sonner + Alert + Form pattern.
 - [`docs/monthly-closing-report.md`](./monthly-closing-report.md) §Story 6.2 monthly closing report wire contract.
+
+## Story 11.2 EXTENSION — 4-stage close sequence guard + AD-6 close lock + AD-22 reversal/correction exception
+
+Epic 11 cj-style 3-story 분할 2번째 (Epic 5 retro §6 W1) — 11-2 wire는 본
+closing-guard (5-3 wire, closing ≥ 0 invariant) 위에 **4-stage close sequence
+guard** 추가:
+
+### Guard layering (Story 11.2)
+
+1. **Layer 1 — closing ≥ 0 invariant** (5-3 wire) — V3 verdict PASS 시에만
+   close sequence 진입 가능.
+2. **Layer 2 — 4-stage close_sequence_state** (11-2 NEW) — divisions →
+   manufacturing → abc → common → confirmed 1-way state machine.
+3. **Layer 3 — partial close guard** (11-2 NEW) — 4단계 모두 완료 후에만
+   confirm 가능. 미완료 시 `PartialCloseBlockedError` (409
+   `PARTIAL_CLOSE_BLOCKED`).
+4. **Layer 4 — AD-6 close lock** (11-2 NEW) — `fiscal_periods.status='closed'`
+   후 모든 business-data INSERT 거부 (AD-22 reversal/correction events만 허용).
+5. **Layer 5 — 11-1 reversal authorization 양쪽 가드** (11-2 EXTENSION) —
+   `period_status` (monthly_input_periods.status) + `fiscal_period_status`
+   (fiscal_periods.status) 양쪽 dispatch.
+
+### AD-22 reversal/correction exception
+
+`fiscal_periods.status='closed'` 후에도 `inventory_ledger.event_type IN
+('reversal_negating', 'reversal_corrected')` 는 INSERT 허용 (AD-22 reversal
+wire contract). `check_ad6_insert_allowed` pure kernel이 matrix 검증:
+
+```python
+allowed = (
+    target_table == 'inventory_ledger'
+    and target_event_type in ('reversal_negating', 'reversal_corrected')
+)
+```
+
+### Capability matrix v1.11
+
+- `Capability.CLOSE_SEQUENCE_LOCK` 신규 (manufacturing 3종 ✅ / service-only ❌)
+- service-only tenant 진입 시 panel 자체 disabled + early-return 403
+  `INDUSTRY_NOT_SUPPORTED` (CR 1.1 lesson — silent skip 금지)
+
+### Audit trail
+
+| Trigger | audit action | ActionClass |
+|---|---|---|
+| 4단계 미완료 → confirm 거부 | `closing_sequence_blocked` | `MONTHLY_CLOSING` |
+| 4단계 모두 완료 → confirm 성공 | `closing_sequence_confirmed` | `MONTHLY_CLOSING` |
+| step advance | `closing_sequence_step_completed` | `MONTHLY_CLOSING` |
+| initiate | `closing_sequence_initiated` | `MONTHLY_CLOSING` |
+
+### Carry-over
+
+- **Frontend panel** (Task 10) — bmad-code-review carry-over sweep.
+- **TS mirror + parity test** (Task 2.3 / 2.4 / 4.3) — bmad-code-review
+  carry-over sweep.
+
+상세: [docs/close-sequence-lock.md](./close-sequence-lock.md) SSOT.

@@ -299,3 +299,46 @@ UI 에서는 ClosingPeriodConfirmationPanel + audit-trail-list 가 통합 표시
 - Carry-over: 5-1 (opening auto-carry) + 5-2 (inventory_ledger) + 5-3
   (closing_guard) + 0.5 (frontend plumbing) + A12 (T12.2 test file
   deferred close-out)
+
+## 10. Story 11.2 EXTENSION — fiscal_periods.status 차원 + 4-stage close_sequence_state
+
+Epic 11 cj-style 3-story 분할 2번째 (Epic 5 retro §6 W1) — 11-2 wire는 본
+closing-period 서브시스템을 **fiscal_periods.status 차원으로 확장**:
+
+- **greenfield `fiscal_periods` 테이블** (Alembic 0020) — `id` (UUID) +
+  `tenant_id` (FK) + `period_key` (TEXT) + `status` (TEXT CHECK ∈
+  `('open', 'closing', 'closed', 'reversed')`) + `close_sequence_state` (TEXT
+  CHECK ∈ `('divisions', 'manufacturing', 'abc', 'common', 'confirmed')`) +
+  4-stage timestamps (`divisions_completed_at` / `manufacturing_completed_at` /
+  `abc_completed_at` / `common_completed_at` TIMESTAMPTZ) + `closed_at` +
+  `closed_by` (UUID) + 5 CHECK + 1 UNIQUE + 2 INDEX.
+- **4-stage close_sequence_state 1-way state machine** —
+  `close_sequence_order.py::validate_close_sequence_order` + `close_sequence_state.py::compute_close_sequence_state`
+  pure kernels (AD-11 stdlib-only).
+- **partial close guard** — `partial_close_guard.py::check_partial_close_attempt`
+  → `PartialCloseBlockedError` (409 `PARTIAL_CLOSE_BLOCKED` typed envelope).
+- **AD-6 INSERT 거부** — `fiscal_periods.status='closed'` 후 모든
+  business-data INSERT 거부 (AD-22 reversal/correction events만 허용) →
+  `check_ad6_insert_allowed` pure kernel.
+- **11-1 reversal authorization 양쪽 가드** —
+  `reversal_authorization.py::authorize_reversal(period_status, fiscal_period_status, ...)`
+  — 11-1 wire는 monthly_input_periods.status 단일 가드였으나 11-2 wire 시점에
+  fiscal_periods.status 두 번째 guard layer 추가. **wire contract 11-1 호환**
+  (fiscal_period_status 미전달 시 legacy single-guard path fall-through).
+
+Wire surface (3 NEW routes under M11 module authority):
+
+```
+POST /api/v1/close/sequence/initiate    → initiate_close_sequence (CLOSE_SEQUENCE_LOCK capability gate)
+POST /api/v1/close/sequence/step-complete → step_complete (CLOSE_SEQUENCE_LOCK capability gate)
+GET  /api/v1/close/sequence/state        → get_close_sequence_state (CLOSE_SEQUENCE_LOCK, read-only)
+```
+
+11-2 wire는 본 closing-period 위에 **additive** — 기존 `confirm_closing_period`
+(6-1 wire, monthly_input_periods.status='closed') 위에
+`confirm_close_sequence` (4-stage 검증 + fiscal_periods.status='closed')가
+layered. CR 1.1 audit-first ordering 보존: ledger INSERT (step 4) →
+fiscal_periods UPDATE (step 6) → audit log INSERT (step 7) 순서 atomic
+transaction.
+
+상세: `docs/close-sequence-lock.md` (NEW, v1.0) SSOT.

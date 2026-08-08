@@ -163,8 +163,6 @@ def test_execute_reversal_emits_audit_before_insert() -> None:
         # Track call ordering
         call_order: list[str] = []
 
-        original_emit_audit = svc._emit_reversal_handler_invoked_audit
-
         async def tracking_audit_invoked(**_kwargs: Any) -> None:
             call_order.append("audit_invoked")
 

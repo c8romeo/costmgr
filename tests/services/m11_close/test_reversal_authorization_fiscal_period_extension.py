@@ -20,7 +20,6 @@ from packages.services.m4_inventory.ledger import InventoryLedgerEvent
 from packages.services.m11_close.reversal_authorization import (
     FISCAL_PERIOD_STATUS_ALLOWED,
     FISCAL_PERIOD_STATUS_REJECTED,
-    M11_AUTHORIZE_KO,
     M11_REJECT_LOCKED_KO,
     PERIOD_STATUS_ALLOWED,
     PERIOD_STATUS_REJECTED,
@@ -48,16 +47,16 @@ def _make_target_event(
 
 # ── Module surface ──────────────────────────────────────────
 def test_fiscal_period_status_constants() -> None:
-    assert FISCAL_PERIOD_STATUS_ALLOWED == frozenset({"open"})
-    assert FISCAL_PERIOD_STATUS_REJECTED == frozenset(
+    assert frozenset({"open"}) == FISCAL_PERIOD_STATUS_ALLOWED
+    assert frozenset(
         {"closing", "closed", "reversed"}
-    )
+    ) == FISCAL_PERIOD_STATUS_REJECTED
 
 
 def test_period_status_constants_preserved_for_backward_compat() -> None:
     """11-1 PERIO_DEFAULT_STATUS_ALLOWED/REJECTED preserved."""
-    assert PERIOD_STATUS_ALLOWED == frozenset({"open", "closed"})
-    assert PERIOD_STATUS_REJECTED == frozenset({"locked"})
+    assert frozenset({"open", "closed"}) == PERIOD_STATUS_ALLOWED
+    assert frozenset({"locked"}) == PERIOD_STATUS_REJECTED
 
 
 # ── Authorized: both gates open ─────────────────────────────

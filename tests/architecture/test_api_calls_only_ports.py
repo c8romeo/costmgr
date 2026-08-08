@@ -169,6 +169,12 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m11_close.reversal_negating",
             "packages.services.m11_close.reversal_corrected",
             "packages.services.m11_close.reversal_authorization",
+            # Story 11.2 (Epic 11) — close sequence lock pure kernels
+            # (4-stage close_sequence_state + partial close guard +
+            # chronological invariant + AD-6 INSERT guard).
+            "packages.services.m11_close.close_sequence_state",
+            "packages.services.m11_close.close_sequence_order",
+            "packages.services.m11_close.partial_close_guard",
             # Story 11.1 (Epic 11) — M5 ledger extended pure kernels for
             # H6 fix (count_period_events + query_period_closing_snapshot_all).
             "packages.services.m5_ledger",

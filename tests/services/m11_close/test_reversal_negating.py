@@ -18,7 +18,6 @@ import pytest
 from packages.services.m4_inventory.ledger import InventoryLedgerEvent
 from packages.services.m11_close.reversal_negating import (
     ERROR_CODE_EMPTY_REASON,
-    ERROR_CODE_QTY_SIGN_INCOHERENT,
     ERROR_CODE_SELF_REVERSAL,
     ERROR_CODE_TARGET_NOT_REVERSIBLE,
     M11_AUTHORIZE_KO,

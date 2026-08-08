@@ -14,7 +14,6 @@ import pytest
 from packages.services.m4_inventory.ledger import InventoryLedgerEvent
 from packages.services.m11_close.reversal_authorization import (
     ERROR_CODE_INVALID_PERIOD_STATUS,
-    ERROR_CODE_NO_CAPABILITY,
     M11_AUTHORIZE_KO,
     M11_REJECT_LOCKED_KO,
     M11_REJECT_NO_CAPABILITY_KO,
@@ -87,10 +86,18 @@ class TestAuthorizeReversal:
         assert result.reject_reason_ko == M11_REJECT_LOCKED_KO
 
     def test_non_reversible_event_type_rejected(self) -> None:
-        """event_type='reversal_negating' → M11_REJECT_TARGET_NOT_REVERSIBLE_KO (self-reversal)."""
+        """event_type='closing_snapshot' → M11_REJECT_TARGET_NOT_REVERSIBLE_KO (AD-6 sealed).
+
+        11-2 EXTENSION: `closing_snapshot` replaced `reversal_negating` as the
+        canonical non-reversible example. `reversal_negating` (re-reversal
+        attempt) is now allowed at the authorization layer (the build layer
+        `validate_reversal_negating_constraints` separately rejects
+        self-reversal as defense-in-depth). `closing_snapshot` is AD-6 sealed
+        final state — REJECTED at the authorization layer.
+        """
         result = authorize_reversal(
             tenant_id=uuid.uuid4(),
-            target_event=_make_target_event(event_type="reversal_negating"),
+            target_event=_make_target_event(event_type="closing_snapshot"),
             actor_id=uuid.uuid4(),
             period_status="closed",
             capability_granted=True,

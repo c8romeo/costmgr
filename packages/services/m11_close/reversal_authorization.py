@@ -6,9 +6,12 @@ reversal is permitted given:
   / service-only ❌ per A9 결정 + PRD §F11.3)
 - period_status (monthly_input_periods.status — 'open' / 'closed' 허용,
   'locked' 거부; 11-2 wire 시점에 fiscal_periods.status 추가 가드 예정)
-- target_event's event_type (closing_snapshot 자체 reversal 불가 —
-  AD-6 close lock + PRD §F11.3; reversibility는 reversal_negating
-  pure kernel의 REVERSIBLE_TARGET_EVENT_TYPES에 위임)
+- target_event's event_type (authorization-layer
+  AUTHORIZABLE_TARGET_EVENT_TYPES — 11-2 divergence from build-layer
+  REVERSIBLE_TARGET_EVENT_TYPES: closing_snapshot AD-6 sealed final
+  상태는 authorization layer에서 거부, reversal_negating/reversal_corrected
+  재역분개 시도는 authorization layer에서 허용 후 build layer
+  validate_reversal_negating_constraints 에서 별도 거부)
 
 AD-1 / AD-11 binding: pure-Python, stdlib-only, NO DB, NO clock, NO
 random. Service layer passes all inputs explicitly.
@@ -43,6 +46,29 @@ PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset({"locked"})
 FISCAL_PERIOD_STATUS_ALLOWED: Final[frozenset[str]] = frozenset({"open"})
 FISCAL_PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset(
     {"closing", "closed", "reversed"}
+)
+
+# 11-2 EXTENSION — authorization-layer reversibility diverges from
+# build-layer `REVERSIBLE_TARGET_EVENT_TYPES` (reversal_negating.py):
+# - `closing_snapshot` (AD-6 sealed final state) → NOT reversible at
+#   authorization layer. Once `fiscal_periods.status='closed'`, the
+#   closing snapshot is immutable summary record — reversal would
+#   undermine the close lock invariant (PRD §F11.3 + AD-6 Rule).
+#   Defense-in-depth: closing_snapshot is REJECTED at the authorization
+#   layer (this module) BEFORE any other gate. The build layer keeps
+#   `closing_snapshot` in REVERSIBLE_TARGET_EVENT_TYPES for the rare
+#   case where authorization somehow allows it (e.g., direct service
+#   layer call bypassing the authorization gate).
+# - `reversal_negating` / `reversal_corrected` (re-reversal attempt) →
+#   ARE reversible at the authorization layer. The build layer
+#   `validate_reversal_negating_constraints` (reversal_negating.py)
+#   separately rejects self-reversal with ERROR_CODE_SELF_REVERSAL as
+#   defense-in-depth. This split lets the audit trail distinguish
+#   "authorization denied" (capability/period gate) from "build denied"
+#   (self-reversal gate).
+AUTHORIZABLE_TARGET_EVENT_TYPES: Final[frozenset[str]] = frozenset(
+    REVERSIBLE_TARGET_EVENT_TYPES - {"closing_snapshot"}
+    | {"reversal_negating", "reversal_corrected"}
 )
 
 # Error codes — pure-kernel domain semantics.
@@ -164,8 +190,12 @@ def authorize_reversal(
             error_code=ERROR_CODE_TARGET_NOT_REVERSIBLE,
         )
 
-    # Target reversibility (defense-in-depth — same set as reversal_negating).
-    target_reversible = target_event.event_type in REVERSIBLE_TARGET_EVENT_TYPES
+    # Target reversibility — authorization-layer set (AUTHORIZABLE_TARGET_EVENT_TYPES).
+    # Diverges from build-layer REVERSIBLE_TARGET_EVENT_TYPES:
+    # - closing_snapshot excluded (AD-6 sealed final state)
+    # - reversal_negating / reversal_corrected included (re-reversal allowed at
+    #   authorization layer; build layer separately rejects self-reversal).
+    target_reversible = target_event.event_type in AUTHORIZABLE_TARGET_EVENT_TYPES
     if not target_reversible:
         return ReversalAuthorizationResult(
             authorized=False,
@@ -259,6 +289,7 @@ def authorize_reversal(
 
 
 __all__ = [
+    "AUTHORIZABLE_TARGET_EVENT_TYPES",
     "ERROR_CODE_INVALID_PERIOD_STATUS",
     "ERROR_CODE_NO_CAPABILITY",
     "ERROR_CODE_TARGET_NOT_REVERSIBLE",

@@ -29,7 +29,6 @@ from apps.api.modules.m11_close.handlers import (
     ReversalHistoryResponse,
 )
 
-
 EVENT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000002")
 CORRECTION_GROUP_ID = uuid.UUID("019200a0-0000-7000-8000-000000000003")
 TENANT_ID = uuid.UUID("019200a0-0000-7000-8000-000000000001")

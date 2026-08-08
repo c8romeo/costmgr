@@ -457,5 +457,54 @@ v3_verdict.status='skipped', closing_guard_blocked=false.
 - 5-1 carry-over: [docs/opening-inventory-carry.md](./opening-inventory-carry.md)
 - 5-2 ledger append-only: [docs/inventory-ledger.md](./inventory-ledger.md)
 
+## Story 11.2 EXTENSION — Close Sequence Panel 진입점 + 4-stage UI flow + partial close 거부 UX
+
+Epic 11 cj-style 3-story 분할 2번째 (Epic 5 retro §6 W1) — 11-2 wire는 본
+monthly-input 마감 탭 진입점 (5-3 MonthlyInputTabs.tsx 마감 �) 위에
+**CloseSequencePanel + 4-stage progress UI** 추가:
+
+### 진입점 흐름 (deferred to bmad-code-review sweep)
+
+```
+m2-input/period/[periodKey] (5-3 page.tsx)
+  └─ MonthlyInputTabs (5-3)
+      └─ 마감 � (5-3 ClosingGuardBanner)
+          └─ CloseSequencePanel (11-2 NEW — shadcn Card + StepIndicator + progress bar)
+              ├─ divisions  ─ step_complete → manufacturing
+              ├─ manufacturing ─ step_complete → abc
+              ├─ abc ─ step_complete → common
+              └─ common ─ confirm → confirmed (CloseSequenceConfirmButton + shadcn Dialog)
+```
+
+### 4-stage UI 표시
+
+- 4개의 step indicator (divisions → manufacturing → abc → common) 각각
+  완료 / 진행중 / 미시작 3-state 시각화.
+- partial close 거부 시 `partial_close_blocked_toast_message` (sonner
+  toast error) — "전체 4단계 완료 후 마감 가능: {missing_step} 단계 미완료".
+- ALREADY_CONFIRMED idempotent — confirm dispatch 후 success toast +
+  panel read-only mode.
+
+### Capability gate
+
+- `Capability.CLOSE_SEQUENCE_LOCK` — manufacturing 3종 ✅ / service-only ❌
+  (service tenant 진입 시 panel 자체 disabled + read-only 표시).
+
+### 11-2 wire 정합
+
+- 5-3 ClosingGuardBanner (closing ≥ 0 invariant) 위에 additive — banner는
+  pre-requisite (V3 PASS 시에만 close sequence 진입 가능).
+- 6-1 ClosingPeriodConfirmationPanel 위 additive — close sequence confirm
+  후 `monthly_input_periods.status='closed'` + `fiscal_periods.status='closed'`
+  동시 dispatch (CR 1.1 audit-first).
+
+### Frontend deferred (Task 10)
+
+- 11-2 spec 본문 §Task 10 frontend 9 subtasks — bmad-code-review
+  carry-over sweep 대상. 본 스토리 checkpoint commit (1dbb01f) 은
+  backend wire 만 커버.
+
+상세: [docs/close-sequence-lock.md](./close-sequence-lock.md) SSOT + [docs/capability-matrix.md](./capability-matrix.md) v1.11.
+
 ## 참조
 

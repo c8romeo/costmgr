@@ -15,8 +15,6 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 
-import pytest
-
 # Lazy-load migration module to avoid alembic env side effects.
 _MIGRATION_PATH = (
     "apps.api.alembic.versions.0020_fiscal_periods_close_sequence"
@@ -44,7 +42,8 @@ def _load_migration_module() -> object:
         migration_file,
     )
     module = importlib.util.module_from_spec(spec)
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
 

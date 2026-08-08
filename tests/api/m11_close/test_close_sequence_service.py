@@ -28,7 +28,6 @@ from apps.api.modules.m11_close.services.close_sequence_service import (
     PartialCloseBlockedError,
 )
 
-
 TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 ACTOR_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
 TRACE_ID = "test-trace-1234"

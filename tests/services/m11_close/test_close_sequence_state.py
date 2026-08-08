@@ -14,13 +14,12 @@ import pytest
 
 from packages.services.m11_close.close_sequence_state import (
     AD6_LOCKED_TABLES,
+    REVERSAL_TARGET_EVENT_TYPES,
     Ad6InsertGuardResult,
     CloseSequenceStateError,
-    REVERSAL_TARGET_EVENT_TYPES,
     check_ad6_insert_allowed,
     compute_close_sequence_state,
 )
-
 
 _BASE_TS = datetime(2026, 8, 1, 0, 0, 0)
 
