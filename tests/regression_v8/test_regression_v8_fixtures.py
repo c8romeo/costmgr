@@ -55,10 +55,11 @@ FIXTURES_DIR = REPO_ROOT / "packages" / "cost_engine" / "tests" / "regression_v8
 
 ALL_INDUSTRIES = list(INDUSTRY_VALUES)  # 4 values
 ALL_SHAPES = ("b-small", "b-standard", "b-complex")  # 3 baseline shapes
-# CR 5.3 P18 — V8 + V3 fixture count = 12 (V8 byte-identical) + 2 (V3 골든) = 14.
+# CR 5.3 P18 — V8 + V3 + V4 fixture count = 12 (V8 byte-identical) +
+# 2 (V3 골든) + 4 (V4 + A11 골든 — 6-2 A11 wire) = 18 total.
 # Matrix coverage tests filter V8-only fixtures by the `industry__b-shape` pattern.
 EXPECTED_FIXTURE_COUNT = len(ALL_INDUSTRIES) * len(ALL_SHAPES)  # 12 (V8 only)
-EXPECTED_TOTAL_COUNT = EXPECTED_FIXTURE_COUNT + 2  # 14 (V8 + V3 골든)
+EXPECTED_TOTAL_COUNT = EXPECTED_FIXTURE_COUNT + 6  # 18 (V8 + V3 + V4/A11 골든)
 
 
 def _v8_fixture_paths() -> list[Path]:
@@ -72,25 +73,25 @@ _DETERMINISTIC_TENANT_ID = _uuid_mod.UUID("11111111-1111-4111-8111-111111111111"
 # ── Fixtures shipped on disk invariant ────────────────────────
 @pytest.mark.engine
 @pytest.mark.v8_regression
-def test_v8_fixture_count_is_14() -> None:
-    """V8_FIXTURE_COUNT = 14 + 14 fixture JSON files on disk (AC #7 + CR 5.3 P18).
+def test_v8_fixture_count_is_18() -> None:
+    """V8_FIXTURE_COUNT = 18 + 18 fixture JSON files on disk (AC #7 + CR 5.3 P18 + Story 6.2 A11).
 
-    CR 5.3 P18 review patch — 12 V8 byte-identical 골든 + 2 V3 closing
-    invariant 골든 (v3_closing_pass_manufacturing.json +
-    v3_closing_fail_manufacturing.json) = 14 total. The V3 fixtures use
-    a different naming convention (no `__` separator) and have a
-    different payload shape (industry + ledger_aggregate +
-    expected_v3_*). The V8 matrix coverage tests below filter V8-only
-    fixtures by the `__` pattern.
+    Story 4.4 (12 V8 byte-identical 골든) + Story 5.3 (2 V3 closing
+    invariant 골든) + Story 6.2 A11 (4 NEW 골든 — 6-1 T10.5 deferred V4
+    closing-period PASS/FAIL fill + A11 closing_snapshot +
+    ledger_period_closing) = 18 total. The V3 + V4 fixtures use a
+    different naming convention (no `__` separator) and have a
+    different payload shape. The V8 matrix coverage tests below filter
+    V8-only fixtures by the `__` pattern.
     """
-    assert V8_FIXTURE_COUNT == 14, (
-        f"V8_FIXTURE_COUNT must be 14 (Story 4.4 12 + Story 5.3 2 V3 fixtures). "
+    assert V8_FIXTURE_COUNT == 18, (
+        f"V8_FIXTURE_COUNT must be 18 (Story 4.4 12 + Story 5.3 2 V3 + Story 6.2 A11 4 V4/A11). "
         f"Got {V8_FIXTURE_COUNT}."
     )
     actual = sorted(p.name for p in FIXTURES_DIR.glob("*.json"))
     assert len(actual) == EXPECTED_TOTAL_COUNT, (
         f"Fixtures directory must contain {EXPECTED_TOTAL_COUNT} JSON files "
-        f"(12 V8 + 2 V3). Found {len(actual)}: {actual}"
+        f"(12 V8 + 2 V3 + 4 V4/A11). Found {len(actual)}: {actual}"
     )
 
 

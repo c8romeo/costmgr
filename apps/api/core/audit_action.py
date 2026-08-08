@@ -58,6 +58,7 @@ class ActionClass(str, __import__("enum").Enum):
     CLOSING_GUARD = "closing_guard"  # Story 5.3 (NEW — closing ≥ 0 invariant audit)
     VERIFICATION = "verification"  # Story 5.3 (NEW — V3 closing invariant verification)
     CLOSING_PERIOD = "closing_period"  # Story 6.1 (NEW — closing period service audit-first)
+    MONTHLY_CLOSING_REPORT = "monthly_closing_report"  # Story 6.2 (NEW — monthly closing report read-only audit)
 
 
 # ────────────────────────────────────────────────────────────
@@ -212,6 +213,16 @@ ClosingPeriodAction = Literal[
     "closing_period_snapshot_inconsistency",
 ]
 
+# monthly_closing_report actions (Story 6.2 NEW — read-only report 자체 audit).
+# PRD §F5 + §F5.2 + §V4. Audit routes to audit_logs
+# (ActionClass.MONTHLY_CLOSING_REPORT). 1 value:
+# - `monthly_closing_report_viewed` — read-only report 조회 audit log
+#   INSERT (closing report의 조회 trace). CR 1.1 idempotent re-view
+#   skip은 service-layer에서 1 view = 1 audit 발동.
+MonthlyClosingReportAction = Literal[
+    "monthly_closing_report_viewed",
+]
+
 
 # Union type for type checking
 AuditAction = (
@@ -230,6 +241,7 @@ AuditAction = (
     | ClosingGuardAction
     | VerificationAction
     | ClosingPeriodAction
+    | MonthlyClosingReportAction
 )
 
 
@@ -384,6 +396,18 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Story 6.2 — monthly_closing_report 1 value (read-only report 자체 audit).
+        # DB CHECK constraint mirror: audit_logs CHECK includes
+        # monthly_closing_report_viewed (drift detector enforces parity
+        # between ActionClass registry, DB CHECK constraint, and call sites).
+        ActionClass.MONTHLY_CLOSING_REPORT: (
+            "audit_logs",
+            frozenset(
+                {
+                    "monthly_closing_report_viewed",
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -503,5 +527,6 @@ __all__ = [
     "ClosingGuardAction",
     "VerificationAction",
     "ClosingPeriodAction",
+    "MonthlyClosingReportAction",
     "emit_audit_typed",
 ]

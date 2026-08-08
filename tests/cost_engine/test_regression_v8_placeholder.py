@@ -97,19 +97,25 @@ def test_v8_banker_rounding_policy() -> None:
 
 
 @pytest.mark.engine
-def test_v8_fixture_count_now_14_in_story_5_3() -> None:
+def test_v8_fixture_count_now_18_in_story_6_2() -> None:
     """Story 4.4 filled V8_FIXTURE_COUNT = 12 (4 industries × 3 baseline shapes).
     Story 5.3 (CR 5.3 P18) added 2 NEW V3 closing invariant 골든 fixtures
     (v3_closing_pass_manufacturing.json + v3_closing_fail_manufacturing.json).
-    Total = 14.
+    Story 6.2 (A11 V8 16-fixture matrix extension) added 4 NEW 골든 fixtures:
+      - v4_closing_period_pass_manufacturing.json (6-1 T10.5 deferred fill)
+      - v4_closing_period_fail_manufacturing.json (6-1 T10.5 deferred fill)
+      - closing_snapshot_manufacturing.json (A11 신규)
+      - ledger_period_closing_manufacturing.json (A11 신규)
+    Total = 12 + 2 + 4 = 18.
 
     Story 4.1 baseline was 0 (placeholder-only contract). Story 4.4 wrote
     the 12 fixture JSONs into `packages/cost_engine/tests/regression_v8/fixtures/`
     and the constant must reflect that — this is the CR 1.1 forward-lock
     for the V8 fill marker (cr-4-3-lessons F-4 STORY_4_4_FILL_POINT).
     CR 5.3 P18 = 12 → 14 (12 V8 byte-identical + 2 V3 closing invariant).
+    Story 6.2 A11 = 14 → 18 (+4 V4 closing-period PASS/FAIL + closing_snapshot + ledger_period_closing).
     """
-    assert V8_FIXTURE_COUNT == 14
+    assert V8_FIXTURE_COUNT == 18
 
     from pathlib import Path
 
@@ -122,9 +128,9 @@ def test_v8_fixture_count_now_14_in_story_5_3() -> None:
         / "fixtures"
     )
     actual_files = sorted(p.name for p in fixtures_dir.glob("*.json"))
-    assert len(actual_files) == 14, (
-        f"V8 fixtures directory must contain 14 JSON files "
-        f"(12 V8 byte-identical + 2 V3 closing invariant 골든). "
+    assert len(actual_files) == 18, (
+        f"V8 fixtures directory must contain 18 JSON files "
+        f"(12 V8 byte-identical + 2 V3 closing invariant + 4 V4/A11). "
         f"Found {len(actual_files)}: {actual_files}"
     )
 

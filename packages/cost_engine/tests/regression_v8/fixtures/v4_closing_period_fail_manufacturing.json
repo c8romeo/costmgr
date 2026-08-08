@@ -1,0 +1,36 @@
+{
+  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
+  "fixture_id": "v4_closing_period_fail_manufacturing",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "ledger_aggregate": {
+    "00000000-0000-0000-0000-000000000001": "10.0000",
+    "00000000-0000-0000-0000-000000000002": "5.5000",
+    "00000000-0000-0000-0000-000000000003": "0.0000"
+  },
+  "closing_snapshot_aggregate": {
+    "00000000-0000-0000-0000-000000000001": "11.0000",
+    "00000000-0000-0000-0000-000000000002": "5.5000",
+    "00000000-0000-0000-0000-000000000003": "0.0000"
+  },
+  "fiscal_period_snapshot_aggregate": {
+    "00000000-0000-0000-0000-000000000001": "100.0000",
+    "00000000-0000-0000-0000-000000000002": "55.0000",
+    "00000000-0000-0000-0000-000000000003": "0.0000"
+  },
+  "expected_v4_status": "failed",
+  "expected_v4_failures": [
+    {
+      "product_id": "00000000-0000-0000-0000-000000000001",
+      "ledger_qty": "10.0000",
+      "closing_snapshot_qty": "11.0000",
+      "fiscal_period_snapshot_qty": "100.0000",
+      "message_ko": "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"
+    }
+  ],
+  "expected_v4_skip_reason_ko": null,
+  "product_whitelist_size": 3,
+  "source_count": 4,
+  "verified_at": "2026-08-08T00:00:00Z",
+  "story_origin": "6-1 T10.5 deferred fill (Story 6.2 A11 V8 16-fixture matrix extension wire에 통합 close-out)"
+}

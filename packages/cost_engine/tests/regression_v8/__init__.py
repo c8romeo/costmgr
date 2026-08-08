@@ -121,9 +121,11 @@ V8_BANKER_ROUNDING: Final[str] = "ROUND_HALF_EVEN"
 
 # Story 4.4 populated 12 golden fixtures (4 industries × 3 baseline shapes).
 # Story 5.3 added 2 NEW V3 closing invariant 골든 fixtures (PASS + FAIL).
+# Story 6.2 A11 added 4 NEW 골든 fixtures (V4 closing-period PASS/FAIL +
+# closing_snapshot + ledger_period_closing) = 12 + 2 + 4 = 18 total.
 # See `tests/regression_v8/test_regression_v8_fixtures.py` for CI gate.
-# CR 5.3 P18 review patch — V8 + V3 fixture count = 12 + 2 = 14.
-V8_FIXTURE_COUNT: Final[int] = 14
+# CR 5.3 P18 review patch — V8 + V3 + V4 + A11 = 12 + 2 + 4 = 18.
+V8_FIXTURE_COUNT: Final[int] = 18
 
 # V3 closing invariant fixture count (subset of V8_FIXTURE_COUNT).
 # These are the 2 NEW V3 골든 fixtures shipped in Story 5.3:
@@ -138,6 +140,20 @@ V3_FIXTURE_COUNT: Final[int] = 2
 V3_FIXTURE_IDS: Final[tuple[str, ...]] = (
     "v3_closing_pass_manufacturing",
     "v3_closing_fail_manufacturing",
+)
+
+# V4 closing-period-consistency fixture count (subset of V8_FIXTURE_COUNT).
+# Story 6.2 A11 — 4 NEW 골든 fixtures:
+# - v4_closing_period_pass_manufacturing.json (6-1 T10.5 deferred fill)
+# - v4_closing_period_fail_manufacturing.json (6-1 T10.5 deferred fill)
+# - closing_snapshot_manufacturing.json (A11 신규)
+# - ledger_period_closing_manufacturing.json (A11 신규)
+V4_FIXTURE_COUNT: Final[int] = 4
+V4_FIXTURE_IDS: Final[tuple[str, ...]] = (
+    "v4_closing_period_pass_manufacturing",
+    "v4_closing_period_fail_manufacturing",
+    "closing_snapshot_manufacturing",
+    "ledger_period_closing_manufacturing",
 )
 
 

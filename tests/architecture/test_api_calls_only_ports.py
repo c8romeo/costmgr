@@ -160,6 +160,8 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m4_inventory.production_consumption",
             # Story 6.1 — closing period service pure kernel (PRD §F4.3 + §V4).
             "packages.services.m4_inventory.closing_period",
+            # Story 6.2 — monthly closing report pure kernel (PRD §F5 + §F5.2 + §V4).
+            "packages.services.m4_inventory.monthly_closing_report",
             "packages.services.m4_inventory",
             # m10_ai (Epic 10 — AI document extraction port)
             "packages.services.m10_ai.extraction_port",

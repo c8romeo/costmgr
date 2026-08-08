@@ -1,0 +1,22 @@
+{
+  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
+  "fixture_id": "closing_snapshot_manufacturing",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "period_key": "2026-07",
+  "closing_snapshot_events": [
+    {
+      "product_id": "00000000-0000-0000-0000-000000000001",
+      "closing_qty": "10.0000",
+      "finalized_at": "2026-08-08T00:00:00Z"
+    },
+    {
+      "product_id": "00000000-0000-0000-0000-000000000002",
+      "closing_qty": "5.5000",
+      "finalized_at": "2026-08-08T00:00:00Z"
+    }
+  ],
+  "expected_closing_snapshot_count": 2,
+  "expected_finalized_at_min": "2026-08-08T00:00:00Z",
+  "story_origin": "Story 6.2 A11 V8 16-fixture matrix extension (closing snapshot ledger event source)"
+}

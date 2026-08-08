@@ -1,0 +1,32 @@
+{
+  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
+  "fixture_id": "ledger_period_closing_manufacturing",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "period_key": "2026-07",
+  "ledger_events": [
+    {
+      "product_id": "00000000-0000-0000-0000-000000000001",
+      "event_type": "purchase_inbound",
+      "qty": "100.0000"
+    },
+    {
+      "product_id": "00000000-0000-0000-0000-000000000001",
+      "event_type": "sales_outbound",
+      "qty": "90.0000"
+    },
+    {
+      "product_id": "00000000-0000-0000-0000-000000000002",
+      "event_type": "production_output_inbound",
+      "qty": "5.5000"
+    },
+    {
+      "product_id": "00000000-0000-0000-0000-000000000001",
+      "event_type": "closing_snapshot",
+      "qty": "10.0000"
+    }
+  ],
+  "expected_ledger_event_count": 4,
+  "expected_closing_snapshot_count": 1,
+  "story_origin": "Story 6.2 A11 V8 16-fixture matrix extension (inventory_ledger events source)"
+}
