@@ -366,6 +366,62 @@ V3 SKIP semantic:
 - empty manufacturing product set → status='skipped'
 - reason_ko='service-only tenant은 inventory 의미 없음' (Korean SSOT)
 
+## V4 — Closing-Period Consistency Verification (Story 6.2, 2026-08-08)
+
+V4 (closing-period consistency) verification = 4-source aggregate 일치.
+**Story 6.1** 에서 V4 2-source wire (closing snapshot × fiscal period snapshot)
+시작 → **Story 6.2** 에서 4-source extension (ledger aggregate +
+closing snapshot + fiscal period snapshot + product whitelist).
+Wire contract:
+
+- Pure kernel #1: `packages/services/m4_inventory/monthly_closing_report.py`
+  (3-source read-only join + view mode classifier)
+- Pure kernel #2: `packages/cost_engine/monthly_closing_report_aggregator.py`
+  (`verify_monthly_closing_report_consistency` — 4-source V4 verification)
+- Service: `apps/api/modules/m4_inventory/services/monthly_closing_report_service.py`
+  (V4 slot dispatch + audit-first wire + idempotent no-op skip)
+- AD-12 ordering: V1 → **V4** → V3 → V7 → V8 (5-rule ordering, V4 slot 2)
+
+V4 골든 fixture 2 NEW (6-1 T10.5 → 6-2 carry-over close):
+- `closing-period-b-small.json` — V4 verdict = passed (4-source 일치)
+- `closing-period-b-standard.json` — V4 verdict = failed (1개 product
+  4-source 불일치 → failures[] populated + message_ko)
+- V8 byte-identical 18 matrix extension (16 → 18 — closing-period 2 +
+  fiscal-period-snapshot 2 = 4 V4/A11 fixtures)
+
+V4 SKIP semantic:
+- industry='service' → status='skipped' (per AD-12 enum)
+- empty 4-source aggregates → status='skipped'
+- reason_ko='service-only tenant은 closing report 의미 없음' (Korean SSOT)
+
+V4 source_count invariant:
+- 4 sources ALWAYS present in verdict envelope
+  (`ledger_aggregate` + `closing_snapshot_aggregate` +
+  `fiscal_period_snapshot_aggregate` + `product_whitelist`)
+- Drift detector:
+  `tests/cost_engine/test_monthly_closing_report_aggregator.py::test_v4_source_count_is_4`
+  (T9.2)
+
+## V8 18-fixture matrix extension (Story 6.2, A11 PRIMARY)
+
+V8 byte-identical 골든 매트릭스 (Story 4.4 12 fixtures baseline → Story 5.3 V3 +2 → Story 6.2 V4/A11 +4 = **18 fixtures**):
+
+| Group | Count | Fixtures | Story |
+|---|---|---|---|
+| V8 baseline | 12 | 4 industries × 3 baseline shapes (b-small / b-standard / b-complex) | 4.4 |
+| V3 closing invariant | 2 | `closing-invariant-b-standard.json` + `closing-invariant-b-complex.json` | 5.3 |
+| V4 closing-period (small) | 1 | `closing-period-b-small.json` | 6.2 |
+| V4 closing-period (standard) | 1 | `closing-period-b-standard.json` | 6.2 |
+| V4 fiscal-period-snapshot (small) | 1 | `fiscal-period-snapshot-b-small.json` | 6.2 |
+| V4 fiscal-period-snapshot (standard) | 1 | `fiscal-period-snapshot-b-standard.json` | 6.2 |
+| **Total** | **18** | 12 + 2 + 4 | — |
+
+Drift detectors:
+- `tests/regression_v8/test_regression_v8_fixtures.py::test_v8_fixture_count_is_18`
+- `tests/cost_engine/test_regression_v8_placeholder.py::test_v8_fixture_count_now_18_in_story_6_2`
+- `tests/architecture/test_api_calls_only_ports.py::ALLOWED_SERVICE_SUBMODULES`
+  includes `"packages.services.m4_inventory.monthly_closing_report"`
+
 ## Story → engine story mapping
 
 | Story | Engine 영향 |
@@ -378,6 +434,8 @@ V3 SKIP semantic:
 | 4.4 | V8 골든 fixture 매트릭스 (4 industries × 3 baseline shapes = 12 JSON) + CI gate — engine 결정론 byte-identical 회귀 검출. `verify_v8_golden_match` audit action forward-lock. |
 | 5.x | Inventory ledger fold-in (`_stage7_inventory_adjustment` swap) |
 | 6.x | Product master — engine consumers (per-product cost breakdown) |
+| 6.1 | V4 closing-period consistency 2-source wire (closing snapshot × fiscal period snapshot) — VerificationRunner V4 slot fill |
+| **6.2** | **V4 closing-period consistency 4-source extension (ledger + closing snapshot + fiscal period snapshot + product whitelist) + V8 16→18 골든 매트릭스 (closing-period 2 + fiscal-period-snapshot 2 = 4 NEW V4/A11 골든 fixtures) + KRW/USD dual display (PRD §F5.2 ROUND_HALF_EVEN)** |
 | 9.x | ABC engine — service layer + Epic 9 separately. Engine kernel reuse. |
 | 11    | M11 reversal — service layer, NOT engine. |
 

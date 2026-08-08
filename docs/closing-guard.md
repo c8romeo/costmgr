@@ -237,6 +237,12 @@ Top 5 까지 list 형식으로 동시 노출.
 ### 7.4. Epic 6/11 진입 시점
 
 - **Epic 6 (reports)** — closing invariant column을 21 보고서 wire에 추가.
+- **Story 6.2 (월 마감 보고서)** — closing invariant 가 MonthlyClosingReportPanel
+  의 4 KPI 카드 중 v4_verdict KPI 로 wire. **closing ≥ 0 invariant (V3) +
+  closing-period consistency (V4 4-source) + ledger aggregate consistency
+  동시 검증**. V3 fail 시 PARTIAL view mode dispatch (amber Alert +
+  toast.info), V4 fail 시 PARTIAL view mode + KPI 빨강 + failures list.
+  MonthlyClosingReportPanel 이 ClosingGuardBanner 아래 additive.
 - **Epic 11 (reversal)** — `closing_guard_violated` reversal sequence wire.
   sign-negating reversal row + corrected row emit.
 
@@ -246,7 +252,8 @@ Top 5 까지 list 형식으로 동시 노출.
 
 - [`docs/inventory-ledger.md`](./inventory-ledger.md) §Story 5.2 base ledger wire contract.
 - [`docs/opening-inventory-carry.md`](./opening-inventory-carry.md) §Story 5.1 carry chain.
-- [`docs/cost-engine.md`](./cost-engine.md) §V3 closing invariant.
-- [`docs/capability-matrix.md`](./capability-matrix.md) v1.7 (CLOSING_GUARD capability wire).
-- [`docs/conventions.md`](./conventions.md) §10.7 closing guard invariant policy.
+- [`docs/cost-engine.md`](./cost-engine.md) §V3 closing invariant + §V4 closing-period consistency.
+- [`docs/capability-matrix.md`](./capability-matrix.md) v1.9 (CLOSING_GUARD + MONTHLY_CLOSING_REPORT capability wire).
+- [`docs/conventions.md`](./conventions.md) §10.7 closing guard invariant policy + §10.8 monthly closing report audit policy.
 - [`docs/frontend-toolchain.md`](./frontend-toolchain.md) §Story 5.3 sonner + Alert + Form pattern.
+- [`docs/monthly-closing-report.md`](./monthly-closing-report.md) §Story 6.2 monthly closing report wire contract.

@@ -321,3 +321,102 @@ W1 BOM-aware reconciliation (production_output + production_material_consumption
 - `production_consumption.py` pure kernel (BOM matrix 비율 → consumption qty calculation)
 - `closing_guard_service.emit_production_ledger_events()` dispatch
 - 5-2 deferral #9 resolved
+
+## Story 6.2 — Monthly Closing Report Aggregator + V4 4-source extension (2026-08-08)
+
+### §5.2 Story 6.2 Closing Report Aggregator
+
+Story 6.2 의 monthly closing report 는 **5-2 ledger 의 read-only consumer** 이다.
+**Append-only invariant (AD-2) 가 closing report 에서도 보존** — closing report 는
+ledger 의 row 를 read 만 하고 절대 write 하지 않는다.
+
+3-source read-only join (closing snapshot × ledger events × fiscal period snapshot):
+
+```python
+# packages/services/m4_inventory/monthly_closing_report.py
+class MonthlyClosingReportAggregate(NamedTuple):
+    period_key: str
+    closing_snapshot_count: int     # 5-1 + 6-1 wire count
+    ledger_event_count: int         # 5-2 wire count
+    fiscal_period_snapshot_count: int  # 6-1 wire count
+    closing_per_product: dict[UUID, Decimal]  # ledger_aggregate SUM(qty) per product
+    view_mode: Literal["READY", "PARTIAL", "EMPTY"]
+    v4_status: Literal["passed", "failed", "skipped"]
+```
+
+View mode 분류 (3-state classifier):
+- **READY** — 3 sources 모두 populated + V4 PASS → green Alert + 4 KPI 카드
+- **PARTIAL** — 일부 source 만 populated OR V4 FAIL but non-blocking → amber Alert + toast.info
+- **EMPTY** — 3 sources 모두 count=0 → 409 `MonthlyClosingReportEmptyError` + muted Alert + toast.warning
+
+V4 closing-period consistency 4-source extension:
+- **Story 6.1**: V4 2-source wire (closing snapshot × fiscal period snapshot)
+- **Story 6.2**: V4 4-source extension (ledger + closing snapshot + fiscal period
+  snapshot + product whitelist) → `verify_monthly_closing_report_consistency`
+- **AD-12 ordering**: V1 → **V4** → V3 → V7 → V8 (5-rule ordering, V4 slot 2)
+- **V4 source_count invariant**: 4 sources ALWAYS present in verdict envelope
+
+Wire contract (5-2 ledger READ-ONLY):
+- `closing_snapshot_count` = `SELECT COUNT(*) FROM inventory_ledger WHERE event_type='closing_snapshot' AND tenant_id=:tenant_id AND period_key=:period_key` (read-only)
+- `ledger_event_count` = `SELECT COUNT(*) FROM inventory_ledger WHERE tenant_id=:tenant_id AND period_key=:period_key` (read-only)
+- `fiscal_period_snapshot_count` = `SELECT COUNT(*) FROM monthly_input_periods WHERE tenant_id=:tenant_id AND period_key=:period_key AND status='closed'` (read-only)
+
+CR 1.1 audit-first wire + idempotent no-op skip on re-view:
+- 1st GET → `monthly_closing_report_viewed` audit emit
+- 2nd+ GET → idempotent no-op skip (audit_action='viewed' 가 이미 존재하면
+  audit emit skip)
+
+### §5.2.1 KRW/USD Dual Display (PRD §F5.2)
+
+PRD §F5.2 — KRW/USD 동시 표시. 한국은행 USD/KRW 매매기준율 기준.
+
+```python
+# packages/services/m4_inventory/monthly_closing_report.py
+USD_QUANTUM = Decimal("0.01")  # NUMERIC(18,2) AD-8 SSOT
+
+def compute_usd_from_krw(
+    amount_krw: Decimal,
+    exchange_rate: Decimal,
+) -> Decimal:
+    """KRW → USD conversion (ROUND_HALF_EVEN banker's rounding).
+    CR 0-4 lesson: USD 1.005 → 1.00 (banker's rounding precision).
+    """
+    return (amount_krw / exchange_rate).quantize(USD_QUANTUM, rounding=ROUND_HALF_EVEN)
+
+def format_period_closing_krw_usd(
+    amount_krw: Decimal,
+    currency_pair: CurrencyPair,
+) -> PeriodClosingDisplay:
+    """PRD §F5.2 dual display envelope.
+    Returns: PeriodClosingDisplay(amount_krw, amount_usd, currency_pair_display_ko)
+    """
+```
+
+TS mirror (`apps/web/lib/monthly-closing-report-parity.ts`):
+- `Decimal.set({ rounding: Decimal.ROUND_HALF_EVEN })` on module load
+- `parityQuantizeUSD` + `parityComputeUsdFromKrw` + `parityFormatPeriodClosingKrwUsd`
+  helpers
+- Drift detector: `tests/integration/test_monthly_closing_report_label_consistency.py`
+  (9 cases, T9.7)
+
+### §5.2.2 V8 18-fixture matrix extension (A11 PRIMARY)
+
+V8 골든 fixture count 16 → **18**:
+- `closing-period-b-small.json` (V4 PASS)
+- `closing-period-b-standard.json` (V4 FAIL)
+- `fiscal-period-snapshot-b-small.json` (PASS)
+- `fiscal-period-snapshot-b-standard.json` (FAIL)
+
+Drift detectors:
+- `tests/regression_v8/test_regression_v8_fixtures.py::test_v8_fixture_count_is_18`
+- `tests/cost_engine/test_regression_v8_placeholder.py::test_v8_fixture_count_now_18_in_story_6_2`
+- `tests/architecture/test_api_calls_only_ports.py::ALLOWED_SERVICE_SUBMODULES`
+  includes `"packages.services.m4_inventory.monthly_closing_report"`
+
+### §5.2.3 Carry-over close
+
+- 5-1 (Opening Auto-Carry) + 5-2 (Inventory Ledger) + 5-3 (Closing Guard) +
+  0.5 (Frontend Plumbing) + A12 (T12.2 deferred test file close-out) +
+  6-1 R4 triage 9 DEFER items (frontend + capability matrix v1.8 + 51 NEW tests
+  + 1 NEW doc) + 6-1 T10.5 deferred V4 골든 fixture fill (6-2 carry-over close
+  integrated) 모두 6-2 spec 진입 시점에 close.

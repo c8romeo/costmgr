@@ -71,7 +71,9 @@ V4_SKIP_REASON_EMPTY_AGGREGATE_KO: Final[str] = (
 )
 
 # V4 fail Korean message SSOT (AD-15 §11 parity with TS).
-V4_FAIL_MESSAGE_KO: Final[str] = "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"
+V4_FAIL_MESSAGE_KO: Final[str] = (
+    "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"
+)
 
 # V4 fiscal_period_snapshot inconsistency Korean message (extension).
 V4_FISCAL_SNAPSHOT_FAIL_MESSAGE_KO: Final[str] = (

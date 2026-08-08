@@ -593,6 +593,28 @@ placeholder).
 
 closing ≥ 0 invariant = AD-2 ledger read-only aggregate + AD-4 atomicity close-time hook + AD-12 V3 verification ordering. 입력 시 경고 (Story 3.3 inline + 5-3 ledger aggregate) + 마감 시 차단 (5-3 closing_guard_service + 4-2 close-time hook) 2-layer. V3 fail 시 4-3 verdict envelope + 4-2 close-time block_reason 동등 발동. 5-3 spec에서 3중 게이트 와이어됨.
 
+### §10.8 Monthly Closing Report Audit Policy (Story 6.2)
+
+`MONTHLY_CLOSING_REPORT` capability (manufacturing 3종 ✅ / service-only ❌)
+audit-first wire = AD-2 ledger read-only join + AD-4 atomicity read-only
+aggregate + AD-12 V4 verification ordering. **Closing report view mode
+classifier (READY / PARTIAL / EMPTY 3-state)** + **V4 closing-period
+consistency 4-source verification** (`ledger_aggregate` +
+`closing_snapshot_aggregate` + `fiscal_period_snapshot_aggregate` +
+`product_whitelist`). 6-2 spec에서 3중 게이트 와이어됨.
+
+| Trigger | audit action | ActionClass | enforcement |
+|---|---|---|---|
+| Closing report GET | `monthly_closing_report_viewed` | `ActionClass.CLOSING_PERIOD` | idempotent no-op skip on re-view (CR 1.1) |
+| V4 verification dispatch | `verify_v4_closing_period_consistency` | `ActionClass.VERIFICATION` | service-layer dispatch (CR 1.1 audit-first) |
+| KRW/USD dual display 환율 누락 | `monthly_closing_report_krw_usd_rate_missing` | `ActionClass.CLOSING_PERIOD` | 422 typed envelope |
+| Closing report empty (3 sources 모두 0) | `monthly_closing_report_empty` | `ActionClass.CLOSING_PERIOD` | 409 typed envelope |
+
+Drift protection: `tests/integration/test_monthly_closing_report_label_consistency.py`
+(9 cases) + `tests/api/m4_inventory/test_monthly_closing_report_service.py`
+(12 cases) + `tests/integration/test_monthly_closing_report_v4_verdict.py`
+(4 cases).
+
 ---
 
 ## §11 Frontend Tooling (Story 0.5)
@@ -617,6 +639,7 @@ package (모놀리식 frontend 가 없는 backend 서비스)에는 미적용.
 | Playwright + rls_db fixture | §11.7 (이 절) | §6 Playwright Setup |
 | next-intl ko-KR | §11.8 (이 절) | §7 next-intl Routing |
 | INDUSTRY_ICON cross-language contract | §11.9 (이 절) | §8 INDUSTRY_ICON Contract |
+| **Monthly closing report cross-language parity** | **§11.10 (이 절)** | **`monthly-closing-report.ts` + `monthly-closing-report-parity.ts`** |
 
 ### §11.3 Tailwind 4 디자인 토큰 (CSS variables)
 
@@ -721,3 +744,30 @@ cross-language hygiene).
 
 Frontend 도구 세부 설치 / wire 절차는
 [`docs/frontend-toolchain.md`](./frontend-toolchain.md) 참조.
+
+### §11.11 Monthly Closing Report Cross-Language Parity (Story 6.2)
+
+PRD §F5 / §F5.2 + AD-15 §11 cross-language parity. 6-2 wire 는
+Python pure kernel + TS mirror + parity helper 3중 wire.
+
+| Constant / helper | Python SSOT | TS mirror | parity file |
+|---|---|---|---|
+| `MONTHLY_CLOSING_REPORT_TITLE_KO` | `"월 마감 보고서"` | `"월 마감 보고서"` | `monthly-closing-report.ts` |
+| `MONTHLY_CLOSING_REPORT_EMPTY_KO` | `"마감 데이터 없음"` | `"마감 데이터 없음"` | `monthly-closing-report.ts` |
+| `REPORT_VIEW_MODE_READY` | `"READY"` | `"READY"` | `monthly-closing-report.ts` |
+| `REPORT_VIEW_MODE_PARTIAL` | `"PARTIAL"` | `"PARTIAL"` | `monthly-closing-report.ts` |
+| `REPORT_VIEW_MODE_EMPTY` | `"EMPTY"` | `"EMPTY"` | `monthly-closing-report.ts` |
+| `USD_QUANTUM` | `Decimal("0.01")` (NUMERIC(18,2) AD-8) | `"0.01"` | `monthly-closing-report-parity.ts` |
+| `QTY_QUANTUM` (parity helper) | `Decimal("0.0001")` (from `inventory_projection`) | `"0.0001"` | `monthly-closing-report-parity.ts` |
+| `parityComputeUsdFromKrw` | `compute_usd_from_krw` (ROUND_HALF_EVEN) | `parityComputeUsdFromKrw` | `monthly-closing-report-parity.ts` |
+| `parityFormatPeriodClosingKrwUsd` | `format_period_closing_krw_usd` | `parityFormatPeriodClosingKrwUsd` | `monthly-closing-report-parity.ts` |
+
+Drift detector: `tests/integration/test_monthly_closing_report_label_consistency.py`
+(9 cases, T9.7). **Drift caught here blocks 6-2 wire from shipping.**
+
+Banker's rounding (CR 0-4 lesson) — TS parity helper imports
+`Decimal.js` and sets `Decimal.set({ rounding: Decimal.ROUND_HALF_EVEN })`
+on module load. Python uses `decimal.Decimal.quantize(USD_QUANTUM, rounding=ROUND_HALF_EVEN)`.
+Parity invariant: TS `parityQuantizeUSD("1005")` = Python
+`Decimal("1005").quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)` =
+`Decimal("1.00")` (USD 1.005 → 1.00 ROUND_HALF_EVEN).

@@ -188,6 +188,28 @@ closing_snapshot ledger events 양방향 동기화입니다.
 - vitest + RTL + jsdom + MSW wire (Story 0.5 AC #4) → 6-1 frontend
   vitest 9 scenarios unskip.
 
+### 5.5 Story 6.2 — Monthly Closing Report (carry-over close + 6-2 A11 wire)
+- 6-1 T10.5 deferred V4 골든 fixture fill → 6-2 carry-over close 완료.
+  - `closing-period-fixture-1.json` + `fiscal-period-snapshot-fixture-1.json`
+    2 NEW V8 골든 fixture 파일 생성 (closing snapshot × fiscal period
+    snapshot 4-source V4 verification input).
+  - V8 골든 fixture count: 16 → **18** (12 V8 baseline + 2 V3 + 4 V4/A11).
+  - Drift detector (`tests/cost_engine/test_regression_v8_placeholder.py`)
+    + count assertion (`tests/regression_v8/test_regression_v8_fixtures.py`)
+    + service-submodule allowlist (`tests/architecture/test_api_calls_only_ports.py`)
+    모두 6-2 spec 기준으로 update.
+- 6-2 spec A11 PRIMARY: closing report (closing snapshot + ledger events
+  + fiscal period snapshot 3-source read-only join) + V4 closing-period
+  consistency 4-source verification (`ledger_aggregate` +
+  `closing_snapshot_aggregate` + `fiscal_period_snapshot_aggregate` +
+  `product_whitelist`) → `MonthltClosingReportService.verify_v4` dispatch.
+- 6-2 wire KPI 표면: 4 KPI 카드 (`closing_snapshot_count` +
+  `ledger_event_count` + `fiscal_period_snapshot_count` + `v4_verdict`)
+  + KRW/USD dual display (PRD §F5.2 — `format_period_closing_krw_usd`
+  via 한국은행 USD/KRW 매매기준율).
+- 6-2 carry-over: 5-1 + 5-2 + 5-3 + 0.5 + A12 + 6-1 R4 triage 9 DEFER
+  모두 6-2 spec 진입 시점에 close.
+
 ## 6. 3-layer Defense (PRD §A11)
 
 PRD §A11 정책의 3-layer 가 6-1 wire 로 정확히 closed:

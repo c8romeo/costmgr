@@ -262,4 +262,85 @@ service ❌. Service-only tenant 가 POST 시도 → 403 INDUSTRY_NOT_SUPPORTED.
 - `tests/services/test_closing_invariant_verifier.py` verifier bridge
 - `tests/e2e/test_closing_guard_e2e.py` full flow smoke
 
+## §6.2 Monthly Closing Report Architecture (Story 6.2)
+
+### 신규 모듈
+
+- **Pure kernel #1** `packages/services/m4_inventory/monthly_closing_report.py`
+  - 3-source read-only join (closing snapshot + ledger events + fiscal period
+    snapshot) — `classify_report_view_mode` (READY/PARTIAL/EMPTY 3-state)
+    + `compute_usd_from_krw` (banker's rounding ROUND_HALF_EVEN) +
+    `format_period_closing_krw_usd` (PRD §F5.2 dual display)
+- **Pure kernel #2** `packages/cost_engine/monthly_closing_report_aggregator.py`
+  - V4 closing-period consistency 4-source verification
+    (`verify_monthly_closing_report_consistency`) — AD-12 V4 slot 2 of 5
+
+### 신규 service layer
+
+- `apps/api/modules/m4_inventory/services/monthly_closing_report_service.py`
+  - `MonthlyClosingReportService` (3 routes — get_report / get_audit_trail /
+    verify_v4) + typed exceptions
+    (`MonthlyClosingReportEmptyError` /
+    `MonthlyClosingReportKrwUsdRateMissingError` /
+    `MonthlyClosingReportAuditEmitError`)
+
+### 신규 routes (3 NEW)
+
+- `GET /closing-period/report` — 월 마감 보고서 (3-source read-only join)
+- `GET /closing-period/report/audit-trail` — audit log
+  (action_class='monthly_closing_report' filter)
+- `GET /closing-period/report/v4-verdict` — V4 closing-period consistency
+  verdict (4-source verification)
+
+### Capability gate
+
+- `Capability.MONTHLY_CLOSING_REPORT` (manufacturing 3종 ✅ / service-only ❌)
+- A10 wire (manufacturing-kind 3종 200 OK + service-only 403
+  INDUSTRY_NOT_SUPPORTED)
+- 6-1 R4 triage 후 capability matrix v1.8 + 6-2 v1.9 changelog 등록
+
+### AD-15 envelope mapping (apps/api/main.py)
+
+- `MonthlyClosingReportResponse` Pydantic envelope (period_key, view_mode,
+  closing_snapshot_count, ledger_event_count, fiscal_period_snapshot_count,
+  v4_verdict, opening_inventory[], closing_per_product[], aggregate)
+- `V4Verdict` TypedDict (status / code / failures / source_count / skip_reason_ko)
+
+### Hook chain 통합
+
+- 6-1 closing_period_service.confirm_closing_period dispatch → 6-2
+  monthly_closing_report_service.get_monthly_closing_report GET → 4 KPI
+  카드 (closing_snapshot_count + ledger_event_count +
+  fiscal_period_snapshot_count + v4_verdict)
+- V4 verdict dispatcher: 6-2 service.verify_v4 → 6-1 V4 slot fill in
+  VerificationRunner (V1 → V4 → V3 → V7 → V8 ordering, AD-12 invariant)
+
+### Drift detectors (T9)
+
+- `tests/services/m4_inventory/test_monthly_closing_report.py` (18 cases)
+  pure kernel #1
+- `tests/cost_engine/test_monthly_closing_report_aggregator.py` (12 cases)
+  pure kernel #2 V4 (4-source extension invariant + source_count=4)
+- `tests/api/m4_inventory/test_monthly_closing_report_service.py` (12 cases)
+  service layer (CR 1.1 audit-first + typed exceptions)
+- `tests/api/m4_inventory/test_monthly_closing_report_krw_usd.py` (6 cases)
+  KRW/USD dual display (PRD §F5.2 banker's rounding precision)
+- `tests/integration/test_monthly_closing_report_label_consistency.py`
+  (9 cases, AD-15 §11) Korean SSOT parity Python ↔ TS + view mode codes
+- `tests/integration/test_monthly_closing_report_v4_verdict.py` (4 cases)
+  V4 wire envelope shape + AD-12 ordering slot 2
+
+### V8 18-fixture matrix extension (A11 PRIMARY)
+
+- 16 → 18 골든 fixture count extension:
+  - `closing-period-b-small.json` (V4 PASS, 4-source 일치)
+  - `closing-period-b-standard.json` (V4 FAIL, 1개 product 4-source 불일치)
+  - `fiscal-period-snapshot-b-small.json` (fiscal_period_snapshot PASS)
+  - `fiscal-period-snapshot-b-standard.json` (fiscal_period_snapshot FAIL)
+- Drift detector:
+  `tests/regression_v8/test_regression_v8_fixtures.py::test_v8_fixture_count_is_18`
+- Service submodule allowlist:
+  `tests/architecture/test_api_calls_only_ports.py::ALLOWED_SERVICE_SUBMODULES`
+  includes `"packages.services.m4_inventory.monthly_closing_report"`
+
 총 ~70+ cases 추가 (3-way drift + parity + service + e2e).

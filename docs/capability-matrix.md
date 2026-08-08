@@ -1,4 +1,4 @@
-# Capability Matrix (v1.8)
+# Capability Matrix (v1.9)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 stories need to coordinate. Replaces the per-story
@@ -34,6 +34,8 @@
 > **v1.2 (2026-08-02, Story 4.2)** — POST /api/v1/calc endpoint wired
 > behind `COST_CALCULATION` capability; service tenants return 403
 > INDUSTRY_NOT_SUPPORTED (Epic 9 ABC is their path).
+>
+> **v1.9 (2026-08-08, Story 6.2, Epic 6)** — `MONTHLY_CLOSING_REPORT` capability 6-1 wire (월 마감 보고서 read-only join — closing snapshot × ledger events × fiscal period snapshot 3-source aggregate) extends with **closing report view modes** (READY / PARTIAL / EMPTY 3-state classifier) + **V4 closing-period consistency verification** (4-source extension: ledger + closing snapshot + fiscal period snapshot + product whitelist) + **KRW/USD dual display** (PRD §F5.2 — 한국은행 USD/KRW 매매기준율 banker's rounding parity) + 3 NEW routes (`GET /closing-period/report` + `GET /closing-period/report/audit-trail` + `GET /closing-period/report/v4-verdict`) + `ActionClass.CLOSING_PERIOD` 6-2 deferred V4 골든 fixture fill (6-1 T10.5 carry-over close — closing-period-fixture-1 + fiscal-period-snapshot-fixture-1 2 NEW V8 골든 fixtures) + V8 골든 fixture count 16 → 18 (12 V8 baseline + 2 V3 + 4 V4/A11 6-2). Capability 행 자체는 변경 없음 — `MONTHLY_CLOSING_REPORT` capability 6-1 에서 wire done. View mode + V4 verdict 는 response envelope 내부 surface.
 >
 > **v1.1 (2026-08-02, Story 4.1)** — added `COST_CALCULATION` row.
 
@@ -199,5 +201,12 @@ class CalcResponse(BaseModel):
   와 동일한 manufacturing-kind 3종 wiring 사용).
 - 2026-08-06 — v1.7 (Story 5.3): `CLOSING_GUARD` capability wire (manufacturing 3종 ✅ / service-only ❌) + `ActionClass.CLOSING_GUARD` 3 values 채움 + `ActionClass.VERIFICATION` V3 value add (4 → 5) + V3 verification surface wire + Alembic 0016 SQL CHECK constraint (chk_opening_inventory_manual_reject) + monthly_input_rows.created_via column + idx_closing_guard_audit index.
 - 2026-08-07 — v1.8 (Story 6.1, Epic 6): `MONTHLY_CLOSING_REPORT` capability wire (manufacturing 3종 ✅ / service-only ❌ INDUSTRY_NOT_SUPPORTED) + 3 NEW routes (`POST /closing-period/confirm` + `GET /closing-period/status` + `GET /closing-period/audit-trail`) + `ActionClass.CLOSING_PERIOD` 3 values 채움 (`closing_period_confirmed` + `closing_period_blocked` + `closing_period_snapshot_inconsistency`) + `ActionClass.VERIFICATION` V4 value add (5 → 6) + V4 closing-period-snapshot verification surface wire + Alembic 0017 (`chk_closing_period_status` 3-state lifecycle + `closing_snapshot_event_count` non-negative CHECK + `finalized_at` + `closed_by_actor_id` + `idx_closing_period_audit` JSONB index) + monthly_input_periods.status lifecycle = `open` → `closing` → `closed` 1-way state machine (AD-6 close lock) + closing_snapshot ledger event wire (5-2 11th event_type).
+- 2026-08-08 — v1.9 (Story 6.2, Epic 6): `MONTHLY_CLOSING_REPORT` capability
+  6-1 wire done + 6-2 report view modes (READY/PARTIAL/EMPTY 3-state) +
+  V4 closing-period consistency 4-source verification + KRW/USD dual
+  display (PRD §F5.2 banker's rounding) + 3 NEW routes (report +
+  audit-trail + v4-verdict) + V8 골든 fixture 16 → 18 (closing-period-fixture-1
+  + fiscal-period-snapshot-fixture-1 2 NEW V8 골든 from 6-1 T10.5 carry-over
+  close). Capability 행 자체는 변경 없음 (6-1 wire 그대로 사용).
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.
