@@ -20,6 +20,12 @@
 export const MONTHLY_CLOSING_REPORT_TITLE_KO = "월 마감 보고서" as const;
 export const MONTHLY_CLOSING_REPORT_EMPTY_KO = "마감 데이터 없음" as const;
 
+// V4 fail message Korean SSOT (AD-15 §11 cross-language parity with
+// `packages/cost_engine/monthly_closing_report_aggregator.py::V4_FAIL_MESSAGE_KO`).
+// Drift caught by `tests/integration/test_monthly_closing_report_label_consistency.py`.
+export const V4_FAIL_MESSAGE_KO =
+  "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요" as const;
+
 // ── Report view mode 3 codes ──────────────────────────────────────
 export const REPORT_VIEW_MODE_READY = "READY" as const;
 export const REPORT_VIEW_MODE_PARTIAL = "PARTIAL" as const;
@@ -184,20 +190,21 @@ export interface MonthlyClosingReportAuditTrailResponse {
 }
 
 // ── MonthlyClosingReportV4Verdict (V4 wire envelope — 6-1 carry-over) ──
+// NOTE (bmad-code-review D1 결정, 2026-08-08): 3-source contract —
+// `fiscal_period_snapshot_qty` 필드 제거, source_count 2.
 export interface MonthlyClosingReportV4Verdict {
   status: "PASS" | "FAIL" | "SKIP";
-  source_count: 4;
+  code: string;
   failures: Array<{
     product_id: string;
     ledger_qty: string;
     closing_snapshot_qty: string;
-    fiscal_period_snapshot_qty: string;
     message_ko: string;
   }>;
-  skip_reason_ko: string | null;
-  industry: string | null;
   verified_at: string;
-  trace_id: string;
+  product_whitelist_size: number;
+  skip_reason_ko: string | null;
+  source_count: 2;
 }
 
 // ── MonthlyClosingReportV4VerdictResponse (wire envelope) ──

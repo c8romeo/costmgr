@@ -605,7 +605,7 @@ consistency 4-source verification** (`ledger_aggregate` +
 
 | Trigger | audit action | ActionClass | enforcement |
 |---|---|---|---|
-| Closing report GET | `monthly_closing_report_viewed` | `ActionClass.CLOSING_PERIOD` | idempotent no-op skip on re-view (CR 1.1) |
+| Closing report GET | `monthly_closing_report_viewed` | `ActionClass.MONTHLY_CLOSING_REPORT` | idempotent no-op skip on re-view (CR 1.1) |
 | V4 verification dispatch | `verify_v4_closing_period_consistency` | `ActionClass.VERIFICATION` | service-layer dispatch (CR 1.1 audit-first) |
 | KRW/USD dual display 환율 누락 | `monthly_closing_report_krw_usd_rate_missing` | `ActionClass.CLOSING_PERIOD` | 422 typed envelope |
 | Closing report empty (3 sources 모두 0) | `monthly_closing_report_empty` | `ActionClass.CLOSING_PERIOD` | 409 typed envelope |

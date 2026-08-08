@@ -382,6 +382,154 @@ class ClosingPeriodAuditTrailResponse(BaseModel):
     trace_id: str
 
 
+# ─────────────────────────────────────────────────────────────
+# Story 6.2 — Monthly Closing Report schemas (3 NEW)
+# ─────────────────────────────────────────────────────────────
+
+
+class MonthlyClosingReportCurrencyPair(BaseModel):
+    """Currency pair wire shape (PRD §F5.2 KRW/USD dual display).
+
+    Mirrors TS `CurrencyPair { base, quote, rate, source }` (H3 fix —
+    bmad-code-review 결정 2026-08-08).
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    base: str
+    quote: str
+    rate: str
+    source: str
+
+
+class MonthlyClosingReportRow(BaseModel):
+    """Single row in `closing_per_product` (KRW/USD dual display).
+
+    Mirrors TS `MonthlyClosingReportRow { product_id, opening_qty,
+    closing_qty, delta_qty, closing_qty_krw, closing_qty_usd,
+    delta_usd }` (H3 fix).
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: str
+    opening_qty: str
+    closing_qty: str
+    delta_qty: str
+    closing_qty_krw: str
+    closing_qty_usd: str
+    delta_usd: str
+
+
+class MonthlyClosingReportResponse(BaseModel):
+    """GET /api/v1/inventory/monthly-closing-report response.
+
+    Mirrors TS `MonthlyClosingReportResponse` (H3 fix). `response_model`
+    discipline (bmad-code-review H7 결정, 2026-08-08): wire shape 가
+    FastAPI boundary 에서 enforce 되어 backend/TS drift 가 runtime 에서
+    잡힘.
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str
+    view_mode: str
+    closing_snapshot_count: int
+    ledger_event_count: int
+    fiscal_period_snapshot_count: int
+    opening_inventory_count: int
+    closing_per_product: list[MonthlyClosingReportRow] = Field(default_factory=list)
+    currency_pair: MonthlyClosingReportCurrencyPair | None = None
+    trace_id: str
+    report_generated_at: str
+
+
+class MonthlyClosingReportAuditEntry(BaseModel):
+    """Single entry in `audit_logs` for monthly-closing-report audit trail.
+
+    Mirrors TS `MonthlyClosingReportAuditEntry { id, action, actor_id,
+    created_at, payload }` (H3 fix).
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    action: str
+    actor_id: str | None = None
+    created_at: str | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class MonthlyClosingReportAuditTrailResponse(BaseModel):
+    """GET /api/v1/inventory/monthly-closing-report/audit-trail response.
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str
+    entries: list[MonthlyClosingReportAuditEntry] = Field(default_factory=list)
+    trace_id: str
+
+
+class MonthlyClosingReportV4VerdictFailure(BaseModel):
+    """Single V4 verdict failure (3-source contract per D1 결정)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    product_id: str
+    ledger_qty: str
+    closing_snapshot_qty: str
+    message_ko: str
+
+
+class MonthlyClosingReportV4Verdict(BaseModel):
+    """V4 verdict shape (3-source per D1 결정).
+
+    Mirrors TS `MonthlyClosingReportV4Verdict { status, source_count,
+    failures, skip_reason_ko, industry, verified_at, trace_id }`. H9
+    fix: status upper-cased ('PASS'|'FAIL'|'SKIP').
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: str  # PASS / FAIL / SKIP (H9 fix)
+    code: str
+    failures: list[MonthlyClosingReportV4VerdictFailure] = Field(default_factory=list)
+    verified_at: str
+    product_whitelist_size: int
+    skip_reason_ko: str | None = None
+    source_count: int
+
+
+class MonthlyClosingReportV4VerdictResponse(BaseModel):
+    """GET /api/v1/inventory/monthly-closing-report/v4-verdict response.
+
+    Wraps V4 verdict envelope `{period_key, verdict, trace_id}` (H2 fix —
+    bmad-code-review 결정 2026-08-08). Panel 이 `response.verdict.status`
+    로 discriminator 검사.
+
+    CR 2.3: `extra='forbid'`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str
+    verdict: MonthlyClosingReportV4Verdict
+    trace_id: str
+
+
 __all__ = [
     "CarryChainEntry",
     "CarryChainResponse",
@@ -397,6 +545,14 @@ __all__ = [
     "ClosingPeriodConfirmResponse",
     "ClosingPeriodEvaluateResponse",
     "LedgerEventCreateRequest",
+    "MonthlyClosingReportAuditEntry",
+    "MonthlyClosingReportAuditTrailResponse",
+    "MonthlyClosingReportCurrencyPair",
+    "MonthlyClosingReportResponse",
+    "MonthlyClosingReportRow",
+    "MonthlyClosingReportV4Verdict",
+    "MonthlyClosingReportV4VerdictFailure",
+    "MonthlyClosingReportV4VerdictResponse",
     "NegativeProductEntry",
     "PeriodClosingResponse",
     "ReversalRequestCreate",

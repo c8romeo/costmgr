@@ -14,16 +14,11 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from decimal import Decimal
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-
-import pytest
 
 from apps.api.modules.m4_inventory.services.monthly_closing_report_service import (
     MonthlyClosingReportAuditEmitError,
     MonthlyClosingReportEmptyError,
-    MonthlyClosingReportKrwUsdRateMissingError,
     MonthlyClosingReportService,
 )
 
@@ -174,9 +169,12 @@ def test_get_audit_trail_filters_by_action_class() -> None:
 
         await service.get_monthly_closing_report_audit_trail(PERIOD_KEY)
         # Inspect that session.execute was called with text containing
-        # 'monthly_closing_report' filter
-        called_sql = str(session.execute.call_args)
-        assert "monthly_closing_report" in called_sql or True  # SQL text check
+        # 'monthly_closing_report' filter. M3 fix — `or True` 제거
+        # (CR 5-1 lesson: vacuous assertion 금지).
+        # SQLAlchemy TextClause 의 string repr 은 `<sqlalchemy.sql.elements.TextClause
+        # object at 0x...>` — query text 는 `text` attribute 로 접근.
+        called_sql = str(session.execute.call_args_list[0].args[0].text)
+        assert "monthly_closing_report" in called_sql
 
     asyncio.run(_impl())
 
@@ -197,9 +195,16 @@ def test_get_audit_trail_tenant_isolation() -> None:
         session.execute.return_value = audit_row
 
         await service.get_monthly_closing_report_audit_trail(PERIOD_KEY)
-        # Verify tenant_id was bound
-        called_sql = str(session.execute.call_args)
-        assert str(TENANT_ID) in called_sql or True
+        # Verify tenant_id was bound. M3 fix — `or True` 제거
+        # (CR 5-1 lesson: vacuous assertion 금지).
+        # SQLAlchemy 는 `:tenant_id` placeholder 로 binding 하므로 텍스트 안에
+        # `:tenant_id` 가 존재해야 함. 실제 값은 bind params 로 전달
+        # (service 가 positional args 로 전달하므로 args[1]).
+        called_sql = str(session.execute.call_args_list[0].args[0].text)
+        assert ":tenant_id" in called_sql
+        # Bind params dict 에 TENANT_ID 가 string 으로 전달됨
+        bind_params = session.execute.call_args_list[0].args[1]
+        assert bind_params.get("tenant_id") == str(TENANT_ID)
 
     asyncio.run(_impl())
 
@@ -216,31 +221,32 @@ def test_verify_v4_returns_verdict_dict() -> None:
             verify_monthly_closing_report_consistency,
         )
 
+        # D1 결정 (bmad-code-review, 2026-08-08): 3-source contract —
+        # fiscal_period_snapshot_aggregate 인자 제거.
         verdict = verify_monthly_closing_report_consistency(
             ledger_aggregate={},
             closing_snapshot_aggregate={},
-            fiscal_period_snapshot_aggregate={},
             product_whitelist=set(),
         )
         assert isinstance(verdict, dict)
         assert "status" in verdict
-        assert verdict["source_count"] == 4
+        assert verdict["source_count"] == 2
 
     asyncio.run(_impl())
 
 
 def test_verify_v4_skipped_for_empty_aggregates() -> None:
-    """Empty 4-source aggregates → V4 SKIP."""
+    """Empty aggregates → V4 SKIP."""
 
     async def _impl() -> None:
         from packages.cost_engine.monthly_closing_report_aggregator import (
             verify_monthly_closing_report_consistency,
         )
 
+        # D1 결정 (bmad-code-review, 2026-08-08): 3-source contract.
         verdict = verify_monthly_closing_report_consistency(
             ledger_aggregate={},
             closing_snapshot_aggregate={},
-            fiscal_period_snapshot_aggregate={},
             product_whitelist=set(),
         )
         assert verdict["status"] == "skipped"

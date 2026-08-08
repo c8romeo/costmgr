@@ -1,0 +1,25 @@
+SKIPPED [1] tests\rls\test_ai_documents_input_drafts.py:361: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_ai_documents_input_drafts.py:418: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_bom_lines_isolation.py:118: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_bom_lines_isolation.py:145: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_bom_lines_isolation.py:172: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_bom_lines_isolation.py:207: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_bom_lines_isolation.py:255: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_monthly_input_isolation.py:29: DB-backed tests require provisioned Postgres; Story 0.4 CI shim mode
+SKIPPED [1] tests\rls\test_monthly_input_isolation.py:44: DB-backed tests require provisioned Postgres; Story 0.4 CI shim mode
+SKIPPED [1] tests\rls\test_monthly_input_isolation.py:50: DB-backed tests require provisioned Postgres; Story 0.4 CI shim mode
+SKIPPED [1] tests\rls\test_monthly_input_isolation.py:56: DB-backed tests require provisioned Postgres; Story 0.4 CI shim mode
+SKIPPED [1] tests\rls\test_monthly_input_isolation.py:62: DB-backed tests require provisioned Postgres; Story 0.4 CI shim mode
+SKIPPED [1] tests\rls\test_products_isolation.py:155: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_products_isolation.py:189: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_products_isolation.py:217: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_products_isolation.py:254: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_products_isolation.py:289: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_products_isolation.py:325: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_tenant_isolation.py:56: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_tenant_isolation.py:77: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_tenant_isolation.py:97: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_tenant_isolation.py:121: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+SKIPPED [1] tests\rls\test_tenant_isolation.py:161: RLS tests are CI-only (Decision 2, 2026-07-25). Set CI=true or RLS_RUN_LOCAL=1 to run locally with a Postgres on 54322.
+FAILED tests/integration/test_sdr_test_count_drift.py::test_max_sdr_claim_matches_pytest_collection
+1 failed, 1226 passed, 127 skipped, 11 warnings in 86.34s (0:01:26)

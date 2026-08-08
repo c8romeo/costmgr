@@ -20,12 +20,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 from packages.cost_engine.monthly_closing_report_aggregator import (
     V4_FAIL_MESSAGE_KO,
-    V4_FISCAL_SNAPSHOT_FAIL_MESSAGE_KO,
-    V4_SKIP_REASON_EMPTY_AGGREGATE_KO,
     V4_SKIP_REASON_SERVICE_ONLY_KO,
 )
 from packages.services.m4_inventory.monthly_closing_report import (
@@ -37,7 +33,6 @@ from packages.services.m4_inventory.monthly_closing_report import (
     REPORT_VIEW_MODE_READY,
     REPORT_VIEW_MODES,
 )
-
 
 WEB_LIB = Path(__file__).resolve().parents[2] / "apps" / "web" / "lib"
 TS_MIRROR_FILE = WEB_LIB / "monthly-closing-report.ts"
@@ -72,22 +67,35 @@ def test_currency_pair_display_ko_format_parity() -> None:
     """Python CURRENCY_PAIR_DISPLAY_KO_FORMAT ↔ TS parity file format string."""
     py = CURRENCY_PAIR_DISPLAY_KO_FORMAT
     ts_src = _read(TS_PARITY_FILE)
-    # Strip {placeholder} content for value-only comparison
-    py_normalized = re.sub(r"\{[^}]+\}", "{}", py)
-    ts_match = re.search(r'CURRENCY_PAIR_DISPLAY_KO_FORMAT.*"([^"]+)"', py)
-    py_value = py_match_value = (
-        re.search(r'="([^"]+)"', py) is not None
+    # Placeholder {quote}/{base} 가 동일하게 매핑되어야 함. M3 fix —
+    # `or True` 제거 (CR 5-1 lesson: vacuous assertion 금지).
+    py_placeholder_count = py.count("{")
+    ts_match = re.search(
+        r'CURRENCY_PAIR_DISPLAY_KO_FORMAT\s*=\s*"([^"]+)"',
+        ts_src,
     )
-    # Simpler: just verify the format template literals match by placeholder count
-    assert py.count("{") == ts_src.count("CURRENCY_PAIR_DISPLAY") or True
+    assert ts_match is not None, (
+        "CURRENCY_PAIR_DISPLAY_KO_FORMAT constant not found in TS parity file. "
+        "Update apps/web/lib/monthly-closing-report-parity.ts."
+    )
+    ts_placeholder_count = ts_match.group(1).count("{")
+    assert py_placeholder_count == ts_placeholder_count, (
+        f"Drift: Python placeholder count {py_placeholder_count} ≠ "
+        f"TS {ts_placeholder_count}. Update TS parity file."
+    )
 
 
 def test_v4_fail_message_ko_parity() -> None:
     """Python V4_FAIL_MESSAGE_KO ↔ TS aggregator V4FailMessageKo."""
     py = V4_FAIL_MESSAGE_KO
     ts_src = _read(TS_MIRROR_FILE)
-    # 6-2 wire: V4 failures[] entries expose message_ko — verify Korean message in TS scope
-    assert "마감 snapshot 불일치" in ts_src or True  # 5-3 wire already had it
+    # M3 fix — `or True` 제거 (CR 5-1 lesson: vacuous assertion 금지).
+    # V4 failures[] entries 가 message_ko 를 expose 하므로 TS mirror 에서
+    # 동일 한국어 메시지가 발견되어야 함.
+    assert py in ts_src, (
+        f"Drift: Python '{py}' not found in TS mirror. "
+        f"Update apps/web/lib/monthly-closing-report.ts."
+    )
 
 
 def test_v4_skip_reason_service_only_ko_parity() -> None:

@@ -197,22 +197,23 @@ describe("MonthlyClosingReportPanel", () => {
 
   // ── Case 5: V4 FAIL verdict → KPI 빨강 + failures list ──────
   it("test_panel_renders_v4_fail_verdict", () => {
+    // NOTE (bmad-code-review D1 결정, 2026-08-08): 3-source contract —
+    // fiscal_period_snapshot_qty / industry 필드 제거, source_count 2.
     const v4_verdict = {
       status: "FAIL" as const,
-      source_count: 4 as const,
+      code: "V4",
       failures: [
         {
           product_id: "019200a0-0000-7000-8000-0000000000a1",
           ledger_qty: "10.0000",
           closing_snapshot_qty: "11.0000",
-          fiscal_period_snapshot_qty: "100.0000",
           message_ko: "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요",
         },
       ],
-      skip_reason_ko: null,
-      industry: "manufacturing",
       verified_at: "2026-08-08T00:00:00Z",
-      trace_id: "trace-v4",
+      product_whitelist_size: 3,
+      skip_reason_ko: null,
+      source_count: 2 as const,
     };
 
     render(

@@ -50,7 +50,7 @@ product_id 별 qty 가 일치해야 PASS.
 
 ```python
 # apps/api/modules/m4_inventory/handlers.py
-@router.get("/closing-period/report", response_model=MonthlyClosingReportResponse)
+@router.get("/monthly-closing-report", response_model=MonthlyClosingReportResponse)
 async def get_monthly_closing_report(
     period_key: str,
     actor_id: uuid.UUID = Query(...),
@@ -67,7 +67,7 @@ async def get_monthly_closing_report(
     422 MonthlyClosingReportKrwUsdRateMissingError (currency_pair 누락)
     """
 
-@router.get("/closing-period/report/audit-trail")
+@router.get("/monthly-closing-report/audit-trail")
 async def get_monthly_closing_report_audit_trail(
     period_key: str,
     tenant_id: uuid.UUID = Depends(...),
@@ -75,7 +75,7 @@ async def get_monthly_closing_report_audit_trail(
 ) -> list[AuditEntry]:
     """월 마감 보고서 audit trail (action_class='monthly_closing_report' filter)."""
 
-@router.get("/closing-period/report/v4-verdict")
+@router.get("/monthly-closing-report/v4-verdict")
 async def get_monthly_closing_report_v4_verdict(
     period_key: str,
     industry: str = Query(...),
@@ -322,7 +322,7 @@ V8 fixture count drift detector:
 ### 7.4 Audit Log 조회
 
 ```
-GET /api/v1/inventory/closing-period/report/audit-trail?period_key=2026-07
+GET /api/v1/inventory/monthly-closing-report/audit-trail?period_key=2026-07
 → audit_logs entries filtered by action_class='monthly_closing_report'
 ```
 

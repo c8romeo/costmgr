@@ -34,6 +34,18 @@ export const QTY_QUANTUM = "0.0001" as const;
 export const USD_QUANTUM = "0.01" as const;
 
 /**
+ * CURRENCY_PAIR_DISPLAY_KO_FORMAT = "1 USD = {rate_krw} KRW ({source_ko}
+ * {rate_as_of})" — mirrors Python
+ * `packages/services/m4_inventory/monthly_closing_report.py` ::
+ * CURRENCY_PAIR_DISPLAY_KO_FORMAT.
+ *
+ * NOTE (bmad-code-review M3 결정, 2026-08-08): parity test 가 TS 측에
+ * 동일 constant 가 존재해야 placeholder count 가 match 할 수 있어 추가.
+ */
+export const CURRENCY_PAIR_DISPLAY_KO_FORMAT =
+  "1 USD = {rate_krw} KRW ({source_ko} {rate_as_of})" as const;
+
+/**
  * Set Decimal.js to banker's rounding (ROUND_HALF_EVEN) on module load.
  *
  * CR 0-4 lesson: TS/Decimal.js defaults to ROUND_HALF_UP, which would cause

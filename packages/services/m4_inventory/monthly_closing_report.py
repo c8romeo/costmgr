@@ -245,6 +245,7 @@ class MonthlyClosingReportAggregate(NamedTuple):
     closing_snapshot_count: int
     ledger_event_count: int
     fiscal_period_snapshot_count: int
+    opening_inventory_count: int
     finalized_at: str | None
     currency_pair: CurrencyPair | None
 
@@ -702,6 +703,7 @@ def aggregate_monthly_closing_report(
         closing_snapshot_count=closing_snapshot_count,
         ledger_event_count=ledger_event_count,
         fiscal_period_snapshot_count=fiscal_period_snapshot_count,
+        opening_inventory_count=len(opening_inventory_entries),
         finalized_at=finalized_at,
         currency_pair=currency_pair,
     )

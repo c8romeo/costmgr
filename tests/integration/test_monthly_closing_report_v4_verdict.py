@@ -14,8 +14,6 @@ from __future__ import annotations
 import uuid
 from decimal import Decimal
 
-import pytest
-
 from packages.cost_engine.monthly_closing_report_aggregator import (
     V4_FAIL_MESSAGE_KO,
     V4_ORDER_INDEX,
@@ -35,29 +33,27 @@ def _u() -> uuid.UUID:
 
 
 def test_v4_verdict_envelope_shape_pass() -> None:
-    """V4 verdict PASS → TypedDict with status/code/failures/source_count=4."""
+    """V4 verdict PASS → TypedDict with status/code/failures/source_count=2 (D1)."""
     p1 = _u()
     qty = Decimal("100.0000")
     verdict = verify_monthly_closing_report_consistency(
         ledger_aggregate={p1: qty},
         closing_snapshot_aggregate={p1: qty},
-        fiscal_period_snapshot_aggregate={p1: qty},
         product_whitelist={p1},
     )
     assert verdict["status"] == V4_STATUS_PASSED
     assert verdict["code"] == "V4"
     assert verdict["failures"] == []
-    assert verdict["source_count"] == 4
+    assert verdict["source_count"] == 2
     assert verdict["skip_reason_ko"] is None
 
 
 def test_v4_verdict_envelope_shape_fail() -> None:
-    """V4 verdict FAIL → failures populated + Korean message_ko."""
+    """V4 verdict FAIL → failures populated + Korean message_ko (D1 3-source)."""
     p1 = _u()
     verdict = verify_monthly_closing_report_consistency(
         ledger_aggregate={p1: Decimal("10")},
         closing_snapshot_aggregate={p1: Decimal("11")},
-        fiscal_period_snapshot_aggregate={p1: Decimal("10")},
         product_whitelist={p1},
     )
     assert verdict["status"] == V4_STATUS_FAILED
@@ -74,11 +70,11 @@ def test_v4_verdict_envelope_shape_fail() -> None:
 def test_v4_verdict_skip_transition_service() -> None:
     """industry='service' → V4 SKIP (transition from any state)."""
     p1 = _u()
-    # Pass all 3 aggregates identically — but service industry forces SKIP
+    # D1 결정 (bmad-code-review, 2026-08-08): 3-source contract —
+    # fiscal_period_snapshot_aggregate 인자 제거.
     verdict = verify_monthly_closing_report_consistency(
         ledger_aggregate={p1: Decimal("10")},
         closing_snapshot_aggregate={p1: Decimal("10")},
-        fiscal_period_snapshot_aggregate={p1: Decimal("10")},
         product_whitelist={p1},
         industry="service",
     )

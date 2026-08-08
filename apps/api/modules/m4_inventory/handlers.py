@@ -85,6 +85,9 @@ from apps.api.modules.m4_inventory.schemas import (
     ClosingPeriodConfirmResponse,
     ClosingPeriodEvaluateResponse,
     LedgerEventCreateRequest,
+    MonthlyClosingReportAuditTrailResponse,
+    MonthlyClosingReportResponse,
+    MonthlyClosingReportV4VerdictResponse,
     NegativeProductEntry,
     PeriodClosingResponse,
     ReversalRequestCreate,
@@ -710,6 +713,7 @@ async def get_closing_period_audit_trail(
 
 @router.get(
     "/monthly-closing-report",
+    response_model=MonthlyClosingReportResponse,
     status_code=200,
     summary="Read-only monthly closing report aggregator (Story 6.2 AC #1)",
 )
@@ -718,20 +722,17 @@ async def get_monthly_closing_report(
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
     _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
-) -> dict[str, object]:
+) -> MonthlyClosingReportResponse:
     """Monthly Closing Report aggregator (PRD §F5 + §F5.2).
 
-    Read-only 4-source join:
+    Read-only 3-source join (D1 결정, 2026-08-08):
     1. closing_snapshot ledger events (6-1 wire).
     2. inventory_ledger 전체 events (5-2 wire).
     3. monthly_input_periods.opening_inventory JSONB (5-1 wire).
-    4. fiscal_period_snapshots engine_type='trad' (4-2 wire).
+    + 환율 source from `tenant_settings.baseline.currency_pair`.
 
-    Returns `view_mode` (CLOSING_REPORT_READY / PARTIAL / EMPTY),
-    `allowed`, `closing_per_product` (KRW/USD dual display),
-    `closing_snapshot_count`, `ledger_event_count`,
-    `fiscal_period_snapshot_count`, `finalized_at`, `currency_pair`,
-    `title_ko`.
+    NOTE (bmad-code-review H7 결정, 2026-08-08): response_model wire
+    shape 가 FastAPI boundary 에서 enforce.
     """
     from apps.api.modules.m4_inventory.services.monthly_closing_report_service import (
         MonthlyClosingReportService,
@@ -747,6 +748,7 @@ async def get_monthly_closing_report(
 
 @router.get(
     "/monthly-closing-report/audit-trail",
+    response_model=MonthlyClosingReportAuditTrailResponse,
     status_code=200,
     summary="Monthly closing report audit log query (Story 6.2 T3.2 — observability)",
 )
@@ -755,14 +757,18 @@ async def get_monthly_closing_report_audit_trail(
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
     _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
-) -> dict[str, object]:
+) -> MonthlyClosingReportAuditTrailResponse:
     """Monthly closing report audit log query (CR 1.1 observability).
 
     Returns `audit_logs` entries where:
     - `target_table IN ('monthly_closing_report', 'closing_period')` OR
-    - `target_table = 'verification'` AND
+    - `target_table = 'verification_log'` AND
       `payload->>'action_name' = 'verify_v4_closing_period_consistency'`
     for the current period_key, ordered by occurred_at DESC, capped at 10.
+
+    NOTE (bmad-code-review H3 결정, 2026-08-08): SQL 컬럼은
+    `MonthlyClosingReportAuditEntry { id, action, actor_id, created_at,
+    payload }` mirror 와 정렬 (bmad-code-review 결정).
     """
     from apps.api.modules.m4_inventory.services.monthly_closing_report_service import (
         MonthlyClosingReportService,
@@ -781,6 +787,7 @@ async def get_monthly_closing_report_audit_trail(
 
 @router.get(
     "/monthly-closing-report/v4-verdict",
+    response_model=MonthlyClosingReportV4VerdictResponse,
     status_code=200,
     summary="V4 closing-period-consistency verdict read-only (Story 6.2 T3.3)",
 )
@@ -789,12 +796,16 @@ async def get_monthly_closing_report_v4_verdict(
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
     _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
-) -> dict[str, object]:
+) -> MonthlyClosingReportV4VerdictResponse:
     """V4 closing-period-consistency verdict read-only (PRD §V4).
 
-    4-source aggregate verification (extension 6-1 2-source → 6-2 4-source):
-    ledger + closing_snapshot + fiscal_period_snapshot + product_whitelist.
-    Returns V4Verdict envelope (PASS / FAIL / SKIP).
+    3-source aggregate verification (D1 결정, 2026-08-08):
+    ledger + closing_snapshot + product_whitelist. V4 contract 에서
+    fiscal_period_snapshots 제외 (PRD §6.1 산식 체인이 KRW 임).
+
+    NOTE (bmad-code-review H2 결정, 2026-08-08): 응답 envelope 는
+    `{period_key, verdict, trace_id}` wrapper. Panel 이
+    `response.verdict.status` discriminator 검사.
     """
     from apps.api.modules.m4_inventory.services.monthly_closing_report_service import (
         MonthlyClosingReportService,
@@ -806,4 +817,8 @@ async def get_monthly_closing_report_v4_verdict(
     verdict = await mcr_svc.verify_monthly_closing_report_v4(
         period_key, actor_id=ctx.user_id,
     )
-    return dict(verdict)
+    return {
+        "period_key": period_key,
+        "verdict": dict(verdict),
+        "trace_id": ctx.trace_id,
+    }

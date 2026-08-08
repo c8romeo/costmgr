@@ -197,29 +197,23 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
 
 3. **Given** AC #2 TS mirror + MonthlyClosingReportPanel + MonthlyClosingReportRoute + capability gate
    **When** 본 스토리 dev-story 진입 시
-   **Then** 다음 wire contract 발동 (AC #3 — closing report signal source = 6-1 closing_period aggregate + 5-2 ledger events + 4-2 fiscal_period_snapshots 3-source join):
-     - **`MonthlyInputStateResponse` extension (NEW 5 fields)**:
-       - `monthly_closing_report_view_mode: ReportViewMode` (closing report 준비 상태 — 6-1 closing_period_status와 별도 필드)
-       - `monthly_closing_report_closing_snapshot_count: int` (6-1 wire carry-over — closing_snapshot ledger event count)
-       - `monthly_closing_report_ledger_event_count: int` (5-2 wire — 전체 ledger event count)
-       - `monthly_closing_report_fiscal_period_snapshot_count: int` (4-2 wire — fiscal_period_snapshots count)
-       - `monthly_closing_report_v4_verdict: V4Verdict | None` (6-1 V4 wire — closing snapshot 일관성 verdict)
-     - **6-1 + 5-1 + 5-2 + 5-3 carry fields 보존**: 16 fields = `opening_inventory` + `opening_inventory_locked` + `opening_inventory_lock_reason_ko` (5-1) + `ledger_events_count` + `ledger_period_closing` + `inventory_ledger_enabled` + `reversal_request_enabled` (5-2) + `closing_guard_invariant` + `closing_guard_blocked` + `closing_guard_audit_trail` + `production_consumption_events` + `v3_verdict` (5-3) + `closing_period_status` + `closing_snapshot_count` + `closing_period_audit_trail` + `closing_period_finalized_at` (6-1) 그대로. 6-2 = 5 fields 신규 추가. 합계 21 fields.
-     - **`MonthlyInputService.get_state` extension** — wire `monthly_closing_report_service.get_monthly_closing_report(session, tenant_id, period_key)` 호출 결과 + audit_trail query → 5 NEW fields populate.
-     - **Read-only transaction pattern (extension `MonthlyInputService.get_state` + NEW `MonthlyInputService.get_monthly_closing_report`)** — REPEATABLE READ isolation level (4-2 wire 패턴) + no write (read-only aggregator). 6-1 confirm_closing_period 동일 session에서 동시 호출 시 충돌 방지.
-     - **ClosingPerProductRow join (extension `MonthlyInputService.get_monthly_closing_report`)** — 3-source JOIN:
+   **Then** 다음 wire contract 발동 (AC #3 — closing report signal source = 6-1 closing_period aggregate + 5-2 ledger events + product whitelist 3-source join):
+     - **AC #3 de-scope (D3 결정, bmad-code-review triage 2026-08-08)**: `MonthlyInputStateResponse` 5 NEW fields + `MonthlyInputService.get_monthly_closing_report` 메서드는 **6-3+ 로 de-scope**. 본 스토리(6-2)는 standalone `MonthlyClosingReportService.get_monthly_closing_report` 만 출하. monthly_input_periods JSONB → monthly_closing_report 진입점은 6-3 에서 `MonthlyInputService` extension 으로 별도 진입 (per-product `opening_qty` 가 monthly_input_periods.opening_inventory JSONB → ledger 3-source 의 opening source 로 wire).
+     - **Read-only transaction pattern (NEW `MonthlyClosingReportService.get_monthly_closing_report`)** — REPEATABLE READ isolation level (4-2 wire 패턴) + no write (read-only aggregator). 6-1 confirm_closing_period 동일 session에서 동시 호출 시 충돌 방지.
+     - **ClosingPerProductRow join (NEW `MonthlyClosingReportService.get_monthly_closing_report`)** — **3-source JOIN (D1 결정)**:
        1. `inventory_ledger` WHERE `event_type='closing_snapshot'` AND `period_key=:period_key` (6-1 wire) → per-product closing_qty.
        2. `inventory_ledger` 전체 WHERE `period_key=:period_key` (5-2 wire) → per-product ledger_event_count.
        3. `monthly_input_periods.opening_inventory` JSONB (5-1 wire) → per-product opening_qty.
-       4. `fiscal_period_snapshots` WHERE `period_key=:period_key` AND `engine_type='trad'` (4-2 wire) → per-product fiscal_period_snapshot_count.
-       5. Joins on `product_id` (UUID v7 SSOT — AD-18) + tenant_id (RLS — AD-3).
-     - **KRW/USD dual display format (extension `MonthlyInputService.get_monthly_closing_report`)** — closing_per_product row:
-       - `closing_qty_krw`: str (KRW 정수) — DB BIGINT 그대로.
-       - `closing_qty_usd`: str (USD 소수 2자리) — `closing_qty_krw / exchange_rate` USD 환산 (banker's rounding to 2 decimals).
-       - `delta_krw`: str (KRW 정수) — `closing_qty_krw - opening_qty_krw`.
-       - `delta_usd`: str (USD 소수 2자리) — `delta_krw / exchange_rate` USD 환산.
-       - `currency_pair`: `{ from_currency: 'USD', to_currency: 'KRW', rate: '1,320', rate_source_ko: '한국은행', rate_as_of: '2026-07-25' }` (`tenant_settings.baseline.currency_pair` SSOT).
-     - **V4 verdict envelope wire (extension 6-1 + 4-3 V4 wire)** — `verification_log.action='verify_v4_closing_period_consistency'` (6-1 wire) + `top_failure.code='V4'` (4-3 wire) 그대로 보존. 6-2 wire는 V4 verdict envelope read-only 표시 (closing report의 V4 row).
+       4. Joins on `product_id` (UUID v7 SSOT — AD-18) + tenant_id (RLS — AD-3).
+       - **3-source V4 contract**: V4 verifier 는 `ledger` ↔ `closing_snapshot` + `product_whitelist` 만 비교 (D1 결정 — PRD §6.1 산식 체인이 `fiscal_period_snapshots.manufacturing_cost` 는 KRW 임을 명시하므로 V4 qty 비교 source 에서 제외). fiscal_period_snapshot 가 wire 에 포함되더라도 V4 contract source 에서 분리.
+     - **KRW/USD dual display format (NEW `MonthlyClosingReportService.get_monthly_closing_report`)** — closing_per_product row (TS mirror 정렬, bmad-code-review H3):
+       - `opening_qty: str` (정규화된 qty, AD-15 snake_case + TS camelCase mirror) — ledger OR monthly_input_periods.opening_inventory JSONB 출처
+       - `closing_qty: str` (qty) — closing_snapshot ledger event 출처
+       - `delta_qty: str` (qty) — `closing_qty - opening_qty`
+       - `opening_qty_krw` / `closing_qty_krw` / `delta_krw`: str (KRW 정수) — DB BIGINT 그대로.
+       - `opening_qty_usd` / `closing_qty_usd` / `delta_usd`: str (USD 소수 2자리) — `*_krw / exchange_rate` USD 환산 (banker's rounding to 2 decimals, AD-15).
+       - `currency_pair`: `{ base: 'KRW', quote: 'USD', rate: '1,320', source: '한국은행', rate_as_of: '2026-07-25' }` (`tenant_settings.baseline.currency_pair` SSOT, TS mirror 정렬).
+     - **V4 verdict envelope wire (extension 6-1 + 4-3 V4 wire)** — `verification_log.action='verify_v4_closing_period_consistency'` (6-1 wire) + `top_failure.code='V4'` (4-3 wire) 그대로 보존. 6-2 wire는 V4 verdict envelope read-only 표시 (closing report의 V4 row). V4 status 응답 envelope = `{period_key, verdict: {status: 'PASS'|'FAIL'|'SKIP', failures, skip_reason_ko, verified_at, product_count, source_count}, trace_id}` (H2 fix).
 
 4. **Given** AC #1~#3 backend wire + AC #2 frontend wire + 5-1/5-2/5-3/6-1/0.5/A12 carry-over
    **When** 본 스토리 commit 안에서 6-1 carry-over close + A11 capability matrix v1.8 wire + A11 V8 16-fixture matrix extension wire
@@ -273,14 +267,14 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
 6. **Given** AC #1~#5 backend + frontend + ClosingPeriodConfirmationPanel + MonthlyClosingReportPanel + capability gate
    **When** 본 스토리 dev-story 진입 시 V4 verification wire + V8 16-fixture matrix extension
    **Then** 다음 verification sync 발동 (AC #6 — V4 (closing snapshot 일관성) verification ↔ ledger aggregate ↔ closing_snapshot ledger events ↔ fiscal_period_snapshots 4-source 양방향 동기화 + V8 16-fixture matrix extension):
-     - **V4 verdict wire (extension 6-1 + 4-3 V4 wire)** — V4 verifier dispatch 4-source read-only join:
+     - **V4 verdict wire (extension 6-1 + 4-3 V4 wire) — D1 결정 3-source** — V4 verifier dispatch 3-source read-only join:
        1. ledger aggregate = 5-2 `query_period_closing` 결과 (per product qty).
        2. closing_snapshot aggregate = inventory_ledger `event_type='closing_snapshot'` aggregate (per product qty).
-       3. fiscal_period_snapshot aggregate = `fiscal_period_snapshots` engine_type='trad' aggregate (per product cost).
-       4. product whitelist = 현재 tenant 활성 product UUID set.
-       → `verify_monthly_closing_report_consistency` (T2 pure kernel) dispatch.
+       3. product whitelist = 현재 tenant 활성 product UUID set.
+       - **fiscal_period_snapshots 은 V4 contract source 에서 제외 (D1 결정)** — PRD §6.1 산식 체인이 `manufacturing_cost` (KRW) 임을 명시. fiscal_period_snapshots 자체는 wire 에 포함 (closing_per_product KRW/USD 변환 base rate 의 reference) 되지만 V4 qty 비교 input 에서는 분리.
+       → `verify_monthly_closing_report_consistency` (T2 pure kernel, 3-source signature) dispatch.
      - **V4 골든 fixture wire (extension `packages/cost_engine/tests/regression_v8/fixtures/`)** — 6-1 T10.5 deferred 골든 fill (6-1 13th defer close-out) + A11 신규:
-       1. `v4_closing_period_pass_manufacturing.json` (6-1 T10.5 deferred fill) — ledger aggregate == closing_snapshot aggregate per product + V4 verdict = `passed` + audit `closing_period_confirmed`.
+       1. `v4_closing_period_pass_manufacturing.json` (6-1 T10.5 deferred fill) — ledger aggregate == closing_snapshot aggregate per product (3-source) + V4 verdict = `passed` + audit `closing_period_confirmed`. **fiscal_period_snapshot_aggregate 키 제거 (D1)**.
        2. `v4_closing_period_fail_manufacturing.json` (6-1 T10.5 deferred fill) — ledger aggregate != closing_snapshot aggregate (per-product qty 불일치) + V4 verdict = `failed` + audit `closing_period_snapshot_inconsistency` + top_failure.code='V4' + Korean message "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요".
        3. `closing_snapshot_manufacturing.json` (A11 신규) — closing snapshot per-product qty + finalized_at ISO-8601 + audit_trail entries.
        4. `ledger_period_closing_manufacturing.json` (A11 신규) — ledger events per period (event_type='closing_snapshot' 포함) + ledger_event_count.
@@ -403,11 +397,11 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
         6. `docs/architecture-inventory.md` (extension) — m4_inventory module 6-2 wire 3 NEW routes + 3 NEW services + 2 NEW pure kernels.
         7. `docs/inventory-ledger.md` (extension) — §5.2 (Story 6.2 closing report aggregator).
         8. `docs/closing-guard.md` (extension) — §5.3 (5-3 wire) + §6.2 (Story 6.2 closing report 시각화 layer).
-      - **3중 게이트 mandatory CI**:
-        - ruff scoped (6-2 surface + 6-1 carry-over close 33 files) All checks passed.
-        - import-linter 2 KEPT 0 broken (cost_engine_forbidden_io + engine_core_to_adapters_forbidden).
-        - pytest **1,164 + 110 = 1,274+ passed + 127 skipped + 0 failed** in 73.68s + 6-2 carry-over (final 6-2 wave) **1,274 + 49 = 1,323+ passed + 127 skipped + 0 failed** (T10.5 carry-over close-out 49 NEW tests).
-        - frontend vitest 21 scenarios (6-2 panel + 6-2 route + 6-2 tabs extension) + 23 carry-over (5-3 baseline + 6-1 carry-over) = 44 scenarios.
+      - **3중 게이트 mandatory CI (carry-over 갱신, D1+D2+D3 결정 반영)**:
+        - ruff scoped (6-2 surface + 6-1 carry-over close 33 files) — **carry-over 직전 실측 21 errors (F841/SIM222/W292, M6)**. carry-over T10 에서 14 auto-fix + 7 수동 fix → 0 errors 목표.
+        - import-linter 2 KEPT 0 broken (cost_engine_forbidden_io + engine_core_to_adapters_forbidden) — 6-2 wire 와 무관.
+        - pytest **1,164 + 110 = 1,274 passed + 127 skipped + 0 failed** (carry-over 진입점 baseline) + carry-over sweep **+ 49 NEW tests + SDR drift detector regenerate** = 1,323 passed + 127 skipped + 0 failed 목표. **carry-over 진입 시점 실측 1 failed (test_sdr_test_count_drift, M6) → SDR regenerate 후 0 failed**.
+        - frontend vitest 21 scenarios (6-2 panel + 6-2 route + 6-2 tabs extension) + 23 carry-over (5-3 baseline + 6-1 carry-over) = 44 scenarios — carry-over T6 에서 panel mock fixture-shape 재작성 후 re-run.
         - Playwright E2E 6 scenarios (6-2 NEW) + 11 carry-over (5-3 + 6-1) = 17 scenarios.
 
 ## Dev Agent Guardrails
@@ -488,11 +482,11 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
 
 ### Testing Requirements
 
-- **3중 게이트 mandatory CI**:
-  - ruff scoped (6-2 surface + 6-1 carry-over close 33 files) All checks passed.
+- **3중 게이트 mandatory CI (carry-over 갱신, bmad-code-review M6 정정)**:
+  - ruff scoped (6-2 surface + 6-1 carry-over close 33 files) — carry-over 진입 시점 실측 21 errors (M6, bmad-code-review 측정). T10 에서 14 auto-fix + 7 수동 fix 후 0 errors.
   - import-linter 2 KEPT 0 broken (cost_engine_forbidden_io + engine_core_to_adapters_forbidden).
-  - pytest 1,164+ 110 + 49 = 1,323+ passed + 127 skipped + 0 failed.
-  - frontend vitest 21 + 23 = 44 scenarios.
+  - pytest 1,164+ 110 + 49 = 1,323 passed + 127 skipped + 0 failed — carry-over 진입 시점 1 failed (test_sdr_test_count_drift, M6) → SDR regenerate 후 0 failed.
+  - frontend vitest 21 + 23 = 44 scenarios — T6 panel mock fixture-shape 재작성 후 re-run.
   - Playwright E2E 6 + 11 = 17 scenarios.
 - **Async test pattern (CR 4-3 F-1)** — `def test_x(): asyncio.run(_impl())` wrapper.
 - **SDR overclaim detector (CR 4-3 F-2)** — 6-2 wire = A7 wire pattern + 2 NEW cases.
@@ -588,7 +582,7 @@ so that **회계사·세무사에게 전달할 마감본이 한눈에 보이고,
 - T10.7 — `docs/architecture-inventory.md` (extension) — m4_inventory module 6-2 wire 3 NEW routes + 3 NEW services + 2 NEW pure kernels
 - T10.8 — `docs/inventory-ledger.md` (extension) — §5.2 (Story 6.2 closing report aggregator)
 - T10.9 — `docs/closing-guard.md` (extension) — §5.3 (5-3 wire) + §6.2 (Story 6.2 closing report 시각화 layer)
-- T10.10 — 3중 게이트 mandatory CI: ruff scoped (6-2 surface + 6-1 carry-over close 33 files) / import-linter 2 KEPT 0 broken / pytest 1,164+ 110 + 49 = 1,323+ passed + 127 skipped + 0 failed / frontend vitest 21 + 23 = 44 scenarios / Playwright E2E 6 + 11 = 17 scenarios.
+- T10.10 — 3중 게이트 mandatory CI (carry-over 갱신): ruff scoped (6-2 surface + 6-1 carry-over close 33 files) — carry-over 직전 실측 21 errors → T10 후 0 errors / import-linter 2 KEPT 0 broken / pytest 1,164 + 110 + 49 = 1,323 passed + 127 skipped + 0 failed (carry-over 진입 시점 1 failed → SDR regenerate 후 0 failed) / frontend vitest 21 + 23 = 44 scenarios (T6 panel mock 재작성 후 re-run) / Playwright E2E 6 + 11 = 17 scenarios.
 
 ## Deferrals (10 items)
 

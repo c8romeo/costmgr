@@ -286,11 +286,11 @@ service ❌. Service-only tenant 가 POST 시도 → 403 INDUSTRY_NOT_SUPPORTED.
 
 ### 신규 routes (3 NEW)
 
-- `GET /closing-period/report` — 월 마감 보고서 (3-source read-only join)
-- `GET /closing-period/report/audit-trail` — audit log
+- `GET /monthly-closing-report` — 월 마감 보고서 (3-source read-only join, D1 결정 2026-08-08)
+- `GET /monthly-closing-report/audit-trail` — audit log
   (action_class='monthly_closing_report' filter)
-- `GET /closing-period/report/v4-verdict` — V4 closing-period consistency
-  verdict (4-source verification)
+- `GET /monthly-closing-report/v4-verdict` — V4 closing-period consistency
+  verdict (3-source verification, D1 결정)
 
 ### Capability gate
 

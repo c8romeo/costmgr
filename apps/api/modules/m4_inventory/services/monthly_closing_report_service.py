@@ -65,14 +65,12 @@ from packages.cost_engine.monthly_closing_report_aggregator import (
     verify_monthly_closing_report_consistency,
 )
 from packages.services.m4_inventory.monthly_closing_report import (
-    MONTHLY_CLOSING_REPORT_TITLE_KO,
     ClosingSnapshotEventLite,
     CurrencyPair,
     FiscalPeriodSnapshotLite,
     LedgerEventLite,
     OpeningInventoryEntryLite,
     aggregate_monthly_closing_report,
-    format_currency_pair_display_ko,
 )
 
 
@@ -298,41 +296,59 @@ class MonthlyClosingReportService:
         )
 
         # Build response payload.
+        # NOTE (bmad-code-review H8 결정, 2026-08-08): READY/PARTIAL view
+        # mode 인데 환율 missing 이면 MonthlyClosingReportKrwUsdRateMissingError
+        # raise (422 typed envelope). EMPTY view mode 는 환율 없이도 OK
+        # (panel 이 currency_pair=null 허용).
+        if (
+            aggregate.view_mode in ("READY", "PARTIAL")
+            and currency_pair is None
+        ):
+            raise MonthlyClosingReportKrwUsdRateMissingError(
+                tenant_id=self.tenant_id,
+                period_key=period_key,
+                trace_id=self.trace_id,
+            )
+
+        # NOTE (bmad-code-review H3 결정, 2026-08-08): payload 필드명을
+        # TS `MonthlyClosingReportResponse` mirror 와 정렬. backend 의
+        # `opening_qty_krw/closing_qty_krw/delta_krw` (KRW suffix) 와
+        # `currency_pair.from_currency/to_currency/rate_source_ko/rate_as_of`
+        # 는 TS mirror 와 일치하지 않아 panel 이 `undefined` 렌더링.
+        # TS mirror 가 source-of-truth (CR 1.1 AD-15 §11 SSOT parity
+        # discipline 이며 `tests/integration/test_monthly_closing_report_label_consistency.py`
+        # 가 TS mirror 를 assert target 으로 wire 됨).
         currency_pair_payload: dict[str, Any] | None = None
         if currency_pair is not None:
             currency_pair_payload = {
-                "from_currency": currency_pair.from_currency,
-                "to_currency": currency_pair.to_currency,
+                "base": currency_pair.from_currency,
+                "quote": currency_pair.to_currency,
                 "rate": _decimal_to_str(currency_pair.rate),
-                "rate_source_ko": currency_pair.rate_source_ko,
-                "rate_as_of": currency_pair.rate_as_of,
-                "display_ko": format_currency_pair_display_ko(currency_pair),
+                "source": currency_pair.rate_source_ko,
             }
 
         return {
             "period_key": aggregate.period_key,
             "view_mode": aggregate.view_mode,
-            "allowed": aggregate.allowed,
-            "closing_per_product": [
-                {
-                    "product_id": str(row.product_id),
-                    "product_code": row.product_code,
-                    "product_name": row.product_name,
-                    "opening_qty_krw": _decimal_to_str(row.opening_qty_krw),
-                    "closing_qty_krw": _decimal_to_str(row.closing_qty_krw),
-                    "closing_qty_usd": _decimal_to_str(row.closing_qty_usd),
-                    "delta_krw": _decimal_to_str(row.delta_krw),
-                    "delta_usd": _decimal_to_str(row.delta_usd),
-                    "ledger_event_count": row.ledger_event_count,
-                }
-                for row in aggregate.closing_per_product
-            ],
             "closing_snapshot_count": aggregate.closing_snapshot_count,
             "ledger_event_count": aggregate.ledger_event_count,
             "fiscal_period_snapshot_count": aggregate.fiscal_period_snapshot_count,
-            "finalized_at": aggregate.finalized_at,
+            "opening_inventory_count": aggregate.opening_inventory_count,
+            "closing_per_product": [
+                {
+                    "product_id": str(row.product_id),
+                    "opening_qty": _decimal_to_str(row.opening_qty_krw),
+                    "closing_qty": _decimal_to_str(row.closing_qty_krw),
+                    "delta_qty": _decimal_to_str(row.delta_krw),
+                    "closing_qty_krw": _decimal_to_str(row.closing_qty_krw),
+                    "closing_qty_usd": _decimal_to_str(row.closing_qty_usd),
+                    "delta_usd": _decimal_to_str(row.delta_usd),
+                }
+                for row in aggregate.closing_per_product
+            ],
             "currency_pair": currency_pair_payload,
-            "title_ko": MONTHLY_CLOSING_REPORT_TITLE_KO,
+            "trace_id": self.trace_id,
+            "report_generated_at": _to_iso(_now_utc()),
         }
 
     # ── Operation 2: audit trail query ──────────────────────────
@@ -347,16 +363,21 @@ class MonthlyClosingReportService:
         (verify_v4_closing_period_consistency) for the current period_key,
         time DESC, capped at 10.
         """
+        # NOTE (bmad-code-review H3 결정, 2026-08-08): SQL 컬럼을
+        # TS `MonthlyClosingReportAuditEntry { id, action, actor_id,
+        # created_at, payload }` mirror 와 정렬. target_table =
+        # 'verification_log' 으로 수정 (ActionClass.VERIFICATION 이
+        # verification_log 에 write — 6-1 wire).
         result = await self.session.execute(
             text(
                 """
-                SELECT action, payload, occurred_at
+                SELECT id, action, actor_id, payload, occurred_at
                 FROM audit_logs
                 WHERE tenant_id = :tenant_id
                   AND (
                     target_table IN ('monthly_closing_report', 'closing_period')
                     OR (
-                      target_table = 'verification'
+                      target_table = 'verification_log'
                       AND payload->>'action_name' = 'verify_v4_closing_period_consistency'
                     )
                   )
@@ -373,9 +394,11 @@ class MonthlyClosingReportService:
         rows = result.fetchall()
         return [
             {
-                "action": row[0],
-                "payload": row[1] if isinstance(row[1], dict) else {},
-                "occurred_at": row[2].isoformat() if row[2] is not None else None,
+                "id": str(row[0]),
+                "action": row[1],
+                "actor_id": str(row[2]) if row[2] is not None else None,
+                "created_at": row[4].isoformat() if row[4] is not None else None,
+                "payload": row[3] if isinstance(row[3], dict) else {},
             }
             for row in rows
         ]
@@ -408,27 +431,31 @@ class MonthlyClosingReportService:
             period_key
         )
         ledger_aggregate = await self._query_ledger_aggregate(period_key)
-        fiscal_period_snapshot_aggregate = (
-            await self._query_fiscal_period_snapshot_aggregate(period_key)
-        )
         product_whitelist = await self._query_active_product_whitelist()
 
         # Read industry (for service-only SKIP).
         industry = await self._query_tenant_industry()
 
         # Pure kernel dispatch (T2 — verify_monthly_closing_report_consistency).
+        # NOTE (bmad-code-review D1 결정, 2026-08-08): 3-source contract —
+        # fiscal_period_snapshot_aggregate 인자 제거 (PRD §6.1 산식 체인이
+        # manufacturing_cost KRW 임을 명시). 2-source (ledger +
+        # closing_snapshot) + product_whitelist 만 비교.
         v4_verdict = verify_monthly_closing_report_consistency(
             ledger_aggregate=ledger_aggregate,
             closing_snapshot_aggregate=closing_snapshot_aggregate,
-            fiscal_period_snapshot_aggregate=fiscal_period_snapshot_aggregate,
             product_whitelist=product_whitelist,
             industry=industry,
         )
 
         # AD-5: pure kernel returns placeholder timestamp; overwrite
         # with real UTC now.
+        # NOTE (bmad-code-review H9 결정, 2026-08-08): status 를
+        # upper-case 정규화 — TS `MonthlyClosingReportV4Verdict.status:
+        # 'PASS'|'FAIL'|'SKIP'` discriminator 와 정렬.
         v4_verdict_dict = dict(v4_verdict)
         v4_verdict_dict["verified_at"] = _to_iso(_now_utc())
+        v4_verdict_dict["status"] = v4_verdict_dict["status"].upper()
 
         # Audit-first emit (CR 1.1) — V4 verifier dispatch itself is
         # observable regardless of PASS/FAIL/SKIP.
@@ -604,7 +631,14 @@ class MonthlyClosingReportService:
         }
 
     async def _query_currency_pair(self) -> CurrencyPair | None:
-        """tenant_settings.baseline.currency_pair (PRD §F5.2 SSOT)."""
+        """tenant_settings.baseline.currency_pair (PRD §F5.2 SSOT).
+
+        NOTE (bmad-code-review M2 결정, 2026-08-08): silent fallback
+        ("1970-01-01" / "한국은행") 제거. 환율 누락 시 None 그대로
+        반환 — caller (get_monthly_closing_report) 가 view_mode 에 따라
+        결정. READY/PARTIAL view mode 이고 환율 missing 이면
+        MonthlyClosingReportKrwUsdRateMissingError raise (H8).
+        """
         result = await self.session.execute(
             text(
                 """
@@ -635,12 +669,18 @@ class MonthlyClosingReportService:
             )
         except Exception:
             return None
+        # M2: source_ko / rate_as_of 도 누락 시 None 반환 (silent
+        # fallback 제거). Caller 가 view_mode 별로 결정.
+        source_ko = currency_pair_raw.get("source_ko")
+        rate_as_of = currency_pair_raw.get("rate_as_of")
+        if source_ko is None or rate_as_of is None:
+            return None
         return CurrencyPair(
             from_currency="USD",
             to_currency="KRW",
             rate=rate,
-            rate_source_ko=currency_pair_raw.get("source_ko", "한국은행"),
-            rate_as_of=currency_pair_raw.get("rate_as_of", "1970-01-01"),
+            rate_source_ko=source_ko,
+            rate_as_of=rate_as_of,
         )
 
     async def _query_closing_snapshot_aggregate(
@@ -671,35 +711,6 @@ class MonthlyClosingReportService:
         return await ledger_service.query_period_closing_all(
             period_key=period_key,
         )
-
-    async def _query_fiscal_period_snapshot_aggregate(
-        self,
-        period_key: str,
-    ) -> dict[uuid.UUID, Decimal]:
-        """fiscal_period_snapshots aggregate per product (4-2 wire).
-
-        Each product → total manufacturing_cost (PRD §6.1 산식 체인).
-        Empty aggregate when no fiscal_period_snapshots exist.
-        """
-        result = await self.session.execute(
-            text(
-                """
-                SELECT product_id, manufacturing_cost
-                FROM fiscal_period_snapshots
-                WHERE tenant_id = :tenant_id
-                  AND period_key = :period_key
-                  AND engine_type = 'trad'
-                """
-            ),
-            {
-                "tenant_id": str(self.tenant_id),
-                "period_key": period_key,
-            },
-        )
-        return {
-            row[0]: row[1] if isinstance(row[1], Decimal) else Decimal(str(row[1]))
-            for row in result.fetchall()
-        }
 
     async def _query_active_product_whitelist(self) -> set[uuid.UUID]:
         """Active product UUID set for current tenant (V4 verification input)."""
@@ -790,7 +801,14 @@ class MonthlyClosingReportService:
         v4_status: str,
         failure_count: int,
     ) -> None:
-        """Audit-first emit (CR 1.1) for V4 verifier dispatch."""
+        """Audit-first emit (CR 1.1) for V4 verifier dispatch.
+
+        NOTE (bmad-code-review M1 결정, 2026-08-08): payload 에
+        `action_name` 키 추가 — audit-trail query 의 V4 branch
+        (target_table='verification_log' AND payload->>'action_name' =
+        'verify_v4_closing_period_consistency') 가 이 dispatch row 를
+        잡을 수 있도록.
+        """
         try:
             await emit_audit_typed(
                 self.session,
@@ -800,6 +818,7 @@ class MonthlyClosingReportService:
                 target_id=self.tenant_id,
                 tenant_id=self.tenant_id,
                 payload={
+                    "action_name": "verify_v4_closing_period_consistency",
                     "period_key": period_key,
                     "status": v4_status,
                     "failure_count": failure_count,

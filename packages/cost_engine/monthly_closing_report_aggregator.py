@@ -75,11 +75,6 @@ V4_FAIL_MESSAGE_KO: Final[str] = (
     "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"
 )
 
-# V4 fiscal_period_snapshot inconsistency Korean message (extension).
-V4_FISCAL_SNAPSHOT_FAIL_MESSAGE_KO: Final[str] = (
-    "마감 snapshot 불일치: fiscal_period_snapshot aggregate vs ledger aggregate 갱신 필요"
-)
-
 
 # ── TypedDict shapes ─────────────────────────────────────────
 class V4Failure(TypedDict):
@@ -88,22 +83,24 @@ class V4Failure(TypedDict):
     AD-15: snake_case field names. Mirrors TS `V4Failure` (future
     Story 6-2 Monthly Closing Report wire).
 
+    NOTE (bmad-code-review D1 결정, 2026-08-08): `fiscal_period_snapshot_qty`
+    필드 제거 — V4 가 3-source contract 로 축소되어 fiscal_period_snapshots
+    가 qty 비교 source 에서 제외됨.
+
     - `product_id`: UUID string for JSON serialization (AD-15).
     - `ledger_qty`: Decimal string (AD-8 monetary parity).
     - `closing_snapshot_qty`: Decimal string (AD-8 monetary parity).
-    - `fiscal_period_snapshot_qty`: Decimal string (AD-8 — 4-2 wire).
     - `message_ko`: Korean failure message (AD-15 §11).
     """
 
     product_id: str
     ledger_qty: str
     closing_snapshot_qty: str
-    fiscal_period_snapshot_qty: str
     message_ko: str
 
 
 class V4Verdict(TypedDict):
-    """V4 verdict envelope (extension 6-1 → 6-2 4-source).
+    """V4 verdict envelope (3-source, D1 결정).
 
     Mirrors `packages/cost_engine/protocol.py::Verdict` shape (AD-15).
     `failures` is empty when status='passed' or 'skipped'.
@@ -115,7 +112,7 @@ class V4Verdict(TypedDict):
     verified_at: str  # ISO8601 UTC string
     product_whitelist_size: int
     skip_reason_ko: str | None  # None unless status='skipped'
-    source_count: int  # 6-2 extension — 4 (closing + ledger + fiscal + product)
+    source_count: int  # 3 (closing + ledger + product) per D1 결정
 
 
 # ── V4 typed exception (pure-kernel domain semantics) ─────────
@@ -142,17 +139,24 @@ def verify_monthly_closing_report_consistency(
     *,
     ledger_aggregate: dict[uuid.UUID, Decimal],
     closing_snapshot_aggregate: dict[uuid.UUID, Decimal],
-    fiscal_period_snapshot_aggregate: dict[uuid.UUID, Decimal],
     product_whitelist: set[uuid.UUID],
     industry: str | None = None,
 ) -> V4Verdict:
-    """V4 rule pure kernel — 4-source closing snapshot 일관성 verification.
+    """V4 rule pure kernel — 2-source closing snapshot 일관성 verification.
 
     Per-product qty 일치 검증: ledger_aggregate[pid] ==
-    closing_snapshot_aggregate[pid] == fiscal_period_snapshot_aggregate[pid]
-    for all pid in product_whitelist. Banker's rounding
-    (ROUND_HALF_EVEN) at QTY_QUANTUM applied for deterministic parity
-    (CR 0-4 lesson + AD-15 §11).
+    closing_snapshot_aggregate[pid] for all pid in product_whitelist.
+    Banker's rounding (ROUND_HALF_EVEN) at QTY_QUANTUM applied for
+    deterministic parity (CR 0-4 lesson + AD-15 §11).
+
+    NOTE (bmad-code-review D1 결정, 2026-08-08): 3-source contract.
+    fiscal_period_snapshots 은 V4 qty 비교 source 에서 제외 —
+    PRD §6.1 산식 체인이 `manufacturing_cost` (KRW) 임을 명시하므로
+    V4 qty contract 와 의미적으로 incompatible. fiscal_period_snapshots
+    자체는 wire 에 포함 (closing_per_product KRW/USD 변환 base
+    reference) 되지만 V4 source_count=2 (D1 결정).
+    이전 4-source signature 호환을 위해 `fiscal_period_snapshot_aggregate`
+    인자는 제거됨 (call site 6-2 service 에서 호출 변경).
 
     Args:
         ledger_aggregate: dict[product_id → closing_qty] from 5-2
@@ -160,9 +164,6 @@ def verify_monthly_closing_report_consistency(
         closing_snapshot_aggregate: dict[product_id → closing_qty]
             from inventory_ledger event_type='closing_snapshot' aggregate
             (5-2 wire 진입점, 6-1 confirms).
-        fiscal_period_snapshot_aggregate: dict[product_id → cost]
-            from `fiscal_period_snapshots` engine_type='trad' aggregate
-            (4-2 wire — PRD §6.1 산식 체인).
         product_whitelist: set of product_ids to verify (caller filters
             active products; service layer from session).
         industry: Industry SSOT (Story 4-3 wire). 'service' → SKIP.
@@ -170,76 +171,56 @@ def verify_monthly_closing_report_consistency(
     Returns:
         V4Verdict TypedDict:
         - status='skipped' if industry='service' OR all aggregates empty.
-        - status='passed' if all per-product qty + cost match.
-        - status='failed' if any per-product qty/cost mismatch.
+        - status='passed' if all per-product qty match.
+        - status='failed' if any per-product qty mismatch.
     """
     # V4 SKIP — industry='service' (service-only tenant inventory 무의미)
     if industry == "service":
         return _v4_skipped(
             reason_ko=V4_SKIP_REASON_SERVICE_ONLY_KO,
             whitelist_size=len(product_whitelist),
-            source_count=4,
+            source_count=2,
         )
 
     # V4 SKIP — all aggregates empty (no ledger events at all)
     if (
         not ledger_aggregate
         and not closing_snapshot_aggregate
-        and not fiscal_period_snapshot_aggregate
     ):
         return _v4_skipped(
             reason_ko=V4_SKIP_REASON_EMPTY_AGGREGATE_KO,
             whitelist_size=len(product_whitelist),
-            source_count=4,
+            source_count=2,
         )
 
     failures: list[V4Failure] = []
     verified_at = _iso_now_static_placeholder()
 
-    # Per-product 4-source consistency check.
-    # Note: 6-2 extension includes fiscal_period_snapshot_aggregate
-    # (4-2 wire). When a product is in closing_snapshot but not in
-    # fiscal_period_snapshot aggregate, default to 0 (no fiscal snapshot).
+    # Per-product 2-source consistency check.
+    # When a product is in closing_snapshot but not in ledger aggregate,
+    # default to 0 (no ledger entry) — and vice versa.
     all_product_ids: set[uuid.UUID] = (
         set(ledger_aggregate)
         | set(closing_snapshot_aggregate)
-        | set(fiscal_period_snapshot_aggregate)
         | set(product_whitelist)
     )
 
     for pid in sorted(all_product_ids, key=str):
         ledger_qty = ledger_aggregate.get(pid, Decimal("0"))
         closing_qty = closing_snapshot_aggregate.get(pid, Decimal("0"))
-        fiscal_qty = fiscal_period_snapshot_aggregate.get(pid, Decimal("0"))
 
         # Banker's rounding at QTY_QUANTUM for deterministic comparison
         ledger_q = ledger_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
         closing_q = closing_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
-        fiscal_q = fiscal_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
 
-        # 4-source aggregate check (ledger == closing_snapshot ==
-        # fiscal_period_snapshot per product). 6-1 wire check was
-        # 2-source (ledger + closing_snapshot). 6-2 extension adds
-        # fiscal_period_snapshot.
+        # 2-source aggregate check (ledger == closing_snapshot per product).
         if ledger_q != closing_q:
             failures.append(
                 V4Failure(
                     product_id=str(pid),
                     ledger_qty=f"{ledger_q:f}",
                     closing_snapshot_qty=f"{closing_q:f}",
-                    fiscal_period_snapshot_qty=f"{fiscal_q:f}",
                     message_ko=V4_FAIL_MESSAGE_KO,
-                )
-            )
-        elif ledger_q != fiscal_q:
-            # Extension 6-2 — fiscal_period_snapshot mismatch check.
-            failures.append(
-                V4Failure(
-                    product_id=str(pid),
-                    ledger_qty=f"{ledger_q:f}",
-                    closing_snapshot_qty=f"{closing_q:f}",
-                    fiscal_period_snapshot_qty=f"{fiscal_q:f}",
-                    message_ko=V4_FISCAL_SNAPSHOT_FAIL_MESSAGE_KO,
                 )
             )
 
@@ -251,7 +232,7 @@ def verify_monthly_closing_report_consistency(
         verified_at=verified_at,
         product_whitelist_size=len(product_whitelist),
         skip_reason_ko=None,
-        source_count=4,
+        source_count=2,
     )
 
 
@@ -283,7 +264,6 @@ def _iso_now_static_placeholder() -> str:
 
 __all__ = [
     "V4_FAIL_MESSAGE_KO",
-    "V4_FISCAL_SNAPSHOT_FAIL_MESSAGE_KO",
     "V4_ORDER_INDEX",
     "V4_RULE_CODE",
     "V4_SKIP_REASON_EMPTY_AGGREGATE_KO",
