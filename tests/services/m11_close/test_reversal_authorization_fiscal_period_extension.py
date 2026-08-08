@@ -1,12 +1,19 @@
 """tests.services.m11_close.test_reversal_authorization_fiscal_period_extension — Story 11.2 dual guard.
 
 ~10 cases per AC #6 spec:
-- fiscal_periods.status='closed' dispatch (AD-6 close lock PRIMARY guard)
-- monthly_input_periods.status='closed' + fiscal_periods.status='open' → allowed
+- fiscal_periods.status='closed' dispatch (closed-period reversal pattern — AC#6(a))
+- monthly_input_periods.status='closed' + fiscal_periods.status='closed' → allowed
 - monthly_input_periods.status='locked' → rejected (11-1 dispatch preserved)
-- fiscal_periods.status in ('closing'/'closed'/'reversed') → rejected (11-2 NEW dispatch)
+- fiscal_periods.status in ('open'/'closing'/'reversed') → rejected (closed-only pattern)
 - REVERSIBLE_TARGET_EVENT_TYPES cross-product
 - error code + reject_reason_ko Korean SSOT
+
+Story 11.2 3rd-sweep fix (AC#6 dual guard semantics flipped):
+Closed-period reversal pattern. fiscal_periods.status='closed' is the
+ONLY allowed value at the authorization layer (AD-22 reversal is the
+ONLY edit path once the close sequence is confirmed). 'open' / 'closing' /
+'reversed' are REJECTED (direct edit window still available, OR mid-close,
+OR after-reopen).
 """
 
 from __future__ import annotations
@@ -47,21 +54,66 @@ def _make_target_event(
 
 # ── Module surface ──────────────────────────────────────────
 def test_fiscal_period_status_constants() -> None:
-    assert frozenset({"open"}) == FISCAL_PERIOD_STATUS_ALLOWED
+    """3rd-sweep: ALLOWED={'closed'}, REJECTED={'open','closing','reversed'}."""
+    assert frozenset({"closed"}) == FISCAL_PERIOD_STATUS_ALLOWED
     assert frozenset(
-        {"closing", "closed", "reversed"}
+        {"open", "closing", "reversed"}
     ) == FISCAL_PERIOD_STATUS_REJECTED
 
 
 def test_period_status_constants_preserved_for_backward_compat() -> None:
-    """11-1 PERIO_DEFAULT_STATUS_ALLOWED/REJECTED preserved."""
+    """11-1 PERIOD_STATUS_ALLOWED/REJECTED preserved."""
     assert frozenset({"open", "closed"}) == PERIOD_STATUS_ALLOWED
     assert frozenset({"locked"}) == PERIOD_STATUS_REJECTED
 
 
-# ── Authorized: both gates open ─────────────────────────────
-def test_authorized_when_both_period_and_fiscal_open() -> None:
-    """Both monthly_input_periods.status='open' AND fiscal_periods.status='open' → OK."""
+# ── Authorized: closed-period reversal pattern (AC#6(a) PRIMARY) ─
+def test_authorized_when_both_period_and_fiscal_closed() -> None:
+    """Both monthly_input_periods.status='closed' AND fiscal_periods.status='closed' → OK.
+
+    3rd-sweep AC#6(a): closed-period reversal is the canonical
+    authorization path. Once fiscal_periods.status='closed', direct
+    edits are blocked by AD-6 INSERT 거부 — reversal is the ONLY
+    edit path.
+    """
+    result = authorize_reversal(
+        tenant_id=uuid.uuid4(),
+        target_event=_make_target_event(event_type="purchase_inbound"),
+        actor_id=uuid.uuid4(),
+        period_status="closed",
+        capability_granted=True,
+        fiscal_period_status="closed",
+    )
+    assert result.authorized is True
+    assert result.reject_reason_ko is None
+    assert result.fiscal_period_status == "closed"
+
+
+def test_authorized_when_monthly_closed_and_fiscal_closed() -> None:
+    """monthly_input_periods.status='closed' + fiscal_periods.status='closed' → OK.
+
+    Story 11.2 PRIMARY AC#6(a) closed-period reversal pattern.
+    """
+    result = authorize_reversal(
+        tenant_id=uuid.uuid4(),
+        target_event=_make_target_event(event_type="purchase_inbound"),
+        actor_id=uuid.uuid4(),
+        period_status="closed",
+        capability_granted=True,
+        fiscal_period_status="closed",
+    )
+    assert result.authorized is True
+    assert result.fiscal_period_status == "closed"
+
+
+# ── Rejected: fiscal_periods.status='open' (3rd-sweep NEW) ───
+def test_rejected_when_fiscal_period_status_is_open() -> None:
+    """fiscal_periods.status='open' → reject.
+
+    3rd-sweep AC#6(a) flip: 'open' means direct edit window still
+    available. Use direct edit, not reversal. Reversal is reserved
+    for the closed-period case where direct edits are AD-6 blocked.
+    """
     result = authorize_reversal(
         tenant_id=uuid.uuid4(),
         target_event=_make_target_event(event_type="purchase_inbound"),
@@ -70,27 +122,8 @@ def test_authorized_when_both_period_and_fiscal_open() -> None:
         capability_granted=True,
         fiscal_period_status="open",
     )
-    assert result.authorized is True
-    assert result.reject_reason_ko is None
-    assert result.fiscal_period_status == "open"
-
-
-# ── Authorized: monthly_input_periods.status='closed' + fiscal_periods.status='open' (11-1 compat) ──
-def test_authorized_when_monthly_closed_and_fiscal_open() -> None:
-    """monthly_input_periods.status='closed' but fiscal_periods.status='open' → OK.
-
-    11-1 wire allowed reversal on monthly_input_periods.status='closed';
-    11-2 adds fiscal_periods.status gate (still 'open' in this case).
-    """
-    result = authorize_reversal(
-        tenant_id=uuid.uuid4(),
-        target_event=_make_target_event(event_type="purchase_inbound"),
-        actor_id=uuid.uuid4(),
-        period_status="closed",
-        capability_granted=True,
-        fiscal_period_status="open",
-    )
-    assert result.authorized is True
+    assert result.authorized is False
+    assert result.reject_reason_ko == M11_REJECT_LOCKED_KO
     assert result.fiscal_period_status == "open"
 
 
@@ -110,15 +143,13 @@ def test_rejected_when_fiscal_period_status_is_closing() -> None:
     assert result.fiscal_period_status == "closing"
 
 
-# ── Rejected: fiscal_periods.status='closed' (AD-6 PRIMARY) ─
-def test_rejected_when_fiscal_period_status_is_closed() -> None:
-    """fiscal_periods.status='closed' (4-stage confirmed) → reject.
+# ── Authorized: fiscal_periods.status='closed' (3rd-sweep NEW PRIMARY) ─
+def test_authorized_when_fiscal_period_status_is_closed() -> None:
+    """fiscal_periods.status='closed' (4-stage confirmed) → authorized (closed-period reversal).
 
-    This is the AD-6 INSERT 거부 guard mirrored at authorization layer.
-    Once fiscal_periods reaches 'closed' (close sequence confirmed),
-    no further reversals are authorized through this entrypoint —
-    they must use dedicated AD-22 reversal endpoints (which
-    themselves gate on fiscal_periods.status).
+    Story 11.2 PRIMARY AC#6(a) closed-period reversal pattern. The
+    AD-22 reversal is the ONLY edit path after close. This is the
+    wire contract test.
     """
     result = authorize_reversal(
         tenant_id=uuid.uuid4(),
@@ -128,14 +159,13 @@ def test_rejected_when_fiscal_period_status_is_closed() -> None:
         capability_granted=True,
         fiscal_period_status="closed",
     )
-    assert result.authorized is False
-    assert result.reject_reason_ko == M11_REJECT_LOCKED_KO
+    assert result.authorized is True
     assert result.fiscal_period_status == "closed"
 
 
 # ── Rejected: fiscal_periods.status='reversed' ──────────────
 def test_rejected_when_fiscal_period_status_is_reversed() -> None:
-    """fiscal_periods.status='reversed' (reopen flow) → reject."""
+    """fiscal_periods.status='reversed' (reopen flow) → reject (reopen in progress)."""
     result = authorize_reversal(
         tenant_id=uuid.uuid4(),
         target_event=_make_target_event(event_type="purchase_inbound"),
@@ -157,7 +187,7 @@ def test_rejected_when_monthly_period_status_is_locked() -> None:
         actor_id=uuid.uuid4(),
         period_status="locked",
         capability_granted=True,
-        fiscal_period_status="open",
+        fiscal_period_status="closed",
     )
     assert result.authorized is False
     assert result.reject_reason_ko == M11_REJECT_LOCKED_KO
@@ -165,7 +195,7 @@ def test_rejected_when_monthly_period_status_is_locked() -> None:
 
 # ── Dual rejection: BOTH status locks ───────────────────────
 def test_rejected_when_both_status_locks() -> None:
-    """monthly='locked' + fiscal='closed' → reject (either gate suffices)."""
+    """monthly='locked' + fiscal='closed' → reject at monthly gate (locked)."""
     result = authorize_reversal(
         tenant_id=uuid.uuid4(),
         target_event=_make_target_event(event_type="purchase_inbound"),
@@ -180,7 +210,7 @@ def test_rejected_when_both_status_locks() -> None:
 
 # ── Invalid input shape ────────────────────────────────────
 def test_invalid_fiscal_period_status_raises_error() -> None:
-    """fiscal_period_status='unknown' raises ReversalAuthorizationError."""
+    """fiscal_period_status='bogus' raises ReversalAuthorizationError."""
     with pytest.raises(ReversalAuthorizationError) as exc_info:
         authorize_reversal(
             tenant_id=uuid.uuid4(),
@@ -193,29 +223,28 @@ def test_invalid_fiscal_period_status_raises_error() -> None:
     assert exc_info.value.error_code == "INVALID_PERIOD_STATUS"
 
 
-def test_default_fiscal_period_status_is_open() -> None:
-    """fiscal_period_status defaults to 'open' for backward compat."""
-    result = authorize_reversal(
-        tenant_id=uuid.uuid4(),
-        target_event=_make_target_event(event_type="purchase_inbound"),
-        actor_id=uuid.uuid4(),
-        period_status="open",
-        capability_granted=True,
-    )
-    assert result.authorized is True
-    assert result.fiscal_period_status == "open"
+def test_fiscal_period_status_is_required_no_default() -> None:
+    """3rd-sweep: fiscal_period_status has no default — must be explicit."""
+    with pytest.raises(TypeError):
+        authorize_reversal(
+            tenant_id=uuid.uuid4(),
+            target_event=_make_target_event(event_type="purchase_inbound"),
+            actor_id=uuid.uuid4(),
+            period_status="open",
+            capability_granted=True,
+        )
 
 
 # ── REVERSIBLE_TARGET_EVENT_TYPES cross-product ────────────
-def test_reversal_negating_target_allowed_when_both_gates_open() -> None:
-    """reversal_negating event type (re-reversal attempt) allowed when both gates open."""
+def test_reversal_negating_target_allowed_when_fiscal_closed() -> None:
+    """reversal_negating event type (re-reversal attempt) allowed when fiscal_periods.status='closed'."""
     result = authorize_reversal(
         tenant_id=uuid.uuid4(),
         target_event=_make_target_event(event_type="reversal_negating"),
         actor_id=uuid.uuid4(),
-        period_status="open",
+        period_status="closed",
         capability_granted=True,
-        fiscal_period_status="open",
+        fiscal_period_status="closed",
     )
     assert result.authorized is True
 
@@ -226,9 +255,9 @@ def test_non_reversible_target_rejected_with_specific_reason() -> None:
         tenant_id=uuid.uuid4(),
         target_event=_make_target_event(event_type="closing_snapshot"),
         actor_id=uuid.uuid4(),
-        period_status="open",
+        period_status="closed",
         capability_granted=True,
-        fiscal_period_status="open",
+        fiscal_period_status="closed",
     )
     assert result.authorized is False
     assert result.target_reversible is False
@@ -241,9 +270,9 @@ def test_capability_denied_takes_precedence_over_fiscal_guard() -> None:
         tenant_id=uuid.uuid4(),
         target_event=_make_target_event(event_type="purchase_inbound"),
         actor_id=uuid.uuid4(),
-        period_status="open",
+        period_status="closed",
         capability_granted=False,
-        fiscal_period_status="open",
+        fiscal_period_status="closed",
     )
     assert result.authorized is False
     assert "권한" in (result.reject_reason_ko or "")
@@ -255,9 +284,9 @@ def test_authorization_result_namedtuple_includes_fiscal_period_status() -> None
         tenant_id=uuid.uuid4(),
         target_event=_make_target_event(event_type="purchase_inbound"),
         actor_id=uuid.uuid4(),
-        period_status="open",
+        period_status="closed",
         capability_granted=True,
         fiscal_period_status="closed",
     )
-    # Even when rejected, the result preserves the input fiscal_period_status.
+    # Authorized path — the input fiscal_period_status is preserved.
     assert result.fiscal_period_status == "closed"

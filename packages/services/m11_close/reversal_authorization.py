@@ -5,7 +5,7 @@ reversal is permitted given:
 - capability_granted (Capability.REVERSAL_REQUEST — manufacturing 3종 ✅
   / service-only ❌ per A9 결정 + PRD §F11.3)
 - period_status (monthly_input_periods.status — 'open' / 'closed' 허용,
-  'locked' 거부; 11-2 wire 시점에 fiscal_periods.status 추가 가드 예정)
+  'locked' 거부; 11-2 wire 시점에 fiscal_periods.status 추가 가드)
 - target_event's event_type (authorization-layer
   AUTHORIZABLE_TARGET_EVENT_TYPES — 11-2 divergence from build-layer
   REVERSIBLE_TARGET_EVENT_TYPES: closing_snapshot AD-6 sealed final
@@ -18,6 +18,16 @@ random. Service layer passes all inputs explicitly.
 
 Korean constants — AD-15 §11 SSOT. Mirrored verbatim in
 `apps/web/lib/m11-reversal.ts`.
+
+Story 11.2 3rd-sweep fix (AC#6 dual guard semantics):
+- REVERSAL is allowed ONLY when fiscal_periods.status='closed'
+  (the closed-period reversal pattern). Once the 4-stage close
+  sequence is `confirmed`, the period is sealed for direct edits
+  (AD-6 INSERT 거부) — AD-22 reversal is the ONLY edit path.
+- 'open' / 'closing' / 'reversed' fiscal_periods.status REJECTED.
+- This is the spec-mandated semantics per AC#6(a). Previous
+  implementation had the semantics inverted (only 'open' allowed),
+  which would have made AD-22 reversal impossible after close.
 """
 
 from __future__ import annotations
@@ -36,16 +46,19 @@ from packages.services.m11_close.reversal_negating import (
 # `fiscal_periods.status` adds a SECOND guard layer on top of
 # `monthly_input_periods.status`. Both statuses must be in
 # PERIOD_STATUS_ALLOWED for reversal to be authorized.
-# 'closed' (fiscal_periods.status) is rejected — once the 4-stage
-# close sequence is `confirmed`, only the AD-22 reverse-direction
-# reversal path can re-open the period (PRD §F11.2).
 PERIOD_STATUS_ALLOWED: Final[frozenset[str]] = frozenset({"open", "closed"})
 PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset({"locked"})
 
 # fiscal_periods.status values (AD-6 1-way state machine).
-FISCAL_PERIOD_STATUS_ALLOWED: Final[frozenset[str]] = frozenset({"open"})
+# Story 11.2 3rd-sweep fix — flip semantics per AC#6(a) + PRD §F11.2:
+# AD-22 reversal is the closed-period reversal pattern. Once the
+# 4-stage close sequence is `confirmed`, fiscal_periods.status='closed'
+# and reversal is the ONLY way to fix mistakes (AD-6 INSERT 거부
+# blocks direct edits). 'open' / 'closing' / 'reversed' are rejected
+# at the authorization layer (direct edit OR re-edit window).
+FISCAL_PERIOD_STATUS_ALLOWED: Final[frozenset[str]] = frozenset({"closed"})
 FISCAL_PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset(
-    {"closing", "closed", "reversed"}
+    {"open", "closing", "reversed"}
 )
 
 # 11-2 EXTENSION — authorization-layer reversibility diverges from
@@ -138,7 +151,7 @@ def authorize_reversal(
     actor_id: uuid.UUID,
     period_status: str,
     capability_granted: bool,
-    fiscal_period_status: str = "open",
+    fiscal_period_status: str,
 ) -> ReversalAuthorizationResult:
     """Decide whether a reversal of `target_event` is permitted.
 
@@ -146,10 +159,10 @@ def authorize_reversal(
       1. `period_status` (monthly_input_periods.status — 11-1 SSOT):
          must be "open" or "closed" for reversal; "locked" is rejected.
       2. `fiscal_period_status` (fiscal_periods.status — 11-2 PRIMARY):
-         must be "open" for reversal; "closing" / "closed" / "reversed"
-         are rejected (AD-6 close lock — 4-stage close_sequence_state
-         guard). This is the AD-6 INSERT 거부 guard mirrored at the
-         authorization layer.
+         must be "closed" for reversal (closed-period reversal pattern
+         per AC#6(a) + PRD §F11.2). "open" / "closing" / "reversed" are
+         rejected at the authorization layer. AD-22 reversal is the
+         ONLY edit path once fiscal_periods.status='closed'.
 
     Args:
         tenant_id: Owning tenant (audit attribution).
@@ -160,10 +173,9 @@ def authorize_reversal(
         capability_granted: Whether the tenant has `Capability.REVERSAL_REQUEST`
             (manufacturing 3종 ✅ / service-only ❌).
         fiscal_period_status: `fiscal_periods.status` snapshot — must be
-            "open" for reversal. Story 11.2 PRIMARY guard. Defaults to
-            "open" for backward compat with 11-1 callers that haven't
-            yet fetched the fiscal_periods row (will surface as
-            rejection if a closed fiscal period is actually in scope).
+            "closed" for reversal. Story 11.2 PRIMARY guard. Required
+            (no default — fail-closed per PATCH 3rd-sweep). Callers MUST
+            explicitly fetch and pass the fiscal_periods row status.
 
     Returns:
         ReversalAuthorizationResult with `authorized` flag +
@@ -244,13 +256,12 @@ def authorize_reversal(
         )
 
     # Story 11.2 PRIMARY guard — fiscal_periods.status (AD-6 close lock).
-    # Reversal is only permitted before fiscal_periods reaches 'closing'
-    # (the 4-stage close_sequence_state verification phase). Once
-    # fiscal_periods.status='closed', the period is fully sealed and
-    # any subsequent edit must route through the AD-22 reversal
-    # sequence (which the authorization layer just denied — caller
-    # must use the dedicated reversal endpoints that themselves gate on
-    # fiscal_periods.status='open' or 'closed').
+    # Closed-period reversal pattern (AC#6(a) + PRD §F11.2):
+    # reversal is ONLY permitted when fiscal_periods.status='closed'
+    # (4-stage close_sequence_state='confirmed'). The 'closed' period
+    # is sealed for direct edits (AD-6 INSERT 거부) — AD-22 reversal
+    # is the ONLY edit path. 'open' / 'closing' / 'reversed' are
+    # rejected at the authorization layer.
     if fiscal_period_status not in (
         FISCAL_PERIOD_STATUS_ALLOWED | FISCAL_PERIOD_STATUS_REJECTED
     ):

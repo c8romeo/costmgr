@@ -193,6 +193,16 @@ def test_confirm_partial_close_blocked_raises() -> None:
         _wire_session_scalar_queue(session, existing)
         session.add = MagicMock()
         session.flush = AsyncMock()
+        # Story 11.2 3rd-sweep: _emit_blocked_audit_persist uses
+        # `session.begin_nested()` (async context manager). Wire the
+        # AsyncMock to return an async context manager.
+        from contextlib import asynccontextmanager
+
+        @asynccontextmanager
+        async def _noop():
+            yield
+
+        session.begin_nested = MagicMock(side_effect=lambda: _noop())
 
         svc = _build_service(session)
         with pytest.raises(PartialCloseBlockedError) as exc_info:

@@ -517,6 +517,56 @@ async def get_close_sequence_state_route(
     )
 
 
+# ── POST /api/v1/close/sequence/confirm ──────────────────────
+@router.post(
+    "/sequence/confirm",
+    status_code=200,
+    summary=(
+        "Confirm the 4-stage close sequence (Story 11.2) — "
+        "PRD §F11.1 PRIMARY + AC#4(b) AD-6 INSERT 거부 wire"
+    ),
+)
+async def confirm_close_sequence_route(
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(
+        require_capability(Capability.CLOSE_SEQUENCE_LOCK)
+    ),
+    _role: None = Depends(require_role("owner")),
+) -> dict[str, Any]:
+    """Confirm the 4-stage close sequence.
+
+    Story 11.2 PRIMARY AC. PRD §F11.1 + AD-6 close lock:
+      1. SELECT FOR UPDATE on fiscal_periods.
+      2. partial_close_guard → 4단계 모두 완료 검증.
+      3. AD-6 INSERT 거부 sanity check (NEW 3rd-sweep D3 wire).
+      4. UPDATE fiscal_periods.status='closed' +
+         close_sequence_state='confirmed' + closed_at=now().
+      5. Audit-first emit `closing_sequence_confirmed`.
+
+    Story 11.2 3rd-sweep cross-module orchestration note: this
+    handler is intentionally scoped to the M11 fiscal_periods
+    dimension. The 6-1 wire `ClosingPeriodService.confirm_closing_period`
+    (monthly_input_periods.status UPDATE + closing_snapshot ledger
+    INSERT + V4 verifier) runs FIRST as the orchestrator's preceding
+    step. The M11 confirm ONLY runs after 6-1 has confirmed monthly
+    inputs are sealed.
+
+    Raises:
+        409 PARTIAL_CLOSE_BLOCKED — 4단계 미완료.
+        409 ALREADY_CONFIRMED — fiscal_periods.status='closed'.
+        409 CLOSE_SEQUENCE_NOT_INITIATED — no fiscal_periods row.
+    """
+    seq_svc = _build_close_sequence_service(session, ctx, request)
+    result = await seq_svc.confirm_close_sequence(
+        period_key=_resolve_period_key(request, ctx),
+        actor_id=ctx.user_id,
+    )
+    await session.commit()
+    return result
+
+
 def _resolve_period_key(request: Request, ctx: TenantContext) -> str:
     """Extract period_key from query or fall back to current month.
 

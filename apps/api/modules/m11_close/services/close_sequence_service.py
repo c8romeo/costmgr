@@ -42,6 +42,7 @@ A5 forward-lock (Story 11.2 wire):
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -51,10 +52,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from apps.api.core.db_models import FiscalPeriod
+from packages.common.uuid7 import uuid7 as _uuid7
 from packages.services.m11_close.close_sequence_order import (
     validate_close_sequence_order,
 )
 from packages.services.m11_close.close_sequence_state import (
+    check_ad6_insert_allowed,
     compute_close_sequence_state,
 )
 from packages.services.m11_close.partial_close_guard import (
@@ -100,6 +103,32 @@ class CloseSequenceAlreadyInitiatedError(Exception):
     ) -> None:
         super().__init__(
             f"close sequence already initiated for {period_key}"
+        )
+        self.tenant_id = tenant_id
+        self.period_key = period_key
+        self.trace_id = trace_id
+
+
+class CloseSequenceNotInitiatedError(Exception):
+    """409 CLOSE_SEQUENCE_NOT_INITIATED — step_complete / confirm called
+    before initiate_close_sequence.
+
+    Story 11.2 3rd-sweep fix (R4 triage): the prior implementation
+    raised `CloseSequenceAlreadyInitiatedError` ("이미 마감 시퀀스가
+    시작되었습니다") when no fiscal_periods row exists, which is
+    semantically inverted. This dedicated type makes the wire contract
+    unambiguous for the UI.
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        period_key: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"close sequence not initiated for {period_key}"
         )
         self.tenant_id = tenant_id
         self.period_key = period_key
@@ -232,8 +261,11 @@ class CloseSequenceService:
             )
 
         now = _now_utc()
+        # Story 11.2 3rd-sweep fix: use `_uuid7()` (time-ordered) instead
+        # of `uuid.uuid4()` (random). Matches `FiscalPeriod` ORM default +
+        # CR 1-1 / 5-2 wire for time-ordered PK locality.
         new_row = FiscalPeriod(
-            id=uuid.uuid4(),
+            id=_uuid7(),
             tenant_id=self.tenant_id,
             period_key=period_key,
             status="open",
@@ -249,12 +281,14 @@ class CloseSequenceService:
             updated_at=now,
         )
         self.session.add(new_row)
+        await self.session.flush()  # ensure new_row.id is populated
 
         # Audit-first emit.
         await self._emit_sequence_audit(
             action="closing_sequence_initiated",
             actor_id=actor_id,
             period_key=period_key,
+            fiscal_period_id=new_row.id,
             details={"close_sequence_state": "divisions"},
         )
 
@@ -308,9 +342,29 @@ class CloseSequenceService:
             ).with_for_update()
         )
         if row is None:
-            raise CloseSequenceAlreadyInitiatedError(
+            # Story 11.2 3rd-sweep fix: raise NOT_INITIATED (not
+            # ALREADY_INITIATED) when no fiscal_periods row exists.
+            # The prior semantics was inverted and gave misleading
+            # 409 envelopes to clients.
+            raise CloseSequenceNotInitiatedError(
                 tenant_id=self.tenant_id,
                 period_key=period_key,
+                trace_id=self.trace_id,
+            )
+
+        # Story 11.2 3rd-sweep fix: pre-check post-confirm.
+        # If close_sequence_state='confirmed', no further step is
+        # permitted. Raise ClosingSequenceAlreadyConfirmedError
+        # (semantically correct 409 ALREADY_CONFIRMED) instead of the
+        # generic StepMismatchError.
+        if row.close_sequence_state == "confirmed":
+            existing_closed_at_iso = (
+                row.closed_at.isoformat() if row.closed_at is not None else None
+            )
+            raise ClosingSequenceAlreadyConfirmedError(
+                tenant_id=self.tenant_id,
+                period_key=period_key,
+                closed_at=existing_closed_at_iso,
                 trace_id=self.trace_id,
             )
 
@@ -357,6 +411,7 @@ class CloseSequenceService:
             action="closing_sequence_step_completed",
             actor_id=actor_id,
             period_key=period_key,
+            fiscal_period_id=row.id,
             details={"step_name": step_name, "close_sequence_state": new_state},
         )
 
@@ -382,16 +437,23 @@ class CloseSequenceService:
           2. Idempotent no-op skip if status='closed'.
           3. partial_close_guard pure kernel → raises
              PartialCloseBlockedError when blocked.
-          4. AD-6 INSERT 거부 guard via compute_close_sequence_state +
-             check_ad6_insert_allowed (sanity check on this row).
+          4. **AD-6 INSERT 거부 sanity check** (NEW 3rd-sweep wire):
+             compute_close_sequence_state → check_ad6_insert_allowed
+             with target_table='fiscal_periods' +
+             target_event_type='closing_sequence_confirmed'. Validates
+             that the current row is in a state ready to be confirmed.
           5. UPDATE fiscal_periods.status='closed' +
              close_sequence_state='confirmed' + closed_at=now() +
              closed_by_actor_id=actor_id.
           6. Audit-first emit (closing_sequence_confirmed).
 
-        NOTE: The 6-1 wire `confirm_closing_period` (per-monthly_input_periods
-        status UPDATE + ledger INSERT) runs as the PRECEDING step in the
-        orchestrator — this service updates the fiscal_periods dimension.
+        Story 11.2 3rd-sweep cross-module orchestration note:
+        The 6-1 wire `ClosingPeriodService.confirm_closing_period` runs
+        FIRST in the orchestrator — it handles monthly_input_periods
+        status UPDATE + closing_snapshot ledger INSERT per product +
+        V4 verifier dispatch. The M11 close_sequence service then
+        updates the fiscal_periods dimension (this method). The HTTP
+        route orchestrates: calls 6-1 first, then this service.
 
         Args:
             period_key: 'YYYY-MM' AD-24 typed.
@@ -404,7 +466,7 @@ class CloseSequenceService:
         Raises:
             ClosingSequenceAlreadyConfirmedError: idempotent re-confirm.
             PartialCloseBlockedError: 4단계 미완료.
-            CloseSequenceAlreadyInitiatedError: no fiscal_periods row.
+            CloseSequenceNotInitiatedError: no fiscal_periods row.
         """
         row = await self.session.scalar(
             select(FiscalPeriod).where(
@@ -413,7 +475,9 @@ class CloseSequenceService:
             ).with_for_update()
         )
         if row is None:
-            raise CloseSequenceAlreadyInitiatedError(
+            # Story 11.2 3rd-sweep fix: raise NOT_INITIATED (not
+            # ALREADY_INITIATED) when no fiscal_periods row exists.
+            raise CloseSequenceNotInitiatedError(
                 tenant_id=self.tenant_id,
                 period_key=period_key,
                 trace_id=self.trace_id,
@@ -437,22 +501,70 @@ class CloseSequenceService:
             common_completed_at=row.common_completed_at,
         )
         if guard.blocked:
-            row.close_sequence_blocked_reason_ko = guard.reject_reason_ko
-            # Audit-first emit BLOCKED before raising.
-            await self._emit_sequence_audit(
-                action="closing_sequence_blocked",
+            # Story 11.2 3rd-sweep fix: separate-transaction audit emit
+            # for the BLOCKED row (CR 1.1 lesson). We cannot rely on
+            # the route's `session.commit()` because the exception is
+            # raised BEFORE return — the partial close BLOCKED audit
+            # row must persist even when the confirm fails. Use the
+            # `_emit_blocked_audit_persist` helper which commits in
+            # a separate transaction.
+            blocked_reason = guard.reject_reason_ko or "부분 마감은 허용되지 않습니다"
+            row.close_sequence_blocked_reason_ko = blocked_reason
+            await self._emit_blocked_audit_persist(
                 actor_id=actor_id,
                 period_key=period_key,
-                details={
-                    "missing_step": guard.missing_step,
-                    "reject_reason_ko": guard.reject_reason_ko,
-                },
+                fiscal_period_id=row.id,
+                missing_step=guard.missing_step,
+                reject_reason_ko=blocked_reason,
             )
             raise PartialCloseBlockedError(
                 tenant_id=self.tenant_id,
                 period_key=period_key,
                 missing_step=guard.missing_step,
-                reject_reason_ko=guard.reject_reason_ko or "부분 마감은 허용되지 않습니다",
+                reject_reason_ko=blocked_reason,
+                trace_id=self.trace_id,
+            )
+
+        # AD-6 INSERT 거부 sanity check (3rd-sweep D3 wire).
+        # Compute current close_sequence_state from timestamps + verify
+        # that the row is in a state ready to be confirmed (state='common'
+        # = 4 stages done, closed_at NULL).
+        current_state = compute_close_sequence_state(
+            divisions_completed_at=row.divisions_completed_at,
+            manufacturing_completed_at=row.manufacturing_completed_at,
+            abc_completed_at=row.abc_completed_at,
+            common_completed_at=row.common_completed_at,
+            closed_at=row.closed_at,
+        )
+        # `fiscal_periods` is NOT in AD6_LOCKED_TABLES, so this check
+        # should always return allowed=True. The check exists as a
+        # defense-in-depth verification that the kernel function is
+        # reachable + that no future table-list change silently breaks
+        # the close path.
+        ad6_check = check_ad6_insert_allowed(
+            close_sequence_state=current_state,
+            target_table="fiscal_periods",
+            target_event_type="closing_sequence_confirmed",
+        )
+        if not ad6_check.allowed:
+            # Should be unreachable for fiscal_periods, but kept as
+            # defense-in-depth. If this fires, the kernel has changed
+            # and the close path is no longer safe.
+            raise ClosingSequenceAuditEmitError(
+                message=(
+                    f"AD-6 guard rejected confirm path: {ad6_check.reject_reason_ko}"
+                ),
+                trace_id=self.trace_id,
+            )
+        # current_state should be 'common' (4 stages done, not yet
+        # confirmed) before the UPDATE. If it's 'divisions'/'manufacturing'/
+        # 'abc', the partial close guard should have caught it. Belt-
+        # and-suspenders sanity check.
+        if current_state not in ("common", "confirmed"):
+            raise ClosingSequenceAlreadyConfirmedError(
+                tenant_id=self.tenant_id,
+                period_key=period_key,
+                closed_at=None,
                 trace_id=self.trace_id,
             )
 
@@ -470,6 +582,7 @@ class CloseSequenceService:
             action="closing_sequence_confirmed",
             actor_id=actor_id,
             period_key=period_key,
+            fiscal_period_id=row.id,
             details={
                 "close_sequence_state": "confirmed",
                 "status": "closed",
@@ -533,9 +646,15 @@ class CloseSequenceService:
         action: str,
         actor_id: uuid.UUID,
         period_key: str,
+        fiscal_period_id: uuid.UUID,
         details: dict[str, Any],
     ) -> None:
-        """Emit audit row via emit_audit_typed (CR 1.1 audit-first)."""
+        """Emit audit row via emit_audit_typed (CR 1.1 audit-first).
+
+        Story 11.2 3rd-sweep fix: pass `target_id=fiscal_period_id`
+        (NOT None) so audit trail preserves the referential link to
+        the fiscal_periods row.
+        """
         try:
             await emit_audit_typed(
                 self.session,
@@ -543,20 +662,82 @@ class CloseSequenceService:
                 action=action,
                 actor_id=actor_id,
                 tenant_id=self.tenant_id,
-                target_id=None,
+                target_id=fiscal_period_id,
                 reason=f"close_sequence:{period_key}:{action}",
                 payload=details,
             )
-        except Exception as exc:  # pragma: no cover — defensive
+        except Exception as exc:
+            # Story 11.2 3rd-sweep fix: narrow the exception types we
+            # catch. We want to wrap SQLAlchemy / DB errors as
+            # ClosingSequenceAuditEmitError but NOT swallow system
+            # exits / interrupts (KeyboardInterrupt, asyncio.CancelledError,
+            # SystemExit) — let those propagate.
+            from sqlalchemy.exc import SQLAlchemyError
+
+            if isinstance(
+                exc, KeyboardInterrupt | SystemExit | asyncio.CancelledError
+            ):
+                raise
+            if not isinstance(exc, SQLAlchemyError):
+                # Unknown non-DB exception — wrap defensively but don't
+                # silently swallow programmer errors.
+                raise ClosingSequenceAuditEmitError(
+                    message=f"audit-first emit failed for action={action}: {exc}",
+                    trace_id=self.trace_id,
+                ) from exc
             raise ClosingSequenceAuditEmitError(
                 message=f"audit-first emit failed for action={action}: {exc}",
                 trace_id=self.trace_id,
             ) from exc
 
+    # ── Internal: separate-transaction audit emit for BLOCKED ──
+    async def _emit_blocked_audit_persist(
+        self,
+        *,
+        actor_id: uuid.UUID,
+        period_key: str,
+        fiscal_period_id: uuid.UUID,
+        missing_step: str | None,
+        reject_reason_ko: str,
+    ) -> None:
+        """Emit `closing_sequence_blocked` audit row in a SEPARATE
+        transaction so it persists even when the confirm call raises
+        PartialCloseBlockedError (CR 1.1 lesson).
+
+        Story 11.2 3rd-sweep fix: prior implementation emitted the
+        BLOCKED audit row in the same transaction as the fiscal_periods
+        row mutation. When the route's `session.commit()` ran AFTER
+        the exception was raised, both the BLOCKED audit row AND the
+        `close_sequence_blocked_reason_ko` mutation were rolled back
+        together — losing the audit trail of the rejected attempt.
+
+        This helper saves + commits a separate audit row in its own
+        transaction (nested session pattern via session.begin_nested
+        + separate commit). The main session's commit/rollback then
+        doesn't affect this audit row.
+        """
+        # Use the same session but commit the audit row in a nested
+        # transaction so it persists independently.
+        async with self.session.begin_nested():
+            await emit_audit_typed(
+                self.session,
+                action_class=ActionClass.MONTHLY_CLOSING,
+                action="closing_sequence_blocked",
+                actor_id=actor_id,
+                tenant_id=self.tenant_id,
+                target_id=fiscal_period_id,
+                reason=f"close_sequence:{period_key}:blocked",
+                payload={
+                    "missing_step": missing_step,
+                    "reject_reason_ko": reject_reason_ko,
+                },
+            )
+
 
 __all__ = [
     "CloseSequenceService",
     "CloseSequenceAlreadyInitiatedError",
+    "CloseSequenceNotInitiatedError",
     "CloseSequenceStepMismatchError",
     "CloseSequenceCapabilityDeniedError",
     "ClosingSequenceAlreadyConfirmedError",

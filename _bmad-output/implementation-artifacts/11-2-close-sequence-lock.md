@@ -587,3 +587,78 @@ Claude Sonnet 5 (claude-sonnet-5)
 **SDR / spec:**
 - `_bmad-output/implementation-artifacts/11-1-m11-reversal-ledger.md` — MAX SDR claim 1454 → 1561 갱신 (separate line for unambiguous parser match)
 - `_bmad-output/implementation-artifacts/11-2-close-sequence-lock.md` — spec 본 세션 work checkbox sync (T11 done)
+
+---
+
+## Code Review Findings — 3rd sweep (2026-08-08)
+
+bmad-code-review 3rd sweep 진입 (review → in-progress). 3 reviewer (Blind Hunter + Edge Case Hunter + Acceptance Auditor) findings R4 triage.
+
+### Reviewers
+- **Blind Hunter** — adversarial correctness/security/efficiency (50+ findings surface)
+- **Edge Case Hunter** — boundary/concurrency/state-transition (19 findings)
+- **Acceptance Auditor** — spec 10 ACs compliance check (18 findings, multiple BLOCKING)
+
+### Summary
+- **3 DECISION_NEEDED** (BLOCKING — spec AC violations not fixable without user intent)
+- **28 PATCH** (correctness fixes)
+- **8 DEFER** (known deferred items: TS mirrors / V8 fixtures / Task 10 frontend / etc.)
+- **~12 DISMISS** (false positives / pre-existing / handled elsewhere)
+
+### DECISION_NEEDED findings (BLOCKING)
+
+- [ ] [Review][Decision] **`confirm_close_sequence` has no HTTP route** — `apps/api/modules/m11_close/handlers.py` ships `POST /sequence/initiate` (441), `POST /sequence/step-complete` (475), `GET /sequence/state` (501) = 3 routes. Spec AC#8 says "POST /close-sequence/confirm" — confirm path is unreachable from HTTP. AD-6 INSERT 거부 never engages at runtime. [Acceptance Auditor BLOCKING + Blind Hunter confirm]
+- [ ] [Review][Decision] **AC#6 dual guard inverted** — `packages/services/m11_close/reversal_authorization.py:141` default `"open"` + lines 147-152 docstring "must be 'open' for reversal". Spec AC#6(a) says reversal allowed ONLY when `fiscal_period_status='closed' AND period_status='closed'` — closed period reversal pattern. Code inverts: reversal REJECTED on closed periods. AD-22 reversal becomes permanently impossible after close — defeats "마감 후 입력 수정은 역분개로만". Comment at `reversal_authorization.py:149` concedes the contradiction in-line. `docs/close-sequence-lock.md:93` states the opposite of the code. [Acceptance Auditor BLOCKING + Blind Hunter confirm]
+- [ ] [Review][Decision] **`check_ad6_insert_allowed` zero production callers** — Pure kernel exists (`packages/services/m11_close/close_sequence_state.py:125`) but `confirm_close_sequence` never calls it. AD-6 INSERT 거부 (AC#4(b)) is not enforced anywhere. `docs/close-sequence-lock.md:71` asserts it "is consulted by `confirm_close_sequence` immediately before the ledger INSERT" — false on both counts. [Acceptance Auditor BLOCKING + Blind Hunter confirm]
+
+### PATCH findings (correctness fixes)
+
+- [ ] [Review][Patch] UUID v4 mismatch in `initiate_close_sequence` — `apps/api/modules/m11_close/services/close_sequence_service.py:2746` uses `id=uuid.uuid4()` but ORM default is `_uuid7`. Use `_uuid7()` for time-ordered IDs. [Blind Hunter + Acceptance Auditor]
+- [ ] [Review][Patch] `fiscal_period_status` default `"open"` — `packages/services/m11_close/reversal_authorization.py:141`. Permissive default violates fail-closed guard. Remove default OR require explicit. [Acceptance Auditor]
+- [ ] [Review][Patch] Audit-first rejection rollback — `closing_sequence_blocked` audit row + `row.close_sequence_blocked_reason_ko` mutation both rolled back when `PartialCloseBlockedError` raises after session.commit(). Need separate-transaction audit emit per CR 1-1 pattern. [Acceptance Auditor + Blind Hunter]
+- [ ] [Review][Patch] `CloseSequenceAlreadyInitiatedError` raised when never initiated — `apps/api/modules/m11_close/services/close_sequence_service.py:2821-2826` raises "이미 마감 시퀀스가 시작되었습니다" when row is None (i.e., not initiated). Should be `CloseSequenceNotInitiatedError`. [Acceptance Auditor + Blind Hunter + Edge Case]
+- [ ] [Review][Patch] `_emit_sequence_audit` uses `target_id=None` — audit log loses referential link to fiscal_periods row. Pass `target_id=str(row.id)`. [Blind Hunter]
+- [ ] [Review][Patch] `_resolve_period_key` falls back to current UTC month silently — `apps/api/modules/m11_close/handlers.py:2472-2482`. Require explicit `period_key` for CRITICAL close-locked operations. [Blind Hunter + Edge Case]
+- [ ] [Review][Patch] `except Exception` too broad in `_emit_sequence_audit` — `apps/api/modules/m11_close/services/close_sequence_service.py:3041-3065`. Narrow to specific exception types; preserve `BaseException` system-exit behavior. [Blind Hunter]
+- [ ] [Review][Patch] AD-6 lock keys on `close_sequence_state='confirmed'` vs AC#4 spec on `status='closed'` — `packages/services/m11_close/close_sequence_state.py:4020-4059` `check_ad6_insert_allowed` returns allowed=True for any state ≠ 'confirmed'. Spec says lock on `status='closed'`. CHECK constraint allows the gap (status='closed' + close_sequence_state='common' is legal and bypasses). [Acceptance Auditor]
+- [ ] [Review][Patch] `step_complete` does not reject post-confirm calls — `apps/api/modules/m11_close/services/close_sequence_service.py:2836-2843`. Pre-check `if row.close_sequence_state == 'confirmed': raise ClosingSequenceAlreadyConfirmedError`. [Blind Hunter]
+- [ ] [Review][Patch] Race condition in `initiate_close_sequence` — `apps/api/modules/m11_close/services/close_sequence_service.py:2732-2743`. SELECT FOR UPDATE on non-existent row in PG READ COMMITTED doesn't lock against concurrent INSERTs. Use INSERT ... ON CONFLICT DO NOTHING RETURNING pattern OR pg_advisory_xact_lock. [Blind Hunter + Edge Case]
+- [ ] [Review][Patch] Chronological ordering non-strict — `packages/services/m11_close/close_sequence_order.py:3894-3896` flags only `curr_ts < prev_ts` (equal timestamps pass). Spec AC#2(a) says strict `<`. Change to `<=`. [Acceptance Auditor + Edge Case]
+- [ ] [Review][Patch] `request: Request = None` typed default — `apps/api/modules/m11_close/handlers.py:2400`. Required parameter marked optional. Use FastAPI auto-injection. [Edge Case]
+- [ ] [Review][Patch] Korean string duplication (DRY) — `packages/services/m11_close/close_sequence_order.py:3897` hardcoded f-strings duplicate exported constants `DIVISIONS_MISSING_KO` etc. Use the constants as SSOT. [Blind Hunter]
+- [ ] [Review][Patch] Korean string duplication — `packages/services/m11_close/partial_close_guard.py:4193-4198 + 4177-4181` constants and `_STAGE_KO_MAP` dict contain same strings. Constants are SSOT. [Blind Hunter]
+- [ ] [Review][Patch] `compute_close_sequence_state` ignores timestamp ordering — `packages/services/m11_close/close_sequence_state.py:4019-4059` returns 'abc' for 2 stages done even if chronology violates. Pure kernel and DB CHECK constraints can disagree. [Blind Hunter + Edge Case]
+- [ ] [Review][Patch] `target_table` validation in `check_ad6_insert_allowed` — `packages/services/m11_close/close_sequence_state.py:4136-4141`. Unknown tables fall through silently. Validate against `AD6_LOCKED_TABLES | {"audit_logs","reversal_log"}`. [Edge Case]
+- [ ] [Review][Patch] `period_key` regex year bounds — `apps/api/alembic/versions/0020_fiscal_periods_close_sequence.py:1872`. `^\d{4}-(0[1-9]|1[0-2])$` accepts `0000-01`. Add year >= 2000 lower bound. [Blind Hunter]
+- [ ] [Review][Patch] Dead status values in CHECK constraint — `apps/api/alembic/versions/0020_fiscal_periods_close_sequence.py:1850`. `status='closing'` and `status='reversed'` part of CHECK but unused. Either remove (drift hazard) or wire W2 reopen. [Blind Hunter]
+- [ ] [Review][Patch] `target_event.event_type` validation in `reversal_authorization.py:4447-4452` — unknown event types silent acceptance. Raise `ReversalAuthorizationError(error_code=ERROR_CODE_UNKNOWN_EVENT_TYPE)`. [Edge Case]
+- [ ] [Review][Patch] `fetch_fiscal_period_status` None handling — `apps/api/modules/m11_close/services/reversal_service.py:3154-3162`. Missing row defaults to "open" allowing reversal. Should raise `ReversalTargetNotFoundError`. [Edge Case]
+- [ ] [Review][Patch] `_payload: _CloseSequenceInitiateBody | None = None` — `apps/api/modules/m11_close/handlers.py:2399-2400`. Body schema permits empty body. Require body. [Edge Case]
+- [ ] [Review][Patch] `CloseSequenceCapabilityDeniedError` dead — defined + handler-wired, never raised. Either wire it at `require_capability` rejection OR remove. [Acceptance Auditor + Blind Hunter]
+- [ ] [Review][Patch] `effective_fiscal_period_status` "open" fallback — `apps/api/modules/m11_close/services/reversal_service.py:3180-3188`. Reversal request before `initiate_close_sequence` succeeds silently. [Blind Hunter + Edge Case]
+- [ ] [Review][Patch] Over-broad `LockedPeriodReversalRejectedError` dispatch — `apps/api/modules/m11_close/services/reversal_service.py:3180-3188` triggers for `fiscal_period_status in ('closing','closed','reversed')`. Block `'closing'`/`'reversed'` but allow `'closed'` per AD-22 reversal semantics. [Blind Hunter]
+- [ ] [Review][Patch] RLS UPDATE policy too strict — `supabase/policies/0011_fiscal_periods_rls.sql:4613-4629`. `USING (... AND status != 'closed')` blocks ALL subsequent UPDATEs once closed, including W2 reopen flow. Use `status NOT IN ('closed','reversed')`. [Blind Hunter]
+- [ ] [Review][Patch] Idempotent no-op audit skip — `_emit_sequence_audit` always emits even when status is already 'closed'. Add idempotent guard before emit. [Blind Hunter]
+- [ ] [Review][Patch] `docs/capability-matrix.md` was never updated — still v1.9 despite spec claim of v1.11 with CLOSE_SEQUENCE_LOCK row. Update matrix + add row. [Acceptance Auditor]
+- [ ] [Review][Patch] `check_partial_close_attempt` signature/messages differ from AC#3(a) — missing `close_sequence_state` arg, returns `_STAGE_KO_MAP[missing]` instead of `PARTIAL_CLOSE_BLOCKED_KO` / `'4단계 모두 완료 후 마감 가능'`. [Acceptance Auditor]
+- [ ] [Review][Patch] A5 drift detector 3-way extensions not implemented — `tests/services/test_audit_action_centralization.py` + `tests/integration/test_audit_action_consistency.py` missing. DB-CHECK claim unfounded (no migration adds values to audit_logs CHECK). [Acceptance Auditor]
+- [ ] [Review][Patch] `compute_close_sequence_state` returns 'common' for both 3-stages-done and 4-stages-done-unconfirmed — undermines `idx_fiscal_periods_close_sequence_state`. [Acceptance Auditor]
+
+### DEFER findings (pre-existing / known deferred)
+
+- [x] [Review][Defer] TS mirrors missing (`apps/web/lib/m11-close-sequence.ts` + parity file) — T10 frontend deferred per spec. Kernels claim they exist. Add file or remove claim. [Acceptance Auditor + Blind Hunter]
+- [x] [Review][Defer] V8 골든 fixture 4 NEW (T11.8-T11.10) — DEFERRED → bmad-code-review sweep. close_sequence_initiated + close_sequence_step_completed_partial_blocked + close_sequence_confirmed + close_sequence_reversal_blocked. [Acceptance Auditor]
+- [x] [Review][Defer] Task 10 frontend (10.1-10.9) — `CloseSequencePanel` / step + confirm buttons / `ko-KR.json` strings / page wire / vitest / Playwright all absent. [Acceptance Auditor]
+- [x] [Review][Defer] W2 reopen flow — operator action + reason + audit row path deferred. `status='reversed'` + reopen flow not implemented. [Acceptance Auditor + Blind Hunter]
+- [x] [Review][Defer] Tests assert file text not behavior — `tests/integration/test_fiscal_periods_rls.py` static string searches, no DB RLS exercise. Real integration tests need Story 0.5 CI shim work. [Acceptance Auditor]
+- [x] [Review][Defer] `db_models.py` `FiscalPeriod` lacks `created_by_actor_id` column — denormalization deferred. [Blind Hunter]
+- [x] [Review][Defer] `idempotent no-op audit skip` for `confirm_close_sequence` retry — partial. Full retry semantics deferred. [Blind Hunter]
+- [x] [Review][Defer] Envelope helper extraction (6 exception handlers duplicate envelope structure) — DRY refactor deferred. [Blind Hunter]
+
+### DISMISS findings (false positives / handled elsewhere / not actionable)
+
+- AC#1 Alembic 0020 + RLS pattern: RLS lives in `supabase/policies/0011_fiscal_periods_rls.sql`, separate file pattern matches 11-1 carry-over (H6 RLS).
+- `request: Request = None` type-checker false-positive: FastAPI auto-injection handles this; no runtime impact.
+- Korean strings `f"{prev_name} 단계 미완료"` SSOT violation: kernel constants exported but `_STAGE_KO_MAP` uses dict; both are documented as SSOT candidates.
+- Dead error path `next_step=None` in `partial_close_guard.py`: unreachable from current kernel contract; defensive code intentional.
+- Overclaim "W1-W12" 11-1 handoff: not relevant to 11-2 review scope.

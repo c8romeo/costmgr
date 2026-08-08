@@ -302,19 +302,35 @@ class ReversalService:
         effective_period_status = period_status if period_status is not None else "open"
 
         # Story 11.2 PRIMARY guard — fetch fiscal_periods.status (AD-6).
-        # fiscal_periods.status='open' is required for reversal; once the
-        # 4-stage close_sequence_state reaches 'confirmed', reversals
-        # must route through the dedicated AD-22 reversal endpoints
-        # (which themselves gate on this status). fetch_fiscal_period_status
-        # is a lightweight SELECT (one row, indexed on tenant_period_unique).
+        # 3rd-sweep fix (AC#6(a) flipped semantics): reversal is permitted
+        # ONLY when fiscal_periods.status='closed' (closed-period reversal
+        # pattern). Missing fiscal_periods row → no period has been initiated
+        # → reversal is NOT permitted (fail-closed). Once the 4-stage close
+        # sequence reaches 'confirmed', reversals route through the dedicated
+        # AD-22 reversal endpoints (which themselves gate on this status).
+        # fetch_fiscal_period_status is a lightweight SELECT (one row, indexed
+        # on tenant_period_unique).
         fiscal_period_status = await fetch_fiscal_period_status(
             self.session,
             tenant_id=self.tenant_id,
             period_key=target_event.period_key,
         )
-        effective_fiscal_period_status = (
-            fiscal_period_status if fiscal_period_status is not None else "open"
-        )
+        # Missing fiscal_periods row → reversal rejected (fail-closed).
+        # Story 11.2 3rd-sweep: do NOT default to "open" — this would allow
+        # reversal before any close has been initiated, which violates
+        # AD-22 reverse-direction semantics.
+        if fiscal_period_status is None:
+            await self._emit_reversal_rejected_audit(
+                target_event=target_event,
+                actor_id=actor_id,
+                reason_ko="마감 시퀀스가 시작되지 않은 기간 — 역분개 불가",
+            )
+            raise ReversalTargetNotFoundError(
+                tenant_id=self.tenant_id,
+                target_event_id=target_event_id,
+                trace_id=self.trace_id,
+            )
+        effective_fiscal_period_status = fiscal_period_status
 
         # (3) authorize_reversal decision — Story 11.2 dual guard.
         auth = authorize_reversal(
@@ -334,11 +350,12 @@ class ReversalService:
             )
             # 422 for locked-period (different from 403 capability reject).
             # Story 11.2 dispatch: BOTH monthly_input_periods.status='locked'
-            # AND fiscal_periods.status IN ('closing', 'closed', 'reversed')
-            # trigger LockedPeriodReversalRejectedError (AD-6 close lock).
+            # AND fiscal_periods.status IN ('open', 'closing', 'reversed')
+            # trigger LockedPeriodReversalRejectedError (AD-6 close lock +
+            # closed-period reversal pattern). Only 'closed' is allowed.
             if effective_period_status == "locked" or effective_fiscal_period_status in (
+                "open",
                 "closing",
-                "closed",
                 "reversed",
             ):
                 raise LockedPeriodReversalRejectedError(

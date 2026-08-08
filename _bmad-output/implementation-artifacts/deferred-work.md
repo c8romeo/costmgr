@@ -281,3 +281,21 @@ D1 is the **only direct carry-over** (continuation of 2nd-sweep T5). D2-D16 are 
 
 ## Deferred from: code review of 11-1-m11-reversal-ledger (2026-08-08)
 
+## Deferred from: code review of 11-2-close-sequence-lock (2026-08-08, 3rd sweep)
+
+- **TS mirrors missing** (`apps/web/lib/m11-close-sequence.ts` + parity file) — T10 frontend deferred per spec. `close_sequence_order.py` + `partial_close_guard.py` docstrings claim TS mirror exists. Add file or remove claim in 11-2 follow-up OR Task 10 frontend wire.
+
+- **V8 골든 fixture 4 NEW (T11.8-T11.10)** — DEFERRED → bmad-code-review sweep. Need: `close_sequence_initiated` + `close_sequence_step_completed_partial_blocked` + `close_sequence_confirmed` + `close_sequence_reversal_blocked`. V8 18 → 22 fixture matrix extension.
+
+- **Task 10 frontend (10.1-10.9)** — `CloseSequencePanel` / step + confirm buttons / `ko-KR.json` strings / page wire / vitest / Playwright all absent. AC#2, #3, #4, #8 UI halves unimplemented.
+
+- **W2 reopen flow** — operator action + reason + audit row path deferred. `status='reversed'` + reopen state transition not implemented. Reversal can move row from 'closed' → 'reversed' but no path back to 'open' for operator.
+
+- **Tests assert file text not behavior** — `tests/integration/test_fiscal_periods_rls.py` static string searches, no actual DB RLS exercise. `tests/api/m11_close/test_close_sequence_service.py` runs on AsyncMock/MagicMock rows. Real integration tests need Story 0.5 CI shim work (live DB RLS connection).
+
+- **`db_models.py` `FiscalPeriod` lacks `created_by_actor_id` column** — defensive denormalization (audit-log-retained provenance on row) deferred.
+
+- **Idempotent no-op audit skip for `confirm_close_sequence` retry** — partial. Full retry semantics (network-flap → re-POST) deferred. PATCH covers single-shot check only.
+
+- **Envelope helper extraction** — 6 exception handlers in `main.py` duplicate `{code, message_ko, details, trace_id}` structure. DRY refactor deferred.
+

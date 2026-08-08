@@ -73,6 +73,7 @@ from apps.api.modules.m11_close import router as m11_close_router
 from apps.api.modules.m11_close.services.close_sequence_service import (
     CloseSequenceAlreadyInitiatedError,
     CloseSequenceCapabilityDeniedError,
+    CloseSequenceNotInitiatedError,
     CloseSequenceStepMismatchError,
     ClosingSequenceAlreadyConfirmedError,
     ClosingSequenceAuditEmitError,
@@ -1020,6 +1021,31 @@ async def _m11_close_sequence_already_initiated_handler(
         content={
             "code": "CLOSE_SEQUENCE_ALREADY_INITIATED",
             "message_ko": "이미 마감 시퀀스가 시작되었습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(CloseSequenceNotInitiatedError)
+async def _m11_close_sequence_not_initiated_handler(
+    request: Request, exc: CloseSequenceNotInitiatedError
+) -> JSONResponse:
+    """409 CLOSE_SEQUENCE_NOT_INITIATED — step_complete/confirm before initiate.
+
+    Story 11.2 3rd-sweep fix: distinct from ALREADY_INITIATED. Prior
+    implementation raised ALREADY_INITIATED for the never-initiated case
+    (semantically inverted). New dedicated error code makes the wire
+    contract unambiguous.
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "CLOSE_SEQUENCE_NOT_INITIATED",
+            "message_ko": "마감 시퀀스가 시작되지 않았습니다. 먼저 initiate를 호출하세요.",
             "details": {
                 "tenant_id": str(exc.tenant_id),
                 "period_key": exc.period_key,

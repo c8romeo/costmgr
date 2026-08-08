@@ -102,11 +102,15 @@ def _wire_session(
     *,
     target_event: InventoryLedgerEvent | None = None,
     period_status: str | None = "open",
-    fiscal_period_status: str | None = "open",
+    fiscal_period_status: str | None = "closed",
 ) -> None:
     """Wire session mocks for the 9-step AD-22 sequence.
 
-    Story 11.2 wire: extended queue to also include fiscal_period_status
+    Story 11.2 3rd-sweep fix: `fiscal_period_status` default flipped
+    from "open" to "closed" per AC#6(a) closed-period reversal
+    pattern. Tests asserting the OLD (inverted) semantics should
+    explicitly pass the relevant value.
+
     row (returned from fetch_fiscal_period_status after fetch_period_status).
     """
     # (1) fetch_target_event → returns the target_event row
