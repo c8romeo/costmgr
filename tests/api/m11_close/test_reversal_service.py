@@ -102,8 +102,13 @@ def _wire_session(
     *,
     target_event: InventoryLedgerEvent | None = None,
     period_status: str | None = "open",
+    fiscal_period_status: str | None = "open",
 ) -> None:
-    """Wire session mocks for the 9-step AD-22 sequence."""
+    """Wire session mocks for the 9-step AD-22 sequence.
+
+    Story 11.2 wire: extended queue to also include fiscal_period_status
+    row (returned from fetch_fiscal_period_status after fetch_period_status).
+    """
     # (1) fetch_target_event → returns the target_event row
     target_row = MagicMock()
     if target_event is not None:
@@ -122,8 +127,12 @@ def _wire_session(
     period_row = MagicMock()
     period_row.status = period_status
 
+    # (2.5) Story 11.2 — fetch_fiscal_period_status → status
+    fiscal_row = MagicMock()
+    fiscal_row.status = fiscal_period_status
+
     # Use a deque-like list of return values for sequential scalar() calls.
-    _wire_session.queue = [target_row, period_row]
+    _wire_session.queue = [target_row, period_row, fiscal_row]
     session.scalar = AsyncMock(
         side_effect=lambda *_: _wire_session.queue.pop(0)
     )

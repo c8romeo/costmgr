@@ -1,4 +1,4 @@
-"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2).
+"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2).
 
 Mapped tables:
 - 0001: tenants, users, tenant_memberships, tenant_settings, audit_logs
@@ -9,6 +9,7 @@ Mapped tables:
 - 0012 (Story 4.2): fiscal_period_snapshots, calc_log
 - 0013 (Story 4.3): verification_log
 - 0015 (Story 5.2): inventory_ledger (AD-2 append-only)
+- 0020 (Story 11.2): fiscal_periods (AD-6 close lock + 4-stage state)
 
 Per AD-1/AD-11: this module is in `apps/api/` (infra layer). It does NOT
 import `packages.cost_engine` directly. Modules write through services.
@@ -816,5 +817,117 @@ class InventoryLedger(Base):
         CheckConstraint(
             "event_type = 'closing_snapshot' OR qty IS NOT NULL",
             name="inventory_ledger_qty_required_for_quantitative_events",
+        ),
+    )
+
+
+# ── fiscal_periods (Story 11.2 — AD-6 close lock + 4-stage state) ─
+# Greenfield table introduced in Alembic 0020. One row per
+# (tenant_id, period_key) — 1 fiscal period per tenant per month. Tracks:
+#   - `status`: 1-way state machine (open → closing → closed → reversed)
+#     AD-6 final is `closed`. Reopen requires operator action (W2 deferral).
+#   - `close_sequence_state`: 4-stage verification
+#     (divisions → manufacturing → abc → common → confirmed). PRD §F11.1.
+#   - 4 step-completion timestamps (divisions_/manufacturing_/abc_/
+#     common_completed_at) — defense-in-depth CHECK constraints enforce
+#     chronological ordering at the DB level (mirrors
+#     `close_sequence_order.py` pure-kernel invariants).
+#   - `close_sequence_blocked_reason_ko`: Korean message when partial
+#     close guard rejects confirm_close_sequence (AD-15 §11 SSOT).
+#   - `closed_at` + `closed_by_actor_id`: status='closed' transition
+#     audit trail.
+# RLS policy: supabase/policies/0011_fiscal_periods_rls.sql (4-policy
+# split — delete BLOCKED for AD-6 close lock).
+class FiscalPeriod(Base):
+    __tablename__ = "fiscal_periods"
+
+    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    period_key: Mapped[str] = mapped_column(Text, nullable=False)
+    # AD-6 1-way state machine. Reopen requires operator action (W2).
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="open")
+    divisions_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    manufacturing_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    abc_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    common_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # 4-stage verification state (PRD §F11.1).
+    close_sequence_state: Mapped[str] = mapped_column(
+        Text, nullable=False, default="divisions"
+    )
+    close_sequence_blocked_reason_ko: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    closed_by_actor_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        # AD-24 typed period_key: 'YYYY-MM'.
+        CheckConstraint(
+            "period_key ~ '^\\d{4}-(0[1-9]|1[0-2])$'",
+            name="fiscal_periods_period_key_format_check",
+        ),
+        CheckConstraint(
+            "status IN ('open', 'closing', 'closed', 'reversed')",
+            name="fiscal_periods_status_check",
+        ),
+        CheckConstraint(
+            "close_sequence_state IN "
+            "('divisions', 'manufacturing', 'abc', 'common', 'confirmed')",
+            name="fiscal_periods_close_sequence_state_check",
+        ),
+        # Defense-in-depth stage ordering (mirror close_sequence_order.py).
+        CheckConstraint(
+            "divisions_completed_at IS NOT NULL "
+            "OR manufacturing_completed_at IS NULL",
+            name="fiscal_periods_divisions_ordering_check",
+        ),
+        CheckConstraint(
+            "manufacturing_completed_at IS NOT NULL "
+            "OR abc_completed_at IS NULL",
+            name="fiscal_periods_manufacturing_ordering_check",
+        ),
+        CheckConstraint(
+            "abc_completed_at IS NOT NULL "
+            "OR common_completed_at IS NULL",
+            name="fiscal_periods_abc_ordering_check",
+        ),
+        # close_sequence_state='confirmed' requires status='closed'.
+        CheckConstraint(
+            "close_sequence_state != 'confirmed' OR status = 'closed'",
+            name="fiscal_periods_confirmed_requires_closed_check",
+        ),
+        # status='closed' requires closed_at populated.
+        CheckConstraint(
+            "status != 'closed' OR closed_at IS NOT NULL",
+            name="fiscal_periods_closed_requires_closed_at_check",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "period_key",
+            name="fiscal_periods_tenant_period_unique",
         ),
     )

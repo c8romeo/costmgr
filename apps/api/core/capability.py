@@ -103,6 +103,12 @@ class Capability(str, Enum):
     # Wired through `m11_close` module authority (M11) for AD-22 reversal
     # sequence + AD-25 cache invalidation publisher.
     REVERSAL_REQUEST = "reversal_request"
+    # Story 11.2 (Epic 11) — 4-stage close sequence lock capability
+    # (PRD §F11.1 + §8.M11(a)). Granted to manufacturing-kind
+    # industries (manufacturing / mfg+service / mfg+service+other).
+    # Service-only tenants do NOT have a close sequence (no inventory
+    # ledger → no fiscal_periods row to lock down).
+    CLOSE_SEQUENCE_LOCK = "close_sequence_lock"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -129,6 +135,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 11.1 — manufacturing tenants get REVERSAL_REQUEST
             # (PRD §F11.3 — AD-22 reversal sequence + AD-25 publisher).
             Capability.REVERSAL_REQUEST,
+            # Story 11.2 — manufacturing tenants get the 4-stage
+            # close sequence lock (PRD §F11.1 + §8.M11(a)).
+            Capability.CLOSE_SEQUENCE_LOCK,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -175,6 +184,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.MONTHLY_CLOSING_REPORT,
             # Story 11.1 — 겸영 tenants get REVERSAL_REQUEST.
             Capability.REVERSAL_REQUEST,
+            # Story 11.2 — 겸영 tenants get the 4-stage close
+            # sequence lock (manufacturing footprint present).
+            Capability.CLOSE_SEQUENCE_LOCK,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -201,6 +213,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.MONTHLY_CLOSING_REPORT,
             # Story 11.1 — full matrix tenants get REVERSAL_REQUEST.
             Capability.REVERSAL_REQUEST,
+            # Story 11.2 — full matrix tenants get the 4-stage close
+            # sequence lock (manufacturing footprint present).
+            Capability.CLOSE_SEQUENCE_LOCK,
         }
     ),
 }

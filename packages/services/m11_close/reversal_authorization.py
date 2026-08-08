@@ -28,10 +28,22 @@ from packages.services.m11_close.reversal_negating import (
 )
 
 # ── Constants ────────────────────────────────────────────────
-# Period status allowed for reversal. 'locked' is rejected here;
-# 11-2 wire will introduce fiscal_periods.status='locked' guard.
+# Period status allowed for reversal. 'locked' is rejected here.
+# Story 11.2 wire (AD-6 close lock + 4-stage close_sequence_state):
+# `fiscal_periods.status` adds a SECOND guard layer on top of
+# `monthly_input_periods.status`. Both statuses must be in
+# PERIOD_STATUS_ALLOWED for reversal to be authorized.
+# 'closed' (fiscal_periods.status) is rejected — once the 4-stage
+# close sequence is `confirmed`, only the AD-22 reverse-direction
+# reversal path can re-open the period (PRD §F11.2).
 PERIOD_STATUS_ALLOWED: Final[frozenset[str]] = frozenset({"open", "closed"})
 PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset({"locked"})
+
+# fiscal_periods.status values (AD-6 1-way state machine).
+FISCAL_PERIOD_STATUS_ALLOWED: Final[frozenset[str]] = frozenset({"open"})
+FISCAL_PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset(
+    {"closing", "closed", "reversed"}
+)
 
 # Error codes — pure-kernel domain semantics.
 ERROR_CODE_INVALID_PERIOD_STATUS: Final[str] = "INVALID_PERIOD_STATUS"
@@ -74,11 +86,18 @@ class ReversalAuthorizationError(Exception):
 
 # ── ReversalAuthorizationResult NamedTuple ───────────────────
 class ReversalAuthorizationResult(NamedTuple):
-    """Authorization outcome — service layer wraps this in the wire response."""
+    """Authorization outcome — service layer wraps this in the wire response.
+
+    Story 11.2 wire: extends with `fiscal_period_status` to capture the
+    SECOND guard layer added by AD-6 close lock + 4-stage close_sequence_state.
+    Both `period_status` (monthly_input_periods.status) AND
+    `fiscal_period_status` (fiscal_periods.status) gate the authorization.
+    """
 
     authorized: bool
     reject_reason_ko: str | None
     period_status: str  # "open" | "closed" | "locked"
+    fiscal_period_status: str  # "open" | "closing" | "closed" | "reversed"
     capability_granted: bool
     target_reversible: bool
     actor_id: uuid.UUID
@@ -93,8 +112,18 @@ def authorize_reversal(
     actor_id: uuid.UUID,
     period_status: str,
     capability_granted: bool,
+    fiscal_period_status: str = "open",
 ) -> ReversalAuthorizationResult:
     """Decide whether a reversal of `target_event` is permitted.
+
+    Story 11.2 wire — dual guard:
+      1. `period_status` (monthly_input_periods.status — 11-1 SSOT):
+         must be "open" or "closed" for reversal; "locked" is rejected.
+      2. `fiscal_period_status` (fiscal_periods.status — 11-2 PRIMARY):
+         must be "open" for reversal; "closing" / "closed" / "reversed"
+         are rejected (AD-6 close lock — 4-stage close_sequence_state
+         guard). This is the AD-6 INSERT 거부 guard mirrored at the
+         authorization layer.
 
     Args:
         tenant_id: Owning tenant (audit attribution).
@@ -104,6 +133,11 @@ def authorize_reversal(
             "open" or "closed" for reversal; "locked" is rejected.
         capability_granted: Whether the tenant has `Capability.REVERSAL_REQUEST`
             (manufacturing 3종 ✅ / service-only ❌).
+        fiscal_period_status: `fiscal_periods.status` snapshot — must be
+            "open" for reversal. Story 11.2 PRIMARY guard. Defaults to
+            "open" for backward compat with 11-1 callers that haven't
+            yet fetched the fiscal_periods row (will surface as
+            rejection if a closed fiscal period is actually in scope).
 
     Returns:
         ReversalAuthorizationResult with `authorized` flag +
@@ -137,6 +171,7 @@ def authorize_reversal(
             authorized=False,
             reject_reason_ko=M11_REJECT_TARGET_NOT_REVERSIBLE_KO,
             period_status=period_status,
+            fiscal_period_status=fiscal_period_status,
             capability_granted=capability_granted,
             target_reversible=False,
             actor_id=actor_id,
@@ -149,13 +184,14 @@ def authorize_reversal(
             authorized=False,
             reject_reason_ko=M11_REJECT_NO_CAPABILITY_KO,
             period_status=period_status,
+            fiscal_period_status=fiscal_period_status,
             capability_granted=False,
             target_reversible=True,
             actor_id=actor_id,
             tenant_id=tenant_id,
         )
 
-    # Period status gate.
+    # Period status gate (monthly_input_periods.status — 11-1 SSOT).
     if period_status not in PERIOD_STATUS_ALLOWED and period_status not in PERIOD_STATUS_REJECTED:
         raise ReversalAuthorizationError(
             message=(
@@ -170,6 +206,39 @@ def authorize_reversal(
             authorized=False,
             reject_reason_ko=M11_REJECT_LOCKED_KO,
             period_status=period_status,
+            fiscal_period_status=fiscal_period_status,
+            capability_granted=True,
+            target_reversible=True,
+            actor_id=actor_id,
+            tenant_id=tenant_id,
+        )
+
+    # Story 11.2 PRIMARY guard — fiscal_periods.status (AD-6 close lock).
+    # Reversal is only permitted before fiscal_periods reaches 'closing'
+    # (the 4-stage close_sequence_state verification phase). Once
+    # fiscal_periods.status='closed', the period is fully sealed and
+    # any subsequent edit must route through the AD-22 reversal
+    # sequence (which the authorization layer just denied — caller
+    # must use the dedicated reversal endpoints that themselves gate on
+    # fiscal_periods.status='open' or 'closed').
+    if fiscal_period_status not in (
+        FISCAL_PERIOD_STATUS_ALLOWED | FISCAL_PERIOD_STATUS_REJECTED
+    ):
+        raise ReversalAuthorizationError(
+            message=(
+                f"fiscal_period_status {fiscal_period_status!r} is not in "
+                f"the known set "
+                f"({sorted(FISCAL_PERIOD_STATUS_ALLOWED | FISCAL_PERIOD_STATUS_REJECTED)})"
+            ),
+            error_code=ERROR_CODE_INVALID_PERIOD_STATUS,
+            target_event_id=target_event.event_id,
+        )
+    if fiscal_period_status in FISCAL_PERIOD_STATUS_REJECTED:
+        return ReversalAuthorizationResult(
+            authorized=False,
+            reject_reason_ko=M11_REJECT_LOCKED_KO,
+            period_status=period_status,
+            fiscal_period_status=fiscal_period_status,
             capability_granted=True,
             target_reversible=True,
             actor_id=actor_id,
@@ -181,6 +250,7 @@ def authorize_reversal(
         authorized=True,
         reject_reason_ko=None,
         period_status=period_status,
+        fiscal_period_status=fiscal_period_status,
         capability_granted=True,
         target_reversible=True,
         actor_id=actor_id,
@@ -194,6 +264,8 @@ __all__ = [
     "ERROR_CODE_TARGET_NOT_REVERSIBLE",
     "ERROR_CODE_NON_UUID_ACTOR",
     "ERROR_CODE_NON_UUID_TENANT",
+    "FISCAL_PERIOD_STATUS_ALLOWED",
+    "FISCAL_PERIOD_STATUS_REJECTED",
     "M11_AUTHORIZE_KO",
     "M11_REJECT_LOCKED_KO",
     "M11_REJECT_NO_CAPABILITY_KO",

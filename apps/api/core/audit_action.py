@@ -58,6 +58,7 @@ class ActionClass(str, __import__("enum").Enum):
     CLOSING_GUARD = "closing_guard"  # Story 5.3 (NEW — closing ≥ 0 invariant audit)
     VERIFICATION = "verification"  # Story 5.3 (NEW — V3 closing invariant verification)
     CLOSING_PERIOD = "closing_period"  # Story 6.1 (NEW — closing period service audit-first)
+    MONTHLY_CLOSING = "monthly_closing"  # Story 11.2 (NEW — 4-stage close sequence lock audit)
     MONTHLY_CLOSING_REPORT = "monthly_closing_report"  # Story 6.2 (NEW — monthly closing report read-only audit)
 
 
@@ -233,6 +234,25 @@ ClosingPeriodAction = Literal[
     "closing_period_snapshot_inconsistency",
 ]
 
+# monthly_closing actions (Story 11.2 NEW — 4-stage close sequence lock).
+# PRD §F11.1 + §8.M11(a) + AD-6 close lock. Audit routes to
+# `audit_logs` (ActionClass.MONTHLY_CLOSING). 4 values:
+# - `closing_sequence_initiated` — initiate_close_sequence succeeded
+#   (fiscal_periods INSERT + close_sequence_state='divisions').
+# - `closing_sequence_step_completed` — step_complete dispatch
+#   (divisions / manufacturing / abc / common).
+# - `closing_sequence_blocked` — partial_close_guard rejected
+#   (4단계 미완료 → 409 PARTIAL_CLOSE_BLOCKED). Audit-first emit
+#   BEFORE raising the typed exception.
+# - `closing_sequence_confirmed` — confirm_close_sequence succeeded
+#   (fiscal_periods.status='closed' + close_sequence_state='confirmed').
+MonthlyClosingAction = Literal[
+    "closing_sequence_initiated",
+    "closing_sequence_step_completed",
+    "closing_sequence_blocked",
+    "closing_sequence_confirmed",
+]
+
 # monthly_closing_report actions (Story 6.2 NEW — read-only report 자체 audit).
 # PRD §F5 + §F5.2 + §V4. Audit routes to audit_logs
 # (ActionClass.MONTHLY_CLOSING_REPORT). 1 value:
@@ -261,6 +281,7 @@ AuditAction = (
     | ClosingGuardAction
     | VerificationAction
     | ClosingPeriodAction
+    | MonthlyClosingAction
     | MonthlyClosingReportAction
 )
 
@@ -434,6 +455,22 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Story 11.2 — monthly_closing 4 values (4-stage close sequence
+        # lock). DB CHECK constraint mirror: audit_logs CHECK includes
+        # closing_sequence_initiated/step_completed/blocked/confirmed
+        # (drift detector enforces parity between ActionClass registry,
+        # DB CHECK constraint, and call sites).
+        ActionClass.MONTHLY_CLOSING: (
+            "audit_logs",
+            frozenset(
+                {
+                    "closing_sequence_initiated",
+                    "closing_sequence_step_completed",
+                    "closing_sequence_blocked",
+                    "closing_sequence_confirmed",
+                }
+            ),
+        ),
         # Story 6.2 — monthly_closing_report 1 value (read-only report 자체 audit).
         # DB CHECK constraint mirror: audit_logs CHECK includes
         # monthly_closing_report_viewed (drift detector enforces parity
@@ -565,6 +602,7 @@ __all__ = [
     "ClosingGuardAction",
     "VerificationAction",
     "ClosingPeriodAction",
+    "MonthlyClosingAction",
     "MonthlyClosingReportAction",
     "emit_audit_typed",
 ]

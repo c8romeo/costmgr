@@ -52,10 +52,12 @@ class TestAuthorizeReversal:
             actor_id=uuid.uuid4(),
             period_status="closed",
             capability_granted=True,
+            fiscal_period_status="open",
         )
         assert result.authorized is True
         assert result.reject_reason_ko is None
         assert result.period_status == "closed"
+        assert result.fiscal_period_status == "open"
         assert result.capability_granted is True
         assert result.target_reversible is True
 

@@ -70,6 +70,14 @@ from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
 from apps.api.modules.m11_close import router as m11_close_router
+from apps.api.modules.m11_close.services.close_sequence_service import (
+    CloseSequenceAlreadyInitiatedError,
+    CloseSequenceCapabilityDeniedError,
+    CloseSequenceStepMismatchError,
+    ClosingSequenceAlreadyConfirmedError,
+    ClosingSequenceAuditEmitError,
+    PartialCloseBlockedError,
+)
 from apps.api.modules.m11_close.services.reversal_service import (
     LockedPeriodReversalRejectedError,
     ReversalDuplicateError,
@@ -976,6 +984,125 @@ async def _cache_invalidation_channel_invalid_handler(
             "details": {
                 "channel": exc.channel,
             },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ── Story 11.2 — 4 NEW exception handlers for close sequence ────
+@app.exception_handler(PartialCloseBlockedError)
+async def _m11_partial_close_blocked_handler(
+    request: Request, exc: PartialCloseBlockedError
+) -> JSONResponse:
+    """409 PARTIAL_CLOSE_BLOCKED — 4단계 미완료 시 confirm_close_sequence 거부."""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "PARTIAL_CLOSE_BLOCKED",
+            "message_ko": exc.reject_reason_ko,
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                "missing_step": exc.missing_step,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(CloseSequenceAlreadyInitiatedError)
+async def _m11_close_sequence_already_initiated_handler(
+    request: Request, exc: CloseSequenceAlreadyInitiatedError
+) -> JSONResponse:
+    """409 CLOSE_SEQUENCE_ALREADY_INITIATED — initiate 중복 호출."""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "CLOSE_SEQUENCE_ALREADY_INITIATED",
+            "message_ko": "이미 마감 시퀀스가 시작되었습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(CloseSequenceStepMismatchError)
+async def _m11_close_sequence_step_mismatch_handler(
+    request: Request, exc: CloseSequenceStepMismatchError
+) -> JSONResponse:
+    """409 CLOSE_SEQUENCE_STEP_MISMATCH — 단계 순서 mismatch."""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "CLOSE_SEQUENCE_STEP_MISMATCH",
+            "message_ko": (
+                f"단계 순서가 맞지 않습니다 (시도: {exc.attempted_step}, "
+                f"기대: {exc.expected_step})"
+            ),
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                "attempted_step": exc.attempted_step,
+                "expected_step": exc.expected_step,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(CloseSequenceCapabilityDeniedError)
+async def _m11_close_sequence_capability_denied_handler(
+    request: Request, exc: CloseSequenceCapabilityDeniedError
+) -> JSONResponse:
+    """403 CLOSE_SEQUENCE_CAPABILITY_DENIED — service-only tenant."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "CLOSE_SEQUENCE_CAPABILITY_DENIED",
+            "message_ko": "마감 시퀀스 잠금 권한이 없습니다 (제조 부문 전용)",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "industry": exc.industry,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingSequenceAlreadyConfirmedError)
+async def _m11_closing_sequence_already_confirmed_handler(
+    request: Request, exc: ClosingSequenceAlreadyConfirmedError
+) -> JSONResponse:
+    """409 ALREADY_CONFIRMED — fiscal_periods.status='closed'."""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "ALREADY_CONFIRMED",
+            "message_ko": "이미 마감 시퀀스가 확정되었습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                "closed_at": exc.closed_at,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingSequenceAuditEmitError)
+async def _m11_closing_sequence_audit_emit_handler(
+    request: Request, exc: ClosingSequenceAuditEmitError
+) -> JSONResponse:
+    """500 — audit-first emit failed."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "CLOSING_SEQUENCE_AUDIT_EMIT_FAILED",
+            "message_ko": "마감 시퀀스 audit 기록 실패",
+            "details": {"error": exc.message},
             "trace_id": exc.trace_id,
         },
     )

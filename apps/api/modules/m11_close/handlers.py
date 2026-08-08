@@ -64,6 +64,9 @@ from apps.api.modules.m0_onboarding.services.settings_service import (
     SettingsService,
     TenantSettingsNotFoundError,
 )
+from apps.api.modules.m11_close.services.close_sequence_service import (
+    CloseSequenceService,
+)
 from apps.api.modules.m11_close.services.reversal_service import (
     ReversalService,
 )
@@ -400,6 +403,131 @@ async def publish_cache_invalidation(
         published_at=receipt.published_at,
         trace_id=receipt.trace_id,
     )
+
+
+# ────────────────────────────────────────────────────────────────────────
+# Story 11.2 — 3 NEW routes for close sequence lock
+# (PRD §F11.1 + AD-6 close lock + §8.M11(a) 부분 마감 불허)
+# ────────────────────────────────────────────────────────────────────────
+class _CloseSequenceStepBody(BaseModel):
+    """POST /api/v1/close/sequence/step-complete body shape."""
+
+    model_config = ConfigDict(extra="forbid")
+    step_name: str = Field(
+        ...,
+        pattern=r"^(divisions|manufacturing|abc|common)$",
+        description="Stage to mark complete (divisions | manufacturing | abc | common).",
+    )
+
+
+class _CloseSequenceInitiateBody(BaseModel):
+    """POST /api/v1/close/sequence/initiate body shape (empty body)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+def _build_close_sequence_service(
+    session: AsyncSession, ctx: TenantContext, request: Request
+) -> CloseSequenceService:
+    """Construct `CloseSequenceService` with trace_id."""
+    return CloseSequenceService(
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=_resolve_trace_id(ctx, request),
+    )
+
+
+# ── POST /api/v1/close/sequence/initiate ─────────────────────
+@router.post(
+    "/sequence/initiate",
+    status_code=201,
+    summary="Initiate the 4-stage close sequence (Story 11.2)",
+)
+async def initiate_close_sequence_route(
+    _payload: _CloseSequenceInitiateBody | None = None,
+    request: Request = None,  # type: ignore[assignment]
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(
+        require_capability(Capability.CLOSE_SEQUENCE_LOCK)
+    ),
+    _role: None = Depends(require_role("owner")),
+) -> dict[str, Any]:
+    """Initiate the 4-stage close sequence for the current period.
+
+    Story 11.2 PRIMARY AC. INSERTs a `fiscal_periods` row with
+    `close_sequence_state='divisions'` + emits audit row
+    `closing_sequence_initiated` (ActionClass.MONTHLY_CLOSING).
+
+    Raises:
+        409 CLOSE_SEQUENCE_ALREADY_INITIATED — existing fiscal_periods row.
+    """
+    seq_svc = _build_close_sequence_service(session, ctx, request)
+    result = await seq_svc.initiate_close_sequence(
+        period_key=_resolve_period_key(request, ctx),
+        actor_id=ctx.user_id,
+    )
+    await session.commit()
+    return result
+
+
+# ── POST /api/v1/close/sequence/step-complete ────────────────
+@router.post(
+    "/sequence/step-complete",
+    summary="Mark a 4-stage close sequence step as complete (Story 11.2)",
+)
+async def step_complete_route(
+    payload: _CloseSequenceStepBody,
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(
+        require_capability(Capability.CLOSE_SEQUENCE_LOCK)
+    ),
+    _role: None = Depends(require_role("owner")),
+) -> dict[str, Any]:
+    """Mark `step_name` as complete in the 4-stage sequence."""
+    seq_svc = _build_close_sequence_service(session, ctx, request)
+    result = await seq_svc.step_complete(
+        period_key=_resolve_period_key(request, ctx),
+        step_name=payload.step_name,
+        actor_id=ctx.user_id,
+    )
+    await session.commit()
+    return result
+
+
+# ── GET /api/v1/close/sequence/state ─────────────────────────
+@router.get(
+    "/sequence/state",
+    summary="Read-only close sequence state (Story 11.2)",
+)
+async def get_close_sequence_state_route(
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(
+        require_capability(Capability.CLOSE_SEQUENCE_LOCK)
+    ),
+) -> dict[str, Any]:
+    """Read-only check of close sequence progress."""
+    seq_svc = _build_close_sequence_service(session, ctx, request)
+    return await seq_svc.get_close_sequence_state(
+        period_key=_resolve_period_key(request, ctx),
+    )
+
+
+def _resolve_period_key(request: Request, ctx: TenantContext) -> str:
+    """Extract period_key from query or fall back to current month.
+
+    Reads `?period_key=YYYY-MM` from the URL query string; falls back to
+    the current UTC month if absent (system cron default).
+    """
+    period_key = request.query_params.get("period_key")
+    if period_key:
+        return period_key
+    now = datetime.now(tz=UTC)
+    return now.strftime("%Y-%m")
 
 
 __all__ = [

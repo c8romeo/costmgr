@@ -43,6 +43,7 @@ from apps.api.core.db_models import InventoryLedger
 from apps.api.modules.m11_close.services.reversal_kernel_adapter import (
     dispatch_build_reversal_corrected,
     dispatch_build_reversal_negating,
+    fetch_fiscal_period_status,
     fetch_period_status,
     fetch_target_event,
 )
@@ -300,13 +301,29 @@ class ReversalService:
         # period_status None (period not initialized) → treat as 'open'.
         effective_period_status = period_status if period_status is not None else "open"
 
-        # (3) authorize_reversal decision.
+        # Story 11.2 PRIMARY guard — fetch fiscal_periods.status (AD-6).
+        # fiscal_periods.status='open' is required for reversal; once the
+        # 4-stage close_sequence_state reaches 'confirmed', reversals
+        # must route through the dedicated AD-22 reversal endpoints
+        # (which themselves gate on this status). fetch_fiscal_period_status
+        # is a lightweight SELECT (one row, indexed on tenant_period_unique).
+        fiscal_period_status = await fetch_fiscal_period_status(
+            self.session,
+            tenant_id=self.tenant_id,
+            period_key=target_event.period_key,
+        )
+        effective_fiscal_period_status = (
+            fiscal_period_status if fiscal_period_status is not None else "open"
+        )
+
+        # (3) authorize_reversal decision — Story 11.2 dual guard.
         auth = authorize_reversal(
             tenant_id=self.tenant_id,
             target_event=target_event,
             actor_id=actor_id,
             period_status=effective_period_status,
             capability_granted=capability_granted,
+            fiscal_period_status=effective_fiscal_period_status,
         )
         if not auth.authorized:
             # Audit-first rejection (CR 1.1 lesson).
@@ -316,7 +333,14 @@ class ReversalService:
                 reason_ko=auth.reject_reason_ko or "M11 모듈 권한 거부",
             )
             # 422 for locked-period (different from 403 capability reject).
-            if effective_period_status == "locked":
+            # Story 11.2 dispatch: BOTH monthly_input_periods.status='locked'
+            # AND fiscal_periods.status IN ('closing', 'closed', 'reversed')
+            # trigger LockedPeriodReversalRejectedError (AD-6 close lock).
+            if effective_period_status == "locked" or effective_fiscal_period_status in (
+                "closing",
+                "closed",
+                "reversed",
+            ):
                 raise LockedPeriodReversalRejectedError(
                     tenant_id=self.tenant_id,
                     target_event_id=target_event_id,

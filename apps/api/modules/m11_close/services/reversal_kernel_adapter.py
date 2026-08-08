@@ -18,7 +18,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.db_models import InventoryLedger, MonthlyInputPeriod
+from apps.api.core.db_models import FiscalPeriod, InventoryLedger, MonthlyInputPeriod
 from packages.services.m4_inventory.ledger import InventoryLedgerEvent
 from packages.services.m11_close.reversal_corrected import (
     ReversalCorrectedEvent,
@@ -99,6 +99,33 @@ async def fetch_period_status(
     return row.status  # type: ignore[no-any-return]
 
 
+async def fetch_fiscal_period_status(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    period_key: str,
+) -> str | None:
+    """Fetch the fiscal_periods.status — Story 11.2 PRIMARY guard.
+
+    AD-6 close lock mirror at the authorization layer. Returns None
+    if no fiscal_periods row exists for (tenant_id, period_key) —
+    service layer treats None as 'open' default (close_sequence has
+    not been initiated for this period yet).
+
+    Lightweight single-row SELECT (indexed via UNIQUE
+    (tenant_id, period_key)).
+    """
+    row = await session.scalar(
+        select(FiscalPeriod).where(
+            FiscalPeriod.tenant_id == tenant_id,
+            FiscalPeriod.period_key == period_key,
+        )
+    )
+    if row is None:
+        return None
+    return row.status  # type: ignore[no-any-return]
+
+
 def dispatch_build_reversal_negating(
     *,
     target_event: InventoryLedgerEvent,
@@ -144,6 +171,7 @@ def dispatch_build_reversal_corrected(
 __all__ = [
     "dispatch_build_reversal_corrected",
     "dispatch_build_reversal_negating",
+    "fetch_fiscal_period_status",
     "fetch_period_status",
     "fetch_target_event",
 ]
