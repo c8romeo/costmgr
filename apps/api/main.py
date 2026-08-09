@@ -54,6 +54,11 @@ from apps.api.modules.m4_inventory.services.closing_guard_service import (
     ClosingGuardProductionConsumptionError,
     ClosingGuardServiceOnlyTenantError,
 )
+from apps.api.modules.m4_inventory.services.closing_pdf_export_service import (
+    ClosingPdfExportAuditEmitError,
+    ClosingPdfExportInvalidIndustryError,
+    ClosingPdfExportSizeExceededError,
+)
 from apps.api.modules.m4_inventory.services.ledger_service import (
     AppendOnlyLedgerViolationError,
     InventoryLedgerInvalidEventTypeError,
@@ -870,6 +875,84 @@ async def _m4_closing_guard_audit_emit_handler(
         content={
             "code": "CLOSING_GUARD_AUDIT_EMIT_ERROR",
             "message_ko": "closing-guard audit emit 실패 (관리자에게 문의)",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                **exc.details,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# Story 6.3 — Closing PDF export exception handlers (AD-15 §4 envelope).
+# Without these, FastAPI returns HTTP 500 for any closing-pdf-export typed
+# error, violating the AD-15 `{code, message_ko, details, trace_id}` contract.
+@app.exception_handler(ClosingPdfExportInvalidIndustryError)
+async def _m4_closing_pdf_export_invalid_industry_handler(
+    request: Request, exc: ClosingPdfExportInvalidIndustryError
+) -> JSONResponse:
+    """422 CLOSING_PDF_EXPORT_INVALID_INDUSTRY — W5 deferral guard.
+
+    Story 6.3 PRD §F6.3: industry extension follow-up (Epic 12+ 결정).
+    Until then, only 4 canonical industries accepted.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "CLOSING_PDF_EXPORT_INVALID_INDUSTRY",
+            "message_ko": (
+                "업종 미지원: 4 canonical industries 중 하나여야 합니다 "
+                "(manufacturing / manufacturing_service / "
+                "manufacturing_service_other / service)"
+            ),
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                "industry": exc.industry,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingPdfExportSizeExceededError)
+async def _m4_closing_pdf_export_size_exceeded_handler(
+    request: Request, exc: ClosingPdfExportSizeExceededError
+) -> JSONResponse:
+    """409 CLOSING_PDF_EXPORT_SIZE_EXCEEDED — PDF > 5MB cap.
+
+    Story 6.3 PRD §F6.3: PDF size ≤ 5MB per period (chunked rendering cap).
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "CLOSING_PDF_EXPORT_SIZE_EXCEEDED",
+            "message_ko": "PDF 크기 초과: 5MB cap (PRD §F6.3)",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                "size_bytes": exc.size_bytes,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingPdfExportAuditEmitError)
+async def _m4_closing_pdf_export_audit_emit_handler(
+    request: Request, exc: ClosingPdfExportAuditEmitError
+) -> JSONResponse:
+    """500 CLOSING_PDF_EXPORT_AUDIT_EMIT_ERROR — CR 1.1 audit-first invariant.
+
+    Story 6.3 PRD §F6.3: closing_pdf_export_viewed audit row MUST be emitted
+    BEFORE PDF byte render. If audit emit fails, the PDF export MUST refuse
+    to advance (fail-closed).
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "CLOSING_PDF_EXPORT_AUDIT_EMIT_ERROR",
+            "message_ko": "PDF export audit emit 실패 (관리자에게 문의)",
             "details": {
                 "tenant_id": str(exc.tenant_id),
                 **exc.details,
