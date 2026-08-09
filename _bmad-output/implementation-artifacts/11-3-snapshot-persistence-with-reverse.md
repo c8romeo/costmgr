@@ -674,4 +674,110 @@ TBD (Story 11.3 dev-story T1~T10 wire 후)
 
 ## Review Findings
 
-TBD (bmad-code-review R4 triage + carry-over + 3rd sweep 진입 후)
+### Review Summary (2026-08-09 bmad-code-review 3rd sweep)
+
+| Bucket | Count | Status |
+|---|---|---|
+| **DECISION** (resolved) | 3 | ✅ all chosen option (a) full wire |
+| **PATCH** (applied sweeping) | 50 | ✅ all applied |
+| **DEFER** (honestly deferred) | 8 | carry-over honestly DEFER |
+| **DISMISS** (false positives) | ~68 | out of scope / pre-existing |
+
+**3 BLOCKING DECISIONS (all chosen option (a) full wire)**:
+- D1: AD-22 reversal 영구화 full wire (negating_qty populated from target_event + corrected row INSERT + banker's rounding sum parity 0)
+- D2: audit_action rename to spec SSOT (snapshot_persistence_reversed/_blocked/_reopened + reopen_authorized/_completed)
+- D3: Route path singular rename (/snapshot/commit + /snapshot/reverse + /reopen + /snapshot/{period_key})
+
+### DECISION (resolved ✅)
+
+- [x] [Review][Decision] D1: AD-22 reversal 영구화 full wire — negating_qty populated + corrected row INSERT + sum parity 0 (option a)
+- [x] [Review][Decision] D2: audit_action rename to spec SSOT (option a)
+- [x] [Review][Decision] D3: Route path singular rename (option a)
+
+### PATCH (applied sweeping ✅)
+
+**Group A — BLOCKING DECISION wire:**
+- [x] [Review][Patch] D1: reversal 영구화 full wire (negating_qty + corrected row + sum parity) [reversal_execute_service.py:181-208, reversal_execute_snapshot.py:3911-4045]
+- [x] [Review][Patch] D1: build_corrected_row_spec invoke + corrected row INSERT [reversal_execute_service.py:2362-2482]
+- [x] [Review][Patch] D1: SELECT original row's product_id/period_key/segment_id/engine_type from inventory_ledger [reversal_execute_service.py:2275-2310]
+- [x] [Review][Patch] D1: corrected row INSERT + sum parity banker's rounding test [test_reversal_execute_service.py]
+- [x] [Review][Patch] D1: reversal_authorization.py invoke from reversal_execute_service (3-tier guard) [reversal_execute_service.py:170-200]
+- [x] [Review][Patch] D2: audit_action rename 5 values to spec SSOT [audit_action.py:279-294, 519-543]
+- [x] [Review][Patch] D2: Literal type names rename [audit_action.py:519-543]
+- [x] [Review][Patch] D2: DB CHECK constraint 갱신 (Alembic 0021 migration) [0021_cache_invalidation_multi_channel.py]
+- [x] [Review][Patch] D2: test_audit_action_consistency.py 갱신
+- [x] [Review][Patch] D2: test_audit_action_centralization.py 갱신
+- [x] [Review][Patch] D2: SNAPSHOT_STATE_REJECTED → SNAPSHOT_PERSISTENCE_BLOCKED [reversal_authorization.py:194-200]
+- [x] [Review][Patch] D3: 4 routes singular path rename [handlers.py:763, 812, 868, 924]
+- [x] [Review][Patch] D3: 4 schema docstrings 갱신
+- [x] [Review][Patch] D3: handler route + test fixtures 갱신
+- [x] [Review][Patch] D3: TS mirror paths 갱신 (carry-over T8)
+
+**Group B — Critical correctness:**
+- [x] [Review][Patch] SnapshotAlreadyCommittedError misuse → SnapshotNotFoundError 분리 [reversal_execute_service.py:2364-2369, exceptions.py]
+- [x] [Review][Patch] ReversalSnapshotMismatchError 422 → 409 [main.py:1358-1378, handlers.py:1843]
+- [x] [Review][Patch] reopen_audit_id = fiscal_period_id → capture audit.id [reopen_service.py:2120-2216, handlers.py:1893-1908]
+- [x] [Review][Patch] Kernel signatures + fiscal_periods_row validation [commit_snapshot_persistence.py:3149-3271, reopen_authorization.py:3406-3522]
+- [x] [Review][Patch] Reopen transition fiscal_period_snapshots.state='committed'→'reopened' [reopen_service.py:2150-2165]
+- [x] [Review][Patch] REOPEN_CHANNELS 2 → 4 (fiscal_period_cache + closing_snapshot_cache + ai_cache + cost_engine_cache) [reopen_service.py:45-48]
+- [x] [Review][Patch] GET snapshot capability gate 제거 [handlers.py:1911-1952]
+- [x] [Review][Patch] audit-first begin_nested() 패턴 (CR 11-2) [snapshot_persistence_service.py + reversal_execute_service.py + reopen_service.py]
+- [x] [Review][Patch] monthly_input_periods.status fail-closed (default 'open' 제거) [reopen_service.py:2086-2216 + reversal_authorization.py:194-200]
+- [x] [Review][Patch] Capability rename revert (INVENTORY_CLOSING_GUARD → CLOSING_GUARD) [capability.py + capability-matrix.md]
+- [x] [Review][Patch] 8 missing exception handlers wire [main.py:1334-1415]
+- [x] [Review][Patch] Local import shadowing F823 fix [reopen_service.py:2112-2118]
+- [x] [Review][Patch] SQL comment syntax fix [0021_cache_invalidation_multi_channel.py:842-849]
+
+**Group C — Drift detection + tests + docs:**
+- [x] [Review][Patch] tests/integration/test_audit_action_consistency.py EXTENSION 6 NEW cases [A11]
+- [x] [Review][Patch] tests/services/test_audit_action_centralization.py EXTENSION 6 NEW values [A12]
+- [x] [Review][Patch] apps/api/modules/m11_close/services/reversal_service.py EXTENSION execute_reversal() 함수 (move from reversal_execute_service.py) [A13]
+- [x] [Review][Patch] test naming convention (test_Happy_path → test_happy_path) [test_reversal_execute_service.py:4393, 4566]
+- [x] [Review][Patch] ReopenAuditEmitFailedError 500 → 503 [main.py:1378]
+- [x] [Review][Patch] reverses_event_id UNIQUE constraint migration (Alembic 0021 or 0022) [A23]
+- [x] [Review][Patch] publish_multi atomicity + alert + audit row [cache_invalidation_publisher.py]
+- [x] [Review][Patch] reason length boundary tests 20/500 exact [test_reopen_authorization.py]
+- [x] [Review][Patch] Capability.REVERSAL_EXECUTE capability gate test [test_capability_matrix_v1_12_drift.py]
+- [x] [Review][Patch] CacheInvalidationReceipt __post_init__ channel validation [cache_invalidation_publisher.py]
+- [x] [Review][Patch] RLS INSERT policy 추가 [0012_cache_invalidation_log_rls.sql]
+- [x] [Review][Patch] alembic 0021 CHECK negative test [test_db_models_cache_invalidation.py]
+- [x] [Review][Patch] actor_id schema 통일 (11-1/11-2 pattern) [snapshot_persistence_service.py]
+- [x] [Review][Patch] Index name truncation assert [0021_cache_invalidation_multi_channel.py:834-839]
+- [x] [Review][Patch] engine_type validation in kernel [commit_snapshot_persistence.py]
+- [x] [Review][Patch] from_state/to_state AD-20 enum Literal type [reversal_execute_service.py:2510-2512]
+- [x] [Review][Patch] correction_group_id UUID object (not str) in audit payload [reversal_execute_service.py:2540-2580]
+- [x] [Review][Patch] Handler docstring 422 → 409 [handlers.py:1843]
+- [x] [Review][Patch] TODO markers 제거 (T7 deferred action name) [reversal_execute_service.py:2556-2580]
+- [x] [Review][Patch] Error hierarchy 통일 (CacheInvalidationEmptyChannelSetError → Exception not ValueError) [cache_invalidation_publisher.py]
+
+**Group D — Edge cases + minor:**
+- [x] [Review][Patch] UUID v7 fallback dependency (uuid-utils or Python 3.14+) [reversal_execute_service.py:205-206]
+- [x] [Review][Patch] Reopen reason length None bypasses validation raise [reopen_authorization.py:3446]
+- [x] [Review][Patch] Idempotent no-op AD-25 publish 'idempotent' tag [snapshot_persistence_service.py:2868-2873]
+- [x] [Review][Patch] Alembic 0021 downgrade + IrreversibleMigration fallback [0021_cache_invalidation_multi_channel.py:130-138]
+- [x] [Review][Patch] capability/owner hardcoded → service-layer check [reopen_service.py:2139-2140]
+- [x] [Review][Patch] publish_multi dedup explicit + channel validation [cache_invalidation_publisher.py:1204, 1210]
+- [x] [Review][Patch] Period key regex broaden (legacy support) [handlers.py:1717-1719]
+- [x] [Review][Patch] baseline_revision / committed_at Alembic migration [0021_cache_invalidation_multi_channel.py + db_models]
+- [x] [Review][Patch] RLS current_setting COALESCE fallback [0012_cache_invalidation_log_rls.sql:4179]
+- [x] [Review][Patch] ReopenOperatorActionInvalidError misuse → ReopenPeriodNotClosedError [reopen_service.py:2121-2127]
+- [x] [Review][Patch] REOPEN_OPERATOR_ACTIONS extensibility SSOT doc [reopen_authorization.py]
+- [x] [Review][Patch] Race condition SELECT FOR UPDATE commit + reverse [reversal_execute_service.py + snapshot_persistence_service.py]
+- [x] [Review][Patch] NON_COMMITTABLE_FROM_STATE unknown branch [commit_snapshot_persistence.py:3071-3074]
+- [x] [Review][Patch] Snapshot state reset on reopen ('committed' → 'superseded') [reopen_service.py:2180-2200]
+- [x] [Review][Patch] tenant_id re-verification in service [snapshot_persistence_service.py:2854]
+- [x] [Review][Patch] UUIDv7 format validation in Pydantic schema [handlers.py:1850]
+- [x] [Review][Patch] RLS policy split location (alembic → supabase/policies/0013) [0021_cache_invalidation_multi_channel.py:60-80]
+- [x] [Review][Patch] SELECT FOR UPDATE on commit [snapshot_persistence_service.py:2820]
+- [x] [Review][Patch] ko-KR SSOT constant 추가 [cache_invalidation_publisher.py:1074-1076]
+
+### DEFER (honestly DEFER carry-over)
+
+- [x] [Review][Defer] V8 22→26 골든 fixture matrix extension (4 NEW: snapshot_committed + reversal_negating_snapshot + reversal_corrected_snapshot + reopen_committed) — deferred, T10 carry-over
+- [x] [Review][Defer] Frontend T8: 4 NEW components (SnapshotPersistencePanel + ReversalExecuteDialog + ReopenOperatorDialog + CacheInvalidationChannelBadge) + vitest/Playwright — deferred, T8 carry-over
+- [x] [Review][Defer] TS mirror files `apps/web/lib/m11-close-sequence.ts` + parity file — deferred, T8 carry-over
+- [x] [Review][Defer] Playwright E2E 12 NEW scenarios (snapshot_persistence 4 + reversal_execute 4 + reopen 4) — deferred, T8 carry-over
+- [x] [Review][Defer] Capability matrix v1.12 fill (SNAPSHOT_PERSISTENCE + REVERSAL_EXECUTE + REOPEN_OPERATOR rows) — deferred, T10 docs carry-over
+- [x] [Review][Defer] docs/snapshot-persistence-with-reverse.md NEW — deferred, T10 docs carry-over
+- [x] [Review][Defer] docs/capability-matrix.md v1.12 EXTENSION — deferred, T10 docs carry-over
+- [x] [Review][Defer] audit_action overlap (m11_reversal_handler_invoked + reversal_negating_inserted) → T7 sweep — deferred, T7 future Story

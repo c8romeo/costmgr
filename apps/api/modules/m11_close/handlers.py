@@ -589,20 +589,20 @@ def _resolve_period_key(request: Request, ctx: TenantContext) -> str:
 # route shells are wired here so that the URL contract is stable
 # (T3/T4/T5 implement the service bodies + tests).
 #
-# 4 routes:
-#   POST /api/v1/close/snapshots/commit      → AD-20 state='verified'→'committed'
+# 4 routes (singular resource naming per spec AC #1-4):
+#   POST /api/v1/close/snapshot/commit       → AD-20 state='verified'→'committed'
 #                                              → SnapshotPersistenceService (T3)
-#   POST /api/v1/close/snapshots/reverse     → AD-22 state='committed'→'reversed'
+#   POST /api/v1/close/snapshot/reverse      → AD-22 state='committed'→'reversed'
 #                                              → ReversalExecuteService (T4)
-#   POST /api/v1/close/sequence/reopen       → W2 reopen flow
+#   POST /api/v1/close/reopen                → W2 reopen flow
 #                                              → ReopenService (T5)
-#   GET  /api/v1/close/snapshots/{period_key} → read snapshot state
+#   GET  /api/v1/close/snapshot/{period_key} → read snapshot state
 #                                              → SnapshotPersistenceService.get (T3)
 
 
 # ── Request/response schemas for the 4 NEW routes ──────────
 class SnapshotCommitRequest(BaseModel):
-    """POST /api/v1/close/snapshots/commit body shape."""
+    """POST /api/v1/close/snapshot/commit body shape."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -618,7 +618,7 @@ class SnapshotCommitRequest(BaseModel):
 
 
 class SnapshotCommitResponse(BaseModel):
-    """POST /api/v1/close/snapshots/commit response envelope."""
+    """POST /api/v1/close/snapshot/commit response envelope."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -630,7 +630,7 @@ class SnapshotCommitResponse(BaseModel):
 
 
 class SnapshotReverseRequest(BaseModel):
-    """POST /api/v1/close/snapshots/reverse body shape (AD-22 영구화)."""
+    """POST /api/v1/close/snapshot/reverse body shape (AD-22 영구화)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -652,7 +652,7 @@ class SnapshotReverseRequest(BaseModel):
 
 
 class SnapshotReverseResponse(BaseModel):
-    """POST /api/v1/close/snapshots/reverse response envelope."""
+    """POST /api/v1/close/snapshot/reverse response envelope."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -665,7 +665,7 @@ class SnapshotReverseResponse(BaseModel):
 
 
 class ReopenRequest(BaseModel):
-    """POST /api/v1/close/sequence/reopen body shape (W2)."""
+    """POST /api/v1/close/reopen body shape (W2)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -691,7 +691,7 @@ class ReopenRequest(BaseModel):
 
 
 class ReopenResponse(BaseModel):
-    """POST /api/v1/close/sequence/reopen response envelope."""
+    """POST /api/v1/close/reopen response envelope."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -703,7 +703,7 @@ class ReopenResponse(BaseModel):
 
 
 class SnapshotStateResponse(BaseModel):
-    """GET /api/v1/close/snapshots/{period_key} response envelope."""
+    """GET /api/v1/close/snapshot/{period_key} response envelope."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -760,7 +760,7 @@ def _build_reopen_service(
 
 # ── POST /api/v1/close/snapshots/commit (AD-20) ─────────────
 @router.post(
-    "/snapshots/commit",
+    "/snapshot/commit",
     response_model=SnapshotCommitResponse,
     status_code=200,
     summary=(
@@ -809,7 +809,7 @@ async def commit_snapshot_route(
 
 # ── POST /api/v1/close/snapshots/reverse (AD-22 영구화) ──────
 @router.post(
-    "/snapshots/reverse",
+    "/snapshot/reverse",
     response_model=SnapshotReverseResponse,
     status_code=200,
     summary=(
@@ -836,7 +836,7 @@ async def reverse_snapshot_route(
     2. State guard (must be 'committed').
     3. Persists AD-22 reversal pair (sign-negating + corrected row).
     4. UPDATE fiscal_period_snapshots.state = 'reversed'.
-    5. Audit-first emit `snapshot_reversal_executed`.
+    5. Audit-first emit `snapshot_persistence_reversed`.
     6. AD-25 multi-channel publish (4 channels).
 
     Raises (T4 wire):
@@ -865,7 +865,7 @@ async def reverse_snapshot_route(
 
 # ── POST /api/v1/close/sequence/reopen (W2) ─────────────────
 @router.post(
-    "/sequence/reopen",
+    "/reopen",
     response_model=ReopenResponse,
     status_code=200,
     summary=(
@@ -893,7 +893,7 @@ async def reopen_close_sequence_route(
     Delegates to ReopenService (wired in T5) which:
     1. SELECT FOR UPDATE on fiscal_periods.
     2. Validate operator_action enum + reason length.
-    3. Audit-first emit `reopen_operator_invoked`.
+    3. Audit-first emit `reopen_completed`.
     4. AD-25 multi-channel publish (fiscal_period_cache + closing_snapshot_cache).
 
     Raises (T5 wire):
@@ -921,7 +921,7 @@ async def reopen_close_sequence_route(
 
 # ── GET /api/v1/close/snapshots/{period_key} ────────────────
 @router.get(
-    "/snapshots/{period_key}",
+    "/snapshot/{period_key}",
     response_model=SnapshotStateResponse,
     status_code=200,
     summary="Read fiscal_period_snapshots state for a period_key — Story 11.3",

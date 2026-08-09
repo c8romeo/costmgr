@@ -75,6 +75,7 @@ from apps.api.modules.m11_close.exceptions import (
     ReopenOperatorActionInvalidError,
     ReversalSnapshotMismatchError,
     SnapshotAlreadyCommittedError,
+    SnapshotNotFoundError,
 )
 from apps.api.modules.m11_close.services.close_sequence_service import (
     CloseSequenceAlreadyInitiatedError,
@@ -1168,9 +1169,9 @@ async def _m11_snapshot_already_committed_handler(
 async def _m11_reversal_snapshot_mismatch_handler(
     request: Request, exc: ReversalSnapshotMismatchError
 ) -> JSONResponse:
-    """422 REVERSAL_SNAPSHOT_MISMATCH — target snapshot not in 'committed' state."""
+    """409 REVERSAL_SNAPSHOT_MISMATCH — target snapshot not in 'committed' state."""
     return JSONResponse(
-        status_code=422,
+        status_code=409,
         content={
             "code": "REVERSAL_SNAPSHOT_MISMATCH",
             "message_ko": "되돌리기 대상 스냅샷 상태가 커밋 상태가 아닙니다",
@@ -1212,13 +1213,34 @@ async def _m11_reopen_operator_action_invalid_handler(
 async def _m11_reopen_audit_emit_failed_handler(
     request: Request, exc: ReopenAuditEmitFailedError
 ) -> JSONResponse:
-    """500 REOPEN_AUDIT_EMIT_FAILED — audit-first emit failed on reopen."""
-    return JSONResponse(
-        status_code=500,
+    """503 REOPEN_AUDIT_EMIT_FAILED — audit subsystem unavailable (transient)."""
+    response = JSONResponse(
+        status_code=503,
         content={
             "code": "REOPEN_AUDIT_EMIT_FAILED",
-            "message_ko": "재오픈 audit 기록 실패",
+            "message_ko": "재오픈 audit 기록 실패 (일시적 오류, 재시도 가능)",
             "details": {"error": exc.message},
+            "trace_id": exc.trace_id,
+        },
+    )
+    response.headers["Retry-After"] = "5"
+    return response
+
+
+@app.exception_handler(SnapshotNotFoundError)
+async def _m11_snapshot_not_found_handler(
+    request: Request, exc: SnapshotNotFoundError
+) -> JSONResponse:
+    """404 SNAPSHOT_NOT_FOUND — fiscal_period_snapshots row missing."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "SNAPSHOT_NOT_FOUND",
+            "message_ko": "해당 스냅샷을 찾을 수 없습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "snapshot_id": str(exc.snapshot_id),
+            },
             "trace_id": exc.trace_id,
         },
     )

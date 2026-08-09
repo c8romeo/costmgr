@@ -270,28 +270,29 @@ MonthlyClosingReportAction = Literal[
 # `audit_logs` (ActionClass.SNAPSHOT_PERSISTENCE). 4 values:
 # - `snapshot_persistence_committed` — AD-20 verified → committed
 #   transition succeeded (T3 wire).
-# - `snapshot_reversal_executed` — AD-22 영구화 committed → reversed
+# - `snapshot_persistence_reversed` — AD-22 영구화 committed → reversed
 #   transition succeeded (T4 wire).
-# - `snapshot_state_guard_rejected` — 3-tier guard rejected
-#   (state != 'committed').
-# - `snapshot_persistence_not_found` — snapshot_id missing or wrong tenant.
+# - `snapshot_persistence_blocked` — 3-tier guard rejected
+#   (state != 'committed' or fiscal_periods.status != 'closed').
+# - `snapshot_persistence_reopened` — W2 reopen flow succeeded
+#   (fiscal_periods.status='closed' → 'open' transition).
 SnapshotPersistenceAction = Literal[
     "snapshot_persistence_committed",
-    "snapshot_reversal_executed",
-    "snapshot_state_guard_rejected",
-    "snapshot_persistence_not_found",
+    "snapshot_persistence_reversed",
+    "snapshot_persistence_blocked",
+    "snapshot_persistence_reopened",
 ]
 
 # reopen_operator actions (Story 11.3 NEW — W2 reopen flow audit).
 # PRD §F11.4 + AD-10 owner-only + AD-15 audit-justification. Audit routes
 # to `audit_logs` (ActionClass.REOPEN_OPERATOR). 2 values:
-# - `reopen_operator_invoked` — execute_reopen succeeded
-#   (fiscal_periods.status='closed' → 'open' transition).
-# - `reopen_blocked` — kernel reject (invalid operator_action or
-#   reason length violation).
+# - `reopen_authorized` — execute_reopen kernel authorization succeeded
+#   (pre-UPDATE emit).
+# - `reopen_completed` — execute_reopen succeeded
+#   (fiscal_periods.status='closed' → 'open' + AD-25 4 channels publish).
 ReopenOperatorAction = Literal[
-    "reopen_operator_invoked",
-    "reopen_blocked",
+    "reopen_authorized",
+    "reopen_completed",
 ]
 
 
@@ -518,29 +519,29 @@ class _ActionRegistry:
         ),
         # Story 11.3 — snapshot_persistence 4 values (AD-20 영구화 + AD-22 역분개).
         # DB CHECK constraint mirror: audit_logs CHECK includes
-        # snapshot_persistence_committed / snapshot_reversal_executed /
-        # snapshot_state_guard_rejected / snapshot_persistence_not_found
+        # snapshot_persistence_committed / snapshot_persistence_reversed /
+        # snapshot_persistence_blocked / snapshot_persistence_reopened
         # (drift detector enforces parity).
         ActionClass.SNAPSHOT_PERSISTENCE: (
             "audit_logs",
             frozenset(
                 {
                     "snapshot_persistence_committed",
-                    "snapshot_reversal_executed",
-                    "snapshot_state_guard_rejected",
-                    "snapshot_persistence_not_found",
+                    "snapshot_persistence_reversed",
+                    "snapshot_persistence_blocked",
+                    "snapshot_persistence_reopened",
                 }
             ),
         ),
         # Story 11.3 — reopen_operator 2 values (W2 reopen flow).
         # DB CHECK constraint mirror: audit_logs CHECK includes
-        # reopen_operator_invoked / reopen_blocked.
+        # reopen_authorized / reopen_completed.
         ActionClass.REOPEN_OPERATOR: (
             "audit_logs",
             frozenset(
                 {
-                    "reopen_operator_invoked",
-                    "reopen_blocked",
+                    "reopen_authorized",
+                    "reopen_completed",
                 }
             ),
         ),

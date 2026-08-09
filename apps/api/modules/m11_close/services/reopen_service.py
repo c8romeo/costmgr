@@ -39,10 +39,15 @@ from packages.services.m11_close.reopen_authorization import (
     authorize_reopen,
 )
 
-# AD-25 multi-channel — W2 reopen flow publishes to 2 channels (subset of
-# the 4-channel set): fiscal_period_cache (period re-opened for input)
-# + closing_snapshot_cache (snapshot invalidated for re-commit).
+# AD-25 multi-channel — W2 reopen flow publishes to ALL 4 channels
+# (AD-25 spec mandates full invalidation set on state-machine changes):
+#   - fiscal_period_cache (period re-opened for input)
+#   - closing_snapshot_cache (snapshot invalidated for re-commit)
+#   - ai_cache (AI commentary invalidated — re-evaluation needed)
+#   - cost_engine_cache (cost engine results invalidated)
 REOPEN_CHANNELS: tuple[str, ...] = (
+    "ai_cache",
+    "cost_engine_cache",
     "fiscal_period_cache",
     "closing_snapshot_cache",
 )
@@ -89,7 +94,7 @@ class ReopenService:
         1. SELECT FOR UPDATE the fiscal_periods row.
         2. Run the pure kernel `authorize_reopen`.
         3. If authorized: UPDATE status='open' + close_sequence_state='reopened'.
-        4. Audit-first emit `reopen_operator_invoked` (CR 1.1).
+        4. Audit-first emit `reopen_completed` (CR 1.1).
         5. AD-25 multi-channel publish (2 channels: fiscal_period_cache + closing_snapshot_cache).
 
         Raises:
@@ -163,13 +168,13 @@ class ReopenService:
 
         _ActionRegistry.validate(
             action_class=ActionClass.REOPEN_OPERATOR,
-            action="reopen_operator_invoked",
+            action="reopen_completed",
         )
         try:
             await emit_audit(
                 self.session,
                 actor_id=actor_id,
-                action="reopen_operator_invoked",
+                action="reopen_completed",
                 target_table="fiscal_periods",
                 target_id=fiscal_period_id,
                 tenant_id=self.tenant_id,

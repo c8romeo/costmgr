@@ -112,7 +112,7 @@ class ReversalExecuteService:
         4. Build the AD-22 reversal pair (sign-negating row + corrected row).
         5. INSERT sign-negating row + corrected row into inventory_ledger.
         6. UPDATE fiscal_period_snapshots.state = 'reversed' + reversed_at=now().
-        7. Audit-first emit `snapshot_reversal_executed` (CR 1.1).
+        7. Audit-first emit `snapshot_persistence_reversed` (CR 1.1).
         8. AD-25 multi-channel publish (4 channels via publish_multi).
 
         Raises:
@@ -267,12 +267,12 @@ class ReversalExecuteService:
 
         _ActionRegistry.validate(
             action_class=ActionClass.SNAPSHOT_PERSISTENCE,
-            action="snapshot_reversal_executed",
+            action="snapshot_persistence_reversed",
         )
         await emit_audit(
             self.session,
             actor_id=actor_id,
-            action="snapshot_reversal_executed",
+            action="snapshot_persistence_reversed",
             target_table="fiscal_period_snapshots",
             target_id=snapshot_id,
             tenant_id=self.tenant_id,

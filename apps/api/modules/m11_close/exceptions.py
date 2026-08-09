@@ -7,9 +7,10 @@ produce a deterministic AD-15 §4 envelope.
 
 Error code contract:
   - SnapshotAlreadyCommittedError          → 409 SNAPSHOT_ALREADY_COMMITTED
-  - ReversalSnapshotMismatchError           → 422 REVERSAL_SNAPSHOT_MISMATCH
+  - SnapshotNotFoundError                   → 404 SNAPSHOT_NOT_FOUND
+  - ReversalSnapshotMismatchError           → 409 REVERSAL_SNAPSHOT_MISMATCH
   - ReopenOperatorActionInvalidError        → 422 REOPEN_OPERATOR_ACTION_INVALID
-  - ReopenAuditEmitFailedError              → 500 REOPEN_AUDIT_EMIT_FAILED
+  - ReopenAuditEmitFailedError              → 503 REOPEN_AUDIT_EMIT_FAILED
 
 Korean SSOT (AD-15 §11) is supplied by the handler, not the exception
 itself — keeps the exception module free of presentation strings.
@@ -53,7 +54,7 @@ class SnapshotAlreadyCommittedError(Exception):
 
 # ── 2. ReversalSnapshotMismatchError ──────────────────────────
 class ReversalSnapshotMismatchError(Exception):
-    """422 REVERSAL_SNAPSHOT_MISMATCH — target_event's snapshot_id != committed.
+    """409 REVERSAL_SNAPSHOT_MISMATCH — target_event's snapshot_id != committed.
 
     AD-22 reversal requires the underlying fiscal_period_snapshots.state
     to be `committed` (3-tier guard introduced in 11-3). If a reversal
@@ -115,12 +116,13 @@ class ReopenOperatorActionInvalidError(Exception):
 
 # ── 4. ReopenAuditEmitFailedError ────────────────────────────
 class ReopenAuditEmitFailedError(Exception):
-    """500 REOPEN_AUDIT_EMIT_FAILED — audit-first emit failed on reopen.
+    """503 REOPEN_AUDIT_EMIT_FAILED — audit-first emit failed on reopen.
 
     The reopen flow is audit-first (CR 1.1 invariant). If the audit row
     fails to persist, the data write is rolled back and this error fires.
     Distinct from ClosingSequenceAuditEmitError so M11 reopen gets its
-    own observability bucket.
+    own observability bucket. 503 status (transient, retry-able) instead
+    of 500 (permanent) — audit subsystem failure is typically a DB blip.
     """
 
     def __init__(self, *, message: str, trace_id: str) -> None:
@@ -129,9 +131,35 @@ class ReopenAuditEmitFailedError(Exception):
         self.trace_id = trace_id
 
 
+# ── 5. SnapshotNotFoundError ─────────────────────────────────
+class SnapshotNotFoundError(Exception):
+    """404 SNAPSHOT_NOT_FOUND — fiscal_period_snapshots row missing.
+
+    Distinct from SnapshotAlreadyCommittedError (which signals a
+    state-machine violation on an existing row). This error fires when
+    the snapshot_id is not present at all (wrong tenant, wrong period,
+    or never existed). Keeps root-cause error semantics (AD-15 §4).
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        snapshot_id: uuid.UUID,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"snapshot {snapshot_id} not found for tenant {tenant_id}"
+        )
+        self.tenant_id = tenant_id
+        self.snapshot_id = snapshot_id
+        self.trace_id = trace_id
+
+
 __all__ = [
     "ReopenAuditEmitFailedError",
     "ReopenOperatorActionInvalidError",
     "ReversalSnapshotMismatchError",
     "SnapshotAlreadyCommittedError",
+    "SnapshotNotFoundError",
 ]

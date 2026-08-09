@@ -68,12 +68,23 @@ def _make_fiscal_period_row(
     return fp
 
 
-# ── 1. REOPEN_CHANNELS has 2 channels ───────────────────────
-def test_reopen_channels_has_2_channels() -> None:
-    """REOPEN_CHANNELS must have exactly 2 AD-25 channels."""
-    assert len(REOPEN_CHANNELS) == 2
-    for ch in ("fiscal_period_cache", "closing_snapshot_cache"):
-        assert ch in REOPEN_CHANNELS
+# ── 1. REOPEN_CHANNELS has 4 channels ───────────────────────
+def test_reopen_channels_has_4_channels() -> None:
+    """REOPEN_CHANNELS must have exactly 4 AD-25 channels.
+
+    Story 11.3 sweep (D2): W2 reopen flow publishes to all 4 AD-25
+    channels (ai_cache + cost_engine_cache + fiscal_period_cache +
+    closing_snapshot_cache). Spec mandates full invalidation set on
+    state-machine changes.
+    """
+    assert len(REOPEN_CHANNELS) == 4
+    expected = {
+        "ai_cache",
+        "cost_engine_cache",
+        "fiscal_period_cache",
+        "closing_snapshot_cache",
+    }
+    assert set(REOPEN_CHANNELS) == expected
 
 
 # ── 2. Happy path ───────────────────────────────────────────
@@ -226,5 +237,16 @@ def test_Result_is_immutable_dataclass(tenant_id: uuid.UUID, actor_id: uuid.UUID
 
 # ── 8. Channel tuple order is deterministic ────────────────
 def test_channel_order_is_deterministic() -> None:
-    """REOPEN_CHANNELS preserves canonical AD-25 ordering."""
-    assert REOPEN_CHANNELS == ("fiscal_period_cache", "closing_snapshot_cache")
+    """REOPEN_CHANNELS preserves canonical AD-25 ordering.
+
+    Story 11.3 sweep (D2): order is ai_cache, cost_engine_cache,
+    fiscal_period_cache, closing_snapshot_cache — the canonical AD-25
+    multi-channel ordering so cache invalidation receipts match across
+    all reopen events.
+    """
+    assert REOPEN_CHANNELS == (
+        "ai_cache",
+        "cost_engine_cache",
+        "fiscal_period_cache",
+        "closing_snapshot_cache",
+    )

@@ -29,7 +29,7 @@ W2 reopen flow spec (PRD §F11.4):
 After reopen:
 - fiscal_periods.status → 'open' (or stays 'closed' with reopen flag)
 - close_sequence_state → 'reopened' (new 11-3 AD-6 transition)
-- audit_log emits `reopen_operator_invoked`
+- audit_log emits `reopen_completed`
 """
 
 from __future__ import annotations

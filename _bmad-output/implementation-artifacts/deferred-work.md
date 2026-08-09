@@ -299,3 +299,20 @@ D1 is the **only direct carry-over** (continuation of 2nd-sweep T5). D2-D16 are 
 
 - **Envelope helper extraction** — 6 exception handlers in `main.py` duplicate `{code, message_ko, details, trace_id}` structure. DRY refactor deferred.
 
+## Deferred from: code review of 11-3-snapshot-persistence-with-reverse (2026-08-09)
+
+bmad-code-review 3rd sweep (129 raw → 3 DECISION + 50 PATCH applied + 8 DEFER + ~68 DISMISS). All 3 BLOCKING DECISIONS chosen option (a) full wire. 50 PATCH sweeping applied. 8 items honestly DEFER (carry-over from 11-2 dev-story).
+
+- **V8 22→26 골든 fixture matrix extension (4 NEW: snapshot_committed + reversal_negating_snapshot + reversal_corrected_snapshot + reopen_committed)** — T10 carry-over honestly DEFER. Spec AC #10 (A11 V8 PRIMARY deliverable). V8 fixture count SDR claim 보존: 22 (NOT 26).
+
+- **Frontend T8: 4 NEW components (SnapshotPersistencePanel + ReversalExecuteDialog + ReopenOperatorDialog + CacheInvalidationChannelBadge) + vitest + Playwright E2E 12 NEW scenarios** — T8 carry-over honestly DEFER. UI 진입점 부재로 backend routes wire가 사용자-facing이 아님. Frontend vitest/Playwright SDR claim 보존: 14+5+4 = 23 carry (NOT 23+30).
+
+- **TS mirror files `apps/web/lib/m11-close-sequence.ts` + parity helper** — T8 carry-over honestly DEFER. AD-15 cross-language parity 깨짐 (no .ts in packages/services/m11_close/).
+
+- **Capability matrix v1.12 fill (SNAPSHOT_PERSISTENCE + REVERSAL_EXECUTE + REOPEN_OPERATOR rows)** — T10 docs carry-over honestly DEFER. docs/capability-matrix.md v1.12 row count 보존: current state.
+
+- **docs/snapshot-persistence-with-reverse.md NEW + docs/capability-matrix.md v1.12 EXTENSION** — T10 docs carry-over honestly DEFER. SDR docs claim 보존: not counted.
+
+- **audit_action overlap (m11_reversal_handler_invoked + reversal_negating_inserted) → T7 sweep** — 11-3 author TODO marker로 남겨둠. T7 future Story에서 dedicated ActionClass.SNAPSHOT_PERSISTENCE actions wire.
+
+
