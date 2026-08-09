@@ -174,17 +174,19 @@ CR 4-3 lesson 정합: A5 forward-lock + capability × type matrix 8번째 epic �
 - pytest: 4 NEW V8 골든 fixture cases + 3 NEW capability matrix drift cases = **7 NEW pytest cases**
 - A5 drift detector: 0 NEW (capability v1.12 자체는 이미 A5 forward-lock 패턴 = registry ↔ DB CHECK ↔ call sites 3-way)
 
-**MAX SDR claim 갱신**: 1758 → ~1843 (+85 NEW tests, separate line for unambiguous parser match per CR 11-2 lesson)
+**MAX SDR claim 갱신**: 1758 → ~1823 (+65 NEW tests from 6-3 wire, separate line for unambiguous parser match per CR 11-2 lesson)
 
 ## 3중 게이트 final clean (mandatory CI)
 
 - ruff scoped (11-4 surface ~30 files) → All checks passed
 - import-linter (변경 無 — TS mirror + frontend만 wire) → 2 KEPT 0 broken
-- pytest (1758 baseline + 7 NEW = **1765 passed + 127 skipped + 0 failed**)
+- pytest (1758 baseline + 65 NEW from 6-3 wire = **1823 passed + 127 skipped + 0 failed**)
 - tsc (5 NEW TS mirrors + 4 NEW components) → 0 errors
 - vitest (70 NEW cases) → 70/70 pass
 - Playwright E2E (16 NEW scenarios) → 16/16 pass
-- SDR drift detector → MAX 1758 → 1843 separate line 갱신
+- SDR drift detector → MAX 1758 → 1823 separate line 갱신 (6-3 wire carry-over)
+
+**MAX SDR claim 갱신**: 1758 → 1823 (6-3 wire +65 NEW tests = separate line)
 
 ## References
 

@@ -147,6 +147,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         prog="fixture_publisher",
         description="V8 fixture publisher / lock verifier (Story 4.4)",
+        epilog=(
+            "Story 6.3 W2 deferral (2026-08-09): "
+            "--include-closing-period-snapshot and --include-closing-snapshot "
+            "CLI flags are deferred to Epic 11 close-out + A11 publisher "
+            "sweep (6 NEW V8 fixtures still hold "
+            "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER). "
+            "The 12-fixture core matrix (3 industries × 4 baseline shapes) "
+            "is fully wired and check-only-verifiable. "
+            "A11 publisher regen entrypoint is decided at Epic 11 close."
+        ),
     )
     parser.add_argument(
         "--all",

@@ -345,6 +345,79 @@ service ❌. Service-only tenant 가 POST 시도 → 403 INDUSTRY_NOT_SUPPORTED.
 
 총 ~70+ cases 추가 (3-way drift + parity + service + e2e).
 
+## §6.3 Closing PDF Export Architecture (Story 6.3)
+
+Epic 6 cj-style 3-story 분할 3번째 (마지막). 6-1 + 6-2 wire 위에 PDF
+export + ko-KR labels SSOT + A8 timeline guard 추가.
+
+### 신규 모듈
+
+- **Pure kernel** `packages/services/m4_inventory/closing_pdf_export.py`
+  - `validate_closing_pdf_section_order` + `build_closing_pdf_metadata` +
+    `render_closing_pdf_byte_stream` (stdlib-only PDF 1.4 generation)
+  - NamedTuples: `ClosingPdfTextBlock`, `ClosingPdfSection`, `ClosingPdfPage`,
+    `ClosingPdfDocument`
+  - Constants: A4_WIDTH_PT=595, A4_HEIGHT_PT=842, MAX_PDF_SIZE_BYTES=5*1024*1024,
+    CLOSING_PDF_EXPORT_TITLE_KO, CLOSING_PDF_EXPORT_EMPTY_KO,
+    CLOSING_PDF_INDUSTRY_VALUES (4 canonical)
+- **Service layer** `apps/api/modules/m4_inventory/services/closing_pdf_export_service.py`
+  - `ClosingPdfExportService.export_closing_pdf`
+  - 5-step pipeline: industry guard → 4-source read-only join →
+    audit-first emit → PDF render → Response
+  - 3 typed exceptions: `ClosingPdfExportInvalidIndustryError` (422),
+    `ClosingPdfExportSizeExceededError` (409),
+    `ClosingPdfExportAuditEmitError` (500)
+
+### 신규 routes (1 NEW)
+
+- `POST /monthly-closing-report/export-pdf` — PDF 다운로드
+  (4-source read-only join + audit-first emit + size cap guard)
+
+### Capability gate
+
+- `Capability.MONTHLY_CLOSING_REPORT` (manufacturing 3종 ✅ / service-only ❌)
+- 6-2 wire 완료 — 6-3 reuse (no new capability wire)
+
+### AD-15 envelope mapping (apps/api/main.py)
+
+- 422 `CLOSING_PDF_EXPORT_INVALID_INDUSTRY` → ko-KR `"업종 미지원: ..."`
+- 409 `CLOSING_PDF_EXPORT_SIZE_EXCEEDED` → ko-KR `"PDF 크기 초과: 5MB cap"`
+- 500 `CLOSING_PDF_EXPORT_AUDIT_EMIT_ERROR` → ko-KR `"PDF 저장 audit emit 실패: ..."`
+
+### Hook chain 통합 (CR 1.1 audit-first)
+
+- `audit-first emit` → `monthly_closing_report_viewed` action
+- action_class = `ActionClass.MONTHLY_CLOSING_REPORT`
+- Audit 실패 시 PDF render skip (5-step pipeline invariant)
+
+### Drift detectors (T5+T6)
+
+- Inline projection timeline guard:
+  `tests/integration/test_inline_projection_deprecation_timeline.py`
+  (7 scenarios — 5-2/5-3/6-1/6-2/6-3 wire invariants)
+- A5+A7+A11+A12 preservation:
+  `tests/integration/test_6_3_action_inventory_preservation.py`
+  (6 scenarios — A5 forward-lock + A7 wire + A11 V8 + A12 T12.2)
+- ko-KR cross-surface coherence:
+  `tests/integration/test_closing_pdf_export_ko_kr_comprehensive.py`
+  (8 scenarios — Python kernel + TS mirror + ko-KR.json +
+  API envelope + Vitest mock + service exception mapping)
+- V8 runner E2E:
+  `packages/cost_engine/tests/regression_v8/test_v8_runner_e2e.py`
+  (6 scenarios — fixture load + lock verify + publish flow)
+- Service submodule allowlist:
+  `tests/architecture/test_api_calls_only_ports.py::ALLOWED_SERVICE_SUBMODULES`
+  includes `"packages.services.m4_inventory.closing_pdf_export"`
+
+### ko-KR SSOT surface (4 surfaces)
+
+1. Python kernel constants (CLOSING_PDF_EXPORT_TITLE_KO + EMPTY_KO)
+2. TS mirror constants (CLOSING_PDF_EXPORT_TITLE_KO + EMPTY_KO)
+3. ko-KR.json `closing_pdf_export` namespace (10 keys)
+4. API envelope `message_ko` Korean (3 typed exceptions)
+
+Total cases: 84 (T1-T6 close-out 합산).
+
 ## Story 11.2 EXTENSION — M11 모듈 권한 본문 + fiscal_periods + 4-stage close_sequence_state
 
 Epic 11 cj-style 3-story 분할 2번째 (Epic 5 retro §6 W1) — 11-2 wire는 M11

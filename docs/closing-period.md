@@ -280,9 +280,14 @@ UI 에서는 ClosingPeriodConfirmationPanel + audit-trail-list 가 통합 표시
 - 6-1 wire 시점 (Epic 6 진입점): inline projection 보존 (1 epic
   maintenance window 진행 중) + closing_period snapshot 은 ledger
   aggregate (5-2 wire) 사용.
-- 6-2 / 6-3 wire: inline projection 보존 상태로 wire.
+- 6-2 wire: inline projection 보존 상태로 wire (read-only monthly closing report).
+- 6-3 wire (Story 6.3 T5.1, 2026-08-09): inline projection 보존 상태로 wire.
+  PDF export + ko-KR labels scope only — no impact on inline projection path.
 - **Epic 6 close-out 시점에 fold-in vs deprecate 결정** (Epic 11
   reversal 진입 시 inline projection 완전 제거).
+- Timeline test guard: `tests/integration/test_inline_projection_deprecation_timeline.py`
+  (Story 6.3 T5.2, NEW) — validates §8 timeline invariants across
+  5-2 / 5-3 / 6-1 / 6-2 / 6-3 wire (5 scenarios).
 
 ## 9. Cross-Reference
 
