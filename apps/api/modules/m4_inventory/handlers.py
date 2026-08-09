@@ -56,7 +56,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -836,3 +836,59 @@ async def get_monthly_closing_report_v4_verdict(
         "verdict": dict(verdict),
         "trace_id": ctx.trace_id,
     }
+
+
+# ─────────────────────────────────────────────────────────────
+# Story 6.3 — Closing PDF Export routes (1 NEW POST)
+# ─────────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/export-pdf",
+    response_model=None,
+    status_code=200,
+    summary="Export monthly closing period as PDF/A4 (Story 6.3 AC #1)",
+    responses={
+        200: {"description": "PDF byte stream (application/pdf)"},
+        422: {"description": "CLOSING_PDF_EXPORT_INVALID_INDUSTRY"},
+        409: {"description": "CLOSING_PDF_EXPORT_SIZE_EXCEEDED"},
+        500: {"description": "CLOSING_PDF_EXPORT_AUDIT_EMIT_ERROR"},
+    },
+)
+async def export_closing_pdf(
+    period_key: str = Query(..., description="AD-24 typed 'YYYY-MM' fiscal key"),
+    industry: str = Query(..., description="PRD §6.1 canonical industry"),
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
+) -> Response:
+    """Closing PDF Export — PDF/A4 byte stream (PRD §F6.3).
+
+    Read-only aggregator (4-source join) + audit-first emit (CR 1.1) +
+    PDF byte stream render via pure kernel
+    `packages.services.m4_inventory.closing_pdf_export`.
+
+    Returns:
+        Response with Content-Type: application/pdf + Content-Disposition:
+        attachment; filename="closing-{period_key}.pdf".
+    """
+    from apps.api.modules.m4_inventory.services.closing_pdf_export_service import (
+        ClosingPdfExportService,
+    )
+
+    svc = ClosingPdfExportService(
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+    )
+    result = await svc.export_closing_pdf(period_key, industry=industry)
+    return Response(
+        content=result["pdf_bytes"],
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="closing-{period_key}.pdf"'
+            ),
+            "X-Closing-Pdf-Export-Size": str(result["pdf_size_bytes"]),
+            "X-Closing-Pdf-Export-Is-Empty": str(result["is_empty"]).lower(),
+            "X-Closing-Pdf-Export-Industry": industry,
+        },
+    )

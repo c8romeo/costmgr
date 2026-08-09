@@ -162,6 +162,8 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m4_inventory.closing_period",
             # Story 6.2 — monthly closing report pure kernel (PRD §F5 + §F5.2 + §V4).
             "packages.services.m4_inventory.monthly_closing_report",
+            # Story 6.3 — closing PDF export pure kernel (PRD §F6.3).
+            "packages.services.m4_inventory.closing_pdf_export",
             "packages.services.m4_inventory",
             # Story 11.1 (Epic 11) — M11 reversal sequence pure kernels
             # (AD-22 sign-negating + corrected row builders + AD-25 publisher).
