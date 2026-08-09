@@ -52,14 +52,14 @@ def _make_target_event(
 # ── 1. Constants ────────────────────────────────────────────
 def test_snapshot_state_allowed_is_committed_only() -> None:
     """SNAPSHOT_STATE_ALLOWED = {committed} only (11-3 3rd-tier guard)."""
-    assert SNAPSHOT_STATE_ALLOWED == frozenset({"committed"})
+    assert frozenset({"committed"}) == SNAPSHOT_STATE_ALLOWED
 
 
 def test_snapshot_state_rejected_excludes_committed() -> None:
     """SNAPSHOT_STATE_REJECTED = {draft, verified, reversed}."""
-    assert SNAPSHOT_STATE_REJECTED == frozenset(
+    assert frozenset(
         {"draft", "verified", "reversed"}
-    )
+    ) == SNAPSHOT_STATE_REJECTED
 
 
 def test_korean_ssot_snapshot_rejection() -> None:

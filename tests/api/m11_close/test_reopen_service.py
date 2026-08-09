@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
@@ -20,7 +21,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from apps.api.modules.m11_close.exceptions import (
-    ReopenAuditEmitFailedError,
     ReopenOperatorActionInvalidError,
 )
 from apps.api.modules.m11_close.services.reopen_service import (
@@ -77,164 +77,152 @@ def test_reopen_channels_has_2_channels() -> None:
 
 
 # ── 2. Happy path ───────────────────────────────────────────
-@pytest.mark.asyncio
-async def test_execute_reopen_happy_path(
-    tenant_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    fiscal_period_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reopen on status='closed' returns status='open' + audit emit."""
-    fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
-    session = AsyncMock()
-    # scalar returns fp; execute for UPDATE.
-    session.scalar = AsyncMock(return_value=fp)
-    session.execute = AsyncMock(return_value=MagicMock())
+def test_Happy_path(tenant_id: uuid.UUID, actor_id: uuid.UUID, fiscal_period_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reopen on status='closed' returns status='open' + audit emit."""
+        fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
+        session = AsyncMock()
+        # scalar returns fp; execute for UPDATE.
+        session.scalar = AsyncMock(return_value=fp)
+        session.execute = AsyncMock(return_value=MagicMock())
 
-    svc = ReopenService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    result = await svc.execute_reopen(
-        period_key="2026-08",
-        operator_action="operator_reopen",
-        reason="A" * 50,
-        actor_id=actor_id,
-    )
-    assert result.fiscal_period_id == fiscal_period_id
-    assert result.status == "open"
-    assert result.period_key == "2026-08"
+        svc = ReopenService(
+            session, tenant_id=tenant_id, trace_id=trace_id
+        )
+        result = await svc.execute_reopen(
+            period_key="2026-08",
+            operator_action="operator_reopen",
+            reason="A" * 50,
+            actor_id=actor_id,
+        )
+        assert result.fiscal_period_id == fiscal_period_id
+        assert result.status == "open"
+        assert result.period_key == "2026-08"
 
+
+
+    asyncio.run(_impl())
 
 # ── 3. No fiscal_period → ReopenOperatorActionInvalidError ─
-@pytest.mark.asyncio
-async def test_execute_reopen_no_fiscal_period(
-    tenant_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reopen with no fiscal_period row raises ReopenOperatorActionInvalidError."""
-    session = AsyncMock()
-    session.scalar = AsyncMock(return_value=None)
+def test_No_fiscal_period_ReopenOperatorActionInvalidError(tenant_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reopen with no fiscal_period row raises ReopenOperatorActionInvalidError."""
+        session = AsyncMock()
+        session.scalar = AsyncMock(return_value=None)
 
-    svc = ReopenService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    with pytest.raises(ReopenOperatorActionInvalidError):
-        await svc.execute_reopen(
-            period_key="2099-01",
-            operator_action="operator_reopen",
-            reason="A" * 50,
-            actor_id=actor_id,
+        svc = ReopenService(
+            session, tenant_id=tenant_id, trace_id=trace_id
         )
+        with pytest.raises(ReopenOperatorActionInvalidError):
+            await svc.execute_reopen(
+                period_key="2099-01",
+                operator_action="operator_reopen",
+                reason="A" * 50,
+                actor_id=actor_id,
+            )
 
+
+
+    asyncio.run(_impl())
 
 # ── 4. Invalid operator_action → ReopenOperatorActionInvalidError ─
-@pytest.mark.asyncio
-async def test_execute_reopen_invalid_operator_action(
-    tenant_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    fiscal_period_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reopen with invalid operator_action raises ReopenOperatorActionInvalidError."""
-    fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
-    session = AsyncMock()
-    session.scalar = AsyncMock(return_value=fp)
+def test_Invalid_operator_action_ReopenOperatorActionInvalidError(tenant_id: uuid.UUID, actor_id: uuid.UUID, fiscal_period_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reopen with invalid operator_action raises ReopenOperatorActionInvalidError."""
+        fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
+        session = AsyncMock()
+        session.scalar = AsyncMock(return_value=fp)
 
-    svc = ReopenService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    with pytest.raises(ReopenOperatorActionInvalidError):
-        await svc.execute_reopen(
-            period_key="2026-08",
-            operator_action="not_in_enum",
-            reason="A" * 50,
-            actor_id=actor_id,
+        svc = ReopenService(
+            session, tenant_id=tenant_id, trace_id=trace_id
         )
+        with pytest.raises(ReopenOperatorActionInvalidError):
+            await svc.execute_reopen(
+                period_key="2026-08",
+                operator_action="not_in_enum",
+                reason="A" * 50,
+                actor_id=actor_id,
+            )
 
+
+
+    asyncio.run(_impl())
 
 # ── 5. Reason too short → ReopenOperatorActionInvalidError ─
-@pytest.mark.asyncio
-async def test_execute_reopen_reason_too_short(
-    tenant_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    fiscal_period_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reopen with reason < 20 chars raises ReopenOperatorActionInvalidError."""
-    fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
-    session = AsyncMock()
-    session.scalar = AsyncMock(return_value=fp)
+def test_Reason_too_short_ReopenOperatorActionInvalidError(tenant_id: uuid.UUID, actor_id: uuid.UUID, fiscal_period_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reopen with reason < 20 chars raises ReopenOperatorActionInvalidError."""
+        fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
+        session = AsyncMock()
+        session.scalar = AsyncMock(return_value=fp)
 
-    svc = ReopenService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    with pytest.raises(ReopenOperatorActionInvalidError):
-        await svc.execute_reopen(
-            period_key="2026-08",
-            operator_action="operator_reopen",
-            reason="too short",
-            actor_id=actor_id,
+        svc = ReopenService(
+            session, tenant_id=tenant_id, trace_id=trace_id
         )
+        with pytest.raises(ReopenOperatorActionInvalidError):
+            await svc.execute_reopen(
+                period_key="2026-08",
+                operator_action="operator_reopen",
+                reason="too short",
+                actor_id=actor_id,
+            )
 
+
+
+    asyncio.run(_impl())
 
 # ── 6. All 4 operator_action values authorized ─────────────
 @pytest.mark.parametrize(
     "operator_action",
     ["operator_reopen", "audit_finding", "legal_compliance", "data_correction"],
 )
-@pytest.mark.asyncio
-async def test_all_4_operator_actions_accepted(
-    tenant_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    fiscal_period_id: uuid.UUID,
-    trace_id: str,
-    operator_action: str,
-) -> None:
-    """All 4 REOPEN_OPERATOR_ACTIONS values are accepted."""
-    fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
-    session = AsyncMock()
-    session.scalar = AsyncMock(return_value=fp)
-    session.execute = AsyncMock(return_value=MagicMock())
+def test_async_func_line_182(tenant_id: uuid.UUID, actor_id: uuid.UUID, fiscal_period_id: uuid.UUID, trace_id: str, operator_action: str) -> None:
+    async def _impl() -> None:
+        """All 4 REOPEN_OPERATOR_ACTIONS values are accepted."""
+        fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
+        session = AsyncMock()
+        session.scalar = AsyncMock(return_value=fp)
+        session.execute = AsyncMock(return_value=MagicMock())
 
-    svc = ReopenService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    result = await svc.execute_reopen(
-        period_key="2026-08",
-        operator_action=operator_action,
-        reason=f"Test reason for {operator_action}",
-        actor_id=actor_id,
-    )
-    assert result.status == "open"
+        svc = ReopenService(
+            session, tenant_id=tenant_id, trace_id=trace_id
+        )
+        result = await svc.execute_reopen(
+            period_key="2026-08",
+            operator_action=operator_action,
+            reason=f"Test reason for {operator_action}",
+            actor_id=actor_id,
+        )
+        assert result.status == "open"
 
+
+
+    asyncio.run(_impl())
 
 # ── 7. Result is immutable dataclass ──────────────────────
-@pytest.mark.asyncio
-async def test_result_is_immutable(
-    tenant_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    fiscal_period_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """ReopenResponse is immutable (frozen dataclass)."""
-    fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
-    session = AsyncMock()
-    session.scalar = AsyncMock(return_value=fp)
-    session.execute = AsyncMock(return_value=MagicMock())
+def test_Result_is_immutable_dataclass(tenant_id: uuid.UUID, actor_id: uuid.UUID, fiscal_period_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """ReopenResponse is immutable (frozen dataclass)."""
+        fp = _make_fiscal_period_row(tenant_id, fiscal_period_id, status="closed")
+        session = AsyncMock()
+        session.scalar = AsyncMock(return_value=fp)
+        session.execute = AsyncMock(return_value=MagicMock())
 
-    svc = ReopenService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    result = await svc.execute_reopen(
-        period_key="2026-08",
-        operator_action="operator_reopen",
-        reason="A" * 50,
-        actor_id=actor_id,
-    )
-    with pytest.raises((AttributeError, Exception)):
-        result.status = "closed"  # type: ignore[misc]
+        svc = ReopenService(
+            session, tenant_id=tenant_id, trace_id=trace_id
+        )
+        result = await svc.execute_reopen(
+            period_key="2026-08",
+            operator_action="operator_reopen",
+            reason="A" * 50,
+            actor_id=actor_id,
+        )
+        with pytest.raises((AttributeError, Exception)):
+            result.status = "closed"  # type: ignore[misc]
 
+
+
+    asyncio.run(_impl())
 
 # ── 8. Channel tuple order is deterministic ────────────────
 def test_channel_order_is_deterministic() -> None:

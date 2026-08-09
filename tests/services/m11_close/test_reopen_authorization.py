@@ -22,9 +22,9 @@ import pytest
 
 from packages.services.m11_close.reopen_authorization import (
     ERROR_CODE_INVALID_OPERATOR_ACTION,
+    ERROR_CODE_NO_CAPABILITY,
     ERROR_CODE_NON_UUID_ACTOR,
     ERROR_CODE_NON_UUID_TENANT,
-    ERROR_CODE_NO_CAPABILITY,
     ERROR_CODE_NOT_OWNER,
     REOPEN_AUTHORIZE_OK_KO,
     REOPEN_OPERATOR_ACTIONS,
@@ -44,14 +44,14 @@ from packages.services.m11_close.reopen_authorization import (
 def test_reopen_operator_actions_has_4_values() -> None:
     """REOPEN_OPERATOR_ACTIONS has exactly 4 values."""
     assert len(REOPEN_OPERATOR_ACTIONS) == 4
-    assert REOPEN_OPERATOR_ACTIONS == frozenset(
+    assert frozenset(
         {
             "operator_reopen",
             "audit_finding",
             "legal_compliance",
             "data_correction",
         }
-    )
+    ) == REOPEN_OPERATOR_ACTIONS
 
 
 def test_reopen_reason_min_length_is_20() -> None:

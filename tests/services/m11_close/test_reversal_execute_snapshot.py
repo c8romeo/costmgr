@@ -20,20 +20,20 @@ from decimal import Decimal
 import pytest
 
 from packages.services.m11_close.reversal_execute_snapshot import (
-    CorrectedRowSpec,
     ERROR_CODE_INSUFFICIENT_QTY,
     ERROR_CODE_INVALID_INPUT,
     ERROR_CODE_INVALID_SNAPSHOT_STATE,
-    NegatingRowSpec,
     QTY_QUANTUM,
     REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO,
     REVERSAL_EXECUTE_OK_KO,
-    ReversalExecuteSnapshotError,
-    ReversalExecuteSnapshotResult,
     SNAPSHOT_STATE_REJECTED_DRAFT,
     SNAPSHOT_STATE_REJECTED_REVERSED,
     SNAPSHOT_STATE_REJECTED_VERIFIED,
     SNAPSHOT_STATE_REQUIRED,
+    CorrectedRowSpec,
+    NegatingRowSpec,
+    ReversalExecuteSnapshotError,
+    ReversalExecuteSnapshotResult,
     build_corrected_row_spec,
     build_negating_row_spec,
     validate_reversal_execute_snapshot,
@@ -74,28 +74,28 @@ def product_id() -> uuid.UUID:
 # ── 1. Constants — 3-tier guard sets ───────────────────────
 def test_snapshot_state_required_is_committed_only() -> None:
     """SNAPSHOT_STATE_REQUIRED = {committed} only (3-tier guard)."""
-    assert SNAPSHOT_STATE_REQUIRED == frozenset({"committed"})
+    assert frozenset({"committed"}) == SNAPSHOT_STATE_REQUIRED
 
 
 def test_snapshot_state_rejected_draft() -> None:
     """SNAPSHOT_STATE_REJECTED_DRAFT = {draft}."""
-    assert SNAPSHOT_STATE_REJECTED_DRAFT == frozenset({"draft"})
+    assert frozenset({"draft"}) == SNAPSHOT_STATE_REJECTED_DRAFT
 
 
 def test_snapshot_state_rejected_verified() -> None:
     """SNAPSHOT_STATE_REJECTED_VERIFIED = {verified}."""
-    assert SNAPSHOT_STATE_REJECTED_VERIFIED == frozenset({"verified"})
+    assert frozenset({"verified"}) == SNAPSHOT_STATE_REJECTED_VERIFIED
 
 
 def test_snapshot_state_rejected_reversed() -> None:
     """SNAPSHOT_STATE_REJECTED_REVERSED = {reversed}."""
-    assert SNAPSHOT_STATE_REJECTED_REVERSED == frozenset({"reversed"})
+    assert frozenset({"reversed"}) == SNAPSHOT_STATE_REJECTED_REVERSED
 
 
 # ── 2. QTY_QUANTUM (banker's rounding parity) ───────────────
 def test_qty_quantum_matches_crd0_4_parity() -> None:
     """QTY_QUANTUM must match CR 0-4 NUMERIC(18, 4) parity."""
-    assert QTY_QUANTUM == Decimal("0.0001")
+    assert Decimal("0.0001") == QTY_QUANTUM
 
 
 # ── 3. Korean SSOT constants ───────────────────────────────

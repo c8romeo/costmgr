@@ -54,22 +54,22 @@ def actor_id() -> uuid.UUID:
 # ── 1. Constants — AD-20 lifecycle sets ─────────────────────
 def test_valid_commit_from_state_is_verified_only() -> None:
     """VALID_COMMIT_FROM_STATE = {verified} only."""
-    assert VALID_COMMIT_FROM_STATE == frozenset({"verified"})
+    assert frozenset({"verified"}) == VALID_COMMIT_FROM_STATE
 
 
 def test_idempotent_noop_state_is_committed_only() -> None:
     """IDEMPOTENT_NOOP_STATE = {committed} only."""
-    assert IDEMPOTENT_NOOP_STATE == frozenset({"committed"})
+    assert frozenset({"committed"}) == IDEMPOTENT_NOOP_STATE
 
 
 def test_terminal_state_is_reversed_only() -> None:
     """TERMINAL_STATE = {reversed} only — terminal AD-20 state."""
-    assert TERMINAL_STATE == frozenset({"reversed"})
+    assert frozenset({"reversed"}) == TERMINAL_STATE
 
 
 def test_non_committable_from_state_is_draft_only() -> None:
     """NON_COMMITTABLE_FROM_STATE = {draft} only — pre-verifier state."""
-    assert NON_COMMITTABLE_FROM_STATE == frozenset({"draft"})
+    assert frozenset({"draft"}) == NON_COMMITTABLE_FROM_STATE
 
 
 # ── 2. Korean constants (AD-15 §11 SSOT) ───────────────────

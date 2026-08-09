@@ -175,6 +175,12 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m11_close.close_sequence_state",
             "packages.services.m11_close.close_sequence_order",
             "packages.services.m11_close.partial_close_guard",
+            # Story 11.3 (Epic 11) — snapshot persistence + reversal + reopen
+            # pure kernels (fiscal_period_snapshots state='committed'/'reversed'
+            # + W2 reopen operator action + reason 20-500 audit trail).
+            "packages.services.m11_close.commit_snapshot_persistence",
+            "packages.services.m11_close.reversal_execute_snapshot",
+            "packages.services.m11_close.reopen_authorization",
             # Story 11.1 (Epic 11) — M5 ledger extended pure kernels for
             # H6 fix (count_period_events + query_period_closing_snapshot_all).
             "packages.services.m5_ledger",

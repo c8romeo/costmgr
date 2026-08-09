@@ -254,7 +254,7 @@ class CacheInvalidationPublisher:
                 ALLOWED_CHANNELS (the FIRST invalid channel is reported).
             ValueError: input shape violations.
         """
-        if not isinstance(channels, (list, tuple)):
+        if not isinstance(channels, list | tuple):
             raise ValueError(
                 f"channels must be list or tuple, got "
                 f"{type(channels).__name__!r}"

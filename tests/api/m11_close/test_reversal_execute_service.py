@@ -1,6 +1,6 @@
 """tests.api.m11_close.test_reversal_execute_service — Story 11.3 service.
 
-10 cases per AC #4 spec — verify ReversalExecuteService orchestrator:
+10 cases per AC #4 spec — verify ReversalExecuteService, orchestrator:
 - execute_reversal happy path (committed → reversed + 4-channel publish)
 - execute_reversal idempotent skip (state='committed' first time → execute)
 - execute_reversal state mismatch (state != 'committed' → ReversalSnapshotMismatchError)
@@ -15,9 +15,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import UTC, datetime
-from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -83,7 +83,7 @@ def _make_fiscal_period_row(
 def _make_session_committed(
     snapshot_id: uuid.UUID, tenant_id: uuid.UUID
 ) -> AsyncMock:
-    """Build session mock: snapshot row (committed) + fiscal_period row (closed)."""
+    """Build session, mock: snapshot row (committed) + fiscal_period row (closed)."""
     snap = _make_snapshot_row("committed", snapshot_id, tenant_id)
     fp = _make_fiscal_period_row(tenant_id, status="closed")
     session = AsyncMock()
@@ -113,228 +113,212 @@ def test_reversal_execute_channels_has_4_channels() -> None:
 
 
 # ── 2. Happy path (state='committed' → reversed + 4 receipts) ─
-@pytest.mark.asyncio
-async def test_execute_reversal_happy_path(
-    tenant_id: uuid.UUID,
-    snapshot_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reversal on state='committed' returns state='reversed' + 4 receipts."""
-    session = _make_session_committed(snapshot_id=snapshot_id, tenant_id=tenant_id)
+def test_Happy_path(tenant_id: uuid.UUID, snapshot_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reversal on state='committed' returns state='reversed' + 4 receipts."""
+        session = _make_session_committed(snapshot_id=snapshot_id, tenant_id=tenant_id)
 
-    svc = ReversalExecuteService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    result = await svc.execute_reversal(
-        period_key="2026-08",
-        snapshot_id=snapshot_id,
-        reversal_reason="Operator correction: duplicate inbound",
-        actor_id=actor_id,
-    )
-    assert result.snapshot_id == snapshot_id
-    assert result.state == "reversed"
-    assert result.period_key == "2026-08"
-    # 4 AD-25 channel receipts emitted.
-    assert len(result.cache_invalidation_receipts) == 4
-    # correction_group_id minted.
-    assert isinstance(result.correction_group_id, uuid.UUID)
+        svc = ReversalExecuteService(
+            session, tenant_id=tenant_id, trace_id=trace_id
+        )
+        result = await svc.execute_reversal(
+            period_key="2026-08",
+            snapshot_id=snapshot_id,
+            reversal_reason="Operator, correction: duplicate inbound",
+            actor_id=actor_id,
+        )
+        assert result.snapshot_id == snapshot_id
+        assert result.state == "reversed"
+        assert result.period_key == "2026-08"
+        # 4 AD-25 channel receipts emitted.
+        assert len(result.cache_invalidation_receipts) == 4
+        # correction_group_id minted.
+        assert isinstance(result.correction_group_id, uuid.UUID)
 
+
+
+    asyncio.run(_impl())
 
 # ── 3. snapshot not-found → SnapshotAlreadyCommittedError ───
-@pytest.mark.asyncio
-async def test_execute_reversal_snapshot_not_found(
-    tenant_id: uuid.UUID,
-    snapshot_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reversal on missing snapshot raises SnapshotAlreadyCommittedError."""
-    session = AsyncMock()
-    # snapshot SELECT returns None.
-    snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=None))
-    session.execute = AsyncMock(return_value=snap_result)
+def test_snapshot_not_found_SnapshotAlreadyCommittedError(tenant_id: uuid.UUID, snapshot_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reversal on missing snapshot raises SnapshotAlreadyCommittedError."""
+        session = AsyncMock()
+        # snapshot SELECT returns None.
+        snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+        session.execute = AsyncMock(return_value=snap_result)
 
-    svc = ReversalExecuteService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    with pytest.raises(SnapshotAlreadyCommittedError) as exc_info:
-        await svc.execute_reversal(
-            period_key="2026-08",
-            snapshot_id=snapshot_id,
-            reversal_reason="Test",
-            actor_id=actor_id,
+        svc = ReversalExecuteService(
+            session, tenant_id=tenant_id, trace_id=trace_id
         )
-    assert exc_info.value.current_state == "not_found"
+        with pytest.raises(SnapshotAlreadyCommittedError) as exc_info:
+            await svc.execute_reversal(
+                period_key="2026-08",
+                snapshot_id=snapshot_id,
+                reversal_reason="Test",
+                actor_id=actor_id,
+            )
+        assert exc_info.value.current_state == "not_found"
 
+
+
+    asyncio.run(_impl())
 
 # ── 4. snapshot state='draft' → ReversalSnapshotMismatchError ─
-@pytest.mark.asyncio
-async def test_execute_reversal_draft_state_rejected(
-    tenant_id: uuid.UUID,
-    snapshot_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reversal on state='draft' raises ReversalSnapshotMismatchError."""
-    snap = _make_snapshot_row("draft", snapshot_id, tenant_id)
-    fp = _make_fiscal_period_row(tenant_id, status="closed")
-    session = AsyncMock()
-    snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=snap))
-    session.execute = AsyncMock(return_value=snap_result)
-    session.scalar = AsyncMock(side_effect=[None, fp])
+def test_snapshot_state_draft_ReversalSnapshotMismatchError(tenant_id: uuid.UUID, snapshot_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reversal on state='draft' raises ReversalSnapshotMismatchError."""
+        snap = _make_snapshot_row("draft", snapshot_id, tenant_id)
+        fp = _make_fiscal_period_row(tenant_id, status="closed")
+        session = AsyncMock()
+        snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=snap))
+        session.execute = AsyncMock(return_value=snap_result)
+        session.scalar = AsyncMock(side_effect=[None, fp])
 
-    svc = ReversalExecuteService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    with pytest.raises(ReversalSnapshotMismatchError) as exc_info:
-        await svc.execute_reversal(
-            period_key="2026-08",
-            snapshot_id=snapshot_id,
-            reversal_reason="Test",
-            actor_id=actor_id,
+        svc = ReversalExecuteService(
+            session, tenant_id=tenant_id, trace_id=trace_id
         )
-    assert exc_info.value.current_state == "draft"
+        with pytest.raises(ReversalSnapshotMismatchError) as exc_info:
+            await svc.execute_reversal(
+                period_key="2026-08",
+                snapshot_id=snapshot_id,
+                reversal_reason="Test",
+                actor_id=actor_id,
+            )
+        assert exc_info.value.current_state == "draft"
 
+
+
+    asyncio.run(_impl())
 
 # ── 5. snapshot state='verified' → ReversalSnapshotMismatchError ─
-@pytest.mark.asyncio
-async def test_execute_reversal_verified_state_rejected(
-    tenant_id: uuid.UUID,
-    snapshot_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reversal on state='verified' raises ReversalSnapshotMismatchError."""
-    snap = _make_snapshot_row("verified", snapshot_id, tenant_id)
-    fp = _make_fiscal_period_row(tenant_id, status="closed")
-    session = AsyncMock()
-    snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=snap))
-    session.execute = AsyncMock(return_value=snap_result)
-    session.scalar = AsyncMock(side_effect=[None, fp])
+def test_snapshot_state_verified_ReversalSnapshotMismatchError(tenant_id: uuid.UUID, snapshot_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reversal on state='verified' raises ReversalSnapshotMismatchError."""
+        snap = _make_snapshot_row("verified", snapshot_id, tenant_id)
+        fp = _make_fiscal_period_row(tenant_id, status="closed")
+        session = AsyncMock()
+        snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=snap))
+        session.execute = AsyncMock(return_value=snap_result)
+        session.scalar = AsyncMock(side_effect=[None, fp])
 
-    svc = ReversalExecuteService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    with pytest.raises(ReversalSnapshotMismatchError) as exc_info:
-        await svc.execute_reversal(
-            period_key="2026-08",
-            snapshot_id=snapshot_id,
-            reversal_reason="Test",
-            actor_id=actor_id,
+        svc = ReversalExecuteService(
+            session, tenant_id=tenant_id, trace_id=trace_id
         )
-    assert exc_info.value.current_state == "verified"
+        with pytest.raises(ReversalSnapshotMismatchError) as exc_info:
+            await svc.execute_reversal(
+                period_key="2026-08",
+                snapshot_id=snapshot_id,
+                reversal_reason="Test",
+                actor_id=actor_id,
+            )
+        assert exc_info.value.current_state == "verified"
 
+
+
+    asyncio.run(_impl())
 
 # ── 6. snapshot state='reversed' → ReversalSnapshotMismatchError ─
-@pytest.mark.asyncio
-async def test_execute_reversal_reversed_state_rejected(
-    tenant_id: uuid.UUID,
-    snapshot_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reversal on state='reversed' raises ReversalSnapshotMismatchError."""
-    snap = _make_snapshot_row("reversed", snapshot_id, tenant_id)
-    fp = _make_fiscal_period_row(tenant_id, status="closed")
-    session = AsyncMock()
-    snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=snap))
-    session.execute = AsyncMock(return_value=snap_result)
-    session.scalar = AsyncMock(side_effect=[None, fp])
+def test_snapshot_state_reversed_ReversalSnapshotMismatchError(tenant_id: uuid.UUID, snapshot_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reversal on state='reversed' raises ReversalSnapshotMismatchError."""
+        snap = _make_snapshot_row("reversed", snapshot_id, tenant_id)
+        fp = _make_fiscal_period_row(tenant_id, status="closed")
+        session = AsyncMock()
+        snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=snap))
+        session.execute = AsyncMock(return_value=snap_result)
+        session.scalar = AsyncMock(side_effect=[None, fp])
 
-    svc = ReversalExecuteService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    with pytest.raises(ReversalSnapshotMismatchError) as exc_info:
-        await svc.execute_reversal(
-            period_key="2026-08",
-            snapshot_id=snapshot_id,
-            reversal_reason="Test",
-            actor_id=actor_id,
+        svc = ReversalExecuteService(
+            session, tenant_id=tenant_id, trace_id=trace_id
         )
-    assert exc_info.value.current_state == "reversed"
+        with pytest.raises(ReversalSnapshotMismatchError) as exc_info:
+            await svc.execute_reversal(
+                period_key="2026-08",
+                snapshot_id=snapshot_id,
+                reversal_reason="Test",
+                actor_id=actor_id,
+            )
+        assert exc_info.value.current_state == "reversed"
 
+
+
+    asyncio.run(_impl())
 
 # ── 7. missing fiscal_period → ReversalSnapshotMismatchError ─
-@pytest.mark.asyncio
-async def test_execute_reversal_missing_fiscal_period(
-    tenant_id: uuid.UUID,
-    snapshot_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """execute_reversal on missing fiscal_periods row raises ReversalSnapshotMismatchError."""
-    snap = _make_snapshot_row("committed", snapshot_id, tenant_id)
-    session = AsyncMock()
-    snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=snap))
-    session.execute = AsyncMock(return_value=snap_result)
-    # session.scalar: monthly_input_period returns None (default 'open'),
-    # fiscal_periods returns None (triggers the missing-period guard).
-    session.scalar = AsyncMock(side_effect=[None, None])
+def test_missing_fiscal_period_ReversalSnapshotMismatchError(tenant_id: uuid.UUID, snapshot_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """execute_reversal on missing fiscal_periods row raises ReversalSnapshotMismatchError."""
+        snap = _make_snapshot_row("committed", snapshot_id, tenant_id)
+        session = AsyncMock()
+        snap_result = MagicMock(scalar_one_or_none=MagicMock(return_value=snap))
+        session.execute = AsyncMock(return_value=snap_result)
+        # session.scalar: monthly_input_period returns None (default 'open'),
+        # fiscal_periods returns None (triggers the missing-period guard).
+        session.scalar = AsyncMock(side_effect=[None, None])
 
-    svc = ReversalExecuteService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    with pytest.raises(ReversalSnapshotMismatchError):
-        await svc.execute_reversal(
+        svc = ReversalExecuteService(
+            session, tenant_id=tenant_id, trace_id=trace_id
+        )
+        with pytest.raises(ReversalSnapshotMismatchError):
+            await svc.execute_reversal(
+                period_key="2026-08",
+                snapshot_id=snapshot_id,
+                reversal_reason="Test",
+                actor_id=actor_id,
+            )
+
+
+
+    asyncio.run(_impl())
+
+# ── 8. Receipts list contains 4 channel entries ─────────────
+def test_Receipts_list_contains_4_channel_entries(tenant_id: uuid.UUID, snapshot_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """Receipts list has exactly 4 channel entries."""
+        session = _make_session_committed(snapshot_id=snapshot_id, tenant_id=tenant_id)
+
+        svc = ReversalExecuteService(
+            session, tenant_id=tenant_id, trace_id=trace_id
+        )
+        result = await svc.execute_reversal(
             period_key="2026-08",
             snapshot_id=snapshot_id,
             reversal_reason="Test",
             actor_id=actor_id,
         )
+        assert len(result.cache_invalidation_receipts) == 4
+        # Each receipt has channel + tenant_id + event_id + correction_group_id.
+        for receipt in result.cache_invalidation_receipts:
+            assert "channel" in receipt
+            assert "tenant_id" in receipt
+            assert "event_id" in receipt
 
 
-# ── 8. Receipts list contains 4 channel entries ─────────────
-@pytest.mark.asyncio
-async def test_receipts_contain_4_channel_entries(
-    tenant_id: uuid.UUID,
-    snapshot_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """Receipts list has exactly 4 channel entries."""
-    session = _make_session_committed(snapshot_id=snapshot_id, tenant_id=tenant_id)
 
-    svc = ReversalExecuteService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    result = await svc.execute_reversal(
-        period_key="2026-08",
-        snapshot_id=snapshot_id,
-        reversal_reason="Test",
-        actor_id=actor_id,
-    )
-    assert len(result.cache_invalidation_receipts) == 4
-    # Each receipt has channel + tenant_id + event_id + correction_group_id.
-    for receipt in result.cache_invalidation_receipts:
-        assert "channel" in receipt
-        assert "tenant_id" in receipt
-        assert "event_id" in receipt
-
+    asyncio.run(_impl())
 
 # ── 9. Result is immutable dataclass ────────────────────────
-@pytest.mark.asyncio
-async def test_result_is_immutable(
-    tenant_id: uuid.UUID,
-    snapshot_id: uuid.UUID,
-    actor_id: uuid.UUID,
-    trace_id: str,
-) -> None:
-    """ReversalExecuteResponse is immutable (frozen dataclass)."""
-    session = _make_session_committed(snapshot_id=snapshot_id, tenant_id=tenant_id)
+def test_Result_is_immutable_dataclass(tenant_id: uuid.UUID, snapshot_id: uuid.UUID, actor_id: uuid.UUID, trace_id: str) -> None:
+    async def _impl() -> None:
+        """ReversalExecuteResponse is immutable (frozen dataclass)."""
+        session = _make_session_committed(snapshot_id=snapshot_id, tenant_id=tenant_id)
 
-    svc = ReversalExecuteService(
-        session, tenant_id=tenant_id, trace_id=trace_id
-    )
-    result = await svc.execute_reversal(
-        period_key="2026-08",
-        snapshot_id=snapshot_id,
-        reversal_reason="Test",
-        actor_id=actor_id,
-    )
-    with pytest.raises((AttributeError, Exception)):
-        result.state = "committed"  # type: ignore[misc]
+        svc = ReversalExecuteService(
+            session, tenant_id=tenant_id, trace_id=trace_id
+        )
+        result = await svc.execute_reversal(
+            period_key="2026-08",
+            snapshot_id=snapshot_id,
+            reversal_reason="Test",
+            actor_id=actor_id,
+        )
+        with pytest.raises((AttributeError, Exception)):
+            result.state = "committed"  # type: ignore[misc]
 
+
+
+    asyncio.run(_impl())
 
 # ── 10. Channel tuple order is deterministic ────────────────
 def test_channel_order_is_deterministic() -> None:
@@ -345,4 +329,4 @@ def test_channel_order_is_deterministic() -> None:
         "cost_engine_cache",
         "ai_cache",
     )
-    assert REVERSAL_EXECUTE_CHANNELS == expected
+    assert expected == REVERSAL_EXECUTE_CHANNELS
