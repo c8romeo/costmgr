@@ -8,6 +8,10 @@
  * fiscal_period_snapshots + V4 verdict envelope + audit-trail), then
  * delegates the panel UI to MonthlyClosingReportPanel.
  *
+ * Story 6.3 T2 — Adds tenant-settings fetch for `industry` (W5 deferral
+ * guard for PDF export endpoint). Threads industry + accessToken to the
+ * panel so the ClosingPdfExportButton can render when industry is valid.
+ *
  * UX-locked: ko-KR labels, WCAG AA contrast, Professional 톤.
  *
  * Capability gate (A10) — when `monthly_closing_report_capability_granted=false`,
@@ -21,8 +25,10 @@ import {
   fetchMonthlyClosingReportServerSide,
   fetchMonthlyClosingReportAuditTrailServerSide,
   fetchMonthlyClosingReportV4VerdictServerSide,
+  fetchTenantSettingsServerSide,
 } from "@/lib/server-api";
 import { buildMonthlyClosingReportAggregate } from "@/lib/monthly-closing-report";
+import { isValidClosingPdfIndustry } from "@/lib/closing-pdf-export";
 
 export const dynamic = "force-dynamic";
 
@@ -36,17 +42,20 @@ export default async function MonthlyClosingReportPage({
   const accessToken = cookieStore.get("sb-access-token")?.value;
   const traceId = crypto.randomUUID();
 
-  // ── 3 read-only fetches (closing report + audit trail + V4 verdict) ──
+  // ── 4 read-only fetches (closing report + audit trail + V4 verdict + tenant settings) ──
   // Best-effort error boundary — returns null on any failure.
   let reportResponse = null;
   let auditTrailResponse = null;
   let v4VerdictResponse = null;
+  let tenantSettings = null;
   try {
-    [reportResponse, auditTrailResponse, v4VerdictResponse] = await Promise.all([
-      fetchMonthlyClosingReportServerSide(periodKey, accessToken, traceId),
-      fetchMonthlyClosingReportAuditTrailServerSide(periodKey, accessToken, traceId),
-      fetchMonthlyClosingReportV4VerdictServerSide(periodKey, accessToken, traceId),
-    ]);
+    [reportResponse, auditTrailResponse, v4VerdictResponse, tenantSettings] =
+      await Promise.all([
+        fetchMonthlyClosingReportServerSide(periodKey, accessToken, traceId),
+        fetchMonthlyClosingReportAuditTrailServerSide(periodKey, accessToken, traceId),
+        fetchMonthlyClosingReportV4VerdictServerSide(periodKey, accessToken, traceId),
+        fetchTenantSettingsServerSide(accessToken, traceId),
+      ]);
   } catch {
     // best-effort — fall through to null → empty fallback
   }
@@ -73,6 +82,12 @@ export default async function MonthlyClosingReportPage({
   const audit_trail = auditTrailResponse?.entries ?? [];
   const capability_granted = reportResponse != null;
 
+  // 6-3 wire: industry code from tenant settings (W5 deferral guard).
+  // Filter to one of 4 canonical industries — non-canonical (e.g. 'trad')
+  // → no PDF export (button hidden).
+  const raw_industry = tenantSettings?.industry ?? null;
+  const industry = isValidClosingPdfIndustry(raw_industry) ? raw_industry : null;
+
   return (
     <section style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem" }}>
       <header style={{ marginBottom: "1.25rem" }}>
@@ -88,6 +103,8 @@ export default async function MonthlyClosingReportPage({
         v4_verdict={v4_verdict}
         audit_trail={audit_trail}
         capability_granted={capability_granted}
+        industry={industry}
+        accessToken={accessToken}
       />
     </section>
   );

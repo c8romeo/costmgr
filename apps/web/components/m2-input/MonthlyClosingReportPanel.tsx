@@ -32,6 +32,8 @@ import {
 } from "@/lib/monthly-closing-report";
 import { formatKRW, formatUSD, krwFromString } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { ClosingPdfExportButton } from "@/components/m2-input/ClosingPdfExportButton";
+import type { ClosingPdfIndustry } from "@/lib/closing-pdf-export";
 
 export interface MonthlyClosingReportPanelProps {
   /** Monthly closing report aggregate (4-source read-only join). */
@@ -50,6 +52,10 @@ export interface MonthlyClosingReportPanelProps {
    * (service-only tenant → INDUSTRY_NOT_SUPPORTED).
    */
   capability_granted?: boolean;
+  /** Industry code (6-3 wire — must be one of 4 canonical for PDF export). */
+  industry?: ClosingPdfIndustry | null;
+  /** Tenant access token (JWT) for PDF export API call. */
+  accessToken?: string;
   /** Optional className override. */
   className?: string;
 }
@@ -68,9 +74,12 @@ export function MonthlyClosingReportPanel({
   v4_verdict,
   audit_trail,
   capability_granted = false,
+  industry = null,
+  accessToken,
   className,
 }: MonthlyClosingReportPanelProps): React.ReactElement | null {
   const t = useTranslations("monthly_closing_report");
+  const t_pdf = useTranslations("closing_pdf_export");
 
   // A10 capability gate — service-only tenant → hidden entirely.
   if (!capability_granted) {
@@ -275,6 +284,26 @@ export function MonthlyClosingReportPanel({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── PDF Export section (6-3 wire — PRD §F6.3) ── */}
+      {industry && (
+        <div
+          data-testid="closing-pdf-export-section"
+          className="rounded-md border bg-white p-3"
+        >
+          <h3 className="text-sm font-medium">{t_pdf("panel_section_label")}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t_pdf("panel_section_help")}
+          </p>
+          <div className="mt-2">
+            <ClosingPdfExportButton
+              periodKey={aggregate.period_key}
+              industry={industry}
+              accessToken={accessToken}
+            />
+          </div>
         </div>
       )}
 

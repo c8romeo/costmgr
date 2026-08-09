@@ -86,6 +86,18 @@
     "toast_error_krw_usd_rate_missing": "KRW/USD 환율 누락: tenant_settings.baseline.currency_pair 미설정",
     "toast_error_industry_not_supported": "업종 미지원: MONTHLY_CLOSING_REPORT capability 미보유 (A10)"
   },
+  "closing_pdf_export": {
+    "button_label": "PDF 다운로드",
+    "button_downloading": "PDF 생성 중...",
+    "panel_section_label": "PDF Export",
+    "panel_section_help": "월 마감 보고서를 PDF(A4, ≤ 5MB)로 다운로드 — 회계사·세무사·금융기관 외부 이해관계자 전달용",
+    "toast_success_export": "PDF 다운로드 완료 ({size})",
+    "toast_error_invalid_industry": "업종 미지원: 4 canonical industries 중 하나여야 합니다 (manufacturing / manufacturing_service / manufacturing_service_other / service)",
+    "toast_error_size_exceeded": "PDF 크기 초과: 5MB cap (PRD §F6.3)",
+    "toast_error_audit_emit": "PDF 저장 audit emit 실패: 서버 측 CR 1.1 invariant 위반",
+    "toast_error_generic": "PDF Export 실패 (code: {code})",
+    "toast_error_generic_unknown": "PDF Export 실패: 알 수 없는 오류"
+  },
   "reversal_request": {
     "dialog_title": "역분개 요청",
     "reason_label": "역분개 사유",

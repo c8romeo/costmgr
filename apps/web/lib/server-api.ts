@@ -21,6 +21,7 @@ import type {
   CompletionStatus,
   MonthlyInputStateResponse,
   ProductListResponse,
+  TenantSettingsResponse,
 } from "./api-client";
 import type {
   MonthlyClosingReportResponse,
@@ -301,6 +302,41 @@ export async function fetchMonthlyClosingReportV4VerdictServerSide(
     );
     if (!res.ok) return null;
     const data = (await res.json()) as MonthlyClosingReportV4VerdictResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ── Story 6.3 — Tenant settings fetcher (for W5 industry guard) ──
+//
+// RSC fetch for `GET /api/v1/tenant-settings` to seed the
+// monthly-closing-report page with the tenant's industry code (W5 deferral
+// guard for PDF export — must be one of 4 canonical industries).
+export async function fetchTenantSettingsServerSide(
+  accessToken: string | undefined,
+  traceId: string,
+): Promise<TenantSettingsResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(`${apiBaseUrl()}/api/v1/tenant-settings`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+      signal: abortCtl.signal,
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as TenantSettingsResponse;
     return data;
   } catch {
     return null;
