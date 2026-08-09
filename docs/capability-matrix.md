@@ -1,8 +1,34 @@
-# Capability Matrix (v1.9)
+# Capability Matrix (v1.12)
 
 > **Single source of truth** for the `Industry × Capability` gating that
-> Epic 1 / 2 / 3 / 4 stories need to coordinate. Replaces the per-story
+> Epic 1 / 2 / 3 / 4 / 11 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.12 (2026-08-09, Story 11.3, Epic 11)** — 3 NEW capabilities added
+> for AD-20 snapshot persistence + AD-22 reversal 영구화 + W2 reopen flow:
+> `SNAPSHOT_PERSISTENCE` (POST /close/snapshots/commit + GET /close/snapshots/{period_key}),
+> `REVERSAL_EXECUTE` (POST /close/snapshots/reverse — distinct from
+> REVERSAL_REQUEST which gates AD-22 reversal REQUEST 11-1 wire),
+> `REOPEN_OPERATOR` (POST /close/sequence/reopen — W2 owner-only operator
+> reopen with operator_action 4-value enum). All 3 granted to
+> manufacturing-kind 3종 (manufacturing / manufacturing_service /
+> manufacturing_service_other); service-only ❌ (403 INDUSTRY_NOT_SUPPORTED).
+> AD-25 4-channel publisher wire (`ai_cache` + `cost_engine_cache` +
+> `fiscal_period_cache` + `closing_snapshot_cache`) is industry-agnostic
+> (no capability gate — it's a cross-cutting infra notification).
+>
+> **v1.11 (2026-08-08, Story 11.2, Epic 11)** — `CLOSE_SEQUENCE_LOCK`
+> capability wire (PRD §F11.1 + §8.M11(a)) for the 4-stage close sequence
+> (divisions → manufacturing → abc → common) + partial-close guard
+> (PARTIAL_CLOSE_BLOCKED) + ALREADY_CONFIRMED (fiscal_periods.status=
+> 'closed'). Granted to manufacturing-kind 3종; service-only ❌.
+>
+> **v1.10 (2026-08-08, Story 11.1, Epic 11)** — `REVERSAL_REQUEST`
+> capability wire (PRD §F11.3) for AD-22 reversal sequence (sign-negating
+> + corrected row) + AD-25 1-channel publisher (`ai_cache` only). Granted
+> to manufacturing-kind 3종; service-only ❌ (no inventory ledger to reverse).
+> POST /close/reversal-requests + GET /close/reversal-requests/{correction_group_id}
+> + POST /close/cache-invalidation 3 NEW routes registered.
 >
 > **v1.6 (2026-08-04, Story 5.2)** — `Capability.INVENTORY_LEDGER` row
 > confirmed wired for manufacturing-kind 3종 (manufacturing /
@@ -74,17 +100,22 @@ class CalcResponse(BaseModel):
 | `BOM` | 2.2 | ✅ | ❌ | ✅ | ✅ |
 | `OPENING_INVENTORY` | 5.1 | ✅ | ❌ | ✅ | ✅ |
 | `INVENTORY_LEDGER` | 5.2 | ✅ | ❌ | ✅ | ✅ |
-| `CLOSING_GUARD` | 5.3 | ✅ | ❌ | ✅ | ✅ |
+| `INVENTORY_CLOSING_GUARD` | 5.3 | ✅ | ❌ | ✅ | ✅ |
 | `MONTHLY_CLOSING_REPORT` | 6.1 | ✅ | ❌ | ✅ | ✅ |
 | `COST_POOL` | 9.x | ❌ | ✅ | ✅ | ✅ |
 | `ACTIVITY` | 9.x | ❌ | ✅ | ✅ | ✅ |
 | `DRIVER` | 9.x | ❌ | ✅ | ✅ | ✅ |
 | `SEGMENT_SPLIT` | 9.x | ❌ | ❌ | ✅ | ✅ |
 | `AI_EXTRACT` | 1.3 | ✅ | ✅ | ✅ | ✅ |
-| `PRODUCT` (catalog CRUD) | 2.1 | ✅ | ✅ | ✅ | ✅ |
+| `PRODUCT` | 2.1 | ✅ | ✅ | ✅ | ✅ |
 | `PRODUCT_MATERIAL` | 2.1 | ✅ | ❌ | ✅ | ✅ |
 | `MONTHLY_INPUT_PRODUCTION` | 3.1 | ✅ | ❌ | ✅ | ✅ |
 | `COST_CALCULATION` | 4.1 | ✅ | ❌ | ✅ | ✅ |
+| `REVERSAL_REQUEST` | 11.1 | ✅ | ❌ | ✅ | ✅ |
+| `CLOSE_SEQUENCE_LOCK` | 11.2 | ✅ | ❌ | ✅ | ✅ |
+| `SNAPSHOT_PERSISTENCE` | 11.3 | ✅ | ❌ | ✅ | ✅ |
+| `REVERSAL_EXECUTE` | 11.3 | ✅ | ❌ | ✅ | ✅ |
+| `REOPEN_OPERATOR` | 11.3 | ✅ | ❌ | ✅ | ✅ |
 
 ## Notes
 
@@ -208,5 +239,38 @@ class CalcResponse(BaseModel):
   audit-trail + v4-verdict) + V8 골든 fixture 16 → 18 (closing-period-fixture-1
   + fiscal-period-snapshot-fixture-1 2 NEW V8 골든 from 6-1 T10.5 carry-over
   close). Capability 행 자체는 변경 없음 (6-1 wire 그대로 사용).
+- 2026-08-08 — v1.10 (Story 11.1, Epic 11): `REVERSAL_REQUEST` capability wire
+  (manufacturing 3종 ✅ / service-only ❌) + 3 NEW routes (`POST /close/reversal-requests`
+  + `GET /close/reversal-requests/{correction_group_id}` + `POST /close/cache-invalidation`)
+  + `ActionClass.M11_REVERSAL` 2 values 채움 (`m11_reversal_handler_invoked` +
+  `inventory_ledger_reversal_logged`) + AD-22 reversal ledger wire +
+  AD-25 1-channel publisher (`ai_cache`) + Alembic 0019
+  (`cache_invalidation_log` table + 1-channel CHECK + `reversal_log` table
+  + partial UNIQUE on `(tenant_id, reverses_event_id)`).
+- 2026-08-08 — v1.11 (Story 11.2, Epic 11): `CLOSE_SEQUENCE_LOCK` capability
+  wire (manufacturing 3종 ✅ / service-only ❌) + 4 NEW routes
+  (`POST /close/sequence/initiate` + `POST /close/sequence/step-complete`
+  + `GET /close/sequence/state` + `POST /close/sequence/confirm`) +
+  `ActionClass.MONTHLY_CLOSING` 4 values 채움 (`closing_sequence_initiated`
+  + `closing_sequence_step_completed` + `closing_sequence_confirmed` +
+  `closing_sequence_audit_failed`) + fiscal_periods greenfield table
+  (Alembic 0020) + 4-stage sequence (divisions → manufacturing → abc →
+  common) + AD-6 INSERT 거부 guard.
+- 2026-08-09 — v1.12 (Story 11.3, Epic 11): 3 NEW capability rows added
+  (`SNAPSHOT_PERSISTENCE` + `REVERSAL_EXECUTE` + `REOPEN_OPERATOR` —
+  all manufacturing 3종 ✅ / service-only ❌) + 4 NEW routes
+  (`POST /close/snapshots/commit` + `POST /close/snapshots/reverse`
+  + `POST /close/sequence/reopen` + `GET /close/snapshots/{period_key}`)
+  + `ActionClass.SNAPSHOT_PERSISTENCE` 4 values +
+  `ActionClass.REOPEN_OPERATOR` 2 values 채움 + AD-25 4-channel publisher
+  wire (`ai_cache` + `cost_engine_cache` + `fiscal_period_cache` +
+  `closing_snapshot_cache`) + Alembic 0021 (`cache_invalidation_log`
+  channel CHECK 1 → 4 expansion + 4 per-channel indexes) + RLS 0012
+  (cache_invalidation_log 4-policy split) + W2 reopen operator flow
+  (`operator_action` 4-value enum + `reason` length 20-500) +
+  AD-20 fiscal_period_snapshots state machine
+  (`draft` → `verified` → `committed` → `reversed`) + AD-22 reversal
+  영구화 (3-tier guard: monthly_input_periods.status='closed' +
+  fiscal_periods.status='closed' + fiscal_period_snapshots.state='committed').
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.

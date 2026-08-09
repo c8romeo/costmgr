@@ -70,6 +70,12 @@ from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
 from apps.api.modules.m11_close import router as m11_close_router
+from apps.api.modules.m11_close.exceptions import (
+    ReopenAuditEmitFailedError,
+    ReopenOperatorActionInvalidError,
+    ReversalSnapshotMismatchError,
+    SnapshotAlreadyCommittedError,
+)
 from apps.api.modules.m11_close.services.close_sequence_service import (
     CloseSequenceAlreadyInitiatedError,
     CloseSequenceCapabilityDeniedError,
@@ -1128,6 +1134,90 @@ async def _m11_closing_sequence_audit_emit_handler(
         content={
             "code": "CLOSING_SEQUENCE_AUDIT_EMIT_FAILED",
             "message_ko": "마감 시퀀스 audit 기록 실패",
+            "details": {"error": exc.message},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ── Story 11.3 — 4 NEW exception handlers (AD-20 + AD-22 + W2) ──
+
+
+@app.exception_handler(SnapshotAlreadyCommittedError)
+async def _m11_snapshot_already_committed_handler(
+    request: Request, exc: SnapshotAlreadyCommittedError
+) -> JSONResponse:
+    """409 SNAPSHOT_ALREADY_COMMITTED — re-commit on non-verified state."""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "SNAPSHOT_ALREADY_COMMITTED",
+            "message_ko": "스냅샷이 이미 커밋되어 다시 커밋할 수 없습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "snapshot_id": str(exc.snapshot_id),
+                "period_key": exc.period_key,
+                "current_state": exc.current_state,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ReversalSnapshotMismatchError)
+async def _m11_reversal_snapshot_mismatch_handler(
+    request: Request, exc: ReversalSnapshotMismatchError
+) -> JSONResponse:
+    """422 REVERSAL_SNAPSHOT_MISMATCH — target snapshot not in 'committed' state."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "REVERSAL_SNAPSHOT_MISMATCH",
+            "message_ko": "되돌리기 대상 스냅샷 상태가 커밋 상태가 아닙니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "target_event_id": str(exc.target_event_id),
+                "snapshot_id": (
+                    str(exc.snapshot_id) if exc.snapshot_id else None
+                ),
+                "current_state": exc.current_state,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ReopenOperatorActionInvalidError)
+async def _m11_reopen_operator_action_invalid_handler(
+    request: Request, exc: ReopenOperatorActionInvalidError
+) -> JSONResponse:
+    """422 REOPEN_OPERATOR_ACTION_INVALID — invalid operator_action or reason length."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "REOPEN_OPERATOR_ACTION_INVALID",
+            "message_ko": "재오픈 operator_action 또는 사유 길이가 유효하지 않습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "fiscal_period_id": str(exc.fiscal_period_id),
+                "operator_action": exc.operator_action,
+                "reason_length": exc.reason_length,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ReopenAuditEmitFailedError)
+async def _m11_reopen_audit_emit_failed_handler(
+    request: Request, exc: ReopenAuditEmitFailedError
+) -> JSONResponse:
+    """500 REOPEN_AUDIT_EMIT_FAILED — audit-first emit failed on reopen."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "REOPEN_AUDIT_EMIT_FAILED",
+            "message_ko": "재오픈 audit 기록 실패",
             "details": {"error": exc.message},
             "trace_id": exc.trace_id,
         },

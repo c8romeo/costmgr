@@ -580,13 +580,403 @@ def _resolve_period_key(request: Request, ctx: TenantContext) -> str:
     return now.strftime("%Y-%m")
 
 
+# ────────────────────────────────────────────────────────────────────────
+# Story 11.3 — 4 NEW routes for snapshot persistence + reversal + reopen
+# (PRD §F11.2 + AD-20 state machine + AD-22 reversal 영구화 + W2 reopen)
+# ────────────────────────────────────────────────────────────────────────
+#
+# Note: These 4 routes delegate to services created in T3/T4/T5. The
+# route shells are wired here so that the URL contract is stable
+# (T3/T4/T5 implement the service bodies + tests).
+#
+# 4 routes:
+#   POST /api/v1/close/snapshots/commit      → AD-20 state='verified'→'committed'
+#                                              → SnapshotPersistenceService (T3)
+#   POST /api/v1/close/snapshots/reverse     → AD-22 state='committed'→'reversed'
+#                                              → ReversalExecuteService (T4)
+#   POST /api/v1/close/sequence/reopen       → W2 reopen flow
+#                                              → ReopenService (T5)
+#   GET  /api/v1/close/snapshots/{period_key} → read snapshot state
+#                                              → SnapshotPersistenceService.get (T3)
+
+
+# ── Request/response schemas for the 4 NEW routes ──────────
+class SnapshotCommitRequest(BaseModel):
+    """POST /api/v1/close/snapshots/commit body shape."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str = Field(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Period key in 'YYYY-MM' format (AD-24 typed).",
+    )
+    snapshot_id: uuid.UUID = Field(
+        ...,
+        description="fiscal_period_snapshots.snapshot_id to commit (state='verified').",
+    )
+
+
+class SnapshotCommitResponse(BaseModel):
+    """POST /api/v1/close/snapshots/commit response envelope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    snapshot_id: str
+    period_key: str
+    state: str
+    cache_invalidation_receipts: list[dict[str, str]]
+    trace_id: str
+
+
+class SnapshotReverseRequest(BaseModel):
+    """POST /api/v1/close/snapshots/reverse body shape (AD-22 영구화)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str = Field(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Period key in 'YYYY-MM' format (AD-24 typed).",
+    )
+    snapshot_id: uuid.UUID = Field(
+        ...,
+        description="fiscal_period_snapshots.snapshot_id to reverse (state='committed').",
+    )
+    reversal_reason: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Free-text justification (Korean SSOT OK).",
+    )
+
+
+class SnapshotReverseResponse(BaseModel):
+    """POST /api/v1/close/snapshots/reverse response envelope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    snapshot_id: str
+    period_key: str
+    state: str
+    correction_group_id: str
+    cache_invalidation_receipts: list[dict[str, str]]
+    trace_id: str
+
+
+class ReopenRequest(BaseModel):
+    """POST /api/v1/close/sequence/reopen body shape (W2)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str = Field(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Period key in 'YYYY-MM' format (AD-24 typed).",
+    )
+    operator_action: str = Field(
+        ...,
+        description=(
+            "One of REOPEN_OPERATOR_ACTIONS = "
+            "{operator_reopen, audit_finding, legal_compliance, data_correction}. "
+            "AD-10 owner-only + reason length 20-500."
+        ),
+    )
+    reason: str = Field(
+        ...,
+        min_length=20,
+        max_length=500,
+        description="Operator justification (min 20 chars, AD-15 audit-justification).",
+    )
+
+
+class ReopenResponse(BaseModel):
+    """POST /api/v1/close/sequence/reopen response envelope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fiscal_period_id: str
+    period_key: str
+    status: str
+    reopen_audit_id: str
+    trace_id: str
+
+
+class SnapshotStateResponse(BaseModel):
+    """GET /api/v1/close/snapshots/{period_key} response envelope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str
+    snapshot_id: str | None
+    state: str | None
+    committed_at: str | None
+    trace_id: str
+
+
+# ── Service stub references (filled in by T3/T4/T5) ─────────
+def _build_snapshot_persistence_service(
+    session: AsyncSession, ctx: TenantContext, request: Request
+):
+    """Construct `SnapshotPersistenceService` (T3 wire)."""
+    from apps.api.modules.m11_close.services.snapshot_persistence_service import (
+        SnapshotPersistenceService,
+    )
+
+    return SnapshotPersistenceService(
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=_resolve_trace_id(ctx, request),
+    )
+
+
+def _build_reversal_execute_service(
+    session: AsyncSession, ctx: TenantContext, request: Request
+):
+    """Construct `ReversalExecuteService` (T4 wire)."""
+    from apps.api.modules.m11_close.services.reversal_execute_service import (
+        ReversalExecuteService,
+    )
+
+    return ReversalExecuteService(
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=_resolve_trace_id(ctx, request),
+    )
+
+
+def _build_reopen_service(
+    session: AsyncSession, ctx: TenantContext, request: Request
+):
+    """Construct `ReopenService` (T5 wire)."""
+    from apps.api.modules.m11_close.services.reopen_service import ReopenService
+
+    return ReopenService(
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=_resolve_trace_id(ctx, request),
+    )
+
+
+# ── POST /api/v1/close/snapshots/commit (AD-20) ─────────────
+@router.post(
+    "/snapshots/commit",
+    response_model=SnapshotCommitResponse,
+    status_code=200,
+    summary=(
+        "AD-20 commit_snapshot_persistence (state='verified'→'committed') — "
+        "Story 11.3 PRIMARY"
+    ),
+)
+async def commit_snapshot_route(
+    payload: SnapshotCommitRequest,
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(
+        require_capability(Capability.SNAPSHOT_PERSISTENCE)
+    ),
+    _role: None = Depends(require_role("owner")),
+) -> SnapshotCommitResponse:
+    """AD-20 commit_snapshot_persistence — state machine transition.
+
+    Story 11.3 PRIMARY AC. Accepts a snapshot_id (state='verified') and
+    transitions it to state='committed' via SnapshotPersistenceService
+    (wired in T3). Emits audit row + AD-25 multi-channel publish
+    (closing_snapshot_cache + fiscal_period_cache + cost_engine_cache +
+    ai_cache).
+
+    Raises (T3 wire):
+    - 409 SNAPSHOT_ALREADY_COMMITTED — state != 'verified'
+    - 403 SNAPSHOT_PERSISTENCE_INDUSTRY_DENIED — service-only tenant
+    """
+    svc = _build_snapshot_persistence_service(session, ctx, request)
+    result = await svc.commit_snapshot(
+        period_key=payload.period_key,
+        snapshot_id=payload.snapshot_id,
+        actor_id=ctx.user_id,
+        trace_id=_resolve_trace_id(ctx, request),
+    )
+    await session.commit()
+    return SnapshotCommitResponse(
+        snapshot_id=str(result.snapshot_id),
+        period_key=result.period_key,
+        state=result.state,
+        cache_invalidation_receipts=result.cache_invalidation_receipts,
+        trace_id=result.trace_id,
+    )
+
+
+# ── POST /api/v1/close/snapshots/reverse (AD-22 영구화) ──────
+@router.post(
+    "/snapshots/reverse",
+    response_model=SnapshotReverseResponse,
+    status_code=200,
+    summary=(
+        "AD-22 reversal 영구화 (state='committed'→'reversed') — "
+        "Story 11.3 PRIMARY"
+    ),
+)
+async def reverse_snapshot_route(
+    payload: SnapshotReverseRequest,
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(
+        require_capability(Capability.REVERSAL_EXECUTE)
+    ),
+    _role: None = Depends(require_role("owner")),
+) -> SnapshotReverseResponse:
+    """AD-22 reversal 영구화 — committed snapshot → reversed state.
+
+    Story 11.3 PRIMARY AC. Requires the underlying snapshot_id to be
+    in state='committed' (3-tier guard from T4). Delegates to
+    ReversalExecuteService (wired in T4) which:
+    1. SELECT FOR UPDATE on fiscal_period_snapshots.
+    2. State guard (must be 'committed').
+    3. Persists AD-22 reversal pair (sign-negating + corrected row).
+    4. UPDATE fiscal_period_snapshots.state = 'reversed'.
+    5. Audit-first emit `snapshot_reversal_executed`.
+    6. AD-25 multi-channel publish (4 channels).
+
+    Raises (T4 wire):
+    - 422 REVERSAL_SNAPSHOT_MISMATCH — state != 'committed'
+    - 422 LOCKED_PERIOD_REVERSAL_REJECTED — period_status='locked'
+    - 409 REVERSAL_DUPLICATE — (tenant_id, reverses_event_id) UNIQUE
+    """
+    svc = _build_reversal_execute_service(session, ctx, request)
+    result = await svc.execute_reversal(
+        period_key=payload.period_key,
+        snapshot_id=payload.snapshot_id,
+        reversal_reason=payload.reversal_reason,
+        actor_id=ctx.user_id,
+        trace_id=_resolve_trace_id(ctx, request),
+    )
+    await session.commit()
+    return SnapshotReverseResponse(
+        snapshot_id=str(result.snapshot_id),
+        period_key=result.period_key,
+        state=result.state,
+        correction_group_id=str(result.correction_group_id),
+        cache_invalidation_receipts=result.cache_invalidation_receipts,
+        trace_id=result.trace_id,
+    )
+
+
+# ── POST /api/v1/close/sequence/reopen (W2) ─────────────────
+@router.post(
+    "/sequence/reopen",
+    response_model=ReopenResponse,
+    status_code=200,
+    summary=(
+        "W2 reopen flow (operator_action 4-value enum + reason length 20-500) — "
+        "Story 11.3 PRIMARY"
+    ),
+)
+async def reopen_close_sequence_route(
+    payload: ReopenRequest,
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(
+        require_capability(Capability.REOPEN_OPERATOR)
+    ),
+    _role: None = Depends(require_role("owner")),
+) -> ReopenResponse:
+    """W2 reopen flow — owner-only operator reopen.
+
+    Story 11.3 PRIMARY AC. Requires:
+    - operator_action ∈ {operator_reopen, audit_finding, legal_compliance, data_correction}
+    - reason length 20-500 chars
+    - AD-10 owner-only role
+
+    Delegates to ReopenService (wired in T5) which:
+    1. SELECT FOR UPDATE on fiscal_periods.
+    2. Validate operator_action enum + reason length.
+    3. Audit-first emit `reopen_operator_invoked`.
+    4. AD-25 multi-channel publish (fiscal_period_cache + closing_snapshot_cache).
+
+    Raises (T5 wire):
+    - 422 REOPEN_OPERATOR_ACTION_INVALID — operator_action or reason length
+    - 409 FISCAL_PERIOD_NOT_CLOSED — fiscal_periods.status != 'closed'
+    - 500 REOPEN_AUDIT_EMIT_FAILED — audit-first failed
+    """
+    svc = _build_reopen_service(session, ctx, request)
+    result = await svc.execute_reopen(
+        period_key=payload.period_key,
+        operator_action=payload.operator_action,
+        reason=payload.reason,
+        actor_id=ctx.user_id,
+        trace_id=_resolve_trace_id(ctx, request),
+    )
+    await session.commit()
+    return ReopenResponse(
+        fiscal_period_id=str(result.fiscal_period_id),
+        period_key=result.period_key,
+        status=result.status,
+        reopen_audit_id=str(result.reopen_audit_id),
+        trace_id=result.trace_id,
+    )
+
+
+# ── GET /api/v1/close/snapshots/{period_key} ────────────────
+@router.get(
+    "/snapshots/{period_key}",
+    response_model=SnapshotStateResponse,
+    status_code=200,
+    summary="Read fiscal_period_snapshots state for a period_key — Story 11.3",
+)
+async def get_snapshot_state_route(
+    request: Request,
+    period_key: str = Path(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Period key in 'YYYY-MM' format (AD-24 typed).",
+    ),
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _capability: None = Depends(
+        require_capability(Capability.SNAPSHOT_PERSISTENCE)
+    ),
+) -> SnapshotStateResponse:
+    """Read fiscal_period_snapshots state for the given period_key.
+
+    Story 11.3 observability read. Delegates to
+    SnapshotPersistenceService.get_snapshot (wired in T3).
+
+    Returns:
+    - snapshot_id: UUID of the snapshot (None if no snapshot exists)
+    - state: 'verified' | 'committed' | 'reversed' (None if no snapshot)
+    - committed_at: ISO-8601 timestamp of commit transition (None if not committed)
+    """
+    svc = _build_snapshot_persistence_service(session, ctx, request)
+    result = await svc.get_snapshot(
+        period_key=period_key,
+        trace_id=_resolve_trace_id(ctx, request),
+    )
+    return SnapshotStateResponse(
+        period_key=result.period_key,
+        snapshot_id=str(result.snapshot_id) if result.snapshot_id else None,
+        state=result.state,
+        committed_at=result.committed_at,
+        trace_id=result.trace_id,
+    )
+
+
 __all__ = [
     "ALLOWED_CHANNELS",
     "CacheInvalidationPublishRequest",
     "CacheInvalidationPublishResponse",
+    "ReopenRequest",
+    "ReopenResponse",
     "ReversalCreateRequest",
     "ReversalCreateResponse",
     "ReversalHistoryEntry",
     "ReversalHistoryResponse",
+    "SnapshotCommitRequest",
+    "SnapshotCommitResponse",
+    "SnapshotReverseRequest",
+    "SnapshotReverseResponse",
+    "SnapshotStateResponse",
     "router",
 ]

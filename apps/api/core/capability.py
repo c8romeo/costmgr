@@ -109,6 +109,24 @@ class Capability(str, Enum):
     # Service-only tenants do NOT have a close sequence (no inventory
     # ledger → no fiscal_periods row to lock down).
     CLOSE_SEQUENCE_LOCK = "close_sequence_lock"
+    # Story 11.3 (Epic 11) — Snapshot persistence capability (PRD §F11.2 +
+    # AD-20 state machine). Gates the POST /close/snapshots/commit +
+    # GET /close/snapshots/{period_key} routes. Granted to manufacturing-
+    # kind industries; service-only tenants have no fiscal_period_snapshots.
+    SNAPSHOT_PERSISTENCE = "snapshot_persistence"
+    # Story 11.3 (Epic 11) — Reversal execute capability (PRD §F11.3 +
+    # AD-22 reversal 영구화). Gates the POST /close/snapshots/reverse
+    # route. Distinct from REVERSAL_REQUEST (which gates AD-22 reversal
+    # REQUEST 11-1 wire); this gates the EXECUTE step (3-tier guard
+    # against fiscal_period_snapshots.state='committed'). Granted to
+    # manufacturing-kind industries.
+    REVERSAL_EXECUTE = "reversal_execute"
+    # Story 11.3 (Epic 11) — Reopen operator capability (W2 reopen flow).
+    # Gates the POST /close/sequence/reopen route. AD-10 owner-only
+    # is enforced at the require_role layer; this capability gate is
+    # the industry-aware front. Granted to manufacturing-kind industries;
+    # service-only tenants do NOT have fiscal_periods to reopen.
+    REOPEN_OPERATOR = "reopen_operator"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -138,6 +156,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 11.2 — manufacturing tenants get the 4-stage
             # close sequence lock (PRD §F11.1 + §8.M11(a)).
             Capability.CLOSE_SEQUENCE_LOCK,
+            # Story 11.3 — manufacturing tenants get SNAPSHOT_PERSISTENCE
+            # (AD-20 state machine), REVERSAL_EXECUTE (AD-22 영구화),
+            # and REOPEN_OPERATOR (W2 reopen flow).
+            Capability.SNAPSHOT_PERSISTENCE,
+            Capability.REVERSAL_EXECUTE,
+            Capability.REOPEN_OPERATOR,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -187,6 +211,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 11.2 — 겸영 tenants get the 4-stage close
             # sequence lock (manufacturing footprint present).
             Capability.CLOSE_SEQUENCE_LOCK,
+            # Story 11.3 — 겸영 tenants get SNAPSHOT_PERSISTENCE +
+            # REVERSAL_EXECUTE + REOPEN_OPERATOR.
+            Capability.SNAPSHOT_PERSISTENCE,
+            Capability.REVERSAL_EXECUTE,
+            Capability.REOPEN_OPERATOR,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -216,6 +245,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 11.2 — full matrix tenants get the 4-stage close
             # sequence lock (manufacturing footprint present).
             Capability.CLOSE_SEQUENCE_LOCK,
+            # Story 11.3 — full matrix tenants get SNAPSHOT_PERSISTENCE +
+            # REVERSAL_EXECUTE + REOPEN_OPERATOR.
+            Capability.SNAPSHOT_PERSISTENCE,
+            Capability.REVERSAL_EXECUTE,
+            Capability.REOPEN_OPERATOR,
         }
     ),
 }

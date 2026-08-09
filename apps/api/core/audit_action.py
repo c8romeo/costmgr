@@ -60,6 +60,8 @@ class ActionClass(str, __import__("enum").Enum):
     CLOSING_PERIOD = "closing_period"  # Story 6.1 (NEW — closing period service audit-first)
     MONTHLY_CLOSING = "monthly_closing"  # Story 11.2 (NEW — 4-stage close sequence lock audit)
     MONTHLY_CLOSING_REPORT = "monthly_closing_report"  # Story 6.2 (NEW — monthly closing report read-only audit)
+    SNAPSHOT_PERSISTENCE = "snapshot_persistence"  # Story 11.3 (NEW — AD-20 state machine 영구화 audit)
+    REOPEN_OPERATOR = "reopen_operator"  # Story 11.3 (NEW — W2 reopen flow audit)
 
 
 # ────────────────────────────────────────────────────────────
@@ -263,6 +265,35 @@ MonthlyClosingReportAction = Literal[
     "monthly_closing_report_viewed",
 ]
 
+# snapshot_persistence actions (Story 11.3 NEW — AD-20 state machine
+# 영구화 audit). PRD §F11.2 + AD-20 + AD-22. Audit routes to
+# `audit_logs` (ActionClass.SNAPSHOT_PERSISTENCE). 4 values:
+# - `snapshot_persistence_committed` — AD-20 verified → committed
+#   transition succeeded (T3 wire).
+# - `snapshot_reversal_executed` — AD-22 영구화 committed → reversed
+#   transition succeeded (T4 wire).
+# - `snapshot_state_guard_rejected` — 3-tier guard rejected
+#   (state != 'committed').
+# - `snapshot_persistence_not_found` — snapshot_id missing or wrong tenant.
+SnapshotPersistenceAction = Literal[
+    "snapshot_persistence_committed",
+    "snapshot_reversal_executed",
+    "snapshot_state_guard_rejected",
+    "snapshot_persistence_not_found",
+]
+
+# reopen_operator actions (Story 11.3 NEW — W2 reopen flow audit).
+# PRD §F11.4 + AD-10 owner-only + AD-15 audit-justification. Audit routes
+# to `audit_logs` (ActionClass.REOPEN_OPERATOR). 2 values:
+# - `reopen_operator_invoked` — execute_reopen succeeded
+#   (fiscal_periods.status='closed' → 'open' transition).
+# - `reopen_blocked` — kernel reject (invalid operator_action or
+#   reason length violation).
+ReopenOperatorAction = Literal[
+    "reopen_operator_invoked",
+    "reopen_blocked",
+]
+
 
 # Union type for type checking
 AuditAction = (
@@ -283,6 +314,8 @@ AuditAction = (
     | ClosingPeriodAction
     | MonthlyClosingAction
     | MonthlyClosingReportAction
+    | SnapshotPersistenceAction
+    | ReopenOperatorAction
 )
 
 
@@ -480,6 +513,34 @@ class _ActionRegistry:
             frozenset(
                 {
                     "monthly_closing_report_viewed",
+                }
+            ),
+        ),
+        # Story 11.3 — snapshot_persistence 4 values (AD-20 영구화 + AD-22 역분개).
+        # DB CHECK constraint mirror: audit_logs CHECK includes
+        # snapshot_persistence_committed / snapshot_reversal_executed /
+        # snapshot_state_guard_rejected / snapshot_persistence_not_found
+        # (drift detector enforces parity).
+        ActionClass.SNAPSHOT_PERSISTENCE: (
+            "audit_logs",
+            frozenset(
+                {
+                    "snapshot_persistence_committed",
+                    "snapshot_reversal_executed",
+                    "snapshot_state_guard_rejected",
+                    "snapshot_persistence_not_found",
+                }
+            ),
+        ),
+        # Story 11.3 — reopen_operator 2 values (W2 reopen flow).
+        # DB CHECK constraint mirror: audit_logs CHECK includes
+        # reopen_operator_invoked / reopen_blocked.
+        ActionClass.REOPEN_OPERATOR: (
+            "audit_logs",
+            frozenset(
+                {
+                    "reopen_operator_invoked",
+                    "reopen_blocked",
                 }
             ),
         ),
