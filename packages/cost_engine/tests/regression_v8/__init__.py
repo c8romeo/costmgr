@@ -123,9 +123,14 @@ V8_BANKER_ROUNDING: Final[str] = "ROUND_HALF_EVEN"
 # Story 5.3 added 2 NEW V3 closing invariant 골든 fixtures (PASS + FAIL).
 # Story 6.2 A11 added 4 NEW 골든 fixtures (V4 closing-period PASS/FAIL +
 # closing_snapshot + ledger_period_closing) = 12 + 2 + 4 = 18 total.
+# Story 11.4 (Epic 11 carry-over A13 sprint-up) added 4 NEW 골든 fixtures
+# (snapshot_committed + reversal_negating_snapshot + reversal_corrected_snapshot
+# + reopen_committed) — V8 18→22 matrix extension (22 = 18 + 4 new 골든 from
+# 11-2 fiscal_periods close_sequence + 11-3 snapshot persistence 영구화).
+# = 18 + 4 = 22 total 골든 in fixtures directory.
 # See `tests/regression_v8/test_regression_v8_fixtures.py` for CI gate.
-# CR 5.3 P18 review patch — V8 + V3 + V4 + A11 = 12 + 2 + 4 = 18.
-V8_FIXTURE_COUNT: Final[int] = 18
+# CR 5.3 P18 + Story 11.4 A13 — V8 + V3 + V4 + A11 + 11-3 = 12 + 2 + 4 + 4 = 22.
+V8_FIXTURE_COUNT: Final[int] = 22
 
 # V3 closing invariant fixture count (subset of V8_FIXTURE_COUNT).
 # These are the 2 NEW V3 골든 fixtures shipped in Story 5.3:
@@ -154,6 +159,22 @@ V4_FIXTURE_IDS: Final[tuple[str, ...]] = (
     "v4_closing_period_fail_manufacturing",
     "closing_snapshot_manufacturing",
     "ledger_period_closing_manufacturing",
+)
+
+# Story 11.3 (Epic 11) — 4 NEW 골든 fixtures for snapshot persistence +
+# reversal 영구화 + reopen flow (subset of V8_FIXTURE_COUNT, AD-20 state
+# machine + AD-22 sign-negating/corrected + W2 owner-only reopen):
+# - snapshot_committed.json (AD-20 verified→committed transition)
+# - reversal_negating_snapshot.json (AD-22 영구화 sign-negating row)
+# - reversal_corrected_snapshot.json (AD-22 corrected row + corrected_period_key)
+# - reopen_committed.json (W2 reopen flow with operator_action enum + reason length)
+# Story 11.4 (A13 sprint-up) — V8 18→22 matrix extension fills these 골든.
+SNAPSHOT_REVERSAL_FIXTURE_COUNT: Final[int] = 4
+SNAPSHOT_REVERSAL_FIXTURE_IDS: Final[tuple[str, ...]] = (
+    "snapshot_committed",
+    "reversal_negating_snapshot",
+    "reversal_corrected_snapshot",
+    "reopen_committed",
 )
 
 

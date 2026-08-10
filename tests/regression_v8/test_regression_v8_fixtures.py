@@ -42,7 +42,11 @@ from apps.api.modules.m3_calculate.services.verification_runner import (
 from packages.cost_engine.core.money import KRW
 from packages.cost_engine.core.period_cost import Baseline, compute_period_cost
 from packages.cost_engine.ports.calc_port import CalcResult, MonthlyInput
-from packages.cost_engine.tests.regression_v8 import V3_FIXTURE_IDS, V8_FIXTURE_COUNT
+from packages.cost_engine.tests.regression_v8 import (
+    SNAPSHOT_REVERSAL_FIXTURE_IDS,
+    V3_FIXTURE_IDS,
+    V8_FIXTURE_COUNT,
+)
 from packages.cost_engine.tests.regression_v8.fixture_loader import (
     compute_golden_lock_sha256,
     load_golden_by_id,
@@ -55,11 +59,12 @@ FIXTURES_DIR = REPO_ROOT / "packages" / "cost_engine" / "tests" / "regression_v8
 
 ALL_INDUSTRIES = list(INDUSTRY_VALUES)  # 4 values
 ALL_SHAPES = ("b-small", "b-standard", "b-complex")  # 3 baseline shapes
-# CR 5.3 P18 — V8 + V3 + V4 fixture count = 12 (V8 byte-identical) +
-# 2 (V3 골든) + 4 (V4 + A11 골든 — 6-2 A11 wire) = 18 total.
+# CR 5.3 P18 + Story 11.4 A13 — V8 + V3 + V4 + 11-3 snapshot/reversal/reopen fixture count =
+# 12 (V8 byte-identical) + 2 (V3 골든) + 4 (V4 + A11 골든 — 6-2 A11 wire)
+# + 4 (Story 11.3 snapshot persistence + reversal 영구화 + W2 reopen flow 골든) = 22 total.
 # Matrix coverage tests filter V8-only fixtures by the `industry__b-shape` pattern.
 EXPECTED_FIXTURE_COUNT = len(ALL_INDUSTRIES) * len(ALL_SHAPES)  # 12 (V8 only)
-EXPECTED_TOTAL_COUNT = EXPECTED_FIXTURE_COUNT + 6  # 18 (V8 + V3 + V4/A11 골든)
+EXPECTED_TOTAL_COUNT = EXPECTED_FIXTURE_COUNT + 10  # 22 (V8 + V3 + V4/A11 + 11-3 골든)
 
 
 def _v8_fixture_paths() -> list[Path]:
@@ -73,19 +78,22 @@ _DETERMINISTIC_TENANT_ID = _uuid_mod.UUID("11111111-1111-4111-8111-111111111111"
 # ── Fixtures shipped on disk invariant ────────────────────────
 @pytest.mark.engine
 @pytest.mark.v8_regression
-def test_v8_fixture_count_is_18() -> None:
-    """V8_FIXTURE_COUNT = 18 + 18 fixture JSON files on disk (AC #7 + CR 5.3 P18 + Story 6.2 A11).
+def test_v8_fixture_count_is_22() -> None:
+    """V8_FIXTURE_COUNT = 22 + 22 fixture JSON files on disk (AC #7 + CR 5.3 P18 + Story 6.2 A11 + Story 11.4 A13).
 
     Story 4.4 (12 V8 byte-identical 골든) + Story 5.3 (2 V3 closing
     invariant 골든) + Story 6.2 A11 (4 NEW 골든 — 6-1 T10.5 deferred V4
     closing-period PASS/FAIL fill + A11 closing_snapshot +
-    ledger_period_closing) = 18 total. The V3 + V4 fixtures use a
-    different naming convention (no `__` separator) and have a
-    different payload shape. The V8 matrix coverage tests below filter
-    V8-only fixtures by the `__` pattern.
+    ledger_period_closing) + Story 11.4 A13 sprint-up (4 NEW 골든 —
+    snapshot_committed + reversal_negating_snapshot +
+    reversal_corrected_snapshot + reopen_committed — AD-20 state machine
+    + AD-22 영구화 + W2 reopen flow) = 22 total. The V3 + V4 +
+    snapshot/reversal/reopen fixtures use a different naming convention
+    (no `__` separator) and have a different payload shape. The V8 matrix
+    coverage tests below filter V8-only fixtures by the `__` pattern.
     """
-    assert V8_FIXTURE_COUNT == 18, (
-        f"V8_FIXTURE_COUNT must be 18 (Story 4.4 12 + Story 5.3 2 V3 + Story 6.2 A11 4 V4/A11). "
+    assert V8_FIXTURE_COUNT == 22, (
+        f"V8_FIXTURE_COUNT must be 22 (Story 4.4 12 + Story 5.3 2 V3 + Story 6.2 A11 4 V4/A11 + Story 11.4 A13 4 11-3). "
         f"Got {V8_FIXTURE_COUNT}."
     )
     actual = sorted(p.name for p in FIXTURES_DIR.glob("*.json"))
@@ -129,6 +137,140 @@ def test_v3_golden_fixtures_exist() -> None:
             f"V3 골든 fixture missing: {path}. "
             f"Expected 2 fixtures: {V3_FIXTURE_IDS}."
         )
+
+
+# ── Story 11.4 A13 — 4 NEW snapshot/reversal/reopen 골든 fixtures ─
+@pytest.mark.engine
+@pytest.mark.v8_regression
+def test_snapshot_reversal_reopen_fixtures_exist() -> None:
+    """Story 11.4 A13 sprint-up — 4 NEW 골든 fixtures ship on disk.
+
+    4 NEW V8 골든 for AD-20 state machine + AD-22 reversal 영구화 +
+    W2 reopen flow (Story 11.3 wire base + Story 11.4 A13 fixture matrix
+    fill):
+    - snapshot_committed.json (AD-20 verified→committed transition)
+    - reversal_negating_snapshot.json (AD-22 sign-negating row)
+    - reversal_corrected_snapshot.json (AD-22 corrected row)
+    - reopen_committed.json (W2 reopen with operator_action enum + reason)
+    """
+    for fixture_id in SNAPSHOT_REVERSAL_FIXTURE_IDS:
+        path = FIXTURES_DIR / f"{fixture_id}.json"
+        assert path.exists(), (
+            f"Story 11.4 A13 골든 fixture missing: {path}. "
+            f"Expected 4 fixtures: {SNAPSHOT_REVERSAL_FIXTURE_IDS}."
+        )
+
+
+@pytest.mark.engine
+@pytest.mark.v8_regression
+def test_snapshot_committed_fixture_shape() -> None:
+    """Story 11.4 A13 — snapshot_committed.json has AD-20 transition shape.
+
+    Pins the AD-20 state machine transition shape (verified → committed)
+    + 4-channel cache invalidation publisher wire. Drift detector: if
+    the fixture omits a required field, this test fails.
+    """
+    path = FIXTURES_DIR / "snapshot_committed.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["fixture_id"] == "snapshot_committed"
+    assert data["pre_commit_state"] == "verified"
+    assert data["post_commit_state"] == "committed"
+    assert data["expected_commit_transition_ok"] is True
+    # AD-25 4-channel publisher wire (ai_cache + cost_engine_cache +
+    # fiscal_period_cache + closing_snapshot_cache).
+    assert set(data["expected_cache_invalidation_channels"]) == {
+        "ai_cache",
+        "cost_engine_cache",
+        "fiscal_period_cache",
+        "closing_snapshot_cache",
+    }
+    assert data["audit_action"] == "snapshot_persistence_committed"
+
+
+@pytest.mark.engine
+@pytest.mark.v8_regression
+def test_reversal_negating_snapshot_fixture_shape() -> None:
+    """Story 11.4 A13 — reversal_negating_snapshot.json has AD-22 sign-negating shape.
+
+    Pins the AD-22 reversal 영구화 sign-negating row construction with
+    correction_group_id link. Banker's rounding parity invariant pinned.
+    """
+    path = FIXTURES_DIR / "reversal_negating_snapshot.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["fixture_id"] == "reversal_negating_snapshot"
+    assert data["pre_reversal_state"] == "committed"
+    assert data["post_reversal_state"] == "reversed"
+    assert data["expected_reversal_authorized"] is True
+    # Sign-negating row contract.
+    assert data["negating_row"]["event_type"] == "reversal_negating"
+    assert data["negating_row"]["qty"] == "-10.0000"
+    assert data["negating_row"]["reverses_event_id"] == data["target_event_id"]
+    # correction_group_id link between negating + corrected rows.
+    assert data["expected_correction_group_link"] == data["negating_row"]["correction_group_id"]
+    # Financial effect = 0 (reversal 영구화 invariant).
+    assert data["expected_financial_effect"] == "0.0000"
+    # Audit + cache invalidation.
+    assert data["audit_action"] == "snapshot_persistence_reversed"
+
+
+@pytest.mark.engine
+@pytest.mark.v8_regression
+def test_reversal_corrected_snapshot_fixture_shape() -> None:
+    """Story 11.4 A13 — reversal_corrected_snapshot.json has AD-22 corrected row shape.
+
+    Pins the AD-22 corrected row construction with corrected_period_key
+    (AD-24 typed 'YYYY-MM') + banker's rounding parity (CR 0-4).
+    """
+    path = FIXTURES_DIR / "reversal_corrected_snapshot.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["fixture_id"] == "reversal_corrected_snapshot"
+    assert data["expected_reversal_authorized"] is True
+    # Corrected row contract.
+    assert data["corrected_row"]["event_type"] == "reversal_corrected"
+    assert data["corrected_row"]["qty"] == "8.5000"
+    assert data["corrected_row"]["period_key"] == "2026-09"
+    # corrected_period_key AD-24 typed format.
+    assert data["expected_corrected_period_key"] == "2026-09"
+    # Banker's rounding parity (CR 0-4 wire).
+    assert data["expected_bankers_rounding_parity"] is True
+    # correction_group_id link (negating + corrected share same group).
+    assert data["expected_correction_group_link"] == data["corrected_row"]["correction_group_id"]
+
+
+@pytest.mark.engine
+@pytest.mark.v8_regression
+def test_reopen_committed_fixture_shape() -> None:
+    """Story 11.4 A13 — reopen_committed.json has W2 reopen flow shape.
+
+    Pins W2 reopen operator action enum (4-value) + reason length 20-500
+    (AD-15 audit-justification) + AD-10 owner-only role gate +
+    2-channel cache invalidation (fiscal_period_cache + closing_snapshot_cache).
+    """
+    path = FIXTURES_DIR / "reopen_committed.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["fixture_id"] == "reopen_committed"
+    assert data["pre_reopen_status"] == "closed"
+    assert data["pre_reopen_close_sequence_state"] == "confirmed"
+    # W2 reopen operator_action 4-value enum.
+    assert data["operator_action"] in {
+        "operator_reopen",
+        "audit_finding",
+        "legal_compliance",
+        "data_correction",
+    }
+    # AD-15 reason length 20-500 audit-justification.
+    assert data["reason_length"] >= data["reason_min_length_required"]
+    assert data["reason_length"] <= data["reason_max_length_allowed"]
+    # AD-10 owner-only + capability granted.
+    assert data["is_owner"] is True
+    assert data["capability_granted"] is True
+    assert data["expected_reopen_authorized"] is True
+    # 2-channel cache invalidation (W2 reopen — fiscal_period + closing_snapshot only).
+    assert set(data["expected_cache_invalidation_channels"]) == {
+        "fiscal_period_cache",
+        "closing_snapshot_cache",
+    }
+    assert data["expected_audit_action"] == "reopen_completed"
 
 
 # ── Lock sha256 invariant (AC #7) ────────────────────────────

@@ -36,7 +36,7 @@ created: 2026-08-09
 
 1.1. `apps/api/modules/m4_inventory/services/closing_pdf_export_service.py` (NEW) — `export_closing_pdf(tenant_id, period_key)` 진입점
 1.2. `packages/services/m4_inventory/closing_pdf_export.py` (NEW) — pure helper (PDF template rendering, 한글 폰트 임베딩, A4 페이지 layout)
-1.3. `apps/api/modules/m4_inventory/handlers.py` EXTENSION — `POST /api/v1/closing/export-pdf` route (capability gate: MONTHLY_CLOSING_REPORT)
+1.3. `apps/api/modules/m4_inventory/handlers.py` EXTENSION — `POST /api/v1/inventory/monthly-closing-report/export-pdf` route (capability gate: MONTHLY_CLOSING_REPORT)
 1.4. PDF content = closing_snapshot + ledger events join + MonthlyClosingReport (6-2 wire) — 1 product per page + summary cover page
 1.5. PDF byte-identical CI gate (optional but recommended) — `tests/integration/test_closing_pdf_export_byte_identical.py` (NEW, ~50 lines)
 1.6. 한글 폰트 임베딩 = Noto Sans KR (Google Fonts CDN cached) — `@font-face` subset
@@ -91,7 +91,7 @@ created: 2026-08-09
 - [ ] **Task 1: Pure helper + service layer + handlers wire** (AC: #1)
   - [ ] Subtask 1.1: `packages/services/m4_inventory/closing_pdf_export.py` (NEW pure helper, ~250 lines) — PDF template rendering + 한글 폰트 임베딩 + A4 layout
   - [ ] Subtask 1.2: `apps/api/modules/m4_inventory/services/closing_pdf_export_service.py` (NEW service layer, ~300 lines) — `export_closing_pdf` 진입점
-  - [ ] Subtask 1.3: `apps/api/modules/m4_inventory/handlers.py` EXTENSION — `POST /api/v1/closing/export-pdf` route
+  - [ ] Subtask 1.3: `apps/api/modules/m4_inventory/handlers.py` EXTENSION — `POST /api/v1/inventory/monthly-closing-report/export-pdf` route
   - [ ] Subtask 1.4: `apps/api/modules/m4_inventory/services/__init__.py` EXTENSION — closing_pdf_export_service re-export (W1 close)
   - [ ] Subtask 1.5: `apps/api/core/audit_action.py` (변경 無 — 6-2 wire A5 forward-lock 보존)
 - [ ] **Task 2: Frontend wire + download flow** (AC: #2)
@@ -239,7 +239,7 @@ T1~T6 모두 done. 6-2 carry-over close-out 5 W-items 완료 (W1/W2/W3/W4/W5). A
 - `apps/api/modules/m4_inventory/services/closing_pdf_export_service.py` (NEW, ~360 lines)
 
 **T1 Backend wire (MODIFIED):**
-- `apps/api/modules/m4_inventory/handlers.py` (POST /export-pdf route)
+- `apps/api/modules/m4_inventory/handlers.py` (POST /api/v1/inventory/monthly-closing-report/export-pdf route — B15 endpoint 통일)
 - `apps/api/main.py` (3 NEW exception handlers — 422/409/500)
 - `tests/architecture/test_api_calls_only_ports.py` (ALLOWED_SERVICE_SUBMODULES sweep)
 

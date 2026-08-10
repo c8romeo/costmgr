@@ -151,3 +151,46 @@ export interface ReversalRequestTrigger {
   industry: Industry | null;
   capability_granted: boolean;
 }
+
+// ── SnapshotPersistenceState (Story 11.4 A13 — 11-3 frontend TS types) ──
+//
+// Re-export the SnapshotPersistenceState from `m11-snapshot-persistence.ts`
+// so panel components can consume a single typed shape without re-importing
+// from the snapshot module. SSOT for the panel props stays in
+// `m11-snapshot-persistence.ts`.
+export type { SnapshotPersistenceState } from "./m11-snapshot-persistence";
+
+// ── ReversalExecuteState (Story 11.4 A13 — 11-3 frontend TS types) ──
+//
+// Re-export the ReversalExecuteState from `m11-reversal-execute.ts`.
+export type { ReversalExecuteState } from "./m11-reversal-execute";
+
+// ── ReopenAuthorizationState (Story 11.4 A13 — 11-3 frontend TS types) ──
+//
+// Re-export the ReopenAuthorizationState from `m11-reopen.ts`.
+export type { ReopenAuthorizationState } from "./m11-reopen";
+
+// ── CacheInvalidationChannel (Story 11.4 A13 — AD-25 4-channel badge) ──
+//
+// 4-channel AD-25 cache invalidation publisher wire (11-3 expansion
+// from 11-1 1-channel ai_cache to 4 channels):
+// - ai_cache (M10 AI cache invalidation target)
+// - cost_engine_cache (M3 calculation cache)
+// - fiscal_period_cache (M11 fiscal_periods status)
+// - closing_snapshot_cache (M11 fiscal_period_snapshots state)
+// W2 reopen flow uses 2 channels (fiscal_period_cache + closing_snapshot_cache).
+export const CACHE_INVALIDATION_CHANNELS = [
+  "ai_cache",
+  "cost_engine_cache",
+  "fiscal_period_cache",
+  "closing_snapshot_cache",
+] as const;
+
+export type CacheInvalidationChannel =
+  (typeof CACHE_INVALIDATION_CHANNELS)[number];
+
+// W2 reopen flow uses only 2 channels (subset of 4).
+export const REOPEN_CACHE_INVALIDATION_CHANNELS = [
+  "fiscal_period_cache",
+  "closing_snapshot_cache",
+] as const;

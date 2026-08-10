@@ -1,9 +1,20 @@
 # V8 Regression Suite
 
+> **Status (2026-08-09, Story 11.4)** — V8 18→22 골든 fixture matrix extension
+> (Epic 11 carry-over A13 sprint-up 결정). 4 NEW 골든 fixtures shipped for
+> AD-20 state machine + AD-22 reversal 영구화 + W2 reopen flow:
+> `snapshot_committed.json` (verified→committed) +
+> `reversal_negating_snapshot.json` (AD-22 sign-negating) +
+> `reversal_corrected_snapshot.json` (AD-22 corrected row + corrected_period_key) +
+> `reopen_committed.json` (W2 owner-only reopen with operator_action 4-value enum).
+> `V8_FIXTURE_COUNT = 22` (`packages/cost_engine/tests/regression_v8/__init__.py`).
+> AD-25 4-channel publisher wire (`ai_cache` + `cost_engine_cache` +
+> `fiscal_period_cache` + `closing_snapshot_cache`) + banker's rounding parity
+> (CR 0-4) 모두 pinned. CR 4-4 lesson 정합 (V8 byte-identical CI gate).
+>
 > **Status (2026-08-02, Story 4.4)** — 12 골든 fixture 매트릭스 (4 industries
 > × 3 baseline shapes) ship 완료. `tests/regression_v8/test_regression_v8_fixtures.py`
 > 가 CI mandatory gate 로 wire 됨 (`@pytest.mark.engine` + `@pytest.mark.v8_regression`).
-> `V8_FIXTURE_COUNT = 12` (`packages/cost_engine/tests/regression_v8/__init__.py`).
 > `verify_v8_golden_match` audit action (Story 4.4 forward-lock) 가
 > `verification_log.action` literal 에 추가됨.
 >
@@ -174,6 +185,23 @@ marking. `pytest` 기본 호출이 자동 포함.
     `manufacturing_service_other`)
   - `fixture_loader.py` (lock sha256 + select_golden_for_input + load_golden_*)
   - CR 2.3 extra='forbid' invariant 골든 diff shape
+- **Story 11.4 (2026-08-09, Epic 11 carry-over A13 sprint-up)** — V8 18→22 matrix extension:
+  - `V8_FIXTURE_COUNT = 18 → 22`
+  - 4 NEW JSON 골든 발행 (AD-20 + AD-22 + W2):
+    - `snapshot_committed.json` — AD-20 state machine transition (verified→committed)
+      + 4-channel cache invalidation publisher wire (AD-25).
+    - `reversal_negating_snapshot.json` — AD-22 reversal 영구화 sign-negating row
+      with correction_group_id link + 4-channel cache invalidation.
+    - `reversal_corrected_snapshot.json` — AD-22 corrected row with
+      corrected_period_key (AD-24 typed 'YYYY-MM') + banker's rounding parity (CR 0-4).
+    - `reopen_committed.json` — W2 reopen flow with operator_action 4-value enum
+      + reason length 20-500 audit-justification (AD-15) + 2-channel cache
+      invalidation (fiscal_period_cache + closing_snapshot_cache).
+  - 4 NEW test cases (snapshot_committed fixture shape + reversal_negating fixture
+    shape + reversal_corrected fixture shape + reopen_committed fixture shape)
+  - `SNAPSHOT_REVERSAL_FIXTURE_IDS` tuple export (`__init__.py`)
+  - `SNAPSHOT_REVERSAL_FIXTURE_COUNT = 4` constant
+  - CR 4-4 lesson 정합 (V8 byte-identical CI gate + tenant-scoped result_hash)
 
 ---
 

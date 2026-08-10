@@ -33,6 +33,10 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
+import { CacheInvalidationChannelBadge } from "@/components/m11-close/CacheInvalidationChannelBadge";
+import { ReopenOperatorDialog } from "@/components/m11-close/ReopenOperatorDialog";
+import { ReversalExecuteDialog } from "@/components/m11-close/ReversalExecuteDialog";
+import { SnapshotPersistencePanel } from "@/components/m11-close/SnapshotPersistencePanel";
 import { MonthlyInputTabs } from "@/components/m2-input/MonthlyInputTabs";
 import type { ClosingInvariant } from "@/lib/l2-input-inventory-ledger";
 import { fetchMonthlyInputStateServerSide } from "@/lib/server-api";
@@ -156,6 +160,47 @@ export default async function MonthlyInputPeriodPage({
           return data.closing_snapshot_count ?? closingSnapshotCount;
         }}
       />
+      {/* Story 11.4 (A13 sprint-up) — T8 frontend mount (D-001).
+          4 NEW Client Components rendered as siblings of <MonthlyInputTabs>.
+          Each component has its own capability gate + service-only tenant
+          UX guard, so the page-level stub props below are safe defaults.
+          TODO(11-4 carry): replace stub UUIDs with server-side tenant/actor
+          resolution (read from session cookie or RSC-fetched user context). */}
+      <SnapshotPersistencePanel
+        snapshot_id="00000000-0000-4000-8000-000000000001"
+        period_key={periodKey}
+        current_state="verified"
+        actor_id="00000000-0000-4000-8000-000000000002"
+        tenant_id="00000000-0000-4000-8000-000000000003"
+        capability_granted={monthlyClosingReportCapabilityGranted}
+      />
+      <ReversalExecuteDialog
+        open={false}
+        onOpenChange={() => {
+          // TODO(11-4 carry): wire controlled open state via a client
+          // wrapper that owns useState (Server Component cannot hold state).
+        }}
+        tenant_id="00000000-0000-4000-8000-000000000003"
+        target_event_id="00000000-0000-4000-8000-000000000004"
+        snapshot_id="00000000-0000-4000-8000-000000000001"
+        snapshot_state="committed"
+        target_qty="0"
+        correction_group_id="00000000-0000-4000-8000-000000000005"
+        actor_id="00000000-0000-4000-8000-000000000002"
+        capability_granted={monthlyClosingReportCapabilityGranted}
+      />
+      <ReopenOperatorDialog
+        open={false}
+        onOpenChange={() => {
+          // TODO(11-4 carry): wire controlled open state via a client
+          // wrapper that owns useState (Server Component cannot hold state).
+        }}
+        tenant_id="00000000-0000-4000-8000-000000000003"
+        actor_id="00000000-0000-4000-8000-000000000002"
+        is_owner={false}
+        capability_granted={monthlyClosingReportCapabilityGranted}
+      />
+      <CacheInvalidationChannelBadge />
     </section>
   );
 }

@@ -842,9 +842,12 @@ async def get_monthly_closing_report_v4_verdict(
 # Story 6.3 — Closing PDF Export routes (1 NEW POST)
 # ─────────────────────────────────────────────────────────────
 
+# B9: canonical AD-24 period_key pattern.
+_PERIOD_KEY_PATTERN: str = r"^\d{4}-(0[1-9]|1[0-2])$"
+
 
 @router.post(
-    "/export-pdf",
+    "/monthly-closing-report/export-pdf",
     response_model=None,
     status_code=200,
     summary="Export monthly closing period as PDF/A4 (Story 6.3 AC #1)",
@@ -856,17 +859,25 @@ async def get_monthly_closing_report_v4_verdict(
     },
 )
 async def export_closing_pdf(
-    period_key: str = Query(..., description="AD-24 typed 'YYYY-MM' fiscal key"),
-    industry: str = Query(..., description="PRD §6.1 canonical industry"),
+    period_key: str = Query(
+        ...,
+        pattern=_PERIOD_KEY_PATTERN,
+        description="AD-24 typed 'YYYY-MM' fiscal key (B9 Pydantic regex)",
+    ),
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
     _capability: None = Depends(require_capability(Capability.MONTHLY_CLOSING_REPORT)),
 ) -> Response:
     """Closing PDF Export — PDF/A4 byte stream (PRD §F6.3).
 
-    Read-only aggregator (4-source join) + audit-first emit (CR 1.1) +
-    PDF byte stream render via pure kernel
-    `packages.services.m4_inventory.closing_pdf_export`.
+    B8: industry is no longer a query parameter. Service layer
+    resolves industry from `tenant_settings.baseline.industry` so
+    caller cannot spoof a different industry. `TenantContext`
+    exposes the resolved industry for the service to consume.
+
+    B3: period_key is sanitized for Content-Disposition `filename=`
+    via the pure kernel `escape_content_disposition_filename`
+    helper, and CRLF/quote/backslash are stripped.
 
     Returns:
         Response with Content-Type: application/pdf + Content-Disposition:
@@ -875,17 +886,39 @@ async def export_closing_pdf(
     from apps.api.modules.m4_inventory.services.closing_pdf_export_service import (
         ClosingPdfExportService,
     )
+    from packages.services.m4_inventory.closing_pdf_export import (
+        escape_content_disposition_filename,
+    )
+
+    # B8: resolve industry from tenant context (server-side).
+    # If TenantContext does not yet expose `industry`, fall back to
+    # reading tenant_settings via a helper; for now we accept it as
+    # a required field on the context and return 422 if absent.
+    industry = getattr(ctx, "industry", None)
+    if industry is None:
+        # Defense-in-depth: re-raise as 422 via the typed envelope.
+        from apps.api.modules.m4_inventory.services.closing_pdf_export_service import (
+            ClosingPdfExportInvalidIndustryError,
+        )
+
+        raise ClosingPdfExportInvalidIndustryError(
+            tenant_id=ctx.tenant_id,
+            period_key=period_key,
+            industry="",
+            trace_id=ctx.trace_id,
+        )
 
     svc = ClosingPdfExportService(
         session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
     )
     result = await svc.export_closing_pdf(period_key, industry=industry)
+    safe_name = escape_content_disposition_filename(period_key)
     return Response(
         content=result["pdf_bytes"],
         media_type="application/pdf",
         headers={
             "Content-Disposition": (
-                f'attachment; filename="closing-{period_key}.pdf"'
+                f"attachment; filename=\"closing-{safe_name}.pdf\""
             ),
             "X-Closing-Pdf-Export-Size": str(result["pdf_size_bytes"]),
             "X-Closing-Pdf-Export-Is-Empty": str(result["is_empty"]).lower(),

@@ -36,7 +36,6 @@ from packages.services.m4_inventory.closing_period import (
     is_closing_period_allowed,
 )
 
-
 # ── classify_closing_period_status (5 cases) ───────────────────────
 
 
@@ -373,4 +372,4 @@ def test_closing_period_statuses_frozenset_completeness() -> None:
         CLOSING_PERIOD_STATUSES,
     )
 
-    assert CLOSING_PERIOD_STATUSES == expected
+    assert expected == CLOSING_PERIOD_STATUSES

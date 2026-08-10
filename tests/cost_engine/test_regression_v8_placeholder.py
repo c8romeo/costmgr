@@ -97,7 +97,7 @@ def test_v8_banker_rounding_policy() -> None:
 
 
 @pytest.mark.engine
-def test_v8_fixture_count_now_18_in_story_6_2() -> None:
+def test_v8_fixture_count_now_22_in_story_11_4() -> None:
     """Story 4.4 filled V8_FIXTURE_COUNT = 12 (4 industries × 3 baseline shapes).
     Story 5.3 (CR 5.3 P18) added 2 NEW V3 closing invariant 골든 fixtures
     (v3_closing_pass_manufacturing.json + v3_closing_fail_manufacturing.json).
@@ -108,14 +108,22 @@ def test_v8_fixture_count_now_18_in_story_6_2() -> None:
       - ledger_period_closing_manufacturing.json (A11 신규)
     Total = 12 + 2 + 4 = 18.
 
+    Story 11.4 (D-004) added 4 NEW 골든 fixtures (SNAPSHOT_REVERSAL_FIXTURE_COUNT=4):
+      - snapshot_committed_manufacturing.json (AD-20 state transition)
+      - reversal_negating_snapshot_manufacturing.json (AD-22 reversal 영구화)
+      - reversal_corrected_snapshot_manufacturing.json (AD-22 corrected row)
+      - reopen_committed_manufacturing.json (AD-25 reopen flow)
+    Total = 18 + 4 = 22.
+
     Story 4.1 baseline was 0 (placeholder-only contract). Story 4.4 wrote
     the 12 fixture JSONs into `packages/cost_engine/tests/regression_v8/fixtures/`
     and the constant must reflect that — this is the CR 1.1 forward-lock
     for the V8 fill marker (cr-4-3-lessons F-4 STORY_4_4_FILL_POINT).
     CR 5.3 P18 = 12 → 14 (12 V8 byte-identical + 2 V3 closing invariant).
     Story 6.2 A11 = 14 → 18 (+4 V4 closing-period PASS/FAIL + closing_snapshot + ledger_period_closing).
+    Story 11.4 D-004 = 18 → 22 (+4 SNAPSHOT_REVERSAL: snapshot_committed + reversal_negating + reversal_corrected + reopen_committed).
     """
-    assert V8_FIXTURE_COUNT == 18
+    assert V8_FIXTURE_COUNT == 22
 
     from pathlib import Path
 
@@ -128,9 +136,9 @@ def test_v8_fixture_count_now_18_in_story_6_2() -> None:
         / "fixtures"
     )
     actual_files = sorted(p.name for p in fixtures_dir.glob("*.json"))
-    assert len(actual_files) == 18, (
-        f"V8 fixtures directory must contain 18 JSON files "
-        f"(12 V8 byte-identical + 2 V3 closing invariant + 4 V4/A11). "
+    assert len(actual_files) == 22, (
+        f"V8 fixtures directory must contain 22 JSON files "
+        f"(12 V8 byte-identical + 2 V3 closing invariant + 4 V4/A11 + 4 SNAPSHOT_REVERSAL). "
         f"Found {len(actual_files)}: {actual_files}"
     )
 

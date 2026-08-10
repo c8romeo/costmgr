@@ -41,8 +41,6 @@ import pytest
 from packages.services.m4_inventory.ledger import (
     SOURCE_MONTHLY_INPUT,
     AppendOnlyLedgerError,
-)
-from packages.services.m4_inventory.ledger import (
     validate_event_type,
 )
 

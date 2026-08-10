@@ -17,8 +17,9 @@ Wire:
 
 A5 forward-lock (CR 6-1/6-2 lesson):
 - Audit rows route to `audit_logs` (ActionClass.MONTHLY_CLOSING_REPORT)
-  via `emit_audit_typed()` — REUSE 6-2 action `monthly_closing_report_viewed`.
-  No NEW action needed (PDF export is read-only — same audit semantics).
+  via `emit_audit_typed()` with action `closing_pdf_export_viewed`
+  (NEW 6.3 wire — separate from 6-2's `monthly_closing_report_viewed`).
+  Drift detector: tests/integration/test_audit_action_consistency.py.
 
 3 typed exceptions (AD-15 §4 envelope mapping):
 - `ClosingPdfExportInvalidIndustryError` (422
@@ -35,15 +36,26 @@ A8 inline projection deprecation timeline (carry from 6-2):
 Korean message SSOT (AD-15 §11 cross-language parity):
 - `MONTHLY_CLOSING_REPORT_TITLE_KO` (6-2 wire) → reused.
 - `CLOSING_PDF_EXPORT_TITLE_KO` (T1 pure kernel) → mirrored TS labels-ko.ts.
+
+6-3 3rd sweep PATCH (B5~B9):
+- B5: `_query_closing_data` stub → real SQLAlchemy read-only 4-source
+  join (closing_snapshot + inventory_ledger + fiscal_period_snapshots).
+- B6: audit action `closing_pdf_export_viewed` (NEW) 분리.
+- B7: `target_id` = tenant_id (6-2 패턴 정합).
+- B8: industry handler에서 제거 → service는 tenant settings 또는
+  caller-provided industry를 그대로 사용. 패턴 유효성 검사만.
+- B9: period_key Pydantic regex + closing-period finalized state 가드.
 """
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit_action import ActionClass, emit_audit_typed
@@ -56,8 +68,12 @@ from packages.services.m4_inventory.closing_pdf_export import (
     ClosingPdfPage,
     ClosingPdfSection,
     ClosingPdfTextBlock,
+    RenderedClosingPdf,
     render_closing_pdf_byte_stream,
 )
+
+# AD-24 period key pattern (canonical 'YYYY-MM' typed form).
+PERIOD_KEY_PATTERN: re.Pattern[str] = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 def _now_utc() -> datetime:
@@ -112,15 +128,17 @@ class ClosingPdfExportSizeExceededError(Exception):
         tenant_id: uuid.UUID,
         period_key: str,
         size_bytes: int,
+        cap_bytes: int,
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"closing_pdf_export size {size_bytes} exceeds 5MB cap "
-            f"for period {period_key} (tenant {tenant_id})"
+            f"closing_pdf_export size {size_bytes} exceeds "
+            f"{cap_bytes} cap for period {period_key} (tenant {tenant_id})"
         )
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.size_bytes = size_bytes
+        self.cap_bytes = cap_bytes
         self.trace_id = trace_id
 
 
@@ -184,10 +202,11 @@ class ClosingPdfExportService:
         """Export monthly closing period as PDF byte stream (PRD §F6.3).
 
         Read-only aggregator + audit-first emit + PDF byte stream render:
-        1. Industry guard (W5 deferral).
-        2. 4-source read-only join (closing_snapshot + ledger + report).
+        1. period_key / industry guards (Pydantic pre-validated).
+        2. 3-source read-only join (closing_snapshot + ledger + snapshot).
         3. Audit-first emit (CR 1.1) — closing_pdf_export_viewed.
-        4. Pure kernel PDF byte stream render (T1 — render_closing_pdf_byte_stream).
+        4. Pure kernel PDF byte stream render (T1 —
+           render_closing_pdf_byte_stream).
 
         Args:
             period_key: 'YYYY-MM' AD-24 typed period key.
@@ -212,7 +231,17 @@ class ClosingPdfExportService:
                 trace_id=self.trace_id,
             )
 
-        # 2. Read-only aggregator (4-source join).
+        # 1.5 period_key pattern guard (defense-in-depth — handler also
+        # validates via Pydantic Query pattern).
+        if not PERIOD_KEY_PATTERN.match(period_key):
+            raise ClosingPdfExportInvalidIndustryError(
+                tenant_id=self.tenant_id,
+                period_key=period_key,
+                industry=industry,
+                trace_id=self.trace_id,
+            )
+
+        # 2. Read-only aggregator (3-source join — same pattern as 6-2).
         closing_data = await self._query_closing_data(period_key)
 
         closing_snapshot_events = closing_data["closing_snapshot_events"]
@@ -339,61 +368,136 @@ class ClosingPdfExportService:
                 )
             ]
 
+        finalized_at = _to_iso(_now_utc())
         doc = ClosingPdfDocument(
             tenant_id=self.tenant_id,
             period_key=period_key,
             pages=tuple(pages_list),
+            finalized_at=finalized_at,
         )
 
         # 5. Render PDF byte stream (pure kernel).
         try:
-            pdf_bytes = render_closing_pdf_byte_stream(doc)
+            rendered: RenderedClosingPdf = render_closing_pdf_byte_stream(doc)
         except ClosingPdfExportError as exc:
             if exc.error_code == "CLOSING_PDF_EXPORT_SIZE_EXCEEDED":
+                # Propagate the actual size_bytes from the pure kernel
+                # exception (B4 — `pages * 1MB` approximation removed).
+                size_bytes = int(exc.details.get("size_bytes", "0"))
+                cap_bytes = int(exc.details.get("cap_bytes", str(5 * 1024 * 1024)))
                 raise ClosingPdfExportSizeExceededError(
                     tenant_id=self.tenant_id,
                     period_key=period_key,
-                    size_bytes=len(doc.pages) * 1024 * 1024,  # approx
+                    size_bytes=size_bytes,
+                    cap_bytes=cap_bytes,
                     trace_id=self.trace_id,
                 ) from exc
             raise
 
         return {
-            "pdf_bytes": pdf_bytes,
-            "pdf_size_bytes": len(pdf_bytes),
+            "pdf_bytes": rendered.pdf_bytes,
+            "pdf_size_bytes": rendered.size_bytes,
+            "pdf_object_count": rendered.object_count,
             "period_key": period_key,
             "industry": industry,
             "title_ko": CLOSING_PDF_EXPORT_TITLE_KO,
             "is_empty": is_empty,
             "closing_snapshot_count": len(closing_snapshot_events),
             "ledger_event_count": len(ledger_events),
-            "finalized_at": _to_iso(_now_utc()),
+            "finalized_at": finalized_at,
         }
 
     # ── Internal helpers ─────────────────────────────────────────
 
     async def _query_closing_data(
         self,
-        period_key: str,  # noqa: ARG002 (planned use in production wire — see comment)
+        period_key: str,
     ) -> dict[str, Any]:
-        """Read-only 4-source join (closing_snapshot + ledger + snapshot).
+        """Read-only 3-source join (closing_snapshot + ledger + snapshot).
 
-        Reuses 6-2 wire pattern + extending with snapshot event query.
-        Returns dict with 3 keys: closing_snapshot_events, ledger_events,
-        fiscal_period_snapshots.
+        6-3 wire (B5): real SQLAlchemy read-only query with tenant_id
+        + period_key filters. Joins:
+        - `inventory_ledger` rows with `event_type='closing_snapshot'`
+          (6-1 wire pattern — 5-2 InventoryLedger is the source of
+          truth for closing events).
+        - `inventory_ledger` 전체 events (5-2 wire).
+        - `fiscal_period_snapshots` (4-2 wire).
 
-        Production wire will use period_key for SQLAlchemy WHERE
-        `period_key = :period_key` filter (see 6-2 monthly_closing_report
-        aggregator for pattern reference). Stub returns empty default
-        for service tests.
+        All queries use `tenant_id = :tenant_id AND period_key = :period_key`.
         """
-        # Stub: real implementation queries via SQLAlchemy.
-        # Empty default for service tests; production wire fills in via
-        # existing ClosingPeriodService + LedgerService (5-2/6-1/6-2).
+        tenant_id = self.tenant_id
+        # 1) closing_snapshot events (5-2 InventoryLedger + event_type
+        #    filter — matches 6-1/6-2 wire pattern).
+        cs_rows = (await self.session.execute(
+            text(
+                """
+                SELECT product_id, qty, payload->>'finalized_at' AS finalized_at
+                FROM inventory_ledger
+                WHERE tenant_id = :tenant_id
+                  AND period_key = :period_key
+                  AND event_type = 'closing_snapshot'
+                """
+            ),
+            {"tenant_id": str(tenant_id), "period_key": period_key},
+        )).fetchall()
+        closing_snapshot_events: list[dict[str, Any]] = [
+            {
+                "product_id": str(row[0]) if row[0] is not None else "",
+                "closing_qty": str(row[1]) if row[1] is not None else "",
+                "finalized_at": str(row[2]) if row[2] is not None else "",
+            }
+            for row in cs_rows
+        ]
+
+        # 2) inventory_ledger (전체 events).
+        il_rows = (await self.session.execute(
+            text(
+                """
+                SELECT id, product_id, qty, payload->>'occurred_at' AS occurred_at
+                FROM inventory_ledger
+                WHERE tenant_id = :tenant_id
+                  AND period_key = :period_key
+                ORDER BY id
+                """
+            ),
+            {"tenant_id": str(tenant_id), "period_key": period_key},
+        )).fetchall()
+        ledger_events: list[dict[str, Any]] = [
+            {
+                "id": str(row[0]) if row[0] is not None else "",
+                "product_id": str(row[1]) if row[1] is not None else "",
+                "quantity": str(row[2]) if row[2] is not None else "",
+                "occurred_at": str(row[3]) if row[3] is not None else "",
+            }
+            for row in il_rows
+        ]
+
+        # 3) fiscal_period_snapshots.
+        fp_rows = (await self.session.execute(
+            text(
+                """
+                SELECT id, period_key, payload->>'captured_at' AS captured_at
+                FROM fiscal_period_snapshots
+                WHERE tenant_id = :tenant_id
+                  AND period_key = :period_key
+                ORDER BY id
+                """
+            ),
+            {"tenant_id": str(tenant_id), "period_key": period_key},
+        )).fetchall()
+        fiscal_period_snapshots: list[dict[str, Any]] = [
+            {
+                "id": str(row[0]) if row[0] is not None else "",
+                "period_key": str(row[1]) if row[1] is not None else "",
+                "captured_at": str(row[2]) if row[2] is not None else "",
+            }
+            for row in fp_rows
+        ]
+
         return {
-            "closing_snapshot_events": [],
-            "ledger_events": [],
-            "fiscal_period_snapshots": [],
+            "closing_snapshot_events": closing_snapshot_events,
+            "ledger_events": ledger_events,
+            "fiscal_period_snapshots": fiscal_period_snapshots,
         }
 
     async def _emit_audit_export(
@@ -408,23 +512,26 @@ class ClosingPdfExportService:
         """Audit-first emit (CR 1.1) — closing_pdf_export_viewed audit row.
 
         Routes to audit_logs (ActionClass.MONTHLY_CLOSING_REPORT) via
-        emit_audit_typed() with action `monthly_closing_report_viewed`
-        (6-2 wire reuse — same audit semantics for read-only export).
+        emit_audit_typed() with action `closing_pdf_export_viewed`
+        (NEW 6.3 — separate from 6-2 `monthly_closing_report_viewed`).
+
+        B7: `target_id` = tenant_id (matches 6-2 audit-trail join
+        contract). Per-row differentiation comes from the `action`
+        field, not `target_id`.
         """
         try:
             await emit_audit_typed(
                 session=self.session,
                 tenant_id=self.tenant_id,
                 action_class=ActionClass.MONTHLY_CLOSING_REPORT,
-                action="monthly_closing_report_viewed",
+                action="closing_pdf_export_viewed",
                 target_table="closing_period",
-                target_id=uuid.uuid5(
-                uuid.NAMESPACE_OID, f"{self.tenant_id}|{period_key}"
-                ),
+                target_id=self.tenant_id,
                 payload={
                     "trace_id": self.trace_id,
                     "export_kind": "pdf",
                     "industry": industry,
+                    "period_key": period_key,
                     "closing_snapshot_count": closing_snapshot_count,
                     "ledger_event_count": ledger_event_count,
                     "is_empty": is_empty,

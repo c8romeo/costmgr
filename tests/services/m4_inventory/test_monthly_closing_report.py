@@ -22,22 +22,22 @@ import pytest
 
 from packages.services.m4_inventory.monthly_closing_report import (
     CURRENCY_FROM_USD,
-    CURRENCY_TO_KRW,
     CURRENCY_PAIR_DISPLAY_KO_FORMAT,
-    ClosingSnapshotEventLite,
-    CurrencyPair,
-    FiscalPeriodSnapshotLite,
-    LedgerEventLite,
+    CURRENCY_TO_KRW,
     MONTHLY_CLOSING_REPORT_EMPTY_KO,
     MONTHLY_CLOSING_REPORT_TITLE_KO,
-    MonthlyClosingReportError,
-    OpeningInventoryEntryLite,
-    PeriodClosingDisplay,
     REPORT_VIEW_MODE_EMPTY,
     REPORT_VIEW_MODE_PARTIAL,
     REPORT_VIEW_MODE_READY,
     REPORT_VIEW_MODES,
     USD_QUANTUM,
+    ClosingSnapshotEventLite,
+    CurrencyPair,
+    FiscalPeriodSnapshotLite,
+    LedgerEventLite,
+    MonthlyClosingReportError,
+    OpeningInventoryEntryLite,
+    PeriodClosingDisplay,
     aggregate_monthly_closing_report,
     classify_report_view_mode,
     compute_usd_from_krw,
@@ -45,7 +45,6 @@ from packages.services.m4_inventory.monthly_closing_report import (
     format_period_closing_krw_usd,
     is_monthly_closing_report_allowed,
 )
-
 
 # ── Korean SSOT constants (3 cases) ───────────────────────────────
 
@@ -112,9 +111,9 @@ def test_classify_report_view_mode_empty_zero_sources() -> None:
 
 def test_report_view_modes_frozenset_size() -> None:
     """REPORT_VIEW_MODES = 3 codes (frozen SSOT)."""
-    assert REPORT_VIEW_MODES == frozenset(
+    assert frozenset(
         {REPORT_VIEW_MODE_READY, REPORT_VIEW_MODE_PARTIAL, REPORT_VIEW_MODE_EMPTY}
-    )
+    ) == REPORT_VIEW_MODES
 
 
 # ── is_monthly_closing_report_allowed gate (2 cases) ─────────────
@@ -282,4 +281,4 @@ def test_aggregate_monthly_closing_report_invalid_view_mode_raises() -> None:
 
 def test_usd_quantum_two_decimals_constant() -> None:
     """USD_QUANTUM = Decimal('0.01') (NUMERIC(18,2) AD-8 SSOT)."""
-    assert USD_QUANTUM == Decimal("0.01")
+    assert Decimal("0.01") == USD_QUANTUM
