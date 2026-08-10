@@ -1,0 +1,31 @@
+{
+  "_fixture_lock_sha256": "4eae3bfb75074aea12d5667f5061622e925aecd36e8c45cc57933d226097b3db",
+  "fixture_id": "reversal_negating_snapshot",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "period_key": "2026-08",
+  "snapshot_id": "00000000-0000-0000-0000-000000000b01",
+  "pre_reversal_state": "committed",
+  "post_reversal_state": "reversed",
+  "target_event_id": "00000000-0000-0000-0000-000000000c01",
+  "target_event_qty": "10.0000",
+  "negating_row": {
+    "event_type": "reversal_negating",
+    "qty": "-10.0000",
+    "reverses_event_id": "00000000-0000-0000-0000-000000000c01",
+    "correction_group_id": "00000000-0000-0000-0000-000000000d01",
+    "tenant_id": "11111111-1111-4111-8111-111111111111"
+  },
+  "expected_negating_qty_absolute": "10.0000",
+  "expected_reversal_authorized": true,
+  "expected_financial_effect": "0.0000",
+  "expected_correction_group_link": "00000000-0000-0000-0000-000000000d01",
+  "expected_cache_invalidation_channels": [
+    "ai_cache",
+    "cost_engine_cache",
+    "fiscal_period_cache",
+    "closing_snapshot_cache"
+  ],
+  "audit_action": "snapshot_persistence_reversed",
+  "story_origin": "Story 11.4 (A13 sprint-up) — V8 22→26 골든 fixture matrix extension (AD-22 reversal 영구화 sign-negating row + correction_group_id link)"
+}

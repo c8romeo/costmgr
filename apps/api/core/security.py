@@ -60,7 +60,12 @@ class JWTClaims:
     tenant_id: uuid.UUID
     role: str
     user_id: uuid.UUID
-    raw: dict[str, Any]
+    # Story 6.3 B8: industry is server-controlled (read from
+    # tenant_settings via app_metadata.industry). Used by the
+    # closing PDF export handler to source the industry from
+    # authenticated context rather than the request query string.
+    industry: str | None = None
+    raw: dict[str, Any] | None = None
 
 
 def _error_payload(code: str, message_ko: str, trace_id: str | None = None) -> dict[str, Any]:
@@ -151,11 +156,18 @@ def decode_jwt(token: str) -> JWTClaims:
         ) from e
 
     role = str(app_metadata.get("role") or "viewer")  # Task 5.3 default
+    # Story 6.3 B8: industry is server-controlled and lives in
+    # `app_metadata.industry`. If absent (older tokens, before the
+    # Story 6.3 wire), the handler will treat it as missing and
+    # raise a typed 422 envelope via the service layer.
+    industry_raw = app_metadata.get("industry")
+    industry = str(industry_raw) if industry_raw is not None else None
 
     return JWTClaims(
         tenant_id=tenant_id,
         role=role,
         user_id=user_id,
+        industry=industry,
         raw=payload,
     )
 

@@ -257,12 +257,16 @@ MonthlyClosingAction = Literal[
 
 # monthly_closing_report actions (Story 6.2 NEW — read-only report 자체 audit).
 # PRD §F5 + §F5.2 + §V4. Audit routes to audit_logs
-# (ActionClass.MONTHLY_CLOSING_REPORT). 1 value:
+# (ActionClass.MONTHLY_CLOSING_REPORT). 2 values:
 # - `monthly_closing_report_viewed` — read-only report 조회 audit log
 #   INSERT (closing report의 조회 trace). CR 1.1 idempotent re-view
 #   skip은 service-layer에서 1 view = 1 audit 발동.
+# - `closing_pdf_export_viewed` — Story 6.3 PDF export audit log INSERT
+#   (PDF/A4 byte stream export trace). 6-2 wire의 `monthly_closing_report_viewed`
+#   와 별도 액션으로 분리 — 동일 ActionClass 내 row 타입 식별 가능.
 MonthlyClosingReportAction = Literal[
     "monthly_closing_report_viewed",
+    "closing_pdf_export_viewed",
 ]
 
 # snapshot_persistence actions (Story 11.3 NEW — AD-20 state machine

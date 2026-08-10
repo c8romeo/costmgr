@@ -1,0 +1,32 @@
+{
+  "_fixture_lock_sha256": "3e87a2f352d4de92774c9096587f8d6f55b7d19f8690e013d7d99634094f241d",
+  "fixture_id": "snapshot_committed",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "period_key": "2026-08",
+  "snapshot_id": "00000000-0000-0000-0000-000000000a01",
+  "pre_commit_state": "verified",
+  "post_commit_state": "committed",
+  "snapshot_events": [
+    {
+      "product_id": "00000000-0000-0000-0000-000000000001",
+      "closing_qty": "10.0000",
+      "finalized_at": "2026-08-09T00:00:00Z"
+    },
+    {
+      "product_id": "00000000-0000-0000-0000-000000000002",
+      "closing_qty": "5.5000",
+      "finalized_at": "2026-08-09T00:00:00Z"
+    }
+  ],
+  "expected_commit_transition_ok": true,
+  "expected_state_after": "committed",
+  "expected_cache_invalidation_channels": [
+    "ai_cache",
+    "cost_engine_cache",
+    "fiscal_period_cache",
+    "closing_snapshot_cache"
+  ],
+  "audit_action": "snapshot_persistence_committed",
+  "story_origin": "Story 11.4 (A13 sprint-up) — V8 22→26 골든 fixture matrix extension (snapshot commit AD-20 verified→committed)"
+}

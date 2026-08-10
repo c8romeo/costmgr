@@ -16,7 +16,7 @@ W2 reopen flow spec (PRD §F11.4):
 1. fiscal_periods.status='closed' AND close_sequence_state='confirmed'
 2. AD-10 owner-only role + Capability.REOPEN_OPERATOR
 3. operator_action 4-value enum + reason length 20-500 (AD-15)
-4. AD-25 multi-channel publish (fiscal_period_cache + closing_snapshot_cache)
+4. AD-25 multi-channel publish (W2 subset: fiscal_period_cache + closing_snapshot_cache)
 """
 
 from __future__ import annotations
@@ -39,15 +39,27 @@ from packages.services.m11_close.reopen_authorization import (
     authorize_reopen,
 )
 
-# AD-25 multi-channel — W2 reopen flow publishes to ALL 4 channels
-# (AD-25 spec mandates full invalidation set on state-machine changes):
-#   - fiscal_period_cache (period re-opened for input)
-#   - closing_snapshot_cache (snapshot invalidated for re-commit)
+# AD-25 multi-channel — full set (AD-25 spec mandates full invalidation set
+# on state-machine changes). NOT used by W2 reopen (subset only).
 #   - ai_cache (AI commentary invalidated — re-evaluation needed)
 #   - cost_engine_cache (cost engine results invalidated)
-REOPEN_CHANNELS: tuple[str, ...] = (
+#   - fiscal_period_cache (period re-opened for input)
+#   - closing_snapshot_cache (snapshot invalidated for re-commit)
+REOPEN_CHANNELS_ALL: tuple[str, ...] = (
     "ai_cache",
     "cost_engine_cache",
+    "fiscal_period_cache",
+    "closing_snapshot_cache",
+)
+
+# AD-25 multi-channel — W2 reopen flow subset (2 channels only).
+# W2 reopen is a narrow operation (fiscal_periods.status closed→open)
+# that only invalidates the caches directly affected:
+#   - fiscal_period_cache (period re-opened for input)
+#   - closing_snapshot_cache (snapshot invalidated for re-commit)
+# Cross-checked with TS mirror REOPEN_CACHE_INVALIDATION_CHANNELS
+# (`apps/web/lib/closing-period.ts`) + V8 fixture `reopen_committed.json`.
+REOPEN_CHANNELS_W2_SUBSET: tuple[str, ...] = (
     "fiscal_period_cache",
     "closing_snapshot_cache",
 )
@@ -193,10 +205,10 @@ class ReopenService:
                 trace_id=self.trace_id,
             ) from err
 
-        # ── 5. AD-25 multi-channel publish ─────────────────────
+        # ── 5. AD-25 multi-channel publish (W2 subset) ─────────
         publisher = CacheInvalidationPublisher()
         publisher.publish_multi(
-            channels=list(REOPEN_CHANNELS),
+            channels=list(REOPEN_CHANNELS_W2_SUBSET),
             tenant_id=self.tenant_id,
             event_id=fiscal_period_id,
             correction_group_id=fiscal_period_id,  # use fiscal_period_id as cgroup
@@ -214,7 +226,8 @@ class ReopenService:
 
 
 __all__ = [
-    "REOPEN_CHANNELS",
+    "REOPEN_CHANNELS_ALL",
+    "REOPEN_CHANNELS_W2_SUBSET",
     "ReopenResponse",
     "ReopenService",
 ]

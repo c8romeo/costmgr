@@ -1,7 +1,7 @@
 """tests.api.m11_close.test_reopen_service — Story 11.3 service.
 
 8 cases per AC #10 spec — verify ReopenService orchestrator (W2 reopen flow):
-- REOPEN_CHANNELS has 2 channels
+- REOPEN_CHANNELS_W2_SUBSET has 2 channels (D-003, Story 11.4 3rd sweep)
 - execute_reopen happy path (status='closed' → 'open', close_sequence_state='reopened')
 - execute_reopen no fiscal_period → ReopenOperatorActionInvalidError
 - execute_reopen audit emit failure → ReopenAuditEmitFailedError
@@ -24,7 +24,8 @@ from apps.api.modules.m11_close.exceptions import (
     ReopenOperatorActionInvalidError,
 )
 from apps.api.modules.m11_close.services.reopen_service import (
-    REOPEN_CHANNELS,
+    REOPEN_CHANNELS_ALL,
+    REOPEN_CHANNELS_W2_SUBSET,
     ReopenService,
 )
 
@@ -68,23 +69,30 @@ def _make_fiscal_period_row(
     return fp
 
 
-# ── 1. REOPEN_CHANNELS has 4 channels ───────────────────────
+# ── 1. REOPEN_CHANNELS_ALL has 4 channels + W2 subset has 2 ──
 def test_reopen_channels_has_4_channels() -> None:
-    """REOPEN_CHANNELS must have exactly 4 AD-25 channels.
+    """REOPEN_CHANNELS_ALL must have exactly 4 AD-25 channels.
 
-    Story 11.3 sweep (D2): W2 reopen flow publishes to all 4 AD-25
+    Story 11.3 sweep (D2): REOPEN_CHANNELS_ALL has all 4 AD-25
     channels (ai_cache + cost_engine_cache + fiscal_period_cache +
     closing_snapshot_cache). Spec mandates full invalidation set on
-    state-machine changes.
+    state-machine changes. REOPEN_CHANNELS_W2_SUBSET has 2 channels
+    (D-003, Story 11.4 3rd sweep) — W2 reopen flow publishes only
+    to its narrow subset.
     """
-    assert len(REOPEN_CHANNELS) == 4
+    assert len(REOPEN_CHANNELS_ALL) == 4
     expected = {
         "ai_cache",
         "cost_engine_cache",
         "fiscal_period_cache",
         "closing_snapshot_cache",
     }
-    assert set(REOPEN_CHANNELS) == expected
+    assert set(REOPEN_CHANNELS_ALL) == expected
+    assert len(REOPEN_CHANNELS_W2_SUBSET) == 2
+    assert set(REOPEN_CHANNELS_W2_SUBSET) == {
+        "fiscal_period_cache",
+        "closing_snapshot_cache",
+    }
 
 
 # ── 2. Happy path ───────────────────────────────────────────
@@ -237,16 +245,21 @@ def test_Result_is_immutable_dataclass(tenant_id: uuid.UUID, actor_id: uuid.UUID
 
 # ── 8. Channel tuple order is deterministic ────────────────
 def test_channel_order_is_deterministic() -> None:
-    """REOPEN_CHANNELS preserves canonical AD-25 ordering.
+    """REOPEN_CHANNELS_ALL preserves canonical AD-25 ordering.
 
     Story 11.3 sweep (D2): order is ai_cache, cost_engine_cache,
     fiscal_period_cache, closing_snapshot_cache — the canonical AD-25
     multi-channel ordering so cache invalidation receipts match across
-    all reopen events.
+    all reopen events. REOPEN_CHANNELS_W2_SUBSET order is
+    fiscal_period_cache, closing_snapshot_cache (D-003).
     """
-    assert REOPEN_CHANNELS == (
+    assert REOPEN_CHANNELS_ALL == (
         "ai_cache",
         "cost_engine_cache",
+        "fiscal_period_cache",
+        "closing_snapshot_cache",
+    )
+    assert REOPEN_CHANNELS_W2_SUBSET == (
         "fiscal_period_cache",
         "closing_snapshot_cache",
     )

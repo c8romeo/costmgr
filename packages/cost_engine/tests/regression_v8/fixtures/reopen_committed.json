@@ -1,0 +1,24 @@
+{
+  "_fixture_lock_sha256": "a056924a250b070883016a4eeeef3396eb3a7a2bd577dc3e72756fc8ccc1aa24",
+  "fixture_id": "reopen_committed",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "period_key": "2026-08",
+  "fiscal_period_id": "00000000-0000-0000-0000-000000000e01",
+  "pre_reopen_status": "closed",
+  "pre_reopen_close_sequence_state": "confirmed",
+  "operator_action": "audit_finding",
+  "reason_length": 42,
+  "reason_min_length_required": 20,
+  "reason_max_length_allowed": 500,
+  "is_owner": true,
+  "capability_granted": true,
+  "expected_reopen_authorized": true,
+  "expected_reopen_audit_id_present": true,
+  "expected_audit_action": "reopen_completed",
+  "expected_cache_invalidation_channels": [
+    "fiscal_period_cache",
+    "closing_snapshot_cache"
+  ],
+  "story_origin": "Story 11.4 (A13 sprint-up) — V8 22→26 골든 fixture matrix extension (W2 reopen flow AD-10 owner-only + 4-value operator_action enum + AD-15 reason 20-500 audit-justification)"
+}

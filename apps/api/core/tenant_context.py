@@ -31,6 +31,11 @@ class TenantContext:
     tenant_id: uuid.UUID
     role: str
     user_id: uuid.UUID
+    # Story 6.3 B8: industry sourced from JWT app_metadata.industry
+    # (server-controlled). Used by the closing PDF export handler
+    # to source industry from authenticated context rather than
+    # the request query string.
+    industry: str | None = None
 
 
 def _extract_bearer_token(request: Request) -> str | None:
@@ -65,6 +70,7 @@ async def get_tenant_context(request: Request) -> TenantContext:
         tenant_id=claims.tenant_id,
         role=claims.role,
         user_id=claims.user_id,
+        industry=claims.industry,
     )
     request.state.tenant = ctx
     request.state.tenant_id = ctx.tenant_id

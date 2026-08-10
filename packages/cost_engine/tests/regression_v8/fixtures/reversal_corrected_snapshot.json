@@ -1,0 +1,39 @@
+{
+  "_fixture_lock_sha256": "058c4658e7bfedcd118de2e1ec83a05fdbbb96668d7e3c8add2c7d020e08e9c3",
+  "fixture_id": "reversal_corrected_snapshot",
+  "fixture_version": "1.0.0",
+  "industry": "manufacturing",
+  "period_key": "2026-08",
+  "snapshot_id": "00000000-0000-0000-0000-000000000b02",
+  "pre_reversal_state": "committed",
+  "post_reversal_state": "reversed",
+  "target_event_id": "00000000-0000-0000-0000-000000000c02",
+  "target_event_qty": "10.0000",
+  "corrected_qty": "8.5000",
+  "corrected_period_key": "2026-09",
+  "negating_row": {
+    "event_type": "reversal_negating",
+    "qty": "-10.0000",
+    "reverses_event_id": "00000000-0000-0000-0000-000000000c02",
+    "correction_group_id": "00000000-0000-0000-0000-000000000d02"
+  },
+  "corrected_row": {
+    "event_type": "reversal_corrected",
+    "qty": "8.5000",
+    "correction_group_id": "00000000-0000-0000-0000-000000000d02",
+    "period_key": "2026-09"
+  },
+  "expected_corrected_qty": "8.5000",
+  "expected_corrected_period_key": "2026-09",
+  "expected_reversal_authorized": true,
+  "expected_correction_group_link": "00000000-0000-0000-0000-000000000d02",
+  "expected_bankers_rounding_parity": true,
+  "expected_cache_invalidation_channels": [
+    "ai_cache",
+    "cost_engine_cache",
+    "fiscal_period_cache",
+    "closing_snapshot_cache"
+  ],
+  "audit_action": "snapshot_persistence_reversed",
+  "story_origin": "Story 11.4 (A13 sprint-up) — V8 22→26 골든 fixture matrix extension (AD-22 corrected row + corrected_period_key + banker's rounding parity)"
+}

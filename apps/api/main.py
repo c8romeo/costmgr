@@ -922,6 +922,8 @@ async def _m4_closing_pdf_export_size_exceeded_handler(
     """409 CLOSING_PDF_EXPORT_SIZE_EXCEEDED — PDF > 5MB cap.
 
     Story 6.3 PRD §F6.3: PDF size ≤ 5MB per period (chunked rendering cap).
+    B4: `size_bytes` reflects the actual rendered PDF size (no longer a
+    pages*1MB approximation). `cap_bytes` is the 5MB cap.
     """
     return JSONResponse(
         status_code=409,
@@ -932,6 +934,7 @@ async def _m4_closing_pdf_export_size_exceeded_handler(
                 "tenant_id": str(exc.tenant_id),
                 "period_key": exc.period_key,
                 "size_bytes": exc.size_bytes,
+                "cap_bytes": exc.cap_bytes,
             },
             "trace_id": exc.trace_id,
         },
