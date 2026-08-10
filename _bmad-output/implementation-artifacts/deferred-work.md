@@ -375,3 +375,30 @@ bmad-code-review 3rd sweep surfaced 21 PATCH items. After 3중 게이트 re-veri
 
 All 18 honestly DEFERred items listed above are structural W-class / UX polish / pre-flight validation that don't affect runtime correctness in current state. Story 11.4 done 진입.
 
+
+## Deferred from: Epic 6 close-out retro (2026-08-10) — A19 inline projection deprecate honestly DEFER
+
+**A19 (A8 inline projection deprecate) honestly DEFERRED** per CR 11-3 lesson (structural W-class DEFER discipline).
+
+**Scope analysis (2026-08-10) revealed**: 30min surgical diff 가 아닌 **multi-file refactor** (32+ files affected):
+
+- `packages/services/m2_input/inventory_projection.py` 전체 제거 = 32+ call sites + 6+ docs + 4+ test files affected
+- `build_inventory_projection` runtime call in `apps/api/modules/m4_inventory/services/opening_carry_service.py:552` → LedgerService.query_period_closing_all 마이그레이션 필요
+- `LEDGER_REFERENCE_QUERY_STUB` 정의 **2 modules** (`inventory_projection.py:82-90` SQL fragment + `product_references.py:168` empty string marker)
+- `QTY_QUANTUM` (NUMERIC(18,4) Decimal 상수) 9+ source files 사용 → shared constants module 이전 필요
+- `INVENTORY_PRODUCT_TYPES` + `InventoryMovement` (NamedTuple) → similar module reorganization 필요
+- 6+ docs (conventions.md + capability-matrix.md + architecture-inventory.md + monthly-input.md + inventory-ledger.md + opening-inventory-carry.md + item-type-change.md)
+- 4+ test files (test_m2_input_inventory_projection.py + test_m2_input_warnings.py + test_inventory_projection_ledger_swap.py + test_product_references.py + test_m2_input_label_consistency.py)
+- `packages/services/m2_input/__init__.py:36-41,72` + `warnings.py:40` re-export 정리
+
+**Why honestly DEFER (vs partial Phase 1)**: A19 spec acceptance criteria = "**full deprecation + 모든 call sites ledger SSOT 전환 검증**". Partial Phase 1 (stub 상수 제거만)로는 acceptance 불충족. CR 11-3 honestly DEFER discipline 적용 = structural W-class는 3중 게이트 깨지 않고 DEFER 가능.
+
+**Where to pick up (후속 진입점 후보)**:
+
+1. **Story 0.6 cross-cutting tech debt sweep** — Epic 7 진입 전 또는 Epic 12 구현 중 병행
+2. **Epic 7 spec entry pre-step** — sim module 진입 시 inline projection 의존성 정리
+3. **Epic 12 implementation 중 parallel dev** — 2FA work와 동시 진행 (independent surface)
+
+**3중 게이트 impact**: **None**. inventory_projection.py + LEDGER_REFERENCE_QUERY_STUB 현재 functional. TODO(epic-5) marker 보존 (이미 Story 5.2에서 closed per deprecation timeline). 코드 제거 없이 그대로 운영.
+
+**Carry-over 누적 추적**: A19 = 3rd carry (Epic 5 retro §7 A8 → Epic 6 close-out retro §7 A19 결정 → 현재 honestly DEFER). Epic 7 또는 Epic 12 wire 시점에 반드시 해소 필수 (4th carry 방지).
