@@ -62,6 +62,7 @@ class ActionClass(str, __import__("enum").Enum):
     MONTHLY_CLOSING_REPORT = "monthly_closing_report"  # Story 6.2 (NEW — monthly closing report read-only audit)
     SNAPSHOT_PERSISTENCE = "snapshot_persistence"  # Story 11.3 (NEW — AD-20 state machine 영구화 audit)
     REOPEN_OPERATOR = "reopen_operator"  # Story 11.3 (NEW — W2 reopen flow audit)
+    TWO_FACTOR_AUTH = "two_factor_auth"  # Story 12.1 (NEW — 2FA mandatory gate audit)
 
 
 # ────────────────────────────────────────────────────────────
@@ -300,6 +301,36 @@ ReopenOperatorAction = Literal[
 ]
 
 
+# two_factor_auth actions (Story 12.1 NEW — 2FA mandatory gate audit).
+# PRD §F12.1 + §M12-a + AD-22 audit-first + NFR6 AES-256-GCM at-rest.
+# Audit routes to `audit_logs` (ActionClass.TWO_FACTOR_AUTH). 6 values:
+# - `two_factor_setup_initiated` — setup_totp succeeded (CR 1.1 audit-first
+#   for `users.totp_secret` ciphertext + `users.totp_recovery_codes_hash` JSONB
+#   mutation). Idempotent no-op: re-setup does NOT re-emit (CR 1.1 lesson).
+# - `two_factor_setup_completed` — verify_and_enable_totp succeeded (first
+#   successful TOTP code entry flips `users.twofa_enabled` true).
+# - `two_factor_challenge_passed` — verify_totp_challenge succeeded (M2
+#   entry gate 통과, JWT 2FA claim set).
+# - `two_factor_challenge_failed` — verify_totp_challenge rejected (TOTP
+#   invalid + failed_attempts increment). Audit emit BEFORE raising
+#   TotpInvalidCodeError / TotpLockoutError (A5 forward-lock).
+# - `two_factor_recovery_consumed` — verify_recovery_code succeeded
+#   (one-time recovery code consumed — entry used_at marker flipped).
+# - `two_factor_disabled` — disable_totp succeeded (owner-initiated
+#   disable — requires current valid TOTP code + reason captured).
+# DB CHECK constraint mirror: audit_logs CHECK includes the 6 values
+# (Alembic 0022_m12_two_factor_auth wire). Drift detector enforces
+# ActionClass registry ↔ DB CHECK ↔ call sites parity (3-way gate).
+TwoFactorAuthAction = Literal[
+    "two_factor_setup_initiated",
+    "two_factor_setup_completed",
+    "two_factor_challenge_passed",
+    "two_factor_challenge_failed",
+    "two_factor_recovery_consumed",
+    "two_factor_disabled",
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -321,6 +352,7 @@ AuditAction = (
     | MonthlyClosingReportAction
     | SnapshotPersistenceAction
     | ReopenOperatorAction
+    | TwoFactorAuthAction
 )
 
 
@@ -549,6 +581,25 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Story 12.1 — two_factor_auth 6 values (2FA mandatory gate).
+        # DB CHECK constraint mirror: audit_logs CHECK includes the 6
+        # values (Alembic 0022_m12_two_factor_auth wire). Drift detector
+        # enforces ActionClass registry ↔ DB CHECK ↔ call sites parity
+        # (3-way gate). Routes to audit_logs (NOT to a separate ledger —
+        # 2FA events are tenant-scoped platform-event trail only).
+        ActionClass.TWO_FACTOR_AUTH: (
+            "audit_logs",
+            frozenset(
+                {
+                    "two_factor_setup_initiated",
+                    "two_factor_setup_completed",
+                    "two_factor_challenge_passed",
+                    "two_factor_challenge_failed",
+                    "two_factor_recovery_consumed",
+                    "two_factor_disabled",
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -670,5 +721,8 @@ __all__ = [
     "ClosingPeriodAction",
     "MonthlyClosingAction",
     "MonthlyClosingReportAction",
+    "SnapshotPersistenceAction",
+    "ReopenOperatorAction",
+    "TwoFactorAuthAction",
     "emit_audit_typed",
 ]

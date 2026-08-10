@@ -191,6 +191,12 @@ def test_api_root_does_not_import_services() -> None:
             # m10_ai (Epic 10 — AI document extraction port)
             "packages.services.m10_ai.extraction_port",
             "packages.services.m10_ai",
+            # Story 12.1 (Epic 12) — 2FA mandatory gate pure kernels
+            # (RFC 6238 TOTP + PBKDF2-HMAC-SHA256 recovery hashing +
+            # 2FA gate validation pure kernels).
+            "packages.services.m12_account",
+            "packages.services.m12_account.totp",
+            "packages.services.m12_account.two_factor_gate",
         }
     )
 

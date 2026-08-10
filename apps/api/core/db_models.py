@@ -1,4 +1,4 @@
-"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2).
+"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2 + 12.1).
 
 Mapped tables:
 - 0001: tenants, users, tenant_memberships, tenant_settings, audit_logs
@@ -10,6 +10,7 @@ Mapped tables:
 - 0013 (Story 4.3): verification_log
 - 0015 (Story 5.2): inventory_ledger (AD-2 append-only)
 - 0020 (Story 11.2): fiscal_periods (AD-6 close lock + 4-stage state)
+- 0022 (Story 12.1): users totp_* columns (2FA mandatory gate)
 
 Per AD-1/AD-11: this module is in `apps/api/` (infra layer). It does NOT
 import `packages.cost_engine` directly. Modules write through services.
@@ -85,6 +86,20 @@ class User(Base):
     role: Mapped[str] = mapped_column(Text, nullable=False)
     twofa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    # Story 12.1 (Epic 12 cj-style 1번째) — 2FA mandatory gate (PRD §F12.1).
+    # NFR6 AES-256-GCM column-level encryption: totp_secret ciphertext (nonce+ct+tag).
+    # NFR5 TLS in transit (service layer does NOT log plaintext).
+    # totp_recovery_codes_hash: 8 entries {salt, hash, used_at} (PBKDF2-HMAC-SHA256 hash).
+    totp_secret: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    totp_enabled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    totp_failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    totp_lockout_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    totp_recovery_codes_hash: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     __table_args__ = (
         CheckConstraint(

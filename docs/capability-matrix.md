@@ -1,8 +1,18 @@
-# Capability Matrix (v1.12)
+# Capability Matrix (v1.13)
 
 > **Single source of truth** for the `Industry × Capability` gating that
-> Epic 1 / 2 / 3 / 4 / 11 stories need to coordinate. Replaces the per-story
+> Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.13 (2026-08-10, Story 12.1, Epic 12)** — `TWO_FACTOR_AUTH` capability
+> wire (PRD §F12.1 + §M12-a + NFR5 TLS + NFR6 AES-256-GCM) for the 2FA
+> mandatory gate to M2 entry (owner/member role gate + 5 routes registered:
+> POST /2fa/setup, POST /2fa/verify, POST /2fa/challenge, POST /2fa/recovery,
+> POST /2fa/disable). Capability is **industry-agnostic** (granted to ALL
+> 4 canonical industries) — 2FA is a security baseline, not a manufacturing
+> feature. Routes registered in `apps/api/main.py` under `/api/v1/2fa`
+> prefix. Drift detector: `tests/integration/test_capability_matrix_v1_13.py`
+> (analogous to v1.6/1.12 drift tests).
 >
 > **v1.12 (2026-08-09, Story 11.3, Epic 11)** — 3 NEW capabilities added
 > for AD-20 snapshot persistence + AD-22 reversal 영구화 + W2 reopen flow:
@@ -116,6 +126,7 @@ class CalcResponse(BaseModel):
 | `SNAPSHOT_PERSISTENCE` | 11.3 | ✅ | ❌ | ✅ | ✅ |
 | `REVERSAL_EXECUTE` | 11.3 | ✅ | ❌ | ✅ | ✅ |
 | `REOPEN_OPERATOR` | 11.3 | ✅ | ❌ | ✅ | ✅ |
+| `TWO_FACTOR_AUTH` | 12.1 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
@@ -256,6 +267,25 @@ class CalcResponse(BaseModel):
   `closing_sequence_audit_failed`) + fiscal_periods greenfield table
   (Alembic 0020) + 4-stage sequence (divisions → manufacturing → abc →
   common) + AD-6 INSERT 거부 guard.
+- 2026-08-10 — v1.13 (Story 12.1, Epic 12): `TWO_FACTOR_AUTH` capability
+  wire (industry-agnostic — ALL 4 canonical industries ✅) +
+  5 NEW routes under `/api/v1/2fa` (`POST /setup` + `POST /verify` +
+  `POST /challenge` + `POST /recovery` + `POST /disable`) +
+  `ActionClass.TWO_FACTOR_AUTH` 6 values 채움
+  (`two_factor_setup_initiated` + `two_factor_setup_completed` +
+  `two_factor_challenge_passed` + `two_factor_challenge_failed` +
+  `two_factor_recovery_consumed` + `two_factor_disabled`) +
+  Alembic 0022 (users `totp_secret` BYTEA + 4 totp_* columns +
+  `totp_recovery_codes_hash` JSONB) + RLS 0013 + NFR6 AES-256-GCM
+  column-level encryption (12-byte nonce + ct + 16-byte tag) +
+  NFR5 TLS in-transit (plaintext secret NEVER logged) +
+  `packages/services/m12_account/` pure kernel subtree
+  (RFC 6238 TOTP + PBKDF2-HMAC-SHA256 recovery hashing +
+  2FA gate validation) + `apps/api/core/crypto.py` +
+  `apps/api/core/key_manager.py` + service layer (CR 1.1 audit-first
+  via `emit_audit_typed` + idempotent no-op re-setup + lockout state
+  mgmt + AD-10 4-role gate) + 2FA challenge token HS256 JWT
+  (5-min TTL + purpose=`two_factor_challenge`).
 - 2026-08-09 — v1.12 (Story 11.3, Epic 11): 3 NEW capability rows added
   (`SNAPSHOT_PERSISTENCE` + `REVERSAL_EXECUTE` + `REOPEN_OPERATOR` —
   all manufacturing 3종 ✅ / service-only ❌) + 4 NEW routes
