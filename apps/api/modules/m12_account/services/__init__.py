@@ -1,0 +1,105 @@
+"""M12 services — Story 12.1 (2FA mandatory gate).
+
+Exports:
+- TwoFactorService (5 ops: setup / verify_enable / challenge / recovery / disable)
+- TwoFactorChallengeService (2 ops: issue / consume JWT challenge tokens)
+- audit_extension constants (Korean SSOT + error codes for main.py handlers)
+"""
+
+from apps.api.modules.m12_account.services.audit_extension import (
+    AUDIT_EMIT_FAILED_KO,
+    CHALLENGE_FAILED_KO,
+    CHALLENGE_LOCKED_OUT_KO,
+    CHALLENGE_PASSED_KO,
+    CHALLENGE_TOKEN_EXPIRED_KO,
+    CHALLENGE_TOKEN_INVALID_KO,
+    CHALLENGE_TOKEN_PURPOSE_MISMATCH_KO,
+    DISABLE_UNAUTHORIZED_KO,
+    DISABLED_KO,
+    ENCRYPTION_FAILED_KO,
+    ERROR_CODE_ALREADY_ENABLED,
+    ERROR_CODE_AUDIT_EMIT_FAILED,
+    ERROR_CODE_CHALLENGE_TOKEN_EXPIRED,
+    ERROR_CODE_CHALLENGE_TOKEN_INVALID,
+    ERROR_CODE_CHALLENGE_TOKEN_PURPOSE_MISMATCH,
+    ERROR_CODE_DISABLE_UNAUTHORIZED,
+    ERROR_CODE_ENCRYPTION_FAILED,
+    ERROR_CODE_KEY_MISSING,
+    ERROR_CODE_NOT_ENABLED,
+    ERROR_CODE_RECOVERY_EXHAUSTED,
+    ERROR_CODE_USER_NOT_FOUND,
+    KEY_MISSING_KO,
+    RECOVERY_CONSUMED_KO,
+    RECOVERY_EXHAUSTED_KO,
+    RECOVERY_INVALID_KO,
+    SETUP_ALREADY_ENABLED_KO,
+    SETUP_COMPLETED_KO,
+    SETUP_INITIATED_KO,
+    SETUP_NOT_ENABLED_KO,
+    USER_NOT_FOUND_KO,
+)
+from apps.api.modules.m12_account.services.two_factor_challenge_service import (
+    CHALLENGE_TOKEN_PURPOSE,
+    CHALLENGE_TOKEN_TTL_SECONDS,
+    ChallengePassed,
+    ChallengeTokenError,
+    ChallengeTokenExpiredError,
+    ChallengeTokenInvalidError,
+    ChallengeTokenIssued,
+    ChallengeTokenPurposeMismatchError,
+    TwoFactorChallengeService,
+)
+from apps.api.modules.m12_account.services.two_factor_service import (
+    TotpChallengeResult,
+    TotpSetupResult,
+    TwoFactorService,
+)
+
+__all__ = [
+    # Main service
+    "TwoFactorService",
+    "TotpSetupResult",
+    "TotpChallengeResult",
+    # Challenge service
+    "TwoFactorChallengeService",
+    "ChallengeTokenIssued",
+    "ChallengePassed",
+    "ChallengeTokenError",
+    "ChallengeTokenExpiredError",
+    "ChallengeTokenInvalidError",
+    "ChallengeTokenPurposeMismatchError",
+    "CHALLENGE_TOKEN_TTL_SECONDS",
+    "CHALLENGE_TOKEN_PURPOSE",
+    # Korean SSOT constants
+    "SETUP_INITIATED_KO",
+    "SETUP_COMPLETED_KO",
+    "SETUP_ALREADY_ENABLED_KO",
+    "SETUP_NOT_ENABLED_KO",
+    "CHALLENGE_PASSED_KO",
+    "CHALLENGE_FAILED_KO",
+    "CHALLENGE_LOCKED_OUT_KO",
+    "RECOVERY_CONSUMED_KO",
+    "RECOVERY_INVALID_KO",
+    "RECOVERY_EXHAUSTED_KO",
+    "DISABLED_KO",
+    "DISABLE_UNAUTHORIZED_KO",
+    "ENCRYPTION_FAILED_KO",
+    "KEY_MISSING_KO",
+    "AUDIT_EMIT_FAILED_KO",
+    "USER_NOT_FOUND_KO",
+    "CHALLENGE_TOKEN_EXPIRED_KO",
+    "CHALLENGE_TOKEN_INVALID_KO",
+    "CHALLENGE_TOKEN_PURPOSE_MISMATCH_KO",
+    # Error codes
+    "ERROR_CODE_NOT_ENABLED",
+    "ERROR_CODE_ALREADY_ENABLED",
+    "ERROR_CODE_AUDIT_EMIT_FAILED",
+    "ERROR_CODE_ENCRYPTION_FAILED",
+    "ERROR_CODE_KEY_MISSING",
+    "ERROR_CODE_RECOVERY_EXHAUSTED",
+    "ERROR_CODE_DISABLE_UNAUTHORIZED",
+    "ERROR_CODE_USER_NOT_FOUND",
+    "ERROR_CODE_CHALLENGE_TOKEN_EXPIRED",
+    "ERROR_CODE_CHALLENGE_TOKEN_INVALID",
+    "ERROR_CODE_CHALLENGE_TOKEN_PURPOSE_MISMATCH",
+]
