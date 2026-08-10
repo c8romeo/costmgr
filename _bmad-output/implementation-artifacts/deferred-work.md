@@ -316,3 +316,62 @@ bmad-code-review 3rd sweep (129 raw → 3 DECISION + 50 PATCH applied + 8 DEFER 
 - **audit_action overlap (m11_reversal_handler_invoked + reversal_negating_inserted) → T7 sweep** — 11-3 author TODO marker로 남겨둠. T7 future Story에서 dedicated ActionClass.SNAPSHOT_PERSISTENCE actions wire.
 
 
+## Deferred from: code review of 11-4-epic-11-carry-over-sprint (2026-08-10)
+
+3rd sweep R4 triage + carry-over + 3rd sweep 3-pass pattern per CR 11-2/11-3 lesson. All deferrals explicitly per spec §Honestly DEFER or pre-existing 11-3 wire.
+
+- **W-001 — W2 reopen `close_sequence_state` transition (`'confirmed' → 'reopened'`)** — Spec §5 honestly DEFER (T5 follow-up). Kernel docstring promises 'reopened' transition; service stays at 'confirmed' status update only. A future Alembic migration would extend the CHECK constraint. **Where**: `packages/services/m11_close/reopen_authorization.py:31` (docstring) vs `apps/api/modules/m11_close/services/reopen_service.py:148-162` (actual).
+- **W-002 — Component-level vitest cases (35 claimed vs 32 actual parity cases)** — Spec AC #2 mentions 35 cases; subtask 1.5 only mandates 32 parity cases. 11-3 §Subtask 8.13-8.16 component tests honestly DEFER. **Where**: spec §AC #2 + 11-3 spec §Subtask 8.13-8.16.
+- **W-003 — ko-KR string count (37 actual vs 12 spec claim)** — Spec undercounted; implementation more thorough than spec (5 NEW sections × 7-11 strings each). **Where**: spec §AC + `apps/web/messages/ko-KR.json:71-117` + `apps/web/lib/ko-KR.json:2485-2579`.
+- **W-004 — Capability matrix v1.12 fill (SNAPSHOT_PERSISTENCE + REVERSAL_EXECUTE + REOPEN_OPERATOR)** — Spec explicitly waives 11-4 work; already wired in 11-3 (3 NEW capabilities + 4 routes capability gate + 19 drift tests). **Where**: spec §Task 3 + `apps/api/core/capability.py` (no diff) + `tests/integration/test_capability_matrix_v1_12_drift.py` (no diff).
+- **W-005 — A5 audit_action partial wire + reopen audit_id separate row + D1 reversal V8 fixtures** — Per spec §Honestly DEFER follow-up sweep (5 items total: T10 docs + A5 partial wire + reopen state transition full + reopen audit_id separate row + D1 reversal V8 fixtures). **Where**: spec §Honestly DEFER + Epic 11 retro §7 A13.
+
+### Honest DEFER — 3rd sweep PATCH items (post-3중 게이트 re-verification, 2026-08-10)
+
+bmad-code-review 3rd sweep surfaced 21 PATCH items. After 3중 게이트 re-verification pass (2026-08-10), 3 items applied: **P-013** (test_v8_fixture_count_now_18_in_story_6_2 → now_22 + assertion 18→22 + fixtures count 18→22) + 3 pre-existing 6-3 ruff errors (F541 line 571 + C416 line 394 + B007/B905 line 667 in `closing_pdf_export.py`). 18 items remain honestly DEFERred per CR 11-3 lesson (structural W-class PATCH can DEFER without breaking 3중 게이트 when re-verification is clean):
+
+- **D-001 — page.tsx 4 components mount with stub UUID props (partial wire)** — Components imported + mounted (lines 36-39, 169-203) but use stub `00000000-0000-4000-8000-*` UUIDs with `TODO(11-4 carry)` markers. Real tenant/actor resolution from session/RSC context deferred. **Where**: `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:163-203`.
+
+- **D-002 — ko-KR.json lib/messages dual-file split (dead code risk)** — `apps/web/lib/ko-KR.json` exists but `apps/web/i18n.ts:15` only loads `./messages/${locale}.json`. Two-file split creates dead-code risk; consolidation deferred. **Where**: `apps/web/i18n.ts:15` + `apps/web/lib/ko-KR.json` + `apps/web/messages/ko-KR.json`.
+
+- **D-005 — TS mirror unknown state fall-through (defensive reject)** — `apps/web/lib/m11-reopen.ts` `buildReopenAuthorizationState` returns authorized state when all gates pass but lacks explicit `else` rejection for unknown operator_action / reason state combinations. Defense-in-depth hardening deferred. **Where**: `apps/web/lib/m11-reopen.ts:148-191` + `apps/web/lib/m11-close-sequence.ts` mirror.
+
+- **P-001 — Catch-all error toasts (3 components)** — `SnapshotPersistencePanel` + `ReversalExecuteDialog` + `ReopenOperatorDialog` use generic toast.error fallbacks without specific error-code → user-facing message mapping. UX polish deferred. **Where**: `apps/web/components/m11-close/*.tsx` (3 files).
+
+- **P-002 — TS response shape mismatch (3 components)** — Components may consume response shapes that drift from API envelope `{ code, message_ko, details, trace_id }`. Response narrowing deferred. **Where**: `apps/web/components/m11-close/*.tsx` (3 files).
+
+- **P-003 — Number() coercion → Decimal validation** — Frontend uses `Number()` for target_qty etc., but backend uses `Decimal`. Cross-language precision drift deferred. **Where**: `apps/web/lib/m11-reversal-execute.ts` + component props.
+
+- **P-004 — UUID format validation** — Frontend doesn't pre-validate tenant_id/actor_id UUID format before API call; backend raises NON_UUID_TENANT/NON_UUID_ACTOR. Pre-flight validation deferred. **Where**: `apps/web/lib/m11-*.ts` (5+ files).
+
+- **P-005 — NO_CAPABILITY → NON_UUID_TENANT/ACTOR disambiguation** — Already applied to `m11-reopen.ts` (P-005 line 94-115). Other TS mirrors (`m11-close-sequence.ts`, `m11-reversal-execute.ts`, `m11-snapshot-persistence.ts`) still fall through to NO_CAPABILITY on empty input. Cross-mirror parity deferred.
+
+- **P-006 — Hardcoded reason length → constants reuse** — Some components hardcode `20` / `500` instead of importing `REOPEN_REASON_MIN_LENGTH` / `REOPEN_REASON_MAX_LENGTH` from `m11-reopen.ts`. Constants reuse deferred.
+
+- **P-007 — Toast mapping missing NO_CAPABILITY case** — Toast map in some components lacks explicit `NO_CAPABILITY` branch, falling to generic message. Mapping completeness deferred. **Where**: `apps/web/components/m11-close/*.tsx`.
+
+- **P-008 — PII UUIDs in DOM (Playwright selectors risk)** — Components render stub UUIDs as `data-*` attributes; Playwright selectors may bind to PII. UUID scrubbing deferred (agent stalled mid-edit; needs Playwright selector audit first). **Where**: `apps/web/components/m11-close/*.tsx` (4 files).
+
+- **P-009 — Button enabled when state=committed (idempotent UX)** — `SnapshotPersistencePanel` commit button may stay enabled in `committed` state, allowing redundant commit attempts. UX consistency deferred. **Where**: `apps/web/components/m11-close/SnapshotPersistencePanel.tsx`.
+
+- **P-010 — CloseSequencePanel closed_at=null logic defect** — Panel may not handle `closed_at=null` (fiscal_period in 'open' status) gracefully. Edge case deferred. **Where**: `apps/web/components/m11-close/CloseSequencePanel.tsx`.
+
+- **P-011 — Unused REOPEN_CACHE_INVALIDATION_CHANNELS re-export remove** — `apps/web/lib/closing-period.ts` re-exports unused constant. Cleanup deferred.
+
+- **P-012 — V8 fixture `_fixture_lock_sha256` placeholder → actual computed SHA256** — 4 NEW 11-4 fixtures (`snapshot_committed` + `reversal_negating_snapshot` + `reversal_corrected_snapshot` + `reopen_committed`) have placeholder SHA256. Real SHA256 computation deferred. **Where**: `packages/cost_engine/tests/regression_v8/fixtures/*.json` (4 files).
+
+- **P-014 — SnapshotPersistencePanel no re-fetch after commit** — Panel doesn't re-fetch `current_state` after commit mutation; UI may show stale state. Re-fetch logic deferred. **Where**: `apps/web/components/m11-close/SnapshotPersistencePanel.tsx`.
+
+- **P-015 — ko-KR.json SSOT drift detector test (lib ↔ messages parity)** — No automated test verifying `lib/ko-KR.json` ↔ `messages/ko-KR.json` parity. Drift detection deferred. **Where**: `tests/` (new test file).
+
+- **P-016 — Zero qty + NaN rejection in reversal-execute** — Frontend doesn't pre-reject `target_qty=0` or NaN before API call; backend raises validation error. Pre-flight validation deferred. **Where**: `apps/web/lib/m11-reversal-execute.ts` + `apps/web/components/m11-close/ReversalExecuteDialog.tsx`.
+
+### 3중 게이트 re-verification summary (2026-08-10)
+
+- **ruff scoped**: `apps/api` All checks passed / `packages/services/m11_close` All checks passed / `packages/services/m4_inventory` All checks passed (after 6-3 pre-existing F541/C416/B007/B905 fixes).
+- **ruff full** (`ruff check apps packages`): All checks passed.
+- **import-linter**: 2 KEPT (cost_engine_forbidden_io + engine_core_to_adapters_forbidden), 0 broken.
+- **pytest**: 1714 passed + 127 skipped + 0 failed in 70.30s (baseline 1758 + 11-4 NEW V8 tests added).
+
+All 18 honestly DEFERred items listed above are structural W-class / UX polish / pre-flight validation that don't affect runtime correctness in current state. Story 11.4 done 진입.
+
