@@ -4,15 +4,31 @@
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
 >
-> **v1.13 (2026-08-10, Story 12.1, Epic 12)** — `TWO_FACTOR_AUTH` capability
-> wire (PRD §F12.1 + §M12-a + NFR5 TLS + NFR6 AES-256-GCM) for the 2FA
-> mandatory gate to M2 entry (owner/member role gate + 5 routes registered:
-> POST /2fa/setup, POST /2fa/verify, POST /2fa/challenge, POST /2fa/recovery,
-> POST /2fa/disable). Capability is **industry-agnostic** (granted to ALL
-> 4 canonical industries) — 2FA is a security baseline, not a manufacturing
-> feature. Routes registered in `apps/api/main.py` under `/api/v1/2fa`
-> prefix. Drift detector: `tests/integration/test_capability_matrix_v1_13.py`
-> (analogous to v1.6/1.12 drift tests).
+> **v1.13 (2026-08-10, Story 12.1 + 12.4, Epic 12)** — `TWO_FACTOR_AUTH`
+> 2FA mandatory gate wire (PRD §F12.1 + §M12-a + NFR5 TLS + NFR6 AES-256-GCM).
+> Story 12.1 wired the pure kernel + service layer + audit ActionClass
+> `TWO_FACTOR_AUTH` (6 typed values). Story 12.4 (carry-over sprint)
+> wired 8 routes + 1 M2 entry-gate route under `/api/v1/account/2fa/*`
+> + `/api/v1/m2-entry-gate`:
+> - POST /api/v1/account/2fa/setup
+> - POST /api/v1/account/2fa/verify
+> - POST /api/v1/account/2fa/challenge
+> - POST /api/v1/account/2fa/recovery
+> - POST /api/v1/account/2fa/disable (owner-only mutation)
+> - GET  /api/v1/account/2fa/status
+> - POST /api/v1/account/2fa/challenge-tokens
+> - POST /api/v1/account/2fa/challenge-tokens/consume
+> - GET  /api/v1/m2-entry-gate
+>
+> 14 typed exceptions are mapped to AD-15 §4 envelopes in `apps/api/main.py`.
+> Alembic 0022 adds 5 `users.totp_*` columns + RLS policy 0013. 2FA is
+> **industry-agnostic** (granted to ALL 4 canonical industries) — 2FA is
+> a security baseline, not a manufacturing feature. AD-10 4-role allowlist
+> (owner / member allowed; viewer / consultant_proxy denied) enforced at
+> route via `require_role("owner")` (not via `require_capability`).
+> Drift detector: `tests/integration/test_audit_logs_no_action_check_constraint.py`
+> pins the "audit_logs has no CHECK" invariant for TWO_FACTOR_AUTH (the
+> audit_logs table is intentionally CHECK-less per A5 design).
 >
 > **v1.12 (2026-08-09, Story 11.3, Epic 11)** — 3 NEW capabilities added
 > for AD-20 snapshot persistence + AD-22 reversal 영구화 + W2 reopen flow:

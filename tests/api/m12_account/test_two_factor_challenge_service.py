@@ -1,4 +1,4 @@
-"""tests.api.m12_account.test_two_factor_challenge_service — Story 12.1 challenge token tests.
+"""tests.api.m12_account.test_two_factor_challenge_service — Story 12.1 + 12.4 challenge token tests.
 
 Per AC #7 spec — 2FA challenge token lifecycle:
 - issue_challenge_token returns valid HS256 JWT (5-min TTL)
@@ -6,17 +6,26 @@ Per AC #7 spec — 2FA challenge token lifecycle:
 - consume_challenge_token rejects expired token (CHALLENGE_TOKEN_EXPIRED)
 - consume_challenge_token rejects user_id mismatch
 - consume_challenge_token rejects purpose mismatch
+
+Story 12.4 review P-05: consume now does INSERT ON CONFLICT for replay
+guard + user.twofa_enabled check (P-12). Tests use AsyncMock session
+that returns a User with totp_enabled_at set + a no-op flush.
 """
 
 from __future__ import annotations
 
+import asyncio
 import uuid
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
+from apps.api.modules.m12_account.exceptions import TwoFactorNotEnabledError
 from apps.api.modules.m12_account.services.two_factor_challenge_service import (
     CHALLENGE_TOKEN_TTL_SECONDS,
+    ChallengeTokenAlreadyConsumedError,
     ChallengeTokenExpiredError,
     ChallengeTokenInvalidError,
     TwoFactorChallengeService,
@@ -41,8 +50,39 @@ def _setup_jwt_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     get_settings.cache_clear()
 
 
-def _build_service() -> TwoFactorChallengeService:
+def _build_service(*, totp_enabled: bool = True) -> TwoFactorChallengeService:
+    """Build a TwoFactorChallengeService with a mocked AsyncSession.
+
+    The mock session:
+    - `session.execute(...)` for the User lookup returns a User with
+      `totp_enabled_at` set (or None, depending on `totp_enabled`),
+      so the P-12 check behaves correctly.
+    - `session.flush()` is a no-op (records the INSERT call).
+    - `session.add(...)` is a no-op.
+    """
     session = AsyncMock()
+
+    # Mock User class — just enough attributes for the .totp_enabled_at check
+    class UserStub:
+        def __init__(self, enabled: bool) -> None:
+            self.totp_enabled_at = (
+                datetime.now(UTC) if enabled else None
+            )
+
+    user_stub = UserStub(totp_enabled)
+
+    # session.execute(stmt).scalar_one_or_none() returns user_stub
+    execute_result = AsyncMock()
+    execute_result.scalar_one_or_none = lambda: user_stub
+    session.execute = AsyncMock(return_value=execute_result)
+
+    # session.flush() — no-op success
+    session.flush = AsyncMock(return_value=None)
+
+    # session.add(...) — sync no-op (uses default Mock)
+    from unittest.mock import MagicMock
+    session.add = MagicMock(return_value=None)
+
     return TwoFactorChallengeService(session)
 
 
@@ -65,7 +105,7 @@ def test_issue_challenge_token_returns_jwt() -> None:
 # ── 2. consume accepts valid token ────────────────────────────
 def test_consume_challenge_token_valid_passes() -> None:
     """Consume valid token returns ChallengePassed with user_id/tenant_id."""
-    svc = _build_service()
+    svc = _build_service(totp_enabled=True)
     fixed_now = 1700000000
 
     issued = svc.issue_challenge_token(
@@ -74,12 +114,14 @@ def test_consume_challenge_token_valid_passes() -> None:
         now=fixed_now,
     )
 
-    # Consume with same now (not yet expired)
-    result = svc.consume_challenge_token(
-        token=issued.token,
-        user_id=USER_ID,
-        tenant_id=TENANT_ID,
-        now=fixed_now + 60,  # 60 seconds later
+    # Consume with same now (not yet expired) — async
+    result = asyncio.run(
+        svc.consume_challenge_token(
+            token=issued.token,
+            user_id=USER_ID,
+            tenant_id=TENANT_ID,
+            now=fixed_now + 60,  # 60 seconds later
+        )
     )
 
     assert result.user_id == USER_ID
@@ -100,11 +142,13 @@ def test_consume_challenge_token_expired_raises() -> None:
 
     # Consume 6 minutes later (past 5-min TTL)
     with pytest.raises(ChallengeTokenExpiredError):
-        svc.consume_challenge_token(
-            token=issued.token,
-            user_id=USER_ID,
-            tenant_id=TENANT_ID,
-            now=fixed_now + 6 * 60,
+        asyncio.run(
+            svc.consume_challenge_token(
+                token=issued.token,
+                user_id=USER_ID,
+                tenant_id=TENANT_ID,
+                now=fixed_now + 6 * 60,
+            )
         )
 
 
@@ -121,11 +165,13 @@ def test_consume_challenge_token_user_id_mismatch_raises() -> None:
     )
 
     with pytest.raises(ChallengeTokenInvalidError):
-        svc.consume_challenge_token(
-            token=issued.token,
-            user_id=OTHER_USER_ID,  # mismatch!
-            tenant_id=TENANT_ID,
-            now=fixed_now + 30,
+        asyncio.run(
+            svc.consume_challenge_token(
+                token=issued.token,
+                user_id=OTHER_USER_ID,  # mismatch!
+                tenant_id=TENANT_ID,
+                now=fixed_now + 30,
+            )
         )
 
 
@@ -145,11 +191,13 @@ def test_consume_challenge_token_tampered_signature_raises() -> None:
     tampered_token = issued.token[:-1] + ("A" if issued.token[-1] != "A" else "B")
 
     with pytest.raises(ChallengeTokenInvalidError):
-        svc.consume_challenge_token(
-            token=tampered_token,
-            user_id=USER_ID,
-            tenant_id=TENANT_ID,
-            now=fixed_now + 30,
+        asyncio.run(
+            svc.consume_challenge_token(
+                token=tampered_token,
+                user_id=USER_ID,
+                tenant_id=TENANT_ID,
+                now=fixed_now + 30,
+            )
         )
 
 
@@ -166,12 +214,82 @@ def test_issue_consume_roundtrip_at_expiry_boundary() -> None:
     )
 
     # Consume exactly at TTL — should still pass (exp == now)
-    result = svc.consume_challenge_token(
-        token=issued.token,
-        user_id=USER_ID,
-        tenant_id=TENANT_ID,
-        now=fixed_now + CHALLENGE_TOKEN_TTL_SECONDS,
+    result = asyncio.run(
+        svc.consume_challenge_token(
+            token=issued.token,
+            user_id=USER_ID,
+            tenant_id=TENANT_ID,
+            now=fixed_now + CHALLENGE_TOKEN_TTL_SECONDS,
+        )
     )
 
     assert result.user_id == USER_ID
     assert result.tenant_id == TENANT_ID
+
+
+# ── 7. P-12: consume rejects when user.totp_enabled_at is NULL ─
+def test_consume_challenge_token_user_2fa_disabled_raises() -> None:
+    """User 2FA disabled after token issue → TwoFactorNotEnabledError."""
+    svc = _build_service(totp_enabled=False)
+    fixed_now = 1700000000
+
+    issued = svc.issue_challenge_token(
+        user_id=USER_ID,
+        tenant_id=TENANT_ID,
+        now=fixed_now,
+    )
+
+    with pytest.raises(TwoFactorNotEnabledError):
+        asyncio.run(
+            svc.consume_challenge_token(
+                token=issued.token,
+                user_id=USER_ID,
+                tenant_id=TENANT_ID,
+                now=fixed_now + 30,
+            )
+        )
+
+
+# ── 8. P-05: consume rejects on replay (already-used jti) ─────
+def test_consume_challenge_token_replay_raises() -> None:
+    """First flush succeeds, second flush raises IntegrityError → replay error.
+
+    The P-05 replay guard is implemented as an INSERT with the jti as PK.
+    On replay, the second flush raises IntegrityError → mapped to
+    ChallengeTokenAlreadyConsumedError.
+    """
+    svc = _build_service()
+    fixed_now = 1700000000
+
+    issued = svc.issue_challenge_token(
+        user_id=USER_ID,
+        tenant_id=TENANT_ID,
+        now=fixed_now,
+    )
+
+    # First flush: pass (no-op success)
+    svc.session.flush = AsyncMock(return_value=None)
+    asyncio.run(
+        svc.consume_challenge_token(
+            token=issued.token,
+            user_id=USER_ID,
+            tenant_id=TENANT_ID,
+            now=fixed_now + 30,
+        )
+    )
+
+    # Second flush: raise IntegrityError (replay)
+    svc.session.flush = AsyncMock(
+        side_effect=IntegrityError("duplicate key value violates unique constraint", {}, None)
+    )
+    svc.session.rollback = AsyncMock(return_value=None)
+
+    with pytest.raises(ChallengeTokenAlreadyConsumedError):
+        asyncio.run(
+            svc.consume_challenge_token(
+                token=issued.token,
+                user_id=USER_ID,
+                tenant_id=TENANT_ID,
+                now=fixed_now + 30,
+            )
+        )

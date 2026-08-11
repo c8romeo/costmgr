@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,17 +111,24 @@ def _to_totp_state(user: User) -> UserTotpState:
     Boundary conversion at service→kernel call site (CR 4-3 /
     pure-kernel contract invariant). Pure kernel uses struct-style
     fields; ORM uses snake_case columns.
+
+    P-20: defensive tzinfo UTC tag for legacy rows that may have
+    naive datetimes (TypeError on .timestamp() without tz).
     """
+
+    def _to_unix(dt: datetime | None) -> int:
+        if dt is None:
+            return 0
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return int(dt.timestamp())
+
     return UserTotpState(
         user_id=str(user.id),
         totp_secret_set=user.totp_secret is not None,
-        totp_enabled_at=int(user.totp_enabled_at.timestamp())
-        if user.totp_enabled_at
-        else 0,
+        totp_enabled_at=_to_unix(user.totp_enabled_at),
         failed_attempts=user.totp_failed_attempts or 0,
-        lockout_until=int(user.totp_lockout_until.timestamp())
-        if user.totp_lockout_until
-        else 0,
+        lockout_until=_to_unix(user.totp_lockout_until),
     )
 
 
@@ -493,7 +501,9 @@ class TwoFactorService:
             TwoFactorRecoveryExhaustedError, TotpRecoveryInvalidError,
             TwoFactorAuditEmitError.
         """
-        user = await self._load_user(user_id, tenant_id)
+        # P-29: lock the user row to serialize concurrent recovery code
+        # consumption (prevents duplicate consume race).
+        user = await self._load_user(user_id, tenant_id, lock_for_update=True)
         if not user.twofa_enabled or not user.totp_recovery_codes_hash:
             raise TwoFactorNotEnabledError(
                 user_id=user_id,
@@ -537,9 +547,20 @@ class TwoFactorService:
                 ) from exc
             raise
 
-        # Mark used_at (CR 1.1 — single 1회용 invariant)
-        hashes[result.code_index]["used_at"] = _now_utc().isoformat()
-        user.totp_recovery_codes_hash = hashes
+        # Mark used_at (CR 1.1 — single 1회용 invariant).
+        # Story 12.4 review P-04: force new list + new dict to ensure
+        # SQLAlchemy's MutableList.as_mutable(JSONB) detects the change.
+        # In-place `hashes[i]["used_at"] = ...` is NOT tracked even with
+        # MutableList wrapping (MutableList tracks list mutations, not
+        # nested dict mutations), so we must replace the dict element
+        # explicitly. Without this, the UPDATE is silently skipped and
+        # the same recovery code can be reused.
+        now_iso = _now_utc().isoformat()
+        new_hashes = [
+            {**h, "used_at": now_iso} if i == result.code_index else h
+            for i, h in enumerate(hashes)
+        ]
+        user.totp_recovery_codes_hash = new_hashes
         user.totp_failed_attempts = 0
         user.totp_lockout_until = None
         await self.session.flush()
@@ -671,12 +692,76 @@ class TwoFactorService:
             ) from exc
 
     # ── Helpers ──────────────────────────────────────────────
+    async def get_totp_status(
+        self,
+        *,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> dict[str, Any]:
+        """Read-only 2FA enrollment state for the user (no UPDATE).
+
+        Used by GET /api/v1/account/2fa/status (Story 12.4 wire). The
+        response intentionally omits `totp_secret` ciphertext — that
+        is NFR6 sensitive material and must NEVER leave the service
+        boundary. `recovery_codes_remaining` is a derived count
+        (entries where `used_at == ""`) that is safe to expose so the
+        UI can prompt the user to regenerate codes before exhaustion.
+
+        Args:
+            user_id: User to introspect.
+            tenant_id: Tenant for RLS scope.
+
+        Returns:
+            dict with keys: user_id, tenant_id, totp_enabled,
+            totp_enabled_at (ISO-8601 | None), recovery_codes_remaining,
+            failed_attempts, locked_out, lockout_until (ISO-8601 | None),
+            trace_id.
+
+        Raises:
+            TwoFactorUserNotFoundError.
+        """
+        user = await self._load_user(user_id, tenant_id)
+        now = _now_utc()
+        state = _to_totp_state(user)
+        locked = lockout_status(state, now=int(now.timestamp()))
+        # recovery_codes_remaining — count entries where used_at is empty.
+        hashes = user.totp_recovery_codes_hash or []
+        remaining = sum(1 for entry in hashes if not entry.get("used_at"))
+        return {
+            "user_id": str(user.id),
+            "tenant_id": str(user.tenant_id),
+            "totp_enabled": bool(user.twofa_enabled),
+            "totp_enabled_at": (
+                user.totp_enabled_at.isoformat()
+                if user.totp_enabled_at
+                else None
+            ),
+            "recovery_codes_remaining": remaining,
+            "failed_attempts": user.totp_failed_attempts or 0,
+            "locked_out": bool(locked),
+            "lockout_until": (
+                user.totp_lockout_until.isoformat()
+                if user.totp_lockout_until
+                else None
+            ),
+            "trace_id": str(uuid.uuid4()),
+        }
+
     async def _load_user(
         self,
         user_id: uuid.UUID,
         tenant_id: uuid.UUID,
+        *,
+        lock_for_update: bool = False,
     ) -> User:
         """Load user with RLS-scoped tenant_id filter.
+
+        P-29: `lock_for_update=True` issues `SELECT ... FOR UPDATE` to
+        serialize concurrent recovery code consumption (avoids duplicate
+        consume race when JSONB in-place mutation is interleaved across
+        concurrent transactions). Use ONLY in mutating paths that
+        consume the recovery codes (verify_recovery_code); read paths
+        should leave it False.
 
         Raises:
             TwoFactorUserNotFoundError: If user_id not found or wrong tenant.
@@ -686,6 +771,8 @@ class TwoFactorService:
             .where(User.id == user_id)
             .where(User.tenant_id == tenant_id)
         )
+        if lock_for_update:
+            stmt = stmt.with_for_update()
         result = await self.session.execute(stmt)
         user = result.scalar_one_or_none()
         if user is None:

@@ -98,6 +98,51 @@ from apps.api.modules.m11_close.services.reversal_service import (
     ReversalTargetNotFoundError,
     ReversalUnauthorizedError,
 )
+from apps.api.modules.m12_account import router as m12_account_router
+from apps.api.modules.m12_account.exceptions import (
+    TwoFactorAlreadyEnabledError,
+    TwoFactorAuditEmitError,
+    TwoFactorCryptoKeyMissingError,
+    TwoFactorDisableUnauthorizedError,
+    TwoFactorEncryptionError,
+    TwoFactorNotEnabledError,
+    TwoFactorRecoveryExhaustedError,
+    TwoFactorUserNotFoundError,
+)
+from apps.api.modules.m12_account.services.audit_extension import (
+    AUDIT_EMIT_FAILED_KO,
+    CHALLENGE_LOCKED_OUT_KO,
+    CHALLENGE_TOKEN_ALREADY_CONSUMED_KO,
+    CHALLENGE_TOKEN_EXPIRED_KO,
+    CHALLENGE_TOKEN_INVALID_KO,
+    CHALLENGE_TOKEN_PURPOSE_MISMATCH_KO,
+    DISABLE_UNAUTHORIZED_KO,
+    ENCRYPTION_FAILED_KO,
+    KEY_MISSING_KO,
+    RECOVERY_EXHAUSTED_KO,
+    SETUP_ALREADY_ENABLED_KO,
+    SETUP_NOT_ENABLED_KO,
+    TWO_FACTOR_CHALLENGE_FAILED_KO,
+    USER_NOT_FOUND_KO,
+)
+from apps.api.modules.m12_account.services.two_factor_challenge_service import (
+    ChallengeTokenAlreadyConsumedError,
+    ChallengeTokenExpiredError,
+    ChallengeTokenInvalidError,
+    ChallengeTokenPurposeMismatchError,
+    TwoFactorChallengeFailedError,
+)
+from packages.services.m12_account.totp import (
+    TotpInvalidCodeError,
+    TotpLockoutError,
+    TotpRecoveryInvalidError,
+)
+from packages.services.m12_account.two_factor_gate import (
+    ForbiddenRoleError as M12ForbiddenRoleError,
+)
+from packages.services.m12_account.two_factor_gate import (
+    TwoFactorRequiredError,
+)
 
 app = FastAPI(
     title="bizup/costmgr API",
@@ -135,6 +180,19 @@ app.include_router(m4_inventory_router)
 # - GET /api/v1/close/reversal-requests/<correction_group_id> (200)  # noqa: ERA001 — FastAPI path template syntax
 # - POST /api/v1/close/cache-invalidation (200 AD-25 publish receipt)
 app.include_router(m11_close_router)
+
+# Story 12.4 (Epic 12 carry-over sprint) — M12 2FA mandatory gate (PRD §F12.1 + §M12-a).
+# 9 NEW routes:
+# - POST /api/v1/account/2fa/setup                  (201 setup initiated)
+# - POST /api/v1/account/2fa/verify                 (200 setup completed)
+# - POST /api/v1/account/2fa/challenge              (200 challenge outcome + token)
+# - POST /api/v1/account/2fa/recovery               (200 recovery consumed + token)
+# - POST /api/v1/account/2fa/disable                (200 2FA disabled)
+# - GET  /api/v1/account/2fa/status                 (200 enrollment state read)
+# - POST /api/v1/account/2fa/challenge-tokens       (201 HS256 token issued)
+# - POST /api/v1/account/2fa/challenge-tokens/consume (200 token consumed)
+# - GET  /api/v1/m2-entry-gate                      (200 M2 entry gate state)
+app.include_router(m12_account_router)
 
 
 @app.exception_handler(AuthError)
@@ -1328,6 +1386,318 @@ async def _m11_snapshot_not_found_handler(
                 "snapshot_id": str(exc.snapshot_id),
             },
             "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# Story 12.4 — M12 2FA mandatory gate exception handlers (16 wired).
+# CR 11-2/11-3 lesson: all typed service exceptions get AD-15 §4 envelope.
+# Korean SSOT from `apps.api.modules.m12_account.services.audit_extension`.
+# ─────────────────────────────────────────────────────────────────
+
+
+@app.exception_handler(TwoFactorNotEnabledError)
+async def _m12_two_factor_not_enabled_handler(
+    request: Request, exc: TwoFactorNotEnabledError
+) -> JSONResponse:
+    """400 TWO_FACTOR_NOT_ENABLED — user has no pending/completed 2FA setup."""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "TWO_FACTOR_NOT_ENABLED",
+            "message_ko": SETUP_NOT_ENABLED_KO,
+            "details": {"user_id": str(exc.user_id)},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TwoFactorAlreadyEnabledError)
+async def _m12_two_factor_already_enabled_handler(
+    request: Request, exc: TwoFactorAlreadyEnabledError
+) -> JSONResponse:
+    """409 TWO_FACTOR_ALREADY_ENABLED — re-setup without explicit disable."""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "TWO_FACTOR_ALREADY_ENABLED",
+            "message_ko": SETUP_ALREADY_ENABLED_KO,
+            "details": {
+                "user_id": str(exc.user_id),
+                "enabled_at": exc.enabled_at,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TwoFactorAuditEmitError)
+async def _m12_two_factor_audit_emit_handler(
+    request: Request, exc: TwoFactorAuditEmitError
+) -> JSONResponse:
+    """503 TWO_FACTOR_AUDIT_EMIT_FAILED — audit subsystem unavailable (transient)."""
+    response = JSONResponse(
+        status_code=503,
+        content={
+            "code": "TWO_FACTOR_AUDIT_EMIT_FAILED",
+            "message_ko": AUDIT_EMIT_FAILED_KO,
+            "details": {"error": exc.message},
+            "trace_id": exc.trace_id,
+        },
+    )
+    response.headers["Retry-After"] = "5"
+    return response
+
+
+@app.exception_handler(TwoFactorEncryptionError)
+async def _m12_two_factor_encryption_handler(
+    request: Request, exc: TwoFactorEncryptionError
+) -> JSONResponse:
+    """400 TWO_FACTOR_ENCRYPTION_ERROR — NFR6 AES-256-GCM ciphertext failure."""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "TWO_FACTOR_ENCRYPTION_ERROR",
+            "message_ko": ENCRYPTION_FAILED_KO,
+            "details": {"error": exc.message},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TwoFactorCryptoKeyMissingError)
+async def _m12_two_factor_key_missing_handler(
+    request: Request, exc: TwoFactorCryptoKeyMissingError
+) -> JSONResponse:
+    """500 TWO_FACTOR_KEY_MISSING — env misconfiguration (v1 key absent)."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "TWO_FACTOR_KEY_MISSING",
+            "message_ko": KEY_MISSING_KO,
+            "details": {"key_id": exc.key_id},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TwoFactorRecoveryExhaustedError)
+async def _m12_two_factor_recovery_exhausted_handler(
+    request: Request, exc: TwoFactorRecoveryExhaustedError
+) -> JSONResponse:
+    """410 TWO_FACTOR_RECOVERY_EXHAUSTED — all 8 recovery codes consumed."""
+    return JSONResponse(
+        status_code=410,
+        content={
+            "code": "TWO_FACTOR_RECOVERY_EXHAUSTED",
+            "message_ko": RECOVERY_EXHAUSTED_KO,
+            "details": {"user_id": str(exc.user_id)},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TwoFactorDisableUnauthorizedError)
+async def _m12_two_factor_disable_unauthorized_handler(
+    request: Request, exc: TwoFactorDisableUnauthorizedError
+) -> JSONResponse:
+    """403 TWO_FACTOR_DISABLE_UNAUTHORIZED — neither current code nor admin override."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "TWO_FACTOR_DISABLE_UNAUTHORIZED",
+            "message_ko": DISABLE_UNAUTHORIZED_KO,
+            "details": {
+                "user_id": str(exc.user_id),
+                "reason": exc.reason,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TwoFactorUserNotFoundError)
+async def _m12_two_factor_user_not_found_handler(
+    request: Request, exc: TwoFactorUserNotFoundError
+) -> JSONResponse:
+    """404 TWO_FACTOR_USER_NOT_FOUND — user_id not in tenant."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "TWO_FACTOR_USER_NOT_FOUND",
+            "message_ko": USER_NOT_FOUND_KO,
+            "details": {"user_id": str(exc.user_id)},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TotpInvalidCodeError)
+async def _m12_totp_invalid_code_handler(
+    request: Request, exc: TotpInvalidCodeError
+) -> JSONResponse:
+    """401 TOTP_INVALID_CODE — 6-digit code mismatch (RFC 6238)."""
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "TOTP_INVALID_CODE",
+            "message_ko": "인증 코드가 올바르지 않습니다",
+            "details": {},
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(TotpLockoutError)
+async def _m12_totp_lockout_handler(
+    request: Request, exc: TotpLockoutError
+) -> JSONResponse:
+    """429 TOTP_LOCKOUT — 5 consecutive failures → 15-min lockout (Retry-After)."""
+    response = JSONResponse(
+        status_code=429,
+        content={
+            "code": "TOTP_LOCKOUT",
+            "message_ko": CHALLENGE_LOCKED_OUT_KO,
+            "details": {"retry_after_seconds": exc.retry_after_seconds},
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+    response.headers["Retry-After"] = str(exc.retry_after_seconds)
+    return response
+
+
+@app.exception_handler(TotpRecoveryInvalidError)
+async def _m12_totp_recovery_invalid_handler(
+    request: Request, exc: TotpRecoveryInvalidError
+) -> JSONResponse:
+    """401 TOTP_RECOVERY_INVALID — recovery code mismatch or already used."""
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "TOTP_RECOVERY_INVALID",
+            "message_ko": "복구 코드가 올바르지 않거나 이미 사용되었습니다",
+            "details": {},
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ChallengeTokenExpiredError)
+async def _m12_challenge_token_expired_handler(
+    request: Request, exc: ChallengeTokenExpiredError
+) -> JSONResponse:
+    """401 TWO_FACTOR_CHALLENGE_TOKEN_EXPIRED — JWT exp claim past now()."""
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "TWO_FACTOR_CHALLENGE_TOKEN_EXPIRED",
+            "message_ko": CHALLENGE_TOKEN_EXPIRED_KO,
+            "details": {"token_jti": exc.token_jti, "expired_at": exc.expired_at},
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ChallengeTokenInvalidError)
+async def _m12_challenge_token_invalid_handler(
+    request: Request, exc: ChallengeTokenInvalidError
+) -> JSONResponse:
+    """401 TWO_FACTOR_CHALLENGE_TOKEN_INVALID — signature / binding mismatch."""
+    # P-25: use exc.trace_id when available so audit + envelope share
+    # the same correlation ID.
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "TWO_FACTOR_CHALLENGE_TOKEN_INVALID",
+            "message_ko": CHALLENGE_TOKEN_INVALID_KO,
+            "details": {"reason": exc.reason},
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ChallengeTokenPurposeMismatchError)
+async def _m12_challenge_token_purpose_mismatch_handler(
+    request: Request, exc: ChallengeTokenPurposeMismatchError
+) -> JSONResponse:
+    """401 TWO_FACTOR_CHALLENGE_TOKEN_PURPOSE_MISMATCH — wrong purpose claim."""
+    # P-25: use exc.trace_id when available.
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "TWO_FACTOR_CHALLENGE_TOKEN_PURPOSE_MISMATCH",
+            "message_ko": CHALLENGE_TOKEN_PURPOSE_MISMATCH_KO,
+            "details": {"actual_purpose": exc.actual_purpose},
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 12.4 review P-08: 4 missing exception classes — handlers ──
+@app.exception_handler(ChallengeTokenAlreadyConsumedError)
+async def _m12_challenge_token_already_consumed_handler(
+    request: Request, exc: ChallengeTokenAlreadyConsumedError
+) -> JSONResponse:
+    """401 CHALLENGE_TOKEN_ALREADY_CONSUMED — replay attempt (P-05)."""
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "CHALLENGE_TOKEN_ALREADY_CONSUMED",
+            "message_ko": CHALLENGE_TOKEN_ALREADY_CONSUMED_KO,
+            "details": {"jti": exc.token_jti},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TwoFactorChallengeFailedError)
+async def _m12_two_factor_challenge_failed_handler(
+    request: Request, exc: TwoFactorChallengeFailedError
+) -> JSONResponse:
+    """401 TWO_FACTOR_CHALLENGE_FAILED — TOTP code verification failed."""
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "TWO_FACTOR_CHALLENGE_FAILED",
+            "message_ko": TWO_FACTOR_CHALLENGE_FAILED_KO,
+            "details": {
+                "reason": exc.reason,
+                "failed_attempts": exc.failed_attempts,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(TwoFactorRequiredError)
+async def _m12_two_factor_required_handler(
+    request: Request, exc: TwoFactorRequiredError
+) -> JSONResponse:
+    """403 TWO_FACTOR_REQUIRED — user must register TOTP before M2 entry."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "TWO_FACTOR_REQUIRED",
+            "message_ko": exc.message_ko,
+            "details": {"target": exc.target},
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(M12ForbiddenRoleError)
+async def _m12_two_factor_forbidden_role_handler(
+    request: Request, exc: M12ForbiddenRoleError
+) -> JSONResponse:
+    """403 FORBIDDEN_ROLE — viewer/consultant_proxy cannot enter M2."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "FORBIDDEN_ROLE",
+            "message_ko": exc.message_ko,
+            "details": {"role": exc.role, "target": exc.target},
+            "trace_id": str(_uuid_mod.uuid4()),
         },
     )
 

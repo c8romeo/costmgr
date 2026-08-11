@@ -1,4 +1,4 @@
-"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2 + 12.1).
+"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2 + 12.1 + 12.4).
 
 Mapped tables:
 - 0001: tenants, users, tenant_memberships, tenant_settings, audit_logs
@@ -11,6 +11,7 @@ Mapped tables:
 - 0015 (Story 5.2): inventory_ledger (AD-2 append-only)
 - 0020 (Story 11.2): fiscal_periods (AD-6 close lock + 4-stage state)
 - 0022 (Story 12.1): users totp_* columns (2FA mandatory gate)
+- 0023 (Story 12.4): used_challenge_tokens (2FA challenge token replay guard)
 
 Per AD-1/AD-11: this module is in `apps/api/` (infra layer). It does NOT
 import `packages.cost_engine` directly. Modules write through services.
@@ -42,6 +43,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from packages.common.uuid7 import uuid7 as _uuid7
@@ -99,7 +101,16 @@ class User(Base):
     totp_lockout_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    totp_recovery_codes_hash: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Story 12.4 review P-04 — wrapped in MutableList.as_mutable so
+    # SQLAlchemy tracks in-place mutations (consume_recovery_code marks
+    # `used_at` on a dict element). Without MutableList, the `__eq__`
+    # check sees the same list object and silently skips the UPDATE,
+    # allowing the same recovery code to be reused. Type is `list | None`
+    # (each entry is `{salt, hash, used_at}` dict, but the column itself
+    # is a JSON array — see totp.py service code).
+    totp_recovery_codes_hash: Mapped[list | None] = mapped_column(
+        MutableList.as_mutable(JSONB), nullable=True
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -173,6 +184,22 @@ class AuditLog(Base):
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+# ── used_challenge_tokens (Story 12.4 — 2FA challenge token replay guard) ──
+# Records every consumed 2FA challenge token's `jti` (JWT ID) so a captured
+# or replayed token cannot be used twice. INSERT with `jti` as PK; duplicate
+# key raises IntegrityError → ChallengeTokenAlreadyConsumedError → 401.
+# GC: DELETE WHERE used_at < now() - interval '1 hour' (TTL=5min + safety).
+class UsedChallengeToken(Base):
+    __tablename__ = "used_challenge_tokens"
+
+    jti: Mapped[str] = mapped_column(Text, primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    tenant_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 # ── uploaded_documents (Story 1.3 — Task 1.2) ───────────────

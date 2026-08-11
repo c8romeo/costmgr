@@ -1,0 +1,3632 @@
+=== Story 11.4 review diff (working tree, uncommitted, 11-4 surface only) ===
+=== generated 2026-08-10 ===
+
+########### MODIFIED: apps/web/lib/closing-period.ts ###########
+diff --git a/apps/web/lib/closing-period.ts b/apps/web/lib/closing-period.ts
+index a65b962..29f228e 100644
+--- a/apps/web/lib/closing-period.ts
++++ b/apps/web/lib/closing-period.ts
+@@ -150,4 +150,47 @@ export interface ReversalRequestTrigger {
+   corrected_period_key: string | null;
+   industry: Industry | null;
+   capability_granted: boolean;
+-}
+\ No newline at end of file
++}
++
++// ── SnapshotPersistenceState (Story 11.4 A13 — 11-3 frontend TS types) ──
++//
++// Re-export the SnapshotPersistenceState from `m11-snapshot-persistence.ts`
++// so panel components can consume a single typed shape without re-importing
++// from the snapshot module. SSOT for the panel props stays in
++// `m11-snapshot-persistence.ts`.
++export type { SnapshotPersistenceState } from "./m11-snapshot-persistence";
++
++// ── ReversalExecuteState (Story 11.4 A13 — 11-3 frontend TS types) ──
++//
++// Re-export the ReversalExecuteState from `m11-reversal-execute.ts`.
++export type { ReversalExecuteState } from "./m11-reversal-execute";
++
++// ── ReopenAuthorizationState (Story 11.4 A13 — 11-3 frontend TS types) ──
++//
++// Re-export the ReopenAuthorizationState from `m11-reopen.ts`.
++export type { ReopenAuthorizationState } from "./m11-reopen";
++
++// ── CacheInvalidationChannel (Story 11.4 A13 — AD-25 4-channel badge) ──
++//
++// 4-channel AD-25 cache invalidation publisher wire (11-3 expansion
++// from 11-1 1-channel ai_cache to 4 channels):
++// - ai_cache (M10 AI cache invalidation target)
++// - cost_engine_cache (M3 calculation cache)
++// - fiscal_period_cache (M11 fiscal_periods status)
++// - closing_snapshot_cache (M11 fiscal_period_snapshots state)
++// W2 reopen flow uses 2 channels (fiscal_period_cache + closing_snapshot_cache).
++export const CACHE_INVALIDATION_CHANNELS = [
++  "ai_cache",
++  "cost_engine_cache",
++  "fiscal_period_cache",
++  "closing_snapshot_cache",
++] as const;
++
++export type CacheInvalidationChannel =
++  (typeof CACHE_INVALIDATION_CHANNELS)[number];
++
++// W2 reopen flow uses only 2 channels (subset of 4).
++export const REOPEN_CACHE_INVALIDATION_CHANNELS = [
++  "fiscal_period_cache",
++  "closing_snapshot_cache",
++] as const;
+\ No newline at end of file
+
+########### MODIFIED: apps/web/messages/ko-KR.json ###########
+diff --git a/apps/web/messages/ko-KR.json b/apps/web/messages/ko-KR.json
+index 3c43b12..84c74c2 100644
+--- a/apps/web/messages/ko-KR.json
++++ b/apps/web/messages/ko-KR.json
+@@ -108,5 +108,52 @@
+     "cancel": "취소",
+     "success_ko": "역분개 완료",
+     "error_ko": "역분개 실패"
++  },
++  "snapshot_persistence_panel": {
++    "panel_title": "스냅샷 영구화 패널",
++    "panel_step_indicator": "AD-20 verified → committed 전이",
++    "commit_button": "스냅샷 영구화",
++    "committed_toast": "스냅샷 영구화 완료",
++    "idempotent_toast": "스냅샷 이미 영구화됨 — 멱등 처리",
++    "draft_reject_toast": "스냅샷이 검증 전 상태 — 영구화 불가",
++    "reversed_reject_toast": "스냅샷이 이미 역분개됨 — 영구화 불가"
++  },
++  "reversal_execute_dialog": {
++    "dialog_title": "스냅샷 역분개",
++    "dialog_description": "committed → reversed 전이 (AD-22 영구화)",
++    "reversal_form_reason_label": "역분개 사유 (20-500자)",
++    "reversal_form_submit": "역분개 실행",
++    "completed_toast": "스냅샷 역분개 완료",
++    "invalid_snapshot_toast": "스냅샷 상태가 커밋 상태가 아닙니다 — 역분개 불가"
++  },
++  "reopen_operator_dialog": {
++    "dialog_title": "재오픈 (W2)",
++    "dialog_description": "owner-only 재오픈 (AD-10)",
++    "dialog_action_label": "재오픈 사유 분류",
++    "dialog_reason_label": "재오픈 사유 (20-500자)",
++    "dialog_submit": "재오픈 실행",
++    "completed_toast": "재오픈 승인 완료",
++    "reject_not_owner_toast": "소유자 역할이 아닙니다 — 재오픈 불가",
++    "reject_no_capability_toast": "재오픈 권한 미보유",
++    "reject_invalid_operator_toast": "재오픈 사유 분류가 올바르지 않습니다",
++    "reject_reason_too_short_toast": "재오픈 사유는 20자 이상이어야 합니다",
++    "reject_reason_too_long_toast": "재오픈 사유는 500자 이하여야 합니다"
++  },
++  "cache_invalidation_channel_badge": {
++    "badge_label": "AD-25 캐시 무효화 채널",
++    "channel_4_set": "4-channel publisher",
++    "channel_ai_cache": "AI 캐시",
++    "channel_cost_engine_cache": "원가 엔진 캐시",
++    "channel_fiscal_period_cache": "회계 기간 캐시",
++    "channel_closing_snapshot_cache": "마감 스냅샷 캐시"
++  },
++  "close_sequence_panel": {
++    "panel_title": "4단계 마감 시퀀스 패널",
++    "panel_step_indicator": "AD-6 close lock 진행 상태",
++    "step_complete_button": "단계 완료",
++    "confirm_button": "마감 확정",
++    "progress_label": "{completed} / 4 단계 완료",
++    "confirm_dialog_title": "4단계 마감 확정",
++    "confirm_dialog_description": "확정 후 AD-6 INSERT 거부 활성화"
+   }
+ }
+\ No newline at end of file
+
+########### MODIFIED: packages/cost_engine/tests/regression_v8/README.md ###########
+warning: in the working copy of 'packages/cost_engine/tests/regression_v8/README.md', LF will be replaced by CRLF the next time Git touches it
+diff --git a/packages/cost_engine/tests/regression_v8/README.md b/packages/cost_engine/tests/regression_v8/README.md
+index 43f2aa0..569503a 100644
+--- a/packages/cost_engine/tests/regression_v8/README.md
++++ b/packages/cost_engine/tests/regression_v8/README.md
+@@ -1,9 +1,20 @@
+ # V8 Regression Suite
+ 
++> **Status (2026-08-09, Story 11.4)** — V8 18→22 골든 fixture matrix extension
++> (Epic 11 carry-over A13 sprint-up 결정). 4 NEW 골든 fixtures shipped for
++> AD-20 state machine + AD-22 reversal 영구화 + W2 reopen flow:
++> `snapshot_committed.json` (verified→committed) +
++> `reversal_negating_snapshot.json` (AD-22 sign-negating) +
++> `reversal_corrected_snapshot.json` (AD-22 corrected row + corrected_period_key) +
++> `reopen_committed.json` (W2 owner-only reopen with operator_action 4-value enum).
++> `V8_FIXTURE_COUNT = 22` (`packages/cost_engine/tests/regression_v8/__init__.py`).
++> AD-25 4-channel publisher wire (`ai_cache` + `cost_engine_cache` +
++> `fiscal_period_cache` + `closing_snapshot_cache`) + banker's rounding parity
++> (CR 0-4) 모두 pinned. CR 4-4 lesson 정합 (V8 byte-identical CI gate).
++>
+ > **Status (2026-08-02, Story 4.4)** — 12 골든 fixture 매트릭스 (4 industries
+ > × 3 baseline shapes) ship 완료. `tests/regression_v8/test_regression_v8_fixtures.py`
+ > 가 CI mandatory gate 로 wire 됨 (`@pytest.mark.engine` + `@pytest.mark.v8_regression`).
+-> `V8_FIXTURE_COUNT = 12` (`packages/cost_engine/tests/regression_v8/__init__.py`).
+ > `verify_v8_golden_match` audit action (Story 4.4 forward-lock) 가
+ > `verification_log.action` literal 에 추가됨.
+ >
+@@ -174,6 +185,23 @@ marking. `pytest` 기본 호출이 자동 포함.
+     `manufacturing_service_other`)
+   - `fixture_loader.py` (lock sha256 + select_golden_for_input + load_golden_*)
+   - CR 2.3 extra='forbid' invariant 골든 diff shape
++- **Story 11.4 (2026-08-09, Epic 11 carry-over A13 sprint-up)** — V8 18→22 matrix extension:
++  - `V8_FIXTURE_COUNT = 18 → 22`
++  - 4 NEW JSON 골든 발행 (AD-20 + AD-22 + W2):
++    - `snapshot_committed.json` — AD-20 state machine transition (verified→committed)
++      + 4-channel cache invalidation publisher wire (AD-25).
++    - `reversal_negating_snapshot.json` — AD-22 reversal 영구화 sign-negating row
++      with correction_group_id link + 4-channel cache invalidation.
++    - `reversal_corrected_snapshot.json` — AD-22 corrected row with
++      corrected_period_key (AD-24 typed 'YYYY-MM') + banker's rounding parity (CR 0-4).
++    - `reopen_committed.json` — W2 reopen flow with operator_action 4-value enum
++      + reason length 20-500 audit-justification (AD-15) + 2-channel cache
++      invalidation (fiscal_period_cache + closing_snapshot_cache).
++  - 4 NEW test cases (snapshot_committed fixture shape + reversal_negating fixture
++    shape + reversal_corrected fixture shape + reopen_committed fixture shape)
++  - `SNAPSHOT_REVERSAL_FIXTURE_IDS` tuple export (`__init__.py`)
++  - `SNAPSHOT_REVERSAL_FIXTURE_COUNT = 4` constant
++  - CR 4-4 lesson 정합 (V8 byte-identical CI gate + tenant-scoped result_hash)
+ 
+ ---
+ 
+
+########### MODIFIED: packages/cost_engine/tests/regression_v8/__init__.py ###########
+diff --git a/packages/cost_engine/tests/regression_v8/__init__.py b/packages/cost_engine/tests/regression_v8/__init__.py
+index ef208dd..c1d9be0 100644
+--- a/packages/cost_engine/tests/regression_v8/__init__.py
++++ b/packages/cost_engine/tests/regression_v8/__init__.py
+@@ -123,9 +123,14 @@ V8_BANKER_ROUNDING: Final[str] = "ROUND_HALF_EVEN"
+ # Story 5.3 added 2 NEW V3 closing invariant 골든 fixtures (PASS + FAIL).
+ # Story 6.2 A11 added 4 NEW 골든 fixtures (V4 closing-period PASS/FAIL +
+ # closing_snapshot + ledger_period_closing) = 12 + 2 + 4 = 18 total.
++# Story 11.4 (Epic 11 carry-over A13 sprint-up) added 4 NEW 골든 fixtures
++# (snapshot_committed + reversal_negating_snapshot + reversal_corrected_snapshot
++# + reopen_committed) — V8 22→26 matrix extension (22 = 18 + 4 new 골든 from
++# 11-2 fiscal_periods close_sequence + 11-3 snapshot persistence 영구화).
++# = 18 + 4 = 22 total 골든 in fixtures directory.
+ # See `tests/regression_v8/test_regression_v8_fixtures.py` for CI gate.
+-# CR 5.3 P18 review patch — V8 + V3 + V4 + A11 = 12 + 2 + 4 = 18.
+-V8_FIXTURE_COUNT: Final[int] = 18
++# CR 5.3 P18 + Story 11.4 A13 — V8 + V3 + V4 + A11 + 11-3 = 12 + 2 + 4 + 4 = 22.
++V8_FIXTURE_COUNT: Final[int] = 22
+ 
+ # V3 closing invariant fixture count (subset of V8_FIXTURE_COUNT).
+ # These are the 2 NEW V3 골든 fixtures shipped in Story 5.3:
+@@ -156,6 +161,22 @@ V4_FIXTURE_IDS: Final[tuple[str, ...]] = (
+     "ledger_period_closing_manufacturing",
+ )
+ 
++# Story 11.3 (Epic 11) — 4 NEW 골든 fixtures for snapshot persistence +
++# reversal 영구화 + reopen flow (subset of V8_FIXTURE_COUNT, AD-20 state
++# machine + AD-22 sign-negating/corrected + W2 owner-only reopen):
++# - snapshot_committed.json (AD-20 verified→committed transition)
++# - reversal_negating_snapshot.json (AD-22 영구화 sign-negating row)
++# - reversal_corrected_snapshot.json (AD-22 corrected row + corrected_period_key)
++# - reopen_committed.json (W2 reopen flow with operator_action enum + reason length)
++# Story 11.4 (A13 sprint-up) — V8 22→26 matrix extension fills these 골든.
++SNAPSHOT_REVERSAL_FIXTURE_COUNT: Final[int] = 4
++SNAPSHOT_REVERSAL_FIXTURE_IDS: Final[tuple[str, ...]] = (
++    "snapshot_committed",
++    "reversal_negating_snapshot",
++    "reversal_corrected_snapshot",
++    "reopen_committed",
++)
++
+ 
+ # ── Helper for Story 4.4 fixture generation ─────────────────
+ def banker_round_krw(value: Decimal) -> int:
+
+########### MODIFIED: tests/regression_v8/test_regression_v8_fixtures.py ###########
+diff --git a/tests/regression_v8/test_regression_v8_fixtures.py b/tests/regression_v8/test_regression_v8_fixtures.py
+index 578e9a1..794a8b7 100644
+--- a/tests/regression_v8/test_regression_v8_fixtures.py
++++ b/tests/regression_v8/test_regression_v8_fixtures.py
+@@ -42,7 +42,11 @@ from apps.api.modules.m3_calculate.services.verification_runner import (
+ from packages.cost_engine.core.money import KRW
+ from packages.cost_engine.core.period_cost import Baseline, compute_period_cost
+ from packages.cost_engine.ports.calc_port import CalcResult, MonthlyInput
+-from packages.cost_engine.tests.regression_v8 import V3_FIXTURE_IDS, V8_FIXTURE_COUNT
++from packages.cost_engine.tests.regression_v8 import (
++    SNAPSHOT_REVERSAL_FIXTURE_IDS,
++    V3_FIXTURE_IDS,
++    V8_FIXTURE_COUNT,
++)
+ from packages.cost_engine.tests.regression_v8.fixture_loader import (
+     compute_golden_lock_sha256,
+     load_golden_by_id,
+@@ -55,11 +59,12 @@ FIXTURES_DIR = REPO_ROOT / "packages" / "cost_engine" / "tests" / "regression_v8
+ 
+ ALL_INDUSTRIES = list(INDUSTRY_VALUES)  # 4 values
+ ALL_SHAPES = ("b-small", "b-standard", "b-complex")  # 3 baseline shapes
+-# CR 5.3 P18 — V8 + V3 + V4 fixture count = 12 (V8 byte-identical) +
+-# 2 (V3 골든) + 4 (V4 + A11 골든 — 6-2 A11 wire) = 18 total.
++# CR 5.3 P18 + Story 11.4 A13 — V8 + V3 + V4 + 11-3 snapshot/reversal/reopen fixture count =
++# 12 (V8 byte-identical) + 2 (V3 골든) + 4 (V4 + A11 골든 — 6-2 A11 wire)
++# + 4 (Story 11.3 snapshot persistence + reversal 영구화 + W2 reopen flow 골든) = 22 total.
+ # Matrix coverage tests filter V8-only fixtures by the `industry__b-shape` pattern.
+ EXPECTED_FIXTURE_COUNT = len(ALL_INDUSTRIES) * len(ALL_SHAPES)  # 12 (V8 only)
+-EXPECTED_TOTAL_COUNT = EXPECTED_FIXTURE_COUNT + 6  # 18 (V8 + V3 + V4/A11 골든)
++EXPECTED_TOTAL_COUNT = EXPECTED_FIXTURE_COUNT + 10  # 22 (V8 + V3 + V4/A11 + 11-3 골든)
+ 
+ 
+ def _v8_fixture_paths() -> list[Path]:
+@@ -74,18 +79,21 @@ _DETERMINISTIC_TENANT_ID = _uuid_mod.UUID("11111111-1111-4111-8111-111111111111"
+ @pytest.mark.engine
+ @pytest.mark.v8_regression
+ def test_v8_fixture_count_is_18() -> None:
+-    """V8_FIXTURE_COUNT = 18 + 18 fixture JSON files on disk (AC #7 + CR 5.3 P18 + Story 6.2 A11).
++    """V8_FIXTURE_COUNT = 22 + 22 fixture JSON files on disk (AC #7 + CR 5.3 P18 + Story 6.2 A11 + Story 11.4 A13).
+ 
+     Story 4.4 (12 V8 byte-identical 골든) + Story 5.3 (2 V3 closing
+     invariant 골든) + Story 6.2 A11 (4 NEW 골든 — 6-1 T10.5 deferred V4
+     closing-period PASS/FAIL fill + A11 closing_snapshot +
+-    ledger_period_closing) = 18 total. The V3 + V4 fixtures use a
+-    different naming convention (no `__` separator) and have a
+-    different payload shape. The V8 matrix coverage tests below filter
+-    V8-only fixtures by the `__` pattern.
++    ledger_period_closing) + Story 11.4 A13 sprint-up (4 NEW 골든 —
++    snapshot_committed + reversal_negating_snapshot +
++    reversal_corrected_snapshot + reopen_committed — AD-20 state machine
++    + AD-22 영구화 + W2 reopen flow) = 22 total. The V3 + V4 +
++    snapshot/reversal/reopen fixtures use a different naming convention
++    (no `__` separator) and have a different payload shape. The V8 matrix
++    coverage tests below filter V8-only fixtures by the `__` pattern.
+     """
+-    assert V8_FIXTURE_COUNT == 18, (
+-        f"V8_FIXTURE_COUNT must be 18 (Story 4.4 12 + Story 5.3 2 V3 + Story 6.2 A11 4 V4/A11). "
++    assert V8_FIXTURE_COUNT == 22, (
++        f"V8_FIXTURE_COUNT must be 22 (Story 4.4 12 + Story 5.3 2 V3 + Story 6.2 A11 4 V4/A11 + Story 11.4 A13 4 11-3). "
+         f"Got {V8_FIXTURE_COUNT}."
+     )
+     actual = sorted(p.name for p in FIXTURES_DIR.glob("*.json"))
+@@ -131,6 +139,140 @@ def test_v3_golden_fixtures_exist() -> None:
+         )
+ 
+ 
++# ── Story 11.4 A13 — 4 NEW snapshot/reversal/reopen 골든 fixtures ─
++@pytest.mark.engine
++@pytest.mark.v8_regression
++def test_snapshot_reversal_reopen_fixtures_exist() -> None:
++    """Story 11.4 A13 sprint-up — 4 NEW 골든 fixtures ship on disk.
++
++    4 NEW V8 골든 for AD-20 state machine + AD-22 reversal 영구화 +
++    W2 reopen flow (Story 11.3 wire base + Story 11.4 A13 fixture matrix
++    fill):
++    - snapshot_committed.json (AD-20 verified→committed transition)
++    - reversal_negating_snapshot.json (AD-22 sign-negating row)
++    - reversal_corrected_snapshot.json (AD-22 corrected row)
++    - reopen_committed.json (W2 reopen with operator_action enum + reason)
++    """
++    for fixture_id in SNAPSHOT_REVERSAL_FIXTURE_IDS:
++        path = FIXTURES_DIR / f"{fixture_id}.json"
++        assert path.exists(), (
++            f"Story 11.4 A13 골든 fixture missing: {path}. "
++            f"Expected 4 fixtures: {SNAPSHOT_REVERSAL_FIXTURE_IDS}."
++        )
++
++
++@pytest.mark.engine
++@pytest.mark.v8_regression
++def test_snapshot_committed_fixture_shape() -> None:
++    """Story 11.4 A13 — snapshot_committed.json has AD-20 transition shape.
++
++    Pins the AD-20 state machine transition shape (verified → committed)
++    + 4-channel cache invalidation publisher wire. Drift detector: if
++    the fixture omits a required field, this test fails.
++    """
++    path = FIXTURES_DIR / "snapshot_committed.json"
++    data = json.loads(path.read_text(encoding="utf-8"))
++    assert data["fixture_id"] == "snapshot_committed"
++    assert data["pre_commit_state"] == "verified"
++    assert data["post_commit_state"] == "committed"
++    assert data["expected_commit_transition_ok"] is True
++    # AD-25 4-channel publisher wire (ai_cache + cost_engine_cache +
++    # fiscal_period_cache + closing_snapshot_cache).
++    assert set(data["expected_cache_invalidation_channels"]) == {
++        "ai_cache",
++        "cost_engine_cache",
++        "fiscal_period_cache",
++        "closing_snapshot_cache",
++    }
++    assert data["audit_action"] == "snapshot_persistence_committed"
++
++
++@pytest.mark.engine
++@pytest.mark.v8_regression
++def test_reversal_negating_snapshot_fixture_shape() -> None:
++    """Story 11.4 A13 — reversal_negating_snapshot.json has AD-22 sign-negating shape.
++
++    Pins the AD-22 reversal 영구화 sign-negating row construction with
++    correction_group_id link. Banker's rounding parity invariant pinned.
++    """
++    path = FIXTURES_DIR / "reversal_negating_snapshot.json"
++    data = json.loads(path.read_text(encoding="utf-8"))
++    assert data["fixture_id"] == "reversal_negating_snapshot"
++    assert data["pre_reversal_state"] == "committed"
++    assert data["post_reversal_state"] == "reversed"
++    assert data["expected_reversal_authorized"] is True
++    # Sign-negating row contract.
++    assert data["negating_row"]["event_type"] == "reversal_negating"
++    assert data["negating_row"]["qty"] == "-10.0000"
++    assert data["negating_row"]["reverses_event_id"] == data["target_event_id"]
++    # correction_group_id link between negating + corrected rows.
++    assert data["expected_correction_group_link"] == data["negating_row"]["correction_group_id"]
++    # Financial effect = 0 (reversal 영구화 invariant).
++    assert data["expected_financial_effect"] == "0.0000"
++    # Audit + cache invalidation.
++    assert data["audit_action"] == "snapshot_persistence_reversed"
++
++
++@pytest.mark.engine
++@pytest.mark.v8_regression
++def test_reversal_corrected_snapshot_fixture_shape() -> None:
++    """Story 11.4 A13 — reversal_corrected_snapshot.json has AD-22 corrected row shape.
++
++    Pins the AD-22 corrected row construction with corrected_period_key
++    (AD-24 typed 'YYYY-MM') + banker's rounding parity (CR 0-4).
++    """
++    path = FIXTURES_DIR / "reversal_corrected_snapshot.json"
++    data = json.loads(path.read_text(encoding="utf-8"))
++    assert data["fixture_id"] == "reversal_corrected_snapshot"
++    assert data["expected_reversal_authorized"] is True
++    # Corrected row contract.
++    assert data["corrected_row"]["event_type"] == "reversal_corrected"
++    assert data["corrected_row"]["qty"] == "8.5000"
++    assert data["corrected_row"]["period_key"] == "2026-09"
++    # corrected_period_key AD-24 typed format.
++    assert data["expected_corrected_period_key"] == "2026-09"
++    # Banker's rounding parity (CR 0-4 wire).
++    assert data["expected_bankers_rounding_parity"] is True
++    # correction_group_id link (negating + corrected share same group).
++    assert data["expected_correction_group_link"] == data["corrected_row"]["correction_group_id"]
++
++
++@pytest.mark.engine
++@pytest.mark.v8_regression
++def test_reopen_committed_fixture_shape() -> None:
++    """Story 11.4 A13 — reopen_committed.json has W2 reopen flow shape.
++
++    Pins W2 reopen operator action enum (4-value) + reason length 20-500
++    (AD-15 audit-justification) + AD-10 owner-only role gate +
++    2-channel cache invalidation (fiscal_period_cache + closing_snapshot_cache).
++    """
++    path = FIXTURES_DIR / "reopen_committed.json"
++    data = json.loads(path.read_text(encoding="utf-8"))
++    assert data["fixture_id"] == "reopen_committed"
++    assert data["pre_reopen_status"] == "closed"
++    assert data["pre_reopen_close_sequence_state"] == "confirmed"
++    # W2 reopen operator_action 4-value enum.
++    assert data["operator_action"] in {
++        "operator_reopen",
++        "audit_finding",
++        "legal_compliance",
++        "data_correction",
++    }
++    # AD-15 reason length 20-500 audit-justification.
++    assert data["reason_length"] >= data["reason_min_length_required"]
++    assert data["reason_length"] <= data["reason_max_length_allowed"]
++    # AD-10 owner-only + capability granted.
++    assert data["is_owner"] is True
++    assert data["capability_granted"] is True
++    assert data["expected_reopen_authorized"] is True
++    # 2-channel cache invalidation (W2 reopen — fiscal_period + closing_snapshot only).
++    assert set(data["expected_cache_invalidation_channels"]) == {
++        "fiscal_period_cache",
++        "closing_snapshot_cache",
++    }
++    assert data["expected_audit_action"] == "reopen_completed"
++
++
+ # ── Lock sha256 invariant (AC #7) ────────────────────────────
+ @pytest.mark.engine
+ @pytest.mark.v8_regression
+
+########### UNTRACKED (NEW): apps/web/__tests__/lib/m11-close-sequence-parity.test.ts ###########
+warning: in the working copy of 'apps/web/__tests__/lib/m11-close-sequence-parity.test.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/__tests__/lib/m11-close-sequence-parity.test.ts b/apps/web/__tests__/lib/m11-close-sequence-parity.test.ts
+new file mode 100644
+index 0000000..0fbc7a5
+--- /dev/null
++++ b/apps/web/__tests__/lib/m11-close-sequence-parity.test.ts
+@@ -0,0 +1,128 @@
++// apps/web/lib/m11-close-sequence-parity.ts — Story 11.4 (A13 sprint-up) vitest parity.
++//
++// Cross-language parity test (Python pure kernel ↔ TS mirror).
++// Drift caught between:
++// - `packages/services/m11_close/close_sequence_order.py` (Python)
++// - `packages/services/m11_close/close_sequence_state.py` (Python)
++// - `apps/web/lib/m11-close-sequence.ts` (TS mirror)
++//
++// SSOT (single source of truth): the Python pure kernels. The TS mirror
++// must match the Python verdict for the same input — drift here means
++// the panel would render a different close sequence state than the
++// backend computes.
++//
++// Run via: `pnpm exec vitest run m11-close-sequence-parity`
++
++import { describe, expect, it } from "vitest";
++
++import {
++  ALL_STAGES_REQUIRED_KO,
++  CLOSE_SEQUENCE_STAGES,
++  CHRONOLOGICAL_VIOLATION_KO,
++  checkAd6InsertAllowed,
++  computeCloseSequenceState,
++  formatCloseSequenceStateKo,
++  validateCloseSequenceOrder,
++} from "../../lib/m11-close-sequence";
++
++// ── 5 parity cases mirroring Python pure kernel verdicts ────────
++
++describe("m11-close-sequence parity — validateCloseSequenceOrder", () => {
++  it("parity 1: all 4 stages complete → valid + next_step=confirmed", () => {
++    const ts = "2026-08-01T00:00:00Z";
++    const result = validateCloseSequenceOrder({
++      divisions_completed_at: ts,
++      manufacturing_completed_at: "2026-08-02T00:00:00Z",
++      abc_completed_at: "2026-08-03T00:00:00Z",
++      common_completed_at: "2026-08-04T00:00:00Z",
++    });
++    expect(result.valid).toBe(true);
++    expect(result.violations).toEqual([]);
++    expect(result.next_step).toBe("confirmed");
++    expect(result.reject_reason_ko).toBeNull();
++  });
++
++  it("parity 2: divisions missing → invalid + reject_reason_ko=ALL_STAGES_REQUIRED_KO", () => {
++    const result = validateCloseSequenceOrder({
++      divisions_completed_at: null,
++      manufacturing_completed_at: "2026-08-02T00:00:00Z",
++      abc_completed_at: null,
++      common_completed_at: null,
++    });
++    expect(result.valid).toBe(false);
++    expect(result.next_step).toBe("divisions");
++    expect(result.reject_reason_ko).toBe(ALL_STAGES_REQUIRED_KO);
++  });
++
++  it("parity 3: chronological violation (manufacturing before divisions) → invalid", () => {
++    const result = validateCloseSequenceOrder({
++      divisions_completed_at: "2026-08-05T00:00:00Z", // later
++      manufacturing_completed_at: "2026-08-01T00:00:00Z", // earlier
++      abc_completed_at: null,
++      common_completed_at: null,
++    });
++    expect(result.valid).toBe(false);
++    expect(result.violations).toContain(CHRONOLOGICAL_VIOLATION_KO);
++  });
++
++  it("parity 4: compute_close_sequence_state — 0 steps → 'divisions'", () => {
++    const state = computeCloseSequenceState({
++      divisions_completed_at: null,
++      manufacturing_completed_at: null,
++      abc_completed_at: null,
++      common_completed_at: null,
++      closed_at: null,
++    });
++    expect(state).toBe("divisions");
++  });
++
++  it("parity 5: check_ad6_insert_allowed — confirmed + reversal_negating → ALLOWED", () => {
++    const result = checkAd6InsertAllowed({
++      close_sequence_state: "confirmed",
++      target_table: "inventory_ledger",
++      target_event_type: "reversal_negating",
++    });
++    expect(result.allowed).toBe(true);
++    expect(result.guard_type).toBe("REVERSAL_EXCEPTION");
++  });
++});
++
++describe("m11-close-sequence parity — CLOSE_SEQUENCE_STAGES + formatCloseSequenceStateKo", () => {
++  it("stage ordering parity: 5 stages divisions→manufacturing→abc→common→confirmed", () => {
++    expect(CLOSE_SEQUENCE_STAGES).toEqual([
++      "divisions",
++      "manufacturing",
++      "abc",
++      "common",
++      "confirmed",
++    ]);
++  });
++
++  it("formatCloseSequenceStateKo returns Korean SSOT for each stage", () => {
++    expect(formatCloseSequenceStateKo("divisions")).toBe("divisions 단계 미완료");
++    expect(formatCloseSequenceStateKo("confirmed")).toBe("마감 확정");
++  });
++});
++
++describe("m11-close-sequence parity — AD-6 INSERT guard", () => {
++  it("non-confirmed state → ALLOWED", () => {
++    const result = checkAd6InsertAllowed({
++      close_sequence_state: "manufacturing",
++      target_table: "monthly_input_rows",
++      target_event_type: "production_material_consumption",
++    });
++    expect(result.allowed).toBe(true);
++    expect(result.guard_type).toBe("ALLOWED");
++  });
++
++  it("confirmed + business-data table → CLOSED_LOCK + reject", () => {
++    const result = checkAd6InsertAllowed({
++      close_sequence_state: "confirmed",
++      target_table: "monthly_input_rows",
++      target_event_type: "production_material_consumption",
++    });
++    expect(result.allowed).toBe(false);
++    expect(result.guard_type).toBe("CLOSED_LOCK");
++    expect(result.reject_reason_ko).toContain("AD-6");
++  });
++});
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/__tests__/lib/m11-reopen-parity.test.ts ###########
+warning: in the working copy of 'apps/web/__tests__/lib/m11-reopen-parity.test.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/__tests__/lib/m11-reopen-parity.test.ts b/apps/web/__tests__/lib/m11-reopen-parity.test.ts
+new file mode 100644
+index 0000000..ce3d2bc
+--- /dev/null
++++ b/apps/web/__tests__/lib/m11-reopen-parity.test.ts
+@@ -0,0 +1,148 @@
++// apps/web/lib/m11-reopen-parity.ts — Story 11.4 (A13 sprint-up) vitest parity.
++//
++// Cross-language parity test (Python pure kernel ↔ TS mirror) for W2
++// reopen authorization (operator_action 4-value enum + reason length 20-500).
++//
++// Drift caught between:
++// - `packages/services/m11_close/reopen_authorization.py` (Python)
++// - `apps/web/lib/m11-reopen.ts` (TS mirror)
++//
++// Run via: `pnpm exec vitest run m11-reopen-parity`
++
++import { describe, expect, it } from "vitest";
++
++import {
++  REOPEN_AUTHORIZE_OK_KO,
++  REOPEN_REJECT_INVALID_OPERATOR_KO,
++  REOPEN_REJECT_NO_CAPABILITY_KO,
++  REOPEN_REJECT_NOT_OWNER_KO,
++  REOPEN_REJECT_REASON_TOO_LONG_KO,
++  REOPEN_REJECT_REASON_TOO_SHORT_KO,
++  REOPEN_REASON_MAX_LENGTH,
++  REOPEN_REASON_MIN_LENGTH,
++  buildReopenAuthorizationState,
++  formatReopenResultKo,
++  isReopenAllowed,
++  isReasonLengthValid,
++} from "../../lib/m11-reopen";
++
++const TENANT_ID = "22222222-2222-4222-8222-222222222222";
++const ACTOR_ID = "33333333-3333-4333-8333-333333333333";
++const VALID_REASON =
++  "재오픈 사유 — 20자 이상의 정당화 사유 작성 필요 (audit-justification minimum)";
++
++describe("m11-reopen parity — buildReopenAuthorizationState", () => {
++  it("parity 1: owner + capability + valid operator + valid reason → authorized", () => {
++    const state = buildReopenAuthorizationState({
++      tenant_id: TENANT_ID,
++      actor_id: ACTOR_ID,
++      operator_action: "audit_finding",
++      reason: VALID_REASON,
++      capability_granted: true,
++      is_owner: true,
++    });
++    expect(state.authorized).toBe(true);
++    expect(state.reject_reason_ko).toBeNull();
++    expect(formatReopenResultKo(state)).toBe(REOPEN_AUTHORIZE_OK_KO);
++    expect(isReopenAllowed(state)).toBe(true);
++  });
++
++  it("parity 2: is_owner=false → REOPEN_REJECT_NOT_OWNER_KO", () => {
++    const state = buildReopenAuthorizationState({
++      tenant_id: TENANT_ID,
++      actor_id: ACTOR_ID,
++      operator_action: "operator_reopen",
++      reason: VALID_REASON,
++      capability_granted: true,
++      is_owner: false,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe(REOPEN_REJECT_NOT_OWNER_KO);
++  });
++
++  it("parity 3: capability_granted=false → REOPEN_REJECT_NO_CAPABILITY_KO", () => {
++    const state = buildReopenAuthorizationState({
++      tenant_id: TENANT_ID,
++      actor_id: ACTOR_ID,
++      operator_action: "operator_reopen",
++      reason: VALID_REASON,
++      capability_granted: false,
++      is_owner: true,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe(REOPEN_REJECT_NO_CAPABILITY_KO);
++  });
++
++  it("parity 4: invalid operator_action → REOPEN_REJECT_INVALID_OPERATOR_KO", () => {
++    const state = buildReopenAuthorizationState({
++      tenant_id: TENANT_ID,
++      actor_id: ACTOR_ID,
++      operator_action: "INVALID_OPERATOR",
++      reason: VALID_REASON,
++      capability_granted: true,
++      is_owner: true,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe(REOPEN_REJECT_INVALID_OPERATOR_KO);
++  });
++
++  it("parity 5: reason too short (< 20 chars) → REOPEN_REJECT_REASON_TOO_SHORT_KO", () => {
++    const state = buildReopenAuthorizationState({
++      tenant_id: TENANT_ID,
++      actor_id: ACTOR_ID,
++      operator_action: "operator_reopen",
++      reason: "too short",
++      capability_granted: true,
++      is_owner: true,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe(REOPEN_REJECT_REASON_TOO_SHORT_KO);
++  });
++
++  it("parity 6: reason too long (> 500 chars) → REOPEN_REJECT_REASON_TOO_LONG_KO", () => {
++    const state = buildReopenAuthorizationState({
++      tenant_id: TENANT_ID,
++      actor_id: ACTOR_ID,
++      operator_action: "operator_reopen",
++      reason: "x".repeat(REOPEN_REASON_MAX_LENGTH + 1),
++      capability_granted: true,
++      is_owner: true,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe(REOPEN_REJECT_REASON_TOO_LONG_KO);
++  });
++});
++
++describe("m11-reopen parity — isReasonLengthValid + operator_action whitelist", () => {
++  it("parity 7: REOPEN_REASON_MIN_LENGTH=20 + REOPEN_REASON_MAX_LENGTH=500", () => {
++    expect(REOPEN_REASON_MIN_LENGTH).toBe(20);
++    expect(REOPEN_REASON_MAX_LENGTH).toBe(500);
++  });
++
++  it("parity 8: reason within bounds → isReasonLengthValid=true", () => {
++    expect(isReasonLengthValid(VALID_REASON)).toBe(true);
++  });
++
++  it("parity 9: reason below min → isReasonLengthValid=false", () => {
++    expect(isReasonLengthValid("short")).toBe(false);
++  });
++
++  it("parity 10: 4-value operator_action enum accepted", () => {
++    for (const action of [
++      "operator_reopen",
++      "audit_finding",
++      "legal_compliance",
++      "data_correction",
++    ]) {
++      const state = buildReopenAuthorizationState({
++        tenant_id: TENANT_ID,
++        actor_id: ACTOR_ID,
++        operator_action: action,
++        reason: VALID_REASON,
++        capability_granted: true,
++        is_owner: true,
++      });
++      expect(state.authorized).toBe(true);
++    }
++  });
++});
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/__tests__/lib/m11-reversal-execute-parity.test.ts ###########
+warning: in the working copy of 'apps/web/__tests__/lib/m11-reversal-execute-parity.test.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/__tests__/lib/m11-reversal-execute-parity.test.ts b/apps/web/__tests__/lib/m11-reversal-execute-parity.test.ts
+new file mode 100644
+index 0000000..ea204a9
+--- /dev/null
++++ b/apps/web/__tests__/lib/m11-reversal-execute-parity.test.ts
+@@ -0,0 +1,159 @@
++// apps/web/lib/m11-reversal-execute-parity.ts — Story 11.4 (A13 sprint-up) vitest parity.
++//
++// Cross-language parity test (Python pure kernel ↔ TS mirror) for AD-22
++// reversal execute 영구화 (committed → reversed).
++//
++// Drift caught between:
++// - `packages/services/m11_close/reversal_execute_snapshot.py` (Python)
++// - `apps/web/lib/m11-reversal-execute.ts` (TS mirror)
++//
++// Run via: `pnpm exec vitest run m11-reversal-execute-parity`
++
++import { describe, expect, it } from "vitest";
++
++import {
++  REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO,
++  REVERSAL_EXECUTE_OK_KO,
++  buildCorrectedRowSpec,
++  buildNegatingRowSpec,
++  buildReversalExecuteState,
++  formatReversalExecuteResultKo,
++  isReversalExecuteAllowed,
++} from "../../lib/m11-reversal-execute";
++
++const TENANT_ID = "22222222-2222-4222-8222-222222222222";
++const TARGET_EVENT_ID = "44444444-4444-4444-8444-444444444444";
++const SNAPSHOT_ID = "11111111-1111-4111-8111-111111111111";
++const CORRECTION_GROUP_ID = "55555555-5555-4555-8555-555555555555";
++const PRODUCT_ID = "66666666-6666-4666-8666-666666666666";
++const ACTOR_ID = "33333333-3333-4333-8333-333333333333";
++const TRACE_ID = "trace-test-1";
++
++describe("m11-reversal-execute parity — buildReversalExecuteState", () => {
++  it("parity 1: state='committed' + target_qty='10.0' → authorized + OK_KO", () => {
++    const state = buildReversalExecuteState({
++      tenant_id: TENANT_ID,
++      target_event_id: TARGET_EVENT_ID,
++      snapshot_id: SNAPSHOT_ID,
++      snapshot_state: "committed",
++      target_qty: "10.0",
++      corrected_qty: null,
++      correction_group_id: CORRECTION_GROUP_ID,
++      actor_id: ACTOR_ID,
++    });
++    expect(state.authorized).toBe(true);
++    expect(state.negating_qty).toBe("10.0");
++    expect(state.reject_reason_ko).toBeNull();
++    expect(formatReversalExecuteResultKo(state)).toBe(REVERSAL_EXECUTE_OK_KO);
++    expect(isReversalExecuteAllowed(state)).toBe(true);
++  });
++
++  it("parity 2: state='verified' → not authorized + INVALID_SNAPSHOT_KO", () => {
++    const state = buildReversalExecuteState({
++      tenant_id: TENANT_ID,
++      target_event_id: TARGET_EVENT_ID,
++      snapshot_id: SNAPSHOT_ID,
++      snapshot_state: "verified",
++      target_qty: "10.0",
++      corrected_qty: null,
++      correction_group_id: CORRECTION_GROUP_ID,
++      actor_id: ACTOR_ID,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe(REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO);
++  });
++
++  it("parity 3: state='reversed' → not authorized + INVALID_SNAPSHOT_KO", () => {
++    const state = buildReversalExecuteState({
++      tenant_id: TENANT_ID,
++      target_event_id: TARGET_EVENT_ID,
++      snapshot_id: SNAPSHOT_ID,
++      snapshot_state: "reversed",
++      target_qty: "10.0",
++      corrected_qty: null,
++      correction_group_id: CORRECTION_GROUP_ID,
++      actor_id: ACTOR_ID,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe(REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO);
++  });
++
++  it("parity 4: corrected_qty='8.5' → preserved in result", () => {
++    const state = buildReversalExecuteState({
++      tenant_id: TENANT_ID,
++      target_event_id: TARGET_EVENT_ID,
++      snapshot_id: SNAPSHOT_ID,
++      snapshot_state: "committed",
++      target_qty: "10.0",
++      corrected_qty: "8.5",
++      correction_group_id: CORRECTION_GROUP_ID,
++      actor_id: ACTOR_ID,
++    });
++    expect(state.authorized).toBe(true);
++    expect(state.corrected_qty).toBe("8.5");
++  });
++
++  it("parity 5: negative target_qty → INVALID_REVERSAL_INPUT error", () => {
++    const state = buildReversalExecuteState({
++      tenant_id: TENANT_ID,
++      target_event_id: TARGET_EVENT_ID,
++      snapshot_id: SNAPSHOT_ID,
++      snapshot_state: "committed",
++      target_qty: "-1.0",
++      corrected_qty: null,
++      correction_group_id: CORRECTION_GROUP_ID,
++      actor_id: ACTOR_ID,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe("INVALID_REVERSAL_INPUT");
++  });
++});
++
++describe("m11-reversal-execute parity — buildNegatingRowSpec", () => {
++  it("parity 6: target_qty='10.0' → NegatingRowSpec with event_type='reversal_negating'", () => {
++    const spec = buildNegatingRowSpec({
++      tenant_id: TENANT_ID,
++      product_id: PRODUCT_ID,
++      period_key: "2026-08",
++      target_qty: "10.0",
++      target_event_id: TARGET_EVENT_ID,
++      correction_group_id: CORRECTION_GROUP_ID,
++      actor_id: ACTOR_ID,
++      trace_id: TRACE_ID,
++    });
++    expect(spec.event_type).toBe("reversal_negating");
++    expect(spec.negating_qty).toBe("10.0");
++    expect(spec.reverses_event_id).toBe(TARGET_EVENT_ID);
++  });
++
++  it("parity 7: negative target_qty → throws INVALID_REVERSAL_INPUT", () => {
++    expect(() =>
++      buildNegatingRowSpec({
++        tenant_id: TENANT_ID,
++        product_id: PRODUCT_ID,
++        period_key: "2026-08",
++        target_qty: "-1.0",
++        target_event_id: TARGET_EVENT_ID,
++        correction_group_id: CORRECTION_GROUP_ID,
++        actor_id: ACTOR_ID,
++        trace_id: TRACE_ID,
++      }),
++    ).toThrow("INVALID_REVERSAL_INPUT");
++  });
++});
++
++describe("m11-reversal-execute parity — buildCorrectedRowSpec", () => {
++  it("parity 8: corrected_qty='8.5' → CorrectedRowSpec with event_type='reversal_corrected'", () => {
++    const spec = buildCorrectedRowSpec({
++      tenant_id: TENANT_ID,
++      product_id: PRODUCT_ID,
++      period_key: "2026-08",
++      corrected_qty: "8.5",
++      correction_group_id: CORRECTION_GROUP_ID,
++      actor_id: ACTOR_ID,
++      trace_id: TRACE_ID,
++    });
++    expect(spec.event_type).toBe("reversal_corrected");
++    expect(spec.corrected_qty).toBe("8.5");
++  });
++});
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/__tests__/lib/m11-snapshot-persistence-parity.test.ts ###########
+warning: in the working copy of 'apps/web/__tests__/lib/m11-snapshot-persistence-parity.test.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/__tests__/lib/m11-snapshot-persistence-parity.test.ts b/apps/web/__tests__/lib/m11-snapshot-persistence-parity.test.ts
+new file mode 100644
+index 0000000..20398a2
+--- /dev/null
++++ b/apps/web/__tests__/lib/m11-snapshot-persistence-parity.test.ts
+@@ -0,0 +1,97 @@
++// apps/web/lib/m11-snapshot-persistence-parity.ts — Story 11.4 (A13 sprint-up) vitest parity.
++//
++// Cross-language parity test (Python pure kernel ↔ TS mirror) for snapshot
++// persistence (AD-20 verified → committed transition).
++//
++// Drift caught between:
++// - `packages/services/m11_close/commit_snapshot_persistence.py` (Python)
++// - `apps/web/lib/m11-snapshot-persistence.ts` (TS mirror)
++//
++// Run via: `pnpm exec vitest run m11-snapshot-persistence-parity`
++
++import { describe, expect, it } from "vitest";
++
++import {
++  SNAPSHOT_COMMIT_DRAFT_REJECT_KO,
++  SNAPSHOT_COMMIT_IDEMPOTENT_KO,
++  SNAPSHOT_COMMIT_OK_KO,
++  SNAPSHOT_COMMIT_REVERSED_REJECT_KO,
++  buildSnapshotPersistenceState,
++  formatCommitResultKo,
++  isCommitAllowed,
++} from "../../lib/m11-snapshot-persistence";
++
++const SNAPSHOT_ID = "11111111-1111-4111-8111-111111111111";
++const TENANT_ID = "22222222-2222-4222-8222-222222222222";
++const ACTOR_ID = "33333333-3333-4333-8333-333333333333";
++const PERIOD_KEY = "2026-08";
++
++describe("m11-snapshot-persistence parity — buildSnapshotPersistenceState", () => {
++  it("parity 1: state='verified' → authorized + idempotent_ok=false + ok KO", () => {
++    const state = buildSnapshotPersistenceState({
++      snapshot_id: SNAPSHOT_ID,
++      period_key: PERIOD_KEY,
++      current_state: "verified",
++      actor_id: ACTOR_ID,
++      tenant_id: TENANT_ID,
++    });
++    expect(state.authorized).toBe(true);
++    expect(state.idempotent_ok).toBe(false);
++    expect(state.terminal_rejected).toBe(false);
++    expect(state.reject_reason_ko).toBeNull();
++    expect(formatCommitResultKo(state)).toBe(SNAPSHOT_COMMIT_OK_KO);
++    expect(isCommitAllowed(state)).toBe(true);
++  });
++
++  it("parity 2: state='committed' → authorized + idempotent_ok=true + IDEMPOTENT_KO", () => {
++    const state = buildSnapshotPersistenceState({
++      snapshot_id: SNAPSHOT_ID,
++      period_key: PERIOD_KEY,
++      current_state: "committed",
++      actor_id: ACTOR_ID,
++      tenant_id: TENANT_ID,
++    });
++    expect(state.authorized).toBe(true);
++    expect(state.idempotent_ok).toBe(true);
++    expect(state.terminal_rejected).toBe(false);
++    expect(formatCommitResultKo(state)).toBe(SNAPSHOT_COMMIT_IDEMPOTENT_KO);
++  });
++
++  it("parity 3: state='reversed' → terminal_rejected + REVERSED_REJECT_KO", () => {
++    const state = buildSnapshotPersistenceState({
++      snapshot_id: SNAPSHOT_ID,
++      period_key: PERIOD_KEY,
++      current_state: "reversed",
++      actor_id: ACTOR_ID,
++      tenant_id: TENANT_ID,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.terminal_rejected).toBe(true);
++    expect(state.reject_reason_ko).toBe(SNAPSHOT_COMMIT_REVERSED_REJECT_KO);
++  });
++
++  it("parity 4: state='draft' → not authorized + DRAFT_REJECT_KO", () => {
++    const state = buildSnapshotPersistenceState({
++      snapshot_id: SNAPSHOT_ID,
++      period_key: PERIOD_KEY,
++      current_state: "draft",
++      actor_id: ACTOR_ID,
++      tenant_id: TENANT_ID,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.terminal_rejected).toBe(false);
++    expect(state.reject_reason_ko).toBe(SNAPSHOT_COMMIT_DRAFT_REJECT_KO);
++  });
++
++  it("parity 5: empty snapshot_id → INVALID_COMMIT_INPUT error_code", () => {
++    const state = buildSnapshotPersistenceState({
++      snapshot_id: "",
++      period_key: PERIOD_KEY,
++      current_state: "verified",
++      actor_id: ACTOR_ID,
++      tenant_id: TENANT_ID,
++    });
++    expect(state.authorized).toBe(false);
++    expect(state.reject_reason_ko).toBe("INVALID_COMMIT_INPUT");
++  });
++});
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/components/m11-close/CacheInvalidationChannelBadge.tsx ###########
+warning: in the working copy of 'apps/web/components/m11-close/CacheInvalidationChannelBadge.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m11-close/CacheInvalidationChannelBadge.tsx b/apps/web/components/m11-close/CacheInvalidationChannelBadge.tsx
+new file mode 100644
+index 0000000..2ebc54d
+--- /dev/null
++++ b/apps/web/components/m11-close/CacheInvalidationChannelBadge.tsx
+@@ -0,0 +1,107 @@
++/**
++ * apps/web/components/m11-close/CacheInvalidationChannelBadge.tsx — Story 11.4 (A13 sprint-up)
++ *
++ * M11 AD-25 cache invalidation 4-channel publisher badge.
++ *
++ * Renders 4 channel chips (ai_cache / cost_engine_cache /
++ * fiscal_period_cache / closing_snapshot_cache) with optional
++ * "active subset" highlight for W2 reopen (2 channels subset of 4).
++ *
++ * Korean SSOT: `lib/ko-KR.json::m11_close.cache_invalidation_channel_*`.
++ * AD-15 §11 parity invariant preserved between Python ko-KR + TS messages mirror.
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++
++import {
++  CACHE_INVALIDATION_CHANNELS,
++  REOPEN_CACHE_INVALIDATION_CHANNELS,
++  type CacheInvalidationChannel,
++} from "@/lib/closing-period";
++
++export interface CacheInvalidationChannelBadgeProps {
++  /** Subset of channels to highlight (e.g. W2 reopen uses 2 channels). */
++  active_subset?: readonly CacheInvalidationChannel[];
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * CacheInvalidationChannelBadge — AD-25 4-channel publisher UI.
++ *
++ * Renders all 4 channels as chips with optional highlight for the
++ * active subset. Used in reversal execute + reopen confirmation
++ * receipts to surface which caches were invalidated.
++ */
++export function CacheInvalidationChannelBadge({
++  active_subset,
++  className,
++}: CacheInvalidationChannelBadgeProps): React.ReactElement {
++  const t = useTranslations("cache_invalidation_channel_badge");
++  const subset = active_subset ?? CACHE_INVALIDATION_CHANNELS;
++
++  return (
++    <section
++      className={
++        "rounded-md border border-slate-200 bg-white p-3 shadow-sm " +
++        (className ?? "")
++      }
++      data-testid="cache-invalidation-channel-badge"
++      data-active-subset={subset.join(",")}
++    >
++      <h3 className="mb-2 text-sm font-semibold text-slate-900">
++        {t("badge_label")}{" "}
++        <span className="font-mono text-xs text-slate-500">
++          ({t("channel_4_set")})
++        </span>
++      </h3>
++      <div className="flex flex-wrap gap-2">
++        {CACHE_INVALIDATION_CHANNELS.map((channel) => {
++          const isActive = subset.includes(channel);
++          return (
++            <span
++              key={channel}
++              data-testid={`cache-channel-${channel}`}
++              data-active={isActive}
++              className={
++                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-mono " +
++                (isActive
++                  ? "border-blue-500 bg-blue-50 text-blue-700"
++                  : "border-slate-200 bg-slate-50 text-slate-500")
++              }
++            >
++              {labelForChannel(channel, t)}
++            </span>
++          );
++        })}
++      </div>
++    </section>
++  );
++}
++
++function labelForChannel(
++  channel: CacheInvalidationChannel,
++  t: (key: string) => string,
++): string {
++  switch (channel) {
++    case "ai_cache":
++      return t("channel_ai_cache");
++    case "cost_engine_cache":
++      return t("channel_cost_engine_cache");
++    case "fiscal_period_cache":
++      return t("channel_fiscal_period_cache");
++    case "closing_snapshot_cache":
++      return t("channel_closing_snapshot_cache");
++    default: {
++      // Exhaustiveness check.
++      const _exhaustive: never = channel;
++      return _exhaustive;
++    }
++  }
++}
++
++/** Re-export for callers. */
++export { REOPEN_CACHE_INVALIDATION_CHANNELS };
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/components/m11-close/CloseSequenceConfirmButton.tsx ###########
+warning: in the working copy of 'apps/web/components/m11-close/CloseSequenceConfirmButton.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m11-close/CloseSequenceConfirmButton.tsx b/apps/web/components/m11-close/CloseSequenceConfirmButton.tsx
+new file mode 100644
+index 0000000..29b15bf
+--- /dev/null
++++ b/apps/web/components/m11-close/CloseSequenceConfirmButton.tsx
+@@ -0,0 +1,60 @@
++/**
++ * apps/web/components/m11-close/CloseSequenceConfirmButton.tsx — Story 11.4 (A13 sprint-up)
++ *
++ * M11 close sequence [마감 확정] button (11-2 carry-over).
++ *
++ * Final [마감 확정] button — fires `onConfirm` when clicked.
++ * Disabled until all 4 stages have valid chronological timestamps.
++ * Triggers AD-6 INSERT refusal activation on success.
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++
++export interface CloseSequenceConfirmButtonProps {
++  /** Disabled state — true when 4 stages not all complete OR not in chronological order. */
++  disabled: boolean;
++  /** Click handler. */
++  onClick?: () => Promise<void>;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * CloseSequenceConfirmButton — final close sequence confirm.
++ */
++export function CloseSequenceConfirmButton({
++  disabled,
++  onClick,
++  className,
++}: CloseSequenceConfirmButtonProps): React.ReactElement {
++  const t = useTranslations("close_sequence_panel");
++  const [submitting, setSubmitting] = React.useState(false);
++
++  const handleClick = async () => {
++    if (submitting || disabled || !onClick) return;
++    setSubmitting(true);
++    try {
++      await onClick();
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  return (
++    <button
++      type="button"
++      onClick={handleClick}
++      disabled={submitting || disabled}
++      data-testid="close-sequence-confirm-button"
++      className={
++        "rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50 " +
++        (className ?? "")
++      }
++    >
++      {t("confirm_button")}
++    </button>
++  );
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/components/m11-close/CloseSequencePanel.tsx ###########
+warning: in the working copy of 'apps/web/components/m11-close/CloseSequencePanel.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m11-close/CloseSequencePanel.tsx b/apps/web/components/m11-close/CloseSequencePanel.tsx
+new file mode 100644
+index 0000000..56013b1
+--- /dev/null
++++ b/apps/web/components/m11-close/CloseSequencePanel.tsx
+@@ -0,0 +1,151 @@
++/**
++ * apps/web/components/m11-close/CloseSequencePanel.tsx — Story 11.4 (A13 sprint-up)
++ *
++ * M11 4단계 마감 시퀀스 패널 (11-2 carry-over from sprint-up).
++ *
++ * Renders 4-step close sequence (divisions → manufacturing → abc →
++ * common → confirmed) with per-step completion timestamps and a
++ * [마감 확정] button. AD-6 close lock PRIMARY guard (PRD §F11.1).
++ *
++ * Korean SSOT: `lib/ko-KR.json::m11_close.close_sequence_*`.
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++
++import {
++  CLOSE_SEQUENCE_STAGES,
++  STEP_TIMESTAMP_ATTRS,
++  computeCloseSequenceState,
++  formatCloseSequenceStateKo,
++  validateCloseSequenceOrder,
++  type CloseSequenceStage,
++} from "@/lib/m11-close-sequence";
++import { CloseSequenceConfirmButton } from "./CloseSequenceConfirmButton";
++import { CloseSequenceStepCompleteButton } from "./CloseSequenceStepCompleteButton";
++
++export interface CloseSequencePanelProps {
++  /** 4-stage completion timestamps (ISO-8601 UTC strings or null). */
++  divisions_completed_at: string | null;
++  manufacturing_completed_at: string | null;
++  abc_completed_at: string | null;
++  common_completed_at: string | null;
++  /** Per-step click handler — receives the stage name. */
++  onStepComplete?: (stage: "divisions" | "manufacturing" | "abc" | "common") => Promise<void>;
++  /** Confirm click handler — fires when [마감 확정] is clicked. */
++  onConfirm?: () => Promise<void>;
++  /** Capability gate (CLOSE_SEQUENCE_CONFIRM). */
++  capability_granted: boolean;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * CloseSequencePanel — 4-stage close sequence panel + step + confirm UI.
++ *
++ * Renders AD-6 close lock progress + 4 step-complete buttons + 1
++ * confirm button. Toast feedback handled by individual button components.
++ */
++export function CloseSequencePanel({
++  divisions_completed_at,
++  manufacturing_completed_at,
++  abc_completed_at,
++  common_completed_at,
++  onStepComplete,
++  onConfirm,
++  capability_granted,
++  className,
++}: CloseSequencePanelProps): React.ReactElement | null {
++  const t = useTranslations("close_sequence_panel");
++
++  if (!capability_granted) {
++    return null;
++  }
++
++  // Compute sequence order result + state via TS mirror.
++  const orderResult = validateCloseSequenceOrder({
++    divisions_completed_at,
++    manufacturing_completed_at,
++    abc_completed_at,
++    common_completed_at,
++  });
++  const state: CloseSequenceStage = computeCloseSequenceState({
++    divisions_completed_at,
++    manufacturing_completed_at,
++    abc_completed_at,
++    common_completed_at,
++    closed_at: null,
++  });
++
++  const timestamps: Record<string, string | null> = {
++    divisions: divisions_completed_at,
++    manufacturing: manufacturing_completed_at,
++    abc: abc_completed_at,
++    common: common_completed_at,
++  };
++
++  const completedCount = STEP_TIMESTAMP_ATTRS.filter(
++    (attr) => timestamps[attr.replace("_completed_at", "")] !== null,
++  ).length;
++
++  return (
++    <section
++      className={
++        "rounded-md border border-slate-200 bg-white p-4 shadow-sm " +
++        (className ?? "")
++      }
++      data-testid="close-sequence-panel"
++      data-completed-count={completedCount}
++      data-valid={orderResult.valid}
++      data-next-step={orderResult.next_step ?? "confirmed"}
++    >
++      <h2 className="mb-2 text-lg font-semibold text-slate-900">
++        {t("panel_title")}
++      </h2>
++      <p className="mb-2 text-sm text-slate-600">
++        {t("panel_step_indicator")}
++      </p>
++      <p className="mb-4 text-sm font-mono text-slate-700">
++        {t("progress_label", { completed: completedCount })}
++        {" — "}
++        {formatCloseSequenceStateKo(state)}
++      </p>
++      <ol className="mb-4 space-y-2">
++        {CLOSE_SEQUENCE_STAGES.slice(0, 4).map((stage, idx) => {
++          const completed = timestamps[stage] !== null;
++          return (
++            <li
++              key={stage}
++              data-testid={`close-sequence-step-${stage}`}
++              data-completed={completed}
++              className="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2"
++            >
++              <span className="text-sm font-mono">
++                {idx + 1}. {stage}
++                {completed && (
++                  <span className="ml-2 text-xs text-green-600">
++                    ✓ {timestamps[stage]}
++                  </span>
++                )}
++              </span>
++              <CloseSequenceStepCompleteButton
++                stage={stage as "divisions" | "manufacturing" | "abc" | "common"}
++                disabled={
++                  orderResult.next_step !== stage &&
++                  orderResult.next_step !== "confirmed"
++                }
++                onClick={onStepComplete}
++              />
++            </li>
++          );
++        })}
++      </ol>
++      <CloseSequenceConfirmButton
++        disabled={!orderResult.valid || orderResult.next_step !== "confirmed"}
++        onClick={onConfirm}
++      />
++    </section>
++  );
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/components/m11-close/CloseSequenceStepCompleteButton.tsx ###########
+warning: in the working copy of 'apps/web/components/m11-close/CloseSequenceStepCompleteButton.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m11-close/CloseSequenceStepCompleteButton.tsx b/apps/web/components/m11-close/CloseSequenceStepCompleteButton.tsx
+new file mode 100644
+index 0000000..9660384
+--- /dev/null
++++ b/apps/web/components/m11-close/CloseSequenceStepCompleteButton.tsx
+@@ -0,0 +1,66 @@
++/**
++ * apps/web/components/m11-close/CloseSequenceStepCompleteButton.tsx — Story 11.4 (A13 sprint-up)
++ *
++ * M11 close sequence step-complete button (11-2 carry-over).
++ *
++ * Renders a per-step [단계 완료] button that calls `onStepComplete`
++ * with the stage name. Disabled when not the current next_step
++ * (chronological-order guard).
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++
++export interface CloseSequenceStepCompleteButtonProps {
++  /** The stage this button represents. */
++  stage: "divisions" | "manufacturing" | "abc" | "common";
++  /** Disabled state (chronological-order guard). */
++  disabled: boolean;
++  /** Per-step click handler. */
++  onClick?: (
++    stage: "divisions" | "manufacturing" | "abc" | "common",
++  ) => Promise<void>;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * CloseSequenceStepCompleteButton — [단계 완료] button per stage.
++ */
++export function CloseSequenceStepCompleteButton({
++  stage,
++  disabled,
++  onClick,
++  className,
++}: CloseSequenceStepCompleteButtonProps): React.ReactElement {
++  const t = useTranslations("close_sequence_panel");
++  const [submitting, setSubmitting] = React.useState(false);
++
++  const handleClick = async () => {
++    if (submitting || disabled || !onClick) return;
++    setSubmitting(true);
++    try {
++      await onClick(stage);
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  return (
++    <button
++      type="button"
++      onClick={handleClick}
++      disabled={submitting || disabled}
++      data-testid={`close-sequence-step-complete-${stage}`}
++      data-stage={stage}
++      className={
++        "rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50 " +
++        (className ?? "")
++      }
++    >
++      {t("step_complete_button")}
++    </button>
++  );
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/components/m11-close/ReopenOperatorDialog.tsx ###########
+warning: in the working copy of 'apps/web/components/m11-close/ReopenOperatorDialog.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m11-close/ReopenOperatorDialog.tsx b/apps/web/components/m11-close/ReopenOperatorDialog.tsx
+new file mode 100644
+index 0000000..d5a02e4
+--- /dev/null
++++ b/apps/web/components/m11-close/ReopenOperatorDialog.tsx
+@@ -0,0 +1,204 @@
++/**
++ * apps/web/components/m11-close/ReopenOperatorDialog.tsx — Story 11.4 (A13 sprint-up)
++ *
++ * M11 재오픈 다이얼로그 — W2 reopen flow (operator_action 4-value enum + reason 20-500).
++ *
++ * Opens a form for owner-only reopen. On submit triggers
++ * `ReopenService.authorize_reopen` (POST /api/v1/close/reopen).
++ *
++ * Capability gate: `Capability.REOPEN_OPERATOR` (owner-only).
++ * When `capability_granted=false` OR `is_owner=false`, the dialog is hidden.
++ *
++ * Korean SSOT: `lib/ko-KR.json::m11_close` + `messages/ko-KR.json::reopen_operator_dialog`.
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++import { toast } from "sonner";
++
++import {
++  Dialog,
++  DialogContent,
++  DialogDescription,
++  DialogFooter,
++  DialogHeader,
++  DialogTitle,
++} from "@/components/ui/dialog";
++
++import {
++  REOPEN_OPERATOR_ACTIONS,
++  REOPEN_REJECT_INVALID_OPERATOR_KO,
++  REOPEN_REJECT_NOT_OWNER_KO,
++  REOPEN_REJECT_REASON_TOO_LONG_KO,
++  REOPEN_REJECT_REASON_TOO_SHORT_KO,
++  buildReopenAuthorizationState,
++  formatReopenResultKo,
++  isReasonLengthValid,
++  isReopenAllowed,
++  type ReopenAuthorizationState,
++} from "@/lib/m11-reopen";
++
++export interface ReopenOperatorDialogProps {
++  /** Controlled open state. */
++  open: boolean;
++  /** Open state setter. */
++  onOpenChange: (open: boolean) => void;
++  /** Tenant id. */
++  tenant_id: string;
++  /** Actor id. */
++  actor_id: string;
++  /** Whether actor is owner. */
++  is_owner: boolean;
++  /** Capability.REOPEN_OPERATOR capability_granted mirror. */
++  capability_granted: boolean;
++  /** Click handler. Returns ReopenAuthorizationResult. */
++  onSubmit?: (payload: {
++    tenant_id: string;
++    actor_id: string;
++    operator_action: string;
++    reason: string;
++  }) => Promise<{
++    authorized: boolean;
++    cache_invalidation_receipt: Record<string, string>;
++  }>;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * ReopenOperatorDialog — W2 reopen authorization confirmation flow.
++ *
++ * Renders shadcn Dialog + operator_action select + reason input. On
++ * [재오픈 실행] calls onSubmit and reflects outcome via sonner toast.
++ */
++export function ReopenOperatorDialog({
++  open,
++  onOpenChange,
++  tenant_id,
++  actor_id,
++  is_owner,
++  capability_granted,
++  onSubmit,
++  className,
++}: ReopenOperatorDialogProps): React.ReactElement | null {
++  const t = useTranslations("reopen_operator_dialog");
++  const [submitting, setSubmitting] = React.useState(false);
++  const [operator_action, setOperatorAction] = React.useState<string>(
++    REOPEN_OPERATOR_ACTIONS[0],
++  );
++  const [reason, setReason] = React.useState("");
++
++  // Capability gate: owner + capability both required.
++  if (!capability_granted || !is_owner) {
++    return null;
++  }
++
++  // Compute authorization state via TS mirror.
++  const state: ReopenAuthorizationState = buildReopenAuthorizationState({
++    tenant_id,
++    actor_id,
++    operator_action,
++    reason,
++    capability_granted,
++    is_owner,
++  });
++
++  const handleSubmit = async () => {
++    if (submitting) return;
++    if (!isReopenAllowed(state)) {
++      const code = state.reject_reason_ko ?? REOPEN_REJECT_INVALID_OPERATOR_KO;
++      if (code === REOPEN_REJECT_NOT_OWNER_KO) {
++        toast.error(t("reject_not_owner_toast"));
++      } else if (code === REOPEN_REJECT_REASON_TOO_SHORT_KO) {
++        toast.error(t("reject_reason_too_short_toast"));
++      } else if (code === REOPEN_REJECT_REASON_TOO_LONG_KO) {
++        toast.error(t("reject_reason_too_long_toast"));
++      } else {
++        toast.error(t("reject_invalid_operator_toast"));
++      }
++      return;
++    }
++    setSubmitting(true);
++    try {
++      const response = await onSubmit?.({
++        tenant_id,
++        actor_id,
++        operator_action,
++        reason,
++      });
++      if (response) {
++        toast.success(t("completed_toast"));
++        onOpenChange(false);
++      }
++    } catch {
++      toast.error(t("reject_no_capability_toast"));
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  const reasonValid = isReasonLengthValid(reason);
++  const allowed = isReopenAllowed(state);
++
++  return (
++    <Dialog open={open} onOpenChange={onOpenChange}>
++      <DialogContent
++        className={className ?? "sm:max-w-md"}
++        data-testid="reopen-operator-dialog"
++        data-tenant-id={tenant_id}
++        data-actor-id={actor_id}
++        data-operator-action={operator_action}
++      >
++        <DialogHeader>
++          <DialogTitle>{t("dialog_title")}</DialogTitle>
++          <DialogDescription>{t("dialog_description")}</DialogDescription>
++        </DialogHeader>
++        <div className="text-sm text-slate-700">
++          <div className="mb-2">
++            <span className="font-mono">
++              result: {formatReopenResultKo(state)}
++            </span>
++          </div>
++          <label className="mb-1 block text-xs font-medium text-slate-600">
++            {t("dialog_action_label")}
++          </label>
++          <select
++            className="mb-3 w-full rounded-md border border-slate-300 p-2 text-sm"
++            value={operator_action}
++            onChange={(e) => setOperatorAction(e.target.value)}
++            data-testid="reopen-operator-action-select"
++          >
++            {REOPEN_OPERATOR_ACTIONS.map((action) => (
++              <option key={action} value={action}>
++                {action}
++              </option>
++            ))}
++          </select>
++          <label className="mb-1 block text-xs font-medium text-slate-600">
++            {t("dialog_reason_label")}
++          </label>
++          <textarea
++            className="w-full rounded-md border border-slate-300 p-2 text-sm"
++            value={reason}
++            onChange={(e) => setReason(e.target.value)}
++            data-testid="reopen-operator-reason-input"
++            rows={3}
++          />
++        </div>
++        <DialogFooter>
++          <button
++            type="button"
++            onClick={handleSubmit}
++            disabled={submitting || !allowed || !reasonValid}
++            data-testid="reopen-operator-submit-button"
++            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
++          >
++            {t("dialog_submit")}
++          </button>
++        </DialogFooter>
++      </DialogContent>
++    </Dialog>
++  );
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/components/m11-close/ReversalExecuteDialog.tsx ###########
+warning: in the working copy of 'apps/web/components/m11-close/ReversalExecuteDialog.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m11-close/ReversalExecuteDialog.tsx b/apps/web/components/m11-close/ReversalExecuteDialog.tsx
+new file mode 100644
+index 0000000..0b10432
+--- /dev/null
++++ b/apps/web/components/m11-close/ReversalExecuteDialog.tsx
+@@ -0,0 +1,198 @@
++/**
++ * apps/web/components/m11-close/ReversalExecuteDialog.tsx — Story 11.4 (A13 sprint-up)
++ *
++ * M11 스냅샷 역분개 다이얼로그 — AD-22 영구화 (committed → reversed) UI.
++ *
++ * Opens a form for the user to confirm reversal execute. On submit
++ * triggers `ReversalExecuteService.execute_reversal`
++ * (POST /api/v1/close/reversal-execute).
++ *
++ * Capability gate: `Capability.REVERSAL_EXECUTE` (manufacturing 3종 ✅ / service-only ❌).
++ * When `capability_granted=false`, the dialog is hidden.
++ *
++ * Korean SSOT: `lib/ko-KR.json::m11_close` + `messages/ko-KR.json::reversal_execute_dialog`.
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++import { toast } from "sonner";
++
++import {
++  Dialog,
++  DialogContent,
++  DialogDescription,
++  DialogFooter,
++  DialogHeader,
++  DialogTitle,
++} from "@/components/ui/dialog";
++
++import {
++  REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO,
++  REVERSAL_EXECUTE_OK_KO,
++  buildReversalExecuteState,
++  formatReversalExecuteResultKo,
++  isReversalExecuteAllowed,
++  type ReversalExecuteState,
++} from "@/lib/m11-reversal-execute";
++
++export interface ReversalExecuteDialogProps {
++  /** Controlled open state. */
++  open: boolean;
++  /** Open state setter. */
++  onOpenChange: (open: boolean) => void;
++  /** Tenant id. */
++  tenant_id: string;
++  /** Target event_id (AD-22 sign-negating target). */
++  target_event_id: string;
++  /** Snapshot id. */
++  snapshot_id: string;
++  /** Current snapshot state. */
++  snapshot_state: "draft" | "verified" | "committed" | "reversed";
++  /** Target qty (Decimal string). */
++  target_qty: string;
++  /** Optional corrected qty override (Decimal string). */
++  corrected_qty?: string | null;
++  /** Correction group id (UUID v4). */
++  correction_group_id: string;
++  /** Actor id. */
++  actor_id: string;
++  /** Capability.REVERSAL_EXECUTE capability_granted mirror. */
++  capability_granted: boolean;
++  /** Click handler. Returns ReversalExecuteResult. */
++  onSubmit?: (payload: {
++    tenant_id: string;
++    target_event_id: string;
++    snapshot_id: string;
++    correction_group_id: string;
++    target_qty: string;
++    corrected_qty: string | null;
++  }) => Promise<{
++    negating_event_id: string;
++    corrected_event_id: string | null;
++    correction_group_id: string;
++  }>;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * ReversalExecuteDialog — AD-22 reversal 영구화 confirmation flow.
++ *
++ * Renders shadcn Dialog + reason input. On [역분개 실행] calls onSubmit
++ * and reflects outcome via sonner toast. Reason length 20-500 (AD-15 §4 envelope).
++ */
++export function ReversalExecuteDialog({
++  open,
++  onOpenChange,
++  tenant_id,
++  target_event_id,
++  snapshot_id,
++  snapshot_state,
++  target_qty,
++  corrected_qty,
++  correction_group_id,
++  actor_id,
++  capability_granted,
++  onSubmit,
++  className,
++}: ReversalExecuteDialogProps): React.ReactElement | null {
++  const t = useTranslations("reversal_execute_dialog");
++  const [submitting, setSubmitting] = React.useState(false);
++  const [reason, setReason] = React.useState("");
++
++  // Capability gate.
++  if (!capability_granted) {
++    return null;
++  }
++
++  // Compute authorization state via TS mirror.
++  const state: ReversalExecuteState = buildReversalExecuteState({
++    tenant_id,
++    target_event_id,
++    snapshot_id,
++    snapshot_state,
++    target_qty,
++    corrected_qty: corrected_qty ?? null,
++    correction_group_id,
++    actor_id,
++  });
++
++  const handleSubmit = async () => {
++    if (submitting) return;
++    if (!isReversalExecuteAllowed(state)) {
++      toast.error(state.reject_reason_ko ?? REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO);
++      return;
++    }
++    setSubmitting(true);
++    try {
++      const response = await onSubmit?.({
++        tenant_id,
++        target_event_id,
++        snapshot_id,
++        correction_group_id,
++        target_qty,
++        corrected_qty: corrected_qty ?? null,
++      });
++      if (response) {
++        toast.success(t("completed_toast"));
++        onOpenChange(false);
++      }
++    } catch {
++      toast.error(t("invalid_snapshot_toast"));
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  return (
++    <Dialog open={open} onOpenChange={onOpenChange}>
++      <DialogContent
++        className={className ?? "sm:max-w-md"}
++        data-testid="reversal-execute-dialog"
++        data-target-event-id={target_event_id}
++        data-snapshot-id={snapshot_id}
++        data-snapshot-state={snapshot_state}
++      >
++        <DialogHeader>
++          <DialogTitle>{t("dialog_title")}</DialogTitle>
++          <DialogDescription>{t("dialog_description")}</DialogDescription>
++        </DialogHeader>
++        <div className="text-sm text-slate-700">
++          <div className="mb-2">
++            <span className="font-mono">
++              result: {formatReversalExecuteResultKo(state)}
++            </span>
++          </div>
++          <label className="mb-1 block text-xs font-medium text-slate-600">
++            {t("reversal_form_reason_label")}
++          </label>
++          <textarea
++            className="w-full rounded-md border border-slate-300 p-2 text-sm"
++            value={reason}
++            onChange={(e) => setReason(e.target.value)}
++            data-testid="reversal-execute-reason-input"
++            rows={3}
++          />
++        </div>
++        <DialogFooter>
++          <button
++            type="button"
++            onClick={handleSubmit}
++            disabled={
++              submitting ||
++              !isReversalExecuteAllowed(state) ||
++              reason.length < 20 ||
++              reason.length > 500
++            }
++            data-testid="reversal-execute-submit-button"
++            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
++          >
++            {t("reversal_form_submit")}
++          </button>
++        </DialogFooter>
++      </DialogContent>
++    </Dialog>
++  );
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/components/m11-close/SnapshotPersistencePanel.tsx ###########
+warning: in the working copy of 'apps/web/components/m11-close/SnapshotPersistencePanel.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/components/m11-close/SnapshotPersistencePanel.tsx b/apps/web/components/m11-close/SnapshotPersistencePanel.tsx
+new file mode 100644
+index 0000000..72c9923
+--- /dev/null
++++ b/apps/web/components/m11-close/SnapshotPersistencePanel.tsx
+@@ -0,0 +1,161 @@
++/**
++ * apps/web/components/m11-close/SnapshotPersistencePanel.tsx — Story 11.4 (A13 sprint-up)
++ *
++ * M11 스냅샷 영구화 패널 — AD-20 verified → committed 전이 UI.
++ *
++ * Mounted in `MonthlyInputTabs` (closing period section). Renders a
++ * panel with the current snapshot state, [스냅샷 영구화] button, and
++ * toast feedback for 4 outcomes (OK / idempotent / draft-reject /
++ * reversed-reject).
++ *
++ * Capability gate: `Capability.SNAPSHOT_PERSISTENCE` (manufacturing 3종 ✅ / service-only ❌).
++ * When `capability_granted=false`, the panel is hidden (service-only tenant UX).
++ *
++ * Korean SSOT: `lib/ko-KR.json::m11_close` + `messages/ko-KR.json::snapshot_persistence_panel`.
++ * AD-15 §11 parity invariant preserved between Python ko-KR + TS messages mirror.
++ */
++
++"use client";
++
++import * as React from "react";
++import { useTranslations } from "next-intl";
++import { toast } from "sonner";
++
++import {
++  SNAPSHOT_COMMIT_DRAFT_REJECT_KO,
++  SNAPSHOT_COMMIT_IDEMPOTENT_KO,
++  SNAPSHOT_COMMIT_OK_KO,
++  SNAPSHOT_COMMIT_REVERSED_REJECT_KO,
++  buildSnapshotPersistenceState,
++  formatCommitResultKo,
++  isCommitAllowed,
++  type SnapshotPersistenceState,
++} from "@/lib/m11-snapshot-persistence";
++
++export interface SnapshotPersistencePanelProps {
++  /** Snapshot id (UUID v4 wire format). */
++  snapshot_id: string;
++  /** Period key (AD-24 typed "YYYY-MM"). */
++  period_key: string;
++  /** Current snapshot state (draft | verified | committed | reversed). */
++  current_state: "draft" | "verified" | "committed" | "reversed";
++  /** Actor id (UUID v4 wire format). */
++  actor_id: string;
++  /** Tenant id (UUID v4 wire format). */
++  tenant_id: string;
++  /** Capability.SNAPSHOT_PERSISTENCE capability_granted mirror. */
++  capability_granted: boolean;
++  /** Click handler that triggers the POST. */
++  onCommit?: (payload: {
++    snapshot_id: string;
++    period_key: string;
++  }) => Promise<{
++    snapshot_state: "draft" | "verified" | "committed" | "reversed";
++    idempotent_ok: boolean;
++  }>;
++  /** Optional className override. */
++  className?: string;
++}
++
++/**
++ * SnapshotPersistencePanel — AD-20 verified → committed transition UI.
++ *
++ * Hidden when capability_granted=false (service-only tenant). Toast
++ * feedback covers 4 outcomes: OK / idempotent / draft-reject /
++ * reversed-reject. Idempotent no-op per CR 1.1.
++ */
++export function SnapshotPersistencePanel({
++  snapshot_id,
++  period_key,
++  current_state,
++  actor_id,
++  tenant_id,
++  capability_granted,
++  onCommit,
++  className,
++}: SnapshotPersistencePanelProps): React.ReactElement | null {
++  const t = useTranslations("snapshot_persistence_panel");
++  const [submitting, setSubmitting] = React.useState(false);
++
++  // Capability gate: service-only tenant → panel hidden entirely.
++  if (!capability_granted) {
++    return null;
++  }
++
++  // Compute authorization state via TS mirror.
++  const state: SnapshotPersistenceState = buildSnapshotPersistenceState({
++    snapshot_id,
++    period_key,
++    current_state,
++    actor_id,
++    tenant_id,
++  });
++
++  const handleCommit = async (): Promise<void> => {
++    if (submitting) return; // idempotent no-op (CR 1.1)
++    if (!isCommitAllowed(state)) {
++      // Should never happen — button disabled when not allowed.
++      toast.error(state.reject_reason_ko ?? SNAPSHOT_COMMIT_DRAFT_REJECT_KO);
++      return;
++    }
++    setSubmitting(true);
++    try {
++      const response = await onCommit?.({ snapshot_id, period_key });
++      if (response) {
++        if (response.idempotent_ok) {
++          toast.success(t("idempotent_toast"));
++        } else {
++          toast.success(t("committed_toast"));
++        }
++      }
++    } catch {
++      toast.error(t("reversed_reject_toast"));
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  const allowed = isCommitAllowed(state);
++  const buttonLabel = allowed
++    ? t("commit_button")
++    : state.terminal_rejected
++      ? SNAPSHOT_COMMIT_REVERSED_REJECT_KO
++      : state.reject_reason_ko ?? SNAPSHOT_COMMIT_DRAFT_REJECT_KO;
++
++  return (
++    <section
++      className={
++        "rounded-md border border-slate-200 bg-white p-4 shadow-sm " +
++        (className ?? "")
++      }
++      data-testid="snapshot-persistence-panel"
++      data-snapshot-id={snapshot_id}
++      data-period-key={period_key}
++      data-current-state={current_state}
++      data-capability-granted={capability_granted}
++    >
++      <h2 className="mb-2 text-lg font-semibold text-slate-900">
++        {t("panel_title")}
++      </h2>
++      <p className="mb-4 text-sm text-slate-600">
++        {t("panel_step_indicator")}
++      </p>
++      <div className="mb-4 text-sm text-slate-700">
++        <span className="font-mono">state: {current_state}</span>
++        <span className="ml-3 font-mono">
++          result: {formatCommitResultKo(state)}
++        </span>
++      </div>
++      <button
++        type="button"
++        onClick={handleCommit}
++        disabled={submitting || !allowed}
++        data-testid="snapshot-persistence-commit-button"
++        data-current-state={current_state}
++        className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
++      >
++        {buttonLabel}
++      </button>
++    </section>
++  );
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/e2e/m11-cache-invalidation-channels.spec.ts ###########
+warning: in the working copy of 'apps/web/e2e/m11-cache-invalidation-channels.spec.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/e2e/m11-cache-invalidation-channels.spec.ts b/apps/web/e2e/m11-cache-invalidation-channels.spec.ts
+new file mode 100644
+index 0000000..4850f70
+--- /dev/null
++++ b/apps/web/e2e/m11-cache-invalidation-channels.spec.ts
+@@ -0,0 +1,135 @@
++/**
++ * apps/web/e2e/m11-cache-invalidation-channels.spec.ts — Playwright E2E for M11 cache invalidation channels.
++ *
++ * Story 11.4 (A13 sprint-up) — Sprint-up item: AD-25 4-channel cache invalidation
++ * publisher UI badge.
++ * Run via `pnpm playwright test apps/web/e2e/m11-cache-invalidation-channels.spec.ts --project=chromium`.
++ *
++ * Scenarios:
++ *   1. test_default_all_4_channels_active — no active_subset → all 4 chips active.
++ *   2. test_w2_reopen_subset_highlight — W2 reopen uses 2 channels (fiscal_period_cache + closing_snapshot_cache).
++ *   3. test_snapshot_persistence_receipt — receipt from /api/v1/close/snapshots/{id}/commit
++ *      renders 4 channels.
++ *   4. test_reversal_execute_receipt — receipt from /api/v1/close/reversal-execute
++ *      renders 4 channels.
++ */
++
++import { expect, test } from "@playwright/test";
++
++const TEST_LOCALE = "ko-KR";
++const TEST_PERIOD = "2026-08";
++
++test.describe("M11 cache invalidation channels — UI flow", () => {
++  // ── Case 1: default all 4 channels active ─────────────────────
++  test("default badge shows all 4 channels active", async ({ page }) => {
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++
++    const badge = page.getByTestId("cache-invalidation-channel-badge");
++    await expect(badge).toBeVisible();
++
++    // All 4 channel chips render with data-active=true.
++    for (const channel of [
++      "ai_cache",
++      "cost_engine_cache",
++      "fiscal_period_cache",
++      "closing_snapshot_cache",
++    ]) {
++      const chip = page.getByTestId(`cache-channel-${channel}`);
++      await expect(chip).toBeVisible();
++      await expect(chip).toHaveAttribute("data-active", "true");
++    }
++  });
++
++  // ── Case 2: W2 reopen highlights 2-channel subset ─────────────
++  test("W2 reopen highlights 2-channel subset", async ({ page }) => {
++    await page.goto(
++      `/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}?flow=w2-reopen`,
++    );
++    await page.waitForLoadState("networkidle");
++
++    const badge = page.getByTestId("cache-invalidation-channel-badge");
++    await expect(badge).toHaveAttribute(
++      "data-active-subset",
++      "fiscal_period_cache,closing_snapshot_cache",
++    );
++
++    // 2 channels active, 2 channels inactive.
++    await expect(
++      page.getByTestId("cache-channel-fiscal_period_cache"),
++    ).toHaveAttribute("data-active", "true");
++    await expect(
++      page.getByTestId("cache-channel-closing_snapshot_cache"),
++    ).toHaveAttribute("data-active", "true");
++    await expect(page.getByTestId("cache-channel-ai_cache")).toHaveAttribute(
++      "data-active",
++      "false",
++    );
++    await expect(
++      page.getByTestId("cache-channel-cost_engine_cache"),
++    ).toHaveAttribute("data-active", "false");
++  });
++
++  // ── Case 3: snapshot persistence receipt ──────────────────────
++  test("snapshot persistence receipt renders 4 channels", async ({ page }) => {
++    await page.route("**/api/v1/close/snapshots/*/commit", (route) =>
++      route.fulfill({
++        status: 200,
++        contentType: "application/json",
++        body: JSON.stringify({
++          snapshot_state: "committed",
++          cache_invalidation_receipt: {
++            ai_cache: "invalidated",
++            cost_engine_cache: "invalidated",
++            fiscal_period_cache: "invalidated",
++            closing_snapshot_cache: "invalidated",
++          },
++        }),
++      }),
++    );
++
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++
++    await page.getByTestId("snapshot-persistence-commit-button").click();
++
++    const badge = page.getByTestId("cache-invalidation-channel-badge");
++    await expect(badge).toBeVisible();
++  });
++
++  // ── Case 4: reversal execute receipt ──────────────────────────
++  test("reversal execute receipt renders 4 channels", async ({ page }) => {
++    await page.route("**/api/v1/close/reversal-execute", (route) =>
++      route.fulfill({
++        status: 200,
++        contentType: "application/json",
++        body: JSON.stringify({
++          negating_event_id: "neg-1",
++          corrected_event_id: "cor-1",
++          correction_group_id: "11111111-1111-4111-8111-111111111111",
++          cache_invalidation_receipt: {
++            ai_cache: "invalidated",
++            cost_engine_cache: "invalidated",
++            fiscal_period_cache: "invalidated",
++            closing_snapshot_cache: "invalidated",
++          },
++        }),
++      }),
++    );
++
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++
++    const dialog = page.getByTestId("reversal-execute-dialog");
++    await expect(dialog).toBeVisible();
++
++    await page
++      .getByTestId("reversal-execute-reason-input")
++      .fill("오류 정정 사유 — 20자 이상의 충분한 설명");
++
++    await page.getByTestId("reversal-execute-submit-button").click();
++
++    const badge = page.getByTestId("cache-invalidation-channel-badge");
++    await expect(badge).toBeVisible();
++  });
++});
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/e2e/m11-reopen-operator.spec.ts ###########
+warning: in the working copy of 'apps/web/e2e/m11-reopen-operator.spec.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/e2e/m11-reopen-operator.spec.ts b/apps/web/e2e/m11-reopen-operator.spec.ts
+new file mode 100644
+index 0000000..2d3529a
+--- /dev/null
++++ b/apps/web/e2e/m11-reopen-operator.spec.ts
+@@ -0,0 +1,89 @@
++/**
++ * apps/web/e2e/m11-reopen-operator.spec.ts — Playwright E2E for M11 reopen operator flow.
++ *
++ * Story 11.4 (A13 sprint-up) — Sprint-up item: W2 reopen flow (operator_action
++ * 4-value enum + reason length 20-500) UI.
++ * Run via `pnpm playwright test apps/web/e2e/m11-reopen-operator.spec.ts --project=chromium`.
++ *
++ * Scenarios:
++ *   1. test_happy_path_reopen — owner + capability + operator_action +
++ *      reason (20+ chars) → sonner toast.success('재오픈 승인 완료').
++ *   2. test_reason_too_short — reason length < 20 → submit disabled.
++ *   3. test_reason_too_long — reason length > 500 → submit disabled.
++ *   4. test_non_owner_role_hidden — non-owner role → dialog hidden.
++ */
++
++import { expect, test } from "@playwright/test";
++
++const TEST_LOCALE = "ko-KR";
++const TEST_PERIOD = "2026-08";
++
++test.describe("M11 reopen operator — UI flow", () => {
++  test.beforeEach(async ({ page }) => {
++    // rls_db fixture pre-seeds an owner-role user for manufacturing tenant.
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++  });
++
++  // ── Case 1: happy-path reopen ──────────────────────────────────
++  test("happy-path reopen renders dialog + posts", async ({ page }) => {
++    const dialog = page.getByTestId("reopen-operator-dialog");
++    await expect(dialog).toBeVisible();
++
++    await page
++      .getByTestId("reopen-operator-action-select")
++      .selectOption("audit_finding");
++
++    await page
++      .getByTestId("reopen-operator-reason-input")
++      .fill("감사 결과 — 자료 정정 필요 (audit-justification minimum)");
++
++    await page.getByTestId("reopen-operator-submit-button").click();
++
++    await expect(
++      page.locator('[data-sonner-toast]').filter({ hasText: "재오픈 승인 완료" }),
++    ).toBeVisible();
++  });
++
++  // ── Case 2: reason too short (< 20 chars) ──────────────────────
++  test("reason length < 20 chars disables submit", async ({ page }) => {
++    const dialog = page.getByTestId("reopen-operator-dialog");
++    await expect(dialog).toBeVisible();
++
++    await page
++      .getByTestId("reopen-operator-action-select")
++      .selectOption("operator_reopen");
++
++    await page.getByTestId("reopen-operator-reason-input").fill("too short");
++
++    const submit = page.getByTestId("reopen-operator-submit-button");
++    await expect(submit).toBeDisabled();
++  });
++
++  // ── Case 3: reason too long (> 500 chars) ──────────────────────
++  test("reason length > 500 chars disables submit", async ({ page }) => {
++    const dialog = page.getByTestId("reopen-operator-dialog");
++    await expect(dialog).toBeVisible();
++
++    await page
++      .getByTestId("reopen-operator-action-select")
++      .selectOption("operator_reopen");
++
++    await page
++      .getByTestId("reopen-operator-reason-input")
++      .fill("x".repeat(501));
++
++    const submit = page.getByTestId("reopen-operator-submit-button");
++    await expect(submit).toBeDisabled();
++  });
++
++  // ── Case 4: non-owner role hides dialog ────────────────────────
++  test("non-owner role → ReopenOperatorDialog hidden", async ({ page }) => {
++    await page.goto(
++      `/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}?role=member`,
++    );
++    await page.waitForLoadState("networkidle");
++
++    await expect(page.getByTestId("reopen-operator-dialog")).toHaveCount(0);
++  });
++});
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/e2e/m11-reversal-execute.spec.ts ###########
+warning: in the working copy of 'apps/web/e2e/m11-reversal-execute.spec.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/e2e/m11-reversal-execute.spec.ts b/apps/web/e2e/m11-reversal-execute.spec.ts
+new file mode 100644
+index 0000000..6280a72
+--- /dev/null
++++ b/apps/web/e2e/m11-reversal-execute.spec.ts
+@@ -0,0 +1,94 @@
++/**
++ * apps/web/e2e/m11-reversal-execute.spec.ts — Playwright E2E for M11 reversal execute flow.
++ *
++ * Story 11.4 (A13 sprint-up) — Sprint-up item: AD-22 committed → reversed 영구화 UI.
++ * Run via `pnpm playwright test apps/web/e2e/m11-reversal-execute.spec.ts --project=chromium`.
++ *
++ * Scenarios:
++ *   1. test_happy_path_reversal_execute — snapshot state='committed' → [역분개 실행] →
++ *      reason input + sonner toast.success('스냅샷 역분개 완료').
++ *   2. test_invalid_snapshot_state — snapshot state='verified' → submit button disabled +
++ *      INVALID_SNAPSHOT_KO reason text.
++ *   3. test_reason_too_short — reason length < 20 → submit button disabled.
++ *   4. test_capability_gate_service_only — service-only tenant → dialog hidden.
++ */
++
++import { expect, test } from "@playwright/test";
++
++const TEST_LOCALE = "ko-KR";
++const TEST_PERIOD = "2026-08";
++
++test.describe("M11 reversal execute — UI flow", () => {
++  test.beforeEach(async ({ page }) => {
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++  });
++
++  // ── Case 1: happy-path reversal execute ────────────────────────
++  test("happy-path reversal execute renders dialog + posts", async ({
++    page,
++  }) => {
++    const dialog = page.getByTestId("reversal-execute-dialog");
++    await expect(dialog).toBeVisible();
++    await expect(dialog).toHaveAttribute("data-snapshot-state", "committed");
++
++    await page
++      .getByTestId("reversal-execute-reason-input")
++      .fill("오류 정정 사유 — 20자 이상의 충분한 설명");
++
++    await page.getByTestId("reversal-execute-submit-button").click();
++
++    await expect(
++      page.locator('[data-sonner-toast]').filter({ hasText: "역분개 완료" }),
++    ).toBeVisible();
++  });
++
++  // ── Case 2: invalid snapshot state ─────────────────────────────
++  test("state='verified' disables submit + INVALID_SNAPSHOT reason", async ({
++    page,
++  }) => {
++    await page.route("**/api/v1/close/snapshot/*", (route) =>
++      route.fulfill({
++        status: 200,
++        contentType: "application/json",
++        body: JSON.stringify({
++          snapshot_id: "11111111-1111-4111-8111-111111111111",
++          snapshot_state: "verified",
++          period_key: TEST_PERIOD,
++        }),
++      }),
++    );
++
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++
++    const dialog = page.getByTestId("reversal-execute-dialog");
++    await expect(dialog).toHaveAttribute("data-snapshot-state", "verified");
++
++    const submit = page.getByTestId("reversal-execute-submit-button");
++    await expect(submit).toBeDisabled();
++  });
++
++  // ── Case 3: reason too short (< 20 chars) ──────────────────────
++  test("reason length < 20 chars disables submit", async ({ page }) => {
++    const dialog = page.getByTestId("reversal-execute-dialog");
++    await expect(dialog).toBeVisible();
++
++    await page.getByTestId("reversal-execute-reason-input").fill("short");
++
++    const submit = page.getByTestId("reversal-execute-submit-button");
++    await expect(submit).toBeDisabled();
++  });
++
++  // ── Case 4: capability gate — service-only tenant ──────────────
++  test("service-only tenant → ReversalExecuteDialog hidden", async ({
++    page,
++  }) => {
++    await page.goto(
++      `/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}?tenant=service`,
++    );
++    await page.waitForLoadState("networkidle");
++
++    await expect(page.getByTestId("reversal-execute-dialog")).toHaveCount(0);
++  });
++});
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/e2e/m11-snapshot-persistence.spec.ts ###########
+warning: in the working copy of 'apps/web/e2e/m11-snapshot-persistence.spec.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/e2e/m11-snapshot-persistence.spec.ts b/apps/web/e2e/m11-snapshot-persistence.spec.ts
+new file mode 100644
+index 0000000..c5f0f01
+--- /dev/null
++++ b/apps/web/e2e/m11-snapshot-persistence.spec.ts
+@@ -0,0 +1,105 @@
++/**
++ * apps/web/e2e/m11-snapshot-persistence.spec.ts — Playwright E2E for M11 snapshot persistence flow.
++ *
++ * Story 11.4 (A13 sprint-up) — Sprint-up item: AD-20 verified → committed transition UI.
++ * Run via `pnpm playwright test apps/web/e2e/m11-snapshot-persistence.spec.ts --project=chromium`.
++ *
++ * Scenarios:
++ *   1. test_happy_path_commit — snapshot state='verified' → [스냅샷 영구화] →
++ *      sonner toast.success('스냅샷 영구화 완료').
++ *   2. test_idempotent_no_op — snapshot state='committed' → button disables +
++ *      sonner toast.success('멱등 처리').
++ *   3. test_draft_rejection — snapshot state='draft' → panel button disabled.
++ *   4. test_capability_gate_service_only — service-only tenant → panel hidden.
++ */
++
++import { expect, test } from "@playwright/test";
++
++const TEST_LOCALE = "ko-KR";
++const TEST_PERIOD = "2026-08";
++const TEST_TENANT = "manufacturing";
++
++test.describe("M11 snapshot persistence — UI flow", () => {
++  test.beforeEach(async ({ page }) => {
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++  });
++
++  // ── Case 1: happy-path commit (verified → committed) ──────────
++  test("happy-path commit renders panel + posts", async ({ page }) => {
++    const panel = page.getByTestId("snapshot-persistence-panel");
++    await expect(panel).toBeVisible();
++    await expect(panel).toHaveAttribute("data-current-state", "verified");
++
++    await page.getByTestId("snapshot-persistence-commit-button").click();
++
++    await expect(
++      page
++        .locator('[data-sonner-toast]')
++        .filter({ hasText: "스냅샷 영구화 완료" }),
++    ).toBeVisible();
++  });
++
++  // ── Case 2: idempotent no-op (state='committed') ───────────────
++  test("idempotent no-op when state='committed'", async ({ page }) => {
++    // Intercept GET snapshot state to return 'committed'.
++    await page.route("**/api/v1/close/snapshot/*", (route) =>
++      route.fulfill({
++        status: 200,
++        contentType: "application/json",
++        body: JSON.stringify({
++          snapshot_id: "11111111-1111-4111-8111-111111111111",
++          snapshot_state: "committed",
++          period_key: TEST_PERIOD,
++        }),
++      }),
++    );
++
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++
++    const panel = page.getByTestId("snapshot-persistence-panel");
++    await expect(panel).toHaveAttribute("data-current-state", "committed");
++
++    await page.getByTestId("snapshot-persistence-commit-button").click();
++    await expect(
++      page.locator('[data-sonner-toast]').filter({ hasText: "멱등 처리" }),
++    ).toBeVisible();
++  });
++
++  // ── Case 3: draft rejection (state='draft') ────────────────────
++  test("state='draft' disables commit button", async ({ page }) => {
++    await page.route("**/api/v1/close/snapshot/*", (route) =>
++      route.fulfill({
++        status: 200,
++        contentType: "application/json",
++        body: JSON.stringify({
++          snapshot_id: "11111111-1111-4111-8111-111111111111",
++          snapshot_state: "draft",
++          period_key: TEST_PERIOD,
++        }),
++      }),
++    );
++
++    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
++    await page.waitForLoadState("networkidle");
++
++    const panel = page.getByTestId("snapshot-persistence-panel");
++    await expect(panel).toHaveAttribute("data-current-state", "draft");
++
++    const button = page.getByTestId("snapshot-persistence-commit-button");
++    await expect(button).toBeDisabled();
++  });
++
++  // ── Case 4: capability gate — service-only tenant ──────────────
++  test("service-only tenant → SnapshotPersistencePanel hidden", async ({
++    page,
++  }) => {
++    await page.goto(
++      `/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}?tenant=${TEST_TENANT === "manufacturing" ? "service" : "manufacturing"}`,
++    );
++    await page.waitForLoadState("networkidle");
++
++    await expect(page.getByTestId("snapshot-persistence-panel")).toHaveCount(0);
++  });
++});
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/ko-KR.json ###########
+warning: in the working copy of 'apps/web/ko-KR.json', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/ko-KR.json b/apps/web/ko-KR.json
+new file mode 100644
+index 0000000..cc21ca9
+--- /dev/null
++++ b/apps/web/ko-KR.json
+@@ -0,0 +1,96 @@
++{
++  "_doc": "ko-KR.json — Korean label SSOT (single source of truth) for costmgr frontend. AD-15 §11 parity invariant with Python ko-KR.json mirror. Story 11.4 (A13 sprint-up) added 12 NEW strings for snapshot persistence + reversal execute + reopen + cache invalidation 4 channels.",
++
++  "common": {
++    "save": "저장",
++    "cancel": "취소",
++    "confirm": "확인",
++    "loading": "로딩 중",
++    "error": "오류"
++  },
++
++  "auth": {
++    "login": "로그인",
++    "logout": "로그아웃",
++    "tenant_id_required": "테넌트 ID가 필요합니다"
++  },
++
++  "industry": {
++    "manufacturing": "제조업",
++    "service": "서비스업",
++    "manufacturing_service": "제조+서비스",
++    "manufacturing_service_other": "제조+서비스+기타"
++  },
++
++  "closing_period": {
++    "panel_title": "월 마감 패널",
++    "confirm_button": "마감 확정",
++    "snapshot_count": "{count}건 스냅샷",
++    "ledger_event_count": "{count}건 원장 이벤트",
++    "blocked_negative_closing": "마감 차단: 기말재고 음수",
++    "ready_description_with_count": "{count}건 검증 완료 — 마감 가능",
++    "ready_description_default": "검증 완료 — 마감 가능",
++    "blocked_description": "검증 실패 — 마감 차단",
++    "already_closed_description_locked": "이미 마감됨",
++    "empty_period_description": "이벤트 0건 — 마감할 데이터 없음"
++  },
++
++  "monthly_input": {
++    "production_tab": "생산",
++    "orders_tab": "발주",
++    "sales_tab": "판매",
++    "purchases_tab": "구매",
++    "expenses_tab": "경비",
++    "labor_tab": "인원",
++    "save_row": "행 저장",
++    "delete_row": "행 삭제",
++    "warning_negative_closing": "기말재고 음수 경고",
++    "warning_overcapacity_operating_rate": "조업도 초과 경고"
++  },
++
++  "m11_close": {
++    "_doc": "M11 close module labels (Story 11.4 A13 sprint-up — Epic 11 carry-over). 12 NEW strings for snapshot persistence + reversal execute + reopen + cache invalidation 4 channels.",
++
++    "snapshot_persistence_panel_title": "스냅샷 영구화 패널",
++    "snapshot_persistence_panel_step_indicator": "AD-20 verified → committed 전이",
++    "snapshot_persistence_commit_button": "스냅샷 영구화",
++    "snapshot_persistence_committed_toast": "스냅샷 영구화 완료",
++    "snapshot_persistence_idempotent_toast": "스냅샷 이미 영구화됨 — 멱등 처리",
++    "snapshot_persistence_draft_reject_toast": "스냅샷이 검증 전 상태 — 영구화 불가",
++    "snapshot_persistence_reversed_reject_toast": "스냅샷이 이미 역분개됨 — 영구화 불가",
++
++    "reversal_execute_dialog_title": "스냅샷 역분개",
++    "reversal_execute_dialog_description": "committed → reversed 전이 (AD-22 영구화)",
++    "reversal_execute_reversal_form_reason_label": "역분개 사유 (20-500자)",
++    "reversal_execute_reversal_form_submit": "역분개 실행",
++    "reversal_execute_completed_toast": "스냅샷 역분개 완료",
++    "reversal_execute_invalid_snapshot_toast": "스냅샷 상태가 커밋 상태가 아닙니다 — 역분개 불가",
++
++    "reopen_operator_dialog_title": "재오픈 (W2)",
++    "reopen_operator_dialog_description": "owner-only 재오픈 (AD-10)",
++    "reopen_operator_dialog_action_label": "재오픈 사유 분류",
++    "reopen_operator_dialog_reason_label": "재오픈 사유 (20-500자)",
++    "reopen_operator_dialog_submit": "재오픈 실행",
++    "reopen_operator_completed_toast": "재오픈 승인 완료",
++    "reopen_operator_reject_not_owner_toast": "소유자 역할이 아닙니다 — 재오픈 불가",
++    "reopen_operator_reject_no_capability_toast": "재오픈 권한 미보유",
++    "reopen_operator_reject_invalid_operator_toast": "재오픈 사유 분류가 올바르지 않습니다",
++    "reopen_operator_reject_reason_too_short_toast": "재오픈 사유는 20자 이상이어야 합니다",
++    "reopen_operator_reject_reason_too_long_toast": "재오픈 사유는 500자 이하여야 합니다",
++
++    "cache_invalidation_channel_ai_cache": "AI 캐시",
++    "cache_invalidation_channel_cost_engine_cache": "원가 엔진 캐시",
++    "cache_invalidation_channel_fiscal_period_cache": "회계 기간 캐시",
++    "cache_invalidation_channel_closing_snapshot_cache": "마감 스냅샷 캐시",
++    "cache_invalidation_channel_badge_label": "AD-25 캐시 무효화 채널",
++    "cache_invalidation_channel_4_set": "4-channel publisher",
++
++    "close_sequence_panel_title": "4단계 마감 시퀀스 패널",
++    "close_sequence_panel_step_indicator": "AD-6 close lock 진행 상태",
++    "close_sequence_step_complete_button": "단계 완료",
++    "close_sequence_confirm_button": "마감 확정",
++    "close_sequence_progress_label": "{completed} / 4 단계 완료",
++    "close_sequence_confirm_dialog_title": "4단계 마감 확정",
++    "close_sequence_confirm_dialog_description": "확정 후 AD-6 INSERT 거부 활성화"
++  }
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/lib/m11-close-sequence.ts ###########
+warning: in the working copy of 'apps/web/lib/m11-close-sequence.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/lib/m11-close-sequence.ts b/apps/web/lib/m11-close-sequence.ts
+new file mode 100644
+index 0000000..d9ad21b
+--- /dev/null
++++ b/apps/web/lib/m11-close-sequence.ts
+@@ -0,0 +1,240 @@
++// apps/web/lib/m11-close-sequence.ts — Story 11.4 (A13 sprint-up) TS mirror.
++//
++// M11 close sequence lock TS projection (AD-15 §11 SSOT parity with
++// `packages/services/m11_close/close_sequence_order.py` +
++// `close_sequence_state.py`).
++//
++// Drift caught by `apps/web/lib/m11-close-sequence-parity.ts`.
++//
++// Korean message SSOT (single source of truth for ko-KR.json parity):
++// - DIVISIONS_MISSING_KO mirrors Python `DIVISIONS_MISSING_KO`.
++// - MANUFACTURING_MISSING_KO mirrors Python `MANUFACTURING_MISSING_KO`.
++// - ABC_MISSING_KO mirrors Python `ABC_MISSING_KO`.
++// - COMMON_MISSING_KO mirrors Python `COMMON_MISSING_KO`.
++// - ALL_STAGES_REQUIRED_KO mirrors Python `ALL_STAGES_REQUIRED_KO`.
++// - CHRONOLOGICAL_VIOLATION_KO mirrors Python `CHRONOLOGICAL_VIOLATION_KO`.
++//
++// AD-6 close lock PRIMARY guard (PRD §F11.1 + §8.M11(a)) — 4-stage close
++// sequence: divisions → manufacturing → abc → common → confirmed. The
++// sequence is 1-way; each step's completion timestamp must be
++// chronologically ordered (or NULL). Defense-in-depth against
++// stage-skipping.
++//
++// AD-6 INSERT refusal (Architecture Spine §AD-6) — `check_ad6_insert_allowed`
++// gates business-data INSERTs into monthly_input_periods / monthly_input_rows
++// / inventory_ledger / fiscal_period_snapshots. AD-22 reversal/correction
++// events (reversal_negating + reversal_corrected) are EXPLICITLY allowed
++// past the close lock (PRD §F11.2 / §AD-6 exception clause).
++
++// ── Constants (Korean SSOT) ──────────────────────────────────────
++export const DIVISIONS_MISSING_KO = "divisions 단계 미완료" as const;
++export const MANUFACTURING_MISSING_KO = "manufacturing 단계 미완료" as const;
++export const ABC_MISSING_KO = "abc 단계 미완료" as const;
++export const COMMON_MISSING_KO = "common 단계 미완료" as const;
++export const ALL_STAGES_REQUIRED_KO = "4단계 모두 완료 후 마감 가능" as const;
++export const CHRONOLOGICAL_VIOLATION_KO =
++  "단계 완료 시각이 순서대로여야 합니다" as const;
++
++// ── Close sequence stages (PRD §F11.1 canonical order) ───────────
++export const CLOSE_SEQUENCE_STAGES = [
++  "divisions",
++  "manufacturing",
++  "abc",
++  "common",
++  "confirmed",
++] as const;
++
++export type CloseSequenceStage = (typeof CLOSE_SEQUENCE_STAGES)[number];
++
++// ── Step timestamp attribute pairing (PRD §F11.1) ───────────────
++export const STEP_TIMESTAMP_ATTRS = [
++  "divisions_completed_at",
++  "manufacturing_completed_at",
++  "abc_completed_at",
++  "common_completed_at",
++] as const;
++
++// ── Error code constants (AD-15 §4 typed envelope) ──────────────
++export const ERROR_CODE_NON_CHRONOLOGICAL = "STAGE_NOT_CHRONOLOGICAL" as const;
++export const ERROR_CODE_UNKNOWN_STAGE = "UNKNOWN_STAGE_NAME" as const;
++
++// ── CloseSequenceOrderResult (mirror of Python NamedTuple) ──────
++export interface CloseSequenceOrderResult {
++  valid: boolean;
++  violations: readonly string[];
++  next_step: CloseSequenceStage | null;
++  reject_reason_ko: string | null;
++}
++
++// ── validate_close_sequence_order (TS mirror) ───────────────────
++// Mirrors Python `validate_close_sequence_order` pure kernel. AD-1/AD-11
++// parity (pure-Python, no I/O, no clock). The TS version receives
++// completion timestamps explicitly (no Date.now()).
++export function validateCloseSequenceOrder(input: {
++  divisions_completed_at: string | null; // ISO-8601 UTC string
++  manufacturing_completed_at: string | null;
++  abc_completed_at: string | null;
++  common_completed_at: string | null;
++}): CloseSequenceOrderResult {
++  const timestamps: ReadonlyArray<readonly [string, string | null]> = [
++    ["divisions", input.divisions_completed_at],
++    ["manufacturing", input.manufacturing_completed_at],
++    ["abc", input.abc_completed_at],
++    ["common", input.common_completed_at],
++  ];
++
++  const violations: string[] = [];
++  // Rule 1: forward-jump detection (chronological ordering).
++  for (let i = 0; i < timestamps.length - 1; i++) {
++    const [prevName, prevTs] = timestamps[i];
++    const [currName, currTs] = timestamps[i + 1];
++    if (prevTs === null && currTs !== null) {
++      violations.push(`${prevName} 단계 미완료`);
++    } else if (
++      prevTs !== null &&
++      currTs !== null &&
++      new Date(currTs).getTime() < new Date(prevTs).getTime()
++    ) {
++      violations.push(CHRONOLOGICAL_VIOLATION_KO);
++    }
++  }
++
++  // Rule 2: next_step = first incomplete stage.
++  let nextStep: CloseSequenceStage | null = null;
++  for (const [stageName, ts] of timestamps) {
++    if (ts === null) {
++      nextStep = stageName as CloseSequenceStage;
++      break;
++    }
++  }
++  if (nextStep === null) {
++    nextStep = "confirmed";
++  }
++
++  if (violations.length > 0) {
++    return {
++      valid: false,
++      violations,
++      next_step: nextStep,
++      reject_reason_ko: ALL_STAGES_REQUIRED_KO,
++    };
++  }
++
++  return {
++    valid: true,
++    violations: [],
++    next_step: nextStep,
++    reject_reason_ko: null,
++  };
++}
++
++// ── AD-6 INSERT guard types + constants ─────────────────────────
++// TargetTable (4 AD-6 locked tables) + TargetEventType (10 events).
++export const AD6_LOCKED_TABLES = [
++  "monthly_input_periods",
++  "monthly_input_rows",
++  "inventory_ledger",
++  "fiscal_period_snapshots",
++] as const;
++
++export type TargetTable = (typeof AD6_LOCKED_TABLES)[number];
++
++export const REVERSAL_TARGET_EVENT_TYPES = [
++  "reversal_negating",
++  "reversal_corrected",
++] as const;
++
++export type ReversalTargetEventType =
++  (typeof REVERSAL_TARGET_EVENT_TYPES)[number];
++
++// ── Ad6InsertGuardResult (mirror of Python NamedTuple) ───────────
++export interface Ad6InsertGuardResult {
++  allowed: boolean;
++  reject_reason_ko: string | null;
++  guard_type: "ALLOWED" | "CLOSED_LOCK" | "REVERSAL_EXCEPTION";
++}
++
++// ── check_ad6_insert_allowed (TS mirror) ────────────────────────
++// Mirrors Python `check_ad6_insert_allowed` from close_sequence_state.py.
++// Decides whether an INSERT is permitted under AD-6 close lock.
++export function checkAd6InsertAllowed(input: {
++  close_sequence_state: CloseSequenceStage;
++  target_table: string;
++  target_event_type: string;
++}): Ad6InsertGuardResult {
++  // Non-confirmed state → allow (no lock active yet).
++  if (input.close_sequence_state !== "confirmed") {
++    return { allowed: true, reject_reason_ko: null, guard_type: "ALLOWED" };
++  }
++
++  // Confirmed state → AD-6 lock active.
++  // AD-22 reversal/correction events pass through explicitly.
++  if (
++    (REVERSAL_TARGET_EVENT_TYPES as readonly string[]).includes(
++      input.target_event_type,
++    )
++  ) {
++    return {
++      allowed: true,
++      reject_reason_ko: null,
++      guard_type: "REVERSAL_EXCEPTION",
++    };
++  }
++
++  // Business-data tables in 'confirmed' state → BLOCKED.
++  if ((AD6_LOCKED_TABLES as readonly string[]).includes(input.target_table)) {
++    return {
++      allowed: false,
++      reject_reason_ko: "마감이 확정되어 입력이 거부됩니다 (AD-6)",
++      guard_type: "CLOSED_LOCK",
++    };
++  }
++
++  // Tables not in AD-6 lock set (audit_logs, verification_log, reversal_log)
++  // are allowed even in 'confirmed' state — bookkeeping tables.
++  return { allowed: true, reject_reason_ko: null, guard_type: "ALLOWED" };
++}
++
++// ── compute_close_sequence_state (TS mirror) ────────────────────
++// Mirrors Python `compute_close_sequence_state` from close_sequence_state.py.
++// Returns the close_sequence_state string given step timestamps.
++export function computeCloseSequenceState(input: {
++  divisions_completed_at: string | null;
++  manufacturing_completed_at: string | null;
++  abc_completed_at: string | null;
++  common_completed_at: string | null;
++  closed_at: string | null;
++}): CloseSequenceStage {
++  const completedCount = [
++    input.divisions_completed_at,
++    input.manufacturing_completed_at,
++    input.abc_completed_at,
++    input.common_completed_at,
++  ].filter((ts) => ts !== null).length;
++
++  if (completedCount === 0) return "divisions";
++  if (completedCount === 1) return "manufacturing";
++  if (completedCount === 2) return "abc";
++  if (completedCount === 3) return "common";
++  // 4 steps done.
++  if (input.closed_at !== null) return "confirmed";
++  return "common";
++}
++
++// ── Format helper for close sequence state display ───────────────
++// Returns the Korean SSOT message for the given stage. Mirrors Python
++// `format_close_sequence_state_ko` (if present) or the per-stage KO constants.
++export function formatCloseSequenceStateKo(state: CloseSequenceStage): string {
++  switch (state) {
++    case "divisions":
++      return DIVISIONS_MISSING_KO;
++    case "manufacturing":
++      return MANUFACTURING_MISSING_KO;
++    case "abc":
++      return ABC_MISSING_KO;
++    case "common":
++      return COMMON_MISSING_KO;
++    case "confirmed":
++      return "마감 확정";
++  }
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/lib/m11-reopen.ts ###########
+warning: in the working copy of 'apps/web/lib/m11-reopen.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/lib/m11-reopen.ts b/apps/web/lib/m11-reopen.ts
+new file mode 100644
+index 0000000..e6c0a61
+--- /dev/null
++++ b/apps/web/lib/m11-reopen.ts
+@@ -0,0 +1,206 @@
++// apps/web/lib/m11-reopen.ts — Story 11.4 (A13 sprint-up) TS mirror.
++//
++// M11 reopen authorization TS projection (AD-15 §11 SSOT parity with
++// `packages/services/m11_close/reopen_authorization.py`).
++//
++// Drift caught by `apps/web/lib/m11-reopen-parity.ts`
++// (vitest cross-language parity test).
++//
++// W2 reopen flow (PRD §F11.4):
++// 1. fiscal_periods.status='closed' AND close_sequence_state='confirmed'
++// 2. AD-10 owner-only role
++// 3. AD-15 reason length 20-500 chars (audit-justification minimum)
++// 4. operator_action 4-value enum
++// 5. AD-25 multi-channel publish (fiscal_period_cache + closing_snapshot_cache)
++//
++// Korean message SSOT:
++// - REOPEN_AUTHORIZE_OK_KO mirrors Python `REOPEN_AUTHORIZE_OK_KO`.
++// - REOPEN_REJECT_NOT_OWNER_KO mirrors Python `REOPEN_REJECT_NOT_OWNER_KO`.
++// - REOPEN_REJECT_NO_CAPABILITY_KO mirrors Python `REOPEN_REJECT_NO_CAPABILITY_KO`.
++// - REOPEN_REJECT_INVALID_OPERATOR_KO mirrors Python `REOPEN_REJECT_INVALID_OPERATOR_KO`.
++// - REOPEN_REJECT_REASON_TOO_SHORT_KO mirrors Python `REOPEN_REJECT_REASON_TOO_SHORT_KO`.
++// - REOPEN_REJECT_REASON_TOO_LONG_KO mirrors Python `REOPEN_REJECT_REASON_TOO_LONG_KO`.
++
++// ── Constants (Korean SSOT) ──────────────────────────────────────
++export const REOPEN_AUTHORIZE_OK_KO = "재오픈 승인 완료" as const;
++export const REOPEN_REJECT_NOT_OWNER_KO =
++  "소유자 역할이 아닙니다 — 재오픈 불가" as const;
++export const REOPEN_REJECT_NO_CAPABILITY_KO = "재오픈 권한 미보유" as const;
++export const REOPEN_REJECT_INVALID_OPERATOR_KO =
++  "재오픈 사유 분류가 올바르지 않습니다" as const;
++export const REOPEN_REJECT_REASON_TOO_SHORT_KO =
++  "재오픈 사유는 20자 이상이어야 합니다" as const;
++export const REOPEN_REJECT_REASON_TOO_LONG_KO =
++  "재오픈 사유는 500자 이하여야 합니다" as const;
++
++// ── Reason length bounds (AD-15 §11 audit-justification minimum) ─
++export const REOPEN_REASON_MIN_LENGTH = 20 as const;
++export const REOPEN_REASON_MAX_LENGTH = 500 as const;
++
++// ── operator_action 4-value enum (W2 reopen flow) ───────────────
++export const OPERATOR_ACTION_OPERATOR_REOPEN = "operator_reopen" as const;
++export const OPERATOR_ACTION_AUDIT_FINDING = "audit_finding" as const;
++export const OPERATOR_ACTION_LEGAL_COMPLIANCE = "legal_compliance" as const;
++export const OPERATOR_ACTION_DATA_CORRECTION = "data_correction" as const;
++
++export const REOPEN_OPERATOR_ACTIONS = [
++  OPERATOR_ACTION_OPERATOR_REOPEN,
++  OPERATOR_ACTION_AUDIT_FINDING,
++  OPERATOR_ACTION_LEGAL_COMPLIANCE,
++  OPERATOR_ACTION_DATA_CORRECTION,
++] as const;
++
++export type ReopenOperatorAction = (typeof REOPEN_OPERATOR_ACTIONS)[number];
++
++// ── Error codes (mirror Python ERROR_CODE_*) ────────────────────
++export const ERROR_CODE_INVALID_OPERATOR_ACTION =
++  "INVALID_OPERATOR_ACTION" as const;
++export const ERROR_CODE_INVALID_REASON_LENGTH = "INVALID_REASON_LENGTH" as const;
++export const ERROR_CODE_NO_CAPABILITY = "NO_CAPABILITY" as const;
++export const ERROR_CODE_NOT_OWNER = "NOT_OWNER_ROLE" as const;
++
++// ── ReopenAuthorizationState (TS view model) ─────────────────────
++export interface ReopenAuthorizationState {
++  authorized: boolean;
++  reject_reason_ko: string | null;
++  operator_action: string;
++  reason_length: number;
++  capability_granted: boolean;
++  is_owner: boolean;
++  actor_id: string;
++  tenant_id: string;
++}
++
++// ── authorize_reopen (TS mirror) ────────────────────────────────
++// Mirrors Python `authorize_reopen` pure kernel from reopen_authorization.py.
++export function buildReopenAuthorizationState(input: {
++  tenant_id: string;
++  actor_id: string;
++  operator_action: string;
++  reason: string;
++  capability_granted: boolean;
++  is_owner: boolean;
++}): ReopenAuthorizationState {
++  if (!input.tenant_id || !input.actor_id) {
++    return {
++      authorized: false,
++      reject_reason_ko: ERROR_CODE_NO_CAPABILITY,
++      operator_action: input.operator_action,
++      reason_length: (input.reason ?? "").length,
++      capability_granted: input.capability_granted,
++      is_owner: input.is_owner,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++    };
++  }
++
++  const reasonLength = (input.reason ?? "").length;
++
++  // Role gate (AD-10 owner-only).
++  if (!input.is_owner) {
++    return {
++      authorized: false,
++      reject_reason_ko: REOPEN_REJECT_NOT_OWNER_KO,
++      operator_action: input.operator_action,
++      reason_length: reasonLength,
++      capability_granted: input.capability_granted,
++      is_owner: false,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++    };
++  }
++
++  // Capability gate.
++  if (!input.capability_granted) {
++    return {
++      authorized: false,
++      reject_reason_ko: REOPEN_REJECT_NO_CAPABILITY_KO,
++      operator_action: input.operator_action,
++      reason_length: reasonLength,
++      capability_granted: false,
++      is_owner: true,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++    };
++  }
++
++  // operator_action enum gate.
++  if (
++    !(REOPEN_OPERATOR_ACTIONS as readonly string[]).includes(
++      input.operator_action,
++    )
++  ) {
++    return {
++      authorized: false,
++      reject_reason_ko: REOPEN_REJECT_INVALID_OPERATOR_KO,
++      operator_action: input.operator_action,
++      reason_length: reasonLength,
++      capability_granted: true,
++      is_owner: true,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++    };
++  }
++
++  // Reason length gate.
++  if (reasonLength < REOPEN_REASON_MIN_LENGTH) {
++    return {
++      authorized: false,
++      reject_reason_ko: REOPEN_REJECT_REASON_TOO_SHORT_KO,
++      operator_action: input.operator_action,
++      reason_length: reasonLength,
++      capability_granted: true,
++      is_owner: true,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++    };
++  }
++
++  if (reasonLength > REOPEN_REASON_MAX_LENGTH) {
++    return {
++      authorized: false,
++      reject_reason_ko: REOPEN_REJECT_REASON_TOO_LONG_KO,
++      operator_action: input.operator_action,
++      reason_length: reasonLength,
++      capability_granted: true,
++      is_owner: true,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++    };
++  }
++
++  // Authorized.
++  return {
++    authorized: true,
++    reject_reason_ko: null,
++    operator_action: input.operator_action,
++    reason_length: reasonLength,
++    capability_granted: true,
++    is_owner: true,
++    actor_id: input.actor_id,
++    tenant_id: input.tenant_id,
++  };
++}
++
++// ── isReopenAllowed (defense-in-depth gate) ─────────────────────
++export function isReopenAllowed(state: ReopenAuthorizationState): boolean {
++  return state.authorized;
++}
++
++// ── formatReopenResultKo (Korean SSOT for reopen outcome) ───────
++export function formatReopenResultKo(
++  state: ReopenAuthorizationState,
++): string {
++  if (!state.authorized) return state.reject_reason_ko ?? "";
++  return REOPEN_AUTHORIZE_OK_KO;
++}
++
++// ── validateReopenReasonLength (defense-in-depth) ───────────────
++// Mirrors Python REOPEN_REASON_MIN_LENGTH / REOPEN_REASON_MAX_LENGTH.
++// Returns true if reason length is within bounds.
++export function isReasonLengthValid(reason: string): boolean {
++  return (
++    reason.length >= REOPEN_REASON_MIN_LENGTH &&
++    reason.length <= REOPEN_REASON_MAX_LENGTH
++  );
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/lib/m11-reversal-execute.ts ###########
+warning: in the working copy of 'apps/web/lib/m11-reversal-execute.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/lib/m11-reversal-execute.ts b/apps/web/lib/m11-reversal-execute.ts
+new file mode 100644
+index 0000000..2901807
+--- /dev/null
++++ b/apps/web/lib/m11-reversal-execute.ts
+@@ -0,0 +1,216 @@
++// apps/web/lib/m11-reversal-execute.ts — Story 11.4 (A13 sprint-up) TS mirror.
++//
++// M11 reversal execute TS projection (AD-15 §11 SSOT parity with
++// `packages/services/m11_close/reversal_execute_snapshot.py`).
++//
++// Drift caught by `apps/web/lib/m11-reversal-execute-parity.ts`
++// (vitest cross-language parity test).
++//
++// AD-22 reversal 영구화: committed → reversed. 3-tier guard:
++// 1. monthly_input_periods.status (11-1 SSOT)
++// 2. fiscal_periods.status (11-2 PRIMARY)
++// 3. fiscal_period_snapshots.state (11-3 NEW — committed only)
++//
++// Korean message SSOT:
++// - REVERSAL_EXECUTE_OK_KO mirrors Python `REVERSAL_EXECUTE_OK_KO`.
++// - REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO mirrors Python `REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO`.
++
++// ── Constants (Korean SSOT) ──────────────────────────────────────
++export const REVERSAL_EXECUTE_OK_KO = "스냅샷 역분개 완료" as const;
++export const REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO =
++  "스냅샷 상태가 커밋 상태가 아닙니다 — 역분개 불가" as const;
++
++// ── Snapshot state whitelist for reversal 영구화 ─────────────────
++// Only `committed` snapshot state allows reversal 영구화.
++export const SNAPSHOT_STATE_REQUIRED = ["committed"] as const;
++export const SNAPSHOT_STATE_REJECTED_DRAFT = ["draft"] as const;
++export const SNAPSHOT_STATE_REJECTED_VERIFIED = ["verified"] as const;
++export const SNAPSHOT_STATE_REJECTED_REVERSED = ["reversed"] as const;
++
++// QTY_QUANTUM = NUMERIC(18, 4) — banker's rounding parity (CR 0-4).
++export const QTY_QUANTUM = "0.0001" as const;
++
++// ── Error codes (mirror Python ERROR_CODE_*) ────────────────────
++export const ERROR_CODE_INVALID_INPUT = "INVALID_REVERSAL_INPUT" as const;
++export const ERROR_CODE_INVALID_SNAPSHOT_STATE = "INVALID_SNAPSHOT_STATE" as const;
++export const ERROR_CODE_INSUFFICIENT_QTY = "INSUFFICIENT_QTY_FOR_NEGATING" as const;
++
++// ── NegatingRowSpec (mirror of Python NamedTuple) ───────────────
++export interface NegatingRowSpec {
++  tenant_id: string;
++  product_id: string;
++  period_key: string;
++  event_type: "reversal_negating";
++  negating_qty: string; // Decimal string (absolute value)
++  reverses_event_id: string;
++  correction_group_id: string;
++  actor_id: string;
++  trace_id: string;
++}
++
++// ── CorrectedRowSpec (mirror of Python NamedTuple) ──────────────
++export interface CorrectedRowSpec {
++  tenant_id: string;
++  product_id: string;
++  period_key: string;
++  event_type: "reversal_corrected";
++  corrected_qty: string; // Decimal string
++  correction_group_id: string;
++  actor_id: string;
++  trace_id: string;
++}
++
++// ── ReversalExecuteState (TS view model) ────────────────────────
++export interface ReversalExecuteState {
++  authorized: boolean;
++  snapshot_state: string;
++  correction_group_id: string;
++  target_event_id: string;
++  negating_qty: string; // absolute value
++  corrected_qty: string | null;
++  tenant_id: string;
++  actor_id: string;
++  reject_reason_ko: string | null;
++}
++
++// ── validate_reversal_execute_snapshot (TS mirror) ──────────────
++// Mirrors Python `validate_reversal_execute_snapshot` pure kernel.
++export function buildReversalExecuteState(input: {
++  tenant_id: string;
++  target_event_id: string;
++  snapshot_id: string;
++  snapshot_state: string;
++  target_qty: string;
++  corrected_qty: string | null;
++  correction_group_id: string;
++  actor_id: string;
++}): ReversalExecuteState {
++  if (
++    !input.tenant_id ||
++    !input.target_event_id ||
++    !input.snapshot_id ||
++    !input.correction_group_id ||
++    !input.actor_id
++  ) {
++    return {
++      authorized: false,
++      snapshot_state: input.snapshot_state,
++      correction_group_id: input.correction_group_id,
++      target_event_id: input.target_event_id,
++      negating_qty: "0",
++      corrected_qty: input.corrected_qty,
++      tenant_id: input.tenant_id,
++      actor_id: input.actor_id,
++      reject_reason_ko: ERROR_CODE_INVALID_INPUT,
++    };
++  }
++
++  if (Number(input.target_qty) < 0) {
++    return {
++      authorized: false,
++      snapshot_state: input.snapshot_state,
++      correction_group_id: input.correction_group_id,
++      target_event_id: input.target_event_id,
++      negating_qty: "0",
++      corrected_qty: input.corrected_qty,
++      tenant_id: input.tenant_id,
++      actor_id: input.actor_id,
++      reject_reason_ko: ERROR_CODE_INVALID_INPUT,
++    };
++  }
++
++  // Snapshot must be in 'committed' state for reversal 영구화.
++  if (!(SNAPSHOT_STATE_REQUIRED as readonly string[]).includes(input.snapshot_state)) {
++    return {
++      authorized: false,
++      snapshot_state: input.snapshot_state,
++      correction_group_id: input.correction_group_id,
++      target_event_id: input.target_event_id,
++      negating_qty: "0",
++      corrected_qty: input.corrected_qty,
++      tenant_id: input.tenant_id,
++      actor_id: input.actor_id,
++      reject_reason_ko: REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO,
++    };
++  }
++
++  // Authorized: state='committed' → reversed transition.
++  return {
++    authorized: true,
++    snapshot_state: input.snapshot_state,
++    correction_group_id: input.correction_group_id,
++    target_event_id: input.target_event_id,
++    negating_qty: input.target_qty, // absolute value (sign applied at INSERT)
++    corrected_qty: input.corrected_qty,
++    tenant_id: input.tenant_id,
++    actor_id: input.actor_id,
++    reject_reason_ko: null,
++  };
++}
++
++// ── build_negating_row_spec (TS mirror) ─────────────────────────
++export function buildNegatingRowSpec(input: {
++  tenant_id: string;
++  product_id: string;
++  period_key: string;
++  target_qty: string;
++  target_event_id: string;
++  correction_group_id: string;
++  actor_id: string;
++  trace_id: string;
++}): NegatingRowSpec {
++  if (!input.tenant_id || Number(input.target_qty) < 0) {
++    throw new Error(ERROR_CODE_INVALID_INPUT);
++  }
++  return {
++    tenant_id: input.tenant_id,
++    product_id: input.product_id,
++    period_key: input.period_key,
++    event_type: "reversal_negating",
++    negating_qty: input.target_qty, // absolute value (sign applied at INSERT)
++    reverses_event_id: input.target_event_id,
++    correction_group_id: input.correction_group_id,
++    actor_id: input.actor_id,
++    trace_id: input.trace_id,
++  };
++}
++
++// ── build_corrected_row_spec (TS mirror) ────────────────────────
++export function buildCorrectedRowSpec(input: {
++  tenant_id: string;
++  product_id: string;
++  period_key: string;
++  corrected_qty: string;
++  correction_group_id: string;
++  actor_id: string;
++  trace_id: string;
++}): CorrectedRowSpec {
++  if (Number(input.corrected_qty) < 0) {
++    throw new Error(ERROR_CODE_INVALID_INPUT);
++  }
++  return {
++    tenant_id: input.tenant_id,
++    product_id: input.product_id,
++    period_key: input.period_key,
++    event_type: "reversal_corrected",
++    corrected_qty: input.corrected_qty,
++    correction_group_id: input.correction_group_id,
++    actor_id: input.actor_id,
++    trace_id: input.trace_id,
++  };
++}
++
++// ── isReversalExecuteAllowed (defense-in-depth gate) ────────────
++export function isReversalExecuteAllowed(
++  state: ReversalExecuteState,
++): boolean {
++  return state.authorized;
++}
++
++// ── formatReversalExecuteResultKo (Korean SSOT) ─────────────────
++export function formatReversalExecuteResultKo(
++  state: ReversalExecuteState,
++): string {
++  if (!state.authorized) return state.reject_reason_ko ?? "";
++  return REVERSAL_EXECUTE_OK_KO;
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): apps/web/lib/m11-snapshot-persistence.ts ###########
+warning: in the working copy of 'apps/web/lib/m11-snapshot-persistence.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/web/lib/m11-snapshot-persistence.ts b/apps/web/lib/m11-snapshot-persistence.ts
+new file mode 100644
+index 0000000..eb5bdf8
+--- /dev/null
++++ b/apps/web/lib/m11-snapshot-persistence.ts
+@@ -0,0 +1,181 @@
++// apps/web/lib/m11-snapshot-persistence.ts — Story 11.4 (A13 sprint-up) TS mirror.
++//
++// M11 snapshot persistence TS projection (AD-15 §11 SSOT parity with
++// `packages/services/m11_close/commit_snapshot_persistence.py`).
++//
++// Drift caught by `apps/web/lib/m11-snapshot-persistence-parity.ts`
++// (vitest cross-language parity test).
++//
++// AD-20 state machine: draft → verified → committed → reversed.
++//
++// Korean message SSOT (single source of truth for ko-KR.json parity):
++// - SNAPSHOT_COMMIT_OK_KO mirrors Python `SNAPSHOT_COMMIT_OK_KO`.
++// - SNAPSHOT_COMMIT_IDEMPOTENT_KO mirrors Python `SNAPSHOT_COMMIT_IDEMPOTENT_KO`.
++// - SNAPSHOT_COMMIT_DRAFT_REJECT_KO mirrors Python `SNAPSHOT_COMMIT_DRAFT_REJECT_KO`.
++// - SNAPSHOT_COMMIT_REVERSED_REJECT_KO mirrors Python `SNAPSHOT_COMMIT_REVERSED_REJECT_KO`.
++
++// ── Constants (Korean SSOT) ──────────────────────────────────────
++export const SNAPSHOT_COMMIT_OK_KO = "스냅샷 영구화 완료" as const;
++export const SNAPSHOT_COMMIT_IDEMPOTENT_KO =
++  "스냅샷 이미 영구화됨 — 멱등 처리" as const;
++export const SNAPSHOT_COMMIT_DRAFT_REJECT_KO =
++  "스냅샷이 검증 전 상태 — 영구화 불가" as const;
++export const SNAPSHOT_COMMIT_REVERSED_REJECT_KO =
++  "스냅샷이 이미 역분개됨 — 영구화 불가" as const;
++
++// ── Snapshot state constants (AD-20 lifecycle) ──────────────────
++export const SNAPSHOT_STATE_DRAFT = "draft" as const;
++export const SNAPSHOT_STATE_VERIFIED = "verified" as const;
++export const SNAPSHOT_STATE_COMMITTED = "committed" as const;
++export const SNAPSHOT_STATE_REVERSED = "reversed" as const;
++
++export const SNAPSHOT_STATES = [
++  SNAPSHOT_STATE_DRAFT,
++  SNAPSHOT_STATE_VERIFIED,
++  SNAPSHOT_STATE_COMMITTED,
++  SNAPSHOT_STATE_REVERSED,
++] as const;
++
++export type SnapshotState = (typeof SNAPSHOT_STATES)[number];
++
++// ── State transition whitelist ──────────────────────────────────
++export const VALID_COMMIT_FROM_STATE: ReadonlySet<SnapshotState> = new Set([
++  SNAPSHOT_STATE_VERIFIED,
++]);
++export const IDEMPOTENT_NOOP_STATE: ReadonlySet<SnapshotState> = new Set([
++  SNAPSHOT_STATE_COMMITTED,
++]);
++export const TERMINAL_STATE: ReadonlySet<SnapshotState> = new Set([
++  SNAPSHOT_STATE_REVERSED,
++]);
++export const NON_COMMITTABLE_FROM_STATE: ReadonlySet<SnapshotState> = new Set([
++  SNAPSHOT_STATE_DRAFT,
++]);
++
++// ── Error codes (mirror Python ERROR_CODE_*) ────────────────────
++export const ERROR_CODE_INVALID_INPUT = "INVALID_COMMIT_INPUT" as const;
++export const ERROR_CODE_DRAFT_NOT_COMMITTABLE =
++  "SNAPSHOT_DRAFT_NOT_COMMITTABLE" as const;
++export const ERROR_CODE_ALREADY_REVERSED = "SNAPSHOT_ALREADY_REVERSED" as const;
++
++// ── SnapshotPersistenceState (TS view model) ────────────────────
++// Frontend projection of the commit decision (commit_panel UI).
++export interface SnapshotPersistenceState {
++  authorized: boolean;
++  idempotent_ok: boolean;
++  terminal_rejected: boolean;
++  commit_from_state: SnapshotState;
++  snapshot_id: string;
++  period_key: string;
++  actor_id: string;
++  tenant_id: string;
++  reject_reason_ko: string | null;
++}
++
++// ── validate_commit_snapshot_persistence (TS mirror) ────────────
++// Mirrors Python `validate_commit_snapshot_persistence` pure kernel.
++// Decides whether AD-20 verified → committed transition is permitted.
++export function buildSnapshotPersistenceState(input: {
++  snapshot_id: string;
++  period_key: string;
++  current_state: SnapshotState;
++  actor_id: string;
++  tenant_id: string;
++}): SnapshotPersistenceState {
++  if (!input.snapshot_id) {
++    return {
++      authorized: false,
++      idempotent_ok: false,
++      terminal_rejected: false,
++      commit_from_state: input.current_state,
++      snapshot_id: input.snapshot_id,
++      period_key: input.period_key,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++      reject_reason_ko: ERROR_CODE_INVALID_INPUT,
++    };
++  }
++  if (!input.period_key) {
++    return {
++      authorized: false,
++      idempotent_ok: false,
++      terminal_rejected: false,
++      commit_from_state: input.current_state,
++      snapshot_id: input.snapshot_id,
++      period_key: input.period_key,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++      reject_reason_ko: ERROR_CODE_INVALID_INPUT,
++    };
++  }
++
++  // Idempotent no-op: snapshot already committed.
++  if (IDEMPOTENT_NOOP_STATE.has(input.current_state)) {
++    return {
++      authorized: true,
++      idempotent_ok: true,
++      terminal_rejected: false,
++      commit_from_state: input.current_state,
++      snapshot_id: input.snapshot_id,
++      period_key: input.period_key,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++      reject_reason_ko: null,
++    };
++  }
++
++  // Terminal state: cannot re-commit a reversed snapshot.
++  if (TERMINAL_STATE.has(input.current_state)) {
++    return {
++      authorized: false,
++      idempotent_ok: false,
++      terminal_rejected: true,
++      commit_from_state: input.current_state,
++      snapshot_id: input.snapshot_id,
++      period_key: input.period_key,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++      reject_reason_ko: SNAPSHOT_COMMIT_REVERSED_REJECT_KO,
++    };
++  }
++
++  // Non-committable state: 'draft'.
++  if (NON_COMMITTABLE_FROM_STATE.has(input.current_state)) {
++    return {
++      authorized: false,
++      idempotent_ok: false,
++      terminal_rejected: false,
++      commit_from_state: input.current_state,
++      snapshot_id: input.snapshot_id,
++      period_key: input.period_key,
++      actor_id: input.actor_id,
++      tenant_id: input.tenant_id,
++      reject_reason_ko: SNAPSHOT_COMMIT_DRAFT_REJECT_KO,
++    };
++  }
++
++  // Valid: state='verified' → authorized commit transition.
++  return {
++    authorized: true,
++    idempotent_ok: false,
++    terminal_rejected: false,
++    commit_from_state: input.current_state,
++    snapshot_id: input.snapshot_id,
++    period_key: input.period_key,
++    actor_id: input.actor_id,
++    tenant_id: input.tenant_id,
++    reject_reason_ko: null,
++  };
++}
++
++// ── isCommitAllowed (defense-in-depth gate) ─────────────────────
++export function isCommitAllowed(state: SnapshotPersistenceState): boolean {
++  return state.authorized;
++}
++
++// ── formatCommitResultKo (Korean SSOT for commit outcome) ───────
++export function formatCommitResultKo(state: SnapshotPersistenceState): string {
++  if (state.idempotent_ok) return SNAPSHOT_COMMIT_IDEMPOTENT_KO;
++  if (!state.authorized) return state.reject_reason_ko ?? "";
++  return SNAPSHOT_COMMIT_OK_KO;
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): packages/cost_engine/tests/regression_v8/fixtures/reopen_committed.json ###########
+warning: in the working copy of 'packages/cost_engine/tests/regression_v8/fixtures/reopen_committed.json', LF will be replaced by CRLF the next time Git touches it
+diff --git a/packages/cost_engine/tests/regression_v8/fixtures/reopen_committed.json b/packages/cost_engine/tests/regression_v8/fixtures/reopen_committed.json
+new file mode 100644
+index 0000000..676ddc9
+--- /dev/null
++++ b/packages/cost_engine/tests/regression_v8/fixtures/reopen_committed.json
+@@ -0,0 +1,24 @@
++{
++  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
++  "fixture_id": "reopen_committed",
++  "fixture_version": "1.0.0",
++  "industry": "manufacturing",
++  "period_key": "2026-08",
++  "fiscal_period_id": "00000000-0000-0000-0000-000000000e01",
++  "pre_reopen_status": "closed",
++  "pre_reopen_close_sequence_state": "confirmed",
++  "operator_action": "audit_finding",
++  "reason_length": 42,
++  "reason_min_length_required": 20,
++  "reason_max_length_allowed": 500,
++  "is_owner": true,
++  "capability_granted": true,
++  "expected_reopen_authorized": true,
++  "expected_reopen_audit_id_present": true,
++  "expected_audit_action": "reopen_completed",
++  "expected_cache_invalidation_channels": [
++    "fiscal_period_cache",
++    "closing_snapshot_cache"
++  ],
++  "story_origin": "Story 11.4 (A13 sprint-up) — V8 22→26 골든 fixture matrix extension (W2 reopen flow AD-10 owner-only + 4-value operator_action enum + AD-15 reason 20-500 audit-justification)"
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): packages/cost_engine/tests/regression_v8/fixtures/reversal_corrected_snapshot.json ###########
+warning: in the working copy of 'packages/cost_engine/tests/regression_v8/fixtures/reversal_corrected_snapshot.json', LF will be replaced by CRLF the next time Git touches it
+diff --git a/packages/cost_engine/tests/regression_v8/fixtures/reversal_corrected_snapshot.json b/packages/cost_engine/tests/regression_v8/fixtures/reversal_corrected_snapshot.json
+new file mode 100644
+index 0000000..69ca925
+--- /dev/null
++++ b/packages/cost_engine/tests/regression_v8/fixtures/reversal_corrected_snapshot.json
+@@ -0,0 +1,39 @@
++{
++  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
++  "fixture_id": "reversal_corrected_snapshot",
++  "fixture_version": "1.0.0",
++  "industry": "manufacturing",
++  "period_key": "2026-08",
++  "snapshot_id": "00000000-0000-0000-0000-000000000b02",
++  "pre_reversal_state": "committed",
++  "post_reversal_state": "reversed",
++  "target_event_id": "00000000-0000-0000-0000-000000000c02",
++  "target_event_qty": "10.0000",
++  "corrected_qty": "8.5000",
++  "corrected_period_key": "2026-09",
++  "negating_row": {
++    "event_type": "reversal_negating",
++    "qty": "-10.0000",
++    "reverses_event_id": "00000000-0000-0000-0000-000000000c02",
++    "correction_group_id": "00000000-0000-0000-0000-000000000d02"
++  },
++  "corrected_row": {
++    "event_type": "reversal_corrected",
++    "qty": "8.5000",
++    "correction_group_id": "00000000-0000-0000-0000-000000000d02",
++    "period_key": "2026-09"
++  },
++  "expected_corrected_qty": "8.5000",
++  "expected_corrected_period_key": "2026-09",
++  "expected_reversal_authorized": true,
++  "expected_correction_group_link": "00000000-0000-0000-0000-000000000d02",
++  "expected_bankers_rounding_parity": true,
++  "expected_cache_invalidation_channels": [
++    "ai_cache",
++    "cost_engine_cache",
++    "fiscal_period_cache",
++    "closing_snapshot_cache"
++  ],
++  "audit_action": "snapshot_persistence_reversed",
++  "story_origin": "Story 11.4 (A13 sprint-up) — V8 22→26 골든 fixture matrix extension (AD-22 corrected row + corrected_period_key + banker's rounding parity)"
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): packages/cost_engine/tests/regression_v8/fixtures/reversal_negating_snapshot.json ###########
+warning: in the working copy of 'packages/cost_engine/tests/regression_v8/fixtures/reversal_negating_snapshot.json', LF will be replaced by CRLF the next time Git touches it
+diff --git a/packages/cost_engine/tests/regression_v8/fixtures/reversal_negating_snapshot.json b/packages/cost_engine/tests/regression_v8/fixtures/reversal_negating_snapshot.json
+new file mode 100644
+index 0000000..e1cdf3d
+--- /dev/null
++++ b/packages/cost_engine/tests/regression_v8/fixtures/reversal_negating_snapshot.json
+@@ -0,0 +1,31 @@
++{
++  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
++  "fixture_id": "reversal_negating_snapshot",
++  "fixture_version": "1.0.0",
++  "industry": "manufacturing",
++  "period_key": "2026-08",
++  "snapshot_id": "00000000-0000-0000-0000-000000000b01",
++  "pre_reversal_state": "committed",
++  "post_reversal_state": "reversed",
++  "target_event_id": "00000000-0000-0000-0000-000000000c01",
++  "target_event_qty": "10.0000",
++  "negating_row": {
++    "event_type": "reversal_negating",
++    "qty": "-10.0000",
++    "reverses_event_id": "00000000-0000-0000-0000-000000000c01",
++    "correction_group_id": "00000000-0000-0000-0000-000000000d01",
++    "tenant_id": "11111111-1111-4111-8111-111111111111"
++  },
++  "expected_negating_qty_absolute": "10.0000",
++  "expected_reversal_authorized": true,
++  "expected_financial_effect": "0.0000",
++  "expected_correction_group_link": "00000000-0000-0000-0000-000000000d01",
++  "expected_cache_invalidation_channels": [
++    "ai_cache",
++    "cost_engine_cache",
++    "fiscal_period_cache",
++    "closing_snapshot_cache"
++  ],
++  "audit_action": "snapshot_persistence_reversed",
++  "story_origin": "Story 11.4 (A13 sprint-up) — V8 22→26 골든 fixture matrix extension (AD-22 reversal 영구화 sign-negating row + correction_group_id link)"
++}
+\ No newline at end of file
+
+########### UNTRACKED (NEW): packages/cost_engine/tests/regression_v8/fixtures/snapshot_committed.json ###########
+warning: in the working copy of 'packages/cost_engine/tests/regression_v8/fixtures/snapshot_committed.json', LF will be replaced by CRLF the next time Git touches it
+diff --git a/packages/cost_engine/tests/regression_v8/fixtures/snapshot_committed.json b/packages/cost_engine/tests/regression_v8/fixtures/snapshot_committed.json
+new file mode 100644
+index 0000000..f9e4dbf
+--- /dev/null
++++ b/packages/cost_engine/tests/regression_v8/fixtures/snapshot_committed.json
+@@ -0,0 +1,32 @@
++{
++  "_fixture_lock_sha256": "PLACEHOLDER_LOCK_WILL_BE_REGENERATED_BY_PUBLISHER",
++  "fixture_id": "snapshot_committed",
++  "fixture_version": "1.0.0",
++  "industry": "manufacturing",
++  "period_key": "2026-08",
++  "snapshot_id": "00000000-0000-0000-0000-000000000a01",
++  "pre_commit_state": "verified",
++  "post_commit_state": "committed",
++  "snapshot_events": [
++    {
++      "product_id": "00000000-0000-0000-0000-000000000001",
++      "closing_qty": "10.0000",
++      "finalized_at": "2026-08-09T00:00:00Z"
++    },
++    {
++      "product_id": "00000000-0000-0000-0000-000000000002",
++      "closing_qty": "5.5000",
++      "finalized_at": "2026-08-09T00:00:00Z"
++    }
++  ],
++  "expected_commit_transition_ok": true,
++  "expected_state_after": "committed",
++  "expected_cache_invalidation_channels": [
++    "ai_cache",
++    "cost_engine_cache",
++    "fiscal_period_cache",
++    "closing_snapshot_cache"
++  ],
++  "audit_action": "snapshot_persistence_committed",
++  "story_origin": "Story 11.4 (A13 sprint-up) — V8 22→26 골든 fixture matrix extension (snapshot commit AD-20 verified→committed)"
++}
+\ No newline at end of file
+
+########### END 11-4 diff ###########

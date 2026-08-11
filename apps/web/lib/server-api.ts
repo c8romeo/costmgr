@@ -201,6 +201,72 @@ export async function fetchMonthlyInputStateServerSide(
   }
 }
 
+/**
+ * fetchM2EntryGateServerSide — Story 12.4 review P-02.
+ *
+ * RSC fetch for `GET /api/v1/m2-entry-gate` to seed the TwoFactorGuard
+ * component with actual session-derived props (role, totp_enabled,
+ * locked_out, lockout_until). Replaces the placeholder hardcoded values
+ * that were broken per CR 11-4 D-001 lesson.
+ *
+ * Fail-closed: when fetch fails or token missing, returns null which the
+ * page treats as `role="viewer"` (no M2 entry). Returns null on failure
+ * so the page can fail closed (gate denies M2 entry).
+ */
+export interface M2EntryGateServerSideResponse {
+  role: string;
+  totp_enabled: boolean;
+  locked_out: boolean;
+  lockout_until: string | null;
+}
+
+export async function fetchM2EntryGateServerSide(
+  accessToken: string | undefined,
+  traceId: string,
+): Promise<M2EntryGateServerSideResponse | null> {
+  if (!accessToken) {
+    // No session → viewer (no M2 entry)
+    return {
+      role: "viewer",
+      totp_enabled: false,
+      locked_out: false,
+      lockout_until: null,
+    };
+  }
+  const headers = new Headers();
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(`${apiBaseUrl()}/api/v1/m2-entry-gate`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+      signal: abortCtl.signal,
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      role?: string;
+      totp_enabled?: boolean;
+      locked_out?: boolean;
+      lockout_until?: string | null;
+    };
+    return {
+      role: data.role ?? "viewer",
+      totp_enabled: data.totp_enabled ?? false,
+      locked_out: data.locked_out ?? false,
+      lockout_until: data.lockout_until ?? null,
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // ── Story 6.2 — Monthly closing report server-side fetcher ──────
 //
 // RSC fetch for `GET /api/v1/inventory/monthly-closing-report?period_key=...`

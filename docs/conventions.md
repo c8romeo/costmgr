@@ -812,3 +812,119 @@ on module load. Python uses `decimal.Decimal.quantize(USD_QUANTUM, rounding=ROUN
 Parity invariant: TS `parityQuantizeUSD("1005")` = Python
 `Decimal("1005").quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)` =
 `Decimal("1.00")` (USD 1.005 → 1.00 ROUND_HALF_EVEN).
+
+---
+
+## §11 TOTP / 2FA (Epic 12 — Story 12.1 + 12.4)
+
+PRD §F12.1 + §M12-a — 2FA mandatory gate for M2 ([월 입력]) entry.
+2FA is **industry-agnostic** (security baseline, CR 12-1 L4) — applies
+to ALL 4 canonical industries regardless of manufacturing footprint.
+
+### §11.1 Layering (AD-11)
+
+| Layer | File | 책임 |
+|---|---|---|
+| Pure kernel | `packages/services/m12_account/totp.py` | RFC 6238 (HMAC-SHA1, base32, 30s step, 6-digit, ±1 window), PBKDF2 recovery codes, lockout state machine |
+| Pure kernel | `packages/services/m12_account/two_factor_gate.py` | Role allowlist (AD-10 owner/member), `enforce_role_gate`, `enforce_two_factor_gate`, `lockout_status` |
+| Service | `apps/api/modules/m12_account/services/two_factor_service.py` | DB persistence (users.totp_*), NFR6 AES-256-GCM, audit-first, 8 typed exceptions |
+| Service | `apps/api/modules/m12_account/services/two_factor_challenge_service.py` | HS256 JWT challenge tokens (5-min TTL, single-purpose) |
+| HTTP | `apps/api/modules/m12_account/handlers.py` | 8 routes + 1 M2 entry-gate route (Story 12.4 wire) |
+| Frontend | `apps/web/lib/m12-two-factor-{gate,setup,disable}.ts` | TS mirrors for parity (3 files + 23 vitest cases) |
+| Frontend | `apps/web/components/m12-account/TwoFactorGuard.tsx` | M2 entry guard UI (mounted in m2-input page) |
+
+### §11.2 NFR6 — AES-256-GCM column-level encryption
+
+`users.totp_secret` (BYTEA) stores ONLY the ciphertext blob produced by
+`apps.api.core.crypto.encrypt_at_rest(plaintext, key_id=DEFAULT_KEY_ID, aad=b"totp_secret")`.
+
+- `DEFAULT_KEY_ID="v1"` — current key generation.
+- `aad=b"totp_secret"` — AAD binds ciphertext to column so a blob lifted
+  from another column cannot be decrypted here.
+- Plaintext base32 secret NEVER appears in logs, responses, or audit
+  payloads (NFR5 TLS in transit + at-rest).
+- Recovery codes are PBKDF2-HMAC-SHA256 hashed (200k iters, Crockford
+  base32, 8 codes per enrollment) and stored as JSONB.
+
+### §11.3 Lockout (5-fail → 15-min)
+
+- `MAX_FAILED_ATTEMPTS = 5` (pure kernel constant)
+- `LOCKOUT_DURATION_SECONDS = 900` (15 min)
+- On lockout: `users.totp_lockout_until = now() + 900`
+- 429 response includes `Retry-After: <seconds>` header
+- Reset: successful TOTP or recovery-code verification sets
+  `totp_failed_attempts = 0, totp_lockout_until = NULL`
+
+### §11.4 AD-10 4-role gate
+
+- M2 entry: owner / member = ALLOWED, viewer / consultant_proxy = DENIED
+- Mutations (`disable`): `require_role("owner")` enforced at handler
+- 2FA capability gate is intentionally absent — 2FA is industry-agnostic
+  (CR 12-1 L4); role gate is the only authorization layer
+
+### §11.5 8 + 1 routes (Story 12.4 wire)
+
+| Method | Path | Status | Purpose |
+|---|---|---|---|
+| POST | `/api/v1/account/2fa/setup` | 201 | Initiate 2FA setup (returns secret + URI + 8 recovery codes) |
+| POST | `/api/v1/account/2fa/verify` | 200 | Verify first TOTP code, flip `twofa_enabled=true` |
+| POST | `/api/v1/account/2fa/challenge` | 200 | M2 entry gate challenge (returns HS256 challenge token) |
+| POST | `/api/v1/account/2fa/recovery` | 200 | Verify 1회용 recovery code (fallback) |
+| POST | `/api/v1/account/2fa/disable` | 200 | Disable 2FA (owner-only; code OR admin override) |
+| GET  | `/api/v1/account/2fa/status` | 200 | Read enrollment state (no UPDATE) |
+| POST | `/api/v1/account/2fa/challenge-tokens` | 201 | Issue HS256 challenge token (5-min TTL) |
+| POST | `/api/v1/account/2fa/challenge-tokens/consume` | 200 | Consume HS256 challenge token |
+| GET  | `/api/v1/m2-entry-gate` | 200 | M2 entry gate state check (PRD §M12-a) |
+
+### §11.6 14 typed exceptions → AD-15 §4 envelope
+
+| Exception | Module | Status |
+|---|---|---|
+| `TwoFactorNotEnabledError` | exceptions.py | 400 |
+| `TwoFactorAlreadyEnabledError` | exceptions.py | 409 |
+| `TwoFactorAuditEmitError` | exceptions.py | 503 |
+| `TwoFactorEncryptionError` | exceptions.py | 400 |
+| `TwoFactorCryptoKeyMissingError` | exceptions.py | 500 |
+| `TwoFactorRecoveryExhaustedError` | exceptions.py | 410 |
+| `TwoFactorDisableUnauthorizedError` | exceptions.py | 403 |
+| `TwoFactorUserNotFoundError` | exceptions.py | 404 |
+| `TotpInvalidCodeError` | totp.py (kernel) | 401 |
+| `TotpLockoutError` | totp.py (kernel) | 429 + Retry-After |
+| `TotpRecoveryInvalidError` | totp.py (kernel) | 401 |
+| `ChallengeTokenExpiredError` | challenge_service.py | 401 |
+| `ChallengeTokenInvalidError` | challenge_service.py | 401 |
+| `ChallengeTokenPurposeMismatchError` | challenge_service.py | 401 |
+
+### §11.7 Korean SSOT
+
+Single source of truth for ko-KR strings (AD-15 §11):
+- Backend: `apps/api/modules/m12_account/services/audit_extension.py`
+  (19 `*_KO` constants + 11 `ERROR_CODE_*` strings)
+- Frontend: `apps/web/messages/ko-KR.json` (`two_factor_guard`,
+  `two_factor_setup_panel`, `two_factor_disable_panel`,
+  `two_factor_status_badge`, `m2_entry_gate` sections, 41 NEW strings)
+
+Drift detector: `tests/integration/test_audit_logs_no_action_check_constraint.py`
+pins that `audit_logs.action` is intentionally CHECK-less (the
+ActionClass registry → audit_logs routing is documented in
+`apps/api/core/audit_action.py:584-602`).
+
+### §11.8 Alembic 0022 + RLS 0013
+
+- `apps/api/alembic/versions/0022_users_totp_columns.py` — adds 5 columns:
+  `totp_secret BYTEA`, `totp_enabled_at TIMESTAMPTZ`,
+  `totp_failed_attempts INTEGER DEFAULT 0 NOT NULL`,
+  `totp_lockout_until TIMESTAMPTZ`,
+  `totp_recovery_codes_hash JSONB`. Down-revision = `0021_cache_invalidation_multi_channel`.
+  Adds CHECK `totp_failed_attempts >= 0` + 2 partial indexes
+  (`ix_users_totp_lockout_until`, `ix_users_totp_enabled_at`).
+- `supabase/policies/0013_users_totp_columns_rls.sql` — 5 policies on
+  `users` table (same-tenant SELECT + consultant_proxy cross-tenant
+  SELECT + tenant INSERT + self UPDATE + owner UPDATE; NO DELETE).
+  GUC: `current_setting('app.tenant_id', true)::uuid`.
+
+### §11.9 honestly DEFERRED items (Story 12.4)
+
+See `docs/deferred-work.md## Deferred from: 12-4` for the 7 items
+honestly DEFERred from the T3 frontend spec (4 form components +
+account/security page + QR rendering + Playwright E2E).

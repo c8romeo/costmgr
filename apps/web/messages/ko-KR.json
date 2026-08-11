@@ -165,5 +165,58 @@
     "progress_label": "{completed} / 4 단계 완료",
     "confirm_dialog_title": "4단계 마감 확정",
     "confirm_dialog_description": "확정 후 AD-6 INSERT 거부 활성화"
+  },
+  "two_factor_guard": {
+    "panel_title": "2단계 인증 (2FA) 게이트",
+    "panel_description": "PRD §M12-a — 2FA 미설정 시 [월 입력] 화면 진입이 차단됩니다.",
+    "setup_required_label": "2FA 설정 필요",
+    "setup_required_description": "[월 입력] 진입을 위해 2FA를 먼저 설정해 주세요.",
+    "setup_button": "2FA 설정 시작",
+    "challenge_required_label": "인증 코드 입력",
+    "challenge_required_description": "인증 앱에 표시된 6자리 코드를 입력해 주세요.",
+    "challenge_input_placeholder": "6자리 코드",
+    "challenge_submit_button": "인증",
+    "challenge_recovery_label": "복구 코드 사용",
+    "challenge_recovery_placeholder": "Crockford base32 10자리",
+    "recovery_submit_button": "복구 코드로 인증",
+    "locked_out_label": "5회 실패 — 15분 후 재시도",
+    "locked_out_toast": "인증 잠금 — 잠시 후 다시 시도하세요",
+    "invalid_code_toast": "인증 코드가 올바르지 않습니다",
+    "challenge_passed_toast": "인증 완료 — [월 입력] 진입 가능",
+    "recovery_passed_toast": "복구 코드 인증 완료",
+    "network_error_toast": "네트워크 오류"
+  },
+  "two_factor_setup_panel": {
+    "panel_title": "2FA 설정",
+    "step1_title": "1단계: 비밀키 저장",
+    "step1_description": "아래 base32 비밀키를 인증 앱에 입력하세요.",
+    "secret_label": "비밀키 (base32)",
+    "uri_label": "otpauth:// URI",
+    "recovery_codes_title": "복구 코드 (1회만 표시 — 안전한 곳에 보관)",
+    "step2_title": "2단계: 인증 앱에서 6자리 코드 입력",
+    "step2_description": "인증 앱에 표시된 6자리 코드를 입력해 활성화합니다.",
+    "verify_button": "활성화",
+    "setup_success_toast": "2FA 설정 완료",
+    "already_enabled_label": "이미 설정됨"
+  },
+  "two_factor_disable_panel": {
+    "panel_title": "2FA 비활성화",
+    "description": "비활성화 후 2FA 재설정 필요.",
+    "code_label": "현재 6자리 코드",
+    "code_placeholder": "000000",
+    "reason_label": "비활성화 사유 (admin override 시 20자 이상)",
+    "submit_button": "비활성화",
+    "disable_success_toast": "2FA 비활성화 완료"
+  },
+  "two_factor_status_badge": {
+    "label_enabled": "2FA 활성",
+    "label_disabled": "2FA 미설정",
+    "label_locked": "2FA 잠김",
+    "recovery_codes_remaining_label": "복구 코드 {N}개 남음"
+  },
+  "m2_entry_gate": {
+    "blocked_role_label": "owner/member role만 [월 입력] 화면 진입 가능",
+    "blocked_lockout_label": "2FA 잠금 — {until} 이후 재시도",
+    "blocked_2fa_required_label": "2FA 인증 필요 — 2FA 게이트 완료 후 진입 가능"
   }
 }

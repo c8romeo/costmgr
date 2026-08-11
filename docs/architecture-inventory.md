@@ -476,3 +476,113 @@ ENABLE + FORCE RLS + 4-policy split (`tenant_select_own` +
 
 `Capability.CLOSE_SEQUENCE_LOCK` 신규 (manufacturing 3종 ✅ / service-only ❌).
 상세: [docs/capability-matrix.md](./capability-matrix.md) + [docs/close-sequence-lock.md](./close-sequence-lock.md) SSOT.
+
+---
+
+# Architecture: M12 Account Module (Epic 12) — 2FA / M2 Entry Gate
+
+> Story 12.1 (initial wire) + Story 12.4 (carry-over sprint) — 5번째 epic 연속 검증
+
+## 모듈 구조
+
+```
+apps/api/modules/m12_account/
+├── __init__.py          # router re-export (CR 11-2 lessons)
+├── handlers.py          # 8 routes + 1 M2 entry gate route (Story 12.4 wire)
+├── exceptions.py        # 8 typed exceptions (TwoFactorNotEnabledError 등)
+├── services/
+│   ├── __init__.py
+│   ├── two_factor_service.py             # TwoFactorService (get_totp_status + disable_totp 등)
+│   ├── two_factor_challenge_service.py   # PyJWT HS256 challenge tokens (5-min TTL)
+│   └── audit_extension.py                # 19 *_KO + 11 ERROR_CODE_* constants (AD-15 §11 SSOT)
+```
+
+## 레이어 규칙 (AD-11)
+
+```
+Pure kernel (packages/services/m12_account/)
+   ├── totp.py                  # RFC 6238 + lockout + recovery code PBKDF2
+   └── two_factor_gate.py       # AD-10 role gate + M2 entry state machine
+   ↓ import
+Service layer (apps/api/modules/m12_account/services/two_factor_service.py)
+   ↓ import
+HTTP layer (apps/api/modules/m12_account/handlers.py)
+   ↓ import
+FastAPI app (apps/api/main.py — include_router(m12_account_router))
+```
+
+Pure kernel 은 stdlib-only (no DB, no clock injection, no random). Service
+layer 는 SQLAlchemy AsyncSession + NFR6 AES-256-GCM encrypt-at-rest + AD-15
+§11 audit-first emit (CR 1.1 lesson). HTTP layer 는 FastAPI + Pydantic
++ `require_role("owner")` dependency (AD-10 4-role gate).
+
+## 데이터 흐름 (PRD §F12.1 + §M12-a)
+
+```
+[User navigates to /m2-input/period/[periodKey]]
+   ↓
+Server Component: <TwoFactorGuard role={session.role}
+                              totp_enabled={...}
+                              locked_out={...}
+                              lockout_until={...}>
+   ↓
+TS mirror buildM2EntryGateState(input) → state.allowed
+   ↓ (Story 12.4: minimal viable wire — stub props, TODO replace with session resolution)
+If state.allowed === false:
+  Render yellow-bordered panel (ko-KR.json: two_factor_guard + m2_entry_gate)
+   ↓
+[User clicks "인증 진행" — DEFERRED to Story 12.5: TwoFactorChallengeDialog]
+   ↓
+POST /api/v1/account/2fa/challenge → HS256 challenge token (5-min TTL)
+   ↓
+POST /api/v1/account/2fa/challenge-tokens/consume → verify TOTP code
+   ↓
+on success: M2 entry permitted
+on lockout (429): display Retry-After timer
+```
+
+## Pure kernels (packages/services/m12_account/)
+
+| Kernel | File | Role |
+| --- | --- | --- |
+| `totp.verify_totp_code` | `totp.py` | RFC 6238 HMAC-SHA1 base32 + ±1 window |
+| `totp.verify_recovery_code` | `totp.py` | PBKDF2-HMAC-SHA256 200k iters + Crockford base32 |
+| `totp.compute_lockout_state` | `totp.py` | 5-fail → 15-min LOCKOUT_DURATION_SECONDS=900 |
+| `two_factor_gate.enforce_role_gate` | `two_factor_gate.py` | AD-10 owner/member allowlist |
+| `two_factor_gate.enforce_two_factor_gate` | `two_factor_gate.py` | 2FA enrollment + lockout gate |
+| `two_factor_gate.lockout_status` | `two_factor_gate.py` | bool derivation from totp_lockout_until |
+
+## RLS (supabase/policies/0013_users_totp_columns_rls.sql)
+
+ENABLE + FORCE RLS + 5-policy split on `users.totp_*` columns:
+
+| Policy | Operation | Rule |
+| --- | --- | --- |
+| `users_totp_select_same_tenant` | SELECT | `tenant_id = current_setting('app.tenant_id', true)::uuid` |
+| `users_totp_select_consultant_proxy` | SELECT | EXISTS check on `memberships.role='consultant_proxy'` |
+| `users_totp_insert_same_tenant` | INSERT | same-tenant check |
+| `users_totp_update_self` | UPDATE | `id = current_setting('app.user_id', true)::uuid` |
+| `users_totp_update_owner` | UPDATE | EXISTS check on `memberships.role='owner'` |
+
+**Intentionally NO DELETE policy** — 2FA state retention required for audit.
+
+## Capability matrix v1.13
+
+**2FA is industry-agnostic** (CR 12-1 L4) — capability gate intentionally
+absent. Authorization is AD-10 role gate only. `Capability.TWO_FACTOR_AUTH`
+is documented in [docs/capability-matrix.md](./capability-matrix.md) for
+completeness but is NOT enforced in any route.
+
+상세: [docs/capability-matrix.md](./capability-matrix.md) + [docs/account-security-operations.md](./account-security-operations.md) + [docs/conventions.md#11-totp-2fa-epic-12-story-121-124](./conventions.md#11-totp-2fa-epic-12-story-121-124) SSOT.
+
+## Cross-references
+
+- `apps/api/alembic/versions/0022_users_totp_columns.py` — 5 columns + 2 partial indexes + CHECK
+- `tests/api/test_alembic_0022_users_totp_columns.py` — 12 migration tests
+- `tests/api/m12_account/test_handlers_route_shape.py` — 12 route shape tests
+- `tests/api/m12_account/test_exception_handlers_registered.py` — 14 exception handler tests
+- `tests/integration/test_audit_logs_no_action_check_constraint.py` — invariant regression
+- `apps/web/lib/m12-two-factor-{gate,setup,disable}.ts` — 3 TS mirrors + 23 vitest parity tests
+- `apps/web/components/m12-account/TwoFactorGuard.tsx` — M2 entry guard UI
+- `apps/web/messages/ko-KR.json` — 5 NEW sections (two_factor_guard, two_factor_setup_panel, two_factor_disable_panel, two_factor_status_badge, m2_entry_gate) — 41 NEW strings total
+

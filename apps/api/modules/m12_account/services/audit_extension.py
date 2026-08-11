@@ -52,6 +52,8 @@ USER_NOT_FOUND_KO: str = "사용자를 찾을 수 없습니다"
 CHALLENGE_TOKEN_EXPIRED_KO: str = "인증 토큰이 만료되었습니다 — 다시 시도해 주세요"
 CHALLENGE_TOKEN_INVALID_KO: str = "인증 토큰이 유효하지 않습니다"
 CHALLENGE_TOKEN_PURPOSE_MISMATCH_KO: str = "인증 토큰 용도가 일치하지 않습니다"
+CHALLENGE_TOKEN_ALREADY_CONSUMED_KO: str = "이미 사용된 인증 토큰입니다 — 재사용 불가"
+TWO_FACTOR_CHALLENGE_FAILED_KO: str = "2FA 인증에 실패했습니다 — 코드를 확인해 주세요"
 
 
 # ── Error code aliases (envelope contract) ───────────────────
@@ -91,6 +93,8 @@ __all__ = [
     "CHALLENGE_TOKEN_EXPIRED_KO",
     "CHALLENGE_TOKEN_INVALID_KO",
     "CHALLENGE_TOKEN_PURPOSE_MISMATCH_KO",
+    "CHALLENGE_TOKEN_ALREADY_CONSUMED_KO",
+    "TWO_FACTOR_CHALLENGE_FAILED_KO",
     # Error codes (envelope contract)
     "ERROR_CODE_NOT_ENABLED",
     "ERROR_CODE_ALREADY_ENABLED",

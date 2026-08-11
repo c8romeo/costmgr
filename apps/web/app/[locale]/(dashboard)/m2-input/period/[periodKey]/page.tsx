@@ -37,9 +37,11 @@ import { CacheInvalidationChannelBadge } from "@/components/m11-close/CacheInval
 import { ReopenOperatorDialog } from "@/components/m11-close/ReopenOperatorDialog";
 import { ReversalExecuteDialog } from "@/components/m11-close/ReversalExecuteDialog";
 import { SnapshotPersistencePanel } from "@/components/m11-close/SnapshotPersistencePanel";
+import { TwoFactorGuard } from "@/components/m12-account/TwoFactorGuard";
 import { MonthlyInputTabs } from "@/components/m2-input/MonthlyInputTabs";
 import type { ClosingInvariant } from "@/lib/l2-input-inventory-ledger";
 import { fetchMonthlyInputStateServerSide } from "@/lib/server-api";
+import { fetchM2EntryGateServerSide } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +99,24 @@ export default async function MonthlyInputPeriodPage({
   const monthlyClosingReportCapabilityGranted =
     initialState?.monthly_closing_report_capability_granted ?? false;
 
+  // Story 12.4 review P-02: TwoFactorGuard props sourced from RSC server-side
+  // session fetch via GET /api/v1/m2-entry-gate (best-effort, fail-closed).
+  // The guard requires the actual role + 2FA enrolled state + lockout status
+  // for the gate decision to be correct. When fetch fails, the guard defaults
+  // to {role: "viewer", totp_enabled: false, locked_out: false} — which
+  // fails CLOSED (viewer cannot enter M2 entry, must complete 2FA setup).
+  let gateState: {
+    role: string;
+    totp_enabled: boolean;
+    locked_out: boolean;
+    lockout_until: string | null;
+  } | null = null;
+  try {
+    gateState = await fetchM2EntryGateServerSide(accessToken, traceId);
+  } catch {
+    gateState = null;
+  }
+
   return (
     <section style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem" }}>
       <header style={{ marginBottom: "1.25rem" }}>
@@ -110,6 +130,20 @@ export default async function MonthlyInputPeriodPage({
       {/* P3-3rd-sweep P1: project all 5 NEW fields. P3: opening locked.
           P25: traceId. P26: productNameLookup. P27: onSubmit no-op.
           Story 6.1 T8.6 — closing_period_state + capability gate + onConfirm. */}
+      {/* Story 12.4 — T8 frontend mount (CR 11-4 D-001: must actually mount
+          the component). <TwoFactorGuard> wraps the M2 entry content; when
+          the gate is denied, the user sees a yellow panel with a setup
+          link instead of the monthly input tabs.
+          Story 12.4 review P-01 + P-02: TwoFactorGuard is now the WRAPPER
+          (not sibling) + props read from RSC server-side session fetch
+          via `getM2EntryGateState()`. The M2 tabs are inside the guard
+          children so they DO NOT render when gate is denied. */}
+      <TwoFactorGuard
+        role={gateState?.role ?? "viewer"}
+        totp_enabled={gateState?.totp_enabled ?? false}
+        locked_out={gateState?.locked_out ?? false}
+        lockout_until={gateState?.lockout_until ?? null}
+      >
       <MonthlyInputTabs
         period_key={periodKey}
         invariant={invariant}
@@ -160,6 +194,7 @@ export default async function MonthlyInputPeriodPage({
           return data.closing_snapshot_count ?? closingSnapshotCount;
         }}
       />
+      </TwoFactorGuard>
       {/* Story 11.4 (A13 sprint-up) — T8 frontend mount (D-001).
           4 NEW Client Components rendered as siblings of <MonthlyInputTabs>.
           Each component has its own capability gate + service-only tenant

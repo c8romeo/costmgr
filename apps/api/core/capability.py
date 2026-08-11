@@ -387,3 +387,35 @@ def require_role(required_role: str):
         return ctx
 
     return _dep
+
+
+def require_any_role(*allowed_roles: str):
+    """FastAPI dependency factory — enforce role ∈ {allowed_roles} on the route.
+
+    Story 12.4 review P-10: M2 entry gates (consume_challenge_token, etc.)
+    need to allow owner OR member (NOT viewer/consultant_proxy). This
+    helper is the multi-role complement of `require_role`.
+
+    Usage:
+        @router.post(
+            "/account/2fa/challenge-tokens/consume",
+            dependencies=[Depends(require_any_role("owner", "member"))],
+        )
+    """
+    allowed = frozenset(allowed_roles)
+
+    async def _dep(
+        ctx: TenantContext = Depends(get_tenant_context),
+    ) -> TenantContext:
+        trace_id = str(uuid.uuid4())
+        if ctx.role not in allowed:
+            raise ForbiddenRoleError(
+                tenant_id=ctx.tenant_id,
+                user_id=ctx.user_id,
+                role=ctx.role,
+                required_role="|".join(sorted(allowed)),
+                trace_id=trace_id,
+            )
+        return ctx
+
+    return _dep
