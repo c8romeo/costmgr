@@ -12,5 +12,10 @@ export const M2_ENTRY_GATE_LOCKED_OUT_KO =
   "2FA 잠금 — {until} 이후 재시도" as const;
 export const M2_ENTRY_GATE_ROLE_DENIED_KO =
   "owner/member role만 [월 입력] 화면 진입 가능" as const;
+// Kernel SSOT parity (Story 12.5 D-GATE-01):
+// `packages/services/m12_account/two_factor_gate.py::TWO_FACTOR_REQUIRED_KO`
+// = "2FA 설정이 필요합니다 — [설정하기]".
+// This is shown when `requires_two_factor=true` (user has NOT yet
+// registered TOTP — i.e. setup is required, NOT challenge).
 export const M2_ENTRY_GATE_REQUIRES_2FA_KO =
-  "2FA 인증 필요 — 2FA 게이트 완료 후 진입 가능" as const;
+  "2FA 설정이 필요합니다 — [설정하기]" as const;

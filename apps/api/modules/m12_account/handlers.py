@@ -73,6 +73,9 @@ from apps.api.modules.m12_account.services.two_factor_challenge_service import (
 from apps.api.modules.m12_account.services.two_factor_service import (
     TwoFactorService,
 )
+from packages.services.m12_account.two_factor_gate import (
+    TWO_FACTOR_REQUIRED_KO,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["m12-account"])
 
@@ -348,7 +351,7 @@ async def setup_two_factor(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _role: None = Depends(require_role("owner")),
+    _role: None = Depends(require_any_role("owner", "member")),
 ) -> SetupResponse:
     """Initiate 2FA enrollment for the current user.
 
@@ -392,7 +395,7 @@ async def verify_and_enable_two_factor(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _role: None = Depends(require_role("owner")),
+    _role: None = Depends(require_any_role("owner", "member")),
 ) -> VerifyResponse:
     """Verify first TOTP code after setup.
 
@@ -641,6 +644,7 @@ async def issue_challenge_token(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
+    _role: None = Depends(require_any_role("owner", "member")),
 ) -> IssueChallengeTokenResponse:
     """Issue a HS256 challenge token (5-min TTL).
 
@@ -652,19 +656,24 @@ async def issue_challenge_token(
     /recovery success. This endpoint is for explicit re-issuance
     scenarios (e.g. token expired mid-flow).
 
-    P-06 KNOWN GAP (honestly DEFER to Story 12.5): This endpoint does
-    NOT require TOTP proof — any authenticated user can mint a valid
-    challenge token. The recommended fix is to require `current_code`
-    (valid 6-digit TOTP) in the request body, OR delete the route
-    entirely. The trade-off is that the gate flow currently relies on
-    this endpoint for re-issuance; merging with /challenge is a Story
-    12.5 design item. Until then, the `requires_challenge` flag in the
-    /m2-entry-gate response is the only signal that the user must
-    complete challenge before M2 entry.
+    P-06 FIX (Story 12.5, AC #7): TOTP proof is required — caller must
+    supply a fresh 6-digit `current_code` in the request body. After P-06
+    fix, an authenticated user without a valid TOTP code cannot mint a
+    challenge token. Wire details:
+    - 400 INVALID_TOTP_CODE — code wrong/expired
+    - 409 TWO_FACTOR_NOT_ENABLED — user 2FA disabled
+    - 422 (Pydantic) — missing/malformed `current_code`
+
+    Role gate: setup/verify/challenge/challenge-tokens are open to
+    `owner` AND `member` (AD-10 self-enrollment for M2-eligible roles).
+    Disable/recovery remain `owner`-only per Story 12.4 P-14 (12-5 AC #2).
 
     Raises:
+    - 400 INVALID_TOTP_CODE — TOTP code wrong/expired (P-06 fix)
     - 401 TWO_FACTOR_CHALLENGE_TOKEN_INVALID — JWT signing failed
       (likely missing `COSTMGR_JWT_SECRET`)
+    - 409 TWO_FACTOR_NOT_ENABLED — 2FA disabled (P-18 + AC #7)
+    - 422 (Pydantic) — missing/malformed `current_code` (P-06 fix)
     """
     challenge_service = _build_challenge_service(session)
     trace_id = _resolve_trace_id(ctx, request)
@@ -795,22 +804,27 @@ async def get_m2_entry_gate(
     except ForbiddenRoleError:
         role_allowed = False
 
-    # Compose decision.
-    requires_two_factor = totp_enabled
+    # Compose decision (kernel SSOT parity — Story 12.5 D-GATE-01 fix).
+    # Kernel `packages/services/m12_account/two_factor_gate.py::check_two_factor_required`
+    # returns True when the user has NOT registered TOTP (i.e. setup is required).
+    # `requires_two_factor` here means "user MUST set up 2FA before M2 entry".
+    requires_two_factor = not totp_enabled
+    # `requires_challenge` = user passed setup, must complete a fresh TOTP
+    # challenge (POST /account/2fa/challenge) before M2 entry.
     requires_challenge = totp_enabled and not locked_out
-    # P-07: include `requires_two_factor` in `allowed` decision. If 2FA
-    # is enabled, the gate is closed until the user completes the
-    # challenge (separately via /account/2fa/challenge). Session-scoped
-    # challenge-passed claim tracking is honestly DEFER (Story 12.5
-    # follow-up): the gate currently flags `requires_challenge=true` and
-    # the frontend must complete the challenge before re-fetching.
+    # Allowed = role allowed AND not locked out AND no setup pending.
+    # All three gates are kernel-equivalent (enforce_role_gate + check_two_factor_required).
     allowed = (
         role_allowed
         and not locked_out
         and not requires_two_factor
     )
 
-    if locked_out:
+    # Message priority: setup missing > locked out > role denied > OK.
+    # Mirrors kernel TWO_FACTOR_REQUIRED_KO "2FA 설정이 필요합니다 — [설정하기]".
+    if requires_two_factor:
+        message_ko = TWO_FACTOR_REQUIRED_KO  # "2FA 설정이 필요합니다 — [설정하기]"
+    elif locked_out:
         message_ko = (
             f"2FA 잠금 상태입니다 — {lockout_until} 이후 재시도 가능"
         )
@@ -818,8 +832,6 @@ async def get_m2_entry_gate(
         message_ko = (
             "권한이 없습니다 — owner/member role만 [월 입력] 화면 진입 가능"
         )
-    elif totp_enabled:
-        message_ko = "2FA 인증 필요 — /account/2fa/challenge 호출 필요"
     else:
         message_ko = "M2 진입 가능"
 

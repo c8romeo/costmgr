@@ -66,27 +66,37 @@ export function buildM2EntryGateState(input: {
   // Role gate (AD-10).
   const role_allowed = ALLOWED_M2_ROLES.has(input.role);
 
-  // 2FA gate.
-  const requires_two_factor = input.totp_enabled;
+  // 2FA gate (kernel SSOT parity — Story 12.5 D-GATE-01 fix).
+  // Python `packages/services/m12_account/two_factor_gate.py::check_two_factor_required`
+  // returns True iff user has NOT registered TOTP. Therefore
+  // `requires_two_factor = !input.totp_enabled` (True when setup is needed).
+  const requires_two_factor = !input.totp_enabled;
+  // `requires_challenge` = setup complete, must complete fresh TOTP
+  // challenge before M2 entry (POST /api/v1/account/2fa/challenge).
   const requires_challenge = input.totp_enabled && !input.locked_out;
 
   // Lockout gate (5-fail → 15-min, mirrors Python LOCKOUT_DURATION_SECONDS).
   const locked_out = input.locked_out;
 
-  // Compose decision. M2 entry is allowed iff:
+  // Compose decision (kernel-equivalent enforce_role_gate +
+  // check_two_factor_required + lockout_status). M2 entry is allowed iff:
   // 1. role allowed (owner/member)
   // 2. NOT locked out
-  // (2FA challenge is a separate flow — user calls /challenge to obtain a token.)
-  const allowed = role_allowed && !locked_out;
+  // 3. 2FA setup complete (TOTP registered)
+  const allowed = role_allowed && !locked_out && !requires_two_factor;
 
-  // Compose message (Korean SSOT).
+  // Compose message (Korean SSOT, priority order).
+  // 1. setup missing (highest priority — user is blocked from M2)
+  // 2. locked out (Retry-After countdown)
+  // 3. role denied
+  // 4. all gates passed → "M2 진입 가능"
   let message_ko: string;
-  if (locked_out && input.lockout_until) {
+  if (requires_two_factor) {
+    message_ko = M2_ENTRY_GATE_REQUIRES_2FA_KO;
+  } else if (locked_out && input.lockout_until) {
     message_ko = M2_ENTRY_GATE_LOCKED_OUT_KO.replace("{until}", input.lockout_until);
   } else if (!role_allowed) {
     message_ko = M2_ENTRY_GATE_ROLE_DENIED_KO;
-  } else if (requires_two_factor) {
-    message_ko = M2_ENTRY_GATE_REQUIRES_2FA_KO;
   } else {
     message_ko = "M2 진입 가능";
   }
