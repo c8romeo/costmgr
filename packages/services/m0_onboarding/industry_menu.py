@@ -64,6 +64,9 @@ class MenuItem(str, Enum):
     REPORT = "보고서"
     CLOSE = "마감"
     ACCOUNT_MGMT = "계정관리"
+    # Story 12.5 — 2FA self-service UI (industry-agnostic security baseline).
+    # Available in every industry (PRD §F12.1 / §M12-a applies to all tenants).
+    ACCOUNT_SECURITY = "계정 보안"
 
 
 # ── Industry → Menu map (PRD §4.1 / §8.M0(a)) ─────────────
@@ -71,6 +74,7 @@ class MenuItem(str, Enum):
 # ② 서비스업: ABC 엔진. 제조 메뉴 3종 숨김, ABC 메뉴 3종 노출.
 # ③ 제조+서비스: 두 엔진 병행. 전부 노출 + 카브아웃 분할(§7.3 [A10]).
 # ④ 제조+서비스+기타: ③ + 격리 버킷. 메뉴는 ③과 동일(격리 로직은 m3_calculate 내부).
+# Story 12.5: "계정 보안" appended to every industry menu (2FA industry-agnostic).
 _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
     Industry.MANUFACTURING: (
         MenuItem.PRODUCT,
@@ -86,6 +90,7 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
         MenuItem.REPORT,
         MenuItem.CLOSE,
         MenuItem.ACCOUNT_MGMT,
+        MenuItem.ACCOUNT_SECURITY,
     ),
     Industry.SERVICE: (
         MenuItem.COST_POOL,
@@ -100,6 +105,7 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
         MenuItem.REPORT,
         MenuItem.CLOSE,
         MenuItem.ACCOUNT_MGMT,
+        MenuItem.ACCOUNT_SECURITY,
     ),
     Industry.MANUFACTURING_SERVICE: (
         MenuItem.PRODUCT,
@@ -119,6 +125,7 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
         MenuItem.REPORT,
         MenuItem.CLOSE,
         MenuItem.ACCOUNT_MGMT,
+        MenuItem.ACCOUNT_SECURITY,
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: (
         MenuItem.PRODUCT,
@@ -138,6 +145,7 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
         MenuItem.REPORT,
         MenuItem.CLOSE,
         MenuItem.ACCOUNT_MGMT,
+        MenuItem.ACCOUNT_SECURITY,
     ),
 }
 

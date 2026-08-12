@@ -46,6 +46,8 @@ const ROUTE_BY_LABEL: Record<string, string> = {
   보고서: "/dashboard/reports",
   마감: "/dashboard/close",
   계정관리: "/dashboard/account",
+  // Story 12.5 — 2FA self-service UI (industry-agnostic security baseline)
+  "계정 보안": "/account/security",
 };
 
 /** F-11: path is active iff it equals `href` exactly or begins with

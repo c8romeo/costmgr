@@ -39,6 +39,8 @@ export const SEGMENT_SPLIT_TOOLTIP = "재무제표 업로드 필수 (§7.3 [A10]
 
 // Canonical industry → Korean menu label list. The order is preserved
 // per PRD §8 (display order). The frontend renders the strings verbatim.
+// Story 12.5: "계정 보안" added for all 4 industries (2FA is industry-agnostic
+// security baseline per CR 12-1 L4 — every user must be able to enroll/disable).
 export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
   manufacturing: [
     "품목",
@@ -54,6 +56,7 @@ export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
     "보고서",
     "마감",
     "계정관리",
+    "계정 보안",
   ],
   service: [
     "원가풀",
@@ -68,6 +71,7 @@ export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
     "보고서",
     "마감",
     "계정관리",
+    "계정 보안",
   ],
   manufacturing_service: [
     "품목",
@@ -87,6 +91,7 @@ export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
     "보고서",
     "마감",
     "계정관리",
+    "계정 보안",
   ],
   manufacturing_service_other: [
     "품목",
@@ -106,6 +111,7 @@ export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
     "보고서",
     "마감",
     "계정관리",
+    "계정 보안",
   ],
 };
 

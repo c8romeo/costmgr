@@ -218,5 +218,18 @@
     "blocked_role_label": "owner/member role만 [월 입력] 화면 진입 가능",
     "blocked_lockout_label": "2FA 잠금 — {until} 이후 재시도",
     "blocked_2fa_required_label": "2FA 인증 필요 — 2FA 게이트 완료 후 진입 가능"
+  },
+  "account_security": {
+    "page_title": "계정 보안",
+    "page_subtitle": "2단계 인증 (2FA) 설정 및 복구 코드를 관리합니다.",
+    "nav_label": "계정 보안",
+    "setup_section_title": "2FA 설정",
+    "disable_section_title": "2FA 비활성화",
+    "recovery_codes_section_title": "복구 코드 (1회만 표시)",
+    "owner_only_notice": "owner만 2FA 비활성화 가능"
+  },
+  "two_factor_lockout_message": {
+    "label": "5회 연속 실패 — 15분간 잠금",
+    "description": "{until} 이후 재시도 가능"
   }
 }

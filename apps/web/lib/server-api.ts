@@ -267,6 +267,73 @@ export async function fetchM2EntryGateServerSide(
   }
 }
 
+/**
+ * fetchTotpStatusServerSide — Story 12.5 (AC #4 RSC page wire).
+ *
+ * RSC fetch for `GET /api/v1/account/2fa/status` to seed the
+ * /account/security page with the user's current TOTP enrollment
+ * state. Returns null on failure so the page can fail closed (the
+ * status badge defaults to "disabled" + setup CTA).
+ */
+export interface TotpStatusServerSideResponse {
+  totp_enabled: boolean;
+  totp_enabled_at: string | null;
+  recovery_codes_remaining: number | null;
+  failed_attempts: number;
+  locked_out: boolean;
+  lockout_until: string | null;
+  last_login_at: string | null;
+  role: string;
+}
+
+export async function fetchTotpStatusServerSide(
+  accessToken: string | undefined,
+  traceId: string,
+): Promise<TotpStatusServerSideResponse | null> {
+  if (!accessToken) {
+    return null;
+  }
+  const headers = new Headers();
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(`${apiBaseUrl()}/api/v1/account/2fa/status`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+      signal: abortCtl.signal,
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      totp_enabled?: boolean;
+      totp_enabled_at?: string | null;
+      recovery_codes_remaining?: number | null;
+      failed_attempts?: number;
+      locked_out?: boolean;
+      lockout_until?: string | null;
+      role?: string;
+    };
+    return {
+      totp_enabled: data.totp_enabled ?? false,
+      totp_enabled_at: data.totp_enabled_at ?? null,
+      recovery_codes_remaining: data.recovery_codes_remaining ?? null,
+      failed_attempts: data.failed_attempts ?? 0,
+      locked_out: data.locked_out ?? false,
+      lockout_until: data.lockout_until ?? null,
+      last_login_at: data.totp_enabled_at ?? null,
+      role: data.role ?? "viewer",
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // ── Story 6.2 — Monthly closing report server-side fetcher ──────
 //
 // RSC fetch for `GET /api/v1/inventory/monthly-closing-report?period_key=...`
