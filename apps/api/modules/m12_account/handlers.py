@@ -210,6 +210,37 @@ class ConsumeChallengeTokenRequest(BaseModel):
     )
 
 
+class IssueChallengeTokenRequest(BaseModel):
+    r"""POST /api/v1/account/2fa/challenge-tokens body — Story 12.5 P-06 fix.
+
+    The endpoint requires a fresh 6-digit TOTP proof (`current_code`) before
+    minting a challenge token. Prior to P-06 the endpoint accepted an empty
+    body, which meant any authenticated owner/member could mint a token
+    even if their 2FA was misconfigured or compromised.
+
+    With P-06: caller MUST supply a valid current TOTP code. The handler
+    delegates to `TwoFactorService.verify_totp_challenge` which raises
+    `TotpInvalidCodeError` (400 INVALID_TOTP_CODE), `TotpLockoutError`
+    (429 lockout), or `TwoFactorNotEnabledError` (409 NOT_ENABLED) on
+    failure paths.
+
+    Mirror of VerifyRequest — same `pattern=r"^\d{6}$"` (P-22 lesson
+    from Story 12.4) so malformed codes flow to the service layer for
+    the typed-exception envelope rather than a Pydantic 422.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    current_code: str = Field(
+        ...,
+        pattern=r"^\d{6}$",
+        min_length=6,
+        max_length=6,
+        description="Fresh 6-digit TOTP code (RFC 6238, ±1 window). "
+        "Required by P-06 to mint a challenge token.",
+    )
+
+
 # ── Response schemas ────────────────────────────────────────────
 class SetupResponse(BaseModel):
     """POST /api/v1/account/2fa/setup response envelope.
@@ -641,6 +672,7 @@ async def get_two_factor_status(
     summary="Issue HS256 challenge token (5-min TTL, single-purpose)",
 )
 async def issue_challenge_token(
+    payload: IssueChallengeTokenRequest,
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
@@ -659,10 +691,14 @@ async def issue_challenge_token(
     P-06 FIX (Story 12.5, AC #7): TOTP proof is required — caller must
     supply a fresh 6-digit `current_code` in the request body. After P-06
     fix, an authenticated user without a valid TOTP code cannot mint a
-    challenge token. Wire details:
+    challenge token. The handler delegates to
+    `TwoFactorService.verify_totp_challenge` which raises typed
+    exceptions (TotpInvalidCodeError → 400 INVALID_TOTP_CODE,
+    TotpLockoutError → 429 lockout). Wire details:
     - 400 INVALID_TOTP_CODE — code wrong/expired
     - 409 TWO_FACTOR_NOT_ENABLED — user 2FA disabled
     - 422 (Pydantic) — missing/malformed `current_code`
+    - 429 TOTP_LOCKOUT — 5-fail lockout active
 
     Role gate: setup/verify/challenge/challenge-tokens are open to
     `owner` AND `member` (AD-10 self-enrollment for M2-eligible roles).
@@ -674,6 +710,7 @@ async def issue_challenge_token(
       (likely missing `COSTMGR_JWT_SECRET`)
     - 409 TWO_FACTOR_NOT_ENABLED — 2FA disabled (P-18 + AC #7)
     - 422 (Pydantic) — missing/malformed `current_code` (P-06 fix)
+    - 429 TOTP_LOCKOUT — 5-fail lockout active
     """
     challenge_service = _build_challenge_service(session)
     trace_id = _resolve_trace_id(ctx, request)
@@ -690,6 +727,17 @@ async def issue_challenge_token(
             user_id=ctx.user_id,
             trace_id=trace_id,
         )
+
+    # P-06 fix: require fresh TOTP proof before minting a challenge token.
+    # Delegates to TwoFactorService.verify_totp_challenge which raises
+    # TotpInvalidCodeError / TotpLockoutError (typed exceptions mapped
+    # to 400 / 429 envelopes in main.py).
+    await service.verify_totp_challenge(
+        user_id=ctx.user_id,
+        tenant_id=ctx.tenant_id,
+        code=payload.current_code,
+    )
+
     issued = challenge_service.issue_challenge_token(
         user_id=ctx.user_id,
         tenant_id=ctx.tenant_id,
