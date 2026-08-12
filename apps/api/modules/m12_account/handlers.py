@@ -42,8 +42,10 @@ CR 11-2/11-3/12-1 lessons applied:
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Path, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,6 +68,15 @@ from apps.api.modules.m12_account.services.audit_extension import (
     ERROR_CODE_NOT_ENABLED,
     ERROR_CODE_RECOVERY_EXHAUSTED,
     ERROR_CODE_USER_NOT_FOUND,
+)
+from apps.api.modules.m12_account.services.backup_export_service import (
+    DEFAULT_LIST_DAYS,
+    BackupExportService,
+    BackupMetadata,
+    BackupResult,
+)
+from apps.api.modules.m12_account.services.backup_export_service import (
+    BackupPayload as BackupPayloadDTO,
 )
 from apps.api.modules.m12_account.services.two_factor_challenge_service import (
     TwoFactorChallengeService,
@@ -891,6 +902,244 @@ async def get_m2_entry_gate(
         locked_out=locked_out,
         lockout_until=lockout_until,
         message_ko=message_ko,
+        trace_id=trace_id,
+    )
+
+
+# ── Story 12.2 — Backup export handlers ─────────────────────────
+# 3 NEW routes (owner-only per AD-10):
+# - GET  /api/v1/account/backups/recent              — list 7-day backups
+# - GET  /api/v1/account/backups/{backup_id}/download — JSON download
+# - POST /api/v1/account/backups/trigger              — manual trigger
+#
+# Why no Capability gate (CR 12-1 L4 precedent — industry-agnostic):
+# BACKUP_EXPORT capability is documented in capability-matrix v1.14 but
+# NOT enforced in any route — backup is owner-only via AD-10 4-role.
+# Mirrors TWO_FACTOR_AUTH pattern (industry-agnostic security baseline).
+
+
+# ── Pydantic schemas (inline — 12-4 convention) ─────────────────
+class BackupListItem(BaseModel):
+    """Per-row summary in `GET /account/backups/recent` response."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    backup_id: str
+    backup_date: str
+    schema_version: str
+    payload_sha256: str
+    payload_size_bytes: int
+    row_count_total: int
+    audit_log_exported_rows: int
+    created_at: str
+
+
+class BackupListResponse(BaseModel):
+    """`GET /account/backups/recent` response envelope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[BackupListItem]
+    total_count: int
+    days: int
+    trace_id: str
+
+
+class BackupDownloadResponse(BaseModel):
+    """`GET /account/backups/{backup_id}/download` summary (download
+    payload itself is JSON bytes — see response below)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    backup_id: str
+    payload_sha256: str
+    trace_id: str
+
+
+class BackupTriggerRequest(BaseModel):
+    """`POST /account/backups/trigger` body — currently empty.
+
+    Pydantic forbid-extra means clients cannot supply spurious fields
+    (12-4 convention). owner_id/tenant_id come from JWT-derived TenantContext.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class BackupTriggerResponse(BaseModel):
+    """`POST /account/backups/trigger` response envelope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    backup_id: str
+    backup_date: str
+    payload_sha256: str
+    row_count_total: int
+    audit_log_exported_rows: int
+    created_at: str
+    trace_id: str
+
+
+def _build_backup_service(
+    session: AsyncSession,
+    ctx: TenantContext,
+    trace_id: str,
+) -> BackupExportService:
+    """Construct BackupExportService from request-scoped session + ctx."""
+    return BackupExportService(
+        session,
+        tenant_id=ctx.tenant_id,
+        actor_id=ctx.user_id,
+        trace_id=trace_id,
+    )
+
+
+def _metadata_to_list_item(m: BackupMetadata) -> BackupListItem:
+    """Service BackupMetadata → Pydantic BackupListItem (boundary conversion)."""
+    return BackupListItem(
+        backup_id=str(m.backup_id),
+        backup_date=m.backup_date.isoformat() if hasattr(m.backup_date, "isoformat") else str(m.backup_date),
+        schema_version=m.schema_version,
+        payload_sha256=m.payload_sha256,
+        payload_size_bytes=m.payload_size_bytes,
+        row_count_total=m.row_count_total,
+        audit_log_exported_rows=m.audit_log_exported_rows,
+        created_at=m.created_at.isoformat(),
+    )
+
+
+def _build_backup_filename(backup_date_iso: str) -> str:
+    """`backup-YYYY-MM-DD.json` filename (mirror TS `buildBackupFilename`)."""
+    # backup_date_iso is YYYY-MM-DD format from service.
+    return f"backup-{backup_date_iso}.json"
+
+
+# ── GET /api/v1/account/backups/recent ─────────────────────────
+@router.get(
+    "/account/backups/recent",
+    response_model=BackupListResponse,
+    status_code=200,
+    summary="최근 7일 백업 목록 조회 (owner-only)",
+)
+async def list_recent_backups(
+    request: Request,
+    days: int = DEFAULT_LIST_DAYS,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _role: None = Depends(require_role("owner")),
+) -> BackupListResponse:
+    """List backups for the last N days (default 7).
+
+    Owner-only per AD-10 + epics.md Story 12.2 AC #3 ("운영자 UI").
+    `member` / `viewer` / `consultant_proxy` are DENIED (403 FORBIDDEN_ROLE).
+
+    Args:
+        days: Window size (default 7, max 30).
+        ctx: TenantContext (JWT-derived).
+        session: AsyncSession.
+        _role: require_role("owner") gate.
+
+    Returns:
+        BackupListResponse(items=[...], total_count, days, trace_id).
+    """
+    trace_id = _resolve_trace_id(ctx, request)
+    service = _build_backup_service(session, ctx, trace_id)
+    metadata_list = await service.list_recent_backups(days=days)
+    items = [_metadata_to_list_item(m) for m in metadata_list]
+    return BackupListResponse(
+        items=items,
+        total_count=len(items),
+        days=days,
+        trace_id=trace_id,
+    )
+
+
+# ── GET /api/v1/account/backups/{backup_id}/download ───────────
+@router.get(
+    "/account/backups/{backup_id}/download",
+    status_code=200,
+    response_class=Response,
+    summary="백업 JSON 다운로드 (owner-only)",
+)
+async def download_backup(
+    backup_id: Annotated[uuid.UUID, Path(description="Backup UUID (v4)")],
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _role: None = Depends(require_role("owner")),
+) -> Response:
+    """Download a backup as JSON bytes (Content-Disposition: attachment).
+
+    Response headers:
+    - Content-Type: application/json
+    - Content-Disposition: attachment; filename="backup-{YYYY-MM-DD}.json"
+    - X-Backup-SHA256: <sha256 hex> (client verification)
+
+    Owner-only per AD-10.
+
+    Raises:
+    - 404 BACKUP_NOT_FOUND — backup_id missing / purged / cross-tenant.
+    """
+    import json as _json
+
+    trace_id = _resolve_trace_id(ctx, request)
+    service = _build_backup_service(session, ctx, trace_id)
+    payload_dto: BackupPayloadDTO = await service.fetch_backup_payload(
+        backup_id=backup_id,
+    )
+    json_bytes = _json.dumps(
+        payload_dto.payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+        ensure_ascii=False,
+    ).encode("utf-8")
+    # Pull backup_date from payload's envelope (top-level field)
+    backup_date_iso = str(payload_dto.payload.get("backup_date", "unknown"))
+    filename = _build_backup_filename(backup_date_iso)
+    return Response(
+        content=json_bytes,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Backup-SHA256": payload_dto.payload_sha256,
+            "X-Backup-Trace-Id": trace_id,
+        },
+    )
+
+
+# ── POST /api/v1/account/backups/trigger ───────────────────────
+@router.post(
+    "/account/backups/trigger",
+    response_model=BackupTriggerResponse,
+    status_code=201,
+    summary="수동 백업 트리거 (owner-only)",
+)
+async def trigger_backup(
+    payload: BackupTriggerRequest,
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _role: None = Depends(require_role("owner")),
+) -> BackupTriggerResponse:
+    """Manual owner-triggered backup run.
+
+    Audit-first: emits `backup_triggered` audit BEFORE the actual run.
+    Then calls `BackupExportService.run_backup` which emits
+    `backup_created` audit.
+
+    Owner-only per AD-10. Returns the new backup metadata.
+    """
+    trace_id = _resolve_trace_id(ctx, request)
+    service = _build_backup_service(session, ctx, trace_id)
+    result: BackupResult = await service.trigger_backup()
+    return BackupTriggerResponse(
+        backup_id=str(result.backup_id),
+        backup_date=result.backup_date.isoformat(),
+        payload_sha256=result.payload_sha256,
+        row_count_total=result.row_count_total,
+        audit_log_exported_rows=result.audit_log_exported_rows,
+        created_at=result.created_at.isoformat(),
         trace_id=trace_id,
     )
 

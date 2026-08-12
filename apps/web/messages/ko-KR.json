@@ -228,6 +228,26 @@
     "recovery_codes_section_title": "복구 코드 (1회만 표시)",
     "owner_only_notice": "owner만 2FA 비활성화 가능"
   },
+  "account_backup": {
+    "page_title": "백업 관리",
+    "page_subtitle": "최근 백업 다운로드 및 수동 백업 실행 (owner 전용)",
+    "nav_label": "백업 다운로드",
+    "panel_title": "백업 목록",
+    "panel_description": "최근 {days}일 동안의 일일 백업 (JSON 형식) — 각 행의 [다운로드] 버튼으로 사본을 받을 수 있습니다.",
+    "days_label": "조회 기간 (일)",
+    "trigger_button": "수동 백업 실행",
+    "trigger_running": "실행 중...",
+    "download_button": "다운로드",
+    "col_date": "백업 일자",
+    "col_size": "크기",
+    "col_rows": "전체 행",
+    "col_audit_rows": "감사로그 행",
+    "col_sha256": "SHA-256",
+    "col_actions": "동작",
+    "empty_message": "해당 기간 내 백업이 없습니다 — [수동 백업 실행]을 눌러 즉시 생성하세요.",
+    "error_prefix": "오류:",
+    "filename_hint": "다운로드 파일명 형식: {filename}"
+  },
   "two_factor_lockout_message": {
     "label": "5회 연속 실패 — 15분간 잠금",
     "description": "{until} 이후 재시도 가능"

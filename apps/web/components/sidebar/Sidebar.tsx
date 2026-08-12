@@ -48,6 +48,8 @@ const ROUTE_BY_LABEL: Record<string, string> = {
   계정관리: "/dashboard/account",
   // Story 12.5 — 2FA self-service UI (industry-agnostic security baseline)
   "계정 보안": "/account/security",
+  // Story 12.2 — daily backup download UI (industry-agnostic security baseline)
+  "백업 다운로드": "/account/backups",
 };
 
 /** F-11: path is active iff it equals `href` exactly or begins with

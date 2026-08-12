@@ -197,6 +197,10 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m12_account",
             "packages.services.m12_account.totp",
             "packages.services.m12_account.two_factor_gate",
+            # Story 12.2 (Epic 12) — daily backup + JSON self-download
+            # pure kernels (stdlib-only JSON serialization + sha256 hashing
+            # + 7-table dump + Korean SSOT constants + audit payload mapping).
+            "packages.services.m12_account.backup_export",
         }
     )
 

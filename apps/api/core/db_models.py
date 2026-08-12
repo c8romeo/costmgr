@@ -1,4 +1,4 @@
-"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2 + 12.1 + 12.4).
+"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2 + 12.1 + 12.4 + 12.2).
 
 Mapped tables:
 - 0001: tenants, users, tenant_memberships, tenant_settings, audit_logs
@@ -12,6 +12,7 @@ Mapped tables:
 - 0020 (Story 11.2): fiscal_periods (AD-6 close lock + 4-stage state)
 - 0022 (Story 12.1): users totp_* columns (2FA mandatory gate)
 - 0023 (Story 12.4): used_challenge_tokens (2FA challenge token replay guard)
+- 0024 (Story 12.2): tenant_backups (daily auto-backup + JSON self-download)
 
 Per AD-1/AD-11: this module is in `apps/api/` (infra layer). It does NOT
 import `packages.cost_engine` directly. Modules write through services.
@@ -972,4 +973,63 @@ class FiscalPeriod(Base):
             "period_key",
             name="fiscal_periods_tenant_period_unique",
         ),
+    )
+
+
+# ── tenant_backups (Story 12.2 — daily auto-backup + JSON self-download) ──
+# AD-2 INSERT-only (BEFORE UPDATE OR DELETE trigger raises
+# `append-only violation` per migration 0024 — audit_logs 0001 pattern).
+# Soft-delete via `purged_at` column for 30-day retention sweep.
+#
+# Why Postgres JSONB (not Supabase Storage)? Per AC #2:
+# - Storage target = Postgres table `tenant_backups` JSONB column.
+# - AD-9 Seoul: Supabase Seoul Postgres = ap-northeast-2 = qualifies.
+# - 의존성 0 (no Storage SDK bump per 12-5 QR manual-entry decision).
+# - STACK_PIN.yaml 변경 0건.
+#
+# Schema (12 columns):
+# - backup_id UUID PK (uuid4, AD-15 §3 identity)
+# - tenant_id UUID FK → tenants.id (CASCADE)
+# - backup_date DATE (KST date — KST 02:00 cron)
+# - created_at TIMESTAMPTZ (UTC timestamp)
+# - schema_version VARCHAR(16) (envelope top-level, AC #8 — versioning)
+# - payload JSONB (7-table dump — see packages/services/m12_account/backup_export.py)
+# - payload_sha256 CHAR(64) (deterministic digest)
+# - row_count_total INTEGER (sum of 7 table counts)
+# - audit_log_exported_rows INTEGER (audit_logs count after 365d collapse)
+# - retention_class VARCHAR(16) ('daily' / 'quarterly' honestly DEFER)
+# - purged_at TIMESTAMPTZ NULL (30-day soft-delete marker)
+# - triggered_by_user_id UUID FK → users.id SET NULL (manual trigger trace)
+class TenantBackup(Base):
+    __tablename__ = "tenant_backups"
+
+    backup_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    backup_date: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    schema_version: Mapped[str] = mapped_column(Text, nullable=False, default="1.0")
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    row_count_total: Mapped[int] = mapped_column(Integer, nullable=False)
+    audit_log_exported_rows: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
+    retention_class: Mapped[str] = mapped_column(
+        Text, nullable=False, default="daily"
+    )
+    purged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    triggered_by_user_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )

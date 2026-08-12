@@ -127,6 +127,23 @@ class Capability(str, Enum):
     # the industry-aware front. Granted to manufacturing-kind industries;
     # service-only tenants do NOT have fiscal_periods to reopen.
     REOPEN_OPERATOR = "reopen_operator"
+    # Story 12.2 (Epic 12) — Daily backup export + JSON self-download
+    # capability (PRD §F12.2 + §M12-b). Industry-agnostic security baseline
+    # (CR 12-1 L4 precedent — 2FA pattern). Granted to all 4 industries
+    # because backup is operational infrastructure, not industry-specific.
+    # NOT enforced as a route gate (mirrors TWO_FACTOR_AUTH): owner-only
+    # via AD-10 `require_role("owner")`. Documented in capability-matrix
+    # v1.14 for industry-parity auditability.
+    BACKUP_EXPORT = "backup_export"
+    # Story 12.1 + 12.4 (Epic 12) — 2FA mandatory gate capability
+    # (PRD §F12.1 + §M12-a). Industry-agnostic security baseline — 2FA
+    # is operational infrastructure, not industry-specific. Granted to
+    # all 4 industries. NOT enforced as a route gate (CR 12-1 L4):
+    # 2FA allowlist is owner+member at the `require_any_role` layer.
+    # Originally documented in capability-matrix v1.13 (12-1) but the
+    # enum entry was missed — 12-2 carry-over fix (drift detector
+    # `tests/integration/test_capability_matrix_v1_14_drift.py` surfaces it).
+    TWO_FACTOR_AUTH = "two_factor_auth"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -162,6 +179,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.SNAPSHOT_PERSISTENCE,
             Capability.REVERSAL_EXECUTE,
             Capability.REOPEN_OPERATOR,
+            # Story 12.2 — manufacturing tenants get BACKUP_EXPORT
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.BACKUP_EXPORT,
+            # Story 12.1 — manufacturing tenants get TWO_FACTOR_AUTH
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.TWO_FACTOR_AUTH,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -179,6 +202,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 4.1 — service tenants do NOT have COST_CALCULATION
             # (no manufacturing footprint → no [계산] tab; they will
             # use Epic 9 ABC costing instead — gate owner: m9_abc).
+            # Story 12.2 — service tenants get BACKUP_EXPORT
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.BACKUP_EXPORT,
+            # Story 12.1 — service tenants get TWO_FACTOR_AUTH
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.TWO_FACTOR_AUTH,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -216,6 +245,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.SNAPSHOT_PERSISTENCE,
             Capability.REVERSAL_EXECUTE,
             Capability.REOPEN_OPERATOR,
+            # Story 12.2 — 겸영 tenants get BACKUP_EXPORT
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.BACKUP_EXPORT,
+            # Story 12.1 — 겸영 tenants get TWO_FACTOR_AUTH
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.TWO_FACTOR_AUTH,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -250,6 +285,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.SNAPSHOT_PERSISTENCE,
             Capability.REVERSAL_EXECUTE,
             Capability.REOPEN_OPERATOR,
+            # Story 12.2 — full matrix tenants get BACKUP_EXPORT
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.BACKUP_EXPORT,
+            # Story 12.1 — full matrix tenants get TWO_FACTOR_AUTH
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.TWO_FACTOR_AUTH,
         }
     ),
 }

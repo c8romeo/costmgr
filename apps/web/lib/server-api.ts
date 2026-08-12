@@ -28,6 +28,7 @@ import type {
   MonthlyClosingReportAuditTrailResponse,
   MonthlyClosingReportV4VerdictResponse,
 } from "./monthly-closing-report";
+import type { BackupListResponse } from "./m12-account-backup";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8765";
 
@@ -470,6 +471,46 @@ export async function fetchTenantSettingsServerSide(
     });
     if (!res.ok) return null;
     const data = (await res.json()) as TenantSettingsResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ── Story 12.2 — Backup list fetcher (RSC for /account/backups) ──
+//
+// RSC fetch for `GET /api/v1/account/backups/recent` to seed the
+// BackupDownloadPanel with the initial list of recent backups. Returns
+// null on any failure so the page falls back to the empty-state UI
+// (client component will retry via its own refresh button).
+export async function fetchBackupsRecentServerSide(
+  accessToken: string | undefined,
+  traceId: string,
+  days: number = 7,
+): Promise<BackupListResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/account/backups/recent?days=${days}`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as BackupListResponse;
     return data;
   } catch {
     return null;

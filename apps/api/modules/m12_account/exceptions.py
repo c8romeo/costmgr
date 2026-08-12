@@ -1,11 +1,12 @@
-"""apps.api.modules.m12_account.exceptions — Story 12.1 typed exception classes.
+"""apps.api.modules.m12_account.exceptions — Story 12.1 + 12.2 typed exception classes.
 
 8 NEW exception types for 2FA mandatory gate (PRD §F12.1 + §M12-a
-+ AD-15 §4 envelope). Each exception carries the minimum context
-required for the corresponding handler in `apps/api/main.py` to
-produce a deterministic AD-15 §4 envelope.
++ AD-15 §4 envelope) + 5 NEW exception types for daily auto-backup
+(PRD §F12.2 + NFR4 + AD-15 §4). Each exception carries the minimum
+context required for the corresponding handler in `apps/api/main.py`
+to produce a deterministic AD-15 §4 envelope.
 
-Error code contract:
+Error code contract (12.1 + 12.2):
   - TwoFactorNotEnabledError            → 400 TWO_FACTOR_NOT_ENABLED
   - TwoFactorAlreadyEnabledError        → 409 TWO_FACTOR_ALREADY_ENABLED
   - TwoFactorAuditEmitError             → 503 TWO_FACTOR_AUDIT_EMIT_FAILED
@@ -14,6 +15,11 @@ Error code contract:
   - TwoFactorRecoveryExhaustedError     → 410 TWO_FACTOR_RECOVERY_EXHAUSTED
   - TwoFactorDisableUnauthorizedError   → 403 TWO_FACTOR_DISABLE_UNAUTHORIZED
   - TwoFactorUserNotFoundError          → 404 TWO_FACTOR_USER_NOT_FOUND
+  - BackupExportServiceError            → 500 BACKUP_SERVICE_ERROR
+  - BackupPayloadTooLargeError          → 422 BACKUP_PAYLOAD_TOO_LARGE
+  - BackupNotFoundError                 → 404 BACKUP_NOT_FOUND
+  - BackupRetentionCutoffInvalidError   → 422 BACKUP_RETENTION_CUTOFF_INVALID
+  - BackupServiceAuditEmitError         → 503 BACKUP_AUDIT_EMIT_FAILED
 
 Korean SSOT (AD-15 §11) is supplied by the handler, not the exception
 itself — keeps the exception module free of presentation strings
@@ -189,6 +195,110 @@ class TwoFactorUserNotFoundError(Exception):
         self.trace_id = trace_id
 
 
+# ── 9-13. Story 12.2 backup export exceptions ──────────────────
+class BackupExportServiceError(Exception):
+    """500 BACKUP_SERVICE_ERROR — base backup service exception.
+
+    Distinct from `BackupPayloadTooLargeError` (422) and
+    `BackupServiceAuditEmitError` (503). The base exception covers
+    generic service-layer failures not classified below.
+    """
+
+    def __init__(self, *, message: str, trace_id: str) -> None:
+        super().__init__(message)
+        self.message = message
+        self.trace_id = trace_id
+
+
+class BackupPayloadTooLargeError(BackupExportServiceError):
+    """422 BACKUP_PAYLOAD_TOO_LARGE — serialized JSON exceeds 50 MB.
+
+    Per AC #1: 50 MB cap guards tenant_backups row size + RLS JSONB perf.
+    Pure-kernel raises this too — service layer just propagates it.
+    """
+
+    def __init__(
+        self,
+        *,
+        size_bytes: int,
+        max_bytes: int,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            message=(
+                f"backup payload {size_bytes} bytes exceeds {max_bytes} cap"
+            ),
+            trace_id=trace_id,
+        )
+        self.size_bytes = size_bytes
+        self.max_bytes = max_bytes
+
+
+class BackupNotFoundError(BackupExportServiceError):
+    """404 BACKUP_NOT_FOUND — backup_id does not resolve in tenant_backups.
+
+    Distinct from `BackupRetentionCutoffInvalidError` (422 — bad input)
+    and `BackupExportServiceError` (500 — generic). Tenant RLS check
+    fires first; this error fires when RLS allows the SELECT but
+    no row matches.
+    """
+
+    def __init__(
+        self,
+        *,
+        backup_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            message=f"backup {backup_id} not found for tenant {tenant_id}",
+            trace_id=trace_id,
+        )
+        self.backup_id = backup_id
+        self.tenant_id = tenant_id
+
+
+class BackupRetentionCutoffInvalidError(BackupExportServiceError):
+    """422 BACKUP_RETENTION_CUTOFF_INVALID — retention sweep cutoff invalid.
+
+    Raised when `cutoff >= now` or `now` not provided. Service layer
+    propagates pure-kernel `BackupRetentionCutoffInvalidError`.
+    """
+
+    def __init__(
+        self,
+        *,
+        reason: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            message=f"backup retention cutoff invalid: {reason}",
+            trace_id=trace_id,
+        )
+        self.reason = reason
+
+
+class BackupServiceAuditEmitError(BackupExportServiceError):
+    """503 BACKUP_AUDIT_EMIT_FAILED — audit-first emit failed (CR 1.1 pattern).
+
+    All 5 mutations (backup_created / backup_failed /
+    backup_retention_purged / backup_downloaded / backup_triggered) emit
+    audit-first via `emit_audit_typed`. If the audit row fails to persist,
+    the data write is rolled back and this error fires. 503 (transient,
+    retry-able) — audit subsystem failure is typically a DB blip.
+
+    Mirrors `TwoFactorAuditEmitError` pattern.
+    """
+
+    def __init__(
+        self,
+        *,
+        message: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(message=message, trace_id=trace_id)
+
+
 __all__ = [
     "TwoFactorNotEnabledError",
     "TwoFactorAlreadyEnabledError",
@@ -198,4 +308,9 @@ __all__ = [
     "TwoFactorRecoveryExhaustedError",
     "TwoFactorDisableUnauthorizedError",
     "TwoFactorUserNotFoundError",
+    "BackupExportServiceError",
+    "BackupPayloadTooLargeError",
+    "BackupNotFoundError",
+    "BackupRetentionCutoffInvalidError",
+    "BackupServiceAuditEmitError",
 ]

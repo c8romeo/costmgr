@@ -167,18 +167,18 @@ def test_capability_reopen_operator_excluded_service_only() -> None:
 
 # ── 4. Docs-version pin (drift detector) ─────────────────────
 def test_capability_matrix_docs_pin_v1_12() -> None:
-    """docs/capability-matrix.md must declare v1.12 (Story 11.3 wire).
+    """docs/capability-matrix.md must declare v1.12 changelog (Story 11.3 wire).
 
     Drift detector: if the docs version drifts from the Capability
     enum, this test fails so the team updates the docs in lockstep
     with the Capability enum.
+
+    Note: the title row reflects the LATEST version (currently v1.14
+    after Story 12.2 wire). This test pins the v1.12 CHANGELOG ENTRY
+    specifically — not the title — so it survives version bumps.
     """
     docs = _load_capability_matrix_docs()
-    # Title row must be v1.12.
-    assert "# Capability Matrix (v1.12)" in docs, (
-        "docs/capability-matrix.md title must be v1.12 (Story 11.3)"
-    )
-    # v1.12 history entry must reference Story 11.3 + the 3 NEW
+    # v1.12 changelog entry must reference Story 11.3 + the 3 NEW
     # capability names.
     assert "v1.12" in docs
     assert "Story 11.3" in docs

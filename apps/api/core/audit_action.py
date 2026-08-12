@@ -63,6 +63,7 @@ class ActionClass(str, __import__("enum").Enum):
     SNAPSHOT_PERSISTENCE = "snapshot_persistence"  # Story 11.3 (NEW — AD-20 state machine 영구화 audit)
     REOPEN_OPERATOR = "reopen_operator"  # Story 11.3 (NEW — W2 reopen flow audit)
     TWO_FACTOR_AUTH = "two_factor_auth"  # Story 12.1 (NEW — 2FA mandatory gate audit)
+    ACCOUNT_BACKUP = "account_backup"  # Story 12.2 (NEW — daily auto-backup + JSON self-download audit)
 
 
 # ────────────────────────────────────────────────────────────
@@ -331,6 +332,33 @@ TwoFactorAuthAction = Literal[
 ]
 
 
+# account_backup actions (Story 12.2 NEW — daily auto-backup + JSON self-download).
+# PRD §F12.2 + NFR4 backup + AD-9 Seoul + AD-15 §4 envelope. Audit routes
+# to `audit_logs` (ActionClass.ACCOUNT_BACKUP). 5 values:
+# - `backup_created` — successful backup row INSERT
+#   (run_backup / trigger_backup audit-first emit BEFORE row commit).
+# - `backup_failed` — try/except guard fires BEFORE raise
+#   (BackupExportServiceError surfaces to cron runner; audit captures
+#   failure context).
+# - `backup_retention_purged` — 30-day soft-delete UPDATE succeeded
+#   (purged_at timestamp set; row remains for audit).
+# - `backup_downloaded` — owner self-download audit (per-row download
+#   trace — forensic chain for "who downloaded what when").
+# - `backup_triggered` — manual owner trigger via POST /backups/trigger
+#   (manual run triggered — same action_class as backup_created but
+#   distinct audit entry for forensic separation).
+# Drift detector: tests/integration/test_audit_action_consistency.py
+# enforces ActionClass registry ↔ DB CHECK (no-op for audit_logs) ↔
+# call sites parity (3-way gate).
+AccountBackupAction = Literal[
+    "backup_created",
+    "backup_failed",
+    "backup_retention_purged",
+    "backup_downloaded",
+    "backup_triggered",
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -353,6 +381,7 @@ AuditAction = (
     | SnapshotPersistenceAction
     | ReopenOperatorAction
     | TwoFactorAuthAction
+    | AccountBackupAction
 )
 
 
@@ -600,6 +629,26 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Story 12.2 — account_backup 5 values (daily auto-backup + JSON
+        # self-download). DB CHECK-less per AD-2 invariant (audit_logs has
+        # NO action CHECK constraint per conventions.md §10.1 + docs
+        # 907-910). Drift detector enforces ActionClass registry ↔ DB
+        # CHECK (no-op for audit_logs) ↔ call sites parity (3-way gate).
+        # Routes to audit_logs (NOT to a separate ledger — backup events
+        # are tenant-scoped platform-event trail only, mirroring
+        # TWO_FACTOR_AUTH pattern).
+        ActionClass.ACCOUNT_BACKUP: (
+            "audit_logs",
+            frozenset(
+                {
+                    "backup_created",
+                    "backup_failed",
+                    "backup_retention_purged",
+                    "backup_downloaded",
+                    "backup_triggered",
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -724,5 +773,6 @@ __all__ = [
     "SnapshotPersistenceAction",
     "ReopenOperatorAction",
     "TwoFactorAuthAction",
+    "AccountBackupAction",
     "emit_audit_typed",
 ]

@@ -1,8 +1,28 @@
-# Capability Matrix (v1.13)
+# Capability Matrix (v1.14)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.14 (2026-08-12, Story 12.2, Epic 12)** — `BACKUP_EXPORT`
+> Daily auto-backup + JSON self-download wire (PRD §F12.2 + §M12-b + NFR4).
+> Story 12.2 wired the pure kernel + service layer + audit ActionClass
+> `ACCOUNT_BACKUP` (5 typed values: `backup_created` + `backup_failed` +
+> `backup_retention_purged` + `backup_downloaded` + `backup_triggered`) +
+> 3 NEW routes under `/api/v1/account/backups/*`:
+> - GET  /api/v1/account/backups/recent              — list 7-day backups
+> - GET  /api/v1/account/backups/{backup_id}/download — JSON download
+> - POST /api/v1/account/backups/trigger              — manual owner trigger
+>
+> 5 typed exceptions are mapped to AD-15 §4 envelopes in `apps/api/main.py`.
+> Alembic 0024 adds `tenant_backups` table + RLS policy 0014 (5-policy split
+> per AD-3). BACKUP_EXPORT is **industry-agnostic** (granted to ALL 4
+> canonical industries) — backup is operational infrastructure, not a
+> manufacturing feature. AD-10 owner-only gate enforced at route via
+> `require_role("owner")` (not via `require_capability`) per CR 12-1 L4
+> precedent — capability is documented but NOT enforced.
+> Drift detector: `tests/integration/test_capability_matrix_v1_14_drift.py`
+> pins enum ↔ docs ↔ 4-industry grants for BACKUP_EXPORT.
 >
 > **v1.13 (2026-08-10, Story 12.1 + 12.4, Epic 12)** — `TWO_FACTOR_AUTH`
 > 2FA mandatory gate wire (PRD §F12.1 + §M12-a + NFR5 TLS + NFR6 AES-256-GCM).
@@ -143,6 +163,7 @@ class CalcResponse(BaseModel):
 | `REVERSAL_EXECUTE` | 11.3 | ✅ | ❌ | ✅ | ✅ |
 | `REOPEN_OPERATOR` | 11.3 | ✅ | ❌ | ✅ | ✅ |
 | `TWO_FACTOR_AUTH` | 12.1 | ✅ | ✅ | ✅ | ✅ |
+| `BACKUP_EXPORT` | 12.2 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
@@ -266,6 +287,24 @@ class CalcResponse(BaseModel):
   audit-trail + v4-verdict) + V8 골든 fixture 16 → 18 (closing-period-fixture-1
   + fiscal-period-snapshot-fixture-1 2 NEW V8 골든 from 6-1 T10.5 carry-over
   close). Capability 행 자체는 변경 없음 (6-1 wire 그대로 사용).
+- 2026-08-12 — v1.14 (Story 12.2, Epic 12): `BACKUP_EXPORT` capability wire
+  (industry-agnostic — ALL 4 canonical industries ✅; CR 12-1 L4 precedent —
+  "백업은 운영자 인프라") + 3 NEW routes under `/api/v1/account/backups/*`
+  (`GET /recent` + `GET /{backup_id}/download` + `POST /trigger`) +
+  `ActionClass.ACCOUNT_BACKUP` 5 values 채움 (`backup_created` +
+  `backup_failed` + `backup_retention_purged` + `backup_downloaded` +
+  `backup_triggered`) + Alembic 0024 (`tenant_backups` table + 12 columns
+  + 2 indexes + partial UNIQUE on `(tenant_id, backup_date) WHERE purged_at
+  IS NULL`) + RLS 0014 (5-policy split: same-tenant SELECT + owner-only
+  SELECT + same-tenant INSERT + UPDATE forbidden + DELETE forbidden) +
+  packages/services/m12_account/backup_export pure kernel subtree
+  (stdlib-only JSON serialization + sha256 hashing + 7-table dump) +
+  `apps/api/jobs/backup_daily.py` (KST 02:00 = UTC 17:00 cron entry) +
+  `apps/api/jobs/backup_retention.py` (KST 03:00 = UTC 18:00 retention sweep).
+  NFR4: RPO 24h / RTO 4h / 30-day backup retention. AD-10 owner-only gate
+  enforced at route via `require_role("owner")` (NOT `require_capability`)
+  — capability is documented but intentionally NOT enforced as a route gate
+  per CR 12-1 L4 precedent (industry-agnostic security baseline).
 - 2026-08-08 — v1.10 (Story 11.1, Epic 11): `REVERSAL_REQUEST` capability wire
   (manufacturing 3종 ✅ / service-only ❌) + 3 NEW routes (`POST /close/reversal-requests`
   + `GET /close/reversal-requests/{correction_group_id}` + `POST /close/cache-invalidation`)
