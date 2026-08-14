@@ -95,6 +95,15 @@ def upgrade() -> None:
         "WHERE purged_at IS NULL"
     )
 
+    # ── F-10: retention-sweep index (spec subtask 5.2 verbatim) ───
+    # Index for retention sweep query: filter by retention_class +
+    # backup_date while purged_at IS NULL.
+    op.execute(
+        "CREATE INDEX ix_tenant_backups_retention "
+        "ON tenant_backups (tenant_id, retention_class, backup_date) "
+        "WHERE purged_at IS NULL"
+    )
+
     # ── partial UNIQUE: one active backup per tenant per day ────────
     # Soft-deleted (purged) rows do NOT block re-creation on the same
     # date — only one ACTIVE backup is allowed per (tenant, date).
@@ -130,6 +139,46 @@ def upgrade() -> None:
         "other columns is BLOCKED.'"
     )
 
+    # ── AD-2 INSERT-only trigger (CR 11-3 + spec subtask 5.4) ──
+    # Mirrors audit_logs 0001 pattern. The trigger blocks UPDATE/DELETE
+    # except for the retention sweep path: setting `purged_at` from NULL
+    # to a non-NULL value (the only legitimate UPDATE in app code).
+    op.execute(
+        """
+        CREATE OR REPLACE FUNCTION reject_append_only_tenant_backups()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            -- UPDATE allowed only when retention sweep is purging
+            -- (purged_at transitions NULL → non-NULL).
+            IF (TG_OP = 'UPDATE') THEN
+                IF (OLD.purged_at IS NULL AND NEW.purged_at IS NOT NULL) THEN
+                    RETURN NEW;
+                END IF;
+                RAISE EXCEPTION
+                    'tenant_backups is INSERT-only (AD-2): '
+                    'UPDATE on non-purged_at columns is forbidden';
+            END IF;
+            -- DELETE always blocked (retention uses purged_at soft-delete).
+            IF (TG_OP = 'DELETE') THEN
+                RAISE EXCEPTION
+                    'tenant_backups is INSERT-only (AD-2): '
+                    'DELETE is forbidden (use purged_at soft-delete)';
+            END IF;
+            RETURN NULL;
+        END;
+        $$ LANGUAGE plpgsql;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER tenant_backups_insert_only
+        BEFORE UPDATE OR DELETE ON tenant_backups
+        FOR EACH ROW EXECUTE FUNCTION reject_append_only_tenant_backups();
+        """
+    )
+
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS tenant_backups_insert_only ON tenant_backups")
+    op.execute("DROP FUNCTION IF EXISTS reject_append_only_tenant_backups()")
     op.execute("DROP TABLE IF EXISTS tenant_backups")

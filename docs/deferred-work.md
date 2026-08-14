@@ -155,3 +155,24 @@ budget). These are documented honestly per CR 11-3 discipline:
   components.
 - Items D-01~D-04 may stay in this file as documentation drift cleanup
   for future retro.
+
+## Deferred from: code review of 12-2-daily-auto-backup-json-self-download (2026-08-14)
+
+bmad-code-review 3rd sweep chunk 1 (backend, 12 files) surfaced 1
+pre-existing scalability concern that is out of scope for the 12-2
+wire (would expand scope beyond daily auto-backup + JSON self-download
+sprint budget). Documented honestly per CR 11-3 discipline:
+
+### Pre-existing deferred items
+
+#### D-12-2-DEFER-1 — backup_daily cron sequential per-tenant iteration
+- Source: `apps/api/jobs/backup_daily.py:507-541`
+- Reason: cron iterates all tenants sequentially in a single session.
+  For fleet > 50 tenants, the 1-hour KST window (02:00-03:00) may be
+  exceeded, causing overlap with `backup_retention` cron at KST 03:00.
+  Spec did not specify concurrent batching strategy.
+- Scope: future Story (12-2.5 or 13-N). Solution candidates: batch
+  tenants into groups of 50 with `asyncio.gather()`, OR move to
+  Railway cron with worker-queue.
+- CR 11-3 honest-DEFER (structural W-class — pre-existing scalability,
+  not a critical correctness invariant).

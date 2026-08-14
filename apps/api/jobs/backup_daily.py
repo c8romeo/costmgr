@@ -92,7 +92,9 @@ async def run(*, now: datetime | None = None) -> list[BackupResult]:
                     actor_id=None,  # cron path — no actor
                     trace_id=trace_id,
                 )
-                result = await svc.run_backup()
+                # F-11: thread `now` through to the service for
+                # deterministic testability (CR 4-3).
+                result = await svc.run_backup(now=now)
                 results.append(result)
             except Exception as exc:  # noqa: BLE001
                 logger.exception(

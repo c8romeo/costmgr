@@ -258,6 +258,7 @@ def collapse_audit_logs(
         )
     audit_rows = tables.get("audit_logs", [])
     kept: list[dict[str, Any]] = []
+    dropped: list[str] = []
     for row in audit_rows:
         occurred_raw = row.get("occurred_at")
         if not occurred_raw:
@@ -265,11 +266,23 @@ def collapse_audit_logs(
         try:
             occurred_dt = _parse_iso8601(occurred_raw)
         except ValueError:
-            # Malformed timestamp — drop row defensively (pure-kernel no DB).
+            # F-26: malformed timestamp — count drop for forensic trail.
+            dropped.append(str(row.get("id", "<no-id>")))
             continue
+        # F-04: normalize tz-naive timestamps to UTC before comparison.
+        # SQLA TIMESTAMP columns may return naive datetimes.
+        if occurred_dt.tzinfo is None:
+            occurred_dt = occurred_dt.replace(tzinfo=cutoff.tzinfo)
         if occurred_dt >= cutoff:
             kept.append(row)
-    new_tables: dict[str, list[dict[str, Any]]] = dict(tables)
+    if dropped:
+        # Pure-kernel cannot log; service layer logs the count.
+        # Stored in returned dict for caller to surface.
+        new_tables: dict[str, list[dict[str, Any]]] = dict(tables)
+        new_tables["audit_logs"] = kept
+        new_tables["__dropped_audit_count__"] = len(dropped)
+        return new_tables
+    new_tables = dict(tables)
     new_tables["audit_logs"] = kept
     return new_tables
 

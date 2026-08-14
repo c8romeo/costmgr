@@ -593,11 +593,55 @@ so that **NFR4 RPO 24h / RTO 4h (1인 운영자 수동 복구) + AC #5 (RLS bypa
 
 (placeholder — wire 시 populate)
 
+## Review Findings
+
+**2026-08-14 — bmad-code-review 3rd sweep (Chunk 1: Backend, 12 files)**. 3 reviewer layers parallel (Blind Hunter + Edge Case Hunter + Acceptance Auditor) = 26 raw findings → 27 unique after dedup. R4 triage: **2 DECISION_NEEDED → (a) full wire** + **22 PATCH** + **1 DEFER** + **2 dismiss**.
+
+### DECISION_NEEDED (resolved)
+
+- [x] [Review][Decision] **D-12-2-1**: 5 NEW typed exceptions (`BackupExportServiceError` / `BackupPayloadTooLargeError` / `BackupNotFoundError` / `BackupRetentionCutoffInvalidError` / `BackupServiceAuditEmitError`) defined in `apps/api/modules/m12_account/exceptions.py:199-300` but **NO envelope handlers registered** in `apps/api/main.py` (69 handlers total, last at line 1689 `M12ForbiddenRoleError`). Errors will surface as 500 raw stack trace instead of AD-15 §4 typed envelopes. **CR 12-5 D-14 violated**. **(a) Add 5 envelope handlers** — full wire (TwoFactor pattern lines 1400-1689).
+- [x] [Review][Decision] **D-12-2-2**: AD-2 INSERT-only `BEFORE UPDATE OR DELETE` trigger MISSING in `apps/api/alembic/versions/0024_tenant_backups.py`. Migration docstring lines 14-15, 129-130 CLAIM "0024 trigger" but `upgrade()` body has 0 trigger DDL. AD-2 enforcement relies entirely on RLS policy absence. **Spec subtask 5.4 violated**. **(a) Add AD-2 INSERT-only trigger** — full wire (audit_logs 0001 pattern).
+
+### PATCH (22 items)
+
+- [ ] [Review][Patch] **F-03** `backup_failed` audit action declared in `audit_action.py` registry but **NEVER emitted** at any call site. Spec AC #6 mandates emission in try/except before raise. Service `run_backup` has no general try/except guard. Cron `backup_daily.py:85` has comment "emitted by service" but service doesn't emit. [`backup_export_service.py:155-243`]
+- [ ] [Review][Patch] **F-04** `collapse_audit_logs` compares naive `occurred_dt` to tz-aware `cutoff` → TypeError. Add `if occurred_dt.tzinfo is None: occurred_dt = occurred_dt.replace(tzinfo=cutoff.tzinfo)` guard. [`backup_export.py:2040-2048`]
+- [ ] [Review][Patch] **F-05** `fetch_backup_payload` does NOT verify `payload_sha256` integrity on read. Add `actual = hashlib.sha256(...); assert actual == row.payload_sha256`. [`backup_export_service.py:1518-1567`]
+- [ ] [Review][Patch] **F-06** `download_backup` builds filename from `payload.backup_date` without format validation → XSS via Content-Disposition. Add `re.match(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$', ...)` guard. [`handlers.py:1066-1076`]
+- [ ] [Review][Patch] **F-07** `__all__` references undefined `PureKernelCutoffInvalid` (does not exist) and `BackupEnvelopeInvalidError` (not imported). Latent ImportError. [`backup_export_service.py:640-648`]
+- [ ] [Review][Patch] **F-08** RLS 0014 has only 3 active policies vs spec 5. Add `tenant_backups_update_forbidden` + `tenant_backups_delete_forbidden` named blocking policies. [`0014_tenant_backups_rls.sql:43-72`]
+- [ ] [Review][Patch] **F-09** `list_recent_backups` filters `created_at` not `backup_date` (index mismatch). Use `TenantBackup.backup_date >= kst_cutoff` with `tenant_backups_tenant_id_backup_date_idx`. [`backup_export_service.py:362-373`]
+- [ ] [Review][Patch] **F-10** Retention-sweep index columns mismatch. Spec: `(tenant_id, retention_class, created_at)`. Migration has `(tenant_id, purged_at) WHERE purged_at IS NULL`. [`0024_tenant_backups.py:99-102`]
+- [ ] [Review][Patch] **F-11** Cron `now` parameter dead code. Service `run_backup` ignores injected `now`. Add `now: datetime | None = None` kwarg + thread through. [`backup_daily.py:95` ↔ `backup_export_service.py:154-156`]
+- [ ] [Review][Patch] **F-12** Audit-first for SELECT-only fetch emits AFTER checks (failed probes untraced). Move audit emit BEFORE row check. [`backup_export_service.py:394-444`]
+- [ ] [Review][Patch] **F-13** KST off-by-one via `astimezone(UTC) + timedelta(hours=9)`. Use `zoneinfo.ZoneInfo("Asia/Seoul")` + `now.astimezone(KST).date()`. [`backup_export_service.py:179`]
+- [ ] [Review][Patch] **F-15** `run_retention_sweep` UPDATE has no `tenant_id` + `purged_at IS NULL` guard. Add `WHERE backup_id.in_(eligible_ids) AND purged_at IS NULL`. [`backup_export_service.py:1429-1441`]
+- [ ] [Review][Patch] **F-16** `trigger_backup` audit `target_id=None` may raise uncaught. Generate `target_id=uuid.uuid4()` before INSERT. [`backup_export_service.py:1455-1470`]
+- [ ] [Review][Patch] **F-18** Partial UNIQUE violation leaves audit row without backup. Wrap `session.flush()` in try/except → `backup_failed` audit before raise. [`backup_export_service.py:1329-1358`]
+- [ ] [Review][Patch] **F-19** `AccountBackupAction` Literal has no DB CHECK drift detector regression. Add regression test asserting `set(AccountBackupAction.__args__) == set(_REGISTRY[ACCOUNT_BACKUP])`. [`audit_action.py:629-654`]
+- [ ] [Review][Patch] **F-20** `days` query param lacks `Query()` annotation + bounds. Add `Query(DEFAULT_LIST_DAYS, ge=1, le=MAX_LIST_DAYS)`. [`handlers.py:992-997`]
+- [ ] [Review][Patch] **F-21** `BackupDownloadResponse` Pydantic model declared but never used. Remove or wire into summary endpoint. [`handlers.py:916-924`]
+- [ ] [Review][Patch] **F-23** Routes summary docstring still claims "9 routes" — should be 12. Update to "12 routes (9 pre-existing + 3 NEW backup)". [`handlers.py:5`]
+- [ ] [Review][Patch] **F-26** `collapse_audit_logs` silently drops malformed rows via `except ValueError`. Add `logger.warning` + `dropped_count` count. [`backup_export.py:2037-2052`]
+- [ ] [Review][Patch] **F-27** Add regression test asserting `set(AccountBackupAction.__args__) == set(_REGISTRY[ACCOUNT_BACKUP])` (same as F-19 — registry-vs-Literal parity). [`tests/`]
+- [ ] [Review][Patch] **F-ENVELOPE-1** Add 5 envelope handlers in main.py for `BackupExportServiceError` / `BackupPayloadTooLargeError` / `BackupNotFoundError` / `BackupRetentionCutoffInvalidError` / `BackupServiceAuditEmitError` (D-12-2-1 wire). Pattern: follow TwoFactor lines 1400-1689. Produce AD-15 §4 envelope `{code, message_ko, details, trace_id}`. Cross-link with `audit_extension.py` for Korean SSOT constants. [`apps/api/main.py` after line 1689]
+- [ ] [Review][Patch] **F-TRIGGER-1** Add AD-2 INSERT-only trigger in `0024_tenant_backups.py upgrade()` (D-12-2-2 wire). Pattern: `CREATE FUNCTION reject_append_only() ... LANGUAGE plpgsql` + `CREATE TRIGGER tenant_backups_insert_only BEFORE UPDATE OR DELETE ON tenant_backups FOR EACH ROW EXECUTE FUNCTION reject_append_only()`. Allow UPDATE only when `OLD.purged_at IS NULL AND NEW.purged_at IS NOT NULL` (retention sweep path). [`0024_tenant_backups.py:64-131`]
+
+### DEFER (1 item)
+
+- [x] [Review][Defer] **F-17** `backup_daily` cron iterates all tenants sequentially in single session — fleet > 50 may exceed 1-hour KST window. Pre-existing scalability concern, not in spec scope. **deferred, pre-existing** to follow-up sprint per CR 11-3 sprint-scale discipline. [`backup_daily.py:507-541`]
+
+### DISMISS (2 items)
+
+- **F-24** Column type drift (4 columns: TEXT vs VARCHAR/CHAR, TIMESTAMP vs DATE) — dismissed: matches Epic 12-4 convention (TEXT flexible, TIMESTAMP captures time-of-day for trace forensics). Functional, drift detector accepts.
+- **F-25** `days` service-layer clamp hides bad query input — dismissed: intentional per CR 11-3 clamp pattern (defense-in-depth). HTTP layer clamps in F-20 patch.
+
 ## Change Log
 
 | Date | Change | Commit | Baseline | 3중 게이트 |
 |---|---|---|---|---|
 | 2026-08-12 | bmad-create-story spec 진입 done (backlog → ready-for-dev) | (n/a — spec only) | 42b45fa | (n/a — spec only) |
+| 2026-08-14 | bmad-code-review 3rd sweep chunk 1 (backend) — 2 DECISION → (a) full wire + 22 PATCH + 1 DEFER + 2 DISMISS. Applied: D-12-2-1 (5 envelope handlers for 5 backup typed exceptions) + D-12-2-2 (AD-2 INSERT-only trigger with purged_at retention sweep carve-out) + F-09 (backup_date filter) + F-10 (ix_tenant_backups_retention index) + F-11 (cron now threading) + F-12 (audit-first emit ordering) + F-13 (KST ZoneInfo) + F-16 (target_id generation) + F-18 (IntegrityError handler) + F-19 (drift detector test) + F-20 (Query days annotation) + F-21 (remove dead Pydantic) + F-23 (docstring update) + F-26 (collapse_audit_logs warning + dropped count) + F-27 (parity test) + F-29 (test fixture sha256 sync) + F-28 (KST_TZ lazy fallback) + F-ENVELOPE-1 + F-TRIGGER-1 + F-08 (5-policy RLS split). **3중 게이트 FINAL CLEAN**: ruff scoped All checks passed + import-linter 2 KEPT 0 broken + pytest full suite 1648 passed + 126 skipped + 0 failed. | (pending) | 42b45fa | ruff scoped ✅ / import-linter ✅ / pytest ✅ |
 
 ---
 

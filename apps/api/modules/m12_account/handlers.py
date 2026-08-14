@@ -1,8 +1,9 @@
-"""apps/api/modules/m12_account/handlers.py — Story 12.4 (Epic 12 carry-over sprint).
+"""apps/api/modules/m12_account/handlers.py — Story 12.4 (Epic 12 carry-over sprint) + Story 12.2.
 
-2FA mandatory gate handlers (PRD §F12.1 + §M12-a + AD-15 §4).
+2FA mandatory gate handlers (PRD §F12.1 + §M12-a + AD-15 §4) + Story 12.2
+backup export handlers (PRD §F12.2 + NFR4 + AD-10 owner-only).
 
-8 routes + 1 M2 entry-gate route:
+12 routes (9 pre-existing 2FA + 3 NEW backup export):
 - POST /api/v1/account/2fa/setup                    — initiate 2FA setup
 - POST /api/v1/account/2fa/verify                   — verify first TOTP code
 - POST /api/v1/account/2fa/challenge                — M2 entry gate challenge
@@ -12,6 +13,9 @@
 - POST /api/v1/account/2fa/challenge-tokens         — issue HS256 challenge token
 - POST /api/v1/account/2fa/challenge-tokens/consume — consume HS256 challenge token
 - GET  /api/v1/m2-entry-gate                       — M2 entry gate state check
+- GET  /api/v1/account/backups/recent              — list recent backups (owner-only)
+- GET  /api/v1/account/backups/{backup_id}/download  — owner self-download (owner-only)
+- POST /api/v1/account/backups/trigger             — manual trigger (owner-only)
 
 Service layer is in `apps/api.modules.m12_account.services.two_factor_service`
 (setup_totp / verify_and_enable_totp / verify_totp_challenge / verify_recovery_code
@@ -44,7 +48,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Depends, Path, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,6 +75,7 @@ from apps.api.modules.m12_account.services.audit_extension import (
 )
 from apps.api.modules.m12_account.services.backup_export_service import (
     DEFAULT_LIST_DAYS,
+    MAX_LIST_DAYS,
     BackupExportService,
     BackupMetadata,
     BackupResult,
@@ -945,17 +950,6 @@ class BackupListResponse(BaseModel):
     trace_id: str
 
 
-class BackupDownloadResponse(BaseModel):
-    """`GET /account/backups/{backup_id}/download` summary (download
-    payload itself is JSON bytes — see response below)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    backup_id: str
-    payload_sha256: str
-    trace_id: str
-
-
 class BackupTriggerRequest(BaseModel):
     """`POST /account/backups/trigger` body — currently empty.
 
@@ -1009,8 +1003,15 @@ def _metadata_to_list_item(m: BackupMetadata) -> BackupListItem:
 
 
 def _build_backup_filename(backup_date_iso: str) -> str:
-    """`backup-YYYY-MM-DD.json` filename (mirror TS `buildBackupFilename`)."""
-    # backup_date_iso is YYYY-MM-DD format from service.
+    """`backup-YYYY-MM-DD.json` filename (mirror TS `buildBackupFilename`).
+
+    F-06: validates `backup_date_iso` format with regex to prevent
+    filename injection via Content-Disposition header (XSS risk).
+    If the value is not a valid YYYY-MM-DD, falls back to "unknown".
+    """
+    import re
+    if not re.match(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$", backup_date_iso):
+        return "backup-unknown.json"
     return f"backup-{backup_date_iso}.json"
 
 
@@ -1023,7 +1024,14 @@ def _build_backup_filename(backup_date_iso: str) -> str:
 )
 async def list_recent_backups(
     request: Request,
-    days: int = DEFAULT_LIST_DAYS,
+    days: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=MAX_LIST_DAYS,
+            description="Window size in days (1-30, default 7)",
+        ),
+    ] = DEFAULT_LIST_DAYS,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
     _role: None = Depends(require_role("owner")),

@@ -41,12 +41,15 @@ NFR4 contract:
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import and_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit_action import ActionClass, emit_audit_typed
@@ -79,6 +82,35 @@ from packages.services.m12_account.backup_export import (
 # ── Constants ────────────────────────────────────────────────
 DEFAULT_LIST_DAYS: int = 7  # AC #4: "최근 7일 백업 다운로드"
 MAX_LIST_DAYS: int = 30  # PRD safety cap for the `days` query param.
+
+
+def _resolve_kst_tz() -> ZoneInfo:
+    """Lazy KST ZoneInfo with graceful fallback (F-28).
+
+    `tzdata` is OS-dependent (Linux has it built-in via system tzdata,
+    Windows does NOT). To avoid a hard STACK_PIN dependency on the
+    `tzdata` PyPI package (which would require a BUMP per AD-14), we
+    try `ZoneInfo("Asia/Seoul")` lazily and fall back to a fixed
+    `UTC+9` `timezone(timedelta(hours=9))` if the system tzdata is
+    missing.
+
+    Display-only path: the canonical KST conversion for `backup_date`
+    is computed via `now.astimezone(UTC) + timedelta(hours=9)` (F-13)
+    — see `run_backup`. The ZoneInfo is only used for richer display
+    formatting (e.g. tz-aware timestamps in audit payload) where a
+    fixed-offset fallback is semantically equivalent.
+    """
+    try:
+        return ZoneInfo("Asia/Seoul")
+    except ZoneInfoNotFoundError:
+        # tzdata missing on this OS (Windows without tzdata PyPI).
+        # Fall back to fixed-offset UTC+9 — KST has no DST, so the
+        # offset is stable year-round.
+        from datetime import timezone
+        return timezone(timedelta(hours=9), name="KST")
+
+
+KST_TZ: ZoneInfo = _resolve_kst_tz()  # AD-15 §2 — KST display DST-safe
 
 
 # ── Typed results ────────────────────────────────────────────
@@ -156,6 +188,7 @@ class BackupExportService:
         *,
         retention_class: str = "daily",
         triggered_by_user_id: uuid.UUID | None = None,
+        now: datetime | None = None,
     ) -> BackupResult:
         """Cron entry point: SELECT 7 tables → INSERT tenant_backups row.
 
@@ -166,6 +199,9 @@ class BackupExportService:
             retention_class: 'daily' (default) or 'quarterly' (honestly
                 DEFER — sprint-scale). Default 'daily' per AC #1.
             triggered_by_user_id: Manual trigger trace (cron path = NULL).
+            now: Injected wall-clock time (crontab path uses
+                `datetime.now(tz=UTC)`; test path passes a fixed
+                datetime for deterministic testability per CR 4-3).
 
         Returns:
             BackupResult(backup_id, tenant_id, payload_sha256, ...).
@@ -174,9 +210,10 @@ class BackupExportService:
             BackupPayloadTooLargeError: 50 MB cap exceeded.
             BackupServiceAuditEmitError: audit-first emit failed.
         """
-        now = datetime.now(tz=UTC)
+        now = now or datetime.now(tz=UTC)
         cutoff = now - timedelta(days=AUDIT_LOG_WINDOW_DAYS)
-        kst_now = now.astimezone(UTC) + timedelta(hours=9)  # KST = UTC+9
+        # KST via ZoneInfo (CR 12-5 L4 + AD-15 §2) — DST-safe.
+        kst_now = now.astimezone(KST_TZ)
         backup_date = kst_now.date()
 
         # 1. SELECT 7 tables
@@ -216,7 +253,7 @@ class BackupExportService:
             },
         )
 
-        # 4. INSERT tenant_backups row
+        # 4. INSERT tenant_backups row (with audit-first failure handling)
         row = TenantBackup(
             backup_id=backup_id,
             tenant_id=self.tenant_id,
@@ -231,8 +268,52 @@ class BackupExportService:
             purged_at=None,
             triggered_by_user_id=triggered_by_user_id,
         )
-        self.session.add(row)
-        await self.session.flush()
+        try:
+            self.session.add(row)
+            await self.session.flush()
+        except IntegrityError as exc:
+            # F-18: UNIQUE (tenant_id, backup_date) WHERE purged_at IS NULL
+            # collision. Emit backup_failed audit atomic-first, then raise.
+            await self.session.rollback()
+            with contextlib.suppress(Exception):
+                # Audit failure on top of DB failure — best-effort log.
+                await self._record_audit(
+                    action="backup_failed",
+                    target_id=backup_id,
+                    reason="UNIQUE constraint violation on (tenant_id, backup_date)",
+                    payload={
+                        "backup_date": backup_date.isoformat(),
+                        "retention_class": retention_class,
+                        "triggered_by": (
+                            "manual" if triggered_by_user_id else "cron"
+                        ),
+                    },
+                )
+            raise BackupRetentionCutoffInvalidError(
+                reason=f"UNIQUE violation: {exc!s}",
+                trace_id=self.trace_id,
+            ) from exc
+        except Exception as exc:
+            # F-03: generic backup_failed audit emit BEFORE raise (CR 1.1).
+            await self.session.rollback()
+            with contextlib.suppress(Exception):
+                # Audit failure on top of DB failure — best-effort log.
+                await self._record_audit(
+                    action="backup_failed",
+                    target_id=backup_id,
+                    reason=f"backup run failed: {type(exc).__name__}",
+                    payload={
+                        "backup_date": backup_date.isoformat(),
+                        "retention_class": retention_class,
+                        "triggered_by": (
+                            "manual" if triggered_by_user_id else "cron"
+                        ),
+                    },
+                )
+            raise BackupExportServiceError(
+                message=f"backup_failed: {exc!s}",
+                trace_id=self.trace_id,
+            ) from exc
 
         return BackupResult(
             backup_id=backup_id,
@@ -334,9 +415,12 @@ class BackupExportService:
                 message="trigger_backup requires actor_id",
                 trace_id=self.trace_id,
             )
+        # F-16: target_id must be a uuid (audit_logs.target_id NOT NULL).
+        # Generate a 1-shot audit_id linking trigger → backup_created.
+        audit_id = uuid.uuid4()
         await self._record_audit(
             action="backup_triggered",
-            target_id=None,
+            target_id=audit_id,
             reason="manual owner trigger (POST /backups/trigger)",
             payload={"tenant_id": str(self.tenant_id)},
         )
@@ -360,16 +444,20 @@ class BackupExportService:
         """
         days = max(1, min(days, MAX_LIST_DAYS))
         cutoff = datetime.now(tz=UTC) - timedelta(days=days)
+        # F-09: filter on `backup_date` (KST date) not `created_at` to match
+        # the (tenant_id, backup_date DESC) index. F-13: convert UTC cutoff
+        # to KST date for consistency with backup_date column.
+        cutoff_kst_date = cutoff.astimezone(KST_TZ).date()
         result = await self.session.execute(
             select(TenantBackup)
             .where(
                 and_(
                     TenantBackup.tenant_id == self.tenant_id,
                     TenantBackup.purged_at.is_(None),
-                    TenantBackup.created_at >= cutoff,
+                    TenantBackup.backup_date >= cutoff_kst_date,
                 )
             )
-            .order_by(TenantBackup.created_at.desc())
+            .order_by(TenantBackup.backup_date.desc())
         )
         rows = result.scalars().all()
         metadata: list[BackupMetadata] = []
@@ -400,16 +488,29 @@ class BackupExportService:
         """SELECT single row by backup_id + return payload dict.
 
         RLS already enforces tenant_id isolation at the DB layer; this
-        method adds a service-layer double-check (defense-in-depth).
+        method adds a service-layer double-check (defense-in-depth)
+        + computes sha256 from the actual payload bytes to detect
+        JSONB corruption (CR 11-1 audit-first + F-05 integrity).
 
         Raises:
             BackupNotFoundError: backup_id not found OR purged_at != NULL
-                OR cross-tenant (defense-in-depth).
+                OR cross-tenant (defense-in-depth) OR sha256 mismatch.
         """
+        import hashlib
+        import json as _json
+
         result = await self.session.execute(
             select(TenantBackup).where(TenantBackup.backup_id == backup_id)
         )
         row = result.scalar_one_or_none()
+        # F-12: audit-first — emit BEFORE access checks so failed probes
+        # (cross-tenant, purged, missing) are all in the forensic trail.
+        await self._record_audit(
+            action="backup_downloaded",
+            target_id=backup_id,
+            reason="owner self-download audit (GET /backups/{id}/download)",
+            payload={"backup_id": str(backup_id)},
+        )
         if row is None:
             raise BackupNotFoundError(
                 backup_id=backup_id,
@@ -429,13 +530,20 @@ class BackupExportService:
                 tenant_id=self.tenant_id,
                 trace_id=self.trace_id,
             )
-        # Audit-first: emit BEFORE returning the payload (forensic chain)
-        await self._record_audit(
-            action="backup_downloaded",
-            target_id=backup_id,
-            reason="owner self-download audit (GET /backups/{id}/download)",
-            payload={"backup_id": str(backup_id)},
-        )
+        # F-05: integrity check — recompute sha256 from payload bytes.
+        actual_sha = hashlib.sha256(
+            _json.dumps(
+                row.payload, sort_keys=True, default=str
+            ).encode("utf-8")
+        ).hexdigest()
+        if actual_sha != row.payload_sha256:
+            raise BackupRetentionCutoffInvalidError(
+                reason=(
+                    f"sha256 integrity check failed: stored={row.payload_sha256} "
+                    f"actual={actual_sha}"
+                ),
+                trace_id=self.trace_id,
+            )
         return BackupPayload(
             backup_id=row.backup_id,
             tenant_id=row.tenant_id,
@@ -642,8 +750,7 @@ __all__ = [
 # Re-export pure-kernel errors for service callers (12-4 convention)
 __all__.extend(
     [
-        "BackupEnvelopeInvalidError",
         "BackupPayloadTooLargeError",
-        "PureKernelCutoffInvalid",
+        "BackupRetentionCutoffInvalidError",
     ]
 )

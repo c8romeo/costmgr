@@ -100,6 +100,11 @@ from apps.api.modules.m11_close.services.reversal_service import (
 )
 from apps.api.modules.m12_account import router as m12_account_router
 from apps.api.modules.m12_account.exceptions import (
+    BackupExportServiceError,
+    BackupNotFoundError,
+    BackupPayloadTooLargeError,
+    BackupRetentionCutoffInvalidError,
+    BackupServiceAuditEmitError,
     TwoFactorAlreadyEnabledError,
     TwoFactorAuditEmitError,
     TwoFactorCryptoKeyMissingError,
@@ -111,6 +116,11 @@ from apps.api.modules.m12_account.exceptions import (
 )
 from apps.api.modules.m12_account.services.audit_extension import (
     AUDIT_EMIT_FAILED_KO,
+    BACKUP_AUDIT_EMIT_FAILED_KO,
+    BACKUP_NOT_FOUND_KO,
+    BACKUP_PAYLOAD_TOO_LARGE_KO,
+    BACKUP_RETENTION_CUTOFF_INVALID_KO,
+    BACKUP_SERVICE_ERROR_KO,
     CHALLENGE_LOCKED_OUT_KO,
     CHALLENGE_TOKEN_ALREADY_CONSUMED_KO,
     CHALLENGE_TOKEN_EXPIRED_KO,
@@ -1698,6 +1708,99 @@ async def _m12_two_factor_forbidden_role_handler(
             "message_ko": exc.message_ko,
             "details": {"role": exc.role, "target": exc.target},
             "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 12.2 — 5 backup envelope handlers (CR 12-5 D-14) ─────
+@app.exception_handler(BackupNotFoundError)
+async def _backup_not_found_handler(
+    request: Request, exc: BackupNotFoundError
+) -> JSONResponse:
+    """404 BACKUP_NOT_FOUND — backup_id does not resolve in tenant_backups."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "BACKUP_NOT_FOUND",
+            "message_ko": BACKUP_NOT_FOUND_KO,
+            "details": {
+                "backup_id": str(exc.backup_id),
+                "tenant_id": str(exc.tenant_id),
+            },
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(BackupPayloadTooLargeError)
+async def _backup_payload_too_large_handler(
+    request: Request, exc: BackupPayloadTooLargeError
+) -> JSONResponse:
+    """422 BACKUP_PAYLOAD_TOO_LARGE — serialized JSON exceeds 50 MB cap."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "BACKUP_PAYLOAD_TOO_LARGE",
+            "message_ko": BACKUP_PAYLOAD_TOO_LARGE_KO,
+            "details": {
+                "size_bytes": exc.size_bytes,
+                "max_bytes": exc.max_bytes,
+            },
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(BackupRetentionCutoffInvalidError)
+async def _backup_retention_cutoff_invalid_handler(
+    request: Request, exc: BackupRetentionCutoffInvalidError
+) -> JSONResponse:
+    """422 BACKUP_RETENTION_CUTOFF_INVALID — retention sweep cutoff invalid."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "BACKUP_RETENTION_CUTOFF_INVALID",
+            "message_ko": BACKUP_RETENTION_CUTOFF_INVALID_KO,
+            "details": {"reason": exc.reason},
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(BackupServiceAuditEmitError)
+async def _backup_service_audit_emit_handler(
+    request: Request, exc: BackupServiceAuditEmitError
+) -> JSONResponse:
+    """503 BACKUP_AUDIT_EMIT_FAILED — audit-first emit failed (CR 1.1)."""
+    return JSONResponse(
+        status_code=503,
+        headers={"Retry-After": "5"},
+        content={
+            "code": "BACKUP_AUDIT_EMIT_FAILED",
+            "message_ko": BACKUP_AUDIT_EMIT_FAILED_KO,
+            "details": {"message": exc.message},
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(BackupExportServiceError)
+async def _backup_export_service_error_handler(
+    request: Request, exc: BackupExportServiceError
+) -> JSONResponse:
+    """500 BACKUP_SERVICE_ERROR — generic backup service failure."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "BACKUP_SERVICE_ERROR",
+            "message_ko": BACKUP_SERVICE_ERROR_KO,
+            "details": {"message": exc.message},
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
         },
     )
 

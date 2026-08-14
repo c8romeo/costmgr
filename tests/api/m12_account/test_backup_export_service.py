@@ -15,6 +15,7 @@ CR 4-3: `def test_* + asyncio.run(_impl())` pattern.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
@@ -411,7 +412,17 @@ def test_fetch_backup_payload_success() -> None:
         backup_row.backup_id = BACKUP_ID
         backup_row.tenant_id = TENANT_ID
         backup_row.payload = {"schema_version": "1.0", "tables": {}}
-        backup_row.payload_sha256 = "c" * 64
+        # F-29: payload_sha256 must match the actual sha256 of the
+        # serialized payload — F-05 wired the integrity verify in
+        # fetch_backup_payload to defend against tampering.
+        # Match service-layer exact serialization (json.dumps sort_keys=True).
+        import json as _json
+        expected_sha = hashlib.sha256(
+            _json.dumps(
+                backup_row.payload, sort_keys=True, default=str
+            ).encode("utf-8")
+        ).hexdigest()
+        backup_row.payload_sha256 = expected_sha
         backup_row.purged_at = None
 
         result_mock = MagicMock()
@@ -423,7 +434,7 @@ def test_fetch_backup_payload_success() -> None:
         )
         payload = await svc.fetch_backup_payload(backup_id=BACKUP_ID)
         assert payload.backup_id == BACKUP_ID
-        assert payload.payload_sha256 == "c" * 64
+        assert payload.payload_sha256 == expected_sha
 
     asyncio.run(_impl())
 
@@ -541,6 +552,30 @@ def test_account_backup_action_literal_values() -> None:
             "backup_downloaded",
             "backup_triggered",
         ]
+
+
+def test_account_backup_action_registry_parity() -> None:
+    """F-19: 3-way drift detector — AccountBackupAction Literal ↔ _REGISTRY.
+
+    Asserts every value in the AccountBackupAction Literal is also in
+    the _REGISTRY[ActionClass.ACCOUNT_BACKUP] frozenset, and vice versa.
+    Catches drift when a value is added to the Literal but not registered
+    (or vice versa). CR 1.1 + CR 12-5 D-13 parity invariant.
+    """
+    from typing import get_args
+
+    from apps.api.core.audit_action import (
+        AccountBackupAction,
+        ActionClass,
+        _ActionRegistry,
+    )
+
+    literal_values = set(get_args(AccountBackupAction))
+    registry_frozenset = _ActionRegistry._REGISTRY[ActionClass.ACCOUNT_BACKUP][1]
+    assert literal_values == set(registry_frozenset), (
+        f"AccountBackupAction Literal drift: "
+        f"literal={literal_values} vs registry={set(registry_frozenset)}"
+    )
 
 
 def test_action_class_account_backup_registered() -> None:

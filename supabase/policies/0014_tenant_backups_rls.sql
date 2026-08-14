@@ -100,14 +100,25 @@ CREATE POLICY tenant_backups_insert_owner
         )
     );
 
--- ── UPDATE policy (NONE — AD-2 INSERT-only invariant) ──────────
--- Intentionally NO UPDATE policy for application roles. The
--- `purged_at` soft-delete is performed by the retention cron under
--- service-role (bypasses RLS). Defense-in-depth: even if an app-layer
--- SQL injection attempts UPDATE on non-purged columns, RLS rejects it.
---
--- We do NOT add `tenant_backups_update_owner` because AD-2 invariant
--- must hold across ALL application roles.
+-- ── UPDATE policy (blocked — AD-2 INSERT-only invariant) ──────
+-- F-08: explicit named blocking policy (spec 5-policy split).
+-- `USING (false)` makes UPDATE on tenant_backups fail-closed for ALL
+-- application roles. The `purged_at` soft-delete is performed by the
+-- retention cron under service-role (bypasses RLS) — same as before.
+DROP POLICY IF EXISTS tenant_backups_update_blocked ON tenant_backups;
+CREATE POLICY tenant_backups_update_blocked
+    ON tenant_backups
+    FOR UPDATE
+    USING (false)
+    WITH CHECK (false);
+
+-- ── DELETE policy (blocked — AD-2 INSERT-only invariant) ───────
+-- F-08: explicit named blocking policy (spec 5-policy split).
+DROP POLICY IF EXISTS tenant_backups_delete_blocked ON tenant_backups;
+CREATE POLICY tenant_backups_delete_blocked
+    ON tenant_backups
+    FOR DELETE
+    USING (false);
 
 -- ── DELETE policy (NONE — AD-2 INSERT-only invariant) ───────────
 -- Same reasoning as UPDATE. tenant_backups rows are immutable from
@@ -122,9 +133,16 @@ COMMENT ON POLICY tenant_backups_select_owner ON tenant_backups IS
 COMMENT ON POLICY tenant_backups_insert_owner ON tenant_backups IS
     'Story 12.2 — owner-only INSERT on tenant_backups (manual trigger, AD-10). '
     'Cron runs under service-role bypassing RLS.';
+COMMENT ON POLICY tenant_backups_update_blocked ON tenant_backups IS
+    'Story 12.2 — AD-2 INSERT-only: UPDATE blocked for ALL app roles. '
+    'Retention cron soft-deletes via `purged_at` under service-role bypassing RLS.';
+COMMENT ON POLICY tenant_backups_delete_blocked ON tenant_backups IS
+    'Story 12.2 — AD-2 INSERT-only: DELETE blocked for ALL app roles. '
+    'Use `purged_at` soft-delete via retention cron.';
 
 COMMENT ON TABLE tenant_backups IS
     'Story 12.2 — daily per-tenant JSON dump + 30-day retention sweep. '
-    'INSERT-only invariant (AD-2): no UPDATE/DELETE policies for app roles. '
+    'INSERT-only invariant (AD-2): 5-policy split (SELECT same-tenant, SELECT owner, '
+    'INSERT owner, UPDATE blocked, DELETE blocked). '
     'Cron `backup_retention` soft-deletes via `purged_at` under service-role. '
     'NFR4 RPO 24h / RTO 4h / 30-day backup retention.';

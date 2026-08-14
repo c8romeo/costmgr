@@ -74,7 +74,9 @@ def test_run_continues_on_per_tenant_failure() -> None:
             # tenant_1 succeeds, tenant_2 fails, tenant_3 succeeds
             call_count = {"n": 0}
 
-            async def _fake_run_backup() -> MagicMock:
+            # F-11: cron now threading — `now` kwarg is passed to the
+            # service. The mock signature must accept it.
+            async def _fake_run_backup(*args, **kwargs) -> MagicMock:
                 call_count["n"] += 1
                 if call_count["n"] == 2:
                     raise RuntimeError("simulated tenant failure")
