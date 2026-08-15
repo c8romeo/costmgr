@@ -201,6 +201,10 @@ def test_api_root_does_not_import_services() -> None:
             # pure kernels (stdlib-only JSON serialization + sha256 hashing
             # + 7-table dump + Korean SSOT constants + audit payload mapping).
             "packages.services.m12_account.backup_export",
+            # Story 12.3 (Epic 12) — account deletion + retention consent
+            # pure kernels (TenantDeletionStatus FSM + envelope schema v1.0
+            # + 30-day retention + consent hash + 5 typed exceptions).
+            "packages.services.m12_account.account_deletion",
         }
     )
 

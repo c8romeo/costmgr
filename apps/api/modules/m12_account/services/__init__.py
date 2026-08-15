@@ -1,11 +1,42 @@
-"""M12 services — Story 12.1 (2FA mandatory gate).
+"""M12 services — Story 12.1 (2FA mandatory gate) + 12.3 (account deletion).
 
 Exports:
 - TwoFactorService (5 ops: setup / verify_enable / challenge / recovery / disable)
 - TwoFactorChallengeService (2 ops: issue / consume JWT challenge tokens)
+- DeletionService (6 ops: issue_challenge_token / request_deletion /
+  cancel_deletion / get_deletion_status / hard_delete_expired /
+  run_hard_delete_cron) — Story 12.3 destructive endpoint
 - audit_extension constants (Korean SSOT + error codes for main.py handlers)
 """
 
+from apps.api.modules.m12_account.services.account_deletion_service import (
+    ACCOUNT_DELETION_AUDIT_EMIT_FAILED_KO,
+    ACCOUNT_DELETION_HARD_DELETE_FAILED_KO,
+    DELETION_CHALLENGE_TOKEN_EXPIRED_KO,
+    DELETION_CHALLENGE_TOKEN_INVALID_KO,
+    DELETION_CHALLENGE_TOKEN_PURPOSE,
+    DELETION_CHALLENGE_TOKEN_TTL_SECONDS,
+    DELETION_CONSENT_AAD,
+    DELETION_CONSENT_DECRYPTION_FAILED_KO,
+    DELETION_CONSENT_ENCRYPTION_FAILED_KO,
+    ERROR_CODE_ACCOUNT_DELETION_AUDIT_EMIT_FAILED,
+    ERROR_CODE_ACCOUNT_DELETION_HARD_DELETE_FAILED,
+    ERROR_CODE_DELETION_CHALLENGE_TOKEN_EXPIRED,
+    ERROR_CODE_DELETION_CHALLENGE_TOKEN_INVALID,
+    ERROR_CODE_DELETION_CONSENT_DECRYPTION_FAILED,
+    ERROR_CODE_DELETION_CONSENT_ENCRYPTION_FAILED,
+    AccountDeletionAuditEmitError,
+    AccountDeletionHardDeleteError,
+    DeletionChallengeTokenExpiredError,
+    DeletionChallengeTokenInvalidError,
+    DeletionChallengeTokenIssued,
+    DeletionConsentDecryptionError,
+    DeletionConsentEncryptionError,
+    DeletionResult,
+    DeletionService,
+    DeletionStatusResponse,
+    HardDeleteResult,
+)
 from apps.api.modules.m12_account.services.audit_extension import (
     AUDIT_EMIT_FAILED_KO,
     CHALLENGE_FAILED_KO,
@@ -39,8 +70,6 @@ from apps.api.modules.m12_account.services.audit_extension import (
     USER_NOT_FOUND_KO,
 )
 from apps.api.modules.m12_account.services.two_factor_challenge_service import (
-    CHALLENGE_TOKEN_PURPOSE,
-    CHALLENGE_TOKEN_TTL_SECONDS,
     ChallengePassed,
     ChallengeTokenError,
     ChallengeTokenExpiredError,
@@ -56,11 +85,11 @@ from apps.api.modules.m12_account.services.two_factor_service import (
 )
 
 __all__ = [
-    # Main service
+    # Main 2FA service
     "TwoFactorService",
     "TotpSetupResult",
     "TotpChallengeResult",
-    # Challenge service
+    # Challenge service (12.1)
     "TwoFactorChallengeService",
     "ChallengeTokenIssued",
     "ChallengePassed",
@@ -69,8 +98,16 @@ __all__ = [
     "ChallengeTokenInvalidError",
     "ChallengeTokenPurposeMismatchError",
     "CHALLENGE_TOKEN_TTL_SECONDS",
-    "CHALLENGE_TOKEN_PURPOSE",
-    # Korean SSOT constants
+    # Story 12.3 — account deletion service
+    "DeletionService",
+    "DeletionChallengeTokenIssued",
+    "DeletionResult",
+    "DeletionStatusResponse",
+    "HardDeleteResult",
+    "DELETION_CHALLENGE_TOKEN_PURPOSE",
+    "DELETION_CHALLENGE_TOKEN_TTL_SECONDS",
+    "DELETION_CONSENT_AAD",
+    # Korean SSOT constants (12.1)
     "SETUP_INITIATED_KO",
     "SETUP_COMPLETED_KO",
     "SETUP_ALREADY_ENABLED_KO",
@@ -90,7 +127,14 @@ __all__ = [
     "CHALLENGE_TOKEN_EXPIRED_KO",
     "CHALLENGE_TOKEN_INVALID_KO",
     "CHALLENGE_TOKEN_PURPOSE_MISMATCH_KO",
-    # Error codes
+    # Korean SSOT constants (12.3)
+    "DELETION_CHALLENGE_TOKEN_INVALID_KO",
+    "DELETION_CHALLENGE_TOKEN_EXPIRED_KO",
+    "DELETION_CONSENT_ENCRYPTION_FAILED_KO",
+    "DELETION_CONSENT_DECRYPTION_FAILED_KO",
+    "ACCOUNT_DELETION_AUDIT_EMIT_FAILED_KO",
+    "ACCOUNT_DELETION_HARD_DELETE_FAILED_KO",
+    # Error codes (12.1)
     "ERROR_CODE_NOT_ENABLED",
     "ERROR_CODE_ALREADY_ENABLED",
     "ERROR_CODE_AUDIT_EMIT_FAILED",
@@ -102,4 +146,18 @@ __all__ = [
     "ERROR_CODE_CHALLENGE_TOKEN_EXPIRED",
     "ERROR_CODE_CHALLENGE_TOKEN_INVALID",
     "ERROR_CODE_CHALLENGE_TOKEN_PURPOSE_MISMATCH",
+    # Error codes (12.3)
+    "ERROR_CODE_DELETION_CHALLENGE_TOKEN_INVALID",
+    "ERROR_CODE_DELETION_CHALLENGE_TOKEN_EXPIRED",
+    "ERROR_CODE_DELETION_CONSENT_ENCRYPTION_FAILED",
+    "ERROR_CODE_DELETION_CONSENT_DECRYPTION_FAILED",
+    "ERROR_CODE_ACCOUNT_DELETION_AUDIT_EMIT_FAILED",
+    "ERROR_CODE_ACCOUNT_DELETION_HARD_DELETE_FAILED",
+    # Typed exceptions (12.3)
+    "DeletionChallengeTokenInvalidError",
+    "DeletionChallengeTokenExpiredError",
+    "DeletionConsentEncryptionError",
+    "DeletionConsentDecryptionError",
+    "AccountDeletionAuditEmitError",
+    "AccountDeletionHardDeleteError",
 ]

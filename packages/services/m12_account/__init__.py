@@ -1,21 +1,64 @@
-"""packages.services.m12_account — Story 12.1 pure kernel subtree.
+"""packages.services.m12_account — Story 12.1/12.3 pure kernel subtree.
 
-Epic 12 (Account & Security Operations) cj-style 3-story 분할 1번째
+Epic 12 (Account & Security Operations) cj-style 3-story 분할 1번째/3번째
 (Epic 11 retro §7 A14 권장안). 본 subtree는 M12 module authority의
 pure-Python 계층 — RFC 6238 TOTP + bcrypt-style recovery code hashing
-+ 2FA gate validation.
++ 2FA gate validation + account deletion FSM + consent envelope
+(Story 12.3 destructive endpoint 3-layer defense CR 12-5 L3).
 
 AD-11 layer rule: pure-Python, stdlib-only (hmac, hashlib, base64,
-secrets, struct, time). NO DB, NO clock dependency at module level
-(caller passes timestamp explicitly), NO random at module level
-(caller invokes secrets module).
+secrets, struct, time, enum, json). NO DB, NO clock dependency at
+module level (caller passes timestamp explicitly), NO random at
+module level (caller invokes secrets module).
 
 Korean constants — AD-15 §11 SSOT. Mirrored verbatim in
-`apps/web/lib/m12-two-factor-setup.ts`.
+`apps/web/lib/m12-two-factor-setup.ts` and
+`apps/web/lib/m12-account-deletion.ts`.
 """
 
 from __future__ import annotations
 
+from packages.services.m12_account.account_deletion import (
+    ACCOUNT_ALREADY_DELETED_KO,
+    ACCOUNT_DELETION_ACTION_DELETION_2FA_FAILED,
+    ACCOUNT_DELETION_ACTION_DELETION_ANONYMIZED,
+    ACCOUNT_DELETION_ACTION_DELETION_CANCELLED,
+    ACCOUNT_DELETION_ACTION_DELETION_CONSENT_GIVEN,
+    ACCOUNT_DELETION_ACTION_DELETION_FAILED,
+    ACCOUNT_DELETION_ACTION_DELETION_REQUESTED,
+    ACCOUNT_DELETION_ACTION_TENANT_HARD_DELETED,
+    ACCOUNT_DELETION_ACTION_TWO_FACTOR_VERIFIED,
+    DELETION_CONSENT_REQUIRED_KO,
+    DELETION_CONSENT_TEMPLATE_KO,
+    DELETION_CONSENT_TEXT_INVALID_KO,
+    DELETION_ENVELOPE_SCHEMA_VERSION,
+    DELETION_IN_PROGRESS_KO,
+    DELETION_NOT_OWNER_KO,
+    ERROR_CODE_ACCOUNT_ALREADY_DELETED,
+    ERROR_CODE_ACCOUNT_DELETION_IN_PROGRESS,
+    ERROR_CODE_ACCOUNT_DELETION_NOT_OWNER,
+    ERROR_CODE_DELETION_CONSENT_REQUIRED,
+    ERROR_CODE_DELETION_CONSENT_TEXT_INVALID,
+    RETENTION_DAYS,
+    AccountAlreadyDeletedError,
+    AccountDeletionInProgressError,
+    AccountDeletionNotOwnerError,
+    DeletionAuditPayload,
+    DeletionConsentRecord,
+    DeletionConsentRequiredError,
+    DeletionConsentTextInvalidError,
+    DeletionRequestEnvelope,
+    DeletionStatusSnapshot,
+    TenantDeletionStatus,
+    assert_status_transition,
+    build_deletion_envelope,
+    can_transition_status,
+    compute_consent_hash,
+    compute_deletion_scheduled_for,
+    envelope_to_dict,
+    envelope_to_json,
+    validate_consent_text,
+)
 from packages.services.m12_account.totp import (
     ERROR_CODE_INVALID_TOTP,
     ERROR_CODE_LOCKOUT_ACTIVE,
@@ -78,4 +121,44 @@ __all__ = [
     "ForbiddenRoleError",
     "ERROR_CODE_TWO_FACTOR_REQUIRED",
     "ERROR_CODE_FORBIDDEN_ROLE",
+    # account_deletion.py exports (Story 12.3)
+    "TenantDeletionStatus",
+    "RETENTION_DAYS",
+    "DELETION_ENVELOPE_SCHEMA_VERSION",
+    "DeletionRequestEnvelope",
+    "DeletionConsentRecord",
+    "DeletionStatusSnapshot",
+    "DeletionAuditPayload",
+    "AccountDeletionNotOwnerError",
+    "AccountDeletionInProgressError",
+    "AccountAlreadyDeletedError",
+    "DeletionConsentRequiredError",
+    "DeletionConsentTextInvalidError",
+    "ACCOUNT_DELETION_ACTION_DELETION_REQUESTED",
+    "ACCOUNT_DELETION_ACTION_DELETION_CONSENT_GIVEN",
+    "ACCOUNT_DELETION_ACTION_DELETION_CANCELLED",
+    "ACCOUNT_DELETION_ACTION_DELETION_ANONYMIZED",
+    "ACCOUNT_DELETION_ACTION_TENANT_HARD_DELETED",
+    "ACCOUNT_DELETION_ACTION_DELETION_FAILED",
+    "ACCOUNT_DELETION_ACTION_DELETION_2FA_FAILED",
+    "ACCOUNT_DELETION_ACTION_TWO_FACTOR_VERIFIED",
+    "ERROR_CODE_ACCOUNT_DELETION_NOT_OWNER",
+    "ERROR_CODE_ACCOUNT_DELETION_IN_PROGRESS",
+    "ERROR_CODE_ACCOUNT_ALREADY_DELETED",
+    "ERROR_CODE_DELETION_CONSENT_REQUIRED",
+    "ERROR_CODE_DELETION_CONSENT_TEXT_INVALID",
+    "DELETION_NOT_OWNER_KO",
+    "DELETION_IN_PROGRESS_KO",
+    "ACCOUNT_ALREADY_DELETED_KO",
+    "DELETION_CONSENT_REQUIRED_KO",
+    "DELETION_CONSENT_TEXT_INVALID_KO",
+    "DELETION_CONSENT_TEMPLATE_KO",
+    "compute_deletion_scheduled_for",
+    "build_deletion_envelope",
+    "envelope_to_dict",
+    "envelope_to_json",
+    "compute_consent_hash",
+    "validate_consent_text",
+    "can_transition_status",
+    "assert_status_transition",
 ]

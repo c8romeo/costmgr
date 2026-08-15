@@ -64,10 +64,40 @@ class Tenant(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Story 12.3 — Account Deletion (epics.md §F12.3 + NFR4 2절 + AD-9 Seoul)
+    # status FSM: 'active' | 'pending_deletion' | 'deleted'
+    # CHECK constraint enforces 3-value enum at DB layer.
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="active"
+    )
+    deletion_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    deletion_requested_by_user_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    deletion_consent_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("deletion_consents.consent_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    deletion_scheduled_for: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    deletion_anonymized_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     __table_args__ = (
         CheckConstraint(
             "industry IN ('manufacturing', 'manufacturing_retail', 'service', 'mixed')",
             name="tenants_industry_check",
+        ),
+        CheckConstraint(
+            "status IN ('active', 'pending_deletion', 'deleted')",
+            name="tenants_status_check",
         ),
     )
 
@@ -972,6 +1002,51 @@ class FiscalPeriod(Base):
             "tenant_id",
             "period_key",
             name="fiscal_periods_tenant_period_unique",
+        ),
+    )
+
+
+# ── deletion_consents (Story 12.3) ──────────────────────────
+# One row per deletion consent record. AES-256-GCM encrypted consent
+# text (NFR6 invariant — distinct AAD `b"deletion_consent"` per column).
+# AD-2 INSERT-only enforced via RLS policy in `0015_tenants_deletion_rls.sql`
+# (UPDATE / DELETE forbidden at row level).
+#
+# Plaintext consent text is NEVER stored — only the SHA-256 hex digest
+# (`consent_text_hash`) is retained for audit trace.
+#
+# `consent_id` is UUID v4 (AD-15 §6 — supersedes UUID v7 for tenant_id
+# lineage; consent rows are NOT time-ordered by nature).
+class DeletionConsent(Base):
+    __tablename__ = "deletion_consents"
+
+    consent_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # SHA-256 hex digest of plaintext consent text (audit trace).
+    consent_text_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    # AES-256-GCM ciphertext (28-byte overhead = 12-byte nonce + ciphertext + 16-byte tag).
+    encrypted_consent_text: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    consent_checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    consent_checked_by_user_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    consent_ip: Mapped[str | None] = mapped_column(Text, nullable=True)
+    consent_user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "length(consent_text_hash) = 64",
+            name="deletion_consents_hash_length_check",
         ),
     )
 

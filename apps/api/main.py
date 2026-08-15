@@ -114,6 +114,20 @@ from apps.api.modules.m12_account.exceptions import (
     TwoFactorRecoveryExhaustedError,
     TwoFactorUserNotFoundError,
 )
+from apps.api.modules.m12_account.services.account_deletion_service import (
+    ACCOUNT_DELETION_AUDIT_EMIT_FAILED_KO,
+    ACCOUNT_DELETION_HARD_DELETE_FAILED_KO,
+    DELETION_CHALLENGE_TOKEN_EXPIRED_KO,
+    DELETION_CHALLENGE_TOKEN_INVALID_KO,
+    DELETION_CONSENT_DECRYPTION_FAILED_KO,
+    DELETION_CONSENT_ENCRYPTION_FAILED_KO,
+    AccountDeletionAuditEmitError,
+    AccountDeletionHardDeleteError,
+    DeletionChallengeTokenExpiredError,
+    DeletionChallengeTokenInvalidError,
+    DeletionConsentDecryptionError,
+    DeletionConsentEncryptionError,
+)
 from apps.api.modules.m12_account.services.audit_extension import (
     AUDIT_EMIT_FAILED_KO,
     BACKUP_AUDIT_EMIT_FAILED_KO,
@@ -1801,6 +1815,136 @@ async def _backup_export_service_error_handler(
             "details": {"message": exc.message},
             "trace_id": getattr(exc, "trace_id", None)
             or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 12.3 (Epic 12) — Account Deletion + Retention Consent ──
+# CR 12-5 L3: destructive endpoint 3-layer TOTP defense wired here at HTTP boundary.
+# 6 NEW typed exception envelopes (HTTP 401/500/503) for:
+#   - DeletionChallengeTokenInvalidError      (401, CR 12-1 L1 JWT verify)
+#   - DeletionChallengeTokenExpiredError      (401, CR 12-1 L1 JWT verify)
+#   - DeletionConsentEncryptionError          (500, NFR6 AES-256-GCM AAD collision)
+#   - DeletionConsentDecryptionError          (500, NFR6 AES-256-GCM AAD collision)
+#   - AccountDeletionAuditEmitError           (503, CR 1.1 audit-first fail-closed)
+#   - AccountDeletionHardDeleteError          (500, cron-only hard delete failure)
+@app.exception_handler(DeletionChallengeTokenInvalidError)
+async def _m12_account_deletion_challenge_token_invalid_handler(
+    request: Request, exc: DeletionChallengeTokenInvalidError
+) -> JSONResponse:
+    """401 DELETION_CHALLENGE_TOKEN_INVALID — JWT signature/binding mismatch.
+
+    CR 12-5 L3 (route require_role("owner") + service verify_totp_challenge +
+    handler audit-first) — this envelope is the HTTP layer of the L3 chain
+    when the destructive challenge token fails cryptographic validation.
+    """
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "DELETION_CHALLENGE_TOKEN_INVALID",
+            "message_ko": DELETION_CHALLENGE_TOKEN_INVALID_KO,
+            "details": {"reason": exc.reason} if hasattr(exc, "reason") else {},
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(DeletionChallengeTokenExpiredError)
+async def _m12_account_deletion_challenge_token_expired_handler(
+    request: Request, exc: DeletionChallengeTokenExpiredError
+) -> JSONResponse:
+    """401 DELETION_CHALLENGE_TOKEN_EXPIRED — JWT exp claim past now().
+
+    PyJWT verify_exp=False + caller-controlled now (CR 12-1 L1). This
+    envelope is raised when the explicit time check fails.
+    """
+    return JSONResponse(
+        status_code=401,
+        content={
+            "code": "DELETION_CHALLENGE_TOKEN_EXPIRED",
+            "message_ko": DELETION_CHALLENGE_TOKEN_EXPIRED_KO,
+            "details": {},
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(DeletionConsentEncryptionError)
+async def _m12_account_deletion_consent_encryption_handler(
+    request: Request, exc: DeletionConsentEncryptionError
+) -> JSONResponse:
+    """500 DELETION_CONSENT_ENCRYPTION_FAILED — NFR6 AES-256-GCM failure.
+
+    Distinct AAD = b"deletion_consent" (CR 12-1 L2). Never reuse backup AAD.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "DELETION_CONSENT_ENCRYPTION_FAILED",
+            "message_ko": DELETION_CONSENT_ENCRYPTION_FAILED_KO,
+            "details": {"message": exc.message},
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(DeletionConsentDecryptionError)
+async def _m12_account_deletion_consent_decryption_handler(
+    request: Request, exc: DeletionConsentDecryptionError
+) -> JSONResponse:
+    """500 DELETION_CONSENT_DECRYPTION_FAILED — NFR6 AES-256-GCM failure.
+
+    Distinct AAD = b"deletion_consent" (CR 12-1 L2). Never reuse backup AAD.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "DELETION_CONSENT_DECRYPTION_FAILED",
+            "message_ko": DELETION_CONSENT_DECRYPTION_FAILED_KO,
+            "details": {"message": exc.message},
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AccountDeletionAuditEmitError)
+async def _m12_account_deletion_audit_emit_handler(
+    request: Request, exc: AccountDeletionAuditEmitError
+) -> JSONResponse:
+    """503 ACCOUNT_DELETION_AUDIT_EMIT_FAILED — CR 1.1 audit-first fail-closed.
+
+    CR 1.1 invariant: audit emit MUST happen BEFORE state transition; if the
+    audit subsystem fails, the destructive state change MUST NOT proceed and
+    the client MUST be told to retry. Retry-After = 5s.
+    """
+    return JSONResponse(
+        status_code=503,
+        headers={"Retry-After": "5"},
+        content={
+            "code": "ACCOUNT_DELETION_AUDIT_EMIT_FAILED",
+            "message_ko": ACCOUNT_DELETION_AUDIT_EMIT_FAILED_KO,
+            "details": {"message": exc.message},
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AccountDeletionHardDeleteError)
+async def _m12_account_deletion_hard_delete_handler(
+    request: Request, exc: AccountDeletionHardDeleteError
+) -> JSONResponse:
+    """500 ACCOUNT_DELETION_HARD_DELETE_FAILED — cron-only hard delete failure.
+
+    Raised only by run_hard_delete_cron (T3). Not user-reachable. The hard
+    delete job will retry on the next cron tick (KST 04:00 / UTC 19:00).
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "ACCOUNT_DELETION_HARD_DELETE_FAILED",
+            "message_ko": ACCOUNT_DELETION_HARD_DELETE_FAILED_KO,
+            "details": {"message": exc.message},
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 

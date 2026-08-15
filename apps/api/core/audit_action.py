@@ -64,6 +64,7 @@ class ActionClass(str, __import__("enum").Enum):
     REOPEN_OPERATOR = "reopen_operator"  # Story 11.3 (NEW — W2 reopen flow audit)
     TWO_FACTOR_AUTH = "two_factor_auth"  # Story 12.1 (NEW — 2FA mandatory gate audit)
     ACCOUNT_BACKUP = "account_backup"  # Story 12.2 (NEW — daily auto-backup + JSON self-download audit)
+    ACCOUNT_DELETION = "account_deletion"  # Story 12.3 (NEW — destructive endpoint + consent envelope audit)
 
 
 # ────────────────────────────────────────────────────────────
@@ -358,6 +359,20 @@ AccountBackupAction = Literal[
     "backup_triggered",
 ]
 
+# Story 12.3 — account deletion + retention consent (epics.md §F12.3).
+# 8 NEW actions per AC #4 — destructive endpoint 3-layer TOTP defense
+# (CR 12-5 L3) requires audit trace for all code paths (success + failure).
+AccountDeletionAction = Literal[
+    "deletion_requested",  # AC #4 row 1 — AFTER successful state transition
+    "deletion_consent_given",  # AC #4 row 2 — consent text encrypted + persisted
+    "deletion_cancelled",  # cancel_deletion route
+    "deletion_anonymized",  # cron anonymization step
+    "tenant_hard_deleted",  # AC #3 — cron hard-delete 30일 후
+    "deletion_failed",  # cron hard-delete failure / general failure
+    "deletion_2fa_failed",  # CR 12-5 L3 Layer 3 — handler audit-first BEFORE raise
+    "two_factor_verified",  # CR 12-5 L3 Layer 3 — handler audit-first BEFORE challenge_token mint
+]
+
 
 # Union type for type checking
 AuditAction = (
@@ -382,6 +397,7 @@ AuditAction = (
     | ReopenOperatorAction
     | TwoFactorAuthAction
     | AccountBackupAction
+    | AccountDeletionAction
 )
 
 
@@ -646,6 +662,24 @@ class _ActionRegistry:
                     "backup_retention_purged",
                     "backup_downloaded",
                     "backup_triggered",
+                }
+            ),
+        ),
+        # Story 12.3 — account deletion + retention consent (8 NEW actions).
+        # AD-2 audit_logs INSERT-only preserved (no DB CHECK constraint
+        # on action; routing to audit_logs + RLS policy enforcement).
+        ActionClass.ACCOUNT_DELETION: (
+            "audit_logs",
+            frozenset(
+                {
+                    "deletion_requested",
+                    "deletion_consent_given",
+                    "deletion_cancelled",
+                    "deletion_anonymized",
+                    "tenant_hard_deleted",
+                    "deletion_failed",
+                    "deletion_2fa_failed",
+                    "two_factor_verified",
                 }
             ),
         ),
