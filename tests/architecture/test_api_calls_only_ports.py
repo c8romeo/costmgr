@@ -215,6 +215,10 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m7_simulation",
             "packages.services.m7_simulation.serializers",
             "packages.services.m7_simulation.delta_helpers",
+            # Story 7.2 (Epic 7) — M7 next-month projection thin helpers
+            # (Decimal-as-string serializers + M5 §9 #20+ PDF envelope builder).
+            "packages.services.m7_simulation.projection_serializers",
+            "packages.services.m7_simulation.projection_pdf_helpers",
         }
     )
 

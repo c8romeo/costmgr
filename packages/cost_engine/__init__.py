@@ -49,6 +49,20 @@ from packages.cost_engine.cvp import (
     simulate_cvp,
 )
 from packages.cost_engine.ports.calc_port import CalcResult, MonthlyInput
+from packages.cost_engine.projection import (
+    PROJECTION_COST_INFLATION_RATE_MAX_PCT,
+    PROJECTION_COST_INFLATION_RATE_MIN_PCT,
+    PROJECTION_HASH_PREFIX,
+    InvalidProjectionMonthError,
+    NextMonthProjection,
+    ProjectionBaselineNotFoundError,
+    ProjectionInputs,
+    ProjectionInvalidInputError,
+    compute_after_tax_income,
+    compute_interest_expense,
+    compute_projection_hash,
+    project_next_month,
+)
 
 __all__ = [
     # Story 4.1 pure kernel
@@ -84,4 +98,17 @@ __all__ = [
     "PRICE_DELTA_PCT_BOUNDS",
     "FIXED_COST_DELTA_PCT_BOUNDS",
     "OPERATING_RATE_DELTA_PCT_BOUNDS",
+    # Story 7.2 Next-Month Projection pure kernel
+    "compute_interest_expense",
+    "compute_after_tax_income",
+    "project_next_month",
+    "compute_projection_hash",
+    "ProjectionInputs",
+    "NextMonthProjection",
+    "ProjectionInvalidInputError",
+    "InvalidProjectionMonthError",
+    "ProjectionBaselineNotFoundError",
+    "PROJECTION_HASH_PREFIX",
+    "PROJECTION_COST_INFLATION_RATE_MIN_PCT",
+    "PROJECTION_COST_INFLATION_RATE_MAX_PCT",
 ]

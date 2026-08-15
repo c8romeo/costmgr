@@ -75,8 +75,14 @@ from apps.api.modules.m7_simulation import router as m7_simulation_router
 from apps.api.modules.m7_simulation.exceptions import (
     CVP_BASELINE_NOT_FOUND_KO,
     CVP_INVALID_DELTA_KO,
+    INVALID_PROJECTION_MONTH_KO,
+    PROJECTION_BASELINE_NOT_FOUND_KO,
+    PROJECTION_INPUTS_INVALID_KO,
     CVPBaselineNotFoundError,
     CVPInvalidDeltaError,
+    InvalidProjectionMonthError,
+    ProjectionBaselineNotFoundError,
+    ProjectionInputsInvalidError,
 )
 from apps.api.modules.m8_budget import router as m8_budget_router
 from apps.api.modules.m8_budget.exceptions import (
@@ -2090,6 +2096,78 @@ async def _m7_simulation_invalid_delta_handler(
             "details": {
                 "field": exc.field,
                 "value": str(exc.value),
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(InvalidProjectionMonthError)
+async def _m7_simulation_invalid_projection_month_handler(
+    request: Request, exc: InvalidProjectionMonthError
+) -> JSONResponse:
+    """422 INVALID_PROJECTION_MONTH — PRD §F7.2 projection_month 위반.
+
+    CR 12-5 D-14 typed envelope. Format mismatch or chronological
+    invariant violation (projection_month > period_key).
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "INVALID_PROJECTION_MONTH",
+            "message_ko": INVALID_PROJECTION_MONTH_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "projection_month": exc.projection_month,
+                "reason": getattr(exc, "reason", None),
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ProjectionInputsInvalidError)
+async def _m7_simulation_projection_inputs_invalid_handler(
+    request: Request, exc: ProjectionInputsInvalidError
+) -> JSONResponse:
+    """422 PROJECTION_INPUTS_INVALID — PRD §F7.2 4종 파라미터 (차입금·이자율·상승률·세율) 범위/형식 위반.
+
+    CR 12-5 D-14 typed envelope. Wraps kernel-level `ProjectionInvalidInputError`
+    into HTTP envelope via service-layer translator.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "PROJECTION_INPUTS_INVALID",
+            "message_ko": PROJECTION_INPUTS_INVALID_KO,
+            "details": {
+                "tenant_id": exc.tenant_id,
+                "period_key": exc.period_key,
+                "field": getattr(exc, "field", None),
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ProjectionBaselineNotFoundError)
+async def _m7_simulation_projection_baseline_not_found_handler(
+    request: Request, exc: ProjectionBaselineNotFoundError
+) -> JSONResponse:
+    """404 PROJECTION_BASELINE_NOT_FOUND — PRD §F7.2 baseline 미존재.
+
+    CR 12-5 D-14 typed envelope. Wraps CVP baseline fetch failure
+    into projection-specific 404 envelope.
+    """
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "PROJECTION_BASELINE_NOT_FOUND",
+            "message_ko": PROJECTION_BASELINE_NOT_FOUND_KO,
+            "details": {
+                "tenant_id": getattr(exc, "tenant_id", None),
+                "period_key": getattr(exc, "period_key", None),
             },
             "trace_id": str(_uuid_mod.uuid4()),
         },
