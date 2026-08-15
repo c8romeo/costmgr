@@ -650,11 +650,11 @@ N/A (spec 진입 단계 — bmad-dev-story 진입 시 작성)
 
 ### Completion Notes List
 
-(To be filled by bmad-dev-story T1~T8 execution)
+(To be filled by bmad-dev-story T1~T8 execution — see handoff at `_bmad-output/implementation-artifacts/handoff-2026-08-15-7-2-done.md`)
 
 ### File List
 
-(To be filled by bmad-dev-story T1~T8 execution)
+(To be filled by bmad-dev-story T1~T8 execution — see handoff at `_bmad-output/implementation-artifacts/handoff-2026-08-15-7-2-done.md`)
 
 ## Honestly DEFER (per CR 11-3 10번째 epic 연속 검증)
 

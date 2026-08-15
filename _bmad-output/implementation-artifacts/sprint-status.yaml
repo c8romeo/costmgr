@@ -520,6 +520,10 @@ development_status:
     owner: "Amelia (Developer)"
     status: done  # 7-2 spec ready-for-dev wire done (2026-08-15)
   - epic: 2
+    action: "7-2-next-month-projection-4-required-parameters → in-progress (development_status block wire 2026-08-15). bmad-dev-story T1~T8 atomic wire 진입. projection.py NEW pure kernel + 3 NEW pure functions + 2 NEW frozen dataclasses + 3 NEW typed exceptions + 3 NEW HTTP routes (POST /projection/compute, GET /projection/baseline, POST /projection/report/pdf) + 3 NEW typed exception handlers + TS mirror + Zod schema + ko-KR.json SSOT + capability matrix v1.17 EXTENSION. baseline_commit = a63646c. 다음: 3중 게이트 re-verification (ruff / pytest / import-linter)."
+    owner: "Amelia (Developer)"
+    status: done  # 7-2 dev wire done (2026-08-15)
+  - epic: 2
     action: "epic-7-retrospective → done (development_status block wire 2026-08-15). Epic 7 close-out retro 진입 DONE = spec-level close-out (cj-style 3-story 분할 7-1 + 7-2 + 7-3 retro, Epic 11 retro §7 A14 권장안 적용 6번째 epic 연속 검증). handoff: `_bmad-output/implementation-artifacts/epic-7-retro-2026-08-15.md`. 결정 A19~A22: (A19) 7-1 + 7-2 honestly DEFER 통합 follow-up sprint 진입 (cj-style carry-over pattern 6번째, 11 → 6 unique items). (A20) Epic 8 cj-style 3-story 분할 권장안 = 8-1 + 8-2 + 8-3 PRD 그대로. (A21) capability matrix v1.17 (Epic 7 v1.16 fill + Epic 8 capability 신규). (A22) Epic 6 close-out retro PDF envelope SSOT 명시."
     owner: "Amelia (Developer)"
     status: done  # epic-7-retrospective wire done (2026-08-15)
