@@ -28,8 +28,8 @@
 >
 > ---
 >
-> **v1.16 (2026-08-15, Epic 7 retro)** — `CVP_SIMULATION`
-> CVP/BEP simulation wire (PRD §F7.1 + §F7.2). 9 NEW pure functions +
+> **v1.17 (2026-08-15, Story 7.1, Epic 7)** — `CVP_SIMULATION`
+> CVP/BEP slider simulation wire (PRD §F7.1 + §F7.2). 9 NEW pure functions +
 > 7 NEW frozen dataclasses + 4 NEW typed exceptions + 1 NEW capability
 > (industry-agnostic, CR 12-1 L4 + 7-1/7-2 precedent — all 4 industries
 > grant). 2 NEW math surfaces: `cvp.py` + `projection.py` (A19
@@ -228,6 +228,8 @@ class CalcResponse(BaseModel):
 | `TWO_FACTOR_AUTH` | 12.1 | ✅ | ✅ | ✅ | ✅ |
 | `BACKUP_EXPORT` | 12.2 | ✅ | ✅ | ✅ | ✅ |
 | `ACCOUNT_DELETION` | 12.3 | ✅ | ✅ | ✅ | ✅ |
+| `BUDGET_SCENARIO` | 8.1 | ✅ | ✅ | ✅ | ✅ |
+| `CVP_SIMULATION` | 7.1 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 

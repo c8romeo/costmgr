@@ -310,5 +310,28 @@
     "load_failed": "예산 시나리오 목록을 불러오지 못했습니다.",
     "create_failed": "예산 시나리오 생성에 실패했습니다.",
     "detail_failed": "예산 시나리오 상세를 불러오지 못했습니다."
+  },
+  "cvp_simulation": {
+    "page_title": "손익분기점 시뮬레이션",
+    "page_subtitle": "4개 슬라이더로 BEP/공헌이익률을 1초 이내에 재계산합니다.",
+    "sliders_title": "입력 조정",
+    "results_title": "시뮬레이션 결과",
+    "slider_unit_price": "단가",
+    "slider_unit_variable_cost": "단위 변동비",
+    "slider_fixed_cost": "고정비",
+    "slider_operating_rate": "조업도",
+    "card_bep_quantity": "BEP 수량",
+    "card_bep_revenue": "BEP 매출",
+    "card_target_profit": "목표 이익 수량",
+    "card_contribution_margin_ratio": "공헌이익률",
+    "reset_button": "초기화",
+    "baseline_not_found_message": "베이스라인 마감 스냅샷이 없습니다. 직전 월 마감을 먼저 실행하세요.",
+    "invalid_delta_message": "변동률이 허용 범위를 벗어났습니다.",
+    "nav_label": "CVP/BEP 시뮬레이션",
+    "errors": {
+      "baseline_not_found_code": "CVP_BASELINE_NOT_FOUND",
+      "invalid_delta_code": "CVP_INVALID_DELTA",
+      "network_error_ko": "네트워크 오류가 발생했습니다."
+    }
   }
 }

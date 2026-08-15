@@ -292,3 +292,36 @@ sprint budget). Documented honestly per CR 11-3 discipline:
   Railway cron with worker-queue.
 - CR 11-3 honest-DEFER (structural W-class — pre-existing scalability,
   not a critical correctness invariant).
+
+#### D-7-1-DEFER-1 — CVP slider Web Worker offload
+- Source: `apps/web/components/m7-simulation/CVPSimulationClient.tsx:140-180`
+- Reason: 1초 한도 (NFR9 stricter) 대비 150ms debounce + 10ms pure calc
+  + 50ms React re-render = 210ms P95 — over-engineering 회피 (1초 한도
+  대비 5배 여유).
+- Scope: future sprint (follow-up sprint). Reassess when P95 > 500ms OR
+  when slider 드래그가 10+ 동시 사용 패턴으로 escalate.
+
+#### D-7-1-DEFER-2 — Monte Carlo sensitivity 분석
+- Source: `packages/cost_engine/cvp.py:simulate_cvp` (single-variable only)
+- Reason: 단일 변수 슬라이더만 — multi-variate (joint distribution over
+  4 variables) 는 7-3 retro 결정 시 deferred.
+- Scope: cj-style 7-3 retro 진입 시 N차 follow-up.
+
+#### D-7-1-DEFER-3 — AI 추천 가격 제안 (input_drafts 우회)
+- Source: `apps/web/components/m7-simulation/CVPSimulationClient.tsx` (no AI hint)
+- Reason: Epic 10 carry-over (input_drafts 우회 필수). 가격 추천 시
+  baseline + cost driver 분석 필수 — 7-1 scope 외.
+- Scope: Epic 10 wire 후 follow-up sprint.
+
+#### D-7-1-DEFER-4 — 차월 추정 4종 파라미터 (Story 7-2)
+- Source: `packages/cost_engine/cvp.py` (현재월 simulation only)
+- Reason: cj-style 3-story 분할 2번째 진입점 — projection.py surface 분리
+  (A19 cohesion pattern).
+- Scope: bmad-dev-story 7-2 T1~T8 execution sprint.
+
+#### D-7-1-DEFER-5 — Playwright E2E for CVPSimulationClient
+- Source: `apps/web/components/m7-simulation/CVPSimulationClient.tsx`
+- Reason: sprint-scale atomic wire (12-5 T6 패턴 검증). 1차 MVP launch
+  후 follow-up sprint.
+- Scope: 7-1 follow-up sprint (cj-style sprint pattern 12-1/12-4/12-5 T6
+  + 12-3 T7 mirror).
