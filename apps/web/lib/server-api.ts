@@ -518,3 +518,47 @@ export async function fetchBackupsRecentServerSide(
     clearTimeout(timeoutId);
   }
 }
+
+// ── Story 12.3 — Deletion status fetcher (RSC for /account/settings) ──
+//
+// RSC fetch for `GET /api/v1/account/deletion/status` to seed the
+// DeletionStatusPanel with the initial FSM snapshot. Returns null on
+// any failure (network / auth / 410 deleted) so the panel can render
+// the terminal "deleted" state.
+//
+// Note: 410 Gone is a "successful" terminal state for deletion — the
+// panel shows "삭제 완료" when initial is null AND the tenant has been
+// hard-deleted. We DO NOT differentiate 410 from network errors here
+// (the panel's client-side refresh handles 410 explicitly).
+import type { DeletionStatusResponse } from "./m12-account-deletion";
+
+export async function fetchDeletionStatusServerSide(
+  accessToken: string | undefined,
+): Promise<DeletionStatusResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/account/deletion/status`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as DeletionStatusResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

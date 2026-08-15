@@ -1,8 +1,78 @@
 # Deferred Work — costmgr project
 
 Items honestly DEFERred from completed sprints per CR 11-3 honest-DEFER
-discipline (5번째 epic 연속 적용). Each entry records: source story,
+discipline (8번째 epic 연속 적용). Each entry records: source story,
 reason for deferral, scope of deferred work, pickup plan.
+
+## Deferred from: 12-3 (Account Deletion + Retention Consent)
+
+Story 12.3 atomic wire completed 2026-08-15. 5 items honestly-DEFERred
+per CR 11-3 discipline (8번째 epic 연속 — Epic 4·5·6·11·12 + carry-over 3번째):
+
+### D-12-3-DEFER-1 — Quarterly 5-year audit aggregate
+- Source: `apps/api/modules/m12_account/services/account_deletion_service.py`
+  (registry placeholder for `deletion_audit_archived` action)
+- Reason: NFR4 2절 requires quarterly aggregation of audit_logs into
+  5-year cold storage. Sprint-scale (would require new ETL pipeline +
+  cold-storage backend); spec wire 0건.
+- Scope: future Story (12-3.5 or 13-N). Solution candidates: scheduled
+  worker that copies `audit_logs` rows older than 5 years to cold storage
+  + removes the in-DB copy.
+- CR 11-3 honest-DEFER (structural sprint-scale).
+
+### D-12-3-DEFER-2 — Configurable `retention_days`
+- Source: `packages/services/m12_account/account_deletion.py::RETENTION_DAYS`
+- Reason: MVP fixed `RETENTION_DAYS = 30` (epics.md AC verbatim). Spec did
+  not allow per-tenant configurability.
+- Scope: future Story when AD-23 settings aggregate extension adds
+  `account_settings.retention_days` per-tenant override. Pure-kernel
+  function `compute_deletion_scheduled_for` already accepts caller-controlled
+  `requested_at` (CR 12-1 L1); extension would add `tenant_settings` lookup.
+- CR 11-3 honest-DEFER (low priority, no immediate customer demand).
+
+### D-12-3-DEFER-3 — NFR7 2FA 진입 gate (other account mutations)
+- Source: `apps/api/modules/m12_account/handlers.py` (destructive endpoint
+  3-layer TOTP defense — only on `POST /api/v1/account/deletion/request`)
+- Reason: NFR7 requires 2FA on destructive endpoints. 12-3 implements this
+  for the destructive deletion endpoint only. Other account mutations
+  (email change, password reset) are honestly DEFERRED.
+- Scope: future Story 12-3.6 or 13-N. Solution: extend 3-layer TOTP defense
+  pattern to all `require_role("owner")` mutation routes.
+- CR 11-3 honest-DEFER (medium priority — security baseline extension).
+
+### D-12-3-DEFER-4 — Playwright E2E for account deletion flow
+- Source: `apps/web/app/[locale]/(dashboard)/account/settings/page.tsx`
+  (RSC + embedded AccountDeletionModal)
+- Reason: Vitest component tests (27 NEW cases) cover the modal + status
+  panel + parity. Playwright E2E for the full owner flow (login → settings
+  → totp verify → consent type → submit → pending state → cancel) was
+  deferred following the 12-5 T6 pattern (sprint-scale).
+- Scope: future Story 12-3.7 (mirror 12-5 T6). Solution: 4 NEW Playwright
+  spec files (m12-deletion-totp + m12-deletion-consent + m12-deletion-cancel
+  + m12-deletion-status) with `page.route()` interception pattern.
+- CR 11-3 honest-DEFER (HIGH priority — runtime E2E verification).
+
+### D-12-3-DEFER-5 — Cross-region replication
+- Source: `apps/api/alembic/versions/0025_tenants_deletion_status.py`
+  (`deletion_consents` table stored in Supabase Postgres Seoul region)
+- Reason: AD-9 Seoul region requirement disables cross-region replication.
+  `deletion_consents` rows must stay in Seoul for data-residency compliance.
+- Scope: BLOCKED by AD-9 (architectural decision, not a sprint deferral).
+- CR 11-3 honest-DEFER (BLOCKED — architectural).
+
+### Pickup plan (5 deferred items)
+
+- **HIGH priority**: D-12-3-DEFER-4 (Playwright E2E) — follow-up sprint
+  mirroring 12-5 T6 pattern. Estimated 4 spec files / +600 lines / 16
+  scenarios.
+- **MEDIUM priority**: D-12-3-DEFER-3 (NFR7 2FA gate on other mutations)
+  — sprint-scale security baseline extension.
+- **LOW priority**: D-12-3-DEFER-1 (5-year audit aggregation) — future
+  cold-storage ETL pipeline.
+- **LOW priority**: D-12-3-DEFER-2 (configurable retention_days) — only if
+  customer demand materializes (no immediate driver).
+- **BLOCKED**: D-12-3-DEFER-5 (cross-region replication) — AD-9 architectural
+  decision.
 
 ## Deferred from: 12-4 (Epic 12 carry-over sprint)
 

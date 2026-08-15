@@ -64,6 +64,13 @@ class MenuItem(str, Enum):
     REPORT = "보고서"
     CLOSE = "마감"
     ACCOUNT_MGMT = "계정관리"
+    # Story 12.3 — Account deletion + retention consent UI
+    # (PRD §F12.3 + NFR4 2절 5년 audit 보존 + 30일 hard delete retention).
+    # Industry-agnostic security baseline (CR 12-1 L4 precedent — mirrors
+    # BACKUP_EXPORT 12-2 + TWO_FACTOR_AUTH 12-1). Available in every
+    # industry because deletion is a data subject right (GDPR Art.17),
+    # not an industry-specific feature.
+    ACCOUNT_SETTINGS = "계정 설정"
     # Story 12.5 — 2FA self-service UI (industry-agnostic security baseline).
     # Available in every industry (PRD §F12.1 / §M12-a applies to all tenants).
     ACCOUNT_SECURITY = "계정 보안"
@@ -75,6 +82,8 @@ class MenuItem(str, Enum):
 # ③ 제조+서비스: 두 엔진 병행. 전부 노출 + 카브아웃 분할(§7.3 [A10]).
 # ④ 제조+서비스+기타: ③ + 격리 버킷. 메뉴는 ③과 동일(격리 로직은 m3_calculate 내부).
 # Story 12.5: "계정 보안" appended to every industry menu (2FA industry-agnostic).
+# Story 12.3: "계정 설정" inserted between "계정관리" + "계정 보안"
+# (account deletion UI is industry-agnostic security baseline).
 _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
     Industry.MANUFACTURING: (
         MenuItem.PRODUCT,
@@ -90,6 +99,7 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
         MenuItem.REPORT,
         MenuItem.CLOSE,
         MenuItem.ACCOUNT_MGMT,
+        MenuItem.ACCOUNT_SETTINGS,
         MenuItem.ACCOUNT_SECURITY,
     ),
     Industry.SERVICE: (
@@ -105,6 +115,7 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
         MenuItem.REPORT,
         MenuItem.CLOSE,
         MenuItem.ACCOUNT_MGMT,
+        MenuItem.ACCOUNT_SETTINGS,
         MenuItem.ACCOUNT_SECURITY,
     ),
     Industry.MANUFACTURING_SERVICE: (
@@ -125,6 +136,7 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
         MenuItem.REPORT,
         MenuItem.CLOSE,
         MenuItem.ACCOUNT_MGMT,
+        MenuItem.ACCOUNT_SETTINGS,
         MenuItem.ACCOUNT_SECURITY,
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: (
@@ -145,6 +157,7 @@ _INDUSTRY_MENU_MAP: Final[dict[Industry, tuple[MenuItem, ...]]] = {
         MenuItem.REPORT,
         MenuItem.CLOSE,
         MenuItem.ACCOUNT_MGMT,
+        MenuItem.ACCOUNT_SETTINGS,
         MenuItem.ACCOUNT_SECURITY,
     ),
 }

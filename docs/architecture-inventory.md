@@ -97,6 +97,24 @@ CarryChainResultResponse {decisions, opening_inventory, chain_depth}
 - **CR 1.1** (idempotent no-op): `auto_carry_on_get_state` 가
   populated/locked 상태에서 silent no-op.
 
+## Story 12.3 AD bindings (Account Deletion + Retention Consent)
+
+- **AD-2** (audit-first + INSERT-only invariant) — Story 12.3 wire:
+  `deletion_consents` table has `deletion_consents_insert_only` trigger
+  that BLOCKS UPDATE and DELETE (RLS 0015 policy + DB trigger).
+  Pattern mirrors 12-2 `tenant_backups` INSERT-only. AD-2 invariant
+  보존: audit_logs INSERT-only + deletion_consents INSERT-only = 5-year
+  audit 보존 (NFR4 2절) + forensic integrity.
+- **AD-9** (Seoul region) — Story 12.3 wire: `deletion_consents` table
+  stored in Supabase Postgres Seoul (`ap-northeast-2`) region, mirroring
+  12-2 `tenant_backups` table location. Cross-region replication BLOCKED
+  (D-12-3-DEFER-5 honestly documented in `docs/deferred-work.md`).
+- **AD-10** (4-role + NFR7 destructive endpoint) — `POST
+  /api/v1/account/deletion/request` is `require_role("owner")` ONLY +
+  2FA challenge token (CR 12-5 L3 3-layer defense — route layer
+  `require_role` + service layer `verify_totp_challenge` + handler layer
+  audit-first BEFORE raise).
+
 ## 향후 (deferral)
 
 - **Story 5.2** (inventory_ledger table): append-only ledger 도입.

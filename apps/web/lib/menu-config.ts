@@ -56,6 +56,7 @@ export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
     "보고서",
     "마감",
     "계정관리",
+    "계정 설정",
     "계정 보안",
   ],
   service: [
@@ -71,6 +72,7 @@ export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
     "보고서",
     "마감",
     "계정관리",
+    "계정 설정",
     "계정 보안",
   ],
   manufacturing_service: [
@@ -91,6 +93,7 @@ export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
     "보고서",
     "마감",
     "계정관리",
+    "계정 설정",
     "계정 보안",
   ],
   manufacturing_service_other: [
@@ -111,6 +114,7 @@ export const INDUSTRY_MENU_MAP: Record<Industry, readonly string[]> = {
     "보고서",
     "마감",
     "계정관리",
+    "계정 설정",
     "계정 보안",
   ],
 };

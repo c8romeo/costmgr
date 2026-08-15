@@ -1,6 +1,6 @@
 ---
 title: 'Epic 12 Story 3 — Account Deletion with Retention Consent (Tenants Status FSM + 2FA Challenge + Audit-First Retention)'
-status: ready-for-dev
+status: done
 priority: HIGH
 epic: 12
 story_num: 3
