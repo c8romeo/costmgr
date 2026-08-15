@@ -94,7 +94,7 @@ from apps.api.modules.m2_input.schemas import (
 )
 from packages.common.uuid7 import uuid7 as _uuid7
 from packages.services.m0_onboarding.industry_menu import Industry
-from packages.services.m2_input.inventory_projection import (
+from packages.services.m2_input.inventory_math import (
     InventoryMovement,
 )
 from packages.services.m2_input.labor_conversion import (
@@ -1795,7 +1795,7 @@ class MonthlyInputService:
         from apps.api.modules.m4_inventory.services.ledger_service import (
             LedgerService,
         )
-        from packages.services.m2_input.inventory_projection import (
+        from packages.services.m2_input.inventory_math import (
             InventoryMovement,
         )
 

@@ -148,7 +148,7 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m2_input.labor_conversion",
             "packages.services.m2_input.operating_rate",
             "packages.services.m2_input.warnings",
-            "packages.services.m2_input.inventory_projection",
+            "packages.services.m2_input.inventory_math",  # A19: post-deprecation home of math surface (Story 3.3)
             "packages.services.m2_input.opening_carry",  # Story 5.1 (Epic 5 — opening inventory auto-carry chain)
             "packages.services.m2_input",
             # m4_inventory (Epic 5 — inventory ledger domain primitives)
@@ -205,6 +205,10 @@ def test_api_root_does_not_import_services() -> None:
             # pure kernels (TenantDeletionStatus FSM + envelope schema v1.0
             # + 30-day retention + consent hash + 5 typed exceptions).
             "packages.services.m12_account.account_deletion",
+            # Story 8.1 (Epic 8) — M8 budget scenario CRUD thin serializers
+            # (AD-24 period key serialization + JSON-safe Decimal-as-string
+            # + UUID-as-string + Korean SSOT ko-KR parity).
+            "packages.services.m8_budget",
         }
     )
 

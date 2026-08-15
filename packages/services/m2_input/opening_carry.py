@@ -36,7 +36,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Any, Final, NamedTuple
 
-from packages.services.m2_input.inventory_projection import (
+from packages.services.m2_input.inventory_math import (
     QTY_QUANTUM,
 )
 

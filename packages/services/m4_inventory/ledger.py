@@ -39,7 +39,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Any, Final, NamedTuple
 
-from packages.services.m2_input.inventory_projection import QTY_QUANTUM
+from packages.services.m2_input.inventory_math import QTY_QUANTUM
 
 # ── Constants ────────────────────────────────────────────────
 # Whitelist of 11 event_type values (AC #2 + OQ3 cj-style default).

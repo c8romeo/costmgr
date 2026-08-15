@@ -36,7 +36,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, TypedDict
 
-from packages.services.m2_input.inventory_projection import QTY_QUANTUM
+from packages.services.m2_input.inventory_math import QTY_QUANTUM
 
 # ── Constants ────────────────────────────────────────────────
 # V4 verdict status (matches Story 4-3 V1·V3·V7·V8 verbatim + 5-3 V3).

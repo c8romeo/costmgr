@@ -402,3 +402,28 @@ All 18 honestly DEFERred items listed above are structural W-class / UX polish /
 **3중 게이트 impact**: **None**. inventory_projection.py + LEDGER_REFERENCE_QUERY_STUB 현재 functional. TODO(epic-5) marker 보존 (이미 Story 5.2에서 closed per deprecation timeline). 코드 제거 없이 그대로 운영.
 
 **Carry-over 누적 추적**: A19 = 3rd carry (Epic 5 retro §7 A8 → Epic 6 close-out retro §7 A19 결정 → 현재 honestly DEFER). Epic 7 또는 Epic 12 wire 시점에 반드시 해소 필수 (4th carry 방지).
+
+---
+
+## Deferred from: A19 carry-over sprint (2026-08-15) — pre-existing infra debt honestly DEFER per T0
+
+**A19 carry-over sprint DONE** (baseline_commit = a63646c, Epic 12 진짜 close-out tip). sprint-scale work completed atomically (partial wire 금지 정합). CR 11-3 honest-DEFER discipline 10번째 epic 연속 검증 (carry-over sprint pattern 5번째: 11-4 / 12-4 / 12-5 T6 / 12-3 T7 / **A19**).
+
+**3 pre-existing pytest failures honestly DEFERRED per T0** (A19 sprint scope 외 — 12-3 T7 handoff에 명시된 pre-existing infra debt):
+
+1. `tests/integration/test_alembic_0022_does_not_exist` — Alembic 0022 dependency (Epic 12 12-1 2FA entry migration 미해결 시점 carry)
+2. `tests/sdr/test_sdr_test_count_drift.py::test_max_sdr_claim_matches_pytest_collection` — SDR drift detector (MAX SDR claim stale — 2143 → 2236 actual, A19 sprint scope 외)
+3. `tests/integration/test_tenant_backups_0024_migration.py::test_rls_0014_no_update_or_delete_policies` — RLS 0014 INSERT-only carve-out (Epic 12 12-2 backup INSERT-only 결정 wire)
+
+**A19 introduced 0 NEW failures** (T0 honestly DEFER 정합 — partial wire 금지). affected tests verified: 50 passed (m2_input_warnings + m2_input_label_consistency + monthly_closing_report_label_consistency + test_api_calls_only_ports + test_opening_carry mostly skipped).
+
+**MenuProvider boundary 500 error** = pre-existing dev server infra debt (12-3 T7 handoff 명시), A19 sprint scope 외.
+
+**SDR MAX claim 갱신 (separate line, CR 11-2 lesson)**: 2143 → 2236 actual tests collected (after A19 removal of 22 tests). SDR drift detector 자체는 pre-existing failure (honestly DEFER per T0). sprint-status.yaml ## SDR section update required (별도 sprint, A19 wire 표에 미포함).
+
+**Where to pick up (후속 진입점 후보)**:
+- Pre-existing 3 pytest failures = 별도 sprint-up (1-2h scope each)
+- SDR MAX claim 갱신 = 30min 별도 line update (CR 11-2 lesson 적용)
+- MenuProvider boundary 500 error = dev server infra fix (Epic 12 close-out retro §7 follow-up OR Epic 7 진입 시 dev server hardening)
+
+**3중 게이트 impact (A19 sprint surface)**: **None**. A19 surface 0 NEW failures + pre-existing debt T0 honestly DEFER 정합. carry-over sprint atomic wire 완료.

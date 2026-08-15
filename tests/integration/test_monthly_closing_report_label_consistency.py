@@ -128,7 +128,7 @@ def test_report_view_mode_ready_string_ssot() -> None:
 
 def test_qty_quantum_constant_parity() -> None:
     """QTY_QUANTUM = Decimal('0.0001') (Python) ↔ QTY_QUANTUM = '0.0001' (TS)."""
-    from packages.services.m2_input.inventory_projection import QTY_QUANTUM
+    from packages.services.m2_input.inventory_math import QTY_QUANTUM
     ts_src = _read(TS_PARITY_FILE)
     assert f'QTY_QUANTUM = "{QTY_QUANTUM!s}"' in ts_src
 

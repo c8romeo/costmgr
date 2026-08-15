@@ -32,7 +32,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Any, Final, TypedDict
 
-from packages.services.m2_input.inventory_projection import QTY_QUANTUM
+from packages.services.m2_input.inventory_math import QTY_QUANTUM
 
 # ── Constants ────────────────────────────────────────────────
 # Korean message SSOT (AD-15 §11 parity). Single-line declaration so

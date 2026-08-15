@@ -37,7 +37,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Final, NamedTuple, Protocol
 
-from packages.services.m2_input.inventory_projection import (
+from packages.services.m2_input.inventory_math import (
     InventoryMovement,
 )
 

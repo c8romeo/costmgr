@@ -32,13 +32,17 @@ Labor conversion (Story 3.2):
 - `labor_conversion.rollup_daily_fte` — Σ sum for mode='daily'
 - `labor_conversion.build_fte_display` — single composition function
 
-Inventory projection (Story 3.3):
-- `inventory_projection.INVENTORY_PRODUCT_TYPES` — material / semi_product / product
-- `inventory_projection.InventoryMovement` — per-product aggregate NamedTuple
-- `inventory_projection.compute_opening_inventory` — cj-style default 0
-- `inventory_projection.compute_closing_inventory` — PRD §6.2 수불 공식
-- `inventory_projection.build_inventory_projection` — per-stream mapping
-- `inventory_projection.LEDGER_REFERENCE_QUERY_STUB` — Epic 5 marker
+Inventory math (Story 3.3, post-A19 deprecation home):
+- `inventory_math.INVENTORY_PRODUCT_TYPES` — material / semi_product / product
+- `inventory_math.InventoryMovement` — per-product aggregate NamedTuple
+- `inventory_math.compute_opening_inventory` — cj-style default 0
+- `inventory_math.compute_closing_inventory` — PRD §6.2 수불 공식
+
+`build_inventory_projection` (Epic 3.3 inline aggregation) + the
+`LEDGER_REFERENCE_QUERY_STUB` deprecation marker were REMOVED in A19
+(Epic 6 close-out retro §7). The ledger (Epic 5 5-2 `inventory_ledger`
+table + `LedgerService.query_period_closing_all`) is the SSOT for
+inventory projection.
 
 Operating rate (Story 3.3):
 - `operating_rate.DEFAULT_UNIT_TIME_HOURS` — MVP 1.0h per product
@@ -69,11 +73,9 @@ from __future__ import annotations
 #   from packages.services.m2_input import compute_fte_for_daily  # noqa: ERA001 — usage example, intentional
 # rather than:
 #   from packages.services.m2_input.labor_conversion import compute_fte_for_daily  # noqa: ERA001 — usage example, intentional
-from packages.services.m2_input.inventory_projection import (
+from packages.services.m2_input.inventory_math import (
     INVENTORY_PRODUCT_TYPES,
-    LEDGER_REFERENCE_QUERY_STUB,
     InventoryMovement,
-    build_inventory_projection,
     compute_closing_inventory,
     compute_opening_inventory,
 )
@@ -146,13 +148,11 @@ __all__ = [
     "compute_fte_wage_for_monthly",
     "rollup_daily_fte",
     "build_fte_display",
-    # inventory_projection (Story 3.3)
+    # inventory_math (Story 3.3, post-A19 deprecation home)
     "INVENTORY_PRODUCT_TYPES",
-    "LEDGER_REFERENCE_QUERY_STUB",
     "InventoryMovement",
     "compute_opening_inventory",
     "compute_closing_inventory",
-    "build_inventory_projection",
     # operating_rate (Story 3.3)
     "DEFAULT_UNIT_TIME_HOURS",
     "OPERATING_RATE_LIMIT_PCT",

@@ -1,4 +1,43 @@
-# Capability Matrix (v1.15)
+# Capability Matrix (v1.17)
+
+> **Single source of truth** for the `Industry × Capability` gating that
+> Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
+> capability tables with one consolidated matrix.
+>
+> **v1.17 (2026-08-15, Story 8.1, Epic 8)** — `BUDGET_SCENARIO`
+> AD-24 §6.3 virtual budget period key + 1차 시나리오 1개 잠금
+> (PRD §F8.1 + §15 NON-GOAL #2). Story 8.1 wired the pure kernel
+> `budget_period_key.py` (4 NEW functions + 3 frozen dataclasses +
+> 2 typed exceptions) + service layer `BudgetScenarioService` +
+> audit ActionClass `BUDGET_SCENARIO` (CR 11-3 honest-DEFER for
+> audit emit — 8-1 is read-mostly with scenario creation only, no
+> audit emit per CR 1.1 invariant — A5 forward-lock 변경 0) +
+> 3 NEW routes under `/api/v1/budget/scenarios/*`:
+> - POST /api/v1/budget/scenarios            — owner+member create
+> - GET  /api/v1/budget/scenarios            — 4-role list (owner+member+viewer+consultant_proxy)
+> - GET  /api/v1/budget/scenarios/{period_key} — 4-role detail by virtual period_key
+>
+> 3 NEW typed exceptions are mapped to AD-15 §4 envelopes in `apps/api/main.py`
+> (CR 12-5 D-14): ScenarioLimitExceededError → 409 / InvalidVirtualBudgetPeriodKeyError → 422
+> / BudgetScenarioNotFoundError → 404. Alembic 0026 adds `budget_scenarios`
+> table (8 columns + 2 UNIQUE + 3 CHECK + 1 index) + RLS policy 0016
+> (4-policy split per AD-3 same-tenant + AD-2 INSERT-only soft invariant).
+> BUDGET_SCENARIO is **industry-agnostic** (granted to ALL 4 canonical industries) —
+> budget planning is operational baseline (CR 12-1 L4 precedent — manufacturing 3종 ✅
+> + service-only ✅).
+>
+> ---
+>
+> **v1.16 (2026-08-15, Epic 7 retro)** — `CVP_SIMULATION`
+> CVP/BEP simulation wire (PRD §F7.1 + §F7.2). 9 NEW pure functions +
+> 7 NEW frozen dataclasses + 4 NEW typed exceptions + 1 NEW capability
+> (industry-agnostic, CR 12-1 L4 + 7-1/7-2 precedent — all 4 industries
+> grant). 2 NEW math surfaces: `cvp.py` + `projection.py` (A19
+> cohesion pattern — split per concern).
+>
+> ---
+>
+> **v1.15 (2026-08-15, Story 12.3, Epic 12)** — `ACCOUNT_DELETION`
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
@@ -227,7 +266,9 @@ class CalcResponse(BaseModel):
   `NEGATIVE_CLOSING_INVENTORY` (PRD §V3) + `OVERCAPACITY_OPERATING_RATE`
   (PRD §V5). Epic 5 5-1 단계에서 opening_inventory JSONB의 cj-style
   default=0 + ledger-backed read로 자동 전월 기말 carry-chain 진입
-  (`TODO(epic-5)` marker in `inventory_projection.py`).
+  (`TODO(epic-5)` marker — closed in Story 5-2; A19 carry-over sprint
+  removed `inventory_projection.py` entirely; math surface is now in
+  `packages/services/m2_input/inventory_math.py`).
 - **AI_EXTRACT** is granted to every industry (PRD §4.2 AI cross-cutting
   feature). Tenant-only restriction is PIPA consent, not industry.
 

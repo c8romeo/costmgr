@@ -33,7 +33,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, NamedTuple
 
-from packages.services.m2_input.inventory_projection import QTY_QUANTUM
+from packages.services.m2_input.inventory_math import QTY_QUANTUM
 from packages.services.m4_inventory.ledger import InventoryLedgerEvent
 
 # ── Constants ────────────────────────────────────────────────

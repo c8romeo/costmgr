@@ -470,7 +470,7 @@ def test_warning_codes_match_python() -> None:
 
 def test_inventory_product_types_match_python() -> None:
     """INVENTORY_PRODUCT_TYPES (TS) ↔ Python frozenset. Structural check."""
-    from packages.services.m2_input.inventory_projection import (
+    from packages.services.m2_input.inventory_math import (
         INVENTORY_PRODUCT_TYPES,
     )
 
@@ -499,7 +499,7 @@ def test_inventory_warning_korean_message_matches_python() -> None:
     Python and TS must produce identical Korean text including
     trailing-zero stripping (AC #1 spec literal).
     """
-    from packages.services.m2_input.inventory_projection import InventoryMovement
+    from packages.services.m2_input.inventory_math import InventoryMovement
     from packages.services.m2_input.warnings import format_inventory_warning_ko
 
     pid = "00000000-0000-0000-0000-000000000001"  # not used by formatter

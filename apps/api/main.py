@@ -71,6 +71,15 @@ from apps.api.modules.m4_inventory.services.opening_carry_service import (
     MonthlyInputOpeningLockViolationError,
     MonthlyInputOpeningManualEditError,
 )
+from apps.api.modules.m8_budget import router as m8_budget_router
+from apps.api.modules.m8_budget.exceptions import (
+    BUDGET_INVALID_VIRTUAL_KEY_KO,
+    BUDGET_SCENARIO_LIMIT_EXCEEDED_KO,
+    BUDGET_SCENARIO_NOT_FOUND_KO,
+    BudgetScenarioNotFoundError,
+    InvalidVirtualBudgetPeriodKeyError,
+    ScenarioLimitExceededError,
+)
 from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
@@ -197,6 +206,14 @@ app.include_router(m3_calculate_router)
 # Auto-carry chain hooks into m2_input_service (get_state + save_row);
 # this router only exposes the explicit manual trigger.
 app.include_router(m4_inventory_router)
+
+# Story 8.1 — M8 budget vs actual scenario CRUD (PRD §F8.1).
+# AD-24 period key typed pattern + 1차 시나리오 1개 잠금.
+# 3 NEW routes:
+# - POST /api/v1/budget/scenarios             (201 owner+member create)
+# - GET  /api/v1/budget/scenarios             (200 4-role list)
+# - GET  /api/v1/budget/scenarios/{period_key} (200 4-role get-by-key)
+app.include_router(m8_budget_router)
 
 # Story 11.1 — M11 reversal sequence (AD-22 sign-negating + corrected row +
 # AD-25 cache invalidation publisher). 3 NEW routes:
@@ -1945,6 +1962,78 @@ async def _m12_account_deletion_hard_delete_handler(
             "message_ko": ACCOUNT_DELETION_HARD_DELETE_FAILED_KO,
             "details": {"message": exc.message},
             "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 8.1 (Epic 8) — M8 Budget Scenario CRUD + 1차 MVP 잠금 ──
+# CR 12-5 D-14: 3 NEW typed exception envelopes (HTTP 404/409/422) for:
+#   - BudgetScenarioNotFoundError          (404 BUDGET_SCENARIO_NOT_FOUND)
+#   - ScenarioLimitExceededError           (409 SCENARIO_LIMIT_EXCEEDED — 1차 MVP 한도)
+#   - InvalidVirtualBudgetPeriodKeyError   (422 INVALID_VIRTUAL_BUDGET_PERIOD_KEY)
+@app.exception_handler(BudgetScenarioNotFoundError)
+async def _m8_budget_scenario_not_found_handler(
+    request: Request, exc: BudgetScenarioNotFoundError
+) -> JSONResponse:
+    """404 BUDGET_SCENARIO_NOT_FOUND — GET /budget/scenarios/{period_key} 미존재."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "BUDGET_SCENARIO_NOT_FOUND",
+            "message_ko": BUDGET_SCENARIO_NOT_FOUND_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": exc.tenant_id,
+            },
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScenarioLimitExceededError)
+async def _m8_budget_scenario_limit_exceeded_handler(
+    request: Request, exc: ScenarioLimitExceededError
+) -> JSONResponse:
+    """409 SCENARIO_LIMIT_EXCEEDED — 1차 MVP 시나리오 1개 한도 초과.
+
+    Service-layer `validate_scenario_uniqueness` 1차 gate + DB UNIQUE
+    제약 defense-in-depth 2차 gate (CR 12-5 L3).
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "SCENARIO_LIMIT_EXCEEDED",
+            "message_ko": BUDGET_SCENARIO_LIMIT_EXCEEDED_KO,
+            "details": {
+                "existing_count": exc.existing_count,
+                "max_scenarios": 1,
+            },
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(InvalidVirtualBudgetPeriodKeyError)
+async def _m8_budget_invalid_virtual_key_handler(
+    request: Request, exc: InvalidVirtualBudgetPeriodKeyError
+) -> JSONResponse:
+    """422 INVALID_VIRTUAL_BUDGET_PERIOD_KEY — AD-24 가상 패턴 위반.
+
+    패턴: `^\\d{4}-(0[1-9]|1[0-2])#B[1-9]\\d*$`
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "INVALID_VIRTUAL_BUDGET_PERIOD_KEY",
+            "message_ko": BUDGET_INVALID_VIRTUAL_KEY_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "expected_pattern": exc.expected_pattern,
+            },
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
         },
     )
 

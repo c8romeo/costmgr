@@ -19,7 +19,7 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
-from packages.services.m2_input.inventory_projection import InventoryMovement
+from packages.services.m2_input.inventory_math import InventoryMovement
 from packages.services.m2_input.warnings import (
     SEVERITY_ORDER,
     Warning,
@@ -401,26 +401,18 @@ def test_korean_message_format_inventory_no_name() -> None:
 
 # ── Service-only tenant (AC #6) ─────────────────────────────
 def test_service_only_tenant_no_inventory_warning() -> None:
-    """AC #6: service products → projection empty → 0 warnings."""
-    pid_svc = uuid.uuid4()
-    # Only service rows → excluded from projection
-    rows = [
-        _RowStub_factory(stream="sales", pid=pid_svc, qty=Decimal("10"), ptype="service"),
-    ]
-    from packages.services.m2_input.inventory_projection import build_inventory_projection
+    """AC #6: service products → projection empty → 0 warnings.
 
-    projection = build_inventory_projection(rows, opening_balance=None)
-    # Service product is excluded → projection empty
-    assert projection == []
+    A19 carry-over sprint: the removed `build_inventory_projection`
+    helper is replaced by the ledger SSOT (`LedgerService.query_period_closing_all`)
+    in production code. The pure-kernel filter for `INVENTORY_PRODUCT_TYPES`
+    is now exercised at the ledger write side; this test verifies the
+    downstream invariant: an empty `InventoryMovement` list yields
+    zero warnings, regardless of how the projection was sourced.
+    """
     # Empty projection → 0 warnings
-    warnings = build_inventory_warnings(projection)
+    warnings = build_inventory_warnings([])
     assert warnings == []
-
-
-def _RowStub_factory(stream, pid, qty, ptype):
-    from tests.services.test_m2_input_inventory_projection import _RowStub
-
-    return _RowStub(stream=stream, product_id=pid, qty=qty, product_type=ptype)
 
 
 # ── immediate disappear pattern (AC #2) ─────────────────────

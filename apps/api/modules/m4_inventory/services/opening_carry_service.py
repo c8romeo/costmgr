@@ -47,11 +47,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit_action import ActionClass, emit_audit_typed
-from apps.api.core.db_models import MonthlyInputPeriod, MonthlyInputRow
-from packages.services.m0_onboarding.industry_menu import Industry
-from packages.services.m2_input.inventory_projection import (
-    build_inventory_projection,
+from apps.api.core.db_models import MonthlyInputPeriod
+from apps.api.modules.m4_inventory.services.ledger_service import (
+    LedgerService,
 )
+from packages.services.m0_onboarding.industry_menu import Industry
 from packages.services.m2_input.opening_carry import (
     INVENTORY_PERIOD_CHAIN_LIMIT,
     OpeningCarryDecision,
@@ -533,36 +533,28 @@ class OpeningCarryService:
         )
 
     async def _compute_period_closing(self, period: MonthlyInputPeriod) -> dict[uuid.UUID, Decimal]:
-        """Compute closing balance for a period (rebuilds projection
-        from monthly_input_rows).
+        """Compute closing balance for a period from the ledger SSOT.
 
-        Pure-kernel wrapper: reads `monthly_input_rows` for the period,
-        feeds them to `build_inventory_projection`, returns
-        `dict[UUID, Decimal]` (product_id → closing_qty).
+        A19 carry-over sprint migration: the previous implementation
+        rebuilt the projection from `monthly_input_rows` via the
+        removed `build_inventory_projection` helper (Epic 3.3 inline
+        aggregation). Per Epic 6 close-out retro §7 A19, the ledger
+        (Epic 5 5-2 `inventory_ledger` table + `LedgerService`) is now
+        the canonical source for per-product closing balance. We
+        delegate to `LedgerService.query_period_closing_all`, which
+        SUM-aggregates `inventory_ledger` rows (excluding
+        `closing_snapshot`) per product for the period.
+
+        Returns:
+            dict[UUID, Decimal] — empty if no flow events for the period.
         """
-        rows = await self.session.scalars(
-            select(MonthlyInputRow).where(
-                MonthlyInputRow.tenant_id == self.tenant_id,
-                MonthlyInputRow.period_id == period.period_id,
-            )
+        ledger_svc = LedgerService(
+            self.session,
+            tenant_id=self.tenant_id,
+            industry=self.industry,
+            trace_id=self.trace_id,
         )
-        rows_list = list(rows.all())
-
-        opening_decoded = _decode_opening_jsonb(period.opening_inventory)
-        projections = build_inventory_projection(rows_list, opening_decoded)
-
-        from packages.services.m2_input.inventory_projection import (
-            compute_closing_inventory,
-        )
-
-        closing: dict[uuid.UUID, Decimal] = {}
-        for movement in projections:
-            closing[movement.product_id] = compute_closing_inventory(
-                movement.opening_qty,
-                movement.inbound_qty,
-                movement.outbound_qty,
-            )
-        return closing
+        return await ledger_svc.query_period_closing_all(period_key=period.period_key)
 
     async def _persist_opening(
         self,

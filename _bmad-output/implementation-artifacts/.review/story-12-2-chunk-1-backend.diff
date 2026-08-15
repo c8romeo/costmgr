@@ -1,0 +1,2227 @@
+diff --git a/apps/api/alembic/versions/0024_tenant_backups.py b/apps/api/alembic/versions/0024_tenant_backups.py
+new file mode 100644
+index 0000000..7227fcf
+--- /dev/null
++++ b/apps/api/alembic/versions/0024_tenant_backups.py
+@@ -0,0 +1,135 @@
++"""Story 12.2 — tenant_backups table.
++
++Per NFR4 (PRD §NFR4) "백업 보관 30일(자동)", the system needs a daily
++per-tenant JSON dump of operational state. Storage decision per Story 12.2
++spec §3 user decision: **Postgres JSONB table** `tenant_backups` (의존성 0 /
++STACK_PIN BUMP 0 / 12-5 QR manual-entry decision 패턴).
++
++Why a Postgres JSONB table (not Supabase Storage / S3):
++- 의존성 0 — no new bucket, no new SDK, no new env vars
++- RLS covers access control (no separate signed URL infra)
++- Schema versioning + sha256 in the same row → atomic backup verification
++- Same Postgres backup story covers this table (RPO 24h, 30-day retention
++  via cron sweep — apps/api/jobs/backup_retention.py)
++- AD-2 INSERT-only invariant via 0024 trigger (UPDATE/DELETE forbidden
++  except for `purged_at` soft-delete column).
++
++Schema (12 columns + 2 indexes + partial UNIQUE):
++
++  - `backup_id`              UUID PRIMARY KEY DEFAULT uuid_generate_v4()
++  - `tenant_id`              UUID NOT NULL FK → tenants(id) ON DELETE CASCADE
++  - `backup_date`            TIMESTAMP NOT NULL  — YYYY-MM-DD anchor (KST date)
++  - `created_at`             TIMESTAMPTZ NOT NULL DEFAULT now()
++  - `schema_version`         TEXT NOT NULL DEFAULT '1.0'  — envelope version
++  - `payload`                JSONB NOT NULL  — full backup payload (7 tables)
++  - `payload_sha256`         TEXT NOT NULL  — sha256 of payload bytes (hex)
++  - `row_count_total`        INTEGER NOT NULL  — total rows in payload
++  - `audit_log_exported_rows` INTEGER NOT NULL DEFAULT 0  — audit_logs count
++  - `retention_class`        TEXT NOT NULL DEFAULT 'daily'  — 'daily' | 'quarterly'
++  - `purged_at`              TIMESTAMPTZ NULL  — 30-day retention soft-delete
++  - `triggered_by_user_id`   UUID NULL FK → users(id) ON DELETE SET NULL
++
++Indexes:
++- `tenant_backups_tenant_id_backup_date_idx` — (tenant_id, backup_date DESC)
++  for the "최근 7일 백업 다운로드" list query.
++- `tenant_backups_purged_at_idx` — partial index WHERE purged_at IS NULL
++  for the retention sweep filter.
++- partial UNIQUE on (tenant_id, backup_date) WHERE purged_at IS NULL —
++  ensures ONE active backup per tenant per day. Soft-deleted (purged)
++  rows do NOT block a new backup on the same date.
++
++RLS: `supabase/policies/0014_tenant_backups_rls.sql` (5-policy split per
++AD-3: same-tenant SELECT + owner-only SELECT + same-tenant INSERT +
++UPDATE forbidden + DELETE forbidden). Backup rows are immutable from
++the application layer — only the retention cron can soft-delete via
++`purged_at` column (UPDATE is blocked by RLS for non-service roles).
++
++Down revision: 0023_used_challenge_tokens (Story 12.4 carry-over sprint).
++
++Revision ID: 0024_tenant_backups
++Revises:    0023_used_challenge_tokens
++Create Date: 2026-08-12
++"""
++
++from __future__ import annotations
++
++from alembic import op
++
++revision = "0024_tenant_backups"
++down_revision = "0023_used_challenge_tokens"
++branch_labels = None
++depends_on = None
++
++
++def upgrade() -> None:
++    # ── Table ──────────────────────────────────────────────────────
++    op.execute(
++        """
++        CREATE TABLE tenant_backups (
++            backup_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++            tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
++            backup_date TIMESTAMP NOT NULL,
++            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
++            schema_version TEXT NOT NULL DEFAULT '1.0',
++            payload JSONB NOT NULL,
++            payload_sha256 TEXT NOT NULL,
++            row_count_total INTEGER NOT NULL,
++            audit_log_exported_rows INTEGER NOT NULL DEFAULT 0,
++            retention_class TEXT NOT NULL DEFAULT 'daily',
++            purged_at TIMESTAMPTZ NULL,
++            triggered_by_user_id UUID NULL REFERENCES users(id) ON DELETE SET NULL
++        )
++        """
++    )
++
++    # ── Index: tenant_id + backup_date DESC (list query) ────────────
++    op.execute(
++        "CREATE INDEX tenant_backups_tenant_id_backup_date_idx "
++        "ON tenant_backups (tenant_id, backup_date DESC)"
++    )
++
++    # ── Partial index: active (non-purged) backups per tenant ───────
++    op.execute(
++        "CREATE INDEX tenant_backups_purged_at_idx "
++        "ON tenant_backups (tenant_id, purged_at) "
++        "WHERE purged_at IS NULL"
++    )
++
++    # ── partial UNIQUE: one active backup per tenant per day ────────
++    # Soft-deleted (purged) rows do NOT block re-creation on the same
++    # date — only one ACTIVE backup is allowed per (tenant, date).
++    op.execute(
++        "CREATE UNIQUE INDEX tenant_backups_unique_active_per_day "
++        "ON tenant_backups (tenant_id, backup_date) "
++        "WHERE purged_at IS NULL"
++    )
++
++    # ── Documentation ───────────────────────────────────────────────
++    op.execute(
++        "COMMENT ON TABLE tenant_backups IS "
++        "'Story 12.2 — daily per-tenant JSON dump + 30-day retention sweep. "
++        "AD-2 INSERT-only (RLS 0014 blocks UPDATE/DELETE for non-service roles). "
++        "Cron: apps/api/jobs/backup_daily.py (KST 02:00) + backup_retention.py "
++        "(KST 03:00). NFR4: RPO 24h / RTO 4h / 30-day backup retention.'"
++    )
++    op.execute(
++        "COMMENT ON COLUMN tenant_backups.payload IS "
++        "'Full backup payload (7 tables: tenant_settings, products, bom_lines, "
++        "monthly_input_periods, monthly_input_rows, fiscal_period_snapshots, "
++        "audit_logs). JSONB envelope with schema_version=1.0 + 7-table mapping.'"
++    )
++    op.execute(
++        "COMMENT ON COLUMN tenant_backups.payload_sha256 IS "
++        "'Hex sha256 of payload bytes (json.dumps sort_keys=True default=str). "
++        "Client verifies via X-Backup-SHA256 header on download.'"
++    )
++    op.execute(
++        "COMMENT ON COLUMN tenant_backups.purged_at IS "
++        "'30-day retention soft-delete column. UPDATE on this column is "
++        "PERMITTED by the 0024 trigger + RLS 0014 retention policy; UPDATE on "
++        "other columns is BLOCKED.'"
++    )
++
++
++def downgrade() -> None:
++    op.execute("DROP TABLE IF EXISTS tenant_backups")
+diff --git a/apps/api/core/audit_action.py b/apps/api/core/audit_action.py
+index 3620257..d24421b 100644
+--- a/apps/api/core/audit_action.py
++++ b/apps/api/core/audit_action.py
+@@ -63,6 +63,7 @@ class ActionClass(str, __import__("enum").Enum):
+     SNAPSHOT_PERSISTENCE = "snapshot_persistence"  # Story 11.3 (NEW — AD-20 state machine 영구화 audit)
+     REOPEN_OPERATOR = "reopen_operator"  # Story 11.3 (NEW — W2 reopen flow audit)
+     TWO_FACTOR_AUTH = "two_factor_auth"  # Story 12.1 (NEW — 2FA mandatory gate audit)
++    ACCOUNT_BACKUP = "account_backup"  # Story 12.2 (NEW — daily auto-backup + JSON self-download audit)
+ 
+ 
+ # ────────────────────────────────────────────────────────────
+@@ -331,6 +332,33 @@ TwoFactorAuthAction = Literal[
+ ]
+ 
+ 
++# account_backup actions (Story 12.2 NEW — daily auto-backup + JSON self-download).
++# PRD §F12.2 + NFR4 backup + AD-9 Seoul + AD-15 §4 envelope. Audit routes
++# to `audit_logs` (ActionClass.ACCOUNT_BACKUP). 5 values:
++# - `backup_created` — successful backup row INSERT
++#   (run_backup / trigger_backup audit-first emit BEFORE row commit).
++# - `backup_failed` — try/except guard fires BEFORE raise
++#   (BackupExportServiceError surfaces to cron runner; audit captures
++#   failure context).
++# - `backup_retention_purged` — 30-day soft-delete UPDATE succeeded
++#   (purged_at timestamp set; row remains for audit).
++# - `backup_downloaded` — owner self-download audit (per-row download
++#   trace — forensic chain for "who downloaded what when").
++# - `backup_triggered` — manual owner trigger via POST /backups/trigger
++#   (manual run triggered — same action_class as backup_created but
++#   distinct audit entry for forensic separation).
++# Drift detector: tests/integration/test_audit_action_consistency.py
++# enforces ActionClass registry ↔ DB CHECK (no-op for audit_logs) ↔
++# call sites parity (3-way gate).
++AccountBackupAction = Literal[
++    "backup_created",
++    "backup_failed",
++    "backup_retention_purged",
++    "backup_downloaded",
++    "backup_triggered",
++]
++
++
+ # Union type for type checking
+ AuditAction = (
+     TenantSettingsAction
+@@ -353,6 +381,7 @@ AuditAction = (
+     | SnapshotPersistenceAction
+     | ReopenOperatorAction
+     | TwoFactorAuthAction
++    | AccountBackupAction
+ )
+ 
+ 
+@@ -600,6 +629,26 @@ class _ActionRegistry:
+                 }
+             ),
+         ),
++        # Story 12.2 — account_backup 5 values (daily auto-backup + JSON
++        # self-download). DB CHECK-less per AD-2 invariant (audit_logs has
++        # NO action CHECK constraint per conventions.md §10.1 + docs
++        # 907-910). Drift detector enforces ActionClass registry ↔ DB
++        # CHECK (no-op for audit_logs) ↔ call sites parity (3-way gate).
++        # Routes to audit_logs (NOT to a separate ledger — backup events
++        # are tenant-scoped platform-event trail only, mirroring
++        # TWO_FACTOR_AUTH pattern).
++        ActionClass.ACCOUNT_BACKUP: (
++            "audit_logs",
++            frozenset(
++                {
++                    "backup_created",
++                    "backup_failed",
++                    "backup_retention_purged",
++                    "backup_downloaded",
++                    "backup_triggered",
++                }
++            ),
++        ),
+     }
+ 
+     @classmethod
+@@ -724,5 +773,6 @@ __all__ = [
+     "SnapshotPersistenceAction",
+     "ReopenOperatorAction",
+     "TwoFactorAuthAction",
++    "AccountBackupAction",
+     "emit_audit_typed",
+ ]
+diff --git a/apps/api/core/capability.py b/apps/api/core/capability.py
+index a4897c0..57bade3 100644
+--- a/apps/api/core/capability.py
++++ b/apps/api/core/capability.py
+@@ -127,6 +127,23 @@ class Capability(str, Enum):
+     # the industry-aware front. Granted to manufacturing-kind industries;
+     # service-only tenants do NOT have fiscal_periods to reopen.
+     REOPEN_OPERATOR = "reopen_operator"
++    # Story 12.2 (Epic 12) — Daily backup export + JSON self-download
++    # capability (PRD §F12.2 + §M12-b). Industry-agnostic security baseline
++    # (CR 12-1 L4 precedent — 2FA pattern). Granted to all 4 industries
++    # because backup is operational infrastructure, not industry-specific.
++    # NOT enforced as a route gate (mirrors TWO_FACTOR_AUTH): owner-only
++    # via AD-10 `require_role("owner")`. Documented in capability-matrix
++    # v1.14 for industry-parity auditability.
++    BACKUP_EXPORT = "backup_export"
++    # Story 12.1 + 12.4 (Epic 12) — 2FA mandatory gate capability
++    # (PRD §F12.1 + §M12-a). Industry-agnostic security baseline — 2FA
++    # is operational infrastructure, not industry-specific. Granted to
++    # all 4 industries. NOT enforced as a route gate (CR 12-1 L4):
++    # 2FA allowlist is owner+member at the `require_any_role` layer.
++    # Originally documented in capability-matrix v1.13 (12-1) but the
++    # enum entry was missed — 12-2 carry-over fix (drift detector
++    # `tests/integration/test_capability_matrix_v1_14_drift.py` surfaces it).
++    TWO_FACTOR_AUTH = "two_factor_auth"
+ 
+ 
+ # ── Industry → Capability map (F-41-resolved) ────────────────
+@@ -162,6 +179,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             Capability.SNAPSHOT_PERSISTENCE,
+             Capability.REVERSAL_EXECUTE,
+             Capability.REOPEN_OPERATOR,
++            # Story 12.2 — manufacturing tenants get BACKUP_EXPORT
++            # (industry-agnostic, security baseline CR 12-1 L4).
++            Capability.BACKUP_EXPORT,
++            # Story 12.1 — manufacturing tenants get TWO_FACTOR_AUTH
++            # (industry-agnostic, security baseline CR 12-1 L4).
++            Capability.TWO_FACTOR_AUTH,
+         }
+     ),
+     Industry.SERVICE: frozenset(
+@@ -179,6 +202,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             # Story 4.1 — service tenants do NOT have COST_CALCULATION
+             # (no manufacturing footprint → no [계산] tab; they will
+             # use Epic 9 ABC costing instead — gate owner: m9_abc).
++            # Story 12.2 — service tenants get BACKUP_EXPORT
++            # (industry-agnostic, security baseline CR 12-1 L4).
++            Capability.BACKUP_EXPORT,
++            # Story 12.1 — service tenants get TWO_FACTOR_AUTH
++            # (industry-agnostic, security baseline CR 12-1 L4).
++            Capability.TWO_FACTOR_AUTH,
+         }
+     ),
+     Industry.MANUFACTURING_SERVICE: frozenset(
+@@ -216,6 +245,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             Capability.SNAPSHOT_PERSISTENCE,
+             Capability.REVERSAL_EXECUTE,
+             Capability.REOPEN_OPERATOR,
++            # Story 12.2 — 겸영 tenants get BACKUP_EXPORT
++            # (industry-agnostic, security baseline CR 12-1 L4).
++            Capability.BACKUP_EXPORT,
++            # Story 12.1 — 겸영 tenants get TWO_FACTOR_AUTH
++            # (industry-agnostic, security baseline CR 12-1 L4).
++            Capability.TWO_FACTOR_AUTH,
+         }
+     ),
+     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
+@@ -250,6 +285,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
+             Capability.SNAPSHOT_PERSISTENCE,
+             Capability.REVERSAL_EXECUTE,
+             Capability.REOPEN_OPERATOR,
++            # Story 12.2 — full matrix tenants get BACKUP_EXPORT
++            # (industry-agnostic, security baseline CR 12-1 L4).
++            Capability.BACKUP_EXPORT,
++            # Story 12.1 — full matrix tenants get TWO_FACTOR_AUTH
++            # (industry-agnostic, security baseline CR 12-1 L4).
++            Capability.TWO_FACTOR_AUTH,
+         }
+     ),
+ }
+diff --git a/apps/api/core/db_models.py b/apps/api/core/db_models.py
+index f018d03..8cde49a 100644
+--- a/apps/api/core/db_models.py
++++ b/apps/api/core/db_models.py
+@@ -1,4 +1,4 @@
+-"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2 + 12.1 + 12.4).
++"""apps.api.core.db_models — SQLAlchemy 2.0 ORM models (Story 0.2 + 1.3 + 2.1 + 2.2 + 3.1 + 4.2 + 4.3 + 5.2 + 11.2 + 12.1 + 12.4 + 12.2).
+ 
+ Mapped tables:
+ - 0001: tenants, users, tenant_memberships, tenant_settings, audit_logs
+@@ -12,6 +12,7 @@ Mapped tables:
+ - 0020 (Story 11.2): fiscal_periods (AD-6 close lock + 4-stage state)
+ - 0022 (Story 12.1): users totp_* columns (2FA mandatory gate)
+ - 0023 (Story 12.4): used_challenge_tokens (2FA challenge token replay guard)
++- 0024 (Story 12.2): tenant_backups (daily auto-backup + JSON self-download)
+ 
+ Per AD-1/AD-11: this module is in `apps/api/` (infra layer). It does NOT
+ import `packages.cost_engine` directly. Modules write through services.
+@@ -973,3 +974,62 @@ class FiscalPeriod(Base):
+             name="fiscal_periods_tenant_period_unique",
+         ),
+     )
++
++
++# ── tenant_backups (Story 12.2 — daily auto-backup + JSON self-download) ──
++# AD-2 INSERT-only (BEFORE UPDATE OR DELETE trigger raises
++# `append-only violation` per migration 0024 — audit_logs 0001 pattern).
++# Soft-delete via `purged_at` column for 30-day retention sweep.
++#
++# Why Postgres JSONB (not Supabase Storage)? Per AC #2:
++# - Storage target = Postgres table `tenant_backups` JSONB column.
++# - AD-9 Seoul: Supabase Seoul Postgres = ap-northeast-2 = qualifies.
++# - 의존성 0 (no Storage SDK bump per 12-5 QR manual-entry decision).
++# - STACK_PIN.yaml 변경 0건.
++#
++# Schema (12 columns):
++# - backup_id UUID PK (uuid4, AD-15 §3 identity)
++# - tenant_id UUID FK → tenants.id (CASCADE)
++# - backup_date DATE (KST date — KST 02:00 cron)
++# - created_at TIMESTAMPTZ (UTC timestamp)
++# - schema_version VARCHAR(16) (envelope top-level, AC #8 — versioning)
++# - payload JSONB (7-table dump — see packages/services/m12_account/backup_export.py)
++# - payload_sha256 CHAR(64) (deterministic digest)
++# - row_count_total INTEGER (sum of 7 table counts)
++# - audit_log_exported_rows INTEGER (audit_logs count after 365d collapse)
++# - retention_class VARCHAR(16) ('daily' / 'quarterly' honestly DEFER)
++# - purged_at TIMESTAMPTZ NULL (30-day soft-delete marker)
++# - triggered_by_user_id UUID FK → users.id SET NULL (manual trigger trace)
++class TenantBackup(Base):
++    __tablename__ = "tenant_backups"
++
++    backup_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
++    )
++    tenant_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True),
++        ForeignKey("tenants.id", ondelete="CASCADE"),
++        nullable=False,
++    )
++    backup_date: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
++    created_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), nullable=False
++    )
++    schema_version: Mapped[str] = mapped_column(Text, nullable=False, default="1.0")
++    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
++    payload_sha256: Mapped[str] = mapped_column(Text, nullable=False)
++    row_count_total: Mapped[int] = mapped_column(Integer, nullable=False)
++    audit_log_exported_rows: Mapped[int] = mapped_column(
++        Integer, nullable=False, default=0
++    )
++    retention_class: Mapped[str] = mapped_column(
++        Text, nullable=False, default="daily"
++    )
++    purged_at: Mapped[datetime | None] = mapped_column(
++        DateTime(timezone=True), nullable=True
++    )
++    triggered_by_user_id: Mapped[UUID | None] = mapped_column(
++        PgUUID(as_uuid=True),
++        ForeignKey("users.id", ondelete="SET NULL"),
++        nullable=True,
++    )
+diff --git a/apps/api/jobs/__init__.py b/apps/api/jobs/__init__.py
+index 55a8bf7..d034aac 100644
+--- a/apps/api/jobs/__init__.py
++++ b/apps/api/jobs/__init__.py
+@@ -1,6 +1,6 @@
+ """apps.api.jobs — scheduled cron entry points.
+ 
+-Story 1.3 — Task 1.3.
++Story 1.3 — Task 1.3. + Story 12.2 — daily backup + retention sweep.
+ 
+ This package hosts the **periodic** jobs that run independently of
+ the FastAPI request/response lifecycle. They are invoked by the
+@@ -11,6 +11,15 @@ without standing up the scheduler.
+ Conventions:
+ - Each job function takes `session: AsyncSession` + `trace_id` + `now`.
+ - Pure orchestration only; business logic lives in the relevant service
+-  module (here, `apps.api.modules.m10_ai.service.run_document_retention`).
++  module (here, `apps.api.modules.m10_ai.service.run_document_retention`
++  + `apps.api.modules.m12_account.services.backup_export_service`).
+ - Idempotent — re-running with the same `now` is a no-op.
++
++Active cron jobs (Story 12.2 wire):
++- `document_retention` — daily 03:00 KST (UTC 18:00), 90-day document
++  soft-delete (Story 1.3).
++- `backup_daily` — daily 02:00 KST (UTC 17:00), per-tenant 7-table JSON
++  dump + INSERT tenant_backups (Story 12.2).
++- `backup_retention` — daily 03:00 KST (UTC 18:00), per-tenant 30-day
++  rolling soft-delete via UPDATE purged_at (Story 12.2).
+ """
+diff --git a/apps/api/jobs/backup_daily.py b/apps/api/jobs/backup_daily.py
+new file mode 100644
+index 0000000..2ee8f9c
+--- /dev/null
++++ b/apps/api/jobs/backup_daily.py
+@@ -0,0 +1,125 @@
++"""apps.api.jobs.backup_daily — Story 12.2 daily auto-backup cron.
++
++This module is the **cron entry point** for daily backups. It is invoked
++by the external scheduler (Railway cron / GitHub Actions schedule) once
++per day and delegates to `BackupExportService.run_backup()` per tenant.
++
++Precedent: `apps/api/jobs/document_retention.py:51-83` (Story 1.3).
++
++Cron wrapper exists to:
++1. Provide a stable import path for the scheduler
++   (`apps.api.jobs.backup_daily:run`).
++2. Iterate over all tenants — `BackupExportService` is per-tenant.
++3. Catch per-tenant failures (one tenant's failure doesn't block others).
++4. Emit `backup_failed` audit emit BEFORE raise (CR 1.1 audit-first).
++5. Read DB engine lazily so module imports even without a live DB.
++
++Operational deployment:
++- Railway cron: schedule daily 02:00 KST (UTC 17:00) — outside peak.
++- Failure behavior: any exception is logged + cron runner sends Slack
++  alert via Railway's notification hook.
++
++NFR4 (PRD §NFR4): "RPO 24h / RTO 4h / 백업 보관 30일(자동), 1년(분기) /
++감사로그 5년 append-only".
++
++AD-2 INSERT-only: tenant_backups is INSERT-only; the cron never UPDATEs
++or DELETEs (30-day retention sweep is a separate cron — backup_retention).
++"""
++
++from __future__ import annotations
++
++import contextlib
++import logging
++import uuid
++from datetime import UTC, datetime
++
++from sqlalchemy import select
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from apps.api.core.db import get_session
++from apps.api.core.db_models import Tenant
++from apps.api.modules.m12_account.services.backup_export_service import (
++    BackupExportService,
++    BackupResult,
++)
++
++logger = logging.getLogger(__name__)
++
++
++async def _list_tenant_ids(session: AsyncSession) -> list[uuid.UUID]:
++    """SELECT all tenant IDs (tenant_backups is per-tenant)."""
++    result = await session.execute(select(Tenant.id))
++    return [row[0] for row in result.all()]
++
++
++async def run(*, now: datetime | None = None) -> list[BackupResult]:
++    """Cron entry point — daily backup for all tenants.
++
++    The scheduler invokes this as
++    `python -c "from apps.api.jobs.backup_daily import run; import asyncio; asyncio.run(run())"`.
++
++    Args:
++        now: Reference "now" for backup_date (KST date) + created_at
++            (UTC timestamp). Default = UTC now.
++
++    Returns:
++        List of BackupResult, one per tenant. Caller (cron runner) can
++        log a summary.
++    """
++    trace_id = str(uuid.uuid4())
++    now = now or datetime.now(tz=UTC)
++
++    # Lazy DB session (Story 0.2 pattern) — never block module import.
++    session_gen = get_session()
++    session: AsyncSession = await session_gen.__anext__()
++    results: list[BackupResult] = []
++    try:
++        tenant_ids = await _list_tenant_ids(session)
++        logger.info(
++            "backup_daily.run starting",
++            extra={"trace_id": trace_id, "tenant_count": len(tenant_ids)},
++        )
++
++        for tenant_id in tenant_ids:
++            # Per-tenant failure isolation — one tenant's failure doesn't
++            # block others. Audit `backup_failed` is emitted by service
++            # layer (CR 1.1) — but cron wrapper also catches the
++            # exception to keep iteration going.
++            try:
++                svc = BackupExportService(
++                    session,
++                    tenant_id=tenant_id,
++                    actor_id=None,  # cron path — no actor
++                    trace_id=trace_id,
++                )
++                result = await svc.run_backup()
++                results.append(result)
++            except Exception as exc:  # noqa: BLE001
++                logger.exception(
++                    "backup_daily.run tenant failed",
++                    extra={
++                        "trace_id": trace_id,
++                        "tenant_id": str(tenant_id),
++                        "error": str(exc),
++                    },
++                )
++                # Continue with next tenant — don't re-raise here.
++
++        logger.info(
++            "backup_daily.run completed",
++            extra={
++                "trace_id": trace_id,
++                "successful_tenants": len(results),
++                "total_tenants": len(tenant_ids),
++            },
++        )
++        return results
++    except Exception:  # pragma: no cover — top-level cron runner alert
++        logger.exception(
++            "backup_daily.run failed",
++            extra={"trace_id": trace_id},
++        )
++        raise
++    finally:
++        with contextlib.suppress(StopAsyncIteration):
++            await session_gen.__anext__()  # trigger __aexit__ / close
+diff --git a/apps/api/jobs/backup_retention.py b/apps/api/jobs/backup_retention.py
+new file mode 100644
+index 0000000..6aa33b9
+--- /dev/null
++++ b/apps/api/jobs/backup_retention.py
+@@ -0,0 +1,129 @@
++"""apps.api.jobs.backup_retention — Story 12.2 30-day retention sweep cron.
++
++This module is the **cron entry point** for the 30-day retention sweep.
++It is invoked by the external scheduler once per day (after
++backup_daily) and delegates to `BackupExportService.run_retention_sweep()`
++per tenant.
++
++Precedent: `apps/api/jobs/document_retention.py:51-83` (Story 1.3).
++
++Cron wrapper exists to:
++1. Provide a stable import path for the scheduler
++   (`apps.api.jobs.backup_retention:run`).
++2. Iterate over all tenants — sweep is per-tenant.
++3. Catch per-tenant failures (one tenant's failure doesn't block others).
++4. Emit `backup_retention_purged` audit per row (CR 1.1 audit-first).
++5. Idempotent: re-running with the same `now` is a no-op (rows already
++   `purged_at IS NOT NULL` are excluded by the WHERE clause).
++
++Operational deployment:
++- Railway cron: schedule daily 03:00 KST (UTC 18:00) — outside peak,
++  AFTER backup_daily's 02:00 KST.
++- Failure behavior: any exception is logged + cron runner sends Slack
++  alert via Railway's notification hook.
++
++NFR4 (PRD §NFR4): "백업 보관 30일(자동)" — atomic wire scope.
++Quarterly 1-year archive is honestly DEFER (CR 11.3 — sprint-scale).
++
++AD-2 INSERT-only: tenant_backups is INSERT-only — sweep uses UPDATE
++`purged_at = now()` (soft-delete), NOT DELETE. The 0024 alembic
++trigger blocks UPDATE/DELETE on non-purged columns anyway; the sweep
++specifically sets `purged_at` column which IS allowed (the trigger
++allows UPDATE on purged_at column only — see migration 0024).
++"""
++
++from __future__ import annotations
++
++import contextlib
++import logging
++import uuid
++from datetime import UTC, datetime
++
++from sqlalchemy import select
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from apps.api.core.db import get_session
++from apps.api.core.db_models import Tenant
++from apps.api.modules.m12_account.services.backup_export_service import (
++    BackupExportService,
++    RetainResult,
++)
++
++logger = logging.getLogger(__name__)
++
++
++async def _list_tenant_ids(session: AsyncSession) -> list[uuid.UUID]:
++    """SELECT all tenant IDs (retention sweep is per-tenant)."""
++    result = await session.execute(select(Tenant.id))
++    return [row[0] for row in result.all()]
++
++
++async def run(*, now: datetime | None = None) -> list[RetainResult]:
++    """Cron entry point — 30-day retention sweep for all tenants.
++
++    The scheduler invokes this as
++    `python -c "from apps.api.jobs.backup_retention import run; import asyncio; asyncio.run(run())"`.
++
++    Args:
++        now: Reference "now" for soft-delete timestamp + cutoff calc.
++            Default = UTC now.
++
++    Returns:
++        List of RetainResult, one per tenant. Caller (cron runner) can
++        log a summary.
++    """
++    trace_id = str(uuid.uuid4())
++    now = now or datetime.now(tz=UTC)
++
++    # Lazy DB session (Story 0.2 pattern) — never block module import.
++    session_gen = get_session()
++    session: AsyncSession = await session_gen.__anext__()
++    results: list[RetainResult] = []
++    try:
++        tenant_ids = await _list_tenant_ids(session)
++        logger.info(
++            "backup_retention.run starting",
++            extra={"trace_id": trace_id, "tenant_count": len(tenant_ids)},
++        )
++
++        for tenant_id in tenant_ids:
++            # Per-tenant failure isolation
++            try:
++                svc = BackupExportService(
++                    session,
++                    tenant_id=tenant_id,
++                    actor_id=None,
++                    trace_id=trace_id,
++                )
++                result = await svc.run_retention_sweep(now=now)
++                results.append(result)
++            except Exception as exc:  # noqa: BLE001
++                logger.exception(
++                    "backup_retention.run tenant failed",
++                    extra={
++                        "trace_id": trace_id,
++                        "tenant_id": str(tenant_id),
++                        "error": str(exc),
++                    },
++                )
++                # Continue with next tenant — don't re-raise here.
++
++        logger.info(
++            "backup_retention.run completed",
++            extra={
++                "trace_id": trace_id,
++                "successful_tenants": len(results),
++                "total_tenants": len(tenant_ids),
++                "total_purged": sum(r.purged_count for r in results),
++            },
++        )
++        return results
++    except Exception:  # pragma: no cover — top-level cron runner alert
++        logger.exception(
++            "backup_retention.run failed",
++            extra={"trace_id": trace_id},
++        )
++        raise
++    finally:
++        with contextlib.suppress(StopAsyncIteration):
++            await session_gen.__anext__()  # trigger __aexit__ / close
+diff --git a/apps/api/modules/m12_account/exceptions.py b/apps/api/modules/m12_account/exceptions.py
+index 2fa530a..7199df8 100644
+--- a/apps/api/modules/m12_account/exceptions.py
++++ b/apps/api/modules/m12_account/exceptions.py
+@@ -1,11 +1,12 @@
+-"""apps.api.modules.m12_account.exceptions — Story 12.1 typed exception classes.
++"""apps.api.modules.m12_account.exceptions — Story 12.1 + 12.2 typed exception classes.
+ 
+ 8 NEW exception types for 2FA mandatory gate (PRD §F12.1 + §M12-a
+-+ AD-15 §4 envelope). Each exception carries the minimum context
+-required for the corresponding handler in `apps/api/main.py` to
+-produce a deterministic AD-15 §4 envelope.
+++ AD-15 §4 envelope) + 5 NEW exception types for daily auto-backup
++(PRD §F12.2 + NFR4 + AD-15 §4). Each exception carries the minimum
++context required for the corresponding handler in `apps/api/main.py`
++to produce a deterministic AD-15 §4 envelope.
+ 
+-Error code contract:
++Error code contract (12.1 + 12.2):
+   - TwoFactorNotEnabledError            → 400 TWO_FACTOR_NOT_ENABLED
+   - TwoFactorAlreadyEnabledError        → 409 TWO_FACTOR_ALREADY_ENABLED
+   - TwoFactorAuditEmitError             → 503 TWO_FACTOR_AUDIT_EMIT_FAILED
+@@ -14,6 +15,11 @@ Error code contract:
+   - TwoFactorRecoveryExhaustedError     → 410 TWO_FACTOR_RECOVERY_EXHAUSTED
+   - TwoFactorDisableUnauthorizedError   → 403 TWO_FACTOR_DISABLE_UNAUTHORIZED
+   - TwoFactorUserNotFoundError          → 404 TWO_FACTOR_USER_NOT_FOUND
++  - BackupExportServiceError            → 500 BACKUP_SERVICE_ERROR
++  - BackupPayloadTooLargeError          → 422 BACKUP_PAYLOAD_TOO_LARGE
++  - BackupNotFoundError                 → 404 BACKUP_NOT_FOUND
++  - BackupRetentionCutoffInvalidError   → 422 BACKUP_RETENTION_CUTOFF_INVALID
++  - BackupServiceAuditEmitError         → 503 BACKUP_AUDIT_EMIT_FAILED
+ 
+ Korean SSOT (AD-15 §11) is supplied by the handler, not the exception
+ itself — keeps the exception module free of presentation strings
+@@ -189,6 +195,110 @@ class TwoFactorUserNotFoundError(Exception):
+         self.trace_id = trace_id
+ 
+ 
++# ── 9-13. Story 12.2 backup export exceptions ──────────────────
++class BackupExportServiceError(Exception):
++    """500 BACKUP_SERVICE_ERROR — base backup service exception.
++
++    Distinct from `BackupPayloadTooLargeError` (422) and
++    `BackupServiceAuditEmitError` (503). The base exception covers
++    generic service-layer failures not classified below.
++    """
++
++    def __init__(self, *, message: str, trace_id: str) -> None:
++        super().__init__(message)
++        self.message = message
++        self.trace_id = trace_id
++
++
++class BackupPayloadTooLargeError(BackupExportServiceError):
++    """422 BACKUP_PAYLOAD_TOO_LARGE — serialized JSON exceeds 50 MB.
++
++    Per AC #1: 50 MB cap guards tenant_backups row size + RLS JSONB perf.
++    Pure-kernel raises this too — service layer just propagates it.
++    """
++
++    def __init__(
++        self,
++        *,
++        size_bytes: int,
++        max_bytes: int,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            message=(
++                f"backup payload {size_bytes} bytes exceeds {max_bytes} cap"
++            ),
++            trace_id=trace_id,
++        )
++        self.size_bytes = size_bytes
++        self.max_bytes = max_bytes
++
++
++class BackupNotFoundError(BackupExportServiceError):
++    """404 BACKUP_NOT_FOUND — backup_id does not resolve in tenant_backups.
++
++    Distinct from `BackupRetentionCutoffInvalidError` (422 — bad input)
++    and `BackupExportServiceError` (500 — generic). Tenant RLS check
++    fires first; this error fires when RLS allows the SELECT but
++    no row matches.
++    """
++
++    def __init__(
++        self,
++        *,
++        backup_id: uuid.UUID,
++        tenant_id: uuid.UUID,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            message=f"backup {backup_id} not found for tenant {tenant_id}",
++            trace_id=trace_id,
++        )
++        self.backup_id = backup_id
++        self.tenant_id = tenant_id
++
++
++class BackupRetentionCutoffInvalidError(BackupExportServiceError):
++    """422 BACKUP_RETENTION_CUTOFF_INVALID — retention sweep cutoff invalid.
++
++    Raised when `cutoff >= now` or `now` not provided. Service layer
++    propagates pure-kernel `BackupRetentionCutoffInvalidError`.
++    """
++
++    def __init__(
++        self,
++        *,
++        reason: str,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            message=f"backup retention cutoff invalid: {reason}",
++            trace_id=trace_id,
++        )
++        self.reason = reason
++
++
++class BackupServiceAuditEmitError(BackupExportServiceError):
++    """503 BACKUP_AUDIT_EMIT_FAILED — audit-first emit failed (CR 1.1 pattern).
++
++    All 5 mutations (backup_created / backup_failed /
++    backup_retention_purged / backup_downloaded / backup_triggered) emit
++    audit-first via `emit_audit_typed`. If the audit row fails to persist,
++    the data write is rolled back and this error fires. 503 (transient,
++    retry-able) — audit subsystem failure is typically a DB blip.
++
++    Mirrors `TwoFactorAuditEmitError` pattern.
++    """
++
++    def __init__(
++        self,
++        *,
++        message: str,
++        trace_id: str,
++    ) -> None:
++        super().__init__(message=message, trace_id=trace_id)
++
++
+ __all__ = [
+     "TwoFactorNotEnabledError",
+     "TwoFactorAlreadyEnabledError",
+@@ -198,4 +308,9 @@ __all__ = [
+     "TwoFactorRecoveryExhaustedError",
+     "TwoFactorDisableUnauthorizedError",
+     "TwoFactorUserNotFoundError",
++    "BackupExportServiceError",
++    "BackupPayloadTooLargeError",
++    "BackupNotFoundError",
++    "BackupRetentionCutoffInvalidError",
++    "BackupServiceAuditEmitError",
+ ]
+diff --git a/apps/api/modules/m12_account/handlers.py b/apps/api/modules/m12_account/handlers.py
+index a1c7a3a..9dec44a 100644
+--- a/apps/api/modules/m12_account/handlers.py
++++ b/apps/api/modules/m12_account/handlers.py
+@@ -42,8 +42,10 @@ CR 11-2/11-3/12-1 lessons applied:
+ from __future__ import annotations
+ 
+ import uuid
++from typing import Annotated
+ 
+-from fastapi import APIRouter, Depends, Request
++from fastapi import APIRouter, Depends, Path, Request
++from fastapi.responses import Response
+ from pydantic import BaseModel, ConfigDict, Field
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+@@ -67,6 +69,15 @@ from apps.api.modules.m12_account.services.audit_extension import (
+     ERROR_CODE_RECOVERY_EXHAUSTED,
+     ERROR_CODE_USER_NOT_FOUND,
+ )
++from apps.api.modules.m12_account.services.backup_export_service import (
++    DEFAULT_LIST_DAYS,
++    BackupExportService,
++    BackupMetadata,
++    BackupResult,
++)
++from apps.api.modules.m12_account.services.backup_export_service import (
++    BackupPayload as BackupPayloadDTO,
++)
+ from apps.api.modules.m12_account.services.two_factor_challenge_service import (
+     TwoFactorChallengeService,
+ )
+@@ -895,6 +906,244 @@ async def get_m2_entry_gate(
+     )
+ 
+ 
++# ── Story 12.2 — Backup export handlers ─────────────────────────
++# 3 NEW routes (owner-only per AD-10):
++# - GET  /api/v1/account/backups/recent              — list 7-day backups
++# - GET  /api/v1/account/backups/{backup_id}/download — JSON download
++# - POST /api/v1/account/backups/trigger              — manual trigger
++#
++# Why no Capability gate (CR 12-1 L4 precedent — industry-agnostic):
++# BACKUP_EXPORT capability is documented in capability-matrix v1.14 but
++# NOT enforced in any route — backup is owner-only via AD-10 4-role.
++# Mirrors TWO_FACTOR_AUTH pattern (industry-agnostic security baseline).
++
++
++# ── Pydantic schemas (inline — 12-4 convention) ─────────────────
++class BackupListItem(BaseModel):
++    """Per-row summary in `GET /account/backups/recent` response."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    backup_id: str
++    backup_date: str
++    schema_version: str
++    payload_sha256: str
++    payload_size_bytes: int
++    row_count_total: int
++    audit_log_exported_rows: int
++    created_at: str
++
++
++class BackupListResponse(BaseModel):
++    """`GET /account/backups/recent` response envelope."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    items: list[BackupListItem]
++    total_count: int
++    days: int
++    trace_id: str
++
++
++class BackupDownloadResponse(BaseModel):
++    """`GET /account/backups/{backup_id}/download` summary (download
++    payload itself is JSON bytes — see response below)."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    backup_id: str
++    payload_sha256: str
++    trace_id: str
++
++
++class BackupTriggerRequest(BaseModel):
++    """`POST /account/backups/trigger` body — currently empty.
++
++    Pydantic forbid-extra means clients cannot supply spurious fields
++    (12-4 convention). owner_id/tenant_id come from JWT-derived TenantContext.
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++
++class BackupTriggerResponse(BaseModel):
++    """`POST /account/backups/trigger` response envelope."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    backup_id: str
++    backup_date: str
++    payload_sha256: str
++    row_count_total: int
++    audit_log_exported_rows: int
++    created_at: str
++    trace_id: str
++
++
++def _build_backup_service(
++    session: AsyncSession,
++    ctx: TenantContext,
++    trace_id: str,
++) -> BackupExportService:
++    """Construct BackupExportService from request-scoped session + ctx."""
++    return BackupExportService(
++        session,
++        tenant_id=ctx.tenant_id,
++        actor_id=ctx.user_id,
++        trace_id=trace_id,
++    )
++
++
++def _metadata_to_list_item(m: BackupMetadata) -> BackupListItem:
++    """Service BackupMetadata → Pydantic BackupListItem (boundary conversion)."""
++    return BackupListItem(
++        backup_id=str(m.backup_id),
++        backup_date=m.backup_date.isoformat() if hasattr(m.backup_date, "isoformat") else str(m.backup_date),
++        schema_version=m.schema_version,
++        payload_sha256=m.payload_sha256,
++        payload_size_bytes=m.payload_size_bytes,
++        row_count_total=m.row_count_total,
++        audit_log_exported_rows=m.audit_log_exported_rows,
++        created_at=m.created_at.isoformat(),
++    )
++
++
++def _build_backup_filename(backup_date_iso: str) -> str:
++    """`backup-YYYY-MM-DD.json` filename (mirror TS `buildBackupFilename`)."""
++    # backup_date_iso is YYYY-MM-DD format from service.
++    return f"backup-{backup_date_iso}.json"
++
++
++# ── GET /api/v1/account/backups/recent ─────────────────────────
++@router.get(
++    "/account/backups/recent",
++    response_model=BackupListResponse,
++    status_code=200,
++    summary="최근 7일 백업 목록 조회 (owner-only)",
++)
++async def list_recent_backups(
++    request: Request,
++    days: int = DEFAULT_LIST_DAYS,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _role: None = Depends(require_role("owner")),
++) -> BackupListResponse:
++    """List backups for the last N days (default 7).
++
++    Owner-only per AD-10 + epics.md Story 12.2 AC #3 ("운영자 UI").
++    `member` / `viewer` / `consultant_proxy` are DENIED (403 FORBIDDEN_ROLE).
++
++    Args:
++        days: Window size (default 7, max 30).
++        ctx: TenantContext (JWT-derived).
++        session: AsyncSession.
++        _role: require_role("owner") gate.
++
++    Returns:
++        BackupListResponse(items=[...], total_count, days, trace_id).
++    """
++    trace_id = _resolve_trace_id(ctx, request)
++    service = _build_backup_service(session, ctx, trace_id)
++    metadata_list = await service.list_recent_backups(days=days)
++    items = [_metadata_to_list_item(m) for m in metadata_list]
++    return BackupListResponse(
++        items=items,
++        total_count=len(items),
++        days=days,
++        trace_id=trace_id,
++    )
++
++
++# ── GET /api/v1/account/backups/{backup_id}/download ───────────
++@router.get(
++    "/account/backups/{backup_id}/download",
++    status_code=200,
++    response_class=Response,
++    summary="백업 JSON 다운로드 (owner-only)",
++)
++async def download_backup(
++    backup_id: Annotated[uuid.UUID, Path(description="Backup UUID (v4)")],
++    request: Request,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _role: None = Depends(require_role("owner")),
++) -> Response:
++    """Download a backup as JSON bytes (Content-Disposition: attachment).
++
++    Response headers:
++    - Content-Type: application/json
++    - Content-Disposition: attachment; filename="backup-{YYYY-MM-DD}.json"
++    - X-Backup-SHA256: <sha256 hex> (client verification)
++
++    Owner-only per AD-10.
++
++    Raises:
++    - 404 BACKUP_NOT_FOUND — backup_id missing / purged / cross-tenant.
++    """
++    import json as _json
++
++    trace_id = _resolve_trace_id(ctx, request)
++    service = _build_backup_service(session, ctx, trace_id)
++    payload_dto: BackupPayloadDTO = await service.fetch_backup_payload(
++        backup_id=backup_id,
++    )
++    json_bytes = _json.dumps(
++        payload_dto.payload,
++        sort_keys=True,
++        separators=(",", ":"),
++        default=str,
++        ensure_ascii=False,
++    ).encode("utf-8")
++    # Pull backup_date from payload's envelope (top-level field)
++    backup_date_iso = str(payload_dto.payload.get("backup_date", "unknown"))
++    filename = _build_backup_filename(backup_date_iso)
++    return Response(
++        content=json_bytes,
++        media_type="application/json",
++        headers={
++            "Content-Disposition": f'attachment; filename="{filename}"',
++            "X-Backup-SHA256": payload_dto.payload_sha256,
++            "X-Backup-Trace-Id": trace_id,
++        },
++    )
++
++
++# ── POST /api/v1/account/backups/trigger ───────────────────────
++@router.post(
++    "/account/backups/trigger",
++    response_model=BackupTriggerResponse,
++    status_code=201,
++    summary="수동 백업 트리거 (owner-only)",
++)
++async def trigger_backup(
++    payload: BackupTriggerRequest,
++    request: Request,
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++    _role: None = Depends(require_role("owner")),
++) -> BackupTriggerResponse:
++    """Manual owner-triggered backup run.
++
++    Audit-first: emits `backup_triggered` audit BEFORE the actual run.
++    Then calls `BackupExportService.run_backup` which emits
++    `backup_created` audit.
++
++    Owner-only per AD-10. Returns the new backup metadata.
++    """
++    trace_id = _resolve_trace_id(ctx, request)
++    service = _build_backup_service(session, ctx, trace_id)
++    result: BackupResult = await service.trigger_backup()
++    return BackupTriggerResponse(
++        backup_id=str(result.backup_id),
++        backup_date=result.backup_date.isoformat(),
++        payload_sha256=result.payload_sha256,
++        row_count_total=result.row_count_total,
++        audit_log_exported_rows=result.audit_log_exported_rows,
++        created_at=result.created_at.isoformat(),
++        trace_id=trace_id,
++    )
++
++
+ # Re-export error codes for main.py exception handlers convenience.
+ __all__ = [
+     "router",
+diff --git a/apps/api/modules/m12_account/services/backup_export_service.py b/apps/api/modules/m12_account/services/backup_export_service.py
+new file mode 100644
+index 0000000..5fad0f1
+--- /dev/null
++++ b/apps/api/modules/m12_account/services/backup_export_service.py
+@@ -0,0 +1,649 @@
++"""apps.api.modules.m12_account.services.backup_export_service — Story 12.2 PRIMARY.
++
++Daily auto-backup + JSON self-download service layer (PRD §F12.2 + NFR4
+++ AD-15 §4). Wraps the pure kernel in
++`packages.services.m12_account.backup_export` with:
++
++- DB I/O (SQLAlchemy 2.0 AsyncSession) — SELECT 7 tables + INSERT/UPDATE
++  on tenant_backups
++- A5 audit-first invariant via `emit_audit_typed` (ACCOUNT_BACKUP class)
++- AD-2 INSERT-only preservation (UPDATE/DELETE attempts raise
++  `append-only violation` via trigger — see migration 0024)
++- AD-10 owner-only role gate (caller MUST pre-resolve via
++  `enforce_role_gate`; service layer is role-agnostic)
++- 30-day retention sweep via `purged_at` soft-delete (NOT DELETE)
++- Korean SSOT (AD-15 §11) — error messages reference pure-kernel constants
++
++Service operations (6):
++  - `run_backup` — cron-callable entry point: SELECT 7 tables → build
++    envelope → serialize → INSERT `tenant_backups` (audit-first
++    `backup_created`).
++  - `run_retention_sweep` — 30-day rolling soft-delete (UPDATE
++    `purged_at = now()`). Audit `backup_retention_purged` per row.
++  - `trigger_backup` — manual owner trigger (POST /backups/trigger).
++    Audit `backup_triggered` + `backup_created`.
++  - `list_recent_backups` — SELECT 7-day window for owner UI.
++  - `fetch_backup_payload` — SELECT single row + return payload bytes
++    for JSON download.
++  - `_record_audit` — internal helper: emit_audit_typed wrapper with
++    audit-first error guard (CR 1.1 pattern).
++
++Layering (AD-11):
++- Pure kernel: `packages/services/m12_account/backup_export.py`
++  (7-table JSON dump + sha256 + envelope)
++- Service layer (this file): SQLAlchemy + audit-first + 5 typed
++  exceptions (apps/api/modules/m12_account/exceptions.py)
++
++NFR4 contract:
++- 30-day rolling sweep (daily cron KST 03:00 / UTC 18:00)
++- Quarterly 1-year archive: honestly DEFER (sprint-scale per CR 11-3)
++"""
++
++from __future__ import annotations
++
++import uuid
++from dataclasses import dataclass
++from datetime import UTC, date, datetime, timedelta
++from typing import Any
++
++from sqlalchemy import and_, select, update
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from apps.api.core.audit_action import ActionClass, emit_audit_typed
++from apps.api.core.db_models import (
++    AuditLog,
++    BOMLine,
++    FiscalPeriodSnapshot,
++    MonthlyInputPeriod,
++    MonthlyInputRow,
++    Product,
++    TenantBackup,
++    TenantSettings,
++)
++from apps.api.modules.m12_account.exceptions import (
++    BackupExportServiceError,
++    BackupNotFoundError,
++    BackupRetentionCutoffInvalidError,
++    BackupServiceAuditEmitError,
++)
++from packages.services.m12_account.backup_export import (
++    AUDIT_LOG_WINDOW_DAYS,
++    SCHEMA_VERSION,
++    BackupPayloadTooLargeError,
++    build_backup_envelope,
++    collapse_audit_logs,
++    compute_payload_sha256,
++    serialize_backup_payload,
++)
++
++# ── Constants ────────────────────────────────────────────────
++DEFAULT_LIST_DAYS: int = 7  # AC #4: "최근 7일 백업 다운로드"
++MAX_LIST_DAYS: int = 30  # PRD safety cap for the `days` query param.
++
++
++# ── Typed results ────────────────────────────────────────────
++@dataclass
++class BackupResult:
++    """Result of `run_backup` / `trigger_backup`.
++
++    Returned to cron runner / HTTP handler. Caller is responsible for
++    translating into AD-15 §4 envelope response.
++    """
++
++    backup_id: uuid.UUID
++    tenant_id: uuid.UUID
++    backup_date: date
++    schema_version: str
++    payload_sha256: str
++    payload_size_bytes: int
++    row_count_total: int
++    audit_log_exported_rows: int
++    created_at: datetime
++
++
++@dataclass
++class RetainResult:
++    """Result of `run_retention_sweep`."""
++
++    purged_count: int
++    cutoff: datetime
++
++
++@dataclass
++class BackupMetadata:
++    """Lightweight metadata for `list_recent_backups`."""
++
++    backup_id: uuid.UUID
++    backup_date: date
++    schema_version: str
++    payload_sha256: str
++    payload_size_bytes: int
++    row_count_total: int
++    audit_log_exported_rows: int
++    created_at: datetime
++
++
++@dataclass
++class BackupPayload:
++    """Single-row payload for `fetch_backup_payload`."""
++
++    backup_id: uuid.UUID
++    tenant_id: uuid.UUID
++    payload: dict[str, Any]
++    payload_sha256: str
++
++
++# ── Service class ─────────────────────────────────────────────
++class BackupExportService:
++    """Daily auto-backup + JSON self-download service (PRD §F12.2 + NFR4)."""
++
++    def __init__(
++        self,
++        session: AsyncSession,
++        *,
++        tenant_id: uuid.UUID,
++        actor_id: uuid.UUID | None = None,
++        trace_id: str,
++    ) -> None:
++        self.session = session
++        self.tenant_id = tenant_id
++        self.actor_id = actor_id
++        self.trace_id = trace_id
++
++    # ── 1. run_backup ────────────────────────────────────────
++    async def run_backup(
++        self,
++        *,
++        retention_class: str = "daily",
++        triggered_by_user_id: uuid.UUID | None = None,
++    ) -> BackupResult:
++        """Cron entry point: SELECT 7 tables → INSERT tenant_backups row.
++
++        AD-2 INSERT-only: this method performs INSERT ONLY. The 0024
++        alembic trigger prevents UPDATE/DELETE on this table.
++
++        Args:
++            retention_class: 'daily' (default) or 'quarterly' (honestly
++                DEFER — sprint-scale). Default 'daily' per AC #1.
++            triggered_by_user_id: Manual trigger trace (cron path = NULL).
++
++        Returns:
++            BackupResult(backup_id, tenant_id, payload_sha256, ...).
++
++        Raises:
++            BackupPayloadTooLargeError: 50 MB cap exceeded.
++            BackupServiceAuditEmitError: audit-first emit failed.
++        """
++        now = datetime.now(tz=UTC)
++        cutoff = now - timedelta(days=AUDIT_LOG_WINDOW_DAYS)
++        kst_now = now.astimezone(UTC) + timedelta(hours=9)  # KST = UTC+9
++        backup_date = kst_now.date()
++
++        # 1. SELECT 7 tables
++        tables = await self._select_7_tables(cutoff=cutoff, now=now)
++
++        # 2. Build envelope + serialize + sha256
++        backup_id = uuid.uuid4()
++        envelope = build_backup_envelope(
++            backup_id=backup_id,
++            tenant_id=self.tenant_id,
++            created_at=now,
++            backup_date=backup_date,
++            tables=tables,
++        )
++        try:
++            payload_bytes = serialize_backup_payload(envelope)
++        except BackupPayloadTooLargeError as exc:
++            # Surface service-layer exception with trace_id (CR 1.1)
++            raise BackupPayloadTooLargeError(
++                size_bytes=exc.size_bytes,
++                max_bytes=exc.max_bytes,
++                trace_id=self.trace_id,
++            ) from exc
++        payload_sha = compute_payload_sha256(payload_bytes)
++        audit_count = len(tables["audit_logs"])
++
++        # 3. Audit-first emit (BEFORE INSERT) — CR 1.1 pattern
++        await self._record_audit(
++            action="backup_created",
++            target_id=backup_id,
++            reason="daily auto-backup cron (KST 02:00)",
++            payload={
++                "backup_date": backup_date.isoformat(),
++                "row_count_total": envelope["row_count_total"],
++                "audit_log_exported_rows": audit_count,
++                "retention_class": retention_class,
++            },
++        )
++
++        # 4. INSERT tenant_backups row
++        row = TenantBackup(
++            backup_id=backup_id,
++            tenant_id=self.tenant_id,
++            backup_date=datetime.combine(backup_date, datetime.min.time()),
++            created_at=now,
++            schema_version=SCHEMA_VERSION,
++            payload=envelope,
++            payload_sha256=payload_sha,
++            row_count_total=envelope["row_count_total"],
++            audit_log_exported_rows=audit_count,
++            retention_class=retention_class,
++            purged_at=None,
++            triggered_by_user_id=triggered_by_user_id,
++        )
++        self.session.add(row)
++        await self.session.flush()
++
++        return BackupResult(
++            backup_id=backup_id,
++            tenant_id=self.tenant_id,
++            backup_date=backup_date,
++            schema_version=SCHEMA_VERSION,
++            payload_sha256=payload_sha,
++            payload_size_bytes=len(payload_bytes),
++            row_count_total=envelope["row_count_total"],
++            audit_log_exported_rows=audit_count,
++            created_at=now,
++        )
++
++    # ── 2. run_retention_sweep ───────────────────────────────
++    async def run_retention_sweep(
++        self,
++        *,
++        cutoff: datetime | None = None,
++        now: datetime | None = None,
++    ) -> RetainResult:
++        """30-day rolling soft-delete (UPDATE purged_at = now()).
++
++        Per AC #3: only `retention_class='daily'` rows are swept. Quarterly
++        1-year archive is honestly DEFER (per CR 11-3 — sprint-scale).
++
++        Idempotent: 2회째 실행 → 0 row affected (이미 purged_at 채워짐).
++
++        Args:
++            cutoff: Lower bound — rows with `backup_date < cutoff` AND
++                `purged_at IS NULL` get soft-deleted. Default = now - 30d.
++            now: Reference "now" for soft-delete timestamp. Default UTC now.
++
++        Returns:
++            RetainResult(purged_count, cutoff).
++
++        Raises:
++            BackupRetentionCutoffInvalidError: cutoff >= now.
++            BackupServiceAuditEmitError: audit-first emit failed.
++        """
++        now = now or datetime.now(tz=UTC)
++        cutoff = cutoff or (now - timedelta(days=30))
++        if cutoff >= now:
++            raise BackupRetentionCutoffInvalidError(
++                reason=f"cutoff ({cutoff.isoformat()}) >= now ({now.isoformat()})",
++                trace_id=self.trace_id,
++            )
++
++        # SELECT rows eligible for purge (read-only — UPDATE happens after)
++        eligible = await self.session.execute(
++            select(TenantBackup.backup_id).where(
++                and_(
++                    TenantBackup.tenant_id == self.tenant_id,
++                    TenantBackup.retention_class == "daily",
++                    TenantBackup.purged_at.is_(None),
++                    TenantBackup.backup_date < cutoff,
++                )
++            )
++        )
++        eligible_ids = [row[0] for row in eligible.all()]
++
++        # Audit-first: emit BEFORE UPDATE (CR 1.1)
++        for bid in eligible_ids:
++            await self._record_audit(
++                action="backup_retention_purged",
++                target_id=bid,
++                reason=f"30-day rolling retention cutoff {cutoff.isoformat()}",
++                payload={"backup_id": str(bid), "cutoff": cutoff.isoformat()},
++            )
++
++        # UPDATE purged_at = now() (NOT DELETE — AD-2 INSERT-only)
++        if eligible_ids:
++            await self.session.execute(
++                update(TenantBackup)
++                .where(
++                    and_(
++                        TenantBackup.tenant_id == self.tenant_id,
++                        TenantBackup.retention_class == "daily",
++                        TenantBackup.purged_at.is_(None),
++                        TenantBackup.backup_date < cutoff,
++                        TenantBackup.backup_id.in_(eligible_ids),
++                    )
++                )
++                .values(purged_at=now)
++            )
++        await self.session.flush()
++
++        return RetainResult(purged_count=len(eligible_ids), cutoff=cutoff)
++
++    # ── 3. trigger_backup ────────────────────────────────────
++    async def trigger_backup(self) -> BackupResult:
++        """Manual owner trigger (POST /backups/trigger) — same as run_backup
++        but with `triggered_by_user_id` set + distinct audit chain.
++
++        Audit-first: emit `backup_triggered` BEFORE the actual run
++        (forensic separation from cron-triggered `backup_created`).
++        """
++        if self.actor_id is None:
++            raise BackupExportServiceError(
++                message="trigger_backup requires actor_id",
++                trace_id=self.trace_id,
++            )
++        await self._record_audit(
++            action="backup_triggered",
++            target_id=None,
++            reason="manual owner trigger (POST /backups/trigger)",
++            payload={"tenant_id": str(self.tenant_id)},
++        )
++        return await self.run_backup(
++            retention_class="daily",
++            triggered_by_user_id=self.actor_id,
++        )
++
++    # ── 4. list_recent_backups ───────────────────────────────
++    async def list_recent_backups(
++        self,
++        *,
++        days: int = DEFAULT_LIST_DAYS,
++    ) -> list[BackupMetadata]:
++        """SELECT last N days of backups (default 7) for owner UI.
++
++        AD-2 INSERT-only: this is a SELECT — no UPDATE/DELETE allowed.
++
++        Args:
++            days: Window size. Default 7, clamped to [1, MAX_LIST_DAYS=30].
++        """
++        days = max(1, min(days, MAX_LIST_DAYS))
++        cutoff = datetime.now(tz=UTC) - timedelta(days=days)
++        result = await self.session.execute(
++            select(TenantBackup)
++            .where(
++                and_(
++                    TenantBackup.tenant_id == self.tenant_id,
++                    TenantBackup.purged_at.is_(None),
++                    TenantBackup.created_at >= cutoff,
++                )
++            )
++            .order_by(TenantBackup.created_at.desc())
++        )
++        rows = result.scalars().all()
++        metadata: list[BackupMetadata] = []
++        for row in rows:
++            payload_size = self._estimate_payload_size(row.payload)
++            metadata.append(
++                BackupMetadata(
++                    backup_id=row.backup_id,
++                    backup_date=row.backup_date.date()
++                    if isinstance(row.backup_date, datetime)
++                    else row.backup_date,
++                    schema_version=row.schema_version,
++                    payload_sha256=row.payload_sha256,
++                    payload_size_bytes=payload_size,
++                    row_count_total=row.row_count_total,
++                    audit_log_exported_rows=row.audit_log_exported_rows,
++                    created_at=row.created_at,
++                )
++            )
++        return metadata
++
++    # ── 5. fetch_backup_payload ──────────────────────────────
++    async def fetch_backup_payload(
++        self,
++        *,
++        backup_id: uuid.UUID,
++    ) -> BackupPayload:
++        """SELECT single row by backup_id + return payload dict.
++
++        RLS already enforces tenant_id isolation at the DB layer; this
++        method adds a service-layer double-check (defense-in-depth).
++
++        Raises:
++            BackupNotFoundError: backup_id not found OR purged_at != NULL
++                OR cross-tenant (defense-in-depth).
++        """
++        result = await self.session.execute(
++            select(TenantBackup).where(TenantBackup.backup_id == backup_id)
++        )
++        row = result.scalar_one_or_none()
++        if row is None:
++            raise BackupNotFoundError(
++                backup_id=backup_id,
++                tenant_id=self.tenant_id,
++                trace_id=self.trace_id,
++            )
++        if row.tenant_id != self.tenant_id:
++            # Defense-in-depth — RLS already blocks this at DB layer.
++            raise BackupNotFoundError(
++                backup_id=backup_id,
++                tenant_id=self.tenant_id,
++                trace_id=self.trace_id,
++            )
++        if row.purged_at is not None:
++            raise BackupNotFoundError(
++                backup_id=backup_id,
++                tenant_id=self.tenant_id,
++                trace_id=self.trace_id,
++            )
++        # Audit-first: emit BEFORE returning the payload (forensic chain)
++        await self._record_audit(
++            action="backup_downloaded",
++            target_id=backup_id,
++            reason="owner self-download audit (GET /backups/{id}/download)",
++            payload={"backup_id": str(backup_id)},
++        )
++        return BackupPayload(
++            backup_id=row.backup_id,
++            tenant_id=row.tenant_id,
++            payload=row.payload,
++            payload_sha256=row.payload_sha256,
++        )
++
++    # ── Internal helpers ─────────────────────────────────────
++    async def _select_7_tables(
++        self,
++        *,
++        cutoff: datetime,
++        now: datetime,
++    ) -> dict[str, list[dict[str, Any]]]:
++        """SELECT 7 tenant-scoped tables + collapse audit_logs to 365d window.
++
++        Pure-kernel `collapse_audit_logs` enforces the 365-day sliding
++        window per AC #1. Service layer is responsible for the SQL fetch
++        + JSONB serialization.
++        """
++        # 1. tenant_settings (1 row per tenant — singleton)
++        ts_result = await self.session.execute(
++            select(TenantSettings).where(TenantSettings.tenant_id == self.tenant_id)
++        )
++        ts_row = ts_result.scalar_one_or_none()
++        tenant_settings_rows = (
++            [self._orm_to_dict(ts_row)] if ts_row else []
++        )
++
++        # 2. products
++        prod_result = await self.session.execute(
++            select(Product).where(Product.tenant_id == self.tenant_id)
++        )
++        products_rows = [self._orm_to_dict(r) for r in prod_result.scalars().all()]
++
++        # 3. bom_lines (via product join — bom_lines has no direct tenant_id)
++        prod_ids_result = await self.session.execute(
++            select(Product.id).where(Product.tenant_id == self.tenant_id)
++        )
++        product_ids = [row[0] for row in prod_ids_result.all()]
++        if product_ids:
++            bom_result = await self.session.execute(
++                select(BOMLine).where(BOMLine.product_id.in_(product_ids))
++            )
++            bom_rows = [self._orm_to_dict(r) for r in bom_result.scalars().all()]
++        else:
++            bom_rows = []
++
++        # 4. monthly_input_periods
++        mip_result = await self.session.execute(
++            select(MonthlyInputPeriod).where(
++                MonthlyInputPeriod.tenant_id == self.tenant_id
++            )
++        )
++        mip_rows = [self._orm_to_dict(r) for r in mip_result.scalars().all()]
++
++        # 5. monthly_input_rows (via period join)
++        mip_ids_result = await self.session.execute(
++            select(MonthlyInputPeriod.period_id).where(
++                MonthlyInputPeriod.tenant_id == self.tenant_id
++            )
++        )
++        mip_ids = [row[0] for row in mip_ids_result.all()]
++        if mip_ids:
++            mir_result = await self.session.execute(
++                select(MonthlyInputRow).where(
++                    MonthlyInputRow.period_id.in_(mip_ids)
++                )
++            )
++            mir_rows = [self._orm_to_dict(r) for r in mir_result.scalars().all()]
++        else:
++            mir_rows = []
++
++        # 6. fiscal_period_snapshots
++        fps_result = await self.session.execute(
++            select(FiscalPeriodSnapshot).where(
++                FiscalPeriodSnapshot.tenant_id == self.tenant_id
++            )
++        )
++        fps_rows = [self._orm_to_dict(r) for r in fps_result.scalars().all()]
++
++        # 7. audit_logs (last 365d)
++        audit_result = await self.session.execute(
++            select(AuditLog).where(
++                and_(
++                    AuditLog.tenant_id == self.tenant_id,
++                    AuditLog.occurred_at >= cutoff,
++                )
++            )
++        )
++        audit_rows_raw = [self._orm_to_dict(r) for r in audit_result.scalars().all()]
++
++        tables: dict[str, list[dict[str, Any]]] = {
++            "tenant_settings": tenant_settings_rows,
++            "products": products_rows,
++            "bom_lines": bom_rows,
++            "monthly_input_periods": mip_rows,
++            "monthly_input_rows": mir_rows,
++            "fiscal_period_snapshots": fps_rows,
++            "audit_logs": audit_rows_raw,
++        }
++        # collapse_audit_logs is idempotent if rows are already filtered
++        # but pure kernel defensively filters again on cutoff.
++        return collapse_audit_logs(tables, cutoff=cutoff, now=now)
++
++    @staticmethod
++    def _orm_to_dict(row: Any) -> dict[str, Any]:
++        """Convert ORM row → JSON-serializable dict.
++
++        Handles UUID, datetime, Decimal, bytes via JSON-safe coercion:
++        - datetime → ISO-8601 string (UTC if naive)
++        - UUID → str
++        - Decimal → str (AD-8 monetary precision)
++        - bytes → hex str (rare; mostly crypto columns)
++        - Pydantic models → dict via model_dump
++        """
++        if row is None:
++            return {}
++
++        def _coerce(value: Any) -> Any:
++            if value is None:
++                return None
++            if isinstance(value, datetime):
++                if value.tzinfo is None:
++                    value = value.replace(tzinfo=UTC)
++                return value.isoformat()
++            if isinstance(value, uuid.UUID):
++                return str(value)
++            if isinstance(value, bytes | bytearray):
++                return value.hex()
++            # Pydantic v2 BaseModel
++            if hasattr(value, "model_dump") and callable(value.model_dump):
++                try:
++                    return value.model_dump()
++                except Exception:
++                    return str(value)
++            if hasattr(value, "__dict__") and not isinstance(value, str | int | float | bool):
++                # Plain ORM-like objects: fall through to str()
++                pass
++            return value
++
++        result: dict[str, Any] = {}
++        for col in row.__table__.columns:
++            value = getattr(row, col.name, None)
++            result[col.name] = _coerce(value)
++        return result
++
++    @staticmethod
++    def _estimate_payload_size(payload: dict[str, Any]) -> int:
++        """Estimate JSON-serialized byte size for UI display."""
++        import json as _json
++
++        return len(
++            _json.dumps(
++                payload, default=str, ensure_ascii=False, separators=(",", ":")
++            ).encode("utf-8")
++        )
++
++    async def _record_audit(
++        self,
++        *,
++        action: str,
++        target_id: uuid.UUID | None,
++        reason: str | None,
++        payload: dict[str, Any] | None,
++    ) -> None:
++        """Audit-first emit wrapper — CR 1.1 pattern.
++
++        Wraps `emit_audit_typed` and translates infrastructure failures
++        into `BackupServiceAuditEmitError` (503 envelope). Pre-emit pattern:
++        audit is INSERTed BEFORE the data write so a data-write failure
++        still leaves a forensic trace.
++        """
++        try:
++            await emit_audit_typed(
++                self.session,
++                action_class=ActionClass.ACCOUNT_BACKUP,
++                action=action,  # type: ignore[arg-type]
++                actor_id=self.actor_id,
++                target_id=target_id,
++                reason=reason,
++                payload=payload or {},
++                tenant_id=self.tenant_id,
++                flush=True,
++            )
++        except Exception as exc:
++            raise BackupServiceAuditEmitError(
++                message=f"audit emit failed for {action}: {exc!s}",
++                trace_id=self.trace_id,
++            ) from exc
++
++
++__all__ = [
++    "DEFAULT_LIST_DAYS",
++    "MAX_LIST_DAYS",
++    "BackupResult",
++    "RetainResult",
++    "BackupMetadata",
++    "BackupPayload",
++    "BackupExportService",
++]
++
++
++# Re-export pure-kernel errors for service callers (12-4 convention)
++__all__.extend(
++    [
++        "BackupEnvelopeInvalidError",
++        "BackupPayloadTooLargeError",
++        "PureKernelCutoffInvalid",
++    ]
++)
+diff --git a/packages/services/m12_account/backup_export.py b/packages/services/m12_account/backup_export.py
+new file mode 100644
+index 0000000..94b61e5
+--- /dev/null
++++ b/packages/services/m12_account/backup_export.py
+@@ -0,0 +1,313 @@
++"""packages.services.m12_account.backup_export — Story 12.2 pure kernel.
++
++AD-11 layer rule: pure-Python, stdlib-only. NO DB, NO clock at module
++level, NO random at module level.
++
++7-table JSON dump + sha256 deterministic digest:
++- `serialize_backup_payload` — stable JSON (sort_keys + separators)
++- `compute_payload_sha256` — hashlib.sha256 hex digest
++- `build_backup_envelope` — top-level schema_version 1.0 envelope
++- `collapse_audit_logs` — 365-day sliding window for audit_logs
++- 50 MB payload cap with BackupPayloadTooLargeError
++
++Korean messages — AD-15 §11 SSOT. Mirrored verbatim in
++`apps/web/lib/m12-account-backup.ts`.
++
++This module is the M12 module authority's pure kernel — service layer
++(`apps/api/modules/m12_account/services/backup_export_service.py`)
++imports these helpers and adds DB / audit / session concerns.
++
++NFR4 (PRD §NFR4): "RPO 24h / RTO 4h / 백업 보관 30일(자동), 1년(분기)
++/ 감사로그 5년 append-only".
++
++Quarterly 1-year archive is honestly DEFER (per CR 11-3 — sprint-scale).
++"""
++
++from __future__ import annotations
++
++import hashlib
++import json
++from datetime import date, datetime
++from typing import Any, Final
++from uuid import UUID
++
++# ── Constants ────────────────────────────────────────────────
++SCHEMA_VERSION: Final[str] = "1.0"
++
++# 50 MB payload cap — guards tenant_backups row size + RLS JSONB perf
++MAX_PAYLOAD_BYTES: Final[int] = 50 * 1024 * 1024
++
++# audit_logs 365-day sliding window (NFR4 retention + 5y audit balance)
++AUDIT_LOG_WINDOW_DAYS: Final[int] = 365
++
++# 7-table fixed set (epics.md AC verbatim, split into 7 DB tables)
++BACKUP_TABLES: Final[tuple[str, ...]] = (
++    "tenant_settings",
++    "products",
++    "bom_lines",
++    "monthly_input_periods",
++    "monthly_input_rows",
++    "fiscal_period_snapshots",
++    "audit_logs",
++)
++
++
++# ── Error codes — pure-kernel domain semantics (AD-15 §4 envelope contract)
++ERROR_CODE_PAYLOAD_TOO_LARGE: Final[str] = "BACKUP_PAYLOAD_TOO_LARGE"
++ERROR_CODE_ENVELOPE_INVALID: Final[str] = "BACKUP_ENVELOPE_INVALID"
++ERROR_CODE_RETENTION_CUTOFF_INVALID: Final[str] = "BACKUP_RETENTION_CUTOFF_INVALID"
++
++# Korean constants — AD-15 §11 SSOT (mirrored in ko-KR.json account_backup)
++BACKUP_EXPORT_TITLE_KO: Final[str] = "백업 다운로드"
++BACKUP_RETENTION_PURGED_KO: Final[str] = "30일 보관 만료 백업 정리"
++BACKUP_FAILED_KO: Final[str] = "백업 생성 실패"
++BACKUP_TRIGGERED_KO: Final[str] = "수동 백업 트리거"
++BACKUP_DOWNLOADED_KO: Final[str] = "백업 다운로드 완료"
++PAYLOAD_TOO_LARGE_KO: Final[str] = "백업 페이로드가 50MB를 초과했습니다"
++
++
++# ── Typed exceptions ──────────────────────────────────────────
++class BackupExportServiceError(Exception):
++    """Base pure-kernel backup export error (500 envelope)."""
++
++    def __init__(self, message_ko: str = BACKUP_EXPORT_TITLE_KO) -> None:
++        self.message_ko = message_ko
++        self.error_code = "BACKUP_SERVICE_ERROR"
++        super().__init__(message_ko)
++
++
++class BackupPayloadTooLargeError(BackupExportServiceError):
++    """Pure-kernel payload size limit (50 MB cap).
++
++    HTTP envelope (AD-15 §4): 422 BACKUP_PAYLOAD_TOO_LARGE
++    (service layer maps to envelope).
++    """
++
++    def __init__(
++        self,
++        message_ko: str = PAYLOAD_TOO_LARGE_KO,
++        *,
++        size_bytes: int = 0,
++        max_bytes: int = MAX_PAYLOAD_BYTES,
++    ) -> None:
++        self.message_ko = message_ko
++        self.error_code = ERROR_CODE_PAYLOAD_TOO_LARGE
++        self.size_bytes = size_bytes
++        self.max_bytes = max_bytes
++        super().__init__(message_ko)
++
++
++class BackupEnvelopeInvalidError(BackupExportServiceError):
++    """Pure-kernel envelope validation failed (422 envelope)."""
++
++    def __init__(
++        self, message_ko: str = BACKUP_EXPORT_TITLE_KO, *, reason: str = ""
++    ) -> None:
++        self.message_ko = message_ko
++        self.error_code = ERROR_CODE_ENVELOPE_INVALID
++        self.reason = reason
++        super().__init__(message_ko)
++
++
++class BackupRetentionCutoffInvalidError(BackupExportServiceError):
++    """Pure-kernel retention cutoff is invalid (422 envelope).
++
++    HTTP envelope (AD-15 §4): 422 BACKUP_RETENTION_CUTOFF_INVALID
++    """
++
++    def __init__(
++        self, message_ko: str = BACKUP_RETENTION_PURGED_KO, *, reason: str = ""
++    ) -> None:
++        self.message_ko = message_ko
++        self.error_code = ERROR_CODE_RETENTION_CUTOFF_INVALID
++        self.reason = reason
++        super().__init__(message_ko)
++
++
++# ── Pure-kernel functions ─────────────────────────────────────
++def serialize_backup_payload(payload: dict[str, Any]) -> bytes:
++    """Serialize backup payload to deterministic UTF-8 JSON bytes.
++
++    Precedent: `packages/cost_engine/core/period_cost.py:153-159`
++    `_stable_json_dumps` — `sort_keys=True, separators=(",", ":"),
++    default=str`. AD-11 pure kernel — caller passes timestamp separately.
++
++    Args:
++        payload: Envelope dict (already shaped via `build_backup_envelope`).
++
++    Returns:
++        UTF-8 encoded JSON bytes — deterministic for given input.
++
++    Raises:
++        BackupPayloadTooLargeError: If serialized bytes > MAX_PAYLOAD_BYTES.
++    """
++    if not isinstance(payload, dict):
++        raise BackupEnvelopeInvalidError(reason="payload must be dict")
++    blob = json.dumps(
++        payload,
++        sort_keys=True,
++        separators=(",", ":"),
++        default=str,
++        ensure_ascii=False,
++    ).encode("utf-8")
++    if len(blob) > MAX_PAYLOAD_BYTES:
++        raise BackupPayloadTooLargeError(
++            size_bytes=len(blob), max_bytes=MAX_PAYLOAD_BYTES
++        )
++    return blob
++
++
++def compute_payload_sha256(payload_bytes: bytes) -> str:
++    """Compute deterministic sha256 hex digest of payload bytes.
++
++    Args:
++        payload_bytes: UTF-8 JSON bytes (from `serialize_backup_payload`).
++
++    Returns:
++        64-char lowercase hex digest.
++
++    Raises:
++        BackupEnvelopeInvalidError: If payload_bytes is empty.
++    """
++    if not payload_bytes:
++        raise BackupEnvelopeInvalidError(reason="payload_bytes must be non-empty")
++    return hashlib.sha256(payload_bytes).hexdigest()
++
++
++def build_backup_envelope(
++    *,
++    backup_id: UUID,
++    tenant_id: UUID,
++    created_at: datetime,
++    backup_date: date,
++    tables: dict[str, list[dict[str, Any]]],
++) -> dict[str, Any]:
++    """Build the top-level schema_version 1.0 envelope.
++
++    Envelope keys (deterministic order — for sort_keys=True stability):
++    - `schema_version`: "1.0"
++    - `backup_id`: UUID as str
++    - `tenant_id`: UUID as str
++    - `created_at`: ISO-8601 UTC timestamp
++    - `backup_date`: YYYY-MM-DD KST date
++    - `tables`: dict[table_name, list[dict]] — 7 fixed set
++    - `row_count_total`: sum of all table counts
++
++    Args:
++        backup_id: New backup row PK (uuid4).
++        tenant_id: Tenant owning this backup.
++        created_at: UTC datetime when backup was generated.
++        backup_date: KST date for this backup.
++        tables: 7-table dump (see BACKUP_TABLES tuple).
++
++    Returns:
++        Envelope dict (caller passes to `serialize_backup_payload`).
++    """
++    if not tables:
++        raise BackupEnvelopeInvalidError(reason="tables must be non-empty dict")
++    missing = [t for t in BACKUP_TABLES if t not in tables]
++    if missing:
++        raise BackupEnvelopeInvalidError(
++            reason=f"missing required tables: {missing!r}"
++        )
++    row_count_total = sum(len(rows) for rows in tables.values())
++    return {
++        "schema_version": SCHEMA_VERSION,
++        "backup_id": str(backup_id),
++        "tenant_id": str(tenant_id),
++        "created_at": created_at.isoformat(),
++        "backup_date": backup_date.isoformat(),
++        "tables": dict(tables),
++        "row_count_total": row_count_total,
++    }
++
++
++def collapse_audit_logs(
++    tables: dict[str, list[dict[str, Any]]],
++    *,
++    cutoff: datetime,
++    now: datetime | None = None,
++) -> dict[str, list[dict[str, Any]]]:
++    """Filter audit_logs rows to a 365-day sliding window.
++
++    Per AC #1: "audit_logs는 last 365일만 (NFR4 retention + 5y audit 일관성
++    — supabase dump가 너무 커지지 않도록 슬라이딩)".
++
++    Other tables are passed through unchanged.
++
++    Args:
++        tables: Envelope's `tables` dict.
++        cutoff: Lower bound — rows with `occurred_at < cutoff` are dropped.
++        now: Reference "now" for the window (caller-controlled for AD-11
++            testability). Default None → rejected (pure kernel contract).
++
++    Returns:
++        New dict with audit_logs collapsed. Other tables unchanged.
++
++    Raises:
++        BackupRetentionCutoffInvalidError: If `now` not provided or
++            cutoff > now.
++    """
++    if now is None:
++        raise BackupRetentionCutoffInvalidError(
++            reason="now must be provided (AD-11: no module-level clock)"
++        )
++    if cutoff > now:
++        raise BackupRetentionCutoffInvalidError(
++            reason=f"cutoff ({cutoff.isoformat()}) > now ({now.isoformat()})"
++        )
++    audit_rows = tables.get("audit_logs", [])
++    kept: list[dict[str, Any]] = []
++    for row in audit_rows:
++        occurred_raw = row.get("occurred_at")
++        if not occurred_raw:
++            continue
++        try:
++            occurred_dt = _parse_iso8601(occurred_raw)
++        except ValueError:
++            # Malformed timestamp — drop row defensively (pure-kernel no DB).
++            continue
++        if occurred_dt >= cutoff:
++            kept.append(row)
++    new_tables: dict[str, list[dict[str, Any]]] = dict(tables)
++    new_tables["audit_logs"] = kept
++    return new_tables
++
++
++def _parse_iso8601(value: str) -> datetime:
++    """Parse ISO-8601 timestamp (pure-kernel helper).
++
++    Accepts both `...Z` (Zulu) and `...+00:00` (offset) representations.
++    """
++    cleaned = value.replace("Z", "+00:00") if value.endswith("Z") else value
++    return datetime.fromisoformat(cleaned)
++
++
++__all__ = [
++    # constants
++    "SCHEMA_VERSION",
++    "MAX_PAYLOAD_BYTES",
++    "AUDIT_LOG_WINDOW_DAYS",
++    "BACKUP_TABLES",
++    # error codes
++    "ERROR_CODE_PAYLOAD_TOO_LARGE",
++    "ERROR_CODE_ENVELOPE_INVALID",
++    "ERROR_CODE_RETENTION_CUTOFF_INVALID",
++    # Korean SSOT
++    "BACKUP_EXPORT_TITLE_KO",
++    "BACKUP_RETENTION_PURGED_KO",
++    "BACKUP_FAILED_KO",
++    "BACKUP_TRIGGERED_KO",
++    "BACKUP_DOWNLOADED_KO",
++    "PAYLOAD_TOO_LARGE_KO",
++    # exceptions
++    "BackupExportServiceError",
++    "BackupPayloadTooLargeError",
++    "BackupEnvelopeInvalidError",
++    "BackupRetentionCutoffInvalidError",
++    # functions
++    "serialize_backup_payload",
++    "compute_payload_sha256",
++    "build_backup_envelope",
++    "collapse_audit_logs",
++]
+diff --git a/supabase/policies/0014_tenant_backups_rls.sql b/supabase/policies/0014_tenant_backups_rls.sql
+new file mode 100644
+index 0000000..87f2c2b
+--- /dev/null
++++ b/supabase/policies/0014_tenant_backups_rls.sql
+@@ -0,0 +1,130 @@
++-- Story 12.2 — RLS for `tenant_backups` table.
++--
++-- Migration 0024 (apps/api/alembic/versions/0024_tenant_backups.py) added
++-- the `tenant_backups` JSONB table that stores the daily per-tenant backup
++-- payload. This policy enforces tenant isolation (AD-3) and the AD-2
++-- INSERT-only invariant.
++--
++-- Why RLS is required (AD-3 tenant isolation invariant):
++--   tenant_backups is a per-tenant operational artifact (NFR4 RPO 24h
++--   backup). Without RLS, an application-layer SQL injection could leak
++--   another tenant's backup payload (which contains `audit_logs` rows —
++--   NFR6-classified sensitive data).
++--
++-- 5-policy split per AD-3:
++--   1. SELECT same-tenant — members of the tenant can list their backups
++--   2. SELECT owner-only   — backup details + download require owner role
++--                             (AD-10 owner-only — CR 12-1 L4 precedent —
++--                             capability is NOT enforced, owner-only via role)
++--   3. INSERT same-tenant  — service-role or owner-initiated trigger
++--   4. UPDATE forbidden    — INSERT-only invariant (AD-2)
++--   5. DELETE forbidden    — INSERT-only invariant (AD-2)
++--
++-- Special case: the `purged_at` soft-delete column is intentionally
++-- excluded from the UPDATE block because the retention cron
++-- (`apps/api/jobs/backup_retention.py`) sets it. Since RLS blocks all
++-- UPDATE, the cron runs under service-role which bypasses RLS.
++--
++-- Tenant GUC (AD-3): `current_setting('app.tenant_id', true)::uuid`.
++-- `true` makes the call tolerant of missing GUC (returns NULL → no rows
++-- match predicate → safe fail-closed).
++--
++-- consultant_proxy semantics (AD-10): consultants may operate across
++-- tenants. They are NOT permitted to view `tenant_backups` because the
++-- payload contains `audit_logs` (NFR6-sensitive). The owner-only SELECT
++-- policy below does NOT include consultant_proxy → 403 FORBIDDEN_ROLE
++-- for cross-tenant backup downloads.
++--
++-- Reversibility: every policy name uses `DROP POLICY IF EXISTS ...
++-- ; CREATE POLICY ...` so this file is safe to re-apply.
++--
++-- Reference files:
++-- - apps/api/alembic/versions/0024_tenant_backups.py (Story 12.2)
++-- - apps/api/core/db_models.py::TenantBackup (Story 12.2 ORM)
++-- - apps/api/modules/m12_account/services/backup_export_service.py (Story 12.2)
++-- - supabase/policies/0013_users_totp_columns_rls.sql (RLS template)
++
++-- ── Enable RLS on tenant_backups ─────────────────────────────────
++ALTER TABLE tenant_backups ENABLE ROW LEVEL SECURITY;
++ALTER TABLE tenant_backups FORCE ROW LEVEL SECURITY;
++
++-- ── SELECT policy (same-tenant members — list only) ─────────────
++-- Members of the same tenant can list their backups. They see
++-- metadata only (no payload content) at the application layer —
++-- the API filters payload out for non-owner roles via BackupListItem
++-- (no payload field — only sha256 + size + counts).
++DROP POLICY IF EXISTS tenant_backups_select_same_tenant ON tenant_backups;
++CREATE POLICY tenant_backups_select_same_tenant
++    ON tenant_backups
++    FOR SELECT
++    USING (
++        tenant_id = current_setting('app.tenant_id', true)::uuid
++    );
++
++-- ── SELECT policy (owner-only — full payload download) ──────────
++-- Owners may read ALL columns including `payload`. Members/viewers/
++-- consultants are denied even within the same tenant.
++-- This is enforced at the application layer too
++-- (`require_role("owner")` in handlers.py). The RLS policy is
++-- defense-in-depth.
++DROP POLICY IF EXISTS tenant_backups_select_owner ON tenant_backups;
++CREATE POLICY tenant_backups_select_owner
++    ON tenant_backups
++    FOR SELECT
++    USING (
++        tenant_id = current_setting('app.tenant_id', true)::uuid
++        AND EXISTS (
++            SELECT 1
++            FROM memberships m
++            WHERE m.user_id = current_setting('app.user_id', true)::uuid
++              AND m.tenant_id = tenant_backups.tenant_id
++              AND m.role = 'owner'
++        )
++    );
++
++-- ── INSERT policy (owner-only — manual trigger + cron) ─────────
++-- Backups can only be INSERTed under owner context. The cron runs
++-- under service-role which bypasses RLS.
++DROP POLICY IF EXISTS tenant_backups_insert_owner ON tenant_backups;
++CREATE POLICY tenant_backups_insert_owner
++    ON tenant_backups
++    FOR INSERT
++    WITH CHECK (
++        tenant_id = current_setting('app.tenant_id', true)::uuid
++        AND EXISTS (
++            SELECT 1
++            FROM memberships m
++            WHERE m.user_id = current_setting('app.user_id', true)::uuid
++              AND m.tenant_id = tenant_backups.tenant_id
++              AND m.role = 'owner'
++        )
++    );
++
++-- ── UPDATE policy (NONE — AD-2 INSERT-only invariant) ──────────
++-- Intentionally NO UPDATE policy for application roles. The
++-- `purged_at` soft-delete is performed by the retention cron under
++-- service-role (bypasses RLS). Defense-in-depth: even if an app-layer
++-- SQL injection attempts UPDATE on non-purged columns, RLS rejects it.
++--
++-- We do NOT add `tenant_backups_update_owner` because AD-2 invariant
++-- must hold across ALL application roles.
++
++-- ── DELETE policy (NONE — AD-2 INSERT-only invariant) ───────────
++-- Same reasoning as UPDATE. tenant_backups rows are immutable from
++-- the application layer. Soft-delete via `purged_at` is the only
++-- mutation path, and it's cron-only.
++
++-- ── Documentation ────────────────────────────────────────────────
++COMMENT ON POLICY tenant_backups_select_same_tenant ON tenant_backups IS
++    'Story 12.2 — same-tenant SELECT on tenant_backups metadata (AD-3 tenant isolation).';
++COMMENT ON POLICY tenant_backups_select_owner ON tenant_backups IS
++    'Story 12.2 — owner-only SELECT on tenant_backups (full payload download, AD-10).';
++COMMENT ON POLICY tenant_backups_insert_owner ON tenant_backups IS
++    'Story 12.2 — owner-only INSERT on tenant_backups (manual trigger, AD-10). '
++    'Cron runs under service-role bypassing RLS.';
++
++COMMENT ON TABLE tenant_backups IS
++    'Story 12.2 — daily per-tenant JSON dump + 30-day retention sweep. '
++    'INSERT-only invariant (AD-2): no UPDATE/DELETE policies for app roles. '
++    'Cron `backup_retention` soft-deletes via `purged_at` under service-role. '
++    'NFR4 RPO 24h / RTO 4h / 30-day backup retention.';

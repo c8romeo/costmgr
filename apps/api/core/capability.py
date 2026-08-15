@@ -155,6 +155,16 @@ class Capability(str, Enum):
     # Other endpoints (challenge-token / cancel / status) gate ONLY on
     # `require_role("owner")` per AD-10.
     ACCOUNT_DELETION = "account_deletion"
+    # Story 8.1 (Epic 8) — Virtual budget period key + scenario lock
+    # capability (PRD §F8.1 + AD-24 period key typed pattern).
+    # Industry-agnostic baseline — "budget scenario는 tenant-level 재무
+    # baseline" — 모든 industry 동일 적용 (CR 12-1 L4 precedent +
+    # 7-1/7-2 industry-agnostic 동일 적용). Granted to all 4 industries
+    # because budget scenarios are financial planning infrastructure,
+    # not industry-specific. Reused by Story 8-2 (variance table) +
+    # Story 8-3 (pre-standard cost preview) — 신규 capability 추가 0건
+    # (CR 11-3 즉시 sweep 회피). Documented in capability-matrix v1.17.
+    BUDGET_SCENARIO = "budget_scenario"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -199,6 +209,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 12.3 — manufacturing tenants get ACCOUNT_DELETION
             # (industry-agnostic, security baseline CR 12-1 L4).
             Capability.ACCOUNT_DELETION,
+            # Story 8.1 — manufacturing tenants get BUDGET_SCENARIO
+            # (industry-agnostic, financial baseline CR 12-1 L4 +
+            # 7-1/7-2 L4 precedent — all industries grant).
+            Capability.BUDGET_SCENARIO,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -225,6 +239,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 12.3 — service tenants get ACCOUNT_DELETION
             # (industry-agnostic, security baseline CR 12-1 L4).
             Capability.ACCOUNT_DELETION,
+            # Story 8.1 — service tenants get BUDGET_SCENARIO
+            # (industry-agnostic, financial baseline CR 12-1 L4 +
+            # 7-1/7-2 L4 precedent — all industries grant).
+            Capability.BUDGET_SCENARIO,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -271,6 +289,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 12.3 — 겸영 tenants get ACCOUNT_DELETION
             # (industry-agnostic, security baseline CR 12-1 L4).
             Capability.ACCOUNT_DELETION,
+            # Story 8.1 — 겸영 tenants get BUDGET_SCENARIO
+            # (industry-agnostic, financial baseline CR 12-1 L4 +
+            # 7-1/7-2 L4 precedent — all industries grant).
+            Capability.BUDGET_SCENARIO,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -314,6 +336,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 12.3 — full matrix tenants get ACCOUNT_DELETION
             # (industry-agnostic, security baseline CR 12-1 L4).
             Capability.ACCOUNT_DELETION,
+            # Story 8.1 — full matrix tenants get BUDGET_SCENARIO
+            # (industry-agnostic, financial baseline CR 12-1 L4 +
+            # 7-1/7-2 L4 precedent — all industries grant).
+            Capability.BUDGET_SCENARIO,
         }
     ),
 }

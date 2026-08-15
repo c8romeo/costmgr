@@ -380,6 +380,25 @@ The engine also validates `period_key` on `MonthlyInput` and
 which the orchestrator catches → 500 INTERNAL_ERROR via
 `CalcServiceError` wrapper (handler-level typed envelope).
 
+### §6.3 Virtual Budget Period Key (Story 8.1 — PRD §F8.1)
+
+The M8 budget module introduces a NEW virtual period key type
+(distinct from §6.1 real fiscal key):
+
+- Pattern: `^\d{4}-(0[1-9]|1[0-2])#B([1-9]\d*)$` (3 capture groups:
+  YYYY, MM, scenario_index).
+- Virtual budget keys are M8-only — M11 close uses real fiscal key
+  (`YYYY-MM`) for its sequence lock.
+- 1차 MVP scenario 한도 = `scenario_index=1` only (PRD §15
+  NON-GOAL #2). `scenario_index > 1` → 422
+  `INVALID_VIRTUAL_BUDGET_PERIOD_KEY` envelope (CR 12-5 D-14).
+- Pure kernel: `packages.cost_engine/budget_period_key.py`
+  (4 NEW functions + 3 frozen dataclasses + 2 typed exceptions).
+- TS mirror: `apps/web/lib/m8-budget-scenario.ts` (parity tested
+  via `apps/web/__tests__/lib/m8-budget-scenario-parity.test.ts`).
+- Capability gate: `Capability.BUDGET_SCENARIO` (industry-agnostic,
+  CR 12-1 L4 + 7-1/7-2 L4 precedent — all 4 industries grant).
+
 ---
 
 | 종류 | 형식 | 예시 |
@@ -578,10 +597,13 @@ INVENTORY_LEDGER ↔ DB CHECK ↔ call sites 3-way gate).
 **Epic 3.3 inline projection swap (AC #5)**: `MonthlyInputService` 가
 `build_inventory_projection` 직접 호출 대신 `LedgerService.
 query_period_closing_all(period_key=...)` 를 canonical source 로 사용.
-`TODO(epic-5-5-2) CLOSED` marker 가
-`packages/services/m2_input/inventory_projection.py` 에 남아 있음
-(Epic 6 close-out retro 까지). Drift detector:
-`tests/integration/test_inventory_projection_ledger_swap.py` (T9.5).
+A19 carry-over sprint (2026-08-15, Epic 7 진입): `inventory_projection.py`
+모듈 + `build_inventory_projection` 함수 + `LEDGER_REFERENCE_QUERY_STUB`
+deprecation marker 모두 제거. QTY_QUANTUM + math surface (InventoryMovement
++ compute_opening_inventory + compute_closing_inventory + INVENTORY_PRODUCT_TYPES)
+는 신규 `packages/services/m2_input/inventory_math.py` 로 migration.
+Drift detector `tests/integration/test_inventory_projection_ledger_swap.py`
+는 더 이상 불필요 (Epic 5 maintenance window contract SSOT 정착으로 종료).
 
 **TS mirror (deferred to Story 5.3)**: 5-3 frontend 진입 시점에
 `apps/web/lib/l2-inventory-ledger.ts` 추가. `tests/integration/

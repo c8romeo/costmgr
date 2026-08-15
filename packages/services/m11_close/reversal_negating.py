@@ -31,7 +31,7 @@ import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Any, Final, NamedTuple
 
-from packages.services.m2_input.inventory_projection import QTY_QUANTUM
+from packages.services.m2_input.inventory_math import QTY_QUANTUM
 from packages.services.m4_inventory.ledger import (
     ERROR_CODE_INVALID_EVENT_TYPE,
     ERROR_CODE_QTY_MUST_BE_DECIMAL,

@@ -36,6 +36,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     Numeric,
@@ -473,11 +474,12 @@ class MonthlyInputPeriod(Base):
     baseline_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     locked_by_calculation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Story 3.3 (Task 2.2) — per-period per-product opening inventory
-    # balance. Consumed by the inventory projection kernel
-    # (`packages.services.m2_input.inventory_projection`). MVP default
-    # `{}` — service layer falls back to 0 for all products. Epic 5
-    # Story 5-1 will auto-carry closing balances from the previous
-    # period (TODO(epic-5) marker in `inventory_projection.py`).
+    # balance. Consumed by the inventory math kernel
+    # (`packages.services.m2_input.inventory_math` — post-A19 home).
+    # MVP default `{}` — service layer falls back to 0 for all products.
+    # Epic 5 Story 5-1 auto-carries closing balances from the previous
+    # period (TODO(epic-5) marker closed in Story 5-2; A19 carry-over
+    # sprint removed the legacy `inventory_projection` module).
     opening_inventory: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -1107,4 +1109,74 @@ class TenantBackup(Base):
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# Story 8.1 — Budget Scenario (PRD §F8.1 + AD-24 virtual period key)
+#
+# budget_scenarios table (Alembic 0026):
+#   - id UUID v7 PK
+#   - tenant_id UUID NOT NULL FK → tenants(id) ON DELETE CASCADE
+#   - period_key TEXT NOT NULL CHECK (virtual `YYYY-MM#B<n>` pattern)
+#   - real_period_key TEXT NOT NULL CHECK (real `YYYY-MM` pattern)
+#   - scenario_index INT NOT NULL CHECK (>= 1)
+#   - scenario_hash TEXT NOT NULL (V8 determinism, sha256 digest)
+#   - created_by UUID NOT NULL FK → users(id)
+#   - created_at_kst TIMESTAMPTZ NOT NULL DEFAULT NOW() (AD-9 Seoul)
+# UNIQUE(tenant_id, period_key) — duplicate period_key 방지
+# UNIQUE(tenant_id, real_period_key) — 1차 MVP scenario 1개 잠금 DB-level guard
+#   (validate_scenario_uniqueness + DB UNIQUE 제약 defense-in-depth).
+# ─────────────────────────────────────────────────────────────
+class BudgetScenario(Base):
+    __tablename__ = "budget_scenarios"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "period_key",
+            name="uq_budget_scenarios_tenant_id_period_key",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "real_period_key",
+            name="uq_budget_scenarios_tenant_id_real_period_key",
+        ),
+        CheckConstraint(
+            "period_key ~ '^\\d{4}-(0[1-9]|1[0-2])#B[1-9]\\d*$'",
+            name="ck_budget_scenarios_period_key_pattern",
+        ),
+        CheckConstraint(
+            "real_period_key ~ '^\\d{4}-(0[1-9]|1[0-2])$'",
+            name="ck_budget_scenarios_real_period_key_pattern",
+        ),
+        CheckConstraint(
+            "scenario_index >= 1",
+            name="ck_budget_scenarios_scenario_index_positive",
+        ),
+        Index(
+            "idx_budget_scenarios_tenant_id_period_key",
+            "tenant_id",
+            "period_key",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    period_key: Mapped[str] = mapped_column(Text, nullable=False)
+    real_period_key: Mapped[str] = mapped_column(Text, nullable=False)
+    scenario_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    scenario_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    created_at_kst: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
     )

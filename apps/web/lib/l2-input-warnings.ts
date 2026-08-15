@@ -1,7 +1,7 @@
 /**
  * apps/web/lib/l2-input-warnings.ts — TypeScript mirror of the
  * warning aggregate kernel defined in
- * `packages/services/m2_input/{inventory_projection,operating_rate,warnings}.py`.
+ * `packages/services/m2_input/{inventory_math,operating_rate,warnings}.py`.
  *
  * THIS FILE IS NOT THE SOURCE OF TRUTH. The Python module is canonical
  * (AD-23: one enum per module, one NamedTuple per domain constant).
@@ -77,13 +77,6 @@ export interface InventoryMovement {
   outboundQty: Decimal;
 }
 
-export interface InventoryProjectionRowLike {
-  stream: string;
-  productId: string | null;
-  qty: Decimal | number | string | null;
-  productType: string;
-}
-
 /** PRD §6.2: closing = opening + inbound − outbound. */
 export function computeClosingInventory(
   opening: Decimal | number | string,
@@ -94,72 +87,6 @@ export function computeClosingInventory(
   const i = new Decimal(inbound);
   const out = new Decimal(outbound);
   return o.plus(i).minus(out).toDecimalPlaces(4, Decimal.ROUND_HALF_EVEN);
-}
-
-/**
- * Build per-product inventory movements from a list of rows.
- * Mirrors `build_inventory_projection` in the Python module exactly.
- *
- * Stream mapping (PRD §6.2):
- *  - sales → outbound
- *  - purchases → inbound
- *  - production → inbound (output; material consumption = Epic 5)
- *
- * Only rows whose `productType ∈ INVENTORY_PRODUCT_TYPES` are tracked.
- */
-export function buildInventoryProjection(
-  rows: InventoryProjectionRowLike[],
-  openingBalance: Record<string, Decimal | number | string> | null,
-): InventoryMovement[] {
-  // product_id → running aggregate
-  const bucket = new Map<
-    string,
-    { inbound: Decimal; outbound: Decimal }
-  >();
-
-  for (const row of rows) {
-    if (row.productId === null || row.qty === null) continue;
-    if (!INVENTORY_PRODUCT_TYPES.has(row.productType)) continue;
-    const qty = new Decimal(row.qty);
-    if (qty.isZero()) continue;
-
-    let slot = bucket.get(row.productId);
-    if (!slot) {
-      slot = { inbound: new Decimal(0), outbound: new Decimal(0) };
-      bucket.set(row.productId, slot);
-    }
-
-    if (row.stream === "sales") {
-      slot.outbound = slot.outbound.plus(qty);
-    } else if (row.stream === "purchases") {
-      slot.inbound = slot.inbound.plus(qty);
-    } else if (row.stream === "production") {
-      slot.inbound = slot.inbound.plus(qty);
-    }
-    // orders / expenses / labor → ignored
-  }
-
-  const sortedKeys = Array.from(bucket.keys()).sort();
-  const out: InventoryMovement[] = [];
-  for (const productId of sortedKeys) {
-    const slot = bucket.get(productId)!;
-    const opening = openingBalance?.[productId]
-      ? new Decimal(openingBalance[productId])
-      : new Decimal(0);
-    out.push({
-      productId,
-      openingQty: opening.toDecimalPlaces(4, Decimal.ROUND_HALF_EVEN),
-      inboundQty: slot.inbound.toDecimalPlaces(
-        4,
-        Decimal.ROUND_HALF_EVEN,
-      ),
-      outboundQty: slot.outbound.toDecimalPlaces(
-        4,
-        Decimal.ROUND_HALF_EVEN,
-      ),
-    });
-  }
-  return out;
 }
 
 // ── Operating rate (PRD §6.1 (2) 조업도) ─────────────────────────

@@ -32,8 +32,10 @@ when the ledger-backed read lands).
 
 MVP default is empty ``{}``. Operators set the opening balance via
 the M0/M1 settings UI (deferred to Story 0.5 plumbing). Epic 5
-Story 5-1 will auto-carry closing balances from the previous period
-(``TODO(epic-5)`` marker in ``inventory_projection.py``).
+Story 5-1 auto-carries closing balances from the previous period
+(``TODO(epic-5)`` marker closed in Story 5-2; A19 carry-over sprint
+removed the legacy ``inventory_projection.py`` module — math surface
+lives at ``packages/services/m2_input/inventory_math.py``).
 
 Revision ID: 0011_monthly_input_periods_opening_inventory
 Revises:    0010_monthly_input_labor_breakdown
