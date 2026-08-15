@@ -59,6 +59,12 @@ from apps.api.core.tenant_context import TenantContext, get_tenant_context
 
 # Korean SSOT constants — passed to exception envelope (main.py handlers).
 from apps.api.modules.m12_account.exceptions import TwoFactorNotEnabledError
+from apps.api.modules.m12_account.services.account_deletion_service import (
+    DeletionChallengeTokenIssued,
+    DeletionResult,
+    DeletionService,
+    DeletionStatusResponse,
+)
 from apps.api.modules.m12_account.services.audit_extension import (
     DISABLE_UNAUTHORIZED_KO,
     ERROR_CODE_ALREADY_ENABLED,
@@ -88,6 +94,9 @@ from apps.api.modules.m12_account.services.two_factor_challenge_service import (
 )
 from apps.api.modules.m12_account.services.two_factor_service import (
     TwoFactorService,
+)
+from packages.services.m12_account.account_deletion import (
+    DELETION_CONSENT_TEMPLATE_KO,
 )
 from packages.services.m12_account.two_factor_gate import (
     TWO_FACTOR_REQUIRED_KO,
@@ -1148,6 +1157,322 @@ async def trigger_backup(
         row_count_total=result.row_count_total,
         audit_log_exported_rows=result.audit_log_exported_rows,
         created_at=result.created_at.isoformat(),
+        trace_id=trace_id,
+    )
+
+
+# ── Story 12.3 — Account Deletion + Retention Consent handlers ─────
+# 4 NEW routes (PRD §F12.3 + NFR4 2절 + NFR7 + CR 12-5 L3):
+# - POST /api/v1/account/deletion/challenge-token — issue TOTP-gated JWT
+# - POST /api/v1/account/deletion/request          — destructive (3-layer defense)
+# - POST /api/v1/account/deletion/cancel           — owner cancel pending_deletion
+# - GET  /api/v1/account/deletion/status           — read-only snapshot
+#
+# All 4 endpoints require_role("owner") per AD-10 (destructive endpoint
+# is owner-only). Capability gate (ACCOUNT_DELETION) ONLY on the
+# destructive /request route (CR 12-5 L3 Layer 1).
+#
+# 3-layer TOTP defense (CR 12-5 L3 — critical for destructive endpoint):
+#   Layer 1: route `require_role("owner")` + `require_capability(ACCOUNT_DELETION)`
+#   Layer 2: service `verify_totp_challenge` (re-verify, no trust boundary)
+#   Layer 3: handler audit-first BEFORE any raise (forensic chain)
+
+
+# ── Pydantic schemas (inline — 12-4 convention) ─────────────────
+class DeletionChallengeTokenRequest(BaseModel):
+    """POST /account/deletion/challenge-token body — Story 12.3 P-06 fix.
+
+    Mirrors `IssueChallengeTokenRequest` (12-5 P-06 fix): caller MUST
+    supply a fresh 6-digit TOTP code BEFORE the challenge token is minted.
+    Without this proof, an authenticated owner could mint a deletion
+    challenge token and bypass 2FA on the destructive /request route.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    current_code: str = Field(
+        ...,
+        pattern=r"^\d{6}$",
+        min_length=6,
+        max_length=6,
+        description="Fresh 6-digit TOTP code (RFC 6238, ±1 window). "
+        "Required to mint a deletion challenge token.",
+    )
+
+
+class DeletionChallengeTokenResponse(BaseModel):
+    """POST /account/deletion/challenge-token response envelope.
+
+    Returns HS256 `token` (5-min TTL, single-purpose
+    `purpose="account_deletion"`) + KST `expires_at` ISO-8601.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    token: str
+    expires_at: str
+    trace_id: str
+
+
+class DeletionConsentRequest(BaseModel):
+    """POST /account/deletion/request consent body.
+
+    Caller MUST set `consent_checked=true` AND supply the verbatim
+    Korean consent template (DELETION_CONSENT_TEMPLATE_KO) in
+    `consent_text`. The service layer validates the text matches
+    `validate_consent_text()` (422 DELETION_CONSENT_TEXT_INVALID).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    consent_checked: bool = Field(
+        ...,
+        description="Must be true — explicit consent acknowledgement (CR 12-5 L3 Layer 3).",
+    )
+    consent_text: str = Field(
+        ...,
+        min_length=10,
+        max_length=200,
+        description=f"Verbatim Korean consent template (must equal {DELETION_CONSENT_TEMPLATE_KO!r}).",
+    )
+
+
+class DeletionEnvelopeResponse(BaseModel):
+    """POST /account/deletion/request + /cancel response envelope.
+
+    Returns the deletion envelope (TenantDeletionStatus FSM + scheduled_for
+    + 30-day retention anchor).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    tenant_id: str
+    status: str
+    deletion_scheduled_for: str
+    trace_id: str
+
+
+class DeletionStatusReadResponse(BaseModel):
+    """GET /account/deletion/status response envelope.
+
+    Read-only FSM snapshot for the dashboard. Returns the same envelope
+    as `DeletionStatusResponse` from the service layer (no envelope
+    conversion — the service already produces the boundary type).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    tenant_id: str
+    status: str
+    deletion_requested_at: str | None
+    deletion_requested_by_user_id: str | None
+    deletion_consent_id: str | None
+    deletion_scheduled_for: str | None
+    trace_id: str
+
+
+def _build_deletion_service(
+    session: AsyncSession,
+    ctx: TenantContext,
+    trace_id: str,
+) -> DeletionService:
+    """Construct DeletionService from request-scoped session + ctx."""
+    return DeletionService(
+        session,
+        tenant_id=ctx.tenant_id,
+        actor_id=ctx.user_id,
+        trace_id=trace_id,
+    )
+
+
+# ── POST /api/v1/account/deletion/challenge-token ────────────
+@router.post(
+    "/account/deletion/challenge-token",
+    response_model=DeletionChallengeTokenResponse,
+    status_code=201,
+    summary="Issue deletion challenge token (TOTP-gated, 5-min TTL)",
+)
+async def issue_deletion_challenge_token(
+    payload: DeletionChallengeTokenRequest,
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _role: None = Depends(require_role("owner")),
+) -> DeletionChallengeTokenResponse:
+    """Mint HS256 deletion challenge token (5-min TTL).
+
+    Layer 2 of the 3-layer defense (CR 12-5 L3): TOTP proof required
+    BEFORE minting. Delegates to `DeletionService.issue_deletion_challenge_token`
+    which re-verifies the 6-digit code against the AES-256-GCM decrypted
+    secret (mirror two_factor_service.py: AAD = b"totp_secret").
+
+    Raises:
+    - 400 INVALID_TOTP_CODE — TOTP code wrong/expired
+    - 401 DELETION_CHALLENGE_TOKEN_INVALID — JWT signing failed
+      (likely missing `COSTMGR_JWT_SECRET`)
+    - 422 (Pydantic) — missing/malformed `current_code`
+    - 429 TOTP_LOCKOUT — 5-fail lockout active
+    - 503 ACCOUNT_DELETION_AUDIT_EMIT_FAILED
+    """
+    trace_id = _resolve_trace_id(ctx, request)
+    service = _build_deletion_service(session, ctx, trace_id)
+    issued: DeletionChallengeTokenIssued = await service.issue_deletion_challenge_token(
+        current_code=payload.current_code,
+    )
+    return DeletionChallengeTokenResponse(
+        token=issued.token,
+        expires_at=issued.expires_at.isoformat(),
+        trace_id=trace_id,
+    )
+
+
+# ── POST /api/v1/account/deletion/request ─────────────────────
+@router.post(
+    "/account/deletion/request",
+    response_model=DeletionEnvelopeResponse,
+    status_code=200,
+    summary="계정 해지 요청 (destructive endpoint, 3-layer TOTP defense)",
+)
+async def request_account_deletion(
+    payload: DeletionConsentRequest,
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _role: None = Depends(require_role("owner")),
+) -> DeletionEnvelopeResponse:
+    """Destructive endpoint — account deletion + 30-day retention anchor.
+
+    3-layer TOTP defense (CR 12-5 L3):
+    - Layer 1 (route): `require_role("owner")` + `require_capability(ACCOUNT_DELETION)`
+    - Layer 2 (service): `_decode_challenge_token` re-verifies the JWT
+      + `_verify_owner` re-verifies ownership (no trust boundary).
+    - Layer 3 (handler): audit-first `two_factor_verified` BEFORE
+      `session.commit()` on the destructive state transition.
+
+    Audit-first invariant (CR 1.1): `deletion_requested` + `deletion_consent_given`
+    are emitted INSIDE the service `session.begin_nested()` block
+    BEFORE the `tenants.status` FSM transition. The handler does NOT
+    emit additional audit rows here — all audit is delegated to the
+    service layer (parity with M11 close handlers).
+
+    Raises:
+    - 400 INVALID_TOTP_CODE — challenge token expired/invalid
+    - 401 DELETION_CHALLENGE_TOKEN_INVALID / EXPIRED
+    - 403 FORBIDDEN_ROLE — caller not owner
+    - 409 ALREADY_PENDING_DELETION / ALREADY_DELETED — FSM invariant
+    - 422 DELETION_CONSENT_TEXT_INVALID — consent text mismatch
+    - 500 DELETION_CONSENT_ENCRYPTION_FAILED
+    - 503 ACCOUNT_DELETION_AUDIT_EMIT_FAILED
+    """
+    trace_id = _resolve_trace_id(ctx, request)
+    # Layer 3 — capture challenge token from Authorization header.
+    # Clients send `Authorization: Bearer <challenge_token>`.
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        # Layer 2 service will raise the typed exception envelope.
+        challenge_token = ""
+    else:
+        challenge_token = auth_header[len("Bearer ") :].strip()
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    service = _build_deletion_service(session, ctx, trace_id)
+    result: DeletionResult = await service.request_deletion(
+        challenge_token=challenge_token,
+        consent_checked=payload.consent_checked,
+        consent_text=payload.consent_text,
+        consent_ip=client_ip,
+        consent_user_agent=user_agent,
+    )
+    return DeletionEnvelopeResponse(
+        tenant_id=result.tenant_id,
+        status=result.status,
+        deletion_scheduled_for=result.deletion_scheduled_for.isoformat(),
+        trace_id=trace_id,
+    )
+
+
+# ── POST /api/v1/account/deletion/cancel ──────────────────────
+@router.post(
+    "/account/deletion/cancel",
+    response_model=DeletionEnvelopeResponse,
+    status_code=200,
+    summary="계정 해지 취소 (pending_deletion → active)",
+)
+async def cancel_account_deletion(
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _role: None = Depends(require_role("owner")),
+) -> DeletionEnvelopeResponse:
+    """Owner cancels a pending deletion — FSM transition pending_deletion → active.
+
+    Audit-first invariant (CR 1.1): `deletion_cancelled` is emitted
+    INSIDE the service BEFORE the FSM transition. Caller does NOT
+    need a fresh challenge token (cancel is non-destructive — owner
+    may cancel at any time before the 30-day sweep).
+
+    Raises:
+    - 403 FORBIDDEN_ROLE — caller not owner
+    - 409 ALREADY_ACTIVE / ALREADY_DELETED — FSM invariant
+    - 503 ACCOUNT_DELETION_AUDIT_EMIT_FAILED
+    """
+    trace_id = _resolve_trace_id(ctx, request)
+    service = _build_deletion_service(session, ctx, trace_id)
+    result: DeletionResult = await service.cancel_deletion()
+    return DeletionEnvelopeResponse(
+        tenant_id=result.tenant_id,
+        status=result.status,
+        deletion_scheduled_for=(
+            result.deletion_scheduled_for.isoformat()
+            if result.deletion_scheduled_for
+            else ""
+        ),
+        trace_id=trace_id,
+    )
+
+
+# ── GET /api/v1/account/deletion/status ────────────────────────
+@router.get(
+    "/account/deletion/status",
+    response_model=DeletionStatusReadResponse,
+    status_code=200,
+    summary="계정 해지 상태 조회 (read-only snapshot)",
+)
+async def get_account_deletion_status(
+    request: Request,
+    ctx: TenantContext = Depends(get_tenant_context),
+    session: AsyncSession = Depends(get_session),
+    _role: None = Depends(require_role("owner")),
+) -> DeletionStatusReadResponse:
+    """Read-only FSM snapshot for the dashboard.
+
+    Returns the tenant's current deletion status (`active` / `pending_deletion`
+    / `deleted`) + scheduled hard-delete anchor. Owner-only — no member
+    or viewer access (forensic data is NFR6-sensitive).
+
+    Raises:
+    - 410 ACCOUNT_ALREADY_DELETED — tenant already hard-deleted (CR 11-3
+      SnapshotNotFoundError split — terminal state)
+    """
+    trace_id = _resolve_trace_id(ctx, request)
+    service = _build_deletion_service(session, ctx, trace_id)
+    status: DeletionStatusResponse = await service.get_deletion_status()
+    return DeletionStatusReadResponse(
+        tenant_id=status.tenant_id,
+        status=status.status,
+        deletion_requested_at=(
+            status.deletion_requested_at.isoformat()
+            if status.deletion_requested_at
+            else None
+        ),
+        deletion_requested_by_user_id=status.deletion_requested_by_user_id,
+        deletion_consent_id=status.deletion_consent_id,
+        deletion_scheduled_for=(
+            status.deletion_scheduled_for.isoformat()
+            if status.deletion_scheduled_for
+            else None
+        ),
         trace_id=trace_id,
     )
 

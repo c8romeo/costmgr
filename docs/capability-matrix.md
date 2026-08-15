@@ -1,8 +1,32 @@
-# Capability Matrix (v1.14)
+# Capability Matrix (v1.15)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.15 (2026-08-15, Story 12.3, Epic 12)** — `ACCOUNT_DELETION`
+> Account deletion + retention consent wire (PRD §F12.3 + NFR4 2절 5년 audit 보존
+> + 30일 hard delete retention + NFR7 2FA 강제 on destructive endpoint +
+> AD-2 INSERT-only invariant on `deletion_consents`). Story 12.3 wired the
+> pure kernel `account_deletion.py` + service layer `DeletionService` +
+> audit ActionClass `ACCOUNT_DELETION` (8 typed values: `deletion_requested`
+> + `deletion_consent_given` + `deletion_cancelled` + `deletion_anonymized`
+> + `tenant_hard_deleted` + `deletion_failed` + `deletion_2fa_failed`
+> + `two_factor_verified`) + 4 NEW routes under `/api/v1/account/deletion/*`:
+> - POST /api/v1/account/deletion/challenge-token — TOTP-gated JWT mint
+> - POST /api/v1/account/deletion/request          — destructive (3-layer TOTP defense)
+> - POST /api/v1/account/deletion/cancel           — owner cancel pending_deletion
+> - GET  /api/v1/account/deletion/status           — read-only FSM snapshot
+>
+> 6 NEW typed exceptions are mapped to AD-15 §4 envelopes in `apps/api/main.py`.
+> Alembic 0025 adds `tenants.status` FSM (active|pending_deletion|deleted) +
+> `deletion_consents` table + RLS policy 0015 (4-policy split per AD-2
+> INSERT-only invariant). ACCOUNT_DELETION is **industry-agnostic**
+> (granted to ALL 4 canonical industries) — deletion is operational
+> infrastructure (data subject right / GDPR Art.17), not industry-specific.
+> Capability gate enforced ONLY on `request_deletion` (destructive endpoint
+> — CR 12-5 L3 3-layer defense target); other routes gate ONLY on
+> `require_role("owner")` per AD-10.
 >
 > **v1.14 (2026-08-12, Story 12.2, Epic 12)** — `BACKUP_EXPORT`
 > Daily auto-backup + JSON self-download wire (PRD §F12.2 + §M12-b + NFR4).
@@ -164,6 +188,7 @@ class CalcResponse(BaseModel):
 | `REOPEN_OPERATOR` | 11.3 | ✅ | ❌ | ✅ | ✅ |
 | `TWO_FACTOR_AUTH` | 12.1 | ✅ | ✅ | ✅ | ✅ |
 | `BACKUP_EXPORT` | 12.2 | ✅ | ✅ | ✅ | ✅ |
+| `ACCOUNT_DELETION` | 12.3 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 

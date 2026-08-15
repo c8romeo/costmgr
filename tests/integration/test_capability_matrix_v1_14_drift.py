@@ -89,12 +89,12 @@ def test_capability_matrix_docs_pin_v1_14() -> None:
     Drift detector: if the docs version drifts from the Capability
     enum, this test fails so the team updates the docs in lockstep
     with the Capability enum.
+
+    Note: Story 12.3 wire bumps the docs to v1.15. The v1.14 history
+    entry remains — this test only verifies the history entry is
+    present (not the title which advances to v1.15).
     """
     docs = _load_capability_matrix_docs()
-    # Title row must be v1.14.
-    assert "# Capability Matrix (v1.14)" in docs, (
-        "docs/capability-matrix.md title must be v1.14 (Story 12.2)"
-    )
     # v1.14 history entry must reference Story 12.2 + the NEW capability.
     assert "v1.14" in docs
     assert "Story 12.2" in docs

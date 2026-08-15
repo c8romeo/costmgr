@@ -144,6 +144,17 @@ class Capability(str, Enum):
     # enum entry was missed — 12-2 carry-over fix (drift detector
     # `tests/integration/test_capability_matrix_v1_14_drift.py` surfaces it).
     TWO_FACTOR_AUTH = "two_factor_auth"
+    # Story 12.3 (Epic 12) — Account deletion + retention consent
+    # capability (PRD §F12.3 + NFR4 2절 5년 audit 보존 + 30일 hard
+    # delete + NFR7 2FA 강제). Industry-agnostic security baseline
+    # (CR 12-1 L4 precedent — mirrors TWO_FACTOR_AUTH + BACKUP_EXPORT
+    # patterns). Granted to all 4 industries because deletion is
+    # operational infrastructure (data subject right / GDPR Art.17),
+    # not industry-specific. Enforced ONLY on the destructive endpoint
+    # POST /account/deletion/request (the 3-layer TOTP defense target).
+    # Other endpoints (challenge-token / cancel / status) gate ONLY on
+    # `require_role("owner")` per AD-10.
+    ACCOUNT_DELETION = "account_deletion"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -185,6 +196,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 12.1 — manufacturing tenants get TWO_FACTOR_AUTH
             # (industry-agnostic, security baseline CR 12-1 L4).
             Capability.TWO_FACTOR_AUTH,
+            # Story 12.3 — manufacturing tenants get ACCOUNT_DELETION
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.ACCOUNT_DELETION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -208,6 +222,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 12.1 — service tenants get TWO_FACTOR_AUTH
             # (industry-agnostic, security baseline CR 12-1 L4).
             Capability.TWO_FACTOR_AUTH,
+            # Story 12.3 — service tenants get ACCOUNT_DELETION
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.ACCOUNT_DELETION,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -251,6 +268,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 12.1 — 겸영 tenants get TWO_FACTOR_AUTH
             # (industry-agnostic, security baseline CR 12-1 L4).
             Capability.TWO_FACTOR_AUTH,
+            # Story 12.3 — 겸영 tenants get ACCOUNT_DELETION
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.ACCOUNT_DELETION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -291,6 +311,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 12.1 — full matrix tenants get TWO_FACTOR_AUTH
             # (industry-agnostic, security baseline CR 12-1 L4).
             Capability.TWO_FACTOR_AUTH,
+            # Story 12.3 — full matrix tenants get ACCOUNT_DELETION
+            # (industry-agnostic, security baseline CR 12-1 L4).
+            Capability.ACCOUNT_DELETION,
         }
     ),
 }
