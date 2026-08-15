@@ -121,6 +121,7 @@ export default [
       "lib/closing-guard-toast.ts",
       "lib/l2-input-fte.ts",
       "lib/l2-input-warnings.ts",
+      "lib/m8-budget-scenario.ts",
       "lib/money.ts",
       "lib/server-api.ts",
     ],

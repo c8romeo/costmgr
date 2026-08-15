@@ -1,8 +1,54 @@
 # Deferred Work — costmgr project
 
 Items honestly DEFERred from completed sprints per CR 11-3 honest-DEFER
-discipline (8번째 epic 연속 적용). Each entry records: source story,
+discipline (11번째 epic 연속 적용). Each entry records: source story,
 reason for deferral, scope of deferred work, pickup plan.
+
+## Deferred from: 8-1 (Virtual Budget Period Key + Scenario Lock to One)
+
+Story 8.1 atomic wire completed 2026-08-15. 5 items honestly-DEFERred
+per CR 11-3 discipline (11번째 epic 연속 — Epic 4·5·6·11·12·A19·7-1·7-2 + 8-1):
+
+### D-8-1-DEFER-1 — Full DB integration tests (real Postgres)
+- Source: `tests/services/test_m8_budget_scenario_service.py`
+- Reason: 8.1 atomic wire used mocked AsyncSession for service tests
+  (no local Postgres in CI). The CR 12-5 L3 defense-in-depth (DB UNIQUE
+  constraint + RLS) requires real DB roundtrip to verify.
+- Scope: 1 sprint-up test file (~150 LOC) using existing 0026 migration +
+  RLS 0016 — covers INSERT happy path + 409 SCENARIO_LIMIT_EXCEEDED race +
+  RLS same-tenant SELECT isolation.
+- Pickup plan: Story 8.2 cj-style follow-up (when ≥5 테넌트 요청 triggers
+  multi-scenario wire).
+
+### D-8-1-DEFER-2 — Multi-scenario comparison (`scenario_index >= 2`)
+- Source: `packages/cost_engine/budget_period_key.py::MVP_SCENARIO_INDEX=1`
+- Reason: PRD §15 NON-GOAL #2 verbatim — 1차 MVP = 1 scenario only.
+- Scope: 1 NEW pure function `derive_multi_scenario_budget_period_keys`
+  + 1 NEW typed exception `MultiScenarioNotSupportedYetError` + DB
+  constraint relaxation + RLS multi-row policy.
+- Pickup plan: Story 8.2 spec 진입 (cj-style 7번째 epic 연속).
+
+### D-8-1-DEFER-3 — Budget vs Actual Variance Table with ABCD Gray Badge (PRD §F8.2)
+- Source: PRD §F8.2 + Epic 8 retro A20
+- Reason: PRD §F8.2 — Epic 8 story 2.
+- Scope: 1 NEW pure kernel `variance_calculator.py` + 4 NEW typed
+  exceptions + ABCD badge component + ReadOnlyTable RSC.
+- Pickup plan: Story 8.2 cj-style (PRD §F8.2 wire).
+
+### D-8-1-DEFER-4 — Budget Pre-Standard Cost Preview (`engine_type='budget'`)
+- Source: PRD §F8.3 + Epic 8 retro A20
+- Reason: PRD §F8.3 — Epic 8 story 3.
+- Scope: 1 NEW `BudgetEngine` wrapper around `fiscal_period_snapshots` +
+  pre-standard cost preview endpoint + RSC.
+- Pickup plan: Story 8.3 cj-style (PRD §F8.3 wire).
+
+### D-8-1-DEFER-5 — Playwright E2E (16 cases)
+- Source: `apps/web/components/m8-budget/BudgetScenarioPanel.tsx`
+- Reason: Playwright E2E suite not yet built for Epic 8 surface
+  (cj-style follow-up sprint pattern — 6번째 epic 연속).
+- Scope: 16 NEW test scenarios across 4 spec files
+  (setup / create / list / detail).
+- Pickup plan: Epic 8 follow-up sprint (post-8.2 + 8.3 wire).
 
 ## Deferred from: 12-3 (Account Deletion + Retention Consent)
 
