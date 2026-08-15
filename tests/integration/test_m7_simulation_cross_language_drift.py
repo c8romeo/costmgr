@@ -28,6 +28,7 @@ import pytest
 
 from packages.cost_engine import compute_bep as _compute_bep_pub
 from packages.cost_engine.cvp import (
+    CVPInvalidInputError,
     DEFAULT_OPERATING_RATE,
     DEFAULT_TARGET_PROFIT,
     FIXED_COST_DELTA_PCT_BOUNDS,
@@ -73,22 +74,24 @@ def test_default_target_profit_ts_parity():
 # ── Cross-language contract: edge cases ───────────────────────
 def test_compute_bep_unit_price_equal_variable_cost_raises():
     """TS mirror MUST raise the same error when unit_price == unit_variable_cost."""
-    with pytest.raises(ValueError):
+    with pytest.raises(CVPInvalidInputError) as exc_info:
         compute_bep(
             fixed_cost=Decimal("10000000"),
             unit_variable_cost=Decimal("10000"),
             unit_price=Decimal("10000"),
         )
+    assert exc_info.value.code == "unit_price_must_exceed_variable_cost"
 
 
 def test_compute_bep_negative_fixed_cost_raises():
     """TS mirror MUST raise the same error when fixed_cost < 0."""
-    with pytest.raises(ValueError):
+    with pytest.raises(CVPInvalidInputError) as exc_info:
         compute_bep(
             fixed_cost=Decimal("-1000"),
             unit_variable_cost=Decimal("6000"),
             unit_price=Decimal("10000"),
         )
+    assert exc_info.value.code == "fixed_cost_must_be_non_negative"
 
 
 def test_apply_delta_baseline_not_mutated():
