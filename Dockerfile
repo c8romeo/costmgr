@@ -41,7 +41,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN cd apps/web && pnpm build
 
 # ── Stage 2: backend build (uv sync) ───────────────────────────────────────
-FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS backend-builder
+FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4 AS backend-builder
 WORKDIR /repo
 
 # uv is the only resolver — no pip install of project deps.
@@ -71,7 +71,7 @@ RUN uv sync --frozen --no-dev --no-editable
 RUN uv run python -m compileall -q apps packages
 
 # ── Stage 3: backend runtime ───────────────────────────────────────────────
-FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS backend-runtime
+FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4 AS backend-runtime
 WORKDIR /app
 
 # Non-root user for runtime
