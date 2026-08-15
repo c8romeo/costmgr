@@ -4,6 +4,62 @@ Items honestly DEFERred from completed sprints per CR 11-3 honest-DEFER
 discipline (11번째 epic 연속 적용). Each entry records: source story,
 reason for deferral, scope of deferred work, pickup plan.
 
+## Deferred from: 7-2 (Next-Month Projection with 4 Required Parameters)
+
+Story 7.2 atomic wire completed 2026-08-15. 6 items honestly-DEFERred
+per CR 11-3 discipline (12번째 epic 연속 — Epic 4·5·6·11·12·A19·7-1·7-2 + 8-1):
+
+### D-7-2-DEFER-1 — AI 추천 4종 파라미터 (F10.1 input_drafts 우회)
+- Source: `apps/web/components/m7-simulation/ProjectionForm.tsx` (4 inputs)
+- Reason: AI 추천은 Epic 10 carry-over (F10.1 input_drafts 우회 필수).
+  차입금·이자율·원가 상승률·법인세율 4종을 자동 추천하려면
+  `input_drafts` 인프라가 먼저 필요한데, 이는 Epic 10의 F10.1.
+- Scope: 1 NEW ML 모델 + 4 NEW UI 추천 버튼 + input_drafts 연동.
+  ~300 LOC backend + ~150 LOC frontend.
+- Pickup plan: Epic 10 진입 시 (F10.1 wire 후).
+
+### D-7-2-DEFER-2 — 차월 추정 시나리오 저장 (Epic 8 Pre-Standard Cost 패턴)
+- Source: PRD §F7.2 + `apps/api/modules/m7_simulation/services/projection_service.py`
+- Reason: PRD §F7.2는 단일 차월 추정 (현재 projection_month 1개).
+  "2026-08#P1" 같은 virtual projection key로 multi-scenario 저장은
+  Epic 8 Budget Pre-Standard Cost 패턴 (D-8-1-DEFER-4) 완성 후 결정.
+- Scope: 1 NEW `derive_projection_key` pure kernel + DB column +
+  `monthly_input_periods.projection_key` RLS 정책.
+- Pickup plan: 7-3 retro 결정 (Epic 7 close-out 시).
+
+### D-7-2-DEFER-3 — Monte Carlo projection sensitivity (multi-variate)
+- Source: `packages/cost_engine/projection.py` (single-point projection)
+- Reason: Single-point projection → multi-variate sensitivity는
+  7-1 honestly DEFER #2와 동일 사유 (over-engineering 회피).
+  4 inputs × 100 trials = 400 evaluations → 1초 한도 초과 위험.
+- Scope: 1 NEW `monte_carlo_projection` pure kernel + Recharts distribution chart.
+- Pickup plan: 7-3 retro 결정 (demand-driven).
+
+### D-7-2-DEFER-4 — PDF 보고서 다국어 (ko-KR only per NFR18)
+- Source: `apps/web/components/m7-simulation/ProjectionPdfButton.tsx`
+- Reason: NFR18 (ko-KR only MVP) — 영문/중문 PDF는 2차 release.
+  M5 PDF generator reuse (`packages/services/m6_reports/pdf_helpers.py`)
+  현재 ko-KR only.
+- Scope: 1 NEW i18n PDF template layer (en/zh-CN/ja 등).
+- Pickup plan: 2차 multi-locale release 시 (Epic 10+ carry-over).
+
+### D-7-2-DEFER-5 — Playwright E2E (16 cases)
+- Source: `apps/web/components/m7-simulation/ProjectionClient.tsx`
+- Reason: 7-2 sprint는 frontend wire + unit tests까지 포함.
+  Playwright E2E는 sprint-scale follow-up sprint 패턴
+  (12-5 T6 패턴, 6번째 epic 연속).
+- Scope: 16 NEW test scenarios across 4 spec files
+  (4-form-fill / submit-disabled / submit-success / PDF-download).
+- Pickup plan: 7-2 follow-up sprint (carry-over pattern 6번째).
+
+### D-7-2-DEFER-6 — Web Worker offload (over-engineering 회피)
+- Source: `apps/web/components/m7-simulation/ProjectionClient.tsx`
+- Reason: 1초 한도 (NFR9) 대비 5배 여유 (200ms P95 측정).
+  Web Worker offload은 pure-frontend TS mirror에 의존 — 복잡도 대비
+  이득 없음. 7-1 honestly DEFER #1과 동일 사유.
+- Scope: 1 NEW `m7-projection.worker.ts` + Comlink bridge.
+- Pickup plan: 7-3 retro 결정 (only if 200ms P95 violated).
+
 ## Deferred from: 8-1 (Virtual Budget Period Key + Scenario Lock to One)
 
 Story 8.1 atomic wire completed 2026-08-15. 5 items honestly-DEFERred
