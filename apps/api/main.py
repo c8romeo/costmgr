@@ -71,6 +71,13 @@ from apps.api.modules.m4_inventory.services.opening_carry_service import (
     MonthlyInputOpeningLockViolationError,
     MonthlyInputOpeningManualEditError,
 )
+from apps.api.modules.m7_simulation import router as m7_simulation_router
+from apps.api.modules.m7_simulation.exceptions import (
+    CVP_BASELINE_NOT_FOUND_KO,
+    CVP_INVALID_DELTA_KO,
+    CVPBaselineNotFoundError,
+    CVPInvalidDeltaError,
+)
 from apps.api.modules.m8_budget import router as m8_budget_router
 from apps.api.modules.m8_budget.exceptions import (
     BUDGET_INVALID_VIRTUAL_KEY_KO,
@@ -214,6 +221,13 @@ app.include_router(m4_inventory_router)
 # - GET  /api/v1/budget/scenarios             (200 4-role list)
 # - GET  /api/v1/budget/scenarios/{period_key} (200 4-role get-by-key)
 app.include_router(m8_budget_router)
+
+# Story 7.1 — M7 CVP/BEP slider simulation (PRD §F7.1).
+# 2 NEW routes:
+# - POST /api/v1/simulation/cvp/compute    (200 — baseline + simulated BEP)
+# - GET  /api/v1/simulation/cvp/baseline   (200/404 — committed snapshot baseline)
+# Capability: CVP_SIMULATION (industry-agnostic per CR 12-1 L4).
+app.include_router(m7_simulation_router)
 
 # Story 11.1 — M11 reversal sequence (AD-22 sign-negating + corrected row +
 # AD-25 cache invalidation publisher). 3 NEW routes:
@@ -2034,6 +2048,50 @@ async def _m8_budget_invalid_virtual_key_handler(
             },
             "trace_id": getattr(exc, "trace_id", None)
             or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(CVPBaselineNotFoundError)
+async def _m7_simulation_baseline_not_found_handler(
+    request: Request, exc: CVPBaselineNotFoundError
+) -> JSONResponse:
+    """404 CVP_BASELINE_NOT_FOUND — PRD §F7.1 baseline 미존재.
+
+    CR 12-5 D-14 typed envelope.
+    """
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "CVP_BASELINE_NOT_FOUND",
+            "message_ko": CVP_BASELINE_NOT_FOUND_KO,
+            "details": {
+                "tenant_id": exc.tenant_id,
+                "period_key": exc.period_key,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(CVPInvalidDeltaError)
+async def _m7_simulation_invalid_delta_handler(
+    request: Request, exc: CVPInvalidDeltaError
+) -> JSONResponse:
+    """422 CVP_INVALID_DELTA — PRD §F7.1 delta bounds 위반.
+
+    CR 12-5 D-14 typed envelope.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "CVP_INVALID_DELTA",
+            "message_ko": CVP_INVALID_DELTA_KO,
+            "details": {
+                "field": exc.field,
+                "value": str(exc.value),
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
         },
     )
 

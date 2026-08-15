@@ -32,6 +32,22 @@ from packages.cost_engine.core.period_cost import (
     Baseline,
     compute_period_cost,
 )
+from packages.cost_engine.cvp import (
+    FIXED_COST_DELTA_PCT_BOUNDS,
+    OPERATING_RATE_DELTA_PCT_BOUNDS,
+    PRICE_DELTA_PCT_BOUNDS,
+    BEPResult,
+    CVPBaseline,
+    CVPDelta,
+    CVPInvalidInputError,
+    CVPResult,
+    TargetProfitResult,
+    apply_delta,
+    compute_bep,
+    compute_bep_hash,
+    compute_target_profit,
+    simulate_cvp,
+)
 from packages.cost_engine.ports.calc_port import CalcResult, MonthlyInput
 
 __all__ = [
@@ -53,4 +69,19 @@ __all__ = [
     "BudgetScenario",
     "ScenarioLimitExceededError",
     "InvalidVirtualBudgetPeriodKeyError",
+    # Story 7.1 CVP/BEP pure kernel
+    "compute_bep",
+    "compute_target_profit",
+    "apply_delta",
+    "simulate_cvp",
+    "compute_bep_hash",
+    "BEPResult",
+    "TargetProfitResult",
+    "CVPBaseline",
+    "CVPDelta",
+    "CVPResult",
+    "CVPInvalidInputError",
+    "PRICE_DELTA_PCT_BOUNDS",
+    "FIXED_COST_DELTA_PCT_BOUNDS",
+    "OPERATING_RATE_DELTA_PCT_BOUNDS",
 ]

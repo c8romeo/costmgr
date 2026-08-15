@@ -165,6 +165,15 @@ class Capability(str, Enum):
     # Story 8-3 (pre-standard cost preview) — 신규 capability 추가 0건
     # (CR 11-3 즉시 sweep 회피). Documented in capability-matrix v1.17.
     BUDGET_SCENARIO = "budget_scenario"
+    # Story 7.1 (Epic 7) — CVP/BEP slider simulation capability
+    # (PRD §F7.1 + AD-5 engine purity). Industry-agnostic baseline
+    # (CR 12-1 L4 precedent — manufacturing 3종 ✅ + service-only ✅).
+    # Granted to all 4 industries because CVP/BEP is financial
+    # planning infrastructure, not industry-specific. Used as the
+    # capability gate for both POST /simulation/cvp/compute and
+    # GET /simulation/cvp/baseline routes. Documented in
+    # capability-matrix v1.17.
+    CVP_SIMULATION = "cvp_simulation"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -213,6 +222,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, financial baseline CR 12-1 L4 +
             # 7-1/7-2 L4 precedent — all industries grant).
             Capability.BUDGET_SCENARIO,
+            # Story 7.1 — manufacturing tenants get CVP_SIMULATION
+            # (industry-agnostic, financial baseline CR 12-1 L4).
+            Capability.CVP_SIMULATION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -243,6 +255,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, financial baseline CR 12-1 L4 +
             # 7-1/7-2 L4 precedent — all industries grant).
             Capability.BUDGET_SCENARIO,
+            # Story 7.1 — service tenants get CVP_SIMULATION
+            # (industry-agnostic, financial baseline CR 12-1 L4).
+            Capability.CVP_SIMULATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -293,6 +308,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, financial baseline CR 12-1 L4 +
             # 7-1/7-2 L4 precedent — all industries grant).
             Capability.BUDGET_SCENARIO,
+            # Story 7.1 — 겸영 tenants get CVP_SIMULATION
+            # (industry-agnostic, financial baseline CR 12-1 L4).
+            Capability.CVP_SIMULATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -340,6 +358,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, financial baseline CR 12-1 L4 +
             # 7-1/7-2 L4 precedent — all industries grant).
             Capability.BUDGET_SCENARIO,
+            # Story 7.1 — full matrix tenants get CVP_SIMULATION
+            # (industry-agnostic, financial baseline CR 12-1 L4).
+            Capability.CVP_SIMULATION,
         }
     ),
 }

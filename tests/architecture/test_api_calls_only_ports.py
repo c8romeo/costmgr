@@ -209,6 +209,12 @@ def test_api_root_does_not_import_services() -> None:
             # (AD-24 period key serialization + JSON-safe Decimal-as-string
             # + UUID-as-string + Korean SSOT ko-KR parity).
             "packages.services.m8_budget",
+            # Story 7.1 (Epic 7) — M7 CVP/BEP simulation thin helpers
+            # (Delta bounds clamping + JSON-safe Decimal-as-string
+            # serializers for kernel→API conversion).
+            "packages.services.m7_simulation",
+            "packages.services.m7_simulation.serializers",
+            "packages.services.m7_simulation.delta_helpers",
         }
     )
 
