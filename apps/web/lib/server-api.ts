@@ -599,3 +599,79 @@ export async function fetchBudgetScenariosServerSide(
     clearTimeout(timeoutId);
   }
 }
+
+
+// Story 8.2 (Epic 8) — M8 budget-actual variance server-side fetch
+// (PRD §F8.2 + AD-15 SSOT parity with apps/api/modules/m8_budget/handlers.py).
+// Returns null on failure so the Client Component can fall back to polling.
+import type { VarianceTableResponse } from "./m8-budget-variance";
+
+export async function fetchBudgetVarianceServerSide(
+  accessToken: string | undefined,
+  periodKey: string,
+  traceId: string,
+): Promise<VarianceTableResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/budget/variance/${encodeURIComponent(periodKey)}`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as VarianceTableResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Story 8.2 — M8 budget-actual variance PDF envelope fetch (8-3 honestly DEFER).
+// 8-2 atomic wire: returns envelope shape with empty pdf_bytes_b64 (placeholder).
+export async function fetchBudgetVariancePdfServerSide(
+  accessToken: string | undefined,
+  periodKey: string,
+  traceId: string,
+): Promise<unknown | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/budget/variance/${encodeURIComponent(periodKey)}/pdf`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as unknown;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

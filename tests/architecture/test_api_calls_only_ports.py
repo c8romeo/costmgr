@@ -209,6 +209,11 @@ def test_api_root_does_not_import_services() -> None:
             # (AD-24 period key serialization + JSON-safe Decimal-as-string
             # + UUID-as-string + Korean SSOT ko-KR parity).
             "packages.services.m8_budget",
+            # Story 8.2 (Epic 8) — M8 budget variance thin helpers
+            # (PRD §F8.2 + §15 NON-GOAL #1: budget-actual variance table
+            # serializers + ABCD disabled badge PDF envelope helpers).
+            "packages.services.m8_budget.budget_variance_serializers",
+            "packages.services.m8_budget.budget_variance_pdf_helpers",
             # Story 7.1 (Epic 7) — M7 CVP/BEP simulation thin helpers
             # (Delta bounds clamping + JSON-safe Decimal-as-string
             # serializers for kernel→API conversion).

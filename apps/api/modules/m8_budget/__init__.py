@@ -17,6 +17,6 @@ Capability gate: `Capability.BUDGET_SCENARIO` (industry-agnostic, CR 12-1 L4 +
 7-1/7-2 L4 precedent — all 4 industries grant).
 """
 
-from apps.api.modules.m8_budget.handlers import router
+from apps.api.modules.m8_budget.handlers import router, variance_router
 
-__all__ = ["router"]
+__all__ = ["router", "variance_router"]

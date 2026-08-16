@@ -84,12 +84,21 @@ from apps.api.modules.m7_simulation.exceptions import (
     ProjectionBaselineNotFoundError,
     ProjectionInputsInvalidError,
 )
-from apps.api.modules.m8_budget import router as m8_budget_router
+from apps.api.modules.m8_budget import (
+    router as m8_budget_router,
+)
+from apps.api.modules.m8_budget import (
+    variance_router as m8_budget_variance_router,
+)
 from apps.api.modules.m8_budget.exceptions import (
+    BUDGET_INVALID_VARIANCE_PERIOD_KO,
     BUDGET_INVALID_VIRTUAL_KEY_KO,
     BUDGET_SCENARIO_LIMIT_EXCEEDED_KO,
     BUDGET_SCENARIO_NOT_FOUND_KO,
+    BUDGET_VARIANCE_NOT_FOUND_KO,
     BudgetScenarioNotFoundError,
+    BudgetVarianceNotFoundError,
+    InvalidVariancePeriodError,
     InvalidVirtualBudgetPeriodKeyError,
     ScenarioLimitExceededError,
 )
@@ -222,11 +231,15 @@ app.include_router(m4_inventory_router)
 
 # Story 8.1 — M8 budget vs actual scenario CRUD (PRD §F8.1).
 # AD-24 period key typed pattern + 1차 시나리오 1개 잠금.
-# 3 NEW routes:
+# 3 NEW routes (Story 8.1):
 # - POST /api/v1/budget/scenarios             (201 owner+member create)
 # - GET  /api/v1/budget/scenarios             (200 4-role list)
 # - GET  /api/v1/budget/scenarios/{period_key} (200 4-role get-by-key)
+# 2 NEW routes (Story 8.2):
+# - GET  /api/v1/budget/variance/{period_key} (200 4-role variance table)
+# - GET  /api/v1/budget/variance/{period_key}/pdf (200 envelope, 8-3 DEFER PDF)
 app.include_router(m8_budget_router)
+app.include_router(m8_budget_variance_router)
 
 # Story 7.1 — M7 CVP/BEP slider simulation (PRD §F7.1).
 # 2 NEW routes:
@@ -2048,6 +2061,58 @@ async def _m8_budget_invalid_virtual_key_handler(
         content={
             "code": "INVALID_VIRTUAL_BUDGET_PERIOD_KEY",
             "message_ko": BUDGET_INVALID_VIRTUAL_KEY_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "expected_pattern": exc.expected_pattern,
+            },
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# Story 8.2 — 2 NEW typed exception envelopes (CR 12-5 D-14):
+#   - BudgetVarianceNotFoundError        (404 BUDGET_VARIANCE_NOT_FOUND)
+#   - InvalidVariancePeriodError         (422 INVALID_VARIANCE_PERIOD)
+@app.exception_handler(BudgetVarianceNotFoundError)
+async def _m8_budget_variance_not_found_handler(
+    request: Request, exc: BudgetVarianceNotFoundError
+) -> JSONResponse:
+    """404 BUDGET_VARIANCE_NOT_FOUND — GET /budget/variance/{period_key} 미존재.
+
+    Story 8.2 (PRD §F8.2) — period_key에 해당하는 budget scenario 미존재 또는
+    fiscal_period_snapshots verified row가 없는 경우 (read-only 8-2 atomic wire).
+    """
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "BUDGET_VARIANCE_NOT_FOUND",
+            "message_ko": BUDGET_VARIANCE_NOT_FOUND_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": exc.tenant_id,
+            },
+            "trace_id": getattr(exc, "trace_id", None)
+            or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(InvalidVariancePeriodError)
+async def _m8_budget_invalid_variance_period_handler(
+    request: Request, exc: InvalidVariancePeriodError
+) -> JSONResponse:
+    """422 INVALID_VARIANCE_PERIOD — variance endpoint period_key 위반.
+
+    Story 8.2 (PRD §F8.2 + AD-24) — variance endpoint는 VIRTUAL period_key
+    (`YYYY-MM#B<n>`)만 허용. Real fiscal key (`YYYY-MM`) 또는 malformed string
+    시 raise.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "INVALID_VARIANCE_PERIOD",
+            "message_ko": BUDGET_INVALID_VARIANCE_PERIOD_KO,
             "details": {
                 "period_key": exc.period_key,
                 "expected_pattern": exc.expected_pattern,

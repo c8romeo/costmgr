@@ -27,6 +27,22 @@ from packages.cost_engine.budget_period_key import (
     parse_virtual_budget_period_key,
     validate_scenario_uniqueness,
 )
+from packages.cost_engine.budget_variance import (
+    ABCD_DISABLED_LABEL,
+    ABCD_DISABLED_NOTE,
+    ABCD_DISABLED_TOOLTIP,
+    SEVERITY_THRESHOLD_CRITICAL_PCT,
+    SEVERITY_THRESHOLD_WARNING_PCT,
+    VARIANCE_HASH_PREFIX,
+    VARIANCE_PCT_QUANTUM,
+    ABCDDisabledBadge,
+    Variance,
+    VarianceRow,
+    compute_abcd_disabled_badge,
+    compute_variance,
+    compute_variance_color,
+    compute_variance_hash,
+)
 from packages.cost_engine.core.money import KRW, USD
 from packages.cost_engine.core.period_cost import (
     Baseline,
@@ -111,4 +127,19 @@ __all__ = [
     "PROJECTION_HASH_PREFIX",
     "PROJECTION_COST_INFLATION_RATE_MIN_PCT",
     "PROJECTION_COST_INFLATION_RATE_MAX_PCT",
+    # Story 8.2 Budget Variance pure kernel
+    "compute_variance",
+    "compute_variance_color",
+    "compute_variance_hash",
+    "compute_abcd_disabled_badge",
+    "Variance",
+    "VarianceRow",
+    "ABCDDisabledBadge",
+    "SEVERITY_THRESHOLD_WARNING_PCT",
+    "SEVERITY_THRESHOLD_CRITICAL_PCT",
+    "VARIANCE_PCT_QUANTUM",
+    "VARIANCE_HASH_PREFIX",
+    "ABCD_DISABLED_LABEL",
+    "ABCD_DISABLED_TOOLTIP",
+    "ABCD_DISABLED_NOTE",
 ]
