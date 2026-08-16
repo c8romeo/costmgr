@@ -182,3 +182,121 @@ class ValidationResponse(BaseModel):
         default_factory=list,
         description="3 layer (cost_pool + activity + driver) 별 검증 상태.",
     )
+
+
+# ── Story 9.2 NEW Pydantic v2 schemas (PRD §F9.2 + AD-15 §1) ──
+#
+# NOTE: 9-2 wire = NO public endpoint (AD-18 + AD-19). These schemas are
+# defined for future 9-3 wire (A29 forward-lock) and for service-layer
+# internal contracts when called via M3 dispatch. They mirror the schema
+# shape used in compute-only service calls (in-memory AllocationResult).
+# M9 owns no public endpoint for 9-2 wire — see 9-2-abc-allocation-engine-...md.
+
+
+class CcrComputeRequest(BaseModel):
+    """Body for in-memory CCR compute call (Story 9.2 service-layer internal).
+
+    9-2 wire: this schema is NOT exposed via a public endpoint (AD-19 +
+    AD-21). It mirrors the in-memory CCR compute shape used by the
+    service layer when called via future M3 dispatch (A29 forward-lock 후
+    9-3 wire).
+
+    `department_id` 식별자 + `department_cost` (KRW 정수) +
+    `practical_capacity_hours` (실제 조업능력 시간).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    department_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="부서 식별자 (UUID-as-string).",
+    )
+    department_cost: Decimal = Field(
+        ...,
+        ge=0,
+        description="부서 원가 (KRW 정수, AD-8 Decimal-as-string).",
+    )
+    practical_capacity_hours: Decimal = Field(
+        ...,
+        gt=0,
+        description="실제 조업능력 시간 (Decimal, > 0).",
+    )
+
+
+class CcrResultResponse(BaseModel):
+    """Response for in-memory CCR compute call (Story 9.2 service-layer internal).
+
+    Mirrors `CCRResult` frozen dataclass shape with Decimal-as-string
+    serialization (AD-15 §1 cross-language parity with TS mirror
+    `apps/web/lib/m9-abc-allocation.ts`).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    department_id: str = Field(..., description="부서 식별자.")
+    department_cost: str = Field(..., description="부서 원가 (KRW 정수, Decimal-as-string).")
+    practical_capacity_hours: str = Field(..., description="실제 조업능력 시간 (Decimal-as-string).")
+    ccr_per_hour: str = Field(..., description="CCR 시간당 자원동인율 (KRW 정수, Decimal-as-string).")
+    hash: str = Field(..., description="V8 determinism hash (sha256:64-hex).")
+    message_ko: str | None = Field(
+        default=None,
+        description="CCR compute 실패 시 한글 메시지 (ko-KR.json SSOT).",
+    )
+
+
+class AllocationRequest(BaseModel):
+    """Body for in-memory ABC allocation call (Story 9.2 service-layer internal).
+
+    Mirrors AllocationResult compute input shape. Lists of `activity_mapping`
+    + `cost_object_breakdown` are JSON-serializable dicts (TS mirror parity).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    department_id: str = Field(..., min_length=1, max_length=64)
+    department_cost: Decimal = Field(..., ge=0)
+    practical_capacity_hours: Decimal = Field(..., gt=0)
+    used_hours: Decimal = Field(..., ge=0, description="사용 시간 (Decimal-as-string).")
+    activity_mappings: list[dict[str, str | int]] = Field(
+        default_factory=list,
+        description="활동별 매핑 리스트 (activity_id + hours + ccr_amount_krw).",
+    )
+    cost_object_breakdown: list[dict[str, str | int]] = Field(
+        default_factory=list,
+        description=(
+            "원가대상별 4컬럼 (product_id + activity_id + driver_id + "
+            "allocated_krw) 리스트."
+        ),
+    )
+
+
+class AllocationResponse(BaseModel):
+    """Response for in-memory ABC allocation call (Story 9.2 service-layer internal).
+
+    Mirrors AllocationResult frozen dataclass shape. Decimal-as-string
+    serialization (AD-15 §1 cross-language parity).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    department_id: str = Field(..., description="부서 식별자.")
+    department_cost: str = Field(..., description="부서 원가 (KRW 정수).")
+    ccr_per_hour: str = Field(..., description="CCR 시간당 자원동인율 (KRW 정수).")
+    total_breakdown_sum: str = Field(..., description="Σ 원가대상별 배부액 (KRW 정수).")
+    unused_hours: str = Field(..., description="미사용 시간 (Decimal-as-string).")
+    unused_cost_krw: str = Field(..., description="미사용 원가 (KRW 정수).")
+    is_balanced: bool = Field(..., description="V7 ABC 무결성 1원 단위 만족 여부.")
+    activity_mappings: list[dict[str, str | int]] = Field(default_factory=list)
+    cost_object_breakdown: list[dict[str, str | int]] = Field(default_factory=list)
+    ccr_hash: str = Field(..., description="V8 hash for CCR.")
+    allocation_hash: str = Field(..., description="V8 hash for Allocation.")
+    message_ko: str | None = Field(
+        default=None,
+        description="V7 불균형 시 한글 메시지 (ko-KR.json SSOT).",
+    )
+    unused_message_ko: str | None = Field(
+        default=None,
+        description="미사용능력 한글 메시지 (PRD §A9 '미사용능력 X,XXX원').",
+    )

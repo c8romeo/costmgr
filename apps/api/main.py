@@ -113,11 +113,15 @@ from apps.api.modules.m8_budget.exceptions import (
 from apps.api.modules.m9_abc import router as m9_abc_router
 from apps.api.modules.m9_abc.exceptions import (
     ABC_ACTIVITY_INVALID_SUM_KO,
+    ABC_ALLOCATION_BALANCE_ERROR_KO,
+    ABC_CCR_INVALID_CAPACITY_KO,
     ABC_COST_POOL_INVALID_SUM_KO,
     ABC_DRIVER_INVALID_SUM_KO,
     ABC_VALIDATION_NOT_FOUND_KO,
     AbcValidationNotFoundError,
     ActivityValidationError,
+    AllocationBalanceError,
+    CcrComputeError,
     CostPoolValidationError,
     DriverValidationError,
 )
@@ -2334,6 +2338,59 @@ async def _m9_abc_validation_not_found_handler(
             "details": {
                 "target": exc.target,
                 "target_id": exc.target_id,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 9.2 — ABC Allocation envelope handlers (CR 12-5 D-14) ──
+# 2 NEW typed envelope handlers for:
+#   - CcrComputeError           (422 CCR_INVALID_CAPACITY)
+#   - AllocationBalanceError    (422 ALLOCATION_BALANCE_ERROR)
+@app.exception_handler(CcrComputeError)
+async def _m9_abc_ccr_compute_error_handler(
+    request: Request, exc: CcrComputeError
+) -> JSONResponse:
+    """422 CCR_INVALID_CAPACITY — PRD §F9.2 CCR compute 실패.
+
+    Story 9.2 (PRD §F9.2 + AD-15) — practical_capacity_hours ≤ 0 또는
+    type_mismatch / negative_cost / empty_department_id 시 raise.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "CCR_INVALID_CAPACITY",
+            "message_ko": ABC_CCR_INVALID_CAPACITY_KO,
+            "details": {
+                "department_id": exc.department_id,
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AllocationBalanceError)
+async def _m9_abc_allocation_balance_error_handler(
+    request: Request, exc: AllocationBalanceError
+) -> JSONResponse:
+    """422 ALLOCATION_BALANCE_ERROR — PRD §A6 + §V7 ABC 무결성 1원 단위 실패.
+
+    Story 9.2 (PRD §A6 + §V7 verbatim) — Σ(원가대상별 배부액) +
+    미사용능력 ≠ Σ(부서 원가) 시 raise (D-9-3-DEFER candidate).
+    9-2 wire = is_balanced=False (no raise) — frontend disabled signal.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "ALLOCATION_BALANCE_ERROR",
+            "message_ko": ABC_ALLOCATION_BALANCE_ERROR_KO,
+            "details": {
+                "department_id": exc.department_id,
+                "expected_sum": str(exc.expected_sum),
+                "actual_sum": str(exc.actual_sum),
+                "reason": exc.reason,
             },
             "trace_id": str(_uuid_mod.uuid4()),
         },

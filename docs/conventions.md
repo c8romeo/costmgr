@@ -429,6 +429,48 @@ ABC layer 합이 모두 100% 일 때만 계산 활성화 (all_valid=True).
 
 상세: [docs/abc-validation.md](./abc-validation.md) SSOT.
 
+### §6.7 ABC CCR 1-Won precision rule (Story 9.2)
+
+PRD §F9.2 verbatim: "CCR = 부서 원가 ÷ 실제 조업능력 시간, 1원 단위". 모든
+CCR 산출값 + 배부액은 `CCR_KRW_QUANTUM = Decimal("1")` (1원 단위)로
+양자화하며 `ROUND_HALF_EVEN` (AD-8 Decimal-as-string parity) 적용.
+
+- Backend: `packages/cost_engine/abc_engine.py` `compute_ccr` / `compute_allocation` pure functions.
+- Frontend mirror: `apps/web/lib/m9-abc-allocation-schema.ts` `computeCcrTS` / `computeAllocationTS`.
+- Korean SSOT: `ABC_CCR_INVALID_CAPACITY_KO` (실제 조업능력 0 이하 시).
+- Tolerance: `ABC_PRECISION_KRW_TOLERANCE = Decimal("0.01")` (V7 1원 단위 검증).
+
+### §6.8 미사용능력 별도 행 rule (Story 9.2)
+
+PRD §A9 verbatim: "미사용능력 별도 항목 구분 관리". 미사용능력
+(`practical_capacity_hours - used_hours`) 은 activity breakdown 과 별도
+행으로 관리한다.
+
+```
+unused_hours    = practical_capacity_hours - used_hours
+unused_cost_krw = unused_hours × CCR (KRW/시간)
+```
+
+- Backend: `packages/cost_engine/abc_engine.py` `produce_unused_capacity_row`.
+- Frontend mirror: `apps/web/lib/m9-abc-allocation-schema.ts` `produceUnusedCapacityRowTS`.
+- UI: `<UnusedCapacityRow>` 회색 배지 (gray badge) — `apps/web/components/m9-abc/UnusedCapacityRow.tsx`.
+- Korean SSOT: `buildKoreanUnusedCapacityMessage(unused)` → `"미사용능력 X,XXX원"`.
+
+### §6.9 V7 ABC 무결성 1원 단위 검증 (Story 9.2)
+
+PRD §V7 verbatim: "Σ breakdown + unused = Σ department_cost". V7 균형
+검증은 1원 단위 tolerance (`Decimal("0.01")`) 내에서 equality 확인.
+
+```
+is_balanced = |Σ(allocated_krw) + unused_cost_krw - department_cost| ≤ 0.01 KRW
+```
+
+- Backend: `packages/cost_engine/abc_engine.py` `compute_allocation` + `_is_allocation_balanced`.
+- Frontend mirror: `apps/web/lib/m9-abc-allocation-schema.ts` `isBalancedAllocation`.
+- UI: `<CostObjectBreakdownTable>` 균형/불균형 badge (V7 균형 vs V7 불균형).
+
+상세: [docs/abc-allocation.md](./abc-allocation.md) SSOT.
+
 ---
 
 ## §7 Money Formatting (Display only)

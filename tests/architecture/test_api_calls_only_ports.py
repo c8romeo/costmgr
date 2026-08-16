@@ -223,6 +223,10 @@ def test_api_root_does_not_import_services() -> None:
             # (PRD §F9.1: cost_pool / activity / driver validation state
             # JSON-safe Decimal-as-string + UUID-as-string).
             "packages.services.m9_abc.abc_validation_serializers",
+            # Story 9.2 (Epic 9) — M9 ABC allocation engine thin serializers
+            # (PRD §F9.2 + §A9 + §V7: CCR compute + AllocationResult +
+            # UnusedCapacityRow JSON-safe Decimal-as-string + UUID-as-string).
+            "packages.services.m9_abc.abc_allocation_serializers",
             # Story 7.1 (Epic 7) — M7 CVP/BEP simulation thin helpers
             # (Delta bounds clamping + JSON-safe Decimal-as-string
             # serializers for kernel→API conversion).

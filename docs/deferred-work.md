@@ -435,3 +435,55 @@ sprint budget). Documented honestly per CR 11-3 discipline:
   즉시 sweep pattern). 1차 MVP launch 후 follow-up sprint.
 - Scope: 9-1 follow-up sprint (cj-style sprint pattern 12-1/12-4/12-5 T6
   + 12-3 T7 mirror).
+
+### Story 9.2 (ABC Allocation Engine — Single CCR, 1-Won Precision) — 5 honestly DEFER
+
+#### D-9-2-DEFER-1 — `fiscal_period_snapshots.engine_type='abc'` COMMIT
+- Source: `packages/cost_engine/abc_engine.py` (compute only — no persistence)
+- Reason: 9-2 = in-memory compute only (AD-18 + AD-19). M3 dispatch →
+  fiscal_period_snapshots write = 9-3 wire (A29 forward-lock 결정 후).
+- Scope: bmad-dev-story 9-3 T1~T8 execution sprint.
+
+#### D-9-2-DEFER-2 — Public endpoint exposure for ABC allocation
+- Source: `apps/api/modules/m9_abc/__init__.py` (no router)
+- Reason: 9-2 = service-layer orchestrator ONLY. Public endpoint wire
+  requires AD-19 dual-route dispatch (service-only tenants →
+  m9_abc router). Arrives in 9-3 wire.
+- Scope: bmad-dev-story 9-3 T1~T8 execution sprint.
+
+#### D-9-2-DEFER-3 — Cost Object Breakdown backend persistence (4컬럼)
+- Source: `packages/cost_engine/abc_engine.py` (in-memory CostObjectRow only)
+- Reason: 9-2 = frontend TanStack Table only. Backend cost_object_breakdown
+  schema + INSERT = 9-3 wire (fiscal_period_snapshots JSONB subdocument).
+- Scope: bmad-dev-story 9-3 T1~T8 execution sprint.
+
+#### D-9-2-DEFER-4 — Unused capacity full breakdown by department
+- Source: `apps/web/components/m9-abc/UnusedCapacityRow.tsx` (gray badge + accordion)
+- Reason: MVP scope = single-row 별도 행 gray badge. Full breakdown by
+  department (PRD §A9 long-form) = 9-4 wire (Report #21 PDF generator reuse).
+- Scope: bmad-dev-story 9-4 T1~T8 execution sprint.
+
+#### D-9-2-DEFER-5 — Audit trail write for CCR compute
+- Source: `apps/api/modules/m9_abc/services/abc_allocation_service.py` (no audit)
+- Reason: 9-2 = compute only (AD-22 ledger append-only invariant preserved).
+  Audit trail entry = 9-3 wire (after AD-22 capability wire).
+- Scope: bmad-dev-story 9-3 T1~T8 execution sprint.
+
+#### D-9-2-DEFER-6 — ruff N806 pre-existing in `test_api_calls_only_ports.py`
+- Source: `tests/architecture/test_api_calls_only_ports.py` lines 64 / 134 / 283
+  (3 uppercase module-level frozenset constants: `CORE_IMPORT_ALLOWLIST`,
+  `ALLOWED_SERVICE_SUBMODULES`, `RUNTIME_CORE_IMPORT_ALLOWLIST`).
+- Reason: Pre-existing baseline (Walking Skeleton MVP `1e034c4` = 9-2
+  `baseline_commit`). 9-2 wire did NOT introduce these N806 warnings — they
+  have been present since `fc7759f` (Story 6.3 ALLOWED_SERVICE_SUBMODULES
+  original) and propagated through every story that touched the file
+  (12-1, 12-3, 8-1, 8-2, 8-3, Walking Skeleton MVP). Module-level
+  frozenset convention is intentional (mirrors 8-3 `LINT_ALLOWLIST_CONSTANTS`
+  decision). Renaming to lowercase would conflict with the architectural
+  test ALLOWED list semantic and require coordinated rename across all
+  call sites + ruff `# noqa` policy update. 9-2 3중 게이트 scope = 9-2
+  files only, NOT pre-existing baseline cleanup.
+- Scope: Walking Skeleton MVP follow-up sprint (A22 candidate — pre-existing
+  infra debt cleanup of 6 ruff + 9 test isolation + 69 format files).
+  Could also be addressed in 9-3 sprint if ALLOWED_SERVICE_SUBMODULES sweep
+  requires touching this file again.

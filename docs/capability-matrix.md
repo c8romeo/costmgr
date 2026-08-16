@@ -257,7 +257,7 @@ class CalcResponse(BaseModel):
 | `ACCOUNT_DELETION` | 12.3 | ✅ | ✅ | ✅ | ✅ |
 | `BUDGET_SCENARIO` | 8.1 | ✅ | ✅ | ✅ | ✅ |
 | `CVP_SIMULATION` | 7.1 | ✅ | ✅ | ✅ | ✅ |
-| `ABC_CALCULATION` | 9.1 | ✅ | ✅ | ✅ | ✅ |
+| `ABC_CALCULATION` | 9.1, 9.2 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 

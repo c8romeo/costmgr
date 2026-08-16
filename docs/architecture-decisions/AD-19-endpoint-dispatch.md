@@ -83,6 +83,19 @@ manufacturing cost chain (COST_CALCULATION → CalcResponse), while
 
 ## Change history
 
+- **2026-08-16 (Story 9.2)** — A28 forward-lock 3-way wire 결정 (9-1
+  handoff 진입점):
+  - **CCR compute** (D-9-1-DEFER-1 해소) — `CCRPort.compute(tenant_id, period_key, department_id)` 단일 함수 (AD-21)
+  - **Activity mapping** — 활동별 시간 배분 × CCR = 활동별 배부액 (1-Won precision)
+  - **Cost Object Breakdown** (D-9-1-DEFER-4 해소) — `product_id` (원가대상)별 행 + 4컬럼 (원가풀·활동·동인·배부액)
+  - 9-2 wire = in-memory `AllocationResult` ONLY (no INSERT, no public endpoint per AD-18)
+  - Service layer: `apps/api/modules/m9_abc/services/abc_allocation_service.py` (`AbcAllocationService` orchestrator)
+  - Frontend RSC: `apps/web/app/[locale]/(dashboard)/budget/abc-allocation/page.tsx` + 4 NEW Client Components
+  - Cross-language parity: TS mirror `apps/web/lib/m9-abc-allocation.ts` + TS schema `apps/web/lib/m9-abc-allocation-schema.ts`
+  - Korean SSOT: `abc_allocation` namespace (37 strings) in `apps/web/messages/ko-KR.json`
+  - Capability matrix v1.18 unchanged (reuse `Capability.ABC_CALCULATION`)
+  - 5 honestly DEFER (D-9-2-DEFER-1~5): `fiscal_period_snapshots.engine_type='abc'` COMMIT (9-3 wire) + 4 wire scope deferrals
+  - 상세: [docs/abc-allocation.md](./abc-allocation.md) SSOT.
 - **2026-08-16 (Story 9.1)** — AD-19 extension target set to Story 9-3.
   Capability.ABC_CALCULATION enum value + 4-industry grants wired.
   9-1 wire does NOT yet dispatch (service-only tenants still 403 on

@@ -721,3 +721,72 @@ Korean SSOT constants:
 - `apps/web/messages/ko-KR.json` — NEW `abc_validation` namespace (29 strings)
 - `apps/web/app/[locale]/(dashboard)/budget/abc-validation/page.tsx` — RSC page
 
+---
+
+## §9.2 ABC Allocation Engine Architecture (Story 9.2)
+
+> PRD §F9.2 verbatim: "CCR = 부서 원가 ÷ 실제 조업능력 시간, 1원 단위 + 미사용능력 별도 행 관리".
+> Epic 9 (ABC / TDABC Engine — Service Business) 2번째 진입점.
+> **A28 forward-lock:** CCR ↔ Activity ↔ Cost Object 3-way wire 결정 (9-1 handoff 진입점).
+
+### 모듈 구조
+
+```
+apps/api/modules/m9_abc/
+├── __init__.py                  # EXTENSION (NO router — AD-18 + AD-19)
+├── schemas.py                   # EXTENSION (+4 NEW Pydantic v2 models)
+├── exceptions.py                # EXTENSION (+2 NEW typed exceptions + 2 Korean SSOT)
+└── services/
+    ├── __init__.py              # EXTENSION (+AbcAllocationService export)
+    └── abc_allocation_service.py   # NEW AbcAllocationService (orchestrator)
+
+packages/cost_engine/abc_engine.py        # A19 cohesion pattern 7 surface (9-1+9-2 EXTENSION)
+packages/services/m9_abc/
+├── __init__.py                  # NEW (re-export)
+└── abc_allocation_serializers.py   # NEW JSON-safe thin serializer (2 helpers)
+
+apps/web/components/m9-abc/                  # +4 NEW Client Components
+apps/web/lib/
+├── m9-abc-allocation.ts            # NEW TS mirror
+└── m9-abc-allocation-schema.ts      # NEW TS validation schema
+apps/web/messages/ko-KR.json             # +abc_allocation namespace (37 strings)
+apps/web/app/[locale]/(dashboard)/budget/abc-allocation/page.tsx   # NEW RSC page
+```
+
+### Pure kernel (A19 cohesion pattern 7 surface — 9-1 + 9-2 EXTENSION)
+
+`packages/cost_engine/abc_engine.py`:
+
+- **CCR compute** (D-9-1-DEFER-1 해소): `CCRPort.compute(tenant_id, period_key, department_id)`
+- **Allocation V7 balance**: Σ breakdown + unused = Σ department_cost
+- **Unused Capacity 별도 행**: PRD §A9 verbatim
+- 5 NEW frozen dataclasses: `CCRResult`, `ActivityMapping`, `CostObjectRow`, `AllocationResult`, `UnusedCapacityRow`
+- 2 NEW typed exceptions: `CcrComputeError`, `AllocationBalanceError`
+- 5 NEW pure functions: `compute_ccr`, `compute_ccr_hash`, `produce_unused_capacity_row`, `compute_allocation`, `compute_allocation_hash`
+- 1 NEW constant: `CCR_KRW_QUANTUM = Decimal("1")` (1원 단위)
+- 1 NEW tolerance: `ABC_PRECISION_KRW_TOLERANCE = Decimal("0.01")` (V7 1원 단위 검증)
+
+### Wire contract (9-2 = in-memory, no public endpoint)
+
+Per AD-18 + AD-19: **M9 owns NO public endpoint for 9-2 wire**. The service
+layer returns in-memory `AllocationResult` ONLY (no INSERT, no fiscal_period_snapshots
+write). 9-3 (M3 dispatch) will be the next step for AD-19 wire.
+
+### Cross-references (9-2)
+
+- `packages/cost_engine/abc_engine.py` — pure kernel EXTENSION (A19 cohesion pattern 7 surface)
+- `apps/api/modules/m9_abc/services/abc_allocation_service.py` — orchestrator (CR 12-1 L3 boundary)
+- `apps/api/modules/m9_abc/schemas.py` — 4 NEW Pydantic v2 models (compute/internal)
+- `apps/api/modules/m9_abc/exceptions.py` — 2 NEW typed exceptions + 2 Korean SSOT
+- `apps/api/main.py` — 2 NEW @app.exception_handler decorators (CCR_INVALID_CAPACITY + ALLOCATION_BALANCE_ERROR)
+- `packages/services/m9_abc/abc_allocation_serializers.py` — JSON-safe thin serializer
+- `apps/web/lib/m9-abc-allocation.ts` — TS mirror (types + validators)
+- `apps/web/lib/m9-abc-allocation-schema.ts` — TS validation schema
+- `apps/web/components/m9-abc/AbcAllocationPanel.tsx` — main Client Component
+- `apps/web/components/m9-abc/CcrResultCard.tsx` — CCR per hour card
+- `apps/web/components/m9-abc/UnusedCapacityRow.tsx` — PRD §A9 별도 행 회색 배지
+- `apps/web/components/m9-abc/CostObjectBreakdownTable.tsx` — 4-컬럼 table + V7 balance
+- `apps/web/messages/ko-KR.json` — NEW `abc_allocation` namespace (37 strings)
+- `apps/web/app/[locale]/(dashboard)/budget/abc-allocation/page.tsx` — RSC page
+- `docs/abc-allocation.md` — 9-2 documentation
+
