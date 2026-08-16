@@ -214,6 +214,15 @@ def test_api_root_does_not_import_services() -> None:
             # serializers + ABCD disabled badge PDF envelope helpers).
             "packages.services.m8_budget.budget_variance_serializers",
             "packages.services.m8_budget.budget_variance_pdf_helpers",
+            # Story 8.3 (Epic 8) — M8 budget pre-standard cost thin helpers
+            # (PRD §F8.3 + §9 #20: pre-standard cost serializers + PDF envelope
+            # ABCD disabled badge PDF 미터).
+            "packages.services.m8_budget.budget_pre_standard_serializers",
+            "packages.services.m8_budget.budget_pre_standard_pdf_helpers",
+            # Story 9.1 (Epic 9) — M9 ABC 100% validation thin serializers
+            # (PRD §F9.1: cost_pool / activity / driver validation state
+            # JSON-safe Decimal-as-string + UUID-as-string).
+            "packages.services.m9_abc.abc_validation_serializers",
             # Story 7.1 (Epic 7) — M7 CVP/BEP simulation thin helpers
             # (Delta bounds clamping + JSON-safe Decimal-as-string
             # serializers for kernel→API conversion).

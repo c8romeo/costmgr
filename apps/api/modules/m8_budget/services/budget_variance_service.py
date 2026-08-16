@@ -285,19 +285,36 @@ class BudgetVarianceService:
     async def generate_budget_variance_pdf(
         self,
         *,
-        period_key: str,  # noqa: ARG002 (8-3 wire signature)
-        scenario_index: int = 1,  # noqa: ARG002 (8-3 wire signature)
+        period_key: str,
+        scenario_index: int = 1,
     ) -> bytes:
-        """Generate budget variance PDF (8-3 honestly DEFER placeholder).
+        """Generate budget variance PDF (8-3 wire activation, 8-2 DEFER 해소).
 
-        8-2 atomic wire: returns empty bytes (placeholder).
-        8-3 follow-up sprint: delegate to `packages.services.m6_reports.pdf_helpers`
-        (Epic 6 M5 PDF generator reuse, READ-ONLY pattern).
+        8-2 atomic wire: placeholder `pass` → empty bytes.
+        8-3 wire (8-2 spec line 273 placeholder 해소): delegate to
+        `BudgetPreStandardService.generate_budget_variance_pdf` (8-3 wire)
+        which reuses the pre-standard snapshot + Epic 6 M5 PDF generator
+        (READ-ONLY pattern, A4 portrait + KRW integer + ko-KR only).
 
-        A4 portrait + KRW integer + ko-KR only (NFR18) + ABCD 회색 배지.
+        425 if pre-standard snapshot NOT yet inserted (8-2 race condition
+        방지 동일 패턴).
         """
-        # 8-2 atomic wire: placeholder (8-3 follow-up).
-        return b""
+        # 8-3 wire activation: delegate to BudgetPreStandardService for the
+        # actual PDF generation (8-2 placeholder 활성화).
+        from apps.api.modules.m8_budget.services import (
+            BudgetPreStandardService,
+        )
+
+        pre_standard_service = BudgetPreStandardService(
+            self.session,
+            tenant_id=self.tenant_id,
+            actor_id=self.actor_id,
+            trace_id=self.trace_id,
+        )
+        return await pre_standard_service.generate_budget_variance_pdf(
+            period_key=period_key,
+            scenario_index=scenario_index,
+        )
 
     async def fetch_variance_with_total(
         self, *, period_key: str

@@ -29,6 +29,7 @@ import pytest
 
 from apps.api.modules.m8_budget.exceptions import (
     BudgetVarianceNotFoundError,
+    BudgetVariancePdfNotReadyError,
     InvalidVariancePeriodError,
 )
 from apps.api.modules.m8_budget.services.budget_variance_service import (
@@ -412,7 +413,13 @@ def test_fetch_abcd_disabled_badge_invalid_variant_raises() -> None:
 
 # ── generate_budget_variance_pdf tests (8-3 honestly DEFER) ─────────
 def test_generate_budget_variance_pdf_returns_empty_bytes() -> None:
-    """8-3 follow-up sprint — returns empty bytes (honestly DEFER placeholder)."""
+    """8-3 wire activation — no pre-standard snapshot → 425 envelope.
+
+    8-2 atomic wire: returns empty bytes (placeholder).
+    8-3 wire (8-2 spec line 273 placeholder 해소): delegates to
+    BudgetPreStandardService.generate_budget_variance_pdf → 425 if
+    pre-standard snapshot NOT yet inserted.
+    """
     session = _make_session()
     service = BudgetVarianceService(
         session,
@@ -421,15 +428,18 @@ def test_generate_budget_variance_pdf_returns_empty_bytes() -> None:
         trace_id="trace-013",
     )
 
-    pdf_bytes = asyncio.run(
-        service.generate_budget_variance_pdf(period_key="2026-07#B1")
-    )
-
-    assert pdf_bytes == b""
+    with pytest.raises(BudgetVariancePdfNotReadyError):
+        asyncio.run(
+            service.generate_budget_variance_pdf(period_key="2026-07#B1")
+        )
 
 
 def test_generate_budget_variance_pdf_with_scenario_index() -> None:
-    """scenario_index parameter accepted (default=1) → still empty bytes."""
+    """scenario_index parameter accepted (default=1) → 425 if not ready.
+
+    8-3 wire: scenario_index != 1 is rejected at pre-standard service
+    level (MVP lock). For default scenario_index=1 → 425 if no snapshot.
+    """
     session = _make_session()
     service = BudgetVarianceService(
         session,
@@ -438,14 +448,13 @@ def test_generate_budget_variance_pdf_with_scenario_index() -> None:
         trace_id="trace-014",
     )
 
-    pdf_bytes = asyncio.run(
-        service.generate_budget_variance_pdf(
-            period_key="2026-07#B2",
-            scenario_index=2,
+    with pytest.raises(BudgetVariancePdfNotReadyError):
+        asyncio.run(
+            service.generate_budget_variance_pdf(
+                period_key="2026-07#B1",
+                scenario_index=1,
+            )
         )
-    )
-
-    assert pdf_bytes == b""
 
 
 # ── fetch_variance_with_total atomic convenience method ────────────

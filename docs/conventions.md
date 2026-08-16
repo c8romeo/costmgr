@@ -409,6 +409,26 @@ The M8 budget module introduces a NEW virtual period key type
 - `#B<n>`은 같은 real 월 안에서 여러 가상 예산을 구분할 때 사용 (Story 8.1).
 - 비교 시 `period_key` 전체를 문자열로 비교.
 
+### §6.6 ABC 100% 가드 layer sums (Story 9.1)
+
+PRD §F9.1 verbatim: "원가풀 행 합·활동 열 합·동인 합 모두 100% 가드". 3
+ABC layer 합이 모두 100% 일 때만 계산 활성화 (all_valid=True).
+
+| Layer | Field | 비고 |
+|---|---|---|
+| cost_pool | `Σ(department allocation_pcts) = 100%` | row sum |
+| activity | `Σ(activity activity_pcts) = 100%` | column sum |
+| driver | `Σ(driver driver_pcts) = 100%` | driver sum |
+
+- Decimal-as-string (CR 11-4 D-005) — `["25", "25", "25", "25"]` (정확히 KRW 정수).
+- Backend: `packages/cost_engine/abc_engine.py` `validate_cost_pool` /
+  `validate_activity` / `validate_driver` pure functions.
+- Frontend mirror: `apps/web/lib/m9-abc-validation-schema.ts` `validateAbcPctList`.
+- Korean SSOT: `ABC_COST_POOL_INVALID_SUM_KO` + `ABC_ACTIVITY_INVALID_SUM_KO` +
+  `ABC_DRIVER_INVALID_SUM_KO` + `ABC_VALIDATION_NOT_FOUND_KO`.
+
+상세: [docs/abc-validation.md](./abc-validation.md) SSOT.
+
 ---
 
 ## §7 Money Formatting (Display only)

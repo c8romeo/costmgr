@@ -393,3 +393,45 @@ sprint budget). Documented honestly per CR 11-3 discipline:
   후 follow-up sprint.
 - Scope: 7-1 follow-up sprint (cj-style sprint pattern 12-1/12-4/12-5 T6
   + 12-3 T7 mirror).
+
+## Epic 9 (ABC / TDABC Engine — Service Business) honestly DEFER
+
+### Story 9.1 (Cost Pool + Activity + Driver 100% Validation) — 6 honestly DEFER
+
+#### D-9-1-DEFER-1 — CCR (Cost Center Rate) compute
+- Source: `packages/cost_engine/abc_engine.py` (validate_* only — no compute)
+- Reason: 9-1 = validation only. CCR compute = cost_pool_total /
+  activity_hours = KRW/hr, arrives in 9-2 wire.
+- Scope: bmad-dev-story 9-2 T1~T8 execution sprint.
+
+#### D-9-1-DEFER-2 — ABC allocation engine (driver × CCR = activity cost)
+- Source: `packages/cost_engine/abc_engine.py` (no allocation routine)
+- Reason: 9-1 = pre-condition validation. ABC allocation = driver_qty ×
+  CCR = KRW allocated to activity, arrives in 9-3 wire.
+- Scope: bmad-dev-story 9-3 T1~T8 execution sprint.
+
+#### D-9-1-DEFER-3 — M3 endpoint dispatch (AD-19 service-only routing)
+- Source: `apps/api/core/capability.py::require_capability`
+- Reason: 9-1 = validation only — service-only tenants still 403 on
+  COST_CALCULATION. AD-19 extension target = 9-3 wire.
+- Scope: bmad-dev-story 9-3 T1~T8 execution sprint.
+
+#### D-9-1-DEFER-4 — Cost Object Breakdown
+- Source: `packages/cost_engine/abc_engine.py` (no cost_object output)
+- Reason: 9-1 = layer-sum guard only. Cost Object Breakdown = per-product
+  KRW allocation summary, arrives in 9-2 wire.
+- Scope: bmad-dev-story 9-2 T1~T8 execution sprint.
+
+#### D-9-1-DEFER-5 — Multi-industry ABC (§14.B Non-Goal #1)
+- Source: PRD §14.B Non-Goal #1
+- Reason: Mixed-industry tenants (manufacturing_service /
+  manufacturing_service_other) currently use COST_CALCULATION; multi-ABC
+  routing for them is 2차 non-goal (explicit PRD exclusion).
+- Scope: (none — explicit PRD non-goal).
+
+#### D-9-1-DEFER-6 — Playwright E2E (16 cases)
+- Source: `apps/web/components/m9-abc/AbcValidationPanel.tsx`
+- Reason: sprint-scale atomic wire (cj-style 11-3 D-2 ALLOWED_SERVICE_SUBMODULES
+  즉시 sweep pattern). 1차 MVP launch 후 follow-up sprint.
+- Scope: 9-1 follow-up sprint (cj-style sprint pattern 12-1/12-4/12-5 T6
+  + 12-3 T7 mirror).

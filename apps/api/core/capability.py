@@ -174,6 +174,15 @@ class Capability(str, Enum):
     # GET /simulation/cvp/baseline routes. Documented in
     # capability-matrix v1.17.
     CVP_SIMULATION = "cvp_simulation"
+    # Story 9.1 (Epic 9) — ABC 100% validation guard capability
+    # (PRD §F9.1 + AD-5 engine purity + A19 cohesion pattern 6번째 surface).
+    # Industry-agnostic baseline (CR 12-1 L4 precedent — manufacturing 3종 ✅
+    # + service-only ✅). Granted to all 4 industries because ABC validation
+    # is a precursor guard before CCR allocation (9-2 / 9-3 / 9-4 follow-up).
+    # Used as the capability gate for POST /api/v1/abc/{cost-pools,activities,
+    # drivers/validate,validate} routes. Documented in capability-matrix v1.18.
+    # 9-2 / 9-3 / 9-4 동일 capability 재사용 (CR 11-3 즉시 sweep 회피).
+    ABC_CALCULATION = "abc_calculation"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -225,6 +234,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 7.1 — manufacturing tenants get CVP_SIMULATION
             # (industry-agnostic, financial baseline CR 12-1 L4).
             Capability.CVP_SIMULATION,
+            # Story 9.1 — manufacturing tenants get ABC_CALCULATION
+            # (industry-agnostic, validation guard CR 12-1 L4 + 7-1/7-2/8-1/8-2/8-3 precedent).
+            Capability.ABC_CALCULATION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -258,6 +270,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 7.1 — service tenants get CVP_SIMULATION
             # (industry-agnostic, financial baseline CR 12-1 L4).
             Capability.CVP_SIMULATION,
+            # Story 9.1 — service tenants get ABC_CALCULATION
+            # (industry-agnostic, validation guard CR 12-1 L4).
+            Capability.ABC_CALCULATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -311,6 +326,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 7.1 — 겸영 tenants get CVP_SIMULATION
             # (industry-agnostic, financial baseline CR 12-1 L4).
             Capability.CVP_SIMULATION,
+            # Story 9.1 — 겸영 tenants get ABC_CALCULATION
+            # (industry-agnostic, validation guard CR 12-1 L4).
+            Capability.ABC_CALCULATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -361,6 +379,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 7.1 — full matrix tenants get CVP_SIMULATION
             # (industry-agnostic, financial baseline CR 12-1 L4).
             Capability.CVP_SIMULATION,
+            # Story 9.1 — full matrix tenants get ABC_CALCULATION
+            # (industry-agnostic, validation guard CR 12-1 L4).
+            Capability.ABC_CALCULATION,
         }
     ),
 }

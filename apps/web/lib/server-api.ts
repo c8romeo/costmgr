@@ -675,3 +675,48 @@ export async function fetchBudgetVariancePdfServerSide(
     clearTimeout(timeoutId);
   }
 }
+
+// Story 8.3 (Epic 8) — M8 budget pre-standard cost preview server-side fetch.
+// RSC fetch for `GET /api/v1/budget/pre-standard?period_key=...` to seed
+// the /budget/pre-standard page with the tenant's existing pre-standard
+// snapshot (PRD §F8.3 + AD-15 SSOT parity with
+// apps/api/modules/m8_budget/handlers.py::get_budget_pre_standard).
+//
+// 404 (no snapshot yet) → returns null. Returns null on any failure so the
+// page falls back to "no snapshot yet" rendering.
+import type { BudgetPreStandardResponse } from "./m8-budget-pre-standard";
+
+export async function fetchBudgetPreStandardServerSide(
+  accessToken: string | undefined,
+  periodKey: string,
+  traceId: string,
+): Promise<BudgetPreStandardResponse | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/budget/pre-standard?period_key=${encodeURIComponent(periodKey)}`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    const data = (await res.json()) as BudgetPreStandardResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

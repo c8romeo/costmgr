@@ -604,3 +604,120 @@ completeness but is NOT enforced in any route.
 - `apps/web/components/m12-account/TwoFactorGuard.tsx` — M2 entry guard UI
 - `apps/web/messages/ko-KR.json` — 5 NEW sections (two_factor_guard, two_factor_setup_panel, two_factor_disable_panel, two_factor_status_badge, m2_entry_gate) — 41 NEW strings total
 
+---
+
+## §9.1 ABC 100% Validation Architecture (Story 9.1)
+
+> PRD §F9.1 verbatim: "원가풀 행 합·활동 열 합·동인 합 모두 100% 가드".
+> Epic 9 (ABC / TDABC Engine — Service Business) 1번째 진입점.
+
+### 모듈 구조
+
+```
+apps/api/modules/m9_abc/
+├── __init__.py
+├── handlers.py             # 4 NEW endpoints (1.2 scaffold 2 routes + 9-1 4 routes)
+├── schemas.py              # 5 NEW Pydantic v2 models
+├── exceptions.py           # 4 NEW typed exceptions + 4 Korean SSOT constants
+└── services/
+    ├── __init__.py
+    └── abc_validation_service.py   # AbcValidationService (orchestrator)
+
+packages/cost_engine/abc_engine.py        # A19 cohesion pattern 6번째 surface
+packages/services/m9_abc/abc_validation_serializers.py   # JSON-safe thin serializer
+apps/web/components/m9-abc/                       # 4 NEW Client Components
+apps/web/lib/m9-abc-validation.ts                # TS mirror
+apps/web/lib/m9-abc-validation-schema.ts          # TS validation schema
+```
+
+### Pure kernel (A19 cohesion pattern 6번째 surface)
+
+`packages/cost_engine/abc_engine.py`:
+- 4 NEW pure functions: `validate_cost_pool`, `validate_activity`,
+  `validate_driver`, `validate_100_percent_guard` (orchestrator),
+  `compute_validation_hash` (V8 determinism sha256:64-hex)
+- 3 NEW frozen dataclasses: `CostPoolValidation`, `ActivityValidation`,
+  `DriverValidation` (+ `ValidationState` Union)
+- 4 NEW typed exceptions: `CostPoolValidationError`,
+  `ActivityValidationError`, `DriverValidationError`,
+  `AbcValidationNotFoundError`
+- 7 NEW constants: `ABC_VALIDATION_KRW_QUANTUM`, `ALLOCATION_PCT_MIN/MAX`,
+  `VALIDATION_100_PCT_TARGET`, `VALIDATION_TOLERANCE_KRW`,
+  `VALIDATION_HASH_PREFIX`, `VALIDATION_DEFAULT_INDUSTRY`
+- AD-5 stdlib-only (no DB, no clock, no random) — verified via
+  `tests/cost_engine/test_abc_engine_no_io_imports.py` (5 AST cases).
+
+### Service layer
+
+`AbcValidationService` (orchestrator):
+- `validate_100_percent_guard(cost_pool, activities, drivers, ...)` →
+  3-layer guard orchestrator (CR 12-5 L3 3-layer defense).
+- `validate_cost_pool_only / validate_activity_only / validate_driver_only`
+  single-layer endpoints.
+- `_to_validation_state` ORM→kernel boundary conversion (CR 12-1 L3 precedent).
+- `validate_abc_pct_list` pre-validation (type/range/empty).
+- `fetch_tenant_abc_drivers` (Story 1.2 scaffold JSONB re-use).
+
+### Capability gate
+
+`Capability.ABC_CALCULATION` (NEW, v1.18):
+- Industry-agnostic (manufacturing 3종 ✅ + service-only ✅).
+- CR 12-1 L4 precedent: ABC is financial baseline infrastructure.
+- 4 NEW endpoints gated: `Depends(require_capability(Capability.ABC_CALCULATION))`
+  + `Depends(require_any_role("owner", "member"))`.
+- Drift detector: `tests/integration/test_capability_matrix_v1_18_drift.py`.
+
+### AD-15 envelope mapping (apps/api/main.py)
+
+4 NEW typed exception envelopes (CR 12-5 D-14):
+- `CostPoolValidationError` → 422 COST_POOL_INVALID_SUM
+- `ActivityValidationError` → 422 ACTIVITY_INVALID_SUM
+- `DriverValidationError` → 422 DRIVER_INVALID_SUM
+- `AbcValidationNotFoundError` → 404 ABC_VALIDATION_NOT_FOUND
+
+Korean SSOT constants:
+- `ABC_COST_POOL_INVALID_SUM_KO = "원가풀 행 합이 100%가 아닙니다"`
+- `ABC_ACTIVITY_INVALID_SUM_KO = "활동 열 합이 100%가 아닙니다"`
+- `ABC_DRIVER_INVALID_SUM_KO = "동인 합이 100%가 아닙니다"`
+- `ABC_VALIDATION_NOT_FOUND_KO = "ABC 검증 대상을 찾을 수 없습니다"`
+
+### 9-1 honestly DEFER (A26 forward-lock)
+
+9-1 = validation only, NO INSERT/UPDATE/DELETE on persistent storage.
+- **D-9-1-DEFER-1** CCR compute (9-2 entry)
+- **D-9-1-DEFER-2** ABC allocation engine (9-3 entry)
+- **D-9-1-DEFER-3** M3 endpoint dispatch (9-3 entry, AD-19)
+- **D-9-1-DEFER-4** Cost Object Breakdown (9-2 entry)
+- **D-9-1-DEFER-5** Multi-industry ABC (§14.B Non-Goal #1)
+- **D-9-1-DEFER-6** Playwright E2E
+
+### Drift detectors (T9.7)
+
+- `tests/cost_engine/test_abc_engine.py` — 36 pure kernel cases
+- `tests/cost_engine/test_abc_engine_no_io_imports.py` — 5 AST stdlib whitelist cases
+- `tests/cost_engine/test_abc_engine_determinism.py` — 6 V8 byte-identical cases
+- `tests/services/test_m9_abc_validation_service.py` — 30 service-layer cases
+- `tests/api/m9_abc/test_abc_validation_handlers.py` — 20 handler + schema cases
+- `tests/integration/test_capability_matrix_v1_18_drift.py` — 12 capability pin cases
+- `apps/web/__tests__/lib/m9-abc-validation-schema-parity.test.ts` — 33 TS parity cases
+- `apps/web/__tests__/components/m9-abc.*.test.tsx` — 13 component cases
+
+### Cross-references (9-1)
+
+- `packages/cost_engine/abc_engine.py` — pure kernel (A19 cohesion pattern 6번째)
+- `apps/api/modules/m9_abc/handlers.py` — 4 NEW routes + 1.2 scaffold preserved
+- `apps/api/modules/m9_abc/services/abc_validation_service.py` — orchestrator
+- `apps/api/modules/m9_abc/schemas.py` — 5 NEW Pydantic v2 models
+- `apps/api/modules/m9_abc/exceptions.py` — 4 NEW typed exceptions + 4 Korean SSOT
+- `apps/api/main.py` — 4 NEW @app.exception_handler decorators
+- `apps/api/core/capability.py` — `Capability.ABC_CALCULATION` enum + 4-industry grants
+- `packages/services/m9_abc/abc_validation_serializers.py` — JSON-safe thin serializer
+- `apps/web/lib/m9-abc-validation.ts` — TS mirror (types + validators)
+- `apps/web/lib/m9-abc-validation-schema.ts` — TS validation schema
+- `apps/web/components/m9-abc/AbcValidationPanel.tsx` — main Client Component
+- `apps/web/components/m9-abc/AbcValidationForm.tsx` — 3-input form
+- `apps/web/components/m9-abc/AbcValidationStatus.tsx` — single-layer status
+- `apps/web/components/m9-abc/AbcValidationGuardBadge.tsx` — 3-layer guard badge
+- `apps/web/messages/ko-KR.json` — NEW `abc_validation` namespace (29 strings)
+- `apps/web/app/[locale]/(dashboard)/budget/abc-validation/page.tsx` — RSC page
+

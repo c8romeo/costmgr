@@ -1,8 +1,35 @@
-# Capability Matrix (v1.17)
+# Capability Matrix (v1.18)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.18 (2026-08-16, Story 9.1, Epic 9)** — `ABC_CALCULATION`
+> ABC / TDABC engine 100% validation guard wire (PRD §F9.1 verbatim —
+> "원가풀 행 합·활동 열 합·동인 합 모두 100% 가드"). Story 9.1 wired
+> the pure kernel `abc_engine.py` (A19 cohesion pattern 6번째 surface —
+> 4 NEW functions + 3 frozen dataclasses + 4 typed exceptions + 7 constants,
+> AD-5 stdlib-only) + service layer `AbcValidationService` +
+> 4 NEW routes under `/api/v1/abc/*`:
+> - POST /api/v1/abc/cost-pools        — 원가풀 행 합 100% 가드
+> - POST /api/v1/abc/activities        — 활동 열 합 100% 가드
+> - POST /api/v1/abc/drivers/validate  — 동인 합 100% 가드 (1.2 POST /drivers 와 별도)
+> - POST /api/v1/abc/validate          — 3-layer 100% 가드 동시 검증 (main entry point)
+>
+> 4 NEW typed exceptions are mapped to AD-15 §4 envelopes in
+> `apps/api/main.py` (CR 12-5 D-14): `CostPoolValidationError` → 422
+> COST_POOL_INVALID_SUM / `ActivityValidationError` → 422 ACTIVITY_INVALID_SUM
+> / `DriverValidationError` → 422 DRIVER_INVALID_SUM /
+> `AbcValidationNotFoundError` → 404 ABC_VALIDATION_NOT_FOUND.
+> Alembic/RLS SKIPPED (9-1 = validation only, no INSERT/UPDATE/DELETE —
+> CR 1.1 read-mostly invariant; A5 forward-lock 변경 0).
+> `ABC_CALCULATION` is **industry-agnostic** (granted to ALL 4 canonical
+> industries) — ABC is operational baseline infrastructure (CR 12-1 L4
+> precedent — manufacturing 3종 ✅ + service-only ✅). Drift detector:
+> `tests/integration/test_capability_matrix_v1_18_drift.py` pins enum ↔
+> docs ↔ 4-industry grants for ABC_CALCULATION.
+>
+> ---
 >
 > **v1.17 (2026-08-15, Story 8.1, Epic 8)** — `BUDGET_SCENARIO`
 > AD-24 §6.3 virtual budget period key + 1차 시나리오 1개 잠금
@@ -230,6 +257,7 @@ class CalcResponse(BaseModel):
 | `ACCOUNT_DELETION` | 12.3 | ✅ | ✅ | ✅ | ✅ |
 | `BUDGET_SCENARIO` | 8.1 | ✅ | ✅ | ✅ | ✅ |
 | `CVP_SIMULATION` | 7.1 | ✅ | ✅ | ✅ | ✅ |
+| `ABC_CALCULATION` | 9.1 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
@@ -317,7 +345,7 @@ class CalcResponse(BaseModel):
 | 4.3 — Verification envelope (V1·V4·V7·V8) | (no new capability; verdict envelope wired INTO `COST_CALCULATION` response) |
 | 4.4 — V8 골든 byte-identical CI gate | (no new capability; 12 fixture 매트릭스가 `COST_CALCULATION` 응답 verdict envelope 의 V8 fail-path audit action (`verify_v8_golden_match`) 으로 wire) |
 | 5.x — Inventory | `OPENING_INVENTORY`, `INVENTORY_LEDGER` |
-| 9.x — ABC | `COST_POOL`, `ACTIVITY`, `DRIVER`, `SEGMENT_SPLIT` |
+| 9.x — ABC | `COST_POOL`, `ACTIVITY`, `DRIVER`, `SEGMENT_SPLIT`, `ABC_CALCULATION` (9.1) |
 
 ## Changelog
 
@@ -427,3 +455,20 @@ class CalcResponse(BaseModel):
   fiscal_periods.status='closed' + fiscal_period_snapshots.state='committed').
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.
+- 2026-08-16 — v1.18 (Story 9.1, Epic 9): `ABC_CALCULATION` capability
+  wire (industry-agnostic — ALL 4 canonical industries ✅; CR 12-1 L4
+  precedent — "ABC는 운영 인프라") + 4 NEW routes under
+  `/api/v1/abc/*` (`POST /cost-pools` + `POST /activities` +
+  `POST /drivers/validate` + `POST /validate`) +
+  `packages/cost_engine/abc_engine.py` pure kernel (A19 cohesion
+  pattern 6번째 surface — 4 functions + 3 frozen dataclasses +
+  4 typed exceptions + 7 constants, AD-5 stdlib-only, no I/O, V8
+  determinism sha256:64-hex) + service layer `AbcValidationService`
+  with `_to_validation_state` ORM→kernel boundary (CR 12-1 L3
+  precedent) + `validate_abc_pct_list` 3-layer defense (CR 12-5 L3)
+  + 4 NEW typed exception envelopes (422 COST_POOL_INVALID_SUM +
+  422 ACTIVITY_INVALID_SUM + 422 DRIVER_INVALID_SUM +
+  404 ABC_VALIDATION_NOT_FOUND) + Alembic/RLS SKIPPED (validation
+  only, no INSERT/UPDATE/DELETE — CR 1.1 read-mostly invariant;
+  A5 forward-lock 변경 0). Drift detector:
+  `tests/integration/test_capability_matrix_v1_18_drift.py`.

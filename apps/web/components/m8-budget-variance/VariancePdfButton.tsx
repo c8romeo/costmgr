@@ -1,14 +1,13 @@
 /**
- * apps/web/components/m8-budget-variance/VariancePdfButton.tsx — Story 8.2
+ * apps/web/components/m8-budget-variance/VariancePdfButton.tsx — Story 8.3 (8-2 wire activation)
  *
- * PDF 내보내기 button — 8-3 honestly DEFER placeholder (PRD §F8.2).
+ * PDF 내보내기 button — §9 #20 (PRD §F8.2 + 8-3 wire activation).
  *
- * 8-2 atomic wire:
+ * 8-3 atomic wire (resolved from 8-2 honestly DEFER #5):
  *  - Calls GET /api/v1/budget/variance/{period_key}/pdf
- *  - Returns envelope shape with empty pdf_bytes_b64 (8-3 follow-up real PDF)
- *  - Button is disabled with tooltip "8-3 follow-up sprint"
- *  - 8-3 follow-up: delegate to packages.services.m6_reports.pdf_helpers
- *    (Epic 6 M5 PDF generator reuse, READ-ONLY pattern)
+ *  - Returns real PDF bytes (8-3 wire activation; previously empty placeholder).
+ *  - Button is enabled (no longer "8-3 follow-up" disabled).
+ *  - 425 BUDGET_VARIANCE_PDF_NOT_READY surfaces in inline error.
  */
 
 "use client";
@@ -19,17 +18,14 @@ import { useCallback, useState } from "react";
 interface VariancePdfButtonProps {
   accessToken: string | undefined;
   periodKey: string;
-  envelope: Record<string, unknown> | null;
 }
 
 export function VariancePdfButton({
   accessToken,
   periodKey,
-  envelope,
 }: VariancePdfButtonProps): React.ReactElement {
   const t = useTranslations("budget_variance");
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [envelopeResult, setEnvelopeResult] = useState<unknown>(envelope);
   const [error, setError] = useState<string | null>(null);
 
   const handleDownload = useCallback(async (): Promise<void> => {
@@ -37,8 +33,6 @@ export function VariancePdfButton({
     setError(null);
 
     try {
-      // 8-2 atomic wire: hit the endpoint; the response is an envelope
-      // with empty pdf_bytes_b64 (8-3 follow-up will produce real PDF bytes).
       const res = await fetch(
         `/api/v1/budget/variance/${encodeURIComponent(periodKey)}/pdf`,
         {
@@ -50,12 +44,33 @@ export function VariancePdfButton({
           cache: "no-store",
         },
       );
+      if (res.status === 425) {
+        setError(t("pdf_not_ready"));
+        return;
+      }
       if (!res.ok) {
         setError(t("pdf_failed") + ` (HTTP ${res.status})`);
         return;
       }
-      const data = (await res.json()) as { envelope: unknown };
-      setEnvelopeResult(data.envelope);
+      const data = (await res.json()) as {
+        pdf_bytes_b64: string;
+        filename?: string;
+      };
+      // Decode base64 → Blob → download.
+      const bytes = Uint8Array.from(
+        atob(data.pdf_bytes_b64),
+        (c) => c.charCodeAt(0),
+      );
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        data.filename ?? `budget_variance_${periodKey}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -68,26 +83,18 @@ export function VariancePdfButton({
       <button
         type="button"
         disabled={submitting}
-        title={t("pdf_disabled_message")}
+        title={t("pdf_button_tooltip_ready")}
         onClick={() => void handleDownload()}
         className="rounded bg-blue-600 px-3 py-1 text-white disabled:bg-gray-400"
         data-testid="variance-pdf-button"
       >
         {submitting ? t("pdf_exporting") : t("pdf_button")}
       </button>
-      <p className="mt-1 text-xs text-gray-500">{t("pdf_envelope_only")}</p>
+      <p className="mt-1 text-xs text-gray-500">{t("pdf_active_note")}</p>
       {error ? (
-        <p className="mt-2 text-sm text-red-600">{error}</p>
-      ) : null}
-      {envelopeResult ? (
-        <details className="mt-2 text-xs">
-          <summary className="cursor-pointer text-gray-600">
-            envelope SSOT (Epic 6 M5 reuse)
-          </summary>
-          <pre className="mt-1 overflow-auto rounded bg-gray-100 p-2 text-xs">
-            {JSON.stringify(envelopeResult, null, 2)}
-          </pre>
-        </details>
+        <p className="mt-2 text-sm text-red-600" data-testid="variance-pdf-error">
+          {error}
+        </p>
       ) : null}
     </div>
   );

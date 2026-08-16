@@ -91,18 +91,36 @@ from apps.api.modules.m8_budget import (
     variance_router as m8_budget_variance_router,
 )
 from apps.api.modules.m8_budget.exceptions import (
+    BUDGET_INVALID_PRE_STANDARD_INPUT_KO,
     BUDGET_INVALID_VARIANCE_PERIOD_KO,
     BUDGET_INVALID_VIRTUAL_KEY_KO,
+    BUDGET_PRE_STANDARD_ALREADY_EXISTS_KO,
+    BUDGET_PRE_STANDARD_SNAPSHOT_NOT_FOUND_KO,
     BUDGET_SCENARIO_LIMIT_EXCEEDED_KO,
     BUDGET_SCENARIO_NOT_FOUND_KO,
     BUDGET_VARIANCE_NOT_FOUND_KO,
+    BUDGET_VARIANCE_PDF_NOT_READY_KO,
     BudgetScenarioNotFoundError,
     BudgetVarianceNotFoundError,
+    BudgetVariancePdfNotReadyError,
+    InvalidPreStandardInputError,
     InvalidVariancePeriodError,
     InvalidVirtualBudgetPeriodKeyError,
+    PreStandardAlreadyExistsError,
+    PreStandardSnapshotNotFoundError,
     ScenarioLimitExceededError,
 )
 from apps.api.modules.m9_abc import router as m9_abc_router
+from apps.api.modules.m9_abc.exceptions import (
+    ABC_ACTIVITY_INVALID_SUM_KO,
+    ABC_COST_POOL_INVALID_SUM_KO,
+    ABC_DRIVER_INVALID_SUM_KO,
+    ABC_VALIDATION_NOT_FOUND_KO,
+    AbcValidationNotFoundError,
+    ActivityValidationError,
+    CostPoolValidationError,
+    DriverValidationError,
+)
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
 from apps.api.modules.m11_close import router as m11_close_router
@@ -2119,6 +2137,205 @@ async def _m8_budget_invalid_variance_period_handler(
             },
             "trace_id": getattr(exc, "trace_id", None)
             or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 8.3 — Budget Pre-Standard Cost Preview envelope handlers ──
+# 4 NEW typed envelope handlers (CR 12-5 D-14):
+#   - InvalidPreStandardInputError     (422 INVALID_PRE_STANDARD_INPUT)
+#   - PreStandardSnapshotNotFoundError (404 PRE_STANDARD_SNAPSHOT_NOT_FOUND)
+#   - PreStandardAlreadyExistsError    (409 PRE_STANDARD_ALREADY_EXISTS)
+#   - BudgetVariancePdfNotReadyError   (425 BUDGET_VARIANCE_PDF_NOT_READY)
+
+
+@app.exception_handler(InvalidPreStandardInputError)
+async def _m8_budget_invalid_pre_standard_input_handler(
+    request: Request, exc: InvalidPreStandardInputError
+) -> JSONResponse:
+    """422 INVALID_PRE_STANDARD_INPUT — pre-standard 입력 검증 실패.
+
+    Story 8.3 (PRD §F8.3 + AD-24) — pre-standard cost 계산 시 invalid input
+    (음수, overhead_rate > 100, invalid period_key, scenario_index != 1) raise.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "INVALID_PRE_STANDARD_INPUT",
+            "message_ko": BUDGET_INVALID_PRE_STANDARD_INPUT_KO,
+            "details": {
+                "field": exc.field,
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(PreStandardSnapshotNotFoundError)
+async def _m8_budget_pre_standard_snapshot_not_found_handler(
+    request: Request, exc: PreStandardSnapshotNotFoundError
+) -> JSONResponse:
+    """404 PRE_STANDARD_SNAPSHOT_NOT_FOUND — GET /budget/pre-standard 미존재.
+
+    Story 8.3 (PRD §F8.3). period_key에 해당하는 fiscal_period_snapshots
+    engine_type='budget' row가 없는 경우 raise.
+    """
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "PRE_STANDARD_SNAPSHOT_NOT_FOUND",
+            "message_ko": BUDGET_PRE_STANDARD_SNAPSHOT_NOT_FOUND_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": exc.tenant_id,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(PreStandardAlreadyExistsError)
+async def _m8_budget_pre_standard_already_exists_handler(
+    request: Request, exc: PreStandardAlreadyExistsError
+) -> JSONResponse:
+    """409 PRE_STANDARD_ALREADY_EXISTS — AD-22 ledger append-only 동일 row exists.
+
+    Story 8.3 (PRD §F8.3 + AD-22). 4-2 wire idempotency: same hash → skip,
+    different hash → raise.
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "PRE_STANDARD_ALREADY_EXISTS",
+            "message_ko": BUDGET_PRE_STANDARD_ALREADY_EXISTS_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": exc.tenant_id,
+                "existing_hash": exc.existing_hash,
+                "new_hash": exc.new_hash,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(BudgetVariancePdfNotReadyError)
+async def _m8_budget_variance_pdf_not_ready_handler(
+    request: Request, exc: BudgetVariancePdfNotReadyError
+) -> JSONResponse:
+    """425 BUDGET_VARIANCE_PDF_NOT_READY — pre-standard snapshot 미저장 시 PDF 425.
+
+    Story 8.3 (PRD §F8.3 + §9 #20). /variance/{period_key}/pdf endpoint 호출
+    시점에 pre-standard snapshot INSERT 안 된 경우 raise (race condition 방지).
+    """
+    return JSONResponse(
+        status_code=425,
+        content={
+            "code": "BUDGET_VARIANCE_PDF_NOT_READY",
+            "message_ko": BUDGET_VARIANCE_PDF_NOT_READY_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "tenant_id": exc.tenant_id,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 9.1 — ABC 100% Validation envelope handlers (CR 12-5 D-14) ──
+# 4 NEW typed envelope handlers for:
+#   - CostPoolValidationError       (422 COST_POOL_INVALID_SUM)
+#   - ActivityValidationError       (422 ACTIVITY_INVALID_SUM)
+#   - DriverValidationError         (422 DRIVER_INVALID_SUM)
+#   - AbcValidationNotFoundError    (404 ABC_VALIDATION_NOT_FOUND)
+@app.exception_handler(CostPoolValidationError)
+async def _m9_abc_cost_pool_validation_error_handler(
+    request: Request, exc: CostPoolValidationError
+) -> JSONResponse:
+    """422 COST_POOL_INVALID_SUM — 원가풀 행 합 100% 가드 실패.
+
+    Story 9.1 (PRD §F9.1 + AD-15) — 원가풀 행 합 ≠ 100% ± tolerance 시 raise.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "COST_POOL_INVALID_SUM",
+            "message_ko": ABC_COST_POOL_INVALID_SUM_KO,
+            "details": {
+                "department_id": exc.department_id,
+                "sum_pct": str(exc.sum_pct),
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ActivityValidationError)
+async def _m9_abc_activity_validation_error_handler(
+    request: Request, exc: ActivityValidationError
+) -> JSONResponse:
+    """422 ACTIVITY_INVALID_SUM — 활동 열 합 100% 가드 실패.
+
+    Story 9.1 (PRD §F9.1 + AD-15) — 활동 열 합 ≠ 100% ± tolerance 시 raise.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "ACTIVITY_INVALID_SUM",
+            "message_ko": ABC_ACTIVITY_INVALID_SUM_KO,
+            "details": {
+                "cost_pool_id": exc.cost_pool_id,
+                "sum_pct": str(exc.sum_pct),
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(DriverValidationError)
+async def _m9_abc_driver_validation_error_handler(
+    request: Request, exc: DriverValidationError
+) -> JSONResponse:
+    """422 DRIVER_INVALID_SUM — 동인 합 100% 가드 실패.
+
+    Story 9.1 (PRD §F9.1 + AD-15) — 동인 합 ≠ 100% ± tolerance 시 raise.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "DRIVER_INVALID_SUM",
+            "message_ko": ABC_DRIVER_INVALID_SUM_KO,
+            "details": {
+                "activity_id": exc.activity_id,
+                "sum_pct": str(exc.sum_pct),
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AbcValidationNotFoundError)
+async def _m9_abc_validation_not_found_handler(
+    request: Request, exc: AbcValidationNotFoundError
+) -> JSONResponse:
+    """404 ABC_VALIDATION_NOT_FOUND — 검증 대상 미존재.
+
+    Story 9.1 (PRD §F9.1 + AD-15) — empty allocation_pcts 시 raise.
+    """
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "ABC_VALIDATION_NOT_FOUND",
+            "message_ko": ABC_VALIDATION_NOT_FOUND_KO,
+            "details": {
+                "target": exc.target,
+                "target_id": exc.target_id,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
         },
     )
 
