@@ -453,11 +453,11 @@ class ClosingPdfExportService:
         il_rows = (await self.session.execute(
             text(
                 """
-                SELECT id, product_id, qty, payload->>'occurred_at' AS occurred_at
+                SELECT event_id, product_id, qty, payload->>'occurred_at' AS occurred_at
                 FROM inventory_ledger
                 WHERE tenant_id = :tenant_id
                   AND period_key = :period_key
-                ORDER BY id
+                ORDER BY event_id
                 """
             ),
             {"tenant_id": str(tenant_id), "period_key": period_key},
@@ -473,18 +473,31 @@ class ClosingPdfExportService:
         ]
 
         # 3) fiscal_period_snapshots.
+        # Walking Skeleton (2026-08-16): `fiscal_period_snapshots` has
+        # NO `payload` JSONB column — capture timestamp lives on
+        # `created_at` (TIMESTAMPTZ). Column-name + table-shape fix.
         fp_rows = (await self.session.execute(
             text(
                 """
-                SELECT id, period_key, payload->>'captured_at' AS captured_at
+                SELECT snapshot_id, period_key, created_at
                 FROM fiscal_period_snapshots
                 WHERE tenant_id = :tenant_id
                   AND period_key = :period_key
-                ORDER BY id
+                ORDER BY snapshot_id
                 """
             ),
             {"tenant_id": str(tenant_id), "period_key": period_key},
         )).fetchall()
+        fiscal_period_snapshots: list[dict[str, Any]] = [
+            {
+                "id": str(row[0]) if row[0] is not None else "",
+                "period_key": str(row[1]) if row[1] is not None else "",
+                "captured_at": (
+                    row[2].isoformat() if row[2] is not None else ""
+                ),
+            }
+            for row in fp_rows
+        ]
         fiscal_period_snapshots: list[dict[str, Any]] = [
             {
                 "id": str(row[0]) if row[0] is not None else "",

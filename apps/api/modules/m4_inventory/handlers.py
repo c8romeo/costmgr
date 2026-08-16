@@ -66,10 +66,6 @@ from apps.api.core.capability import Capability, require_capability, require_rol
 from apps.api.core.db import get_session
 from apps.api.core.db_models import AuditLog
 from apps.api.core.tenant_context import TenantContext, get_tenant_context
-from apps.api.modules.m0_onboarding.services.settings_service import (
-    SettingsService,
-    TenantSettingsNotFoundError,
-)
 from apps.api.modules.m4_inventory.schemas import (
     CarryChainEntry,
     CarryChainResponse,
@@ -157,13 +153,21 @@ async def trigger_opening_carry(
     - Beyond 12-period chain (depth guard rejects automatic, operator
       can manually invoke per-period to extend).
     """
-    # Load industry from tenant_settings (m2_input_service uses this pattern)
-    settings_svc = SettingsService(session, tenant_id=ctx.tenant_id)
-    try:
-        settings = await settings_svc.get_or_create_settings()
-        industry = settings.industry
-    except TenantSettingsNotFoundError:
-        industry = None
+    # Walking Skeleton (2026-08-16): read industry from
+    # `tenant_settings.onboarding` JSONB (canonical SSOT) — see
+    # `_build_ledger_service` for the rationale.
+    from sqlalchemy import text
+
+    _industry_q = await session.execute(
+        text(
+            "SELECT onboarding->>'industry' "
+            "FROM tenant_settings WHERE tenant_id = :tid"
+        ),
+        {"tid": str(ctx.tenant_id)},
+    )
+    industry: str | None = _industry_q.scalar_one_or_none()
+    if industry is None:
+        industry = ctx.industry
 
     carry_svc = OpeningCarryService(
         session,
@@ -194,15 +198,31 @@ async def trigger_opening_carry(
 async def _build_ledger_service(session: AsyncSession, ctx: TenantContext) -> LedgerService:
     """Construct `LedgerService` with tenant industry loaded.
 
-    Helper: identical to the pattern used by the 5-1 carry route
-    (industry loaded from tenant_settings; None for service tenants).
+    Walking Skeleton (2026-08-16): the original implementation routed
+    through `SettingsService.get_or_create_settings()` which doesn't
+    exist (the real method is `get_tenant_settings(tenant_id=...)`),
+    and `SettingsService` doesn't accept `tenant_id` (it's stateless
+    — RLS via `SET LOCAL app.current_tenant_id`). Read industry
+    directly from `tenant_settings` via the session; fall back to
+    `ctx.industry` (JWT app_metadata) when the row is absent.
     """
-    settings_svc = SettingsService(session, tenant_id=ctx.tenant_id)
-    try:
-        settings = await settings_svc.get_or_create_settings()
-        industry = settings.industry
-    except TenantSettingsNotFoundError:
-        industry = None
+    from sqlalchemy import text
+
+    # Walking Skeleton (2026-08-16): read industry directly from the
+    # `tenant_settings.onboarding` JSONB (matches `m0_onboarding`'s
+    # canonical storage). TenantSettings has no `.industry` column —
+    # that lives on `tenants.industry`, which is the WRONG SSOT for
+    # tenant-side onboarding wizard state.
+    result = await session.execute(
+        text(
+            "SELECT onboarding->>'industry' "
+            "FROM tenant_settings WHERE tenant_id = :tid"
+        ),
+        {"tid": str(ctx.tenant_id)},
+    )
+    industry: str | None = result.scalar_one_or_none()
+    if industry is None:
+        industry = ctx.industry
     return LedgerService(
         session,
         tenant_id=ctx.tenant_id,
@@ -412,22 +432,32 @@ async def _build_closing_guard_service(
 ) -> ClosingGuardService:
     """Construct `ClosingGuardService` with tenant industry loaded.
 
-    Helper: identical pattern to `_build_ledger_service`. Industry
-    loaded from tenant_settings; None for service tenants (guard disabled).
+    Walking Skeleton (2026-08-16): same fix as
+    `_build_ledger_service` — read industry from
+    `tenant_settings.onboarding` JSONB (canonical SSOT) instead of a
+    mis-named `SettingsService.get_or_create_settings().industry`
+    (tenant_settings has no `industry` column — that lives on
+    `tenants.industry`, which is the WRONG SSOT for wizard state).
     """
-    settings_svc = SettingsService(session, tenant_id=ctx.tenant_id)
-    try:
-        settings = await settings_svc.get_or_create_settings()
-        industry = settings.industry
-    except TenantSettingsNotFoundError:
-        industry = None
+    from sqlalchemy import text
+
+    result = await session.execute(
+        text(
+            "SELECT onboarding->>'industry' "
+            "FROM tenant_settings WHERE tenant_id = :tid"
+        ),
+        {"tid": str(ctx.tenant_id)},
+    )
+    industry_raw: str | None = result.scalar_one_or_none()
+    if industry_raw is None:
+        industry_raw = ctx.industry
 
     from packages.services.m0_onboarding.industry_menu import Industry
 
     industry_enum: Industry | None = None
-    if industry is not None:
+    if industry_raw is not None:
         try:
-            industry_enum = Industry(industry)
+            industry_enum = Industry(industry_raw)
         except (ValueError, KeyError):
             industry_enum = None
 
@@ -626,7 +656,7 @@ async def get_closing_period_status(
     )
 
     cp_svc = ClosingPeriodService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
     )
     result = await cp_svc.evaluate_closing_period(period_key)
     return ClosingPeriodEvaluateResponse(
@@ -667,7 +697,7 @@ async def post_closing_period_confirm(
     )
 
     cp_svc = ClosingPeriodService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
     )
     result = await cp_svc.confirm_closing_period(
         payload.period_key, actor_id=ctx.user_id,
@@ -703,7 +733,7 @@ async def get_closing_period_audit_trail(
     )
 
     cp_svc = ClosingPeriodService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
     )
     rows = await cp_svc.get_closing_period_audit_trail(period_key)
     return ClosingPeriodAuditTrailResponse(
@@ -753,7 +783,7 @@ async def get_monthly_closing_report(
     )
 
     mcr_svc = MonthlyClosingReportService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
     )
     return await mcr_svc.get_monthly_closing_report(
         period_key, actor_id=ctx.user_id,
@@ -789,7 +819,7 @@ async def get_monthly_closing_report_audit_trail(
     )
 
     mcr_svc = MonthlyClosingReportService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
     )
     rows = await mcr_svc.get_monthly_closing_report_audit_trail(period_key)
     return {
@@ -826,7 +856,7 @@ async def get_monthly_closing_report_v4_verdict(
     )
 
     mcr_svc = MonthlyClosingReportService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
     )
     verdict = await mcr_svc.verify_monthly_closing_report_v4(
         period_key, actor_id=ctx.user_id,

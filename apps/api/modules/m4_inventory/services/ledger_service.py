@@ -275,7 +275,17 @@ class LedgerService:
         """
         # (1) Pure-kernel validation + payload build
         event_id = _mint_event_id()
-        trace_id_uuid = uuid.UUID(self.trace_id) if self.trace_id else _mint_event_id()
+        # Walking Skeleton (2026-08-16): `self.trace_id` is a hex
+        # X-Trace-Id string (not necessarily a UUID format). The pure
+        # kernel `build_event_payload` types it as uuid.UUID, so we
+        # defensively convert. If parsing fails (e.g. middleware passes
+        # a non-hex trace string), fall back to a fresh event_id UUID.
+        try:
+            trace_id_uuid = (
+                uuid.UUID(self.trace_id) if self.trace_id else _mint_event_id()
+            )
+        except (TypeError, ValueError, AttributeError):
+            trace_id_uuid = _mint_event_id()
         try:
             payload = build_event_payload(
                 event_id=event_id,
@@ -416,6 +426,38 @@ class LedgerService:
             },
         )
         return {row.product_id: Decimal(str(row.closing_qty)) for row in rows}
+
+    # ── Operation 2b: query_period_closing_events ────────────────
+    # Walking Skeleton (2026-08-16): the M2 input state projection
+    # and the M4 closing-guard evaluation both iterate over the full
+    # event list (not the SUM aggregate). `query_period_closing` /
+    # `query_period_closing_all` only return scalars/dicts, so callers
+    # can't iterate `for e in ...`. This method returns the full
+    # `list[InventoryLedger]` rows for the (tenant, period_key),
+    # excluding `closing_snapshot` rows (PRD §6.2: those are
+    # materialized balances, not flow events).
+    async def query_period_closing_events(
+        self,
+        *,
+        period_key: str,
+    ) -> list[InventoryLedger]:
+        # ORM-style select so `.scalars()` resolves to InventoryLedger
+        # rows. Using `text("SELECT * ...")` would make SQLAlchemy default
+        # to the first column (`event_id`, a UUID) — iteration then yields
+        # UUIDs, not ORM rows, and `e.event_type` raises AttributeError.
+        from sqlalchemy import select
+
+        stmt = (
+            select(InventoryLedger)
+            .where(
+                InventoryLedger.tenant_id == self.tenant_id,
+                InventoryLedger.period_key == period_key,
+                InventoryLedger.event_type != "closing_snapshot",
+            )
+            .order_by(InventoryLedger.event_id)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
 
     # ── Operation 3: query_carry_chain (AC #1 recursive walk) ──
     async def query_carry_chain(

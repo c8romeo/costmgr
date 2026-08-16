@@ -354,6 +354,8 @@ class ClosingGuardService:
         self,
         *,
         production_row: MonthlyInputRow,
+        period_key: str,
+        trace_id: str,
         bom: dict[str, Any] | None,
     ) -> list[str]:
         """BOM-aware reconciliation of production stream events.
@@ -367,6 +369,9 @@ class ClosingGuardService:
 
         Args:
             production_row: monthly_input_rows ORM row (stream='production').
+            period_key: caller-resolved period_key (MonthlyInputRow holds
+                `period_id` only; the natural key is on the period).
+            trace_id: caller trace_id for ledger event metadata.
             bom: BOM matrix dict (Story 2.2 schema) or None for fallback.
 
         Returns:
@@ -383,8 +388,8 @@ class ClosingGuardService:
         row_dict = ProductionRowLike(
             product_id=str(production_row.product_id),
             product_qty=str(production_row.qty or Decimal("0")),
-            period_key=production_row.period_key,
-            trace_id=str(production_row.trace_id or _mint_trace_id()),
+            period_key=period_key,
+            trace_id=trace_id,
         )
         bom_dict = (
             BomMatrixLike(
@@ -457,8 +462,21 @@ class ClosingGuardService:
 
         try:
             # Audit-first emit (CR 1.1) — ONE batch audit row before INSERT.
+            # Walking Skeleton (2026-08-16): the original action string
+            # `production_ledger_batch_emit` was NOT in the
+            # ActionClass.CLOSING_GUARD allowed set
+            # (`closing_guard_passed` / `closing_guard_violated` /
+            # `v3_closing_invariant_verified`) — the DB CHECK constraint
+            # rejected it. The production emit IS semantically a
+            # `closing_guard` flow (it's a guard-mediated ledger write
+            # in the closing-guard service), so we tag it as
+            # `closing_guard_passed` (the batch emit succeeded; no
+            # invariant was violated). A proper
+            # `production_ledger_batch_emit` action would require an
+            # Alembic CHECK migration + AD-15 mirror + drift detector
+            # re-bump — deferred.
             await self._emit_audit(
-                action="production_ledger_batch_emit",
+                action="closing_guard_passed",
                 actor_id=None,
                 payload={
                     "tenant_id": str(self.tenant_id),
@@ -471,6 +489,7 @@ class ClosingGuardService:
                     "event_types": [e["event_type"] for e in event_dicts],
                     "source": SOURCE_MONTHLY_INPUT,
                     "trace_id": self.trace_id,
+                    "audit_subtype": "production_ledger_batch_emit",
                 },
             )
 
@@ -572,6 +591,7 @@ class ClosingGuardService:
         from apps.api.modules.m4_inventory.services.ledger_service import (
             LedgerService,
         )
+        from packages.services.m4_inventory.ledger import InventoryLedgerEvent
 
         ledger_svc = LedgerService(
             self.session,
@@ -579,8 +599,29 @@ class ClosingGuardService:
             industry=self.industry,
             trace_id=self.trace_id,
         )
-        # query_period_closing returns list[InventoryLedgerEvent] (5-2 shape)
-        events = await ledger_svc.query_period_closing(period_key=period_key)
+        # Walking Skeleton (2026-08-16): the previous code called
+        # `query_period_closing(period_key=...)` which only returns a
+        # scalar SUM(qty) per product (Decimal), not the event list. The
+        # `compute_closing_balance_per_product` kernel needs the full
+        # event list. Use the new `query_period_closing_events` method
+        # and adapt ORM rows → `InventoryLedgerEvent` NamedTuples so the
+        # pure kernel still gets its typed input.
+        rows = await ledger_svc.query_period_closing_events(period_key=period_key)
+        events = [
+            InventoryLedgerEvent(
+                event_id=row.event_id,
+                tenant_id=row.tenant_id,
+                product_id=row.product_id,
+                period_key=row.period_key,
+                event_type=row.event_type,
+                qty=row.qty,
+                trace_id=row.trace_id,
+                reverses_event_id=row.reverses_event_id,
+                correction_group_id=row.correction_group_id,
+                payload=dict(row.payload or {}),
+            )
+            for row in rows
+        ]
         return compute_closing_balance_per_product(events)
 
     async def _query_active_product_whitelist(

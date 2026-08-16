@@ -1,0 +1,44 @@
+# costmgr — local development stack (Walking Skeleton verification sprint).
+#
+# Purpose: give the repo a runnable Postgres that is BIT-IDENTICAL to the one
+# CI uses, so "it passes in CI" and "it runs on my machine" cannot diverge.
+#
+# The image digest below is copied verbatim from
+# `.github/workflows/ci.yml` (job `rls-tests`, services.postgres.image).
+# If you bump one, bump the other — `scripts/check_stack_pin.py` philosophy
+# (Story 0.3) applies to the database image too.
+#
+# Port 54322 matches apps/api/.env.example and the CI service mapping, so
+# DATABASE_URL is the same string in all three environments.
+#
+# Usage:
+#   make db-up        # start + wait for healthy
+#   make db-migrate   # alembic upgrade head + RLS policies (CI order)
+#   make db-seed      # one tenant / one user / dev JWT
+#   make db-down      # stop (keeps the volume)
+#   make db-reset     # destroy the volume and start clean
+
+services:
+  postgres:
+    image: postgres:15@sha256:74e110c41804365e3915fcc09d5e7a1eff50161aaa94d5da0e58e0cd75ae509c
+    container_name: costmgr-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      # Korean-friendly collation; the app stores ko-KR strings throughout.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "54322:5432"
+    volumes:
+      - costmgr_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  costmgr_pgdata:
+    name: costmgr_pgdata

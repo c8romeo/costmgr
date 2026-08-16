@@ -202,10 +202,12 @@ class ClosingPeriodService:
         *,
         tenant_id: uuid.UUID,
         trace_id: str,
+        industry: str | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
         self.trace_id = trace_id
+        self.industry = industry
 
     # ── Operation 1: evaluate closing period (read-only) ────────
     async def evaluate_closing_period(
@@ -379,6 +381,7 @@ class ClosingPeriodService:
         ledger_service = LedgerService(
             self.session,
             tenant_id=self.tenant_id,
+            industry=self.industry,
             trace_id=self.trace_id,
         )
         for entry in snapshot_entries:
@@ -412,6 +415,7 @@ class ClosingPeriodService:
         v4_verifier = ClosingPeriodSnapshotVerifier(
             self.session,
             tenant_id=self.tenant_id,
+            industry=self.industry,
             trace_id=self.trace_id,
         )
         try:
@@ -520,6 +524,7 @@ class ClosingPeriodService:
         ledger_service = LedgerService(
             self.session,
             tenant_id=self.tenant_id,
+            industry=self.industry,
             trace_id=self.trace_id,
         )
         closing_per_product = await ledger_service.query_period_closing_all(

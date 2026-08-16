@@ -36,6 +36,11 @@ class TenantContext:
     # to source industry from authenticated context rather than
     # the request query string.
     industry: str | None = None
+    # Walking Skeleton (2026-08-16): populate from `X-Trace-Id` header
+    # or middleware (`request.state.trace_id`), falling back to a fresh
+    # uuid4. Without this, `ctx.trace_id` raises AttributeError on
+    # 21 call sites in m4_inventory/handlers.py.
+    trace_id: str | None = None
 
 
 def _extract_bearer_token(request: Request) -> str | None:
@@ -71,6 +76,11 @@ async def get_tenant_context(request: Request) -> TenantContext:
         role=claims.role,
         user_id=claims.user_id,
         industry=claims.industry,
+        trace_id=(
+            request.headers.get("X-Trace-Id")
+            or getattr(request.state, "trace_id", None)
+            or str(uuid.uuid4())
+        ),
     )
     request.state.tenant = ctx
     request.state.tenant_id = ctx.tenant_id
@@ -119,6 +129,15 @@ async def current_tenant_id(
 # in `attach_tenant_listener()` below — registered once at app startup.
 # Removed: the dead decorator (function body was a single `return`).
 # Tracked as a Story 0.2 follow-up if the early-connect hook is ever needed.
+#
+# NOTE (Walking Skeleton, 2026-08-16): the previous implementation bound the
+# context-var helpers to the `AsyncEngine` instance via
+# `engine._costmgr_set_tenant = ...`. That raises `AttributeError` because
+# `AsyncEngine` is a proxy wrapper that does not allow arbitrary attribute
+# assignment. The module-level `_ENGINE_HOOKS` registry below is keyed by
+# `id(engine)` so the FastAPI dep can publish the tenant without poking at
+# the opaque proxy.
+_ENGINE_HOOKS: dict[int, tuple] = {}
 
 
 def attach_tenant_listener(engine: AsyncEngine) -> None:
@@ -141,29 +160,34 @@ def attach_tenant_listener(engine: AsyncEngine) -> None:
         _current_tenant_var.set(None)
 
     @event.listens_for(engine.sync_engine, "begin")
-    def _begin_transaction(dbapi_connection, transaction):  # noqa: ARG001
+    def _begin_transaction(conn):  # noqa: ARG001
+        # SQLAlchemy 2.x engine-level "begin" listener receives a SQLAlchemy
+        # `Connection`, not a raw DBAPI connection. Use `exec_driver_sql` so
+        # the SQL is sent verbatim through the asyncpg protocol — `SET LOCAL`
+        # does not support `$1` parameter binding (asyncpg prepared statements
+        # reject it with `syntax error at or near "$1"`), and the tenant_id
+        # is a validated UUID string so direct interpolation is safe.
         tid = _current_tenant_var.get()
         if tid:
-            cursor = dbapi_connection.cursor()
-            try:
-                cursor.execute("SET LOCAL app.current_tenant_id = %s", (tid,))
-            finally:
-                cursor.close()
+            conn.exec_driver_sql(
+                f"SET LOCAL app.current_tenant_id = '{tid}'",
+            )
 
-    # Expose context-var helpers on the engine for the FastAPI dep
-    engine._costmgr_set_tenant = set_tenant  # type: ignore[attr-defined]
-    engine._costmgr_clear_tenant = clear_tenant  # type: ignore[attr-defined]
+    # Register the context-var helpers in a module-level dict keyed by the
+    # engine's id (the AsyncEngine proxy itself does not allow attribute
+    # assignment).
+    _ENGINE_HOOKS[id(engine)] = (set_tenant, clear_tenant)
 
 
 def set_tenant_local(engine: AsyncEngine, tenant_id: uuid.UUID) -> None:
     """Called by the FastAPI dependency to publish the tenant for the next txn."""
-    set_tenant_fn = getattr(engine, "_costmgr_set_tenant", None)
-    if set_tenant_fn is not None:
-        set_tenant_fn(tenant_id)
+    hooks = _ENGINE_HOOKS.get(id(engine))
+    if hooks is not None:
+        hooks[0](tenant_id)
 
 
 def clear_tenant_local(engine: AsyncEngine) -> None:
     """Clear the tenant context after the request scope ends."""
-    clear_tenant_fn = getattr(engine, "_costmgr_clear_tenant", None)
-    if clear_tenant_fn is not None:
-        clear_tenant_fn()
+    hooks = _ENGINE_HOOKS.get(id(engine))
+    if hooks is not None:
+        hooks[1]()

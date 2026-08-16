@@ -608,15 +608,19 @@ class MonthlyInputService:
             )
 
         # SELECT FOR UPDATE existing row (CR 1.1)
+        # Walking Skeleton (2026-08-16): `Column.is_(value)` always compiles
+        # to `<col> IS $N` in PostgreSQL, which is a syntax error unless
+        # the bound value is NULL/boolean. Use `==` so SQLAlchemy emits
+        # `IS NULL` for None and `= $N` for actual values.
         existing = await self.session.scalar(
             select(MonthlyInputRow)
             .where(
                 MonthlyInputRow.tenant_id == self.tenant_id,
                 MonthlyInputRow.period_id == period.period_id,
                 MonthlyInputRow.stream == payload.stream,
+                MonthlyInputRow.product_id == payload.product_id,
+                MonthlyInputRow.day_no == payload.day_no,
             )
-            .where(MonthlyInputRow.product_id.is_(payload.product_id))
-            .where(MonthlyInputRow.day_no.is_(payload.day_no))
             .with_for_update()
         )
 
@@ -747,11 +751,11 @@ class MonthlyInputService:
 
         # H2: T3.3 hook wire — prev period row mutation 시 chain propagation
         # AC #3 explicit "chain" — auto-recompute stale value
-        from apps.api.modules.m4_inventory.services.opening_carry_service import (
-            _prev_period_key as _carry_prev_period_key,
-        )
-
-        prev_period_key = _carry_prev_period_key(period.period_key)
+        # Walking Skeleton (2026-08-16): `_prev_period_key` was promoted from
+        # module-level helper to a `@staticmethod` on OpeningCarryService; the
+        # old module-level import no longer resolves. Use the instance method
+        # on the already-constructed `carry_svc` instead.
+        prev_period_key = carry_svc._prev_period_key(period.period_key)
         if prev_period_key is not None:
             await carry_svc.recompute_opening_on_prev_change(prev_period_key, actor_id=actor_id)
 
@@ -1237,6 +1241,8 @@ class MonthlyInputService:
         )
         await guard_svc.emit_production_ledger_events(
             production_row=new_row,
+            period_key=period_key,
+            trace_id=self.trace_id,
             bom=bom_dict,
         )
 
@@ -1279,6 +1285,16 @@ class MonthlyInputService:
         }
         event_type = stream_to_event_type[stream]
 
+        # Walking Skeleton (2026-08-16): monthly_input_rows.qty is
+        # unsigned (CHECK >= 0). Ledger event_type has a SIGNED
+        # convention (`sales_outbound` and `production_material_consumption`
+        # must have `qty < 0` per `inventory_ledger_qty_signed_coherence`
+        # CHECK). Negate at the emit boundary so the unsigned user-input
+        # qty becomes the signed ledger qty.
+        # `production` here emits `production_output_inbound` (POSITIVE)
+        # — no negation. Only `sales` (outbound) is negated.
+        signed_qty = -new_row.qty if (event_type == "sales_outbound" and new_row.qty is not None) else new_row.qty
+
         ledger_svc = LedgerService(
             self.session,
             tenant_id=self.tenant_id,
@@ -1289,7 +1305,7 @@ class MonthlyInputService:
             product_id=new_row.product_id,  # type: ignore[arg-type]  # caller-guaranteed non-None
             period_key=period_key,
             event_type=event_type,
-            qty=new_row.qty,
+            qty=signed_qty,
             source=SOURCE_MONTHLY_INPUT,
             reverses_event_id=None,  # Epic 11 forward-fill only
             correction_group_id=None,  # Epic 11 forward-fill only
@@ -1989,7 +2005,7 @@ class MonthlyInputService:
             industry=self.industry,
             trace_id=self.trace_id,
         )
-        ledger_events = await ledger_svc.query_period_closing(period_key=period_key)
+        ledger_events = await ledger_svc.query_period_closing_events(period_key=period_key)
         # P3-3rd-sweep P12: align envelope to TS `ProductionConsumptionEventWire`
         # (`{product_id, period_key, event_type, qty, trace_id}`). Drop
         # `event_id` + `source` (Pydantic `extra='forbid'` would reject).
@@ -2150,6 +2166,13 @@ class MonthlyInputService:
                 "trace_id": self.trace_id,
                 "error_message": str(error)[:500],
             },
+            # Walking Skeleton (2026-08-16): `occurred_at` is NOT NULL
+            # on the DB side. The previous code only set `id`, leaving
+            # `occurred_at` unset, which triggered
+            # `asyncpg.exceptions.NotNullViolationError: null value in
+            # column "occurred_at" of relation "audit_logs"`. Set it
+            # explicitly here so the audit row can flush.
+            occurred_at=datetime.now(tz=UTC),
         )
         self.session.add(audit_row)
         await self.session.flush()

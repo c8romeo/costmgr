@@ -69,7 +69,10 @@ def upgrade() -> None:
         ADD COLUMN IF NOT EXISTS pay_type TEXT NULL
         """
     )
-    op.execute("DROP CONSTRAINT IF EXISTS monthly_input_rows_pay_type_check")
+    op.execute(
+        "ALTER TABLE monthly_input_rows "
+        "DROP CONSTRAINT IF EXISTS monthly_input_rows_pay_type_check"
+    )
     pay_type_list = ", ".join(f"'{p}'" for p in _PAY_TYPE_VALUES)
     op.execute(
         f"""

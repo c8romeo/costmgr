@@ -103,7 +103,14 @@ def decode_jwt(token: str) -> JWTClaims:
             settings.supabase_jwt_secret,
             algorithms=["HS256"],
             leeway=leeway,
-            options={"require": ["exp"]},
+            # Walking Skeleton (2026-08-16): explicitly disable `aud`
+            # verification. PyJWT 2.x raises `InvalidAudienceError` whenever
+            # the token contains an `aud` claim and no explicit `audience`
+            # is passed to `decode()`. Supabase tokens always carry
+            # `aud: "authenticated"`; we identify tenants via `app_metadata`
+            # (AD-3), not via the audience, so the check is unneeded and
+            # was rejecting every dev token.
+            options={"require": ["exp"], "verify_aud": False},
         )
     except ExpiredSignatureError as e:
         raise AuthError(

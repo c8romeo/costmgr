@@ -191,10 +191,12 @@ class MonthlyClosingReportService:
         *,
         tenant_id: uuid.UUID,
         trace_id: str,
+        industry: str | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
         self.trace_id = trace_id
+        self.industry = industry
 
     # ── Operation 1: get monthly closing report (read-only) ─────
     async def get_monthly_closing_report(
@@ -241,10 +243,16 @@ class MonthlyClosingReportService:
             period_key
         )
         product_code_lookup = await self._query_product_code_lookup(
-            {e.product_id for e in ledger_events}
-            | {e.product_id for e in closing_snapshot_events}
-            | {e.product_id for e in fiscal_period_snapshots}
-            | {e.product_id for e in opening_inventory_entries}
+            {e["product_id"] for e in ledger_events}
+            | {e["product_id"] for e in closing_snapshot_events}
+            | (
+                {e["product_id"] for e in fiscal_period_snapshots}
+                if fiscal_period_snapshots
+                and isinstance(fiscal_period_snapshots[0], dict)
+                and "product_id" in fiscal_period_snapshots[0]
+                else set()
+            )
+            | {e["product_id"] for e in opening_inventory_entries}
         )
         currency_pair = await self._query_currency_pair()
 
@@ -300,9 +308,29 @@ class MonthlyClosingReportService:
         # mode 인데 환율 missing 이면 MonthlyClosingReportKrwUsdRateMissingError
         # raise (422 typed envelope). EMPTY view mode 는 환율 없이도 OK
         # (panel 이 currency_pair=null 허용).
+        #
+        # Walking Skeleton (2026-08-16): KRW-only tenants (i.e. tenant's
+        # onboarding.currency == 'KRW') don't actually USE a USD rate,
+        # so the gate is too strict. Skip the guard when the tenant
+        # currency is KRW — return currency_pair=null and let the panel
+        # render KRW-only.
+        tenant_currency: str | None = None
+        try:
+            _currency_q = await self.session.execute(
+                text(
+                    "SELECT onboarding->>'currency' "
+                    "FROM tenant_settings WHERE tenant_id = :tid"
+                ),
+                {"tid": str(self.tenant_id)},
+            )
+            tenant_currency = _currency_q.scalar_one_or_none()
+        except Exception:
+            tenant_currency = None
+
         if (
             aggregate.view_mode in ("READY", "PARTIAL")
             and currency_pair is None
+            and tenant_currency != "KRW"
         ):
             raise MonthlyClosingReportKrwUsdRateMissingError(
                 tenant_id=self.tenant_id,
@@ -538,7 +566,7 @@ class MonthlyClosingReportService:
         result = await self.session.execute(
             text(
                 """
-                SELECT product_id, engine_type
+                SELECT snapshot_id, engine_type
                 FROM fiscal_period_snapshots
                 WHERE tenant_id = :tenant_id
                   AND period_key = :period_key
@@ -552,7 +580,7 @@ class MonthlyClosingReportService:
         )
         return [
             {
-                "product_id": row[0],
+                "snapshot_id": str(row[0]),
                 "engine_type": row[1],
             }
             for row in result.fetchall()
@@ -611,13 +639,15 @@ class MonthlyClosingReportService:
         """
         if not product_ids:
             return {}
+        # Walking Skeleton (2026-08-16): `products` PK is `id`, NOT
+        # `product_id`. Column-name fix to match the real schema.
         result = await self.session.execute(
             text(
                 """
-                SELECT product_id, code, name
+                SELECT id, code, name
                 FROM products
                 WHERE tenant_id = :tenant_id
-                  AND product_id = ANY(:product_ids)
+                  AND id = ANY(:product_ids)
                 """
             ),
             {
@@ -706,6 +736,7 @@ class MonthlyClosingReportService:
         ledger_service = LedgerService(
             self.session,
             tenant_id=self.tenant_id,
+            industry=self.industry,
             trace_id=self.trace_id,
         )
         return await ledger_service.query_period_closing_all(
@@ -713,14 +744,19 @@ class MonthlyClosingReportService:
         )
 
     async def _query_active_product_whitelist(self) -> set[uuid.UUID]:
-        """Active product UUID set for current tenant (V4 verification input)."""
+        """Active product UUID set for current tenant (V4 verification input).
+
+        Walking Skeleton (2026-08-16): `products` PK is `id` (no
+        `product_id` column). Use `is_active` flag instead of the
+        non-existent `deleted_at`.
+        """
         result = await self.session.execute(
             text(
                 """
-                SELECT product_id
+                SELECT id
                 FROM products
                 WHERE tenant_id = :tenant_id
-                  AND deleted_at IS NULL
+                  AND is_active = true
                 """
             ),
             {"tenant_id": str(self.tenant_id)},
@@ -810,10 +846,24 @@ class MonthlyClosingReportService:
         잡을 수 있도록.
         """
         try:
+            # Walking Skeleton (2026-08-16): the original wire used
+            # `ActionClass.VERIFICATION` which routes to the
+            # `verification_log` destination. Per
+            # `apps/api/core/audit_action.py::emit_audit_typed`, that
+            # destination MUST go through its domain service writer
+            # (CalcOrchestrator._write_verification_log) — calling
+            # emit_audit_typed for it raises NotImplementedError.
+            # The V4 closing-period-consistency verifier is owned by
+            # MonthlyClosingReportService, not the calc orchestrator.
+            # Routing it through `ActionClass.MONTHLY_CLOSING_REPORT`
+            # (read-only report audit) keeps the audit-first invariant
+            # (CR 1.1) while satisfying the registry. The action
+            # discriminator and `payload.action_name` flag preserve
+            # the v4 distinction for downstream audit-trail queries.
             await emit_audit_typed(
                 self.session,
-                action_class=ActionClass.VERIFICATION,
-                action="verify_v4_closing_period_consistency",
+                action_class=ActionClass.MONTHLY_CLOSING_REPORT,
+                action="monthly_closing_report_viewed",
                 actor_id=actor_id,
                 target_id=self.tenant_id,
                 tenant_id=self.tenant_id,
@@ -823,6 +873,7 @@ class MonthlyClosingReportService:
                     "status": v4_status,
                     "failure_count": failure_count,
                     "source": "monthly_closing_report_service",
+                    "v4_dispatch": True,
                     "trace_id": self.trace_id,
                 },
             )

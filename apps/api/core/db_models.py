@@ -203,7 +203,18 @@ class TenantSettings(Base):
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
+    # Walking Skeleton (2026-08-16): the DB column has
+    # `DEFAULT gen_random_uuid()` (alembic 0001:122) but the model previously
+    # declared no `default` and no `server_default`. SQLAlchemy then treats
+    # the PK as application-managed and rejects unflushed INSERTs with
+    # `FlushError: Instance <AuditLog> has a NULL identity key`. The Python
+    # `default=uuid.uuid4` keeps the model honest end-to-end without
+    # requiring the app to set the id explicitly.
+    id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
     tenant_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="SET NULL"),

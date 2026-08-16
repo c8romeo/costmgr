@@ -595,6 +595,15 @@ class _ActionRegistry:
             frozenset(
                 {
                     "monthly_closing_report_viewed",
+                    # Walking Skeleton (2026-08-16): Story 6.3 wire
+                    # call site (closing_pdf_export_viewed) was added
+                    # to the Literal type but missing from the
+                    # registry frozenset. Without this row, the v6.3
+                    # audit emit raises ValueError via
+                    # `_ActionRegistry.validate` and the entire PDF
+                    # export endpoint 500s with
+                    # CLOSING_PDF_EXPORT_AUDIT_EMIT_ERROR.
+                    "closing_pdf_export_viewed",
                 }
             ),
         ),

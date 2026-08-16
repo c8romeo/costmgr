@@ -319,7 +319,16 @@ class OpeningCarryService:
             return []  # cj-style default: no prev → empty opening
 
         # H8: 12-period chain depth guard (PRD §F4.1) — auto path 동일 적용
-        chain_depth = await self._compute_chain_depth(prev_period_key)
+        # Walking Skeleton (2026-08-16): `_compute_chain_depth` expects a
+        # `MonthlyInputPeriod` ORM row, not a period_key string. Load the
+        # prev period for the guard; if it's missing, treat as depth=1
+        # (carry path below handles the missing-period no-op).
+        prev_period_for_depth = await self._load_period_by_key(prev_period_key)
+        chain_depth = (
+            await self._compute_chain_depth(prev_period_for_depth)
+            if prev_period_for_depth is not None
+            else 1
+        )
         if chain_depth >= INVENTORY_PERIOD_CHAIN_LIMIT:
             # silent skip (manual trigger 시 422 MONTHLY_INPUT_CARRY_CHAIN_LIMIT 안내)
             return []

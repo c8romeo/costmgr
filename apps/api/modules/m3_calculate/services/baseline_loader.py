@@ -184,11 +184,11 @@ class BaselineLoader:
         # because Story 2.2's bulk-replace PUT guarantees 100% on every
         # write. A more rigorous per-product SUM check is out of scope
         # for Story 4.2 (deferred to Story 4.3 verification V4).
-        from apps.api.core.db_models import BomLine
+        from apps.api.core.db_models import BOMLine
 
         # CR 0.2 + AD-11: the engine is pure — no DB access. This loader
         # is the adapter that does the read.
-        count_stmt = select(BomLine.id).where(BomLine.tenant_id == tenant_id).limit(1)
+        count_stmt = select(BOMLine.id).where(BOMLine.tenant_id == tenant_id).limit(1)
         count_result = await self._session.execute(count_stmt)
         return count_result.scalar_one_or_none() is not None
 
@@ -200,16 +200,26 @@ class BaselineLoader:
         - 고정/변동 분류 (fixed/variable classification)
         - 동인 정의 (driver definition)
 
-        All 3 stored in `tenant_settings.baseline->>'allocation_basis'`
-        as `{direct_indirect: bool, fixed_variable: bool, driver: bool}`.
-        Returns True iff all 3 are true.
+        Walking Skeleton (2026-08-16): SSOT is
+        `tenant_settings.onboarding.allocation_criteria` (NOT
+        `tenant_settings.baseline.allocation_basis`). The settings
+        wizard writes the per-criterion shape
+        `{completed: bool, count: int, last_updated: ISO}` to
+        `onboarding.allocation_criteria.{direct_indirect,
+        fixed_variable, drivers}`. The completion endpoint consumes
+        the same JSONB shape via `compute_completion(industry,
+        onboarding, counts)` — both checks must agree.
+
+        Returns True iff all 3 criteria have `completed=true`.
         """
-        stmt = select(TenantSettings.baseline).where(TenantSettings.tenant_id == tenant_id)
+        stmt = select(TenantSettings.onboarding).where(TenantSettings.tenant_id == tenant_id)
         result = await self._session.execute(stmt)
-        baseline_json = result.scalar_one_or_none() or {}
-        alloc = baseline_json.get("allocation_basis") or {}
+        onboarding = result.scalar_one_or_none() or {}
+        criteria = dict(onboarding.get("allocation_criteria") or {})
         return bool(
-            alloc.get("direct_indirect", False)
-            and alloc.get("fixed_variable", False)
-            and alloc.get("driver", False)
+            bool((criteria.get("direct_indirect") or {}).get("completed"))
+            and bool((criteria.get("fixed_variable") or {}).get("completed"))
+            and bool(
+                (criteria.get("drivers") or criteria.get("driver") or {}).get("completed")
+            )
         )

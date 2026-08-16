@@ -40,6 +40,16 @@ export PYTHONIOENCODING := utf-8
 help:
 	@echo "costmgr Makefile targets:"
 	@echo ""
+	@echo "  make dev-up            db-up + db-migrate + db-seed (full local bring-up)"
+	@echo "  make db-up             start pinned Postgres 15 (docker compose)"
+	@echo "  make db-migrate        alembic upgrade head + RLS policies (CI order)"
+	@echo "  make db-seed           seed dev tenant + print dev JWT"
+	@echo "  make db-down           stop Postgres (keeps volume)"
+	@echo "  make db-reset          destroy volume and re-create from scratch"
+	@echo "  make api-dev           run FastAPI on :8765"
+	@echo "  make web-dev           run Next.js on :3000"
+	@echo "  make smoke             drive the MVP critical path over real HTTP"
+	@echo ""
 	@echo "  make lint-deps         dependency-cruiser (Story 0.1)"
 	@echo "  make lint-imports      import-linter (Story 0.1)"
 	@echo "  make lint-conventions  ruff + ESLint + money-type + migration (Story 0.4)"
@@ -55,6 +65,77 @@ help:
 	@echo "Tooling:"
 	@echo "  PYTHON = $(PYTHON)"
 	@echo "  RUFF   = $(RUFF)"
+
+# ─────────────────────────────────────────────────────────────────
+# Local runnable stack — Walking Skeleton verification sprint
+#
+# Until now the repo could be linted and unit-tested but never RUN:
+# no compose file, no seed, and 86 DB-backed tests skipped with
+# "enabled when CI shim is wired". These targets close that gap so
+# "green in CI" and "works on a machine" mean the same thing.
+#
+# Env is sourced from apps/api/.env. pydantic-settings resolves its
+# `env_file=".env"` relative to CWD, so sourcing explicitly (rather
+# than relying on the file being found) is what makes running from
+# the repo root work.
+# ─────────────────────────────────────────────────────────────────
+ENVFILE := apps/api/.env
+LOAD_ENV := set -a; source $(ENVFILE); set +a;
+
+.PHONY: db-up
+db-up:
+	docker compose up -d
+	@echo "▶ waiting for Postgres to report healthy…"
+	@for i in $$(seq 1 40); do \
+		status=$$(docker inspect -f '{{.State.Health.Status}}' costmgr-postgres 2>/dev/null || echo starting); \
+		if [ "$$status" = "healthy" ]; then echo "✅ Postgres healthy on :54322"; exit 0; fi; \
+		sleep 2; \
+	done; \
+	echo "❌ Postgres did not become healthy in 80s"; docker compose logs --tail=40 postgres; exit 1
+
+.PHONY: db-down
+db-down:
+	docker compose down
+
+.PHONY: db-reset
+db-reset:
+	docker compose down -v
+	$(MAKE) db-up
+
+# Mirrors the CI `rls-tests` job step order exactly: alembic first, then
+# the Supabase shim (auth.jwt() stub + roles), then the RLS policies.
+# Local dev needs the shim because there is no real Supabase auth schema.
+.PHONY: db-migrate
+db-migrate:
+	@$(LOAD_ENV) \
+	echo "▶ alembic upgrade head" && \
+	.venv/Scripts/python.exe -m alembic -c apps/api/alembic.ini upgrade head && \
+	echo "▶ supabase/policies/0000_supabase_ci_shim.sql" && \
+	docker exec -i costmgr-postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/policies/0000_supabase_ci_shim.sql > /dev/null && \
+	echo "▶ supabase/policies/0001_rls_policies.sql" && \
+	docker exec -i costmgr-postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/policies/0001_rls_policies.sql > /dev/null && \
+	echo "✅ schema + RLS applied"
+
+.PHONY: db-seed
+db-seed:
+	@$(LOAD_ENV) .venv/Scripts/python.exe scripts/dev_seed.py
+
+.PHONY: dev-up
+dev-up: db-up db-migrate db-seed
+	@echo ""
+	@echo "✅ local stack ready — now run 'make api-dev' and 'make web-dev' in two shells"
+
+.PHONY: api-dev
+api-dev:
+	@$(LOAD_ENV) .venv/Scripts/python.exe -m uvicorn apps.api.main:app --reload --port 8765
+
+.PHONY: web-dev
+web-dev:
+	cd apps/web && COSTMGR_API_URL=http://localhost:8765 pnpm dev
+
+.PHONY: smoke
+smoke:
+	@$(LOAD_ENV) .venv/Scripts/python.exe scripts/smoke_e2e.py
 
 # ─────────────────────────────────────────────────────────────────
 # Story 0.1 — dependency-cruiser + import-linter

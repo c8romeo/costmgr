@@ -91,10 +91,12 @@ class ClosingPeriodSnapshotVerifier:
         *,
         tenant_id: uuid.UUID,
         trace_id: str,
+        industry: str | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
         self.trace_id = trace_id
+        self.industry = industry
 
     async def verify_v4_closing_period_consistency(
         self,
@@ -138,6 +140,7 @@ class ClosingPeriodSnapshotVerifier:
         ledger_service = LedgerService(
             self.session,
             tenant_id=self.tenant_id,
+            industry=self.industry,
             trace_id=self.trace_id,
         )
         ledger_aggregate = await ledger_service.query_period_closing_all(

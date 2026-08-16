@@ -95,17 +95,15 @@ async def post_calc(
     """
     trace_id = getattr(request.state, "trace_id", str(_uuid_mod.uuid4()))
 
-    # Open REPEATABLE READ transaction (AD-4). `begin()` enters the
-    # transaction with the specified isolation level; commit/rollback
-    # is the orchestrator's responsibility.
-    await session.execute(
-        # Hint: set isolation. SQLAlchemy AsyncSession doesn't expose
-        # isolation_level= directly per call; we use a text-level SET.
-        # Story 4.2 keeps it simple — the connection-level default is
-        # REPEATABLE READ on the project's PG config (Story 0.2 setup).
-        # Defensive explicit SET here for production paths.
-        __import__("sqlalchemy").text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-    )
+    # Walking Skeleton (2026-08-16): the explicit
+    # `SET TRANSACTION ISOLATION LEVEL REPEATABLE READ` here is
+    # REMOVED — the project's Postgres connection-level default is
+    # already REPEATABLE READ (Story 0.2 docker-compose setup), and
+    # the explicit mid-transaction SET raises
+    # `ActiveSQLTransactionError: SET TRANSACTION ISOLATION LEVEL
+    # must be called before any query` because the session has
+    # already implicitly begun (RLS `SET LOCAL` fired during the
+    # `begin` event listener).
 
     orchestrator = CalcOrchestrator(session=session, trace_id=trace_id)
     outcome = await orchestrator.compute(
@@ -119,27 +117,43 @@ async def post_calc(
     # Service-layer frozen `VerdictService` → Pydantic `Verdict` for the
     # serialized envelope. Mapping is 1:1 (frozen dataclass + Pydantic
     # model with same fields).
+    #
+    # Walking Skeleton (2026-08-16): the calc-time wire envelope is
+    # restricted to V1/V4/V7/V8 (cost allocation gates) and
+    # `passed`/`failed` status. The orchestrator also runs V3 (closing
+    # ≥ 0 invariant, Story 5.3) and emits items with `status='skipped'`
+    # for non-applicable cases. Those items MUST NOT cross the wire:
+    # - V3 was added in Story 5.3 (post AD-12 calc envelope lock),
+    #   so it never made it into the Pydantic Literal.
+    # - `skipped` is service-internal (per the docstring on
+    #   `VerificationItem`: "skipped rules do NOT appear").
+    # We filter those out defensively here.
+    _allowed_codes = frozenset({"V1", "V4", "V7", "V8"})
+    _allowed_statuses = frozenset({"passed", "failed"})
+
+    def _to_wire_item(item):
+        if item.code not in _allowed_codes or item.status not in _allowed_statuses:
+            return None
+        return VerificationItem(
+            code=item.code,
+            status=item.status,
+            message_ko=item.message_ko,
+            details=item.details,
+        )
+
+    wire_verifications = [
+        wi for wi in (_to_wire_item(it) for it in verdict_service.verifications) if wi is not None
+    ]
+    wire_top_failure = (
+        _to_wire_item(verdict_service.top_failure)
+        if verdict_service.top_failure is not None
+        else None
+    )
+
     verdict_schema = VerdictSchema(
         verification_status=verdict_service.verification_status,
-        verifications=[
-            VerificationItem(
-                code=item.code,
-                status=item.status,
-                message_ko=item.message_ko,
-                details=item.details,
-            )
-            for item in verdict_service.verifications
-        ],
-        top_failure=(
-            VerificationItem(
-                code=verdict_service.top_failure.code,
-                status=verdict_service.top_failure.status,
-                message_ko=verdict_service.top_failure.message_ko,
-                details=verdict_service.top_failure.details,
-            )
-            if verdict_service.top_failure is not None
-            else None
-        ),
+        verifications=wire_verifications,
+        top_failure=wire_top_failure,
         trace_id=verdict_service.trace_id,
     )
 
