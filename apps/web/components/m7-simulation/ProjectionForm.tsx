@@ -287,7 +287,7 @@ function validateLoanAmount(value: string, t: Translator): string | null {
   const n = parseFloat(value);
   if (!Number.isFinite(n)) return "차입금은 숫자여야 합니다";
   if (!Number.isInteger(n)) return "차입금은 정수여야 합니다 (KRW)";
-  if (n < LOAN_AMOUNT_MIN) return "차입금은 1원 이상이어야 합니다";
+  if (n < 0) return "차입금은 0 이상이어야 합니다";
   if (n > LOAN_AMOUNT_MAX) return "차입금은 1조 원 이하여야 합니다";
   return null;
 }

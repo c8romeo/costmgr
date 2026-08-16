@@ -155,8 +155,8 @@ export function validateLoanAmountTS(value: number): void {
   if (!Number.isInteger(value)) {
     throw new Error("loan_amount must be an integer (KRW)");
   }
-  if (value < LOAN_AMOUNT_MIN) {
-    throw new Error("loan_amount must be > 0");
+  if (value < 0) {
+    throw new Error("loan_amount must be >= 0");
   }
   if (value > LOAN_AMOUNT_MAX) {
     throw new Error("loan_amount exceeds 1조 KRW upper bound");

@@ -14,7 +14,6 @@ import {
   computeInterestExpenseTS,
   formatKRWTS,
   formatPercentTS,
-  isAllFieldsFilledTS,
   isProjectionMonthAfterPeriodKeyTS,
   isValidRealPeriodKeyTS,
   projectNextMonthTS,
@@ -57,7 +56,7 @@ describe("computeInterestExpenseTS", () => {
   });
 
   it("loan_amount=0 → 0 (no interest)", () => {
-    expect(() => computeInterestExpenseTS(0, 5)).toThrow();
+    expect(computeInterestExpenseTS(0, 5)).toBe("0");
   });
 
   it("loan_amount < 0 → throw", () => {
@@ -171,10 +170,10 @@ describe("validators", () => {
   });
 
   it("validateLoanAmountTS — boundary conditions", () => {
+    expect(() => validateLoanAmountTS(0)).not.toThrow();
     expect(() => validateLoanAmountTS(1)).not.toThrow();
     expect(() => validateLoanAmountTS(1_000_000_000_000)).not.toThrow();
     expect(() => validateLoanAmountTS(1_000_000_000_001)).toThrow();
-    expect(() => validateLoanAmountTS(0)).toThrow();
     expect(() => validateLoanAmountTS(-1)).toThrow();
   });
 
@@ -200,8 +199,8 @@ describe("validators", () => {
   });
 });
 
-// ── Zod schema ─────────────────────────────────────────────────
-describe("Zod schema (projectionInputsSchema)", () => {
+// ── Validation schema (validateProjectionInputs) ─────────────
+describe("validateProjectionInputs", () => {
   const validValue: ProjectionInputsSchema = {
     loan_amount: 10_000_000,
     interest_rate: 5,
@@ -210,20 +209,20 @@ describe("Zod schema (projectionInputsSchema)", () => {
   };
 
   it("valid inputs pass", () => {
-    const result = projectionInputsSchema.safeParse(validValue);
+    const result = validateProjectionInputs(validValue);
     expect(result.success).toBe(true);
   });
 
-  it("loan_amount=0 → fail", () => {
-    const result = projectionInputsSchema.safeParse({
+  it("loan_amount=0 → success (no loan, 0 interest)", () => {
+    const result = validateProjectionInputs({
       ...validValue,
       loan_amount: 0,
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("loan_amount=-1 → fail", () => {
-    const result = projectionInputsSchema.safeParse({
+    const result = validateProjectionInputs({
       ...validValue,
       loan_amount: -1,
     });
@@ -231,7 +230,7 @@ describe("Zod schema (projectionInputsSchema)", () => {
   });
 
   it("loan_amount=10000.5 (not integer) → fail", () => {
-    const result = projectionInputsSchema.safeParse({
+    const result = validateProjectionInputs({
       ...validValue,
       loan_amount: 10000.5,
     });
@@ -239,7 +238,7 @@ describe("Zod schema (projectionInputsSchema)", () => {
   });
 
   it("interest_rate=101 → fail", () => {
-    const result = projectionInputsSchema.safeParse({
+    const result = validateProjectionInputs({
       ...validValue,
       interest_rate: 101,
     });
@@ -247,7 +246,7 @@ describe("Zod schema (projectionInputsSchema)", () => {
   });
 
   it("cost_inflation_rate=-51 → fail", () => {
-    const result = projectionInputsSchema.safeParse({
+    const result = validateProjectionInputs({
       ...validValue,
       cost_inflation_rate: -51,
     });
@@ -271,7 +270,7 @@ describe("Zod schema (projectionInputsSchema)", () => {
     expect(
       isAllFieldsFilledTS({
         ...validValue,
-        loan_amount: 0,
+        loan_amount: -1,
       }),
     ).toBe(false);
   });

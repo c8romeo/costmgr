@@ -60,6 +60,18 @@ per CR 11-3 discipline (12번째 epic 연속 — Epic 4·5·6·11·12·A19·7-1�
 - Scope: 1 NEW `m7-projection.worker.ts` + Comlink bridge.
 - Pickup plan: 7-3 retro 결정 (only if 200ms P95 violated).
 
+### D-7-2-DEFER-7 — react-hook-form + zod 의존성 추가
+- Source: `apps/web/components/m7-simulation/ProjectionForm.tsx`
+- Reason: 스펙은 react-hook-form + Zod schema 사용을 권장했지만,
+  두 패키지 모두 현재 `apps/web/package.json`에 미포함. 본 sprint는
+  dependency 추가 없이 atomic wire 완료 우선시 → plain React `useState`
+  + inline validation으로 대체 (동일 bounds + 동일 `disabled` gate).
+- Scope: 1 patch — `pnpm add zod react-hook-form` 후
+  `ProjectionForm.tsx`을 `useForm` + `zodResolver` 패턴으로 마이그레이션.
+  `lib/m7-simulation-projection-schema.ts`는 이미 Zod-style API surface
+  (validateProjectionInputs) 제공 — 마이그레이션 비용 ~30 LOC.
+- Pickup plan: 7-2 follow-up sprint 또는 8-1 dependency bump 시.
+
 ## Deferred from: 8-1 (Virtual Budget Period Key + Scenario Lock to One)
 
 Story 8.1 atomic wire completed 2026-08-15. 5 items honestly-DEFERred

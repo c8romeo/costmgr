@@ -1,13 +1,13 @@
 ---
 title: 'Epic 7 Story 2 — Next-Month Projection with 4 Required Parameters (차월 추정 4종 파라미터 강제 + 카드/차트/PDF 3종 결과)'
-status: ready-for-dev
+status: done
 priority: HIGH
 epic: 7
 story_num: 2
 story_key: 7-2-next-month-projection-4-required-parameters
-baseline_commit: a63646c
+baseline_commit: 7c886af
 created: 2026-08-15
-updated: 2026-08-15
+updated: 2026-08-16
 ---
 
 > **2026-08-15 — bmad-create-story spec 진입 done** (7-2: backlog → ready-for-dev). **cj-style 3-story 분할 2번째 진입점** (Epic 11 retro §7 A14 권장안 (a) — Epic 4·5·6·11·12 + Epic 11/12 carry-over 6번째 epic 연속). 7-1 (BEP slider) / **7-2 (차월 추정 4종 파라미터 — 현재 진입)** / 7-3 (Epic 7 close-out retro §7 신규 결정 시).
@@ -669,6 +669,6 @@ N/A (spec 진입 단계 — bmad-dev-story 진입 시 작성)
 
 ---
 
-**Status**: ready-for-dev (cj-style 3-story Epic 7 2번째 진입점, 6번째 epic 연속 검증)
-**baseline_commit**: `a63646c`
-**다음 단계**: `bmad-dev-story 7-2 T1~T8 실행` OR `7-2 + 7-1 동시 sprint (cj-style atomic)` OR `Epic 7 7-3 close-out retro (cj-style 3번째)`
+**Status**: done (cj-style 3-story Epic 7 2번째 진입점, 6번째 epic 연속 검증)
+**baseline_commit**: `7c886af` (Story 7.2 T8 close-out tip)
+**다음 단계**: `bmad-dev-story 7-2 follow-up sprint (D-7-2-DEFER-7 + frontend/backend parity)` OR `Epic 7 7-3 close-out retro (cj-style 3번째)`

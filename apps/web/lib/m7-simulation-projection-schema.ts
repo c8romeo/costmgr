@@ -77,15 +77,15 @@ export function validateProjectionInputs(
 ): ValidationResult {
   const errors: Partial<Record<keyof ProjectionInputsSchema, string>> = {};
 
-  // loan_amount — positive integer, KRW.
+  // loan_amount — non-negative integer, KRW (0 = no loan allowed).
   if (values.loan_amount === undefined || values.loan_amount === null) {
     errors.loan_amount = "차입금을 입력해 주세요";
   } else if (!Number.isFinite(values.loan_amount)) {
     errors.loan_amount = "차입금은 숫자여야 합니다";
   } else if (!Number.isInteger(values.loan_amount)) {
     errors.loan_amount = "차입금은 정수여야 합니다 (KRW)";
-  } else if (values.loan_amount < LOAN_AMOUNT_MIN) {
-    errors.loan_amount = "차입금은 1원 이상이어야 합니다";
+  } else if (values.loan_amount < 0) {
+    errors.loan_amount = "차입금은 0 이상이어야 합니다";
   } else if (values.loan_amount > LOAN_AMOUNT_MAX) {
     errors.loan_amount = "차입금은 1조 원 이하여야 합니다";
   }
