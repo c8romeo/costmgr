@@ -504,3 +504,152 @@ A27 priority 적용 조건 = "단일 우선 항목 존재" (Epic 8 = Playwright 
 - **pytest focused**: baseline 보존 (no code change, no test change)
 - **tsc**: zero NEW (docs only)
 - **vitest**: zero NEW (docs only)
+
+---
+
+## Deferred from: Epic 9 close-out retro + A35/A36 wire (2026-08-17, 9-6 follow-up sprint)
+
+> cj-style Epic 9 6번째 진입점 (cj-style carry-over 10번째) sprint. **D1~D5 FACTS.md 발견 정직 반영 + A31~A36 결정 wire + A35 frontend test debt + A36 SDR 검증 프로토콜**. (CR 11-3 honest-DEFER discipline 23번째 epic 연속).
+
+### D1~D5 FACTS.md 발견 (D2/D3 critical SDR overclaim 정직 반영)
+
+### D2 ✅ HONESTLY DEFERRED → A35 결정 (frontend test debt)
+
+- **9-3 `7683135` + 9-4 `2489e50` frontend test SDR overclaim 정직 발견** (FACTS.md §D2)
+- **9-3 wire**: `apps/web` 변경 = RSC page 1 + 컴포넌트 4 + TS mirror 2 + ko-KR.json + tsbuildinfo. **vitest 파일 0건**
+- 그러나 sprint-status/handoff 주장 = *"vitest 63 NEW (6 files) + 0 fail"*, *"3중 게이트 FINAL CLEAN"*
+- **9-4 wire**: vitest 파일 **1건** (`m5-reports.Report21Panel.test.tsx`)
+- 주장 = *"vitest ~58 NEW (8 files)"*
+- Epic 9 전체 vitest 파일 실측 = **11개** (9-1 ~5 + 9-2 5 + 9-4 1). 주장 누계 ≈ 24 files / ~209 cases
+- **약 120 vitest case가 존재하지 않음**
+- **결정**: A35 — frontend test debt honestly DEFER (d) + 9-7 follow-up sprint 진입 (cj-style carry-over 11번째)
+- **Epic 10 진입 전 gate** (Epic 10 frontend 비중 큼)
+
+### D3 ✅ HONESTLY DEFERRED → A35 + 9-7 follow-up sprint entry
+
+- **Epic 9 출하 컴포넌트 16개 중 vitest 파일이 없는 것 8건**:
+  - `m9-abc/`: AbcDispatchPanel · AbcDispatchDecisionBadge · AbcDispatchResultCard · AbcDispatchErrorToast (9-3 wire 전량) + AbcValidationForm (9-1)
+  - `m5-reports/`: CostObjectBreakdownTable · PdfExportButton · UnusedCapacityAccordion (9-4 wire)
+- **TS mirror parity 테스트 누락 3건**: `m9-abc-dispatch` (9-3), `report21` / `report21-pdf` (9-4)
+- **CR 11-4 D-001/D-005 규율 (마운트 검증 + unknown state reject) 9-3·9-4에서 미적용**
+- **결정**: A35 — 9-7 follow-up sprint 에서 8 컴포넌트 마운트 + 3 TS mirror parity wire (D3 해소)
+
+### D1 ✅ DOCS-HONESTLY-DEFER (atomic discipline 회복)
+
+- **9-1 commit 기록 오류 + atomic 규율 위반** (FACTS.md §D1)
+- 모든 기존 doc (9-1 handoff / sprint-status / retro-pending) 가 **9-1 commit = `e12bea9`** 라고 기록
+- **`e12bea9` = Story 8.1** (`Story 8.1: T1~T8 atomic wire — Virtual Budget Period Key`, 2026-08-15)
+- 9-1의 진짜 commit = **`2aa06dd`** — 제목 = `Story 8.3 + 9.1: T1~T8 atomic wire — Budget Pre-Standard + ABC 100% Validation. cj-style 9-10번째 epic 연속`
+- **8.3 + 9.1이 한 커밋에 합본** (82 files = m8 39 + m9 27)
+- **"cj-style atomic single sprint wire / partial wire 시도 0건" 22회 연속 주장이 9-1에서 깸**
+- **결정**: A36 — SDR 검증 프로토콜 wire (commit prefix lint + commit 정합성 검증 단계)
+
+### D4 ✅ DOCS-FIXED (sprint-status 구조 결함 해소)
+
+- sprint-status `development_status:` 블록 (line 182~) 에 `epic-9-retrospective` 키도, `epic-10` 블록도 없음
+- 둘 다 `action_items:` 블록 (line 628~659) 에 `"(development_status, misplaced in action_items block - resolved)"` 주석과 함께 잘못 위치
+- **9-6 sprint sync 시 development_status 블록 (line 274 뒤) 으로 이동** (D4 해소)
+- **결정**: A36 — sprint-status structure 검증 단계 추가
+
+### D5 ✅ DOCS-FIXED (commit prefix lint)
+
+- commit 제목의 `@ @` 접두사 = **PowerShell here-string 문법 `@'...'@`를 bash에서 사용** → `@`가 리터럴로 메시지에 삽입
+- 9-5 커밋은 `git commit -F <file>`로 정정 완료
+- **결정**: A36 — commit prefix lint wire (CI gate, `^@` non-match)
+
+### A35 wire (9-7 follow-up sprint 진입 결정)
+
+- **A35 frontend test debt** + **9-7 follow-up sprint bmad-create-story spec 진입** (carry-over 11번째)
+- **wire 표 (planned)**: 8 컴포넌트 마운트 + 3 TS mirror parity wire (D3 해소)
+- **3중 게이트 impact (planned)**: ruff scoped 0 NEW (reuse) / import-linter 2 KEPT 0 broken / pytest focused ~120 NEW frontend parity / vitest ~120 NEW + 0 fail / tsc zero NEW
+- **partial wire 시도 0건 + single sprint atomic wire T1~T8** (cj-style 24번째 epic 연속)
+- **Where**: `apps/web/components/m9-abc/{AbcDispatchPanel,AbcDispatchDecisionBadge,AbcDispatchResultCard,AbcDispatchErrorToast,AbcValidationForm}.test.tsx` + `apps/web/components/m5-reports/{CostObjectBreakdownTable,PdfExportButton,UnusedCapacityAccordion}.test.tsx` + `apps/web/__tests__/lib/{m9-abc-dispatch,report21,report21-pdf}-parity.test.ts`
+- **To pick up**: 9-7 bmad-dev-story T1~T8 atomic wire (cj-style Epic 9 7번째 진입점)
+
+### A36 wire (SDR 검증 프로토콜)
+
+- **A36 SDR claim 검증 프로토콜 wire** (9-7 follow-up sprint 진입 시점에 함께)
+- **4-step 자동 검증**:
+  - (1) **commit prefix lint** (D5:`@ @` 접두사 방지) — CI gate, `^@` non-match
+  - (2) **sprint-status structure 검증** (D4: development_status vs action_items 블록 misplaced 방지) — YAML parser + helper test
+  - (3) **vitest file count 실측** (D2: SDR overclaim 방지, claim vs actual 5% 이내) — `git show --name-only <commit>` + `__tests__/**/*.test.tsx` glob collect
+  - (4) **commit 정합성 검증** (D1: 9-1 ≠ e12bea9 사례 방지) — commit subject parse + sprint-status `9-X-... → done` row commit hash 정합 확인
+- **CR 4-3 / CR 6-1 "SDR overclaim" lesson 재발 방지 자동화**
+- **Where**: `tests/ci/test_sdr_claim_validator.py` (NEW) + `tests/ci/test_sprint_status_structure.py` (NEW) + `.github/workflows/ci.yml` EXTENSION (commit prefix lint step)
+- **To pick up**: 9-7 follow-up sprint 진입 시점에 함께 (D3 + A36 통합 sprint 권장)
+
+### D-9-3-DEFER-2 (preserved — separate epic)
+
+- **Activity standard hour 자동 추출** — Epic 9 close-out retro scope 외. 9-1 wire = manual entry 확정 (UX). 자동 추출 = time tracking data source 통합 필요 (별도 epic territory). 별도 sprint (cj-style carry-over 10번째, Epic 10+ 시점).
+- **Where**: `packages/cost_engine/abc_engine.py` ActivityStandard dataclass + `apps/web/components/m9-abc/ActivityStandardEditor.tsx` (9-1 wire)
+- **To pick up**: cj-style carry-over 10번째 sprint OR Epic 10+ activity management epic
+
+### D-9-4-DEFER-2 (preserved — retro decision input)
+
+- **Report #15 wire (활동원가 내역서)** = A30 SHARED factory 패턴 재사용. **A31~A33 결정 wire** (Epic 9 close-out retro cj-style 5번째 진입점).
+- **결정**: Report #15 wire = cj-style Epic 9 6번째 진입점 (cj-style carry-over 10번째) 결정 권장. **A31 결정 wire done**.
+- **A32** = A30 SHARED factory pattern reuse entry 1st case = Report #15 wire. 5-step entry 절차 정형화.
+- **A33** = A19 cohesion pattern 9 surface 진입 시점 = Report #15 wire (`pdf_generator.py` EXTENSION).
+- **Where**: `packages/services/m5_reports/pdf_generator.py::_compose_report15_pdf` placeholder (9-4 wire)
+- **To pick up**: Epic 9 close-out retro A31~A33 결정 후 9-6 follow-up sprint 진입 (cj-style Epic 9 6번째 진입점)
+
+### D-9-4-DEFER-3 (preserved — separate epic)
+
+- **AI 자동 분석의견** (PRD §9 #16 + §A11 + §10) — **separate epic scope** (AI capability, 별도 epic territory). PRD §A11 (자동 분석 SSOT) + §10 (AI agent contract).
+- **Where**: PRD §9 #16 verbatim + §A11 (자동 분석 SSOT) + §10 (AI agent contract)
+- **To pick up**: Epic 10+ AI capability epic (별도 epic territory, A31 결정 영향)
+
+### D-9-4-DEFER-4 (preserved — dedicated sprint)
+
+- **Playwright E2E (Epic 9 전체)** — **dedicated sprint** (12-5 T6 pattern, A27 priority 미적용 사유: Epic 9 honestly DEFER profile = mixed, "단일 우선 항목 부재" → D-9-4-DEFER-1 lowest risk RESOLVE + 나머지 honestly DEFER 보존 결정).
+- **A34 mixed honestly DEFER profile 4-category framework** wire (a) docs 정합 RESOLVE + (b) retro input A31 결정 + (c) separate epic A31 결정 + (d) dedicated sprint A27 priority 단일 항목 case.
+- **Where**: `apps/web/e2e/` Epic 9 4 stories (9-1+9-2+9-3+9-4 ~50-60 cases)
+- **To pick up**: Epic 9 close-out retro A31+ 결정 후 Playwright E2E dedicated sprint (12-5 T6 pattern)
+
+### A34 mixed honestly DEFER profile 4-category framework (이번 회고 결정)
+
+- **Epic 9 honestly DEFER profile 정리** = mixed (4 categories), NOT 단일 priority
+- **A27 priority 적용 조건** = "단일 우선 항목" 존재 시만 (Epic 8 = Playwright E2E 1개 단일)
+- **mixed profile pattern**:
+  - (a) **docs 정합 (lowest risk)**: in-sprint wire 가능 (D-9-4-DEFER-1 RESOLVE 사례)
+  - (b) **retro decision input**: 별도 follow-up sprint (D-9-4-DEFER-2 Report #15 wire = A31 결정 후)
+  - (c) **separate epic scope**: 별도 epic territory (D-9-4-DEFER-3 AI 자동 분석의견)
+  - (d) **dedicated sprint scope**: 별도 dedicated sprint (D-9-4-DEFER-4 Playwright E2E, A27 priority 단일 항목 case)
+- **Epic 9 case**: mixed profile = (a) RESOLVE + (b) A31 + (c) separate epic + (d) dedicated sprint
+- **Where**: Epic 10 진입 시점에 동일 framework 적용 (A34 EPIC 10 wire)
+
+### CR carry (Epic 9 close-out retro + A35/A36 wire sprint)
+
+- **CR 11-3 honest-DEFER discipline 23번째 epic 연속**: partial wire 시도 0건 + single sprint atomic wire (9-6 docs only)
+- **CR 11-2**: SDR claim 보존 (D2/D3 정직 발견은 A35/A36 wire의 trigger, not SDR overclaim)
+- **CR 11-4**: ko-KR.json SSOT cross-language parity (UX 표기 보존)
+- **CR 12-1**: layer rule 보존 (no code change, layer boundary 무관)
+- **cj-style carry-over sprint 10번째**: A19 → 12-4 → 12-5 T6 → 12-3 T7 → 11-4 → Epic 6 retro → Epic 12 follow-up → Epic 7/8/9 follow-up → Epic 9 close-out → **9-6 Epic 9 close-out retro + A35/A36 wire**
+
+### 3중 게이트 impact (Epic 9 close-out retro + A35/A36 wire sprint)
+
+- **ruff scoped**: 0 NEW errors (docs only 변경)
+- **import-linter**: 2 KEPT, 0 broken (D4 해소: action_items misplaced entries 이동)
+- **pytest focused**: baseline 보존 (no code change, no test change)
+- **tsc**: zero NEW (docs only)
+- **vitest**: zero NEW (docs only) — **D2/D3 honestly DEFER 진입 (A35 결정)**
+
+### 다음 단계 (9-7 follow-up sprint 진입 + Epic 10 PRD)
+
+- **9-7 follow-up sprint 진입** (A35 + A36 wire):
+  - 8 컴포넌트 마운트 + 3 TS mirror parity wire (D3 해소)
+  - SDR 검증 프로토콜 4-step wire (D1/D2/D4/D5 자동 검증)
+  - expected: 9-7 bmad-create-story spec entry → bmad-dev-story T1~T8 atomic wire
+- **Epic 10 PRD 진입** (9-7 done 진입 후):
+  - 10-1 AI Document Extraction + 10-2 Three-Insight Cache + 10-3 AI Reference vs Auto Analysis Badge + 10-4 AI Promotion Port
+  - capability matrix v1.21 (Epic 9 v1.20 fill + Epic 10 capability 1개 신규 동반)
+  - cj-style 4-story + retro 5번째 진입점 (Epic 9 cj-style 4-story pattern 미러)
+- **D-9-3-DEFER-2 Activity standard hour 자동 추출** (Epic 11+ activity management epic 결정 시)
+
+### retro 5번째 진입점 closed (cj-style 22번째 epic 연속)
+
+- **Epic 9 close-out retro closed** (사용자 retro = cj-style 5번째 진입점)
+- retro 문서: `_bmad-output/implementation-artifacts/epic-9-retro-2026-08-17.md` 12-section
+- **D1~D5 정직 발견** + **A31~A36 결정 wire** + **A35 frontend test debt honestly DEFER (d) + 9-7 follow-up sprint 진입** + **A36 SDR 검증 프로토콜 wire**
+- 9-6 follow-up sprint atomic wire (cj-style 23번째 epic 연속 = 9-6 docs only atomic wire)
+- Epic 10 진입 gate = 9-7 follow-up sprint done 진입 후 (A35 결정)
