@@ -71,6 +71,17 @@ from apps.api.modules.m4_inventory.services.opening_carry_service import (
     MonthlyInputOpeningLockViolationError,
     MonthlyInputOpeningManualEditError,
 )
+from apps.api.modules.m5_reports import router as m5_reports_router
+from apps.api.modules.m5_reports.exceptions import (
+    REPORT21_BREAKDOWN_NOT_FOUND_KO,
+    REPORT21_NO_COST_OBJECT_BREAKDOWN_KO,
+    REPORT21_PERIOD_NOT_COMMITTED_KO,
+    REPORT_PDF_GENERATION_ERROR_KO,
+    Report21BreakdownNotFoundError,
+    Report21NoBreakdownError,
+    Report21PdfGenerationError,
+    Report21PeriodNotCommittedError,
+)
 from apps.api.modules.m7_simulation import router as m7_simulation_router
 from apps.api.modules.m7_simulation.exceptions import (
     CVP_BASELINE_NOT_FOUND_KO,
@@ -280,6 +291,13 @@ app.include_router(m7_simulation_router)
 # - GET /api/v1/close/reversal-requests/<correction_group_id> (200)  # noqa: ERA001 — FastAPI path template syntax
 # - POST /api/v1/close/cache-invalidation (200 AD-25 publish receipt)
 app.include_router(m11_close_router)
+
+# Story 9.4 (Epic 9 4번째 진입점) — M5 reports Report #21 wire.
+# 2 NEW routes:
+# - GET  /api/v1/reports/21                (200 — Cost Object Breakdown envelope)
+# - POST /api/v1/reports/21/pdf           (200 — PDF via A30 SHARED factory,
+#                                          Discriminated union report_id=21)
+app.include_router(m5_reports_router)
 
 # Story 12.4 (Epic 12 carry-over sprint) — M12 2FA mandatory gate (PRD §F12.1 + §M12-a).
 # 9 NEW routes:
@@ -2446,6 +2464,106 @@ async def _m9_abc_too_many_departments_error_handler(
             "details": {
                 "department_count": exc.department_count,
                 "max_count": exc.max_count,
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 9.4 — Report #21 envelope handlers (CR 12-5 D-14) ──
+# 4 NEW typed envelope handlers for A30 SHARED PDF generator 결정 wire:
+#   - Report21PeriodNotCommittedError   (422 REPORT21_PERIOD_NOT_COMMITTED)
+#   - Report21NoBreakdownError          (422 REPORT21_NO_COST_OBJECT_BREAKDOWN)
+#   - Report21BreakdownNotFoundError    (404 REPORT21_BREAKDOWN_NOT_FOUND)
+#   - Report21PdfGenerationError        (500 REPORT_PDF_GENERATION_ERROR)
+
+
+@app.exception_handler(Report21PeriodNotCommittedError)
+async def _m5_reports_period_not_committed_handler(
+    request: Request, exc: Report21PeriodNotCommittedError
+) -> JSONResponse:
+    """422 REPORT21_PERIOD_NOT_COMMITTED — PRD §9 + §7.3 period 미커밋.
+
+    Story 9.4 — Report #21 (Cost Object Breakdown) 진입점 — 회계기간이
+    아직 commit되지 않은 시점에 envelope RAISE.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "REPORT21_PERIOD_NOT_COMMITTED",
+            "message_ko": REPORT21_PERIOD_NOT_COMMITTED_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(Report21NoBreakdownError)
+async def _m5_reports_no_breakdown_handler(
+    request: Request, exc: Report21NoBreakdownError
+) -> JSONResponse:
+    """422 REPORT21_NO_COST_OBJECT_BREAKDOWN — PRD §A6 + §V7 breakdown 부재.
+
+    Story 9.4 — Report #21 (Cost Object Breakdown) 진입점 — Cost Object
+    Breakdown rows 부재 시 service-layer envelope RAISE.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "REPORT21_NO_COST_OBJECT_BREAKDOWN",
+            "message_ko": REPORT21_NO_COST_OBJECT_BREAKDOWN_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(Report21BreakdownNotFoundError)
+async def _m5_reports_breakdown_not_found_handler(
+    request: Request, exc: Report21BreakdownNotFoundError
+) -> JSONResponse:
+    """404 REPORT21_BREAKDOWN_NOT_FOUND — PRD §F9.3 subdoc 부재.
+
+    Story 9.4 — Commit 안된 period + 기존 breakdown 부재 시 service-layer
+    RAISE (compute_and_persist 11-step pipeline 미실행 OR JSONB subdoc 부재).
+    """
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "REPORT21_BREAKDOWN_NOT_FOUND",
+            "message_ko": REPORT21_BREAKDOWN_NOT_FOUND_KO,
+            "details": {
+                "period_key": exc.period_key,
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(Report21PdfGenerationError)
+async def _m5_reports_pdf_generation_error_handler(
+    request: Request, exc: Report21PdfGenerationError
+) -> JSONResponse:
+    """500 REPORT_PDF_GENERATION_ERROR — PRD §9 #21 + §V8 PDF byte composition 실패.
+
+    Story 9.4 — Report #21 PDF generation 실패 (A30 SHARED factory dispatch)
+    시 service-layer RAISE. CR 12-5 D-14 typed envelope main.py REUSE 0 NEW.
+    Report #15 wire 동일 surface 재사용 (A30 SHARED factory pattern).
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "REPORT_PDF_GENERATION_ERROR",
+            "message_ko": REPORT_PDF_GENERATION_ERROR_KO,
+            "details": {
                 "reason": exc.reason,
             },
             "trace_id": str(_uuid_mod.uuid4()),

@@ -519,6 +519,101 @@ else:
 
 상세: [docs/abc-calculation.md](./abc-calculation.md) SSOT.
 
+### §6.12 Report #21 V7 ABC 무결성 hash + 1-Won precision (Story 9.4)
+
+PRD §V7 + §7.3 verbatim: Σ(원가대상별 배부액) + 미사용능력 = Σ(부서 원가) at 1-Won precision.
+
+```python
+# packages/cost_engine/abc_engine.py
+REPORT_PDF_HASH_PREFIX: Final[str] = "sha256:"
+
+@dataclass(frozen=True, slots=True)
+class Report21Summary:
+    product_count: int
+    total_allocated_krw: Decimal
+    total_unused_krw: Decimal
+    hash: str
+
+class Report21InconsistentStateError(ValueError):
+    period_key: str
+    expected_sum: Decimal
+    actual_sum: Decimal
+    reason: str
+
+def compute_report21_hash(
+    *,
+    cost_object_breakdown: Sequence[CostObjectRow],
+    unused_capacity_breakdown: Sequence[UnusedCapacityRow],
+    period_key: str,
+    v7_verdict: bool,
+) -> str:
+    # Returns "sha256:" + 64-char hexdigest
+    # 1-Won precision (Decimal-as-string)
+    # Deterministic: V8 byte-equality
+
+def compute_report_pdf_hash(*, pdf_bytes: bytes) -> str:
+    # Same sha256 prefix pattern, used for PDF byte stream integrity
+```
+
+- Backend: `compute_report21_hash` + `compute_report_pdf_hash` pure
+  funcs (AD-5 stdlib-only).
+- 9-4 EXTENSION extends the existing 9-2 + 9-3 surface:
+  `Report21Summary` + `Report21InconsistentStateError` + 2 pure funcs.
+- V7 violation: `Report21InconsistentStateError` raised when
+  `Σ allocated_krw ≠ Σ department_total_cost - unused_capacity` OR
+  both breakdowns empty.
+- TS mirror: `apps/web/lib/report21.ts` Discriminated union envelope
+  + `isReport21ResponseEnvelope` type guard (CR 11-4 D-005 unknown
+  reject pattern).
+
+상세: [docs/abc-report-21.md](./abc-report-21.md) SSOT.
+
+### §6.13 A30 SHARED PDF generator Discriminated union factory (Story 9.4 — A30 forward-lock)
+
+A30 forward-lock dual-report PDF generator 결정 wire: Report #21 (본
+story) + Report #15 (활동원가 내역서, 후속) = SHARED factory pattern
+(`packages/services/m5_reports/pdf_generator.py`).
+
+```python
+# packages/services/m5_reports/pdf_generator.py
+ReportId = Literal[15, 16, 17, 18, 19, 20, 21]
+
+@dataclass(frozen=True, slots=True)
+class ReportPdfRequest:
+    tenant_id: str
+    period_key: str
+    report_id: ReportId  # Discriminated union
+    payload: tuple  # Per-report data
+    metadata: tuple  # Per-report metadata
+
+def generate_report_pdf(*, request: ReportPdfRequest) -> ReportPdfResult:
+    """A30 SHARED factory — Dispatch via Discriminated union."""
+    if request.report_id == 21:
+        return _compose_report21_pdf(request)
+    elif request.report_id == 15:
+        return _compose_report15_pdf(request)  # A31+ placeholder
+    else:
+        raise ReportPdfGenerationError(reason=f"unsupported report_id={request.report_id}")
+```
+
+- `_compose_report21_pdf` uses stdlib-only PDF byte composition
+  (Type0 CIDFont + Identity-H CMap pattern matching Story 6-3
+  `closing_pdf_export` 3rd sweep B1 precedent). NO reportlab
+  dependency.
+- A19 cohesion pattern 8 surface — NEW SHARED factory package.
+- Factory dispatch is OWNED by the `packages/services/m5_reports/`
+  subtree (AD-11 layer rule: services = shared domain-data).
+- 4 NEW envelope codes wire integrity preserved in `apps/api/main.py`
+  (CR 12-5 D-14 typed envelope REUSE 0 NEW handlers):
+  - `REPORT21_PERIOD_NOT_COMMITTED` → 422
+  - `REPORT21_NO_COST_OBJECT_BREAKDOWN` → 422
+  - `REPORT21_BREAKDOWN_NOT_FOUND` → 404
+  - `REPORT_PDF_GENERATION_ERROR` → 500
+
+상세: [docs/abc-report-21.md](./abc-report-21.md) §A30 SHARED section.
+
+---
+
 ---
 
 ## §7 Money Formatting (Display only)

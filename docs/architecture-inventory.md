@@ -912,5 +912,159 @@ Per AD-18 + AD-19:
 - `tests/services/test_m3_calc_orchestrator_dispatch.py` — 16 NEW test cases
 - `tests/services/test_m9_abc_compute_and_persist.py` — 17 NEW test cases
 - `docs/abc-calculation.md` — 9-3 documentation
+
+## §9.4 ABC Report #21 Cost Object Breakdown Architecture (Story 9.4)
+
+> PRD §9 #21 verbatim: **"원가대상별 원가 집계표 (Cost Object Breakdown)"**.
+> PRD §7.3 verbatim: **"법인세법 시행규칙 제76조 2기준"**.
+> Epic 9 (ABC / TDABC Engine — Service Business) 4번째 진입점.
+> **A30 forward-lock:** SHARED PDF generator 결정 wire (Report #21 본 story +
+> Report #15 후속 placeholder). Discriminated union
+> `report_id: Literal[15, 16, 17, 18, 19, 20, 21]` factory pattern.
+
+### 모듈 구조 (9-4 EXTENSION)
+
+9-4 EXTENDS the M3 orchestrator + M9 ABC service layer with a NEW M5
+reports module (`apps/api/modules/m5_reports/`) — reports-specific
+endpoints for ABC post-2 closing visualizations. M5 owns ONLY Report
+#21 (1 endpoint per Report #N, AD-18 single endpoint invariant).
+
+```text
+apps/api/modules/m5_reports/
+├── __init__.py               # m5_reports_router export
+├── handlers.py               # GET /api/v1/reports/21 + POST /api/v1/reports/21/pdf
+├── exceptions.py             # 4 NEW typed exceptions (Report21PeriodNotCommittedError +
+│                             #   Report21NoBreakdownError + Report21BreakdownNotFoundError +
+│                             #   Report21PdfGenerationError)
+├── schemas.py                # 6 NEW Pydantic v2 models (Request + 4 Row types +
+│                             #   2 Response types — extra="forbid")
+└── services/
+    ├── __init__.py           # re-exports Report21Service + Report21State
+    └── report21_service.py   # Report21Service.build_report21 +
+                              #   Report21Service.generate_report21_pdf +
+                              #   _to_report21_state ORM→kernel boundary
+                              #   (CR 12-1 L3 precedent)
+
+packages/services/m5_reports/
+├── __init__.py               # A30 SHARED PDF generator subtree docstring
+└── pdf_generator.py          # SHARED PDF generator factory + Discriminated union
+                              #   report_id: Literal[15, 16, 17, 18, 19, 20, 21]
+                              #   + ReportPdfRequest + ReportPdfResult frozen dataclasses
+                              #   + _compose_report21_pdf (stdlib-only PDF byte composition)
+
+packages/cost_engine/abc_engine.py
+├── Report21Summary           # 9-4 EXTENSION frozen dataclass
+├── Report21InconsistentStateError  # 9-4 EXTENSION typed exception
+├── compute_report21_hash     # 9-4 EXTENSION pure kernel func (V8 byte-equality)
+└── compute_report_pdf_hash   # 9-4 EXTENSION pure kernel func (sha256 prefix)
+```
+
+### Capability Dual-Route Gate (CR 12-1 L4 + CR 12-5 D-14)
+
+```python
+# apps/api/modules/m5_reports/handlers.py
+@router.get("/api/v1/reports/21")
+async def get_report21(
+    period_key: str,
+    tenant_ctx: TenantContext = Depends(get_tenant_context),
+    _: None = Depends(
+        require_any_capability(
+            Capability.COST_CALCULATION,
+            Capability.ABC_CALCULATION,
+        )
+    ),
+    __: None = Depends(require_any_role("owner", "member")),
+):
+    state = await Report21Service(session).build_report21(
+        tenant_id=tenant_ctx.tenant_id,
+        period_key=period_key,
+    )
+    return serialize_report21_state(state)
+```
+
+The variadic helper `require_any_capability(*capabilities)` accepts
+N+ arguments and returns a FastAPI dependency that grants access if
+the tenant has ANY of the listed capabilities.
+
+### A30 SHARED PDF Generator Factory Pattern
+
+```python
+# packages/services/m5_reports/pdf_generator.py
+ReportId = Literal[15, 16, 17, 18, 19, 20, 21]
+
+def generate_report_pdf(*, request: ReportPdfRequest) -> ReportPdfResult:
+    """A30 SHARED factory — Dispatch via Discriminated union."""
+    if request.report_id == 21:
+        return _compose_report21_pdf(request)  # stdlib-only PDF byte composition
+    elif request.report_id == 15:
+        return _compose_report15_pdf(request)  # A31+ placeholder
+    else:
+        raise ReportPdfGenerationError(reason=f"unsupported report_id={request.report_id}")
+```
+
+The factory pattern enables Report #15 (활동원가 내역서) and
+subsequent reports to REUSE the same generator without duplicating
+PDF byte composition. `_compose_report21_pdf` uses Type0 CIDFont +
+Identity-H CMap pattern matching Story 6-3 `closing_pdf_export` 3rd
+sweep B1 precedent (stdlib-only, no reportlab dependency).
+
+### CR 12-1 L3 ORM→Kernel Boundary (`_to_report21_state`)
+
+```python
+# apps/api/modules/m5_reports/services/report21_service.py
+@dataclass(frozen=True, slots=True)
+class Report21State:
+    period_key: str
+    cost_object_breakdown: tuple[CostObjectRow, ...]
+    unused_capacity_breakdown: tuple[UnusedCapacityRow, ...]
+    v7_verdict_is_balanced: bool
+    generation_hash: str
+
+def _to_report21_state(*, orm_rows: list[ORM]) -> Report21State:
+    """Pure ORM→kernel boundary function (CR 12-1 L3)."""
+    ...
+
+def serialize_report21_state(state: Report21State) -> dict:
+    """AD-15 §1 JSON-safe envelope serialization."""
+    ...
+```
+
+The kernel functions (`compute_report21_hash`) operate ONLY on the
+frozen DTO, never on ORM rows directly. This isolation enables
+golden-fixture-based V8 byte-equality testing in the kernel layer.
+
+### V7 ABC 무결성 Invariant (PRD §V7)
+
+PRD §V7: Σ(원가대상별 배부액) + 미사용능력 = Σ(부서 원가)
+
+Enforced at the pure kernel layer via `compute_report21_hash` in
+`packages/cost_engine/abc_engine.py`. `Report21InconsistentStateError`
+raised when balance invariant fails OR breakdown is empty.
+
+### Cross-references (9-4)
+
+- `packages/cost_engine/abc_engine.py` — pure kernel 9-4 EXTENSION (2 NEW frozen dataclasses + 1 NEW typed exception + 2 NEW pure functions + 1 NEW constant)
+- `packages/services/m5_reports/pdf_generator.py` — A30 SHARED factory + Discriminated union (Report #21 본 story + Report #15 후속 placeholder)
+- `apps/api/modules/m5_reports/handlers.py` — capability dual-route gate + role gate (CR 12-5 D-14 verbatim)
+- `apps/api/modules/m5_reports/exceptions.py` — 4 NEW typed exceptions + 4 Korean SSOT
+- `apps/api/modules/m5_reports/schemas.py` — 6 NEW Pydantic v2 models (extra="forbid")
+- `apps/api/modules/m5_reports/services/report21_service.py` — `_to_report21_state` CR 12-1 L3 boundary + `Report21Service`
+- `apps/api/main.py` — 4 NEW @app.exception_handler decorators (CR 12-5 D-14 typed envelope REUSE 0 NEW handlers)
+- `apps/web/components/m5-reports/Report21Panel.tsx` — main Client Component
+- `apps/web/components/m5-reports/CostObjectBreakdownTable.tsx` — memoized 4-column table
+- `apps/web/components/m5-reports/UnusedCapacityAccordion.tsx` — collapsible accordion (D-9-3-DEFER-3 해소)
+- `apps/web/components/m5-reports/PdfExportButton.tsx` — PDF download trigger
+- `apps/web/lib/report21.ts` — TS mirror (Discriminated union + type guard)
+- `apps/web/lib/report21-pdf.ts` — TS PDF download helpers
+- `apps/web/messages/ko-KR.json` — `report21` namespace (~37) + `pdf_common` namespace (12)
+- `apps/web/app/[locale]/(dashboard)/reports/21/page.tsx` — RSC page
+- `tests/cost_engine/test_abc_engine_report21.py` — ~32 NEW pytest cases
+- `tests/services/m5_reports/test_pdf_generator.py` — ~30 NEW pytest cases (A30 SHARED factory)
+- `tests/services/test_m5_reports_report21_service.py` — ~25 NEW pytest cases
+- `tests/api/m5_reports/test_report21_handlers.py` — ~20 NEW pytest cases
+- `tests/integration/test_capability_matrix_v1_20_drift.py` — ~10 NEW drift detector cases
+- `apps/web/__tests__/components/m5-reports.Report21Panel.test.tsx` — ~23 NEW vitest cases
+- `docs/abc-report-21.md` — 9-4 documentation (NEW)
+- `docs/capability-matrix.md` v1.20 — changelog entry + capability matrix 변경 0
 - `docs/capability-matrix.md` — v1.19 EXTENSION (no NEW capability row, dual-route gate)
 

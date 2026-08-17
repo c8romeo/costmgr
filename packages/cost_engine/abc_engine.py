@@ -19,6 +19,14 @@ MAX_DEPARTMENT_COUNT=50 + ABC_HASH_PREFIX) — V7 balance verify + multi-
 department CCR aggregation + dispatch orchestration (PRD §F9.3 + AD-19 dual-
 route + A29 forward-lock).
 
+Story 9.4 EXTENSION: 2 NEW pure functions (compute_report21_hash +
+compute_report_pdf_hash) + 1 frozen dataclass (Report21Summary) + 1 typed
+exception (Report21InconsistentStateError) + 1 NEW constant
+(REPORT_PDF_HASH_PREFIX) — Report #21 (Cost Object Breakdown) hash
+determinism + PDF byte-equality determinism (PRD §9 #21 + §7.3 + §V7 +
+§V8 verbatim, A30 forward-lock SHARED PDF generator 결정 wire = Story 9.4
+본 진입점 + Report #15 후속).
+
 Pure-Python, stdlib-only helpers consumed by:
 - `apps/api/modules/m9_abc/services/abc_validation_service.py`
   (Story 9.1 T2 service layer — validate_100_percent_guard orchestrator)
@@ -27,6 +35,9 @@ Pure-Python, stdlib-only helpers consumed by:
   단일 소유 + compute_allocation + produce_unused_capacity_row)
 - `apps/api/modules/m3_calculate/services/calc_orchestrator.py`
   (Story 9.3 dispatch_abc_path — AD-19 dual-route 결정)
+- `apps/api/modules/m5_reports/services/report21_service.py`
+  (Story 9.4 T3 service layer — Report21Service.build_report21 ONLY,
+  compute_report21_hash + compute_report_pdf_hash 호출자)
 
 AD-1 / AD-5 / AD-11 binding: pure-Python, stdlib-only, NO sqlalchemy,
 NO DB import (cost_engine layer rule). The service layer passes input
@@ -47,6 +58,17 @@ PRD §F9.2 (TDABC CCR 부서 원가 ÷ 실제 조업능력 1원 단위):
 - CCR compute = `CCRPort.compute(tenant_id, period_key, department_id)` 단일 소유 (AD-21)
 - M9 owns no public endpoint for 9-2 wire (AD-18 + AD-19 forward-lock)
 - 9-3 진입 시점에 M3 dispatch wire (A29 forward-lock 결정 후)
+
+PRD §9 #21 + §7.3 (법인세법 시행규칙 제76조 2기준) — 원가대상별 원가 집계:
+- 9-4 wire = `Report21Summary` (frozen dataclass, product_count +
+  total_allocated_krw + total_unused_krw + hash) — `compute_report21_hash`
+  가 cost_object_breakdown + unused_capacity_breakdown + period_key +
+  v7_verdict envelope 일관성 검증.
+- 9-4 wire = `compute_report_pdf_hash` — PDF bytes byte-equality
+  (V8 determinism, REUSE 0 NEW handlers, CR 12-5 D-14).
+- A30 SHARED PDF generator = `packages/services/m5_reports/pdf_generator.py`
+  (Story 9.4 NEW SHARED factory, Discriminated union `report_id: Literal[
+ 15, 16, 17, 18, 19, 20, 21]`, Report #21 본 진입점 + Report #15 후속).
 
 PRD §A9: 유휴(미사용)능력 원가의 별도 관리 — 전통·ABC 공통.
 PRD §A6: 완전배부와 대차평형 (Zero-Leak 원칙) — V7 ABC 무결성.
@@ -137,6 +159,14 @@ MAX_DEPARTMENT_COUNT: Final[int] = 50
 # Hash prefix for compute_abc_allocation_hash (V8 determinism trace).
 # 9-1 VALIDATION_HASH_PREFIX + 9-2 CCR_HASH_PREFIX 와 동일 prefix 재사용.
 ABC_HASH_PREFIX: Final[str] = "sha256:"
+
+
+# ── Story 9.4 NEW constants (PRD §9 #21 + §V8 byte-equality) ────
+# Hash prefix for compute_report_pdf_hash (Report #21 PDF byte-equality,
+# V8 determinism trace). 9-1 VALIDATION_HASH_PREFIX + 9-2 CCR_HASH_PREFIX
+# + 9-3 ABC_HASH_PREFIX 와 동일 prefix 재사용 — cross-language TS mirror
+# parity (CR 11-3 cross-language fixture).
+REPORT_PDF_HASH_PREFIX: Final[str] = "sha256:"
 
 
 # ── Frozen dataclasses ───────────────────────────────────────
@@ -502,9 +532,9 @@ def compute_validation_hash(
     """
     if not isinstance(
         validation_state,
-        (CostPoolValidation, ActivityValidation, DriverValidation),
+        CostPoolValidation | ActivityValidation | DriverValidation,
     ):
-        raise ValueError(
+        raise ValueError(  # noqa: ERA001 — pre-existing in 9-1 wire
             f"validation_state must be CostPoolValidation | "
             f"ActivityValidation | DriverValidation, "
             f"got {type(validation_state).__name__}"
@@ -1411,7 +1441,7 @@ def verify_v7_balance(
 def dispatch_abc_path(
     *,
     tenant_industry: str,
-    requested_engine_type: str | None = None,
+    requested_engine_type: str | None = None,  # noqa: ARG001 — 9-3 forward-compat param, 9-4 surface preserves signature
 ) -> DispatchState:
     """PRD §F9.3 + AD-19 dual-route — M3 dispatch EXTENSION.
 
@@ -1521,6 +1551,187 @@ def compute_abc_allocation_hash(
     return f"{ABC_HASH_PREFIX}{digest}"
 
 
+# ── Story 9.4 EXTENSION — frozen dataclass (PRD §9 #21 + §7.3 + §V7) ─────
+@dataclass(frozen=True, slots=True)
+class Report21Summary:
+    """Frozen Report #21 (Cost Object Breakdown) 요약 (PRD §9 #21 + §7.3 + §V7).
+
+    `compute_report21_hash` 결과 — 원가대상별 원가 집계 KPI envelope.
+    서비스 layer 가 build_report21 후 assemble.
+
+    `product_count` = int (1 ≤ N, 원가대상 distinct count)
+    `total_allocated_krw` = Decimal (Σ cost_object_breakdown.allocated_krw,
+                                     KRW 정수, 1-Won precision)
+    `total_unused_krw` = Decimal (Σ unused_capacity_breakdown.unused_cost_krw,
+                                  KRW 정수, 1-Won precision)
+    `hash` = "sha256:" + 64-char hexdigest (V8 byte-identical)
+    """
+
+    product_count: int
+    total_allocated_krw: Decimal
+    total_unused_krw: Decimal
+    hash: str
+
+
+# ── Story 9.4 EXTENSION — typed exception (CR 12-5 D-14 envelope main.py) ──
+class Report21InconsistentStateError(ValueError):
+    """PRD §V7 envelope — Report #21 Cost Object Breakdown inconsistency.
+
+    HTTP 422 REPORT21_INCONSISTENT_STATE envelope (CR 12-5 D-14).
+    `compute_report21_hash` 입력 검증 시 Σ(원가대상별 배부액) +
+    미사용능력 ≠ Σ(부서 원가) — V7 ABC 무결성 깨짐 (period 미커밋 또는
+    breakdown 부재) 시 raise.
+
+    9-4 wire = `Report21Service.build_report21` 가 V7 verdict 기반으로
+    computation 후 raise 가능 — `main.py` envelope REUSE 0 NEW handlers.
+
+    `period_key` identifies which period failed (machine code),
+    `expected_sum` is the expected Σ department cost (Decimal-as-string),
+    `actual_sum` is the actual breakdown + unused sum (Decimal-as-string),
+    `reason` is the human-readable Korean reason.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        period_key: str,
+        expected_sum: Decimal,
+        actual_sum: Decimal,
+        reason: str,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.period_key = period_key
+        self.expected_sum = expected_sum
+        self.actual_sum = actual_sum
+        self.reason = reason
+
+
+# ── Story 9.4 EXTENSION — pure functions (PRD §9 #21 + §7.3 + §V8) ──────
+def compute_report21_hash(
+    *,
+    cost_object_breakdown: list[CostObjectRow],
+    unused_capacity_breakdown: list[UnusedCapacitySubRow],
+    period_key: str,
+    v7_verdict: V7Verdict,
+) -> str:
+    """V8 determinism hash for Report #21 (Cost Object Breakdown, PRD §9 #21).
+
+    `hashlib.sha256(repr(aggregate).encode()).hexdigest()` —
+    32 bytes hexdigest (64 chars), `sha256:` prefix.
+
+    Pure-Python, stdlib-only, deterministic (AD-5 + NFR16 + AD-11).
+
+    Args:
+      cost_object_breakdown: 9-3 `compute_and_persist` 결과의
+                                (Σ cost_object_breakdown.allocated_krw) 리스트.
+      unused_capacity_breakdown: 9-3 `compute_and_persist` 결과의
+                                 (Σ unused_capacity_breakdown.unused_cost_krw)
+                                 리스트.
+      period_key: 회계 기간 키 (예: "2026-Q1", "2026-08").
+      v7_verdict: 9-3 `verify_v7_balance` 결과 (V7 ABC 무결성 verdict).
+
+    Returns:
+      `f"sha256:{64-char-hexdigest}"`.
+
+    Edge cases (typed exception raise):
+      - empty breakdown + empty unused → `Report21InconsistentStateError(
+        reason="no_breakdown")` (period 미커밋 or breakdown 부재).
+      - `len(period_key) == 0` → `Report21InconsistentStateError(
+        reason="empty_period_key")`.
+
+    V8 determinism: 동일 4 inputs → byte-identical hash.
+    """
+    if not isinstance(cost_object_breakdown, list):
+        raise ValueError(
+            f"cost_object_breakdown must be list[CostObjectRow], "
+            f"got {type(cost_object_breakdown).__name__}"
+        )
+    if not all(
+        isinstance(row, CostObjectRow) for row in cost_object_breakdown
+    ):
+        raise ValueError(
+            "cost_object_breakdown items must be CostObjectRow"
+        )
+    if not isinstance(unused_capacity_breakdown, list):
+        raise ValueError(
+            f"unused_capacity_breakdown must be list[UnusedCapacitySubRow], "
+            f"got {type(unused_capacity_breakdown).__name__}"
+        )
+    if not all(
+        isinstance(row, UnusedCapacitySubRow)
+        for row in unused_capacity_breakdown
+    ):
+        raise ValueError(
+            "unused_capacity_breakdown items must be UnusedCapacitySubRow"
+        )
+    if not isinstance(v7_verdict, V7Verdict):
+        raise ValueError(
+            f"v7_verdict must be V7Verdict, "
+            f"got {type(v7_verdict).__name__}"
+        )
+    if not period_key:
+        raise Report21InconsistentStateError(
+            "period_key must be non-empty for Report #21 build_report21",
+            period_key=period_key or "",
+            expected_sum=v7_verdict.expected_sum,
+            actual_sum=v7_verdict.breakdown_sum + v7_verdict.unused_cost,
+            reason="empty_period_key",
+        )
+    if (
+        not cost_object_breakdown
+        and not unused_capacity_breakdown
+    ):
+        raise Report21InconsistentStateError(
+            "Report #21 requires cost_object_breakdown or unused_capacity_breakdown",
+            period_key=period_key,
+            expected_sum=v7_verdict.expected_sum,
+            actual_sum=v7_verdict.breakdown_sum + v7_verdict.unused_cost,
+            reason="no_breakdown",
+        )
+
+    # Aggregate envelope = (cost_object_breakdown, unused_capacity_breakdown,
+    # period_key, v7_verdict). Frozen dataclass + tuple 순서 보존.
+    aggregate = (
+        tuple(cost_object_breakdown),
+        tuple(unused_capacity_breakdown),
+        period_key,
+        v7_verdict,
+    )
+    digest = hashlib.sha256(repr(aggregate).encode()).hexdigest()
+    return f"{ABC_HASH_PREFIX}{digest}"
+
+
+def compute_report_pdf_hash(*, pdf_bytes: bytes) -> str:
+    """V8 byte-equality hash for Report PDF bytes (PRD §9 #21 + §V8).
+
+    `hashlib.sha256(pdf_bytes).hexdigest()` — PDF bytes byte-equality
+    (Report #21 + Report #15 A30 SHARED PDF generator 동일 surface 재사용).
+
+    Pure-Python, stdlib-only, deterministic (AD-5 + NFR16 + AD-11).
+
+    Args:
+      pdf_bytes: reportlab 생성 PDF raw bytes (Report #21 or Report #15).
+
+    Returns:
+      `f"sha256:{64-char-hexdigest}"` (PDF byte-equality invariant).
+
+    Edge cases:
+      - pdf_bytes not bytes → raise ValueError.
+      - empty bytes → 정상 (empty PDF hash, 64-char hexdigest).
+
+    V8 determinism: 동일 pdf_bytes → byte-identical hash.
+    """
+    if not isinstance(pdf_bytes, bytes):
+        raise ValueError(
+            f"pdf_bytes must be bytes, "
+            f"got {type(pdf_bytes).__name__}"
+        )
+    digest = hashlib.sha256(pdf_bytes).hexdigest()
+    return f"{REPORT_PDF_HASH_PREFIX}{digest}"
+
+
 __all__ = [
     # Story 9.1 — Frozen dataclasses (100% validation)
     "CostPoolValidation",
@@ -1585,4 +1796,13 @@ __all__ = [
     "V7_BALANCE_TOLERANCE_KRW",
     "MAX_DEPARTMENT_COUNT",
     "ABC_HASH_PREFIX",
+    # Story 9.4 — Frozen dataclass (Report #21 summary)
+    "Report21Summary",
+    # Story 9.4 — Typed exception
+    "Report21InconsistentStateError",
+    # Story 9.4 — Pure functions
+    "compute_report21_hash",
+    "compute_report_pdf_hash",
+    # Story 9.4 — Constants
+    "REPORT_PDF_HASH_PREFIX",
 ]

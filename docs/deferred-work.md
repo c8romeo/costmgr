@@ -528,3 +528,65 @@ sprint budget). Documented honestly per CR 11-3 discipline:
   - 1 scenario: 422 ABC_TOO_MANY_DEPARTMENTS error toast
   Total: 4 scenarios minimum (or 16 for full Epic 9 close-out pattern).
 - Scope: Epic 9 close-out retro follow-up sprint.
+
+#### D-9-4-DEFER-1 — epics.md "원가대상별 원가 집계표" vs PRD §9 #21 "부문귀속명세서" 정합
+
+- **Description**: The PRD §9 #21 report is named "원가대상별 원가 집계표"
+  (Cost Object Breakdown) but is also referenced as "부문귀속명세서" in
+  epics.md. The PDF label + UX 표기 decision requires Product Owner sign-off.
+- **Source**: `docs/abc-report-21.md` (PDF title label) +
+  `apps/web/messages/ko-KR.json` (`report21.page_title` = "원가대상별 원가 집계표") +
+  `packages/services/m5_reports/pdf_generator.py` (`REPORT21_PDF_TITLE_KO`).
+- **Reason**: 9-4 본 진입점 scope-out. PRD §9 #21 wording is consistent
+  with "원가대상별 원가 집계표" but epics.md alternate name "부문귀속명세서"
+  may require UX cross-reference. Decision deferred to Epic 9 close-out
+  follow-up to align UX + PDF label + PRD wording.
+- **Scope**: Epic 9 close-out follow-up sprint.
+
+#### D-9-4-DEFER-2 — Report #15 wire (활동원가 내역서) — A30 SHARED factory 재사용 entry
+
+- **Description**: Report #15 (활동원가 내역서, Activity Cost Detail) is
+  documented in PRD §9 but is NOT yet wired. A30 forward-lock 결정 wire
+  reserves `_compose_report15_pdf` placeholder in
+  `packages/services/m5_reports/pdf_generator.py` Discriminated union
+  factory pattern (`report_id: Literal[15, 16, 17, 18, 19, 20, 21]`).
+- **Source**: `packages/services/m5_reports/pdf_generator.py`
+  (`_compose_report15_pdf` placeholder branch).
+- **Reason**: 9-4 본 진입점 scope-out. Report #15 wire requires A31+
+  forward-lock 결정 일정 to wire the corresponding ABC backend surface
+  + capability matrix extension. A30 SHARED factory enables Report #15
+  to REUSE the generator without duplicating PDF byte composition.
+- **Scope**: 후속 story (A31+ 결정 후).
+
+#### D-9-4-DEFER-3 — AI 자동 분석의견 (PRD §9 #16 + §A11 + §10)
+
+- **Description**: AI-driven auto-analysis 의견 (narrative commentary)
+  for Report #21 (and other ABC reports) — PRD §9 #16 + §A11 + §10
+  mandate AI-generated insight text on cost object breakdowns.
+- **Source**: `docs/abc-report-21.md` (AI commentary section placeholder)
+  + PRD §A11 AI cross-cutting feature.
+- **Reason**: 9-4 본 진입점 scope-out. AI 자동 분석의견 requires:
+  - LLM provider wiring (PRD §A11 §10)
+  - Report #21 prompt template + cost-engine context injection
+  - TS mirror + ko-KR.json SSOT (CR 11-4 D-002)
+  - 1 NEW capability matrix row OR AI_EXTRACT reuse decision
+- **Scope**: 9-4 follow-up story.
+
+#### D-9-4-DEFER-4 — Playwright E2E for Report #21 (Cost Object Breakdown)
+
+- **Description**: End-to-end Playwright coverage for Report #21 flow:
+  period_key input → fetch breakdown → render 4-column table + unused
+  accordion → PDF download trigger → file save.
+- **Source**: `apps/web/app/[locale]/(dashboard)/reports/21/page.tsx`
+  (no Playwright E2E coverage yet).
+- **Reason**: 9-4 wire covers the Report21 panel + 4 sub-components +
+  PDF button but does NOT include Playwright E2E scenarios. Mirrors
+  D-9-1-DEFER-6 + D-9-3-DEFER-4 pattern. E2E coverage requires:
+  - 1 scenario: GET /api/v1/reports/21 → breakdown table + V7 verdict
+  - 1 scenario: unused capacity accordion toggle per department
+  - 1 scenario: POST /api/v1/reports/21/pdf → base64 → Blob → download
+  - 1 scenario: 422 REPORT21_NO_COST_OBJECT_BREAKDOWN envelope
+  - 1 scenario: 422 REPORT21_PERIOD_NOT_COMMITTED envelope
+  - 1 scenario: 404 REPORT21_BREAKDOWN_NOT_FOUND envelope
+  Total: 6 scenarios minimum (or 16 for full Epic 9 close-out pattern).
+- **Scope**: Epic 9 close-out follow-up sprint (cj-style 결정 A27).

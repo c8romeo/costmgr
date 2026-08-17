@@ -237,6 +237,11 @@ def test_api_root_does_not_import_services() -> None:
             # (Decimal-as-string serializers + M5 §9 #20+ PDF envelope builder).
             "packages.services.m7_simulation.projection_serializers",
             "packages.services.m7_simulation.projection_pdf_helpers",
+            # Story 9.4 (Epic 9) — M5 reports SHARED PDF generator factory
+            # (Discriminated union report_id: Literal[15..21], Report #21
+            # 본 진입점 + Report #15 후속 진입점).
+            "packages.services.m5_reports",
+            "packages.services.m5_reports.pdf_generator",
         }
     )
 

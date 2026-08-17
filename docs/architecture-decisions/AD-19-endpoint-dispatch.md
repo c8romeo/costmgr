@@ -142,6 +142,61 @@ manufacturing cost chain (COST_CALCULATION → CalcResponse), while
   - 상세: [docs/abc-calculation.md](./abc-calculation.md) SSOT.
   - **A30 forward-lock 결정 일정**: 9-4 spec 진입 시점.
 
+- **2026-08-17 (Story 9.4)** — A30 forward-lock dual-report PDF generator
+  결정 wire (PRD §9 #21 + §7.3 + §9 공통):
+  - **No NEW endpoint** — Report #21 endpoint는 M5 reports service layer
+    에 wire (`GET /api/v1/reports/21` + `POST /api/v1/reports/21/pdf`,
+    AD-18 single endpoint invariant). M5 owns ONLY Report #21 endpoint.
+  - **A30 SHARED PDF generator factory** — `packages/services/m5_reports/
+    pdf_generator.py` Discriminated union
+    `report_id: Literal[15, 16, 17, 18, 19, 20, 21]` pattern:
+    - **Report #21 (본 story)** — `_compose_report21_pdf` stdlib-only
+      PDF byte composition (Type0 CIDFont + Identity-H CMap pattern
+      matching Story 6-3 `closing_pdf_export` 3rd sweep B1 precedent,
+      NO reportlab dependency).
+    - **Report #15 (활동원가 내역서, 후속)** — `_compose_report15_pdf`
+      placeholder (A31+ forward-lock 결정 후속).
+  - **Capability dual-route gate** — `require_any_capability(
+    COST_CALCULATION, ABC_CALCULATION)` ANY-OF semantics (CR 12-5 D-14
+    + CR 12-1 L4 variadic helper precedent). Capability matrix 변경 0
+    — NO NEW capability row added (Report #21 endpoint uses existing
+    dual-route gate + A30 SHARED factory delegates via Discriminated
+    union).
+  - **4 NEW typed exceptions** (CR 12-5 D-14 envelope REUSE 0 NEW
+    handlers in `apps/api/main.py`):
+    - `Report21PeriodNotCommittedError` → 422 REPORT21_PERIOD_NOT_COMMITTED
+    - `Report21NoBreakdownError` → 422 REPORT21_NO_COST_OBJECT_BREAKDOWN
+    - `Report21BreakdownNotFoundError` → 404 REPORT21_BREAKDOWN_NOT_FOUND
+    - `Report21PdfGenerationError` → 500 REPORT_PDF_GENERATION_ERROR
+  - **A19 cohesion pattern 7 surface** — `packages/cost_engine/abc_engine.py`
+    9-1+9-2+9-3+9-4 EXTENSION 누적 (2 NEW frozen dataclasses +
+    1 NEW typed exception + 2 NEW pure functions + 1 NEW constant).
+  - **A19 cohesion pattern 8 surface** — NEW SHARED
+    `packages/services/m5_reports/pdf_generator.py` factory (Report #21
+    본 story + Report #15 후속 placeholder).
+  - **D-9-3-DEFER-1 Report #21 PDF export 해소** (T4 + T5 wire) +
+    **D-9-3-DEFER-3 Unused capacity full breakdown by department 해소**
+    (T3 wire).
+  - **Capability matrix v1.20 EXTENSION**: NO NEW capability row. NO row
+    fill change. Capability matrix 변경 0.
+  - **4 honestly DEFER** (D-9-4-DEFER-1~4): epics.md "원가대상별 원가 집계표"
+    vs PRD §9 #21 "부문귀속명세서" 정합 (Epic 9 close-out follow-up) +
+    Report #15 wire (A31+ 결정 후속) + AI 자동 분석의견 (9-4 follow-up) +
+    Playwright E2E (Epic 9 close-out follow-up).
+  - **Frontend RSC**: `apps/web/app/[locale]/(dashboard)/reports/21/
+    page.tsx` + 4 NEW Client Components (Report21Panel +
+    CostObjectBreakdownTable + UnusedCapacityAccordion + PdfExportButton)
+    + 2 NEW TS mirrors (report21.ts + report21-pdf.ts).
+  - **Korean SSOT**: `report21` namespace (~37 strings) +
+    `pdf_common` namespace (12 strings) in
+    `apps/web/messages/ko-KR.json`. CR 11-4 D-002 SSOT cross-language
+    parity preserved.
+  - **상세**: [docs/abc-report-21.md](./../abc-report-21.md) SSOT.
+  - **A31+ forward-lock 결정 일정**: Report #15 wire = A30 SHARED factory
+    패턴 재사용 entry.
+  - **Epic 9 close-out retro 결정 일정**: cj-style 5번째 진입점 (9-4
+    done 진입 후).
+
 - **2026-08-16 (Story 9.2)** — A28 forward-lock 3-way wire 결정 (9-1
   handoff 진입점):
   - **CCR compute** (D-9-1-DEFER-1 해소) — `CCRPort.compute(tenant_id, period_key, department_id)` 단일 함수 (AD-21)

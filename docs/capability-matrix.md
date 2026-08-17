@@ -1,8 +1,47 @@
-# Capability Matrix (v1.19)
+# Capability Matrix (v1.20)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.20 (2026-08-17, Story 9.4, Epic 9)** — A30 forward-lock dual-report PDF
+> generator 결정 wire (PRD §9 #21 + §7.3 + §9 공통 + §A6+A9+V7+V8). Story 9.4
+> wired the M5 reports extension for Report #21 (원가대상별 원가 집계표):
+> - **No NEW capability** — uses existing `COST_CALCULATION` (mfg-only) +
+>   `ABC_CALCULATION` (industry-agnostic, 9.1/9.2/9.3 wire). The capability
+>   dual-route gate reuses `require_any_capability(COST_CALCULATION,
+>   ABC_CALCULATION)` — ANY-OF semantics (CR 12-5 D-14 envelope handler
+>   pattern + CR 12-1 L4 variadic helper precedent).
+> - **M5 owns ONLY Report #21 endpoint** (AD-18) — `GET /api/v1/reports/21`
+>   + `POST /api/v1/reports/21/pdf` dispatch via M5 reports service
+>   `Report21Service.build_report21` + `generate_report21_pdf`.
+> - **A30 SHARED PDF generator** — `packages/services/m5_reports/pdf_generator.py`
+>   factory pattern (Discriminated union
+>   `report_id: Literal[15, 16, 17, 18, 19, 20, 21]`):
+>   - Report #21 (본 story) — `_compose_report21_pdf` stdlib-only PDF byte
+>     composition (Type0 CIDFont + Identity-H CMap pattern, matching Story
+>     6-3 `closing_pdf_export` 3rd sweep B1 precedent)
+>   - Report #15 (활동원가 내역서, 후속) — `_compose_report15_pdf` placeholder
+>     (A31+ forward-lock 결정)
+> - **Capability matrix 변경 0** — capability 행 자체는 변경 없음 (Report #21
+>   endpoint uses existing dual-route gate, A30 SHARED factory just delegates
+>   via Discriminated union). Drift detector:
+>   `tests/integration/test_capability_matrix_v1_20_drift.py` pins:
+>   - `ABC_CALCULATION` industry-agnostic preservation (4-industry grants)
+>   - `COST_CALCULATION` mfg-only preservation (3-industry grants + service-only ❌)
+>   - `require_any_capability` factory dual-route gate preserved
+>   - 4 NEW typed exceptions (`Report21PeriodNotCommittedError` +
+>     `Report21NoBreakdownError` + `Report21BreakdownNotFoundError` +
+>     `Report21PdfGenerationError`) mapped to AD-15 §4 envelopes in
+>     `apps/api/main.py` (CR 12-5 D-14)
+>   - A30 SHARED factory Discriminated union integrity
+>     (`report_id: Literal[15, 16, 17, 18, 19, 20, 21]`)
+>   - 4 envelope codes (`REPORT21_PERIOD_NOT_COMMITTED` 422 +
+>     `REPORT21_NO_COST_OBJECT_BREAKDOWN` 422 +
+>     `REPORT21_BREAKDOWN_NOT_FOUND` 404 +
+>     `REPORT_PDF_GENERATION_ERROR` 500) wire integrity.
+>
+> ---
 >
 > **v1.19 (2026-08-16, Story 9.3, Epic 9)** — dual-route gate on `/api/v1/calc`
 > ABC dispatch via M3 orchestrator (PRD §F9.3 + A29 forward-lock dual-route
@@ -503,6 +542,28 @@ class CalcResponse(BaseModel):
   fiscal_periods.status='closed' + fiscal_period_snapshots.state='committed').
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.
+- 2026-08-17 — v1.20 (Story 9.4, Epic 9): **A30 forward-lock dual-report
+  PDF generator** 결정 wire (PRD §9 #21 원가대상별 원가 집계표 + §7.3
+  법인세법 시행규칙 제76조 2기준). No NEW capability — capability 행 자체는
+  변경 없음 (9-4 wires Report #21 via existing dual-route
+  `require_any_capability(COST_CALCULATION, ABC_CALCULATION)`, A30 SHARED
+  PDF factory delegates via Discriminated union
+  `report_id: Literal[15, 16, 17, 18, 19, 20, 21]`). M5 owns ONLY the
+  Report #21 endpoint (AD-18 single endpoint invariant — 1 endpoint per
+  Report #N): `GET /api/v1/reports/21` + `POST /api/v1/reports/21/pdf`.
+  A30 SHARED `packages/services/m5_reports/pdf_generator.py` factory
+  pattern (Report #21 본 story + Report #15 후속 placeholder, A31+
+  forward-lock 결정). 4 NEW typed exceptions mapped to AD-15 §4
+  envelopes in `apps/api/main.py` (CR 12-5 D-14): `Report21PeriodNotCommittedError`
+  → 422 REPORT21_PERIOD_NOT_COMMITTED + `Report21NoBreakdownError` → 422
+  REPORT21_NO_COST_OBJECT_BREAKDOWN + `Report21BreakdownNotFoundError` →
+  404 REPORT21_BREAKDOWN_NOT_FOUND + `Report21PdfGenerationError` → 500
+  REPORT_PDF_GENERATION_ERROR. Alembic SKIPPED (9-4 reads existing
+  `fiscal_period_snapshots.cost_object_breakdown JSONB` from 9-3 wire).
+  A19 cohesion pattern 7 surface (`packages/cost_engine/abc_engine.py`
+  9-1+9-2+9-3+9-4 EXTENSION 누적) + A19 cohesion pattern 8 surface
+  (NEW SHARED `pdf_generator.py` factory). Drift detector:
+  `tests/integration/test_capability_matrix_v1_20_drift.py`.
 - 2026-08-16 — v1.19 (Story 9.3, Epic 9): **dual-route gate** on
   `POST /api/v1/calc` (PRD §F9.3 + A29 forward-lock dual-route + AD-19).
   No NEW capability — uses `require_any_capability(COST_CALCULATION,
