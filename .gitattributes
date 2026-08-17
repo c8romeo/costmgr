@@ -1,0 +1,114 @@
+# Git attributes — line ending policy (added 2026-08-17 by 9-3 spec-ready recovery sprint)
+#
+# Why: Windows `core.autocrlf=true` produced 9 false-positive "modified" entries
+# (CRLF↔LF round-trip noise) without actual content changes, blocking cj-style
+# atomic sprint starting points. Locking line endings via .gitattributes eliminates
+# the noise and makes `git status` reflect true content diff only.
+#
+# Policy:
+#   - LF (Unix) for all source code, config, docs
+#   - CRLF (Windows) for Windows-only batch / PowerShell scripts
+#   - Binary (no conversion) for media files
+
+# Default: detect text vs binary automatically, normalize to LF on commit
+* text=auto eol=lf
+
+# Source code — explicit LF
+*.py    text eol=lf
+*.pyi   text eol=lf
+*.pyx   text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.css   text eol=lf
+*.scss  text eol=lf
+*.sass  text eol=lf
+*.html  text eol=lf
+*.vue   text eol=lf
+*.svelte text eol=lf
+*.go    text eol=lf
+*.rs    text eol=lf
+*.java  text eol=lf
+*.kt    text eol=lf
+*.sql   text eol=lf
+
+# Config — explicit LF
+*.json   text eol=lf
+*.jsonc  text eol=lf
+*.json5  text eol=lf
+*.yaml   text eol=lf
+*.yml    text eol=lf
+*.toml   text eol=lf
+*.ini    text eol=lf
+*.cfg    text eol=lf
+*.conf   text eol=lf
+*.lock   text eol=lf
+*.env    text eol=lf
+*.env.*  text eol=lf
+
+# Docs — explicit LF
+*.md     text eol=lf
+*.mdx    text eol=lf
+*.rst    text eol=lf
+*.txt    text eol=lf
+
+# Shell scripts — explicit LF (even on Windows, run via Git Bash / WSL)
+*.sh    text eol=lf
+*.bash  text eol=lf
+*.zsh   text eol=lf
+
+# Windows-only scripts — explicit CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=lf
+*.psm1  text eol=lf
+
+# Markdown specs (PRD / ERD) — explicit LF (한글 UTF-8, 의도적인 LF 정책)
+비즈업_통합PRD_v2.0.md       text eol=lf
+비즈업_통합ERD_v2.0.md       text eol=lf
+
+# Binary — no conversion (media, archives, compiled)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.svg   binary
+*.pdf   binary
+*.zip   binary
+*.tar   binary
+*.gz    binary
+*.bz2   binary
+*.xz    binary
+*.7z    binary
+*.rar   binary
+*.exe   binary
+*.dll   binary
+*.so    binary
+*.dylib binary
+*.pyc   binary
+*.pyo   binary
+*.pyd   binary
+*.class binary
+*.o     binary
+*.a     binary
+*.lib   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+
+# Whitespace-sensitive files — diff with whitespace + show whitespace errors
+*.py    whitespace=trailing-space,space-before-tab
+*.ts    whitespace=trailing-space,space-before-tab
+*.tsx   whitespace=trailing-space,space-before-tab
+*.js    whitespace=trailing-space,space-before-tab
+*.md    whitespace=trailing-space,space-before-tab
+*.json  whitespace=trailing-space,space-before-tab
+*.yaml  whitespace=trailing-space,space-before-tab
+*.yml   whitespace=trailing-space,space-before-tab
