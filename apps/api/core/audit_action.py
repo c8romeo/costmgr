@@ -65,6 +65,7 @@ class ActionClass(str, __import__("enum").Enum):
     TWO_FACTOR_AUTH = "two_factor_auth"  # Story 12.1 (NEW — 2FA mandatory gate audit)
     ACCOUNT_BACKUP = "account_backup"  # Story 12.2 (NEW — daily auto-backup + JSON self-download audit)
     ACCOUNT_DELETION = "account_deletion"  # Story 12.3 (NEW — destructive endpoint + consent envelope audit)
+    AI_EXTRACTION_EXECUTED = "ai_extraction_executed"  # Story 10.1 (NEW — monthly input extraction audit-first)
 
 
 # ────────────────────────────────────────────────────────────

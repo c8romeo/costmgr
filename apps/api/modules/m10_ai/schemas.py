@@ -124,3 +124,82 @@ class PromoteResponse(BaseModel):
     fields: dict[str, Any]
     missing_optional: list[str]
     settings_version: int
+
+
+# ── Story 10.1 EXTENSION: Monthly Input Extraction Schemas ──
+# (cj-style Epic 10 2번째 진입점 wire, 2026-08-17)
+#
+# Pydantic v2 frozen models. Mirrored by `apps/web/lib/ai-extract.ts`
+# (drift caught by `tests/integration/test_ai_extract_parity.py` — to be
+# wired in Story 10-1 follow-up sprint D-10-1-DEFER-3 frontend tier).
+#
+# AD-7 verbatim: AI output → input_drafts only. Monthly extraction results
+# NEVER write to `confirmed_inputs` (M10 → confirmed_inputs bypass → denied
+# + counter increment; see handler envelope).
+
+
+class MonthlyExtractRequest(BaseModel):
+    """Body of `POST /api/v1/ai/extract-monthly`.
+
+    6-stream monthly input extraction fields per master PRD §3.1
+    (직접재료비/직접노무비/제조간접비/판매관리비/매출/기말재고).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    period_key: str = Field(
+        ...,
+        min_length=1,
+        max_length=32,
+        description="YYYY-MM period (e.g. '2026-07')",
+    )
+    document_b64: str = Field(
+        ...,
+        description="base64-encoded document bytes (PDF or Excel)",
+    )
+    document_type: Literal["pdf", "xlsx"] = Field(
+        ...,
+        description="Document MIME family (PDF or Excel)",
+    )
+
+
+class MonthlyDraftResponse(BaseModel):
+    """One AI-extracted monthly input draft row.
+
+    `confidence` < 0.70 → RED badge (master PRD §8.1 M0-c 70% 임계값).
+    `target_table` discriminator = 'monthly_inputs' (AD-7 strict invariant).
+    """
+
+    field_name: str
+    value: Decimal
+    confidence: Decimal
+    target_table: Literal["monthly_inputs"] = "monthly_inputs"
+    evidence_page: int | None = None
+    requires_user_confirmation: bool
+
+
+class MonthlyExtractResponse(BaseModel):
+    """Body of `POST /api/v1/ai/extract-monthly` success envelope.
+
+    Discriminated union pattern (CR 11-3 즉시 sweep 회피 pattern): the
+    `status` tag discriminator lets the frontend narrow the response shape
+    safely (`status='low_confidence_warning'` → user confirm flow required).
+    """
+
+    extraction_id: uuid.UUID
+    period_key: str
+    drafts: list[MonthlyDraftResponse]
+    low_confidence_count: int
+    status: Literal["success", "low_confidence_warning"] = "success"
+
+
+class MonthlyExtractError(BaseModel):
+    """Error envelope (CR 12-5 D-14 verbatim)."""
+
+    error_code: Literal[
+        "AI_PIPA_CONSENT_MISSING",
+        "INVALID_MONTHLY_FIELD_VALUE",
+        "MONTHLY_EXTRACTION_ERROR",
+    ]
+    message_ko: str
+    trace_id: str

@@ -590,3 +590,53 @@ sprint budget). Documented honestly per CR 11-3 discipline:
   - 1 scenario: 404 REPORT21_BREAKDOWN_NOT_FOUND envelope
   Total: 6 scenarios minimum (or 16 for full Epic 9 close-out pattern).
 - **Scope**: Epic 9 close-out follow-up sprint (cj-style 결정 A27).
+
+## Deferred from: 10-1 (AI Document Extraction to Input Drafts)
+
+Story 10.1 partial wire completed 2026-08-17 (atomic commit `43d32ac`).
+6 items honestly-DEFERred per A34 4-category framework
+((a) docs 정합 / (b) retro input / (c) separate epic / (d) dedicated sprint).
+T1 (backend pure kernel) + T4 (capability matrix drift detector) DONE —
+40 tests pass (26 kernel + 14 drift detector).
+
+### D-10-1-DEFER-1 — T2 service layer + 4 envelope handlers (a: docs 정합)
+
+- **Source**: `apps/api/modules/m10_ai/{service,schemas,handlers,exceptions}.py` + `apps/api/main.py` + 2 NEW test files (`test_extraction_service.py` ~20 cases + `test_extraction_endpoint.py` ~12 cases).
+- **Reason**: T1 backend pure kernel (`packages/services/m10_ai/`) DONE — service layer는 T1 kernel을 import하여 wire 진입 필요. service module 진입 시점에 audit-first INSERT (CR 1.1 verbatim) + AD-7 RBAC gate + PIPA consent check + discriminated union envelope wire 필수.
+- **Scope**: 5 MODIFIED + 2 NEW files = 7 files. POST /api/v1/ai/extract-monthly endpoint + 3 NEW typed exceptions (AiPipaConsentMissingError + InvalidMonthlyFieldValueError + MonthlyExtractionError) + 3 NEW envelope handlers (403 AI_PIPA_CONSENT_MISSING + 422 INVALID_MONTHLY_FIELD_VALUE + 500 MONTHLY_EXTRACTION_ERROR).
+- **Pickup plan**: 10-1 follow-up sprint (cj-style 27번째 epic 연속 = 본 handoff 진입 후) → 10-1 done 진입.
+
+### D-10-1-DEFER-2 — T3 alembic migration + tests (a: docs 정합)
+
+- **Source**: `alembic/versions/0029_input_drafts_monthly_extension.py` NEW + `tests/api/test_alembic_0029_input_drafts_monthly.py` NEW ~10 cases.
+- **Reason**: `input_drafts` table EXTENSION 필요 (Story 1.3 baseline = `onboarding_inputs` 5 fields, Story 10.1 = `monthly_inputs` 6 fields). 5 NEW column (`target_table` VARCHAR(32) NOT NULL DEFAULT 'onboarding_inputs' + `extraction_confidence` NUMERIC(4,3) + `extracted_at` TIMESTAMPTZ NOT NULL DEFAULT NOW() + `period_key` VARCHAR(32) + `idx_input_drafts_target_table_period`) + 1 NEW check constraint `ck_input_drafts_confidence_range` (0.000~1.000) + AD-2 INSERT-only trigger EXTENSION.
+- **Scope**: 1 NEW migration + 1 NEW test = 2 files. Migration up/down × 3 cases + column existence × 3 + check constraint boundary × 2 + index existence × 2.
+- **Pickup plan**: 10-1 follow-up sprint (T2 service layer wire 진입 후 의존성 — alembic 먼저 wire 후 service layer wire 권장).
+
+### D-10-1-DEFER-3 — T5 frontend 5 components + TS mirror + 3 vitest files (d: dedicated sprint)
+
+- **Source**: `apps/web/components/ai-extract/{AiDraftCard,ConfidenceBadge,AiExtractModal}.tsx` NEW (~350 LOC) + `apps/web/messages/ko-KR.json` EXTENSION (ai_extract namespace ~25 strings) + `apps/web/components/ai-extract/__tests__/{AiDraftCard,ConfidenceBadge}.test.tsx` NEW + `apps/web/lib/ai-extract.ts` NEW (TS mirror parity) + `apps/web/__tests__/lib/ai-extract-parity.test.ts` NEW.
+- **Reason**: A35 frontend test debt honestly DEFER (9-7 wire DONE 후 frontend 5 components 8 vitest cases 진입 완료). 본 Story 10.1 frontend 진입 시점 = 9-7 wire 패턴 미러 + 8 NEW files (3 components + 2 vitest + 1 ko-KR + 1 TS mirror + 1 parity test) + 120 case 부채 해소 (9-7 sprint precedent).
+- **Scope**: 8 NEW files = ~600 LOC frontend + ~120 NEW vitest cases.
+- **Pickup plan**: 10-1 follow-up sprint 후 별도 dedicated sprint (T2/T3 wire done 진입 후) — frontend work는 backend wire done 진입 후 권장 (D-9-7 follow-up precedent).
+
+### D-10-1-DEFER-4 — T7 master PRD v2.0 본체 edit (a: docs 정합)
+
+- **Source**: `_bmad-output/planning-artifacts/prd.md` §F10.1·§F10.2·§8.1 M10·부록 A 추가 (Epic 10 close-out retro 진입 시점에 본체 edit).
+- **Reason**: Epic 10 PRD entry는 workspace canonical `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-08-17/prd.md` 만 wire. master PRD 본체 §F10.1·§F10.2·§8.1 M10·부록 A 추가는 Epic 10 close-out retro 진입 시점에 별도 atomic wire (cj-style standard pattern).
+- **Scope**: 1 MODIFIED file (master PRD v2.0 본체). 부록 A A23~A36 + §8.1 M10 4-story AC extension.
+- **Pickup plan**: Epic 10 close-out retro 진입 시점 (10-1~10-4 done 진입 후).
+
+### D-10-1-DEFER-5 — T8.1 docs/deferred-work.md EXTENSION — **partial wire DONE**
+
+- **Source**: 본 handoff 진입 (10-1 follow-up sprint = cj-style 27번째 epic 연속 = 본 handoff 진입 후).
+- **Reason**: T8.1 본 항목 = 본 follow-up sprint 진입 시점에 wire. 6 honestly DEFER categories preserved 명시 (D-10-1-DEFER-1~6).
+- **Scope**: 0 NEW files (EXTENSION only) — 본 항목 완료.
+- **Pickup plan**: DONE (cj-style 27번째 epic 연속 진입 시점에 wire).
+
+### D-10-1-DEFER-6 — T8.2 sprint-status.yaml final done (a: docs 정합)
+
+- **Source**: `_bmad-output/implementation-artifacts/sprint-status.yaml` `10-1-ai-document-extraction-input-drafts: review → done` (follow-up sprint 후 진입).
+- **Reason**: 10-1 follow-up sprint DONE 후 진입. T2/T3/T5/T7/T8 honestly DEFER 6 categories 해소 후 sprint-status: `review → done` 정합.
+- **Scope**: 1 MODIFIED file (sprint-status.yaml).
+- **Pickup plan**: 10-1 follow-up sprint DONE 후 진입.

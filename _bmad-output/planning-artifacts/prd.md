@@ -473,6 +473,10 @@ CCR(Capacity Cost Rate) = 부서 원가 ÷ 실제적 조업능력(practical capa
 - **M10 (AI 지원)**
   - (a) 시스템은 인사이트 질문 3개 생성·캐시 시 "캐시 = 마감 완료 시점부터 다음 마감 시작까지 보존, 마감 데이터 변경 시 폐기" 정책을 강제한다 (검수 medium 해소).
   - (b) 시스템은 계산 결과를 변경하지 않으며(SM-3a 검증), AI 의견은 "자동 분석(고정 템플릿)"과 "AI 참고(구분 배지)"로 분리 표시한다.
+  - **(c) 10-1 (AI 문서추출 → 입력 초안)** — 시스템은 PDF/Excel 업로드 시 6 monthly input fields (직접재료비/직접노무비/제조간접비/판매관리비/매출/기말재고) 를 추출하고, `extraction_confidence < 0.70` 인 항목은 빨강 배지(RED) 로 표시하며 사용자 확정을 강제한다 [A11, V-row §8.1 M0-c]. AI 출력은 `input_drafts.target_table='monthly_inputs'` 에만 저장하며 `confirmed_inputs` 직접 쓰기는 거부 + 카운터 증가 (target 0) [AD-7].
+  - **(d) 10-2 (인사이트 캐시 정책)** — 시스템은 인사이트 캐시 키 `(tenant_id, period_key, calculation_result_hash)` 로 저장하며 마감 데이터 변경 시 4-channel publisher (`ai_cache` 외 3 channel `cost_engine_cache`/`fiscal_period_cache`/`closing_snapshot_cache` 는 Epic 11 close/reopen trigger 진입 시점에 EXTENSION) 로 무효화한다 [AD-25].
+  - **(e) 10-3 (자동 분석 vs AI 참고 배지 분리)** — 시스템은 `source_kind: Literal['auto_analysis', 'ai_reference']` Discriminated union 으로 분리 렌더링하고 (auto_analysis 파란 배지 "📊 자동 분석" + ai_reference 보라 배지 "🤖 AI 참고(검증 필요)" + tooltip "AI는 비권위적입니다 — 확정 책임은 사용자에게"), strict reject 외 value counter increment 강제 [AD-7 SM-3a].
+  - **(f) 10-4 (승격 포트 멱등성)** — 시스템은 `InputPromoter.promote(tenant_id, period_key, source_draft_id)` 호출을 idempotent 로 처리하며, audit_logs 2행 append (actor + draft hash + ts) [AD-17]. M10 attempts to write `confirmed_inputs` 는 denied + 카운터 증가 (target 0) [AD-7].
 
 - **M11 (마감·이력)**
   - (a) 시스템은 부문분할 → 제조 → ABC → 공동 순서를 강제하고, 부분 마감을 허용하지 않는다.
@@ -696,6 +700,34 @@ PRD 본문에서 단언되었으나 확정 전 재논의가 필요한 결정. �
 | Q-H | 통합 PRD 1권 완전 대체 (기존 2권 폐기), ERD도 후속 통합 1권 |
 | Q-I | 부문-엔진 고정 매핑 (제조 ABC는 3차) |
 | Q-J | 최신 지식 = 확정분(TDABC+AI 3종) 1차, 최신 동향은 제15장 이론 근거로 기재 |
+
+### Epic 7~9 retro 결정 (2026-08-08 ~ 2026-08-17)
+
+| 결정 | 내용 |
+|------|------|
+| A19 | math surface cohesion pattern — 단일 math surface 진입 시점에 함수/dataclass/exception/constants 동시 wire (abc_engine.py 9-1, pdf_generator.py 9-4 precedent) |
+| A20 | service module cohesion pattern — kernel + service + handler + tests 4-way wire (CR 1.1 audit-first INSERT 보존) |
+| A21 | capability matrix v1.18+ SSOT pattern — 각 Epic 도입 시 capability matrix 신규 row 추가 + drift detector test (P-015 SSOT) wire |
+| A22 | inventory projection.py 제거 — `packages/services/m2_input/inventory_math.py` 으로 일원화 (carry-over sprint) |
+| A23 | Epic 9 cj-style 4-story + retro 5번째 진입점 패턴 (cj-style Epic 7~8 동일) |
+| A24 | capability matrix v1.18 industry-agnostic 4-industry grants (CR 12-1 L4 precedent) |
+| A25 | A19 cohesion pattern 6번째 surface = `packages/cost_engine/abc_engine.py` (9-1 wire tip) |
+| A26 | Epic 9 8-3 honestly DEFER #4 해소 (8-3 follow-up sprint) |
+| A27 | A19 follow-up sprint for 8 honestly DEFER (cj-style 9-6 follow-up 진입) |
+
+### Epic 9 close-out 결정 (2026-08-17, 9-6/9-7 follow-up sprint)
+
+| 결정 | 내용 |
+|------|------|
+| A28 | ABC_CALCULATION industry-agnostic 보존 (CR 12-1 L4) — 모든 Epic 9 wire 영향 0 |
+| A29 | dual-route dispatch (M3 orchestrator) 보존 — service → M9 ABC, else → M3 traditional |
+| A30 | SHARED PDF generator factory pattern (`packages/services/m5_reports/pdf_generator.py`) — Discriminated union `report_id: Literal[15, 16, 17, 18, 19, 20, 21]` |
+| A31 | Report #15 wire schedule (cj-style Epic 9 6번째 진입점 권장) — A30 SHARED factory EXTENSION 1st case |
+| A32 | A30 SHARED factory pattern reuse entry — Report #15 wire 진입 시점에 pdf_generator EXTENSION |
+| A33 | A19 cohesion pattern 9 surface — Report #15 wire 진입 시점에 pdf_generator EXTENSION |
+| A34 | mixed honestly DEFER 4-category framework — (a) docs 정합 / (b) retro input / (c) separate epic / (d) dedicated sprint |
+| A35 | frontend test debt honestly DEFER (d) — vitest mount + TS mirror parity 정직 회복 (9-7 wire 진입) |
+| A36 | SDR 검증 프로토콜 wire — 4-step 자동화 (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency) |
 
 ## 부록 B. 보존 산식 — A×B×C×D 예산 편성 엔진 (2차 구현용)
 

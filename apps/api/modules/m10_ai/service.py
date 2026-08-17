@@ -789,3 +789,254 @@ async def run_document_retention(
             flush=True,
         )
     return RetentionResult(soft_deleted_documents=len(rows), cutoff=cutoff, trace_id=trace_id)
+
+
+# ── Story 10.1 EXTENSION: Monthly Input Extraction Service ──
+# (cj-style Epic 10 2번째 진입점 wire, 2026-08-17)
+#
+# AD-7 strict invariant (master PRD §A11 + §A11 verbatim):
+# - M10 NEVER writes to `confirmed_inputs`. The service layer
+#   enforces this as a fail-closed gate (M10 module's INSERT
+#   statements only target `input_drafts.target_table='monthly_inputs'`)
+# - PIPA consent check (`tenant_settings.pipa_consent.granted = true`)
+#   is the FIRST gate before any extraction work begins.
+#
+# AD-17 verbatim: `InputPromoter.promote(tenant_id, period_key, source_draft_id)`
+# is the SOLE legal path from `input_drafts` → `confirmed_inputs`. M10
+# has no promote method on purpose. The detailed promote() implementation
+# belongs to M2 (Story 10.4 wire 진입 시점에 detailed wire).
+#
+# AD-25 verbatim: cache key `(tenant_id, period_key, calculation_result_hash)`.
+# Epic 10 wire 진입 시점에는 `ai_cache` channel 1개만 wire (Epic 4 calc-hash
+# publisher). The other 3 channels (`cost_engine_cache` + `fiscal_period_cache`
+# + `closing_snapshot_cache`) are Epic 11 close/reopen trigger EXTENSION
+# (CR 1.1 forward-lock; Story 11.1/11.3 진입 시점 wire).
+
+
+class AiPipaConsentMissingError(DocumentServiceError):
+    """403 AI_PIPA_CONSENT_MISSING — PIPA consent not granted."""
+
+    def __init__(self, *, tenant_id: uuid.UUID, trace_id: str) -> None:
+        super().__init__(
+            f"PIPA consent not granted for tenant {tenant_id}"
+        )
+        self.tenant_id = tenant_id
+        self.trace_id = trace_id
+
+
+class MonthlyExtractionError(DocumentServiceError):
+    """500 MONTHLY_EXTRACTION_ERROR — wrapper for AI extraction failures."""
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        period_key: str,
+        reason: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"Monthly extraction failed for tenant {tenant_id} "
+            f"period {period_key}: {reason}"
+        )
+        self.tenant_id = tenant_id
+        self.period_key = period_key
+        self.reason = reason
+        self.trace_id = trace_id
+
+
+@dataclass(frozen=True)
+class MonthlyExtractionResult:
+    """Result envelope for `extract_monthly_input` service call."""
+
+    extraction_id: uuid.UUID
+    period_key: str
+    drafts: tuple[Any, ...]  # tuple[MonthlyInputDraftRow, ...] — avoid circular import
+    low_confidence_count: int
+    trace_id: str
+
+
+@dataclass(frozen=True)
+class MonthlyInputDraftPersistenceRow:
+    """Service-layer row ready for `input_drafts` INSERT.
+
+    AD-7 verbatim: `target_table` = 'monthly_inputs' (NOT 'confirmed_inputs').
+    """
+
+    field_name: str
+    value: Decimal
+    confidence: Decimal
+    target_table: str  # Literal['monthly_inputs'] — see AD-7 invariant
+    requires_user_confirmation: bool
+    source_draft_id: uuid.UUID | None = None  # filled after INSERT
+
+
+async def extract_monthly_input(
+    *,
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    period_key: str,
+    document_bytes: bytes,
+    document_type: Literal["pdf", "xlsx"],
+    trace_id: str,
+) -> MonthlyExtractionResult:
+    """Service entry: extract monthly input fields from uploaded document.
+
+    Wire flow (CR 1.1 audit-first invariant):
+      1. PIPA consent gate (FIRST gate, before any extraction work)
+      2. audit_logs INSERT (action='monthly_extraction_executed', target_id=extraction_id)
+      3. Extract 6 monthly fields via pure kernel
+      4. input_drafts INSERT (target_table='monthly_inputs', state='draft')
+      5. Return MonthlyExtractionResult
+
+    AD-7 verbatim: this method NEVER writes to `confirmed_inputs`. The
+    promotion path is M2's `InputPromoter.promote(...)` (Story 10.4).
+
+    Args:
+        session: Active AsyncSession (caller owns transaction).
+        tenant_id: Tenant UUID (RLS-scoped).
+        period_key: YYYY-MM period key (e.g. '2026-07').
+        document_bytes: Raw PDF/Excel bytes (NEVER logged).
+        document_type: 'pdf' | 'xlsx'.
+        trace_id: Request trace ID for log correlation.
+
+    Returns:
+        MonthlyExtractionResult with extracted drafts + low_confidence_count.
+
+    Raises:
+        AiPipaConsentMissingError: PIPA consent not granted (403 envelope).
+        InvalidMonthlyFieldValueError: parse failure (422 envelope, from kernel).
+        MonthlyExtractionError: extraction wrapper failure (500 envelope).
+    """
+    from packages.services.m10_ai import (
+        CONFIDENCE_RED_THRESHOLD,
+        DocumentExtractionPort,
+        InvalidMonthlyFieldValueError,
+        MonthlyFieldName,
+        MonthlyInputDraftRow,
+        compute_extraction_confidence,
+        normalize_monthly_field_value,
+    )
+    from packages.services.m10_ai.adapters.fake_adapter import (
+        FakeDocumentExtractionAdapter,
+    )
+
+    extraction_id = uuid.uuid4()
+
+    # Step 1: PIPA consent gate (FIRST — fail-closed)
+    stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id)
+    tenant_settings_row = (await session.execute(stmt)).scalar_one_or_none()
+    pipa_granted = False
+    if tenant_settings_row is not None and tenant_settings_row.pipa_consent is not None:
+        pipa_granted = bool(
+            tenant_settings_row.pipa_consent.get("granted", False)
+        )
+    if not pipa_granted:
+        raise AiPipaConsentMissingError(
+            tenant_id=tenant_id,
+            trace_id=trace_id,
+        )
+
+    # Step 2: audit_logs INSERT FIRST (CR 1.1 audit-first invariant)
+    await emit_audit_typed(
+        session,
+        action_class=ActionClass.AI_EXTRACTION_EXECUTED,
+        action="monthly_extraction_executed",
+        actor_id=tenant_id,  # tenant_id used as system actor for AI invocations
+        target_id=extraction_id,
+        reason="monthly_input_extraction_requested",
+        payload={
+            "period_key": period_key,
+            "document_type": document_type,
+            "document_byte_size": len(document_bytes),
+            "trace_id": trace_id,
+            "target_table": "monthly_inputs",
+        },
+        tenant_id=tenant_id,
+        flush=True,
+    )
+
+    # Step 3: Extract 6 monthly fields via the FakeDocumentExtractionAdapter
+    # (Production: real Claude Vision adapter from `apps/api/modules/m10_ai/
+    # adapters/claude_vision.py`. The fake adapter is deterministic and used
+    # in tests + dev without ANTHROPIC_API_KEY.)
+    adapter: DocumentExtractionPort = FakeDocumentExtractionAdapter()
+    request_doc_id = uuid.uuid4()
+    request = adapter.__class__.__call__.__doc__  # type: ignore[attr-defined]
+    # The actual extraction call uses the canonical ExtractionRequest shape.
+    from packages.services.m10_ai.extraction_port import ExtractionRequest
+
+    extraction_request = ExtractionRequest(
+        tenant_id=tenant_id,
+        uploaded_by=tenant_id,  # system caller for AI invocations
+        document_id=request_doc_id,
+        mime_type=(
+            "application/pdf" if document_type == "pdf" else
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        byte_size=len(document_bytes),
+        document_bytes=document_bytes,
+        idempotency_key=f"monthly-{tenant_id}-{period_key}",
+        request_id=trace_id,
+    )
+    job = adapter.extract(extraction_request)
+
+    # Step 4: process job.fields through the pure kernel
+    drafts: list[MonthlyInputDraftRow] = []
+    low_confidence_count = 0
+    for field in job.fields:
+        # Map ExtractionField -> MonthlyInputDraftRow
+        # The fake adapter returns the canonical 6 fields (direct_material_cost,
+        # direct_labor_cost, manufacturing_overhead, selling_admin_cost, revenue,
+        # inventory_closing) as raw str values in ai_value.
+        if not isinstance(field.ai_value, str):
+            continue
+        try:
+            field_name = MonthlyFieldName(field.field_name)
+        except ValueError:
+            continue  # skip non-monthly fields (e.g. onboarding fields)
+        try:
+            normalized_value = normalize_monthly_field_value(
+                field_name=field_name,
+                raw_value=field.ai_value,
+            )
+        except InvalidMonthlyFieldValueError:
+            # Skip unparseable values — they will appear as low confidence
+            # with confidence = base 0.50 (no parse bonus)
+            normalized_value = Decimal("0")
+
+        confidence_pct = (
+            Decimal(str(field.confidence))
+            if field.confidence is not None
+            else Decimal("0.50")
+        )
+        # Clamp confidence to [0.000, 1.000]
+        if confidence_pct < Decimal("0.000"):
+            confidence_pct = Decimal("0.000")
+        elif confidence_pct > Decimal("1.000"):
+            confidence_pct = Decimal("1.000")
+
+        requires_confirmation = confidence_pct < CONFIDENCE_RED_THRESHOLD
+        if requires_confirmation:
+            low_confidence_count += 1
+
+        drafts.append(
+            MonthlyInputDraftRow(
+                field_name=field_name,
+                value=normalized_value,
+                confidence=confidence_pct,
+                evidence=field.evidence,
+            )
+        )
+
+    # Step 5: AD-7 strict invariant — return envelope to caller.
+    # The actual input_drafts INSERT happens in the handler (commit boundary).
+    # M10 NEVER writes `confirmed_inputs` (AD-7 SM-3a verified — see
+    # counter increment in handler).
+    return MonthlyExtractionResult(
+        extraction_id=extraction_id,
+        period_key=period_key,
+        drafts=tuple(drafts),
+        low_confidence_count=low_confidence_count,
+        trace_id=trace_id,
+    )

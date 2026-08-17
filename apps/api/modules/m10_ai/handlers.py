@@ -424,3 +424,31 @@ def _pipa_error_response(exc: PipaConsentMissingError) -> JSONResponse:
             "trace_id": exc.trace_id,
         },
     )
+
+
+# ── Story 10.1 EXTENSION: Monthly Input Extraction Endpoint ──
+# (cj-style Epic 10 2번째 진입점 wire partial, 2026-08-17)
+#
+# AD-7 verbatim: M10 NEVER writes to `confirmed_inputs`. This endpoint
+# returns `MonthlyExtractResponse` (target_table='monthly_inputs' ONLY).
+# The promotion to `confirmed_inputs` is M2's `InputPromoter.promote(...)`
+# (Story 10.4 wire 진입 시점에 detailed wire).
+#
+# AD-25 verbatim: cache key `(tenant_id, period_key, calculation_result_hash)`.
+# Epic 10 wire 진입 시점에는 `ai_cache` channel 1개만 wire. The other 3
+# channels are Epic 11 close/reopen trigger EXTENSION (Story 11.1/11.3).
+#
+# Status: T2 service layer EXTENSION done (`extract_monthly_input` service method
+# in service.py + `MonthlyExtractRequest`/`MonthlyExtractResponse`/`MonthlyExtractError`
+# schemas in schemas.py + `AiPipaConsentMissingError`/`MonthlyExtractionError` typed
+# exceptions). The HTTP endpoint (`POST /api/v1/ai/extract-monthly`) detailed wire
+# belongs to 10-1 follow-up sprint (D-10-1-DEFER-1 partial 해소) — handler
+# `extract_monthly_endpoint()` is registered in this module's follow-up commit
+# (avoid NotImplementedError + Depends(...) syntax in this partial wire).
+#
+# Capability gate (FOLLOW-UP SPRINT): `AI_INSIGHT` (industry-agnostic, 4-industry grants).
+# Discriminated union envelope: `MonthlyExtractResponse | MonthlyExtractError`.
+# Error envelopes (CR 12-5 D-14):
+#   403 AI_PIPA_CONSENT_MISSING — PIPA consent not granted
+#   422 INVALID_MONTHLY_FIELD_VALUE — parse failure
+#   500 MONTHLY_EXTRACTION_ERROR — wrapper failure
