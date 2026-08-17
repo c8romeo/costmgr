@@ -1,4 +1,4 @@
-"""apps.api.modules.m9_abc.exceptions — Story 9.1 + 9.2 typed exceptions.
+"""apps.api.modules.m9_abc.exceptions — Story 9.1 + 9.2 + 9.3 typed exceptions.
 
 Story 9.1: 4 NEW typed exceptions (CR 12-5 D-14 envelope main.py handler 등록):
   - CostPoolValidationError       (422 COST_POOL_INVALID_SUM)
@@ -9,6 +9,10 @@ Story 9.1: 4 NEW typed exceptions (CR 12-5 D-14 envelope main.py handler 등록)
 Story 9.2 EXTENSION: 2 NEW typed exceptions + 2 Korean SSOT envelope messages:
   - CcrComputeError               (422 CCR_INVALID_CAPACITY)
   - AllocationBalanceError        (422 ALLOCATION_BALANCE_ERROR)
+
+Story 9.3 EXTENSION: 2 NEW typed exceptions + 2 Korean SSOT envelope messages:
+  - EmptyDepartmentsError         (422 EMPTY_DEPARTMENTS)
+  - TooManyDepartmentsError       (422 TOO_MANY_DEPARTMENTS)
 
 Pure re-export from `packages.cost_engine.abc_engine` (kernel-owned)
 + service-layer extensions (AD-15 §4 envelope shape).
@@ -23,6 +27,8 @@ from packages.cost_engine.abc_engine import (
     CcrComputeError,
     CostPoolValidationError,
     DriverValidationError,
+    EmptyDepartmentsError,
+    TooManyDepartmentsError,
 )
 
 # Korean messages for HTTP envelopes (CR 12-5 D-14 typed contract).
@@ -36,6 +42,10 @@ ABC_VALIDATION_NOT_FOUND_KO: str = "ABC 검증 대상을 찾을 수 없습니다
 ABC_CCR_INVALID_CAPACITY_KO: str = "CCR 계산: 실제 조업능력은 0보다 커야 합니다"
 ABC_ALLOCATION_BALANCE_ERROR_KO: str = "ABC 배부액 합계가 부서 원가와 일치하지 않습니다"
 
+# Story 9.3 — Department count envelope messages (CR 12-5 D-14).
+ABC_EMPTY_DEPARTMENTS_KO: str = "ABC 부서가 등록되지 않았습니다"
+ABC_TOO_MANY_DEPARTMENTS_KO: str = "ABC 부서 수가 한도를 초과했습니다"
+
 
 __all__ = [
     # Story 9.1 — Cost Pool + Activity + Driver 100% Validation
@@ -46,6 +56,9 @@ __all__ = [
     # Story 9.2 — CCR + Allocation typed exceptions
     "CcrComputeError",
     "AllocationBalanceError",
+    # Story 9.3 — Department count typed exceptions
+    "EmptyDepartmentsError",
+    "TooManyDepartmentsError",
     # Korean messages (CR 12-5 D-14)
     "ABC_COST_POOL_INVALID_SUM_KO",
     "ABC_ACTIVITY_INVALID_SUM_KO",
@@ -53,4 +66,6 @@ __all__ = [
     "ABC_VALIDATION_NOT_FOUND_KO",
     "ABC_CCR_INVALID_CAPACITY_KO",
     "ABC_ALLOCATION_BALANCE_ERROR_KO",
+    "ABC_EMPTY_DEPARTMENTS_KO",
+    "ABC_TOO_MANY_DEPARTMENTS_KO",
 ]

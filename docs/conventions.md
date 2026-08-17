@@ -471,6 +471,54 @@ is_balanced = |Σ(allocated_krw) + unused_cost_krw - department_cost| ≤ 0.01 K
 
 상세: [docs/abc-allocation.md](./abc-allocation.md) SSOT.
 
+### §6.10 ABC Dispatch dual-route wire (Story 9.3 — A29 forward-lock)
+
+PRD §F9.3 verbatim: "POST /api/v1/calc 단일 진입점 + Industry.SERVICE dispatch to M9".
+9-3 wire는 **dual-route dispatch** + **discriminated union envelope** + **capability ANY-OF gate** 3가지 invariant를 강제한다.
+
+```
+engine_type = "abc"  if tenant.industry == "service" else "trad"
+```
+
+- **Discriminated union tag**: `engine_type: Literal["trad", "abc"]` — Pydantic v2 + FastAPI tag discriminator.
+- **Backend handler**: `apps/api/modules/m3_calculate/handlers.py`
+  `require_any_capability(COST_CALCULATION, ABC_CALCULATION)` ANY-OF 게이트
+  → discriminated union narrowing `isinstance(outcome, CalcOutcomeABC)`.
+- **Backend orchestrator**: `_resolve_engine_type(industry)` returns
+  `"abc" | "trad"`. `_dispatch_abc_path` LAZY-imports
+  `AbcAllocationService.compute_and_persist` (CR 11-3 lessons —
+  avoid cycles).
+- **Frontend mirror**: `apps/web/lib/m9-abc-dispatch.ts` `isCalcAbcResponse`
+  type guard. `engine_type === "abc"` narrow → `CalcAbcResponse` branch.
+- **V7 verdict mirror**: `apps/web/lib/m9-abc-v7-verdict-schema.ts`
+  `validateV7Balance` BigInt helper (AD-8 cross-language parity).
+
+상세: [docs/abc-calculation.md](./abc-calculation.md) SSOT.
+
+### §6.11 ABC 다부서 한도 검증 (Story 9.3)
+
+PRD §F9.3 verbatim: 다부서 CCR aggregation 부서 수 한도는 `MAX_DEPARTMENT_COUNT = 50`.
+
+```python
+# packages/cost_engine/abc_engine.py
+if 1 <= len(departments) <= 50:
+    ...  # proceed
+else:
+    if not departments:
+        raise EmptyDepartmentsError(...)
+    if len(departments) > 50:
+        raise TooManyDepartmentsError(...)
+```
+
+- Backend: `validate_department_count` pure function.
+- Frontend mirror: `apps/web/lib/m9-abc-dispatch.ts` `MAX_DEPARTMENT_COUNT = 50`.
+- UI: `<AbcDispatchPanel>` department_count_limit_notice message
+  (ko-KR.json `abc_calculation.department_count_limit_notice`).
+- 422 envelope: `ABC_EMPTY_DEPARTMENTS` / `ABC_TOO_MANY_DEPARTMENTS`
+  (CR 12-5 D-14 envelope handler pattern).
+
+상세: [docs/abc-calculation.md](./abc-calculation.md) SSOT.
+
 ---
 
 ## §7 Money Formatting (Display only)

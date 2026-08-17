@@ -1,8 +1,43 @@
-# Capability Matrix (v1.18)
+# Capability Matrix (v1.19)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.19 (2026-08-16, Story 9.3, Epic 9)** — dual-route gate on `/api/v1/calc`
+> ABC dispatch via M3 orchestrator (PRD §F9.3 + A29 forward-lock dual-route
+> + AD-19 dual-route dispatch). Story 9.3 wired:
+> - **No NEW capability** — uses existing `COST_CALCULATION` (mfg-only) +
+>   `ABC_CALCULATION` (industry-agnostic, 9.1 wire). The dual-route gate
+>   uses `require_any_capability(COST_CALCULATION, ABC_CALCULATION)` —
+>   ANY-OF semantics (CR 12-5 D-14 envelope handler pattern + CR 6-2 V4
+>   3-source contract: enum ↔ docs ↔ grants).
+> - **M3 owns ONLY the public endpoint** (AD-18) — `POST /api/v1/calc`
+>   dispatches via M3 orchestrator's `_resolve_engine_type(industry)`:
+>   - `tenant.industry == 'service'` → M9 ABC path (`AbcAllocationService.compute_and_persist`)
+>   - else → M3 traditional path (PRD §F0.2 3종 allocation)
+> - **Discriminated union response** — `CalcResponse | CalcAbcResponse` with
+>   `engine_type: Literal["trad", "abc"]` tag discriminator (Pydantic v2 + FastAPI).
+>   `CalcAbcResponse` carries `allocation_outcome` (breakdown + unused + V7
+>   verdict + CCR), `snapshot_id`, `result_hash`, `state="verified"`.
+> - **Alembic 0028** (`apps/api/alembic/versions/0028_abc_fiscal_period_breakdown.py`)
+>   adds 2 JSONB columns to `fiscal_period_snapshots`:
+>   - `cost_object_breakdown JSONB` + GIN index `jsonb_path_ops` (PRD §F9.3 + §A6)
+>   - `unused_capacity_breakdown JSONB` + GIN index `jsonb_path_ops` (PRD §A9 + §V7)
+>   - 2 NEW COMMENT ON COLUMN documentation (NFR18 lock)
+>   - down_revision = '0027_budget_pre_standard' (8-3 wire tip)
+> - **2 NEW typed exceptions** mapped to AD-15 §4 envelopes in `apps/api/main.py`
+>   (CR 12-5 D-14):
+>   - `EmptyDepartmentsError` → 422 ABC_EMPTY_DEPARTMENTS
+>   - `TooManyDepartmentsError` → 422 ABC_TOO_MANY_DEPARTMENTS (1-50 guard)
+> - **AD-22 ledger append-only** — `calc_log` + `verification_log` BEFORE
+>   `fiscal_period_snapshots` INSERT (audit-first INSERT order).
+> - **Alembic/RLS SKIPPED for `fiscal_period_snapshots` policy changes** —
+>   existing RLS 0001 covers INSERT (A28 forward-lock, NO policy delta).
+> Drift detector: extend `tests/integration/test_capability_matrix_v1_18_drift.py`
+> with v1.19 row fill change (`ABC_CALCULATION` stories → "9.1, 9.2, 9.3").
+>
+> ---
 >
 > **v1.18 (2026-08-16, Story 9.1, Epic 9)** — `ABC_CALCULATION`
 > ABC / TDABC engine 100% validation guard wire (PRD §F9.1 verbatim —
@@ -257,7 +292,7 @@ class CalcResponse(BaseModel):
 | `ACCOUNT_DELETION` | 12.3 | ✅ | ✅ | ✅ | ✅ |
 | `BUDGET_SCENARIO` | 8.1 | ✅ | ✅ | ✅ | ✅ |
 | `CVP_SIMULATION` | 7.1 | ✅ | ✅ | ✅ | ✅ |
-| `ABC_CALCULATION` | 9.1, 9.2 | ✅ | ✅ | ✅ | ✅ |
+| `ABC_CALCULATION` | 9.1, 9.2, 9.3 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
@@ -301,6 +336,19 @@ class CalcResponse(BaseModel):
   `packages/services/m2_input/inventory_math.py`).
 - **AI_EXTRACT** is granted to every industry (PRD §4.2 AI cross-cutting
   feature). Tenant-only restriction is PIPA consent, not industry.
+- **ABC_CALCULATION dual-route gate (Story 9.3)** — `POST /api/v1/calc`
+  uses `require_any_capability(COST_CALCULATION, ABC_CALCULATION)` —
+  ANY-OF semantics. M3 orchestrator's `_resolve_engine_type(industry)`
+  then dispatches:
+  - `tenant.industry == 'service'` → M9 ABC path
+    (`AbcAllocationService.compute_and_persist`)
+  - else → M3 traditional path (PRD §F0.2 3종 allocation)
+  The capability matrix itself is unchanged (no new capability row
+  added). The dual-route dispatch is owned by M3 (`apps/api/modules/
+  m3_calculate/services/calc_orchestrator.py`), per AD-18
+  "M3 owns ONLY the public endpoint." Response envelope is a
+  discriminated union `CalcResponse | CalcAbcResponse` with
+  `engine_type: Literal["trad", "abc"]` tag discriminator.
 
 ## Defense in depth
 
@@ -455,6 +503,39 @@ class CalcResponse(BaseModel):
   fiscal_periods.status='closed' + fiscal_period_snapshots.state='committed').
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.
+- 2026-08-16 — v1.19 (Story 9.3, Epic 9): **dual-route gate** on
+  `POST /api/v1/calc` (PRD §F9.3 + A29 forward-lock dual-route + AD-19).
+  No NEW capability — uses `require_any_capability(COST_CALCULATION,
+  ABC_CALCULATION)` ANY-OF semantics (CR 12-5 D-14 + CR 6-2 V4
+  3-source contract). M3 orchestrator owns the public endpoint (AD-18)
+  and dispatches via `_resolve_engine_type(industry)`:
+  - service → M9 ABC path (`AbcAllocationService.compute_and_persist`,
+    9.3 wire, 11-step pipeline + AD-22 audit-first INSERT)
+  - else → M3 traditional path (PRD §F0.2 3종 allocation).
+  Response is discriminated union `CalcResponse | CalcAbcResponse`
+  with `engine_type: Literal["trad", "abc"]` tag. Pure kernel
+  `packages/cost_engine/abc_engine.py` EXTENSION (A28 forward-lock 3-way
+  wire: CCR ↔ Activity ↔ Cost Object Breakdown, D-9-1-DEFER-1/2/4 해소):
+  - 5 NEW frozen dataclasses (DispatchState + V7Verdict +
+    MultiDepartmentCcrResult + DepartmentAllocation + UnusedCapacitySubRow)
+  - 2 NEW typed exceptions (EmptyDepartmentsError + TooManyDepartmentsError)
+  - 5 NEW pure functions (validate_department_count + dispatch_abc_path +
+    compute_abc_allocation_hash + validate_v7_balance + compute_multi_dept_ccr)
+  - 3 NEW constants (ABC_HASH_PREFIX + V7_BALANCE_TOLERANCE_KRW +
+    MAX_DEPARTMENT_COUNT).
+  Service layer `AbcAllocationService.compute_and_persist` (11-step
+  pipeline: load departments → validate count → per-dept CCR → multi-dept
+  CCR → per-dept allocation + V7 → cost_object_breakdown JSON →
+  unused_capacity JSON → V8 hash → idempotency + audit-first INSERT
+  → fiscal_period_snapshots INSERT → COMMIT). Alembic 0028
+  (`apps/api/alembic/versions/0028_abc_fiscal_period_breakdown.py`) adds
+  2 JSONB columns to `fiscal_period_snapshots` (cost_object_breakdown +
+  unused_capacity_breakdown) + 2 GIN indexes (jsonb_path_ops) +
+  2 COMMENT ON COLUMN (NFR18 lock); down_revision = `0027_budget_pre_standard`
+  (8-3 wire tip). 2 NEW typed exception envelopes (CR 12-5 D-14):
+  422 ABC_EMPTY_DEPARTMENTS + 422 ABC_TOO_MANY_DEPARTMENTS.
+  Drift detector: extend `tests/integration/test_capability_matrix_v1_18_drift.py`
+  with v1.19 row fill change (`ABC_CALCULATION` stories → "9.1, 9.2, 9.3").
 - 2026-08-16 — v1.18 (Story 9.1, Epic 9): `ABC_CALCULATION` capability
   wire (industry-agnostic — ALL 4 canonical industries ✅; CR 12-1 L4
   precedent — "ABC는 운영 인프라") + 4 NEW routes under

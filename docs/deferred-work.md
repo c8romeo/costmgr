@@ -487,3 +487,44 @@ sprint budget). Documented honestly per CR 11-3 discipline:
   infra debt cleanup of 6 ruff + 9 test isolation + 69 format files).
   Could also be addressed in 9-3 sprint if ALLOWED_SERVICE_SUBMODULES sweep
   requires touching this file again.
+
+#### D-9-3-DEFER-1 — Report #21 PDF export for ABC dispatch
+- Source: `apps/web/components/m9-abc/AbcDispatchPanel.tsx` (no PDF button).
+- Reason: 9-3 wire focuses on the discriminated union envelope + V7 verdict
+  + dual-route gate. PDF export of the dispatch result (Report #21)
+  requires separate backend wiring (`POST /api/v1/reports/abc-allocation/pdf`)
+  with `ABC_CALCULATION` capability + report orchestrator integration.
+  Mirrors 8-3 `D-8-3-DEFER-1` pattern.
+- Scope: bmad-dev-story 9-4 T1~T8 execution sprint.
+
+#### D-9-3-DEFER-2 — Activity standard hour 자동 추출 Epic 9 close-out follow-up
+- Source: `packages/cost_engine/abc_engine.py` `compute_multi_dept_ccr`
+  (manual `practical_capacity_hours` input).
+- Reason: 9-3 wire reuses the 9-1+9-2 activity manual hour input contract.
+  Auto-extraction from `monthly_input_periods` ledger events + activity
+  registry is deferred to Epic 9 close-out follow-up (mirrors 9-1
+  D-9-1-DEFER-2 which was resolved at 9-3 wire for per-dept CCR, but the
+  activity hour 자동 추출 is a separate concern).
+- Scope: Epic 9 close-out retro follow-up sprint.
+
+#### D-9-3-DEFER-3 — Unused capacity full breakdown (PRD §A9 verbatim)
+- Source: `packages/cost_engine/abc_engine.py` `UnusedCapacitySubRow` (per-dept only).
+- Reason: 9-3 wire covers per-department unused capacity breakdown.
+  Full breakdown (per activity × per driver × per product) for the
+  미사용능력 row is deferred — requires additional 4-column × 3-row
+  breakdown serialization + backend report template updates. Mirrors
+  D-9-2-DEFER-4 pattern.
+- Scope: bmad-dev-story 9-4 T1~T8 execution sprint.
+
+#### D-9-3-DEFER-4 — Playwright E2E for ABC dispatch dual-route UI
+- Source: `apps/web/app/[locale]/(dashboard)/budget/abc-calculation/page.tsx`
+  (no Playwright E2E coverage yet).
+- Reason: 9-3 wire covers the discriminated union envelope + V7 verdict +
+  dual-route gate UI but does NOT include Playwright E2E scenarios.
+  Mirrors D-9-1-DEFER-6 pattern. E2E coverage requires:
+  - 1 scenario: service industry → ABC path (engine_type='abc' badge + V7 verdict + breakdown table)
+  - 1 scenario: manufacturing industry → trad path (engine_type='trad' badge + material/labor/overhead)
+  - 1 scenario: 422 ABC_EMPTY_DEPARTMENTS error toast
+  - 1 scenario: 422 ABC_TOO_MANY_DEPARTMENTS error toast
+  Total: 4 scenarios minimum (or 16 for full Epic 9 close-out pattern).
+- Scope: Epic 9 close-out retro follow-up sprint.

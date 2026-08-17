@@ -1,37 +1,77 @@
-"""apps.api.modules.m9_abc.services.abc_allocation_service — Story 9.2.
+"""apps.api.modules.m9_abc.services.abc_allocation_service — Story 9.2 + 9.3.
 
 Service-layer orchestration for ABC CCR + Allocation (PRD §F9.2 + §A6 +
 §A9 + §V7).
 
 Pure kernel lives at `packages.cost_engine.abc_engine.py` (9-1 surface +
 9-2 EXTENSION: CCRResult + AllocationResult + UnusedCapacityRow + 3 frozen
-dataclasses + 2 typed exceptions + 3 constants). Service layer wraps the
+dataclasses + 2 typed exceptions + 3 constants + 9-3 EXTENSION: V7Verdict +
+MultiDepartmentCcrResult + DispatchState + DepartmentAllocation +
+UnusedCapacitySubRow + 2 typed exceptions (EmptyDepartmentsError,
+TooManyDepartmentsError) + 5 pure functions). Service layer wraps the
 kernel with JSON-safe envelope mapping + service-layer pre-validation
 (CR 12-5 L3 3-layer defense) + ORM→kernel boundary conversion (CR 12-1 L3
-precedent — mirrors 9-1 `_to_validation_state`).
+precedent — mirrors 9-1 `_to_validation_state`) + 9-3 NEW
+compute_and_persist 11-step pipeline (PRD §F9.3 + A29 forward-lock dual-route).
 
 AD-21 CCRPort.compute 단일 소유 — M9 service layer ONLY. 9-2 wire = NO public
-endpoint (AD-18 + AD-19); 9-3 진입 시점에 M3 dispatch 결정 (A29 forward-lock).
+endpoint (AD-18 + AD-19); 9-3 wire = compute_and_persist 11-step pipeline
+called by M3 orchestrator via LAZY import (AD-19 dual-route dispatch).
 
 AD-22 ledger append-only: 9-2 = compute only (no INSERT, no
-`fiscal_period_snapshots` write); CR 1.1 invariant — no audit emit.
+`fiscal_period_snapshots` write); 9-3 = compute AND INSERT ABC dual-route
+row + JSONB cost_object_breakdown / unused_capacity_breakdown subdocs
+(PRD §F9.3 + Alembic 0028).
 
 Architecture (matches 9-1 abc_validation_service + 8-3 budget_pre_standard_service):
   - handler → service → engine (pure kernel)
   - `_to_ccr_state` + `_to_allocation_state` ORM→kernel boundary (CR 12-1 L3)
   - 3-layer defense (CR 12-5 L3): service validate_ccr_inputs +
     validate_allocation_inputs + kernel repr-based invariants (V7 balance guard)
+  - 9-3 EXTENSION: 11-step compute_and_persist pipeline (PRD §F9.3):
+    1. Load tenant_settings.abc.departments
+    2. validate_department_count (kernel 1-50 guard, 9-3 typed exception)
+    3. Per-dept compute_ccr (kernel)
+    4. aggregate_multi_department_ccr (kernel)
+    5. Per-dept compute_allocation + verify_v7_balance (kernel)
+    6. Build cost_object_breakdown JSON list
+    7. Build unused_capacity_breakdown JSON list
+    8. compute_abc_allocation_hash (kernel)
+    9. Idempotency check + audit-first INSERT (calc_log, verification_log)
+    10. INSERT fiscal_period_snapshots with engine_type='abc' + JSONB subdocs
+    11. COMMIT
 """
 
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.core.audit_action import (
+    ActionClass,
+    _ActionRegistry,
+)
+from apps.api.core.db_models import (
+    CalcLog,
+    FiscalPeriodSnapshot,
+    VerificationLog,
+)
+from apps.api.modules.m0_onboarding.services.settings_service import (
+    SettingsService,
+)
+
+# 9-3 EXTENSION — CalcServiceError is the typed 500 envelope for divergent
+# idempotency + integrity constraint failures (mirrors M3 trad path).
+from apps.api.modules.m3_calculate.services.calc_orchestrator import (
+    CalcServiceError,
+)
 from apps.api.modules.m9_abc.exceptions import (
     ABC_ALLOCATION_BALANCE_ERROR_KO,
     ABC_CCR_INVALID_CAPACITY_KO,
@@ -43,12 +83,20 @@ from packages.cost_engine.abc_engine import (
     CcrComputeError,
     CCRResult,
     CostObjectRow,
+    DepartmentAllocation,
+    MultiDepartmentCcrResult,
     UnusedCapacityRow,
+    UnusedCapacitySubRow,
+    V7Verdict,
+    aggregate_multi_department_ccr,
+    compute_abc_allocation_hash,
     compute_allocation,
     compute_allocation_hash,
     compute_ccr,
     compute_ccr_hash,
     produce_unused_capacity_row,
+    validate_department_count,
+    verify_v7_balance,
 )
 from packages.services.m9_abc.abc_allocation_serializers import (
     serialize_allocation_state,
@@ -446,16 +494,493 @@ serialize_ccr_state_for_api = serialize_ccr_state
 serialize_allocation_state_for_api = serialize_allocation_state
 
 
+# ── Story 9.3 (T3) — M9 AbcAllocationService.compute_and_persist EXTENSION ──
+# AD-21 CCRPort.compute 단일 소유 + A29 forward-lock dual-route 결정 wire.
+# 11-step pipeline:
+#   1. Load tenant_settings.abc.departments
+#   2. validate_department_count (kernel 1-50 guard)
+#   3. Per-dept compute_ccr (kernel)
+#   4. aggregate_multi_department_ccr (kernel)
+#   5. Per-dept compute_allocation + verify_v7_balance (kernel)
+#   6. Build cost_object_breakdown JSON list
+#   7. Build unused_capacity_breakdown JSON list
+#   8. compute_abc_allocation_hash (kernel — V8 determinism)
+#   9. Idempotency check + audit-first INSERT (calc_log, verification_log)
+#  10. INSERT fiscal_period_snapshots.engine_type='abc' + JSONB subdocs
+#  11. COMMIT
+#
+# M3 orchestrator's `_dispatch_abc_path` calls this method via:
+#   m9_service = AbcAllocationService(session, trace_id)
+#   outcome = await m9_service.compute_and_persist(tenant_id, period_key)
+
+
+# ABC dual-route result envelope (M3 CalcOutcomeABC field shape).
+@dataclass(frozen=True, slots=True)
+class AbcAllocationOutcome:
+    """Story 9.3 (T3) — compute_and_persist result envelope.
+
+    Returned by `AbcAllocationService.compute_and_persist`. M3 orchestrator
+    maps this to `CalcOutcomeABC.allocation_outcome` (dict-shaped) for the
+    discriminated union envelope. The field names mirror
+    `apps.api.modules.m3_calculate.schemas.AllocationOutcomeABC`.
+    """
+
+    breakdown: list[dict[str, Any]]
+    unused_capacity: dict[str, Any]
+    v7_verdict: dict[str, Any]
+    ccr: dict[str, Any]
+    is_balanced: bool
+    snapshot_id: str  # UUID-as-string, fiscal_period_snapshots.snapshot_id
+    result_hash: str  # sha256: + 64-char hexdigest (V8 determinism)
+
+
+def _to_outcome(
+    *,
+    per_dept: list[DepartmentAllocation],
+    cost_object_breakdown: list[dict[str, Any]],
+    unused_capacity_breakdown: list[dict[str, Any]],
+    v7_verdict_agg: V7Verdict,
+    snapshot_id: str,
+    result_hash: str,
+) -> dict[str, Any]:
+    """ORM→kernel boundary (CR 12-1 L3) — wire-shape envelope for CalcOutcomeABC.
+
+    Returns dict-shaped envelope (NOT a frozen dataclass) so M3 orchestrator
+    can pass it through `CalcOutcomeABC(allocation_outcome=...)` without
+    shape conversion. Field names match `AllocationOutcomeABC` Pydantic model.
+    """
+    return {
+        "breakdown": cost_object_breakdown,
+        "unused_capacity": {
+            "rows": unused_capacity_breakdown,
+            "is_balanced": v7_verdict_agg.is_balanced,
+            "delta_krw": str(v7_verdict_agg.delta_krw),
+        },
+        "v7_verdict": {
+            "is_balanced": v7_verdict_agg.is_balanced,
+            "breakdown_sum": str(v7_verdict_agg.breakdown_sum),
+            "unused_cost": str(v7_verdict_agg.unused_cost),
+            "expected_sum": str(v7_verdict_agg.expected_sum),
+            "delta_krw": str(v7_verdict_agg.delta_krw),
+            "hash": v7_verdict_agg.hash,
+        },
+        "ccr": {
+            "departments": [
+                {
+                    "department_id": da.department_id,
+                    "ccr_per_hour": str(da.ccr.ccr_per_hour),
+                    "hash": da.ccr.hash,
+                }
+                for da in per_dept
+            ],
+        },
+        "is_balanced": v7_verdict_agg.is_balanced,
+        "snapshot_id": snapshot_id,
+        "result_hash": result_hash,
+    }
+
+
+# 9-3 EXTENSION method — compute_and_persist 11-step pipeline.
+async def compute_and_persist(
+    self,
+    *,
+    tenant_id: uuid.UUID,
+    period_key: str,
+) -> dict[str, Any]:
+    """Story 9.3 (T3) — A29 forward-lock dual-route persist pipeline.
+
+    Called by M3 orchestrator's `_dispatch_abc_path` (LAZY import pattern).
+    Performs the full 11-step pipeline:
+
+    1. Load tenant_settings.abc.departments (ORM → service-layer)
+    2. validate_department_count (kernel 1-50 guard, 9-3 typed exception)
+    3. Per-dept compute_ccr (kernel)
+    4. aggregate_multi_department_ccr (kernel)
+    5. Per-dept compute_allocation + verify_v7_balance (kernel)
+    6. Build cost_object_breakdown JSON list (PRD §F9.3 + §A6)
+    7. Build unused_capacity_breakdown JSON list (PRD §A9 + §V7)
+    8. compute_abc_allocation_hash (kernel — V8 determinism)
+    9. Idempotency check + audit-first INSERT (calc_log, verification_log)
+       (CR 1.1 lesson — same as M3 trad path)
+    10. INSERT fiscal_period_snapshots.engine_type='abc' + JSONB subdocs
+    11. COMMIT
+
+    Returns:
+        dict-shaped envelope (mirrors AllocationOutcomeABC Pydantic model)
+        with snapshot_id + result_hash. M3 orchestrator packs this into
+        CalcOutcomeABC.allocation_outcome for the discriminated union
+        envelope.
+
+    Raises:
+        EmptyDepartmentsError: 422 EMPTY_DEPARTMENTS (CR 12-5 D-14)
+        TooManyDepartmentsError: 422 TOO_MANY_DEPARTMENTS (CR 12-5 D-14)
+        CcrComputeError: 422 CCR_INVALID_CAPACITY (CR 12-5 D-14)
+        AllocationBalanceError: 422 ALLOCATION_BALANCE_ERROR (CR 12-5 D-14)
+        CalcServiceError: 500 INTERNAL_ERROR (compute_and_persist failure)
+
+    AD-21: CCRPort.compute 단일 소유 — M9 service layer ONLY.
+    AD-22: ledger append-only — calc_log + verification_log INSERT BEFORE
+    snapshot INSERT.
+    """
+    baseline_revision = 1
+
+    # ── Step 1: Load tenant_settings.abc.departments ─────────────
+    settings = await SettingsService(self.session).get_tenant_settings(
+        tenant_id=tenant_id
+    )
+    abc_config = dict(settings.abc or {})
+    departments: list[dict[str, Any]] = list(abc_config.get("departments") or [])
+    department_ids = [str(d.get("department_id", "")) for d in departments]
+
+    # ── Step 2: validate_department_count (kernel 1-50 guard) ───
+    validate_department_count(department_ids=department_ids)
+
+    # ── Step 3: Per-dept compute_ccr (kernel) ───────────────────
+    ccr_results: list[CCRResult] = []
+    for dept in departments:
+        ccr = compute_ccr(
+            department_id=str(dept["department_id"]),
+            department_cost=Decimal(str(dept["department_cost"])),
+            practical_capacity_hours=Decimal(str(dept["practical_capacity_hours"])),
+        )
+        ccr_results.append(ccr)
+
+    # ── Step 4: aggregate_multi_department_ccr (kernel) ─────────
+    multi_dept: MultiDepartmentCcrResult = aggregate_multi_department_ccr(
+        ccr_results=ccr_results
+    )
+
+    # ── Step 5: Per-dept compute_allocation + verify_v7_balance ──
+    per_dept: list[DepartmentAllocation] = []
+    for dept, ccr in zip(departments, ccr_results, strict=True):
+        # Build activity_mappings from dept.activities.
+        activity_mappings = [
+            ActivityMapping(
+                activity_id=str(a["activity_id"]),
+                hours=Decimal(str(a["hours"])),
+                ccr_amount_krw=Decimal(str(a["ccr_amount_krw"])),
+            )
+            for a in dept.get("activities", [])
+        ]
+        cost_object_breakdown_rows = [
+            CostObjectRow(
+                product_id=str(cob["product_id"]),
+                activity_id=str(cob["activity_id"]),
+                driver_id=str(cob["driver_id"]),
+                allocated_krw=Decimal(str(cob["allocated_krw"])),
+            )
+            for cob in dept.get("cost_object_breakdown", [])
+        ]
+        used_hours = Decimal(str(dept.get("used_hours", dept["practical_capacity_hours"])))
+
+        allocation = compute_allocation(
+            ccr=ccr,
+            activity_mappings=activity_mappings,
+            cost_object_breakdown=cost_object_breakdown_rows,
+            used_hours=used_hours,
+        )
+
+        # V7 balance verification (kernel 1-Won precision invariant).
+        v7_verdict = verify_v7_balance(
+            total_breakdown_sum=allocation.total_breakdown_sum,
+            unused_cost=allocation.unused_capacity.unused_cost_krw,
+            department_cost=allocation.department_cost,
+        )
+
+        per_dept.append(
+            DepartmentAllocation(
+                department_id=str(dept["department_id"]),
+                ccr=ccr,
+                allocation=allocation,
+                v7_verdict=v7_verdict,
+            )
+        )
+
+    # ── Step 6: Build cost_object_breakdown JSON list ───────────
+    cost_object_breakdown_json: list[dict[str, Any]] = []
+    total_breakdown_sum_agg = Decimal("0")
+    unused_cost_agg = Decimal("0")
+    expected_sum_agg = Decimal("0")
+    for da in per_dept:
+        for row in da.allocation.cost_object_breakdown:
+            cost_object_breakdown_json.append(
+                {
+                    "department_id": da.department_id,
+                    "product_id": row.product_id,
+                    "activity_id": row.activity_id,
+                    "driver_id": row.driver_id,
+                    "allocated_krw": str(row.allocated_krw),
+                }
+            )
+        total_breakdown_sum_agg += da.allocation.total_breakdown_sum
+        unused_cost_agg += da.allocation.unused_capacity.unused_cost_krw
+        expected_sum_agg += da.allocation.department_cost
+
+    # ── Step 7: Build unused_capacity_breakdown JSON list ────────
+    unused_capacity_breakdown_json: list[dict[str, Any]] = []
+    for da in per_dept:
+        sub = da.allocation.unused_capacity
+        unused_capacity_breakdown_json.append(
+            {
+                "department_id": da.department_id,
+                "unused_hours": str(sub.unused_hours),
+                "unused_cost_krw": str(sub.unused_cost_krw),
+                "hash": sub.hash,
+            }
+        )
+
+    # Aggregate V7 verdict (1-Won precision invariant).
+    v7_verdict_agg = verify_v7_balance(
+        total_breakdown_sum=total_breakdown_sum_agg,
+        unused_cost=unused_cost_agg,
+        department_cost=expected_sum_agg,
+    )
+
+    # ── Step 8: compute_abc_allocation_hash (V8 determinism) ─────
+    # Build per-dept UnusedCapacitySubRow list for hashing.
+    unused_sub_rows = [
+        UnusedCapacitySubRow(
+            department_id=da.department_id,
+            unused_hours=da.allocation.unused_capacity.unused_hours,
+            unused_cost_krw=da.allocation.unused_capacity.unused_cost_krw,
+            hash=da.allocation.unused_capacity.hash,
+        )
+        for da in per_dept
+    ]
+    result_hash = compute_abc_allocation_hash(
+        multi_dept_ccr=multi_dept,
+        per_dept_allocations=per_dept,
+        unused_capacity_breakdown=unused_sub_rows,
+    )
+
+    # ── Step 9: Idempotency check + audit-first INSERT ───────────
+    existing = await self._get_existing_snapshot(
+        tenant_id=tenant_id,
+        period_key=period_key,
+        baseline_revision=baseline_revision,
+        engine_type="abc",
+    )
+    if existing is not None:
+        if existing.result_hash == result_hash:
+            # Idempotent skip — same hash already persisted.
+            await self._write_calc_log(
+                tenant_id=tenant_id,
+                period_key=period_key,
+                baseline_revision=baseline_revision,
+                engine_type="abc",
+                action="idempotent_skip",
+                result_hash=result_hash,
+                trace_id=self.trace_id,
+            )
+            await self.session.commit()
+            return _to_outcome(
+                per_dept=per_dept,
+                cost_object_breakdown=cost_object_breakdown_json,
+                unused_capacity_breakdown=unused_capacity_breakdown_json,
+                v7_verdict_agg=v7_verdict_agg,
+                snapshot_id=str(existing.snapshot_id),
+                result_hash=result_hash,
+            )
+        # Different hash → divergent (PRD §V6 — operator intervention).
+        await self.session.rollback()
+        raise CalcServiceError(
+            tenant_id=tenant_id,
+            period_key=period_key,
+            reason="abc_snapshot_diverged",
+            details={
+                "existing_hash": existing.result_hash,
+                "new_hash": result_hash,
+            },
+            trace_id=self.trace_id,
+        )
+
+    # ── Step 10: INSERT fiscal_period_snapshots + JSONB subdocs ──
+    snapshot_id_str = str(uuid.uuid4())
+    snapshot_id_uuid = uuid.UUID(snapshot_id_str)
+    try:
+        # Audit-first (CR 1.1 lesson) — calc_log + verification_log BEFORE snapshot.
+        await self._write_calc_log(
+            tenant_id=tenant_id,
+            period_key=period_key,
+            baseline_revision=baseline_revision,
+            engine_type="abc",
+            action="compute",
+            result_hash=result_hash,
+            trace_id=self.trace_id,
+        )
+        await self._write_verification_log(
+            tenant_id=tenant_id,
+            period_key=period_key,
+            baseline_revision=baseline_revision,
+            action="verification_passed",
+            top_failure_code=None,
+            top_failure_message_ko=None,
+            result_hash=result_hash,
+            trace_id=self.trace_id,
+        )
+        snapshot_row = FiscalPeriodSnapshot(
+            tenant_id=tenant_id,
+            period_key=period_key,
+            baseline_revision=baseline_revision,
+            engine_type="abc",
+            material_cost=0,
+            labor_cost=0,
+            overhead_cost=0,
+            manufacturing_cost=0,
+            inventory_adjustment=0,
+            result_hash=result_hash,
+            state="verified",
+            created_at=datetime.now(UTC),
+            cost_object_breakdown=cost_object_breakdown_json,
+            unused_capacity_breakdown=unused_capacity_breakdown_json,
+        )
+        # Override generated UUID with our pre-built one for envelope consistency.
+        snapshot_row.snapshot_id = snapshot_id_uuid
+        self.session.add(snapshot_row)
+        await self.session.flush()
+    except IntegrityError as integrity_err:
+        # Concurrent compute won the UNIQUE race.
+        await self.session.rollback()
+        existing = await self._get_existing_snapshot(
+            tenant_id=tenant_id,
+            period_key=period_key,
+            baseline_revision=baseline_revision,
+            engine_type="abc",
+        )
+        if existing is not None and existing.result_hash == result_hash:
+            # Idempotent skip after race.
+            return _to_outcome(
+                per_dept=per_dept,
+                cost_object_breakdown=cost_object_breakdown_json,
+                unused_capacity_breakdown=unused_capacity_breakdown_json,
+                v7_verdict_agg=v7_verdict_agg,
+                snapshot_id=str(existing.snapshot_id),
+                result_hash=result_hash,
+            )
+        raise CalcServiceError(
+            tenant_id=tenant_id,
+            period_key=period_key,
+            reason="abc_unique_constraint_violation",
+            details={"pgerror": str(integrity_err.orig)[:500]},
+            trace_id=self.trace_id,
+        ) from integrity_err
+
+    # ── Step 11: COMMIT ────────────────────────────────────────
+    await self.session.commit()
+
+    return _to_outcome(
+        per_dept=per_dept,
+        cost_object_breakdown=cost_object_breakdown_json,
+        unused_capacity_breakdown=unused_capacity_breakdown_json,
+        v7_verdict_agg=v7_verdict_agg,
+        snapshot_id=snapshot_id_str,
+        result_hash=result_hash,
+    )
+
+
+# Internal helpers for compute_and_persist (idempotency + audit-first INSERT).
+
+
+async def _get_existing_snapshot_abc(
+    self,
+    *,
+    tenant_id: uuid.UUID,
+    period_key: str,
+    baseline_revision: int,
+    engine_type: str,
+) -> FiscalPeriodSnapshot | None:
+    """Idempotency check (CR 1.1 lesson) — same hash → no-op skip."""
+    stmt = select(FiscalPeriodSnapshot).where(
+        FiscalPeriodSnapshot.tenant_id == tenant_id,
+        FiscalPeriodSnapshot.period_key == period_key,
+        FiscalPeriodSnapshot.baseline_revision == baseline_revision,
+        FiscalPeriodSnapshot.engine_type == engine_type,
+    )
+    result = await self.session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def _write_calc_log_abc(
+    self,
+    *,
+    tenant_id: uuid.UUID,
+    period_key: str,
+    baseline_revision: int,
+    engine_type: str,
+    action: str,
+    result_hash: str | None,
+    trace_id: str,
+) -> None:
+    """Audit-first INSERT (CR 1.1 lesson) — calc_log BEFORE snapshot."""
+    _ActionRegistry.validate(action_class=ActionClass.CALC_LOG, action=action)
+    row = CalcLog(
+        tenant_id=tenant_id,
+        period_key=period_key,
+        baseline_revision=baseline_revision,
+        engine_type=engine_type,
+        action=action,
+        result_hash=result_hash,
+        trace_id=trace_id,
+        created_at=datetime.now(UTC),
+    )
+    self.session.add(row)
+    await self.session.flush()
+
+
+async def _write_verification_log_abc(
+    self,
+    *,
+    tenant_id: uuid.UUID,
+    period_key: str,
+    baseline_revision: int,
+    action: str,
+    top_failure_code: str | None,
+    top_failure_message_ko: str | None,
+    result_hash: str,
+    trace_id: str,
+) -> None:
+    """Audit-first INSERT (CR 1.1 lesson) — verification_log BEFORE snapshot."""
+    _ActionRegistry.validate(action_class=ActionClass.VERIFICATION_LOG, action=action)
+    row = VerificationLog(
+        tenant_id=tenant_id,
+        period_key=period_key,
+        baseline_revision=baseline_revision,
+        action=action,
+        top_failure_code=top_failure_code,
+        top_failure_message_ko=top_failure_message_ko,
+        result_hash=result_hash,
+        trace_id=trace_id,
+        created_at=datetime.now(UTC),
+    )
+    self.session.add(row)
+    await self.session.flush()
+
+
+# Bind 11-step method + helpers to the class.
+AbcAllocationService.compute_and_persist = compute_and_persist  # type: ignore[attr-defined]
+AbcAllocationService._get_existing_snapshot_abc = _get_existing_snapshot_abc  # type: ignore[attr-defined]
+AbcAllocationService._write_calc_log_abc = _write_calc_log_abc  # type: ignore[attr-defined]
+AbcAllocationService._write_verification_log_abc = _write_verification_log_abc  # type: ignore[attr-defined]
+
+# Aliases (private names without _abc suffix for cleaner service-layer calls).
+AbcAllocationService._get_existing_snapshot = _get_existing_snapshot_abc  # type: ignore[attr-defined]
+AbcAllocationService._write_calc_log = _write_calc_log_abc  # type: ignore[attr-defined]
+AbcAllocationService._write_verification_log = _write_verification_log_abc  # type: ignore[attr-defined]
+
+
 __all__ = [
     # Service-layer DTOs (CR 12-1 L3 boundary)
     "AbcCcrState",
     "AbcAllocationState",
+    # Story 9.3 (T3) — compute_and_persist envelope
+    "AbcAllocationOutcome",
     # Service-layer pre-validation (CR 12-5 L3 3-layer defense)
     "validate_ccr_inputs",
     "validate_allocation_inputs",
     # ORM→kernel boundary helpers
     "_to_ccr_state",
     "_to_allocation_state",
+    "_to_outcome",
     "AbcAllocationService",
     # Serialization re-exports (CR 11-4 D-002 ko-KR.json SSOT)
     "serialize_ccr_state_for_api",

@@ -117,6 +117,8 @@ from apps.api.modules.m9_abc.exceptions import (
     ABC_CCR_INVALID_CAPACITY_KO,
     ABC_COST_POOL_INVALID_SUM_KO,
     ABC_DRIVER_INVALID_SUM_KO,
+    ABC_EMPTY_DEPARTMENTS_KO,
+    ABC_TOO_MANY_DEPARTMENTS_KO,
     ABC_VALIDATION_NOT_FOUND_KO,
     AbcValidationNotFoundError,
     ActivityValidationError,
@@ -124,6 +126,8 @@ from apps.api.modules.m9_abc.exceptions import (
     CcrComputeError,
     CostPoolValidationError,
     DriverValidationError,
+    EmptyDepartmentsError,
+    TooManyDepartmentsError,
 )
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
@@ -2390,6 +2394,58 @@ async def _m9_abc_allocation_balance_error_handler(
                 "department_id": exc.department_id,
                 "expected_sum": str(exc.expected_sum),
                 "actual_sum": str(exc.actual_sum),
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Story 9.3 — ABC Department Count envelope handlers (CR 12-5 D-14) ──
+# 2 NEW typed envelope handlers for:
+#   - EmptyDepartmentsError     (422 EMPTY_DEPARTMENTS)
+#   - TooManyDepartmentsError   (422 TOO_MANY_DEPARTMENTS)
+@app.exception_handler(EmptyDepartmentsError)
+async def _m9_abc_empty_departments_error_handler(
+    request: Request, exc: EmptyDepartmentsError
+) -> JSONResponse:
+    """422 EMPTY_DEPARTMENTS — PRD §F9.3 multi-department CCR aggregation 입력 부재.
+
+    Story 9.3 (A29 forward-lock dual-route) — `aggregate_multi_department_ccr` /
+    `validate_department_count` 호출 시점에 `department_ids` 빈 경우 raise.
+    AD-19 dual-route 결정: industry='service' → M9 ABC path → 부서 0개 = 422.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "EMPTY_DEPARTMENTS",
+            "message_ko": ABC_EMPTY_DEPARTMENTS_KO,
+            "details": {
+                "reason": exc.reason,
+            },
+            "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(TooManyDepartmentsError)
+async def _m9_abc_too_many_departments_error_handler(
+    request: Request, exc: TooManyDepartmentsError
+) -> JSONResponse:
+    """422 TOO_MANY_DEPARTMENTS — PRD §F9.3 multi-department CCR aggregation 한도 초과.
+
+    Story 9.3 (A29 forward-lock dual-route) — `validate_department_count` 호출
+    시점에 `len(department_ids) > MAX_DEPARTMENT_COUNT` (50) 경우 raise.
+    AD-19 dual-route 결정: industry='service' → M9 ABC path → 부서 51개+ = 422.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "TOO_MANY_DEPARTMENTS",
+            "message_ko": ABC_TOO_MANY_DEPARTMENTS_KO,
+            "details": {
+                "department_count": exc.department_count,
+                "max_count": exc.max_count,
                 "reason": exc.reason,
             },
             "trace_id": str(_uuid_mod.uuid4()),

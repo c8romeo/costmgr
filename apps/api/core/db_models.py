@@ -719,6 +719,19 @@ class FiscalPeriodSnapshot(Base):
     state: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
+    # ── Story 9.3 (T3 prep) — ABC dual-route JSONB subdocuments ───
+    # cost_object_breakdown: per-product ABC allocation rows (PRD §F9.3 +
+    # A29 forward-lock). NULL for engine_type='trad' (manufacturing-kind
+    # traditional costing). NFR18 lock on column semantics.
+    cost_object_breakdown: Mapped[list | None] = mapped_column(
+        MutableList.as_mutable(JSONB), nullable=True
+    )
+    # unused_capacity_breakdown: per-department unused capacity rows
+    # (PRD §A9 + §V7). NULL for engine_type='trad'. NFR18 lock.
+    unused_capacity_breakdown: Mapped[list | None] = mapped_column(
+        MutableList.as_mutable(JSONB), nullable=True
+    )
+
     __table_args__ = (
         CheckConstraint(
             "state IN ('verified', 'committed', 'reversed')",

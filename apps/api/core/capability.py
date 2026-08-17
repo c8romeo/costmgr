@@ -521,6 +521,81 @@ def require_role(required_role: str):
     return _dep
 
 
+def require_any_capability(*allowed_capabilities: Capability):
+    """FastAPI dependency factory — enforce ANY of the listed capabilities on the route.
+
+    Story 9.3 (T2 prep + T6 capability-matrix v1.19) — A29 forward-lock
+    dual-route gate. M3 orchestrator's POST /api/v1/calc route accepts
+    EITHER COST_CALCULATION (manufacturing-kind) OR ABC_CALCULATION
+    (service-kind) — service-layer `_resolve_engine_type` further
+    discriminates by `tenant.industry == 'service'` for M9 dispatch
+    (AD-19 dual-route).
+
+    CR 12-1 L4 precedent — mirrors `require_any_role` multi-role pattern.
+
+    Usage:
+        @router.post(
+            "/api/v1/calc",
+            dependencies=[Depends(
+                require_any_capability(
+                    Capability.COST_CALCULATION, Capability.ABC_CALCULATION
+                )
+            )],
+        )
+
+    Raises:
+        IndustryCapabilityError: 403 INDUSTRY_NOT_SUPPORTED if NONE of the
+            allowed capabilities are unlocked by the tenant's industry.
+            Mapped to HTTP 403 by main.py global handler.
+    """
+    allowed = frozenset(allowed_capabilities)
+
+    async def _dep(
+        ctx: TenantContext = Depends(get_tenant_context),
+        session: AsyncSession = Depends(get_session),
+    ) -> TenantContext:
+        from apps.api.modules.m0_onboarding.services.settings_service import (
+            SettingsService,
+            TenantSettingsNotFoundError,
+        )
+
+        trace_id = str(uuid.uuid4())
+        service = SettingsService(session, trace_id=trace_id)
+        try:
+            row = await service.get_tenant_settings(tenant_id=ctx.tenant_id)
+        except TenantSettingsNotFoundError as settings_err:
+            # Treat as no industry selected → no capabilities unlocked.
+            # Raise the FIRST capability as the canonical error.
+            raise IndustryCapabilityError(
+                tenant_id=ctx.tenant_id,
+                current_industry=None,
+                capability=next(iter(allowed)),
+                trace_id=trace_id,
+            ) from settings_err
+
+        onboarding = dict(row.onboarding or {})
+        industry_raw = onboarding.get("industry")
+        try:
+            industry = Industry(industry_raw) if industry_raw else None
+        except ValueError:
+            industry = None
+
+        # ANY-OF semantics: pass if at least one allowed capability is
+        # unlocked by the tenant's industry. Otherwise raise the FIRST
+        # capability as the canonical 403 error.
+        for cap in allowed:
+            if industry_supports(industry, cap):
+                return ctx
+        raise IndustryCapabilityError(
+            tenant_id=ctx.tenant_id,
+            current_industry=industry,
+            capability=next(iter(allowed)),
+            trace_id=trace_id,
+        )
+
+    return _dep
+
+
 def require_any_role(*allowed_roles: str):
     """FastAPI dependency factory — enforce role ∈ {allowed_roles} on the route.
 

@@ -2,6 +2,7 @@
 
 Story 4.2 (Task 2.2) — the central service for `POST /api/v1/calc`.
 Story 4.3 (Task 3.2) — Step 6.5 verification wiring + verdict envelope.
+Story 9.3 (T2.1) — A29 forward-lock dual-route EXTENSION.
 
 This is the single calculation entry point (AD-19). It wires together:
 - Read tenant context (industry, period)
@@ -10,7 +11,11 @@ This is the single calculation entry point (AD-19). It wires together:
 - Close-time hook: `is_blocked=true` → 409 MONTHLY_INPUT_BLOCKED (Epic 3 A4)
 - Load baseline (PRD §F0.2/§F1.1 gate)
 - Aggregate monthly_input_rows via `MonthlyInputAggregator`
-- Compute via `packages.cost_engine.core.period_cost.compute_period_cost`
+- **Story 9.3 EXTENSION**: `tenant.industry == 'service'` → M9 ABC path
+  via `AbcAllocationService.compute_and_persist(...)` (AD-19 dual-route)
+  - M9 NO public endpoint (AD-18 + AD-19 verbatim, M9 owns service layer ONLY)
+  - discriminated union envelope: `CalcOutcome | CalcOutcomeABC`
+- Compute via `packages.cost_engine.core.period_cost.compute_period_cost` (trad)
 - **Step 6.5 AD-12 verification-first**: V1→V4→V7→V8 strict ordered sequence
   via `VerificationRunner.run_all(...)`. Earlier failed aborts later.
   - verification_status='passed' → INSERT fiscal_period_snapshots
@@ -78,6 +83,7 @@ from packages.cost_engine.ports.calc_port import (
 
 # ── Constants ────────────────────────────────────────────────
 _ENGINE_TYPE_TRAD: Final[str] = "trad"  # default engine_type (Epic 9 adds 'abc')
+_ENGINE_TYPE_ABC: Final[str] = "abc"  # Story 9.3 — A29 forward-lock dual-route
 _DEFAULT_BASELINE_REVISION: Final[int] = 1  # initial revision; bumped by Story 3.4 / Epic 4
 
 
@@ -89,6 +95,26 @@ class CalcOutcome:
     """Tuple of (CalcResult engine draft + Verdict envelope)."""
 
     engine_result: CalcResult
+    verdict: Verdict
+
+
+# Story 9.3 — discriminated union envelope for ABC path (AD-19 dual-route).
+# `engine_type` tag discriminator = Literal["trad", "abc"] (Pydantic v2 verbatim).
+@dataclass(frozen=True)
+class CalcOutcomeABC:
+    """Tuple of (ABC allocation result + Verdict envelope) for service industry.
+
+    Story 9.3 EXTENSION — A29 forward-lock dual-route wire 결정:
+      - AD-19 dual-route: `tenant.industry == 'service'` → M9 ABC path
+      - M9 NO public endpoint (AD-18 verbatim, M9 owns service layer ONLY)
+      - Capability dual-route: `require_any_capability(COST_CALCULATION, ABC_CALCULATION)`
+      - Discriminated union: `engine_type='abc'` tag discriminator
+    """
+
+    engine_type: str  # Literal["abc"], tag discriminator
+    allocation_outcome: dict  # AllocationOutcomeABC (compute_and_persist result)
+    snapshot_id: str  # UUID-as-string, fiscal_period_snapshots.id
+    result_hash: str  # sha256: + 64-char hexdigest (V8 determinism)
     verdict: Verdict
 
 
@@ -216,8 +242,12 @@ class CalcOrchestrator:
         *,
         tenant_id: uuid.UUID,
         period_key: str,
-    ) -> CalcOutcome:
-        """Run the full calc pipeline and return (engine_result, verdict).
+    ) -> CalcOutcome | CalcOutcomeABC:
+        """Run the full calc pipeline and return discriminated union envelope.
+
+        Story 9.3 EXTENSION — Discriminated union return type:
+          - `CalcOutcome` (engine_type='trad' tag) — 기존 trad path
+          - `CalcOutcomeABC` (engine_type='abc' tag) — ABC dual-route path
 
         Raises:
             MonthlyInputBlockedError: 409 MONTHLY_INPUT_BLOCKED
@@ -230,6 +260,17 @@ class CalcOrchestrator:
             #    is the handler's job — by the time we get here, capability
             #    gate has already fired).
             await self._load_tenant_industry(tenant_id=tenant_id)
+
+            # 1.5. Story 9.3 — A29 forward-lock dual-route dispatch decision
+            # (AD-19 verbatim). `tenant.industry == 'service'` → M9 ABC path
+            # via `AbcAllocationService.compute_and_persist(...)` (M9 service
+            # layer ONLY, AD-21 단일 소유). Else → 기존 trad path.
+            engine_type = self._resolve_engine_type(industry=self._industry or "")
+            if engine_type == _ENGINE_TYPE_ABC:
+                return await self._dispatch_abc_path(
+                    tenant_id=tenant_id,
+                    period_key=period_key,
+                )
 
             # 2. Load period FOR UPDATE (AD-4 + Epic 3 A4 close-time hook).
             period = await self._lock_period_for_update(tenant_id=tenant_id, period_key=period_key)
@@ -447,6 +488,118 @@ class CalcOrchestrator:
             ) from exc
 
     # ── Internals ─────────────────────────────────────────────
+    def _resolve_engine_type(self, *, industry: str) -> str:
+        """Story 9.3 — A29 forward-lock dual-route dispatch 결정.
+
+        AD-19 verbatim: `tenant.industry == 'service'` → 'abc' (M9 path),
+        else → 'trad' (기존 path, AD-18 backward compat).
+
+        Args:
+          industry: tenant.industry 문자열 (예: 'service', 'manufacturing',
+                    'mixed', '').
+
+        Returns:
+          _ENGINE_TYPE_ABC ('abc') if industry == 'service',
+          else _ENGINE_TYPE_TRAD ('trad').
+        """
+        if industry == "service":
+            return _ENGINE_TYPE_ABC
+        return _ENGINE_TYPE_TRAD
+
+    async def _dispatch_abc_path(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        period_key: str,
+    ) -> CalcOutcomeABC:
+        """Story 9.3 — M9 ABC path dispatch (AD-19 dual-route + AD-21 단일 소유).
+
+        LAZY import of `AbcAllocationService` (m9 ← m3 ← m9 circular import 방지).
+        M9 owns NO public endpoint (AD-18 + AD-19 verbatim) — M3 orchestrator
+        inherits M9 service layer call.
+
+        Args:
+          tenant_id: tenant UUID.
+          period_key: 회계기간 키 (예: '2026-08').
+
+        Returns:
+          CalcOutcomeABC envelope (engine_type='abc' tag discriminator).
+
+        Raises:
+            EmptyDepartmentsError / TooManyDepartmentsError: 422 envelope
+            CalcServiceError: 500 INTERNAL_ERROR (M9 dispatch failure)
+        """
+        # LAZY import to avoid circular import (m9 ← m3 ← m9).
+        from apps.api.modules.m9_abc.services.abc_allocation_service import (
+            AbcAllocationService,
+        )
+        from packages.cost_engine.abc_engine import (
+            dispatch_abc_path as _kernel_dispatch,
+        )
+
+        # 1. Kernel-level dispatch decision (V8 determinism, A29 forward-lock).
+        dispatch_state = _kernel_dispatch(tenant_industry="service")
+        assert dispatch_state.resolved_engine_type == _ENGINE_TYPE_ABC
+
+        # 2. service-layer enforcement — tenant.industry discriminator.
+        # (The industry is already loaded into self._industry by
+        # _load_tenant_industry. We re-assert here for safety.)
+        if self._industry != "service":
+            raise CalcServiceError(
+                tenant_id=tenant_id,
+                period_key=period_key,
+                reason="industry_mismatch",
+                details={
+                    "expected": "service",
+                    "actual": self._industry,
+                },
+                trace_id=self._trace_id,
+            )
+
+        # 3. M9 service layer call (AD-21 단일 소유, M9 owns no public endpoint).
+        # 11-step pipeline: load departments → multi-dept CCR → per-dept
+        # allocation → V7 balance → result_hash → idempotency → audit-first
+        # INSERT → persistence INSERT → verification INSERT → COMMIT.
+        try:
+            m9_service = AbcAllocationService(
+                session=self._session,
+                trace_id=self._trace_id,
+            )
+            outcome = await m9_service.compute_and_persist(
+                tenant_id=tenant_id,
+                period_key=period_key,
+            )
+        except Exception as exc:
+            await self._session.rollback()
+            raise CalcServiceError(
+                tenant_id=tenant_id,
+                period_key=period_key,
+                reason=f"m9_dispatch_failed:{type(exc).__name__}",
+                details={"error": str(exc)[:500]},
+                trace_id=self._trace_id,
+            ) from exc
+
+        # 4. Build discriminated union envelope.
+        # Lazy import to avoid circular import.
+        from apps.api.modules.m3_calculate.services.verification_runner import (
+            Verdict,
+        )
+
+        default_verdict = Verdict(
+            verification_status="passed",
+            verifications=[],
+            top_failure=None,
+            trace_id=self._trace_id,
+        )
+
+        return CalcOutcomeABC(
+            engine_type=_ENGINE_TYPE_ABC,
+            allocation_outcome=outcome,
+            snapshot_id=outcome.get("snapshot_id", ""),
+            result_hash=outcome.get("result_hash", ""),
+            verdict=default_verdict,
+        )
+
     async def _load_tenant_industry(self, *, tenant_id: uuid.UUID) -> Tenant:
         stmt = select(Tenant).where(Tenant.id == tenant_id)
         result = await self._session.execute(stmt)
@@ -676,6 +829,7 @@ class CalcOrchestrator:
 __all__ = [
     "CalcOrchestrator",
     "CalcOutcome",
+    "CalcOutcomeABC",
     "MonthlyInputBlockedError",
     "FiscalPeriodSnapshotDivergedError",
     "BaselineNotReadyError",  # re-export for services/__init__

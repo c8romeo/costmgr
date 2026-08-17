@@ -790,3 +790,127 @@ write). 9-3 (M3 dispatch) will be the next step for AD-19 wire.
 - `apps/web/app/[locale]/(dashboard)/budget/abc-allocation/page.tsx` — RSC page
 - `docs/abc-allocation.md` — 9-2 documentation
 
+## §9.3 ABC Dispatch Dual-Route Architecture (Story 9.3)
+
+> PRD §F9.3 verbatim: **"POST /api/v1/calc 단일 진입점 + Industry.SERVICE dispatch to M9"**.
+> Epic 9 (ABC / TDABC Engine — Service Business) 3번째 진입점.
+> **A29 forward-lock dual-route:** `POST /api/v1/calc` is the SINGLE public
+> endpoint. M3 orchestrator dispatches via `_resolve_engine_type(industry)`:
+> - `tenant.industry == 'service'` → M9 ABC path (`AbcAllocationService.compute_and_persist`)
+> - else → M3 traditional path (PRD §F0.2 3종 allocation)
+>
+> Response envelope is a discriminated union
+> `CalcResponse | CalcAbcResponse` with `engine_type: Literal["trad", "abc"]`
+> tag discriminator (Pydantic v2 + FastAPI tag).
+
+### 모듈 구조 (9-3 EXTENSION)
+
+```
+apps/api/modules/m3_calculate/
+├── handlers.py                   # EXTENSION (capability dual-route + discriminated union narrowing)
+├── schemas.py                    # EXTENSION (+AllocationOutcomeABC + CalcAbcResponse)
+└── services/
+    ├── __init__.py               # EXTENSION (+CalcOutcome + CalcOutcomeABC re-exports)
+    └── calc_orchestrator.py      # EXTENSION (LAZY M9 import + _resolve_engine_type + _dispatch_abc_path)
+
+apps/api/modules/m9_abc/
+├── exceptions.py                 # EXTENSION (+EmptyDepartmentsError + TooManyDepartmentsError + 2 Korean SSOT)
+└── services/
+    └── abc_allocation_service.py # EXTENSION (+AbcAllocationOutcome + compute_and_persist 11-step pipeline)
+
+apps/api/main.py                  # EXTENSION (+2 NEW @app.exception_handler decorators:
+                                  #   422 ABC_EMPTY_DEPARTMENTS + 422 ABC_TOO_MANY_DEPARTMENTS)
+
+apps/api/core/
+├── capability.py                 # EXTENSION (+require_any_capability ANY-OF factory)
+└── db_models.py                  # EXTENSION (+cost_object_breakdown + unused_capacity_breakdown JSONB)
+
+apps/api/alembic/versions/
+└── 0028_abc_fiscal_period_breakdown.py  # NEW (down_revision='0027_budget_pre_standard')
+
+apps/web/components/m9-abc/                  # +4 NEW Client Components (9-3 dual-route UI)
+apps/web/lib/
+├── m9-abc-dispatch.ts              # NEW TS mirror (discriminated union types)
+└── m9-abc-v7-verdict-schema.ts      # NEW TS V7 verdict mirror
+apps/web/messages/ko-KR.json                  # +abc_calculation namespace (52 strings)
+apps/web/app/[locale]/(dashboard)/budget/abc-calculation/page.tsx   # NEW RSC page
+```
+
+### Pure kernel EXTENSION (9-3, A28 forward-lock 3-way wire 해소)
+
+`packages/cost_engine/abc_engine.py` (9-3 EXTENSION over 9-2):
+
+- **D-9-1-DEFER-1 해소**: per-department CCR computation
+- **D-9-1-DEFER-2 해소**: Activity standard hour 자동 추출 (via CCRPort)
+- **D-9-1-DEFER-4 해소**: Cost Object Breakdown aggregation
+- 5 NEW frozen dataclasses (A28 forward-lock 3-way wire):
+  - `DispatchState` (engine_type tag discriminator + V8 hash)
+  - `V7Verdict` (Σ breakdown + unused = Σ department, 1-Won precision)
+  - `MultiDepartmentCcrResult` (CCR aggregation summary)
+  - `DepartmentAllocation` (per-dept allocation summary)
+  - `UnusedCapacitySubRow` (per-dept 미사용능력 sub-row)
+- 2 NEW typed exceptions: `EmptyDepartmentsError`, `TooManyDepartmentsError`
+- 5 NEW pure functions:
+  - `validate_department_count` (1-50 guard)
+  - `dispatch_abc_path` (engine_type tag dispatch decision)
+  - `compute_abc_allocation_hash` (V8 determinism)
+  - `validate_v7_balance` (1-Won precision parity)
+  - `compute_multi_dept_ccr` (multi-dept CCR aggregation)
+- 3 NEW constants: `ABC_HASH_PREFIX = "sha256:"`,
+  `V7_BALANCE_TOLERANCE_KRW = Decimal("0.01")`,
+  `MAX_DEPARTMENT_COUNT = 50`
+
+### 11-step pipeline (compute_and_persist)
+
+Per `apps/api/modules/m9_abc/services/abc_allocation_service.py`:
+
+1. **load departments** — fetch active cost pools + activities + drivers
+2. **validate count** — `validate_department_count(1-50 guard)`
+3. **per-dept CCR** — `CCRPort.compute(tenant_id, period_key, department_id)`
+4. **multi-dept CCR** — `compute_multi_dept_ccr` aggregation
+5. **per-dept allocation + V7** — `compute_allocation` + `validate_v7_balance`
+6. **cost_object_breakdown JSON** — serialize per (dept × product × activity × driver)
+7. **unused_capacity JSON** — serialize per-dept unused sub-rows
+8. **V8 hash** — `compute_abc_allocation_hash` (sha256:64-hex)
+9. **idempotency + audit-first INSERT** — check existing snapshot; INSERT calc_log + verification_log BEFORE fiscal_period_snapshots INSERT (AD-22)
+10. **fiscal_period_snapshots INSERT** — write `cost_object_breakdown` + `unused_capacity_breakdown` JSONB columns
+11. **COMMIT** — single tx boundary
+
+### Wire contract (9-3 = public endpoint, A29 forward-lock)
+
+Per AD-18 + AD-19:
+
+- **M3 owns ONLY the public endpoint** `POST /api/v1/calc` (no M9 router).
+- Capability dual-route gate: `require_any_capability(COST_CALCULATION, ABC_CALCULATION)`.
+- Discriminated union response (Pydantic v2 tag):
+  - `CalcResponse` (trad path): material_cost + labor_cost + overhead_cost + manufacturing_cost + inventory_adjustment
+  - `CalcAbcResponse` (abc path): `allocation_outcome` (breakdown + unused + V7 verdict + CCR) + `snapshot_id` + `result_hash` + `state="verified"`
+- TypeScript narrowing at handler boundary: `isinstance(outcome, CalcOutcomeABC)`.
+
+### Cross-references (9-3)
+
+- `packages/cost_engine/abc_engine.py` — pure kernel 9-3 EXTENSION (5 NEW frozen dataclasses + 2 typed exceptions + 5 NEW pure functions + 3 NEW constants)
+- `apps/api/modules/m3_calculate/handlers.py` — capability dual-route gate + discriminated union narrowing
+- `apps/api/modules/m3_calculate/schemas.py` — `AllocationOutcomeABC` + `CalcAbcResponse` Pydantic v2 models
+- `apps/api/modules/m3_calculate/services/calc_orchestrator.py` — `_resolve_engine_type` + `_dispatch_abc_path` (LAZY M9 import)
+- `apps/api/modules/m9_abc/services/abc_allocation_service.py` — `compute_and_persist` 11-step pipeline (CR 12-1 L3 ORM→kernel boundary)
+- `apps/api/modules/m9_abc/exceptions.py` — 2 NEW typed exceptions + 2 Korean SSOT
+- `apps/api/main.py` — 2 NEW @app.exception_handler decorators (EMPTY_DEPARTMENTS + TOO_MANY_DEPARTMENTS)
+- `apps/api/core/capability.py` — `require_any_capability` ANY-OF factory
+- `apps/api/core/db_models.py` — 2 NEW JSONB columns on `fiscal_period_snapshots`
+- `apps/api/alembic/versions/0028_abc_fiscal_period_breakdown.py` — NEW Alembic migration (2 JSONB + 2 GIN indexes + 2 COMMENT)
+- `apps/web/components/m9-abc/AbcDispatchPanel.tsx` — main Client Component (discriminated union envelope display)
+- `apps/web/components/m9-abc/AbcDispatchDecisionBadge.tsx` — engine_type tag badge (trad/abc)
+- `apps/web/components/m9-abc/AbcDispatchResultCard.tsx` — discriminated union result renderer
+- `apps/web/components/m9-abc/AbcDispatchErrorToast.tsx` — 422 envelope error toast
+- `apps/web/lib/m9-abc-dispatch.ts` — TS mirror (discriminated union types)
+- `apps/web/lib/m9-abc-v7-verdict-schema.ts` — TS V7 verdict mirror
+- `apps/web/messages/ko-KR.json` — NEW `abc_calculation` namespace (52 strings)
+- `apps/web/app/[locale]/(dashboard)/budget/abc-calculation/page.tsx` — RSC page
+- `tests/integration/test_capability_matrix_v1_19_drift.py` — v1.19 EXTENSION drift detector
+- `tests/api/test_alembic_0028_abc_fiscal_period_breakdown.py` — Alembic 0028 migration tests
+- `tests/services/test_m3_calc_orchestrator_dispatch.py` — 16 NEW test cases
+- `tests/services/test_m9_abc_compute_and_persist.py` — 17 NEW test cases
+- `docs/abc-calculation.md` — 9-3 documentation
+- `docs/capability-matrix.md` — v1.19 EXTENSION (no NEW capability row, dual-route gate)
+

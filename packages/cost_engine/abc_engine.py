@@ -11,12 +11,22 @@ AllocationBalanceError) + 3 NEW constants (CCR_KRW_QUANTUM +
 ABC_PRECISION_KRW_TOLERANCE + CCR_HASH_PREFIX) — CCR compute + Activity
 mapping + Cost Object Breakdown (PRD §F9.2 verbatim + §A9 + §V7).
 
+Story 9.3 EXTENSION: 5 NEW pure functions + 5 frozen dataclasses
+(V7Verdict + MultiDepartmentCcrResult + DispatchState + DepartmentAllocation +
+UnusedCapacitySubRow) + 2 typed exceptions (EmptyDepartmentsError +
+TooManyDepartmentsError) + 3 NEW constants (V7_BALANCE_TOLERANCE_KRW +
+MAX_DEPARTMENT_COUNT=50 + ABC_HASH_PREFIX) — V7 balance verify + multi-
+department CCR aggregation + dispatch orchestration (PRD §F9.3 + AD-19 dual-
+route + A29 forward-lock).
+
 Pure-Python, stdlib-only helpers consumed by:
 - `apps/api/modules/m9_abc/services/abc_validation_service.py`
   (Story 9.1 T2 service layer — validate_100_percent_guard orchestrator)
 - `apps/api/modules/m9_abc/services/abc_allocation_service.py`
   (Story 9.2 T2 service layer — CCRPort.compute 호출자 ONLY, AD-21
   단일 소유 + compute_allocation + produce_unused_capacity_row)
+- `apps/api/modules/m3_calculate/services/calc_orchestrator.py`
+  (Story 9.3 dispatch_abc_path — AD-19 dual-route 결정)
 
 AD-1 / AD-5 / AD-11 binding: pure-Python, stdlib-only, NO sqlalchemy,
 NO DB import (cost_engine layer rule). The service layer passes input
@@ -57,7 +67,7 @@ A19 cohesion pattern 7 surface (9-2 EXTENSION 누적):
   4: `budget_period_key.py` (8-1)
   5: `budget_variance.py` (8-2)
   6: `budget_pre_standard.py` (8-3)
-  7: `abc_engine.py` (9-1 + 9-2 EXTENSION — A26 Option A 채택, NO
+  7: `abc_engine.py` (9-1 + 9-2 + 9-3 EXTENSION — A26 Option A 채택, NO
      cross-import with other A19 surfaces, 동일 surface 누적 wire).
 
 AD-21 CCRPort.compute 단일 소유 — M9 service layer ONLY. 9-3 진입 시점에
@@ -69,7 +79,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal
-from typing import Final
+from typing import Final, Literal
 
 # ── Constants ────────────────────────────────────────────────
 # Decimal quantum for ABC validation monetary values (PRD §F9.1 + AD-8).
@@ -111,6 +121,22 @@ ABC_PRECISION_KRW_TOLERANCE: Final[Decimal] = Decimal("0.01")
 
 # Hash prefix for compute_ccr_hash (V8 determinism trace, 9-1 pattern 동일).
 CCR_HASH_PREFIX: Final[str] = "sha256:"
+
+
+# ── Story 9.3 NEW constants (PRD §F9.3 + §A6 + §V7 + AD-19 dual-route) ────
+# V7 balance tolerance (PRD §A6 verbatim "완전배부·대차평형 1원 단위").
+# Σ(원가대상별 배부액) + 미사용능력 = Σ(부서 원가) — 1원 단위 검증.
+# 9-2 ABC_PRECISION_KRW_TOLERANCE 와 동일 quantum (CR 12-1 reuse).
+V7_BALANCE_TOLERANCE_KRW: Final[Decimal] = Decimal("0.01")
+
+# Multi-department CCR aggregation limit (PRD §7.2 + §A29 forward-lock).
+# `tenant.industry == 'service'` 시 compute_and_persist 가 1 ≤ N ≤
+# MAX_DEPARTMENT_COUNT 개 부서를 일괄 compute (D-9-2-DEFER-2 해소).
+MAX_DEPARTMENT_COUNT: Final[int] = 50
+
+# Hash prefix for compute_abc_allocation_hash (V8 determinism trace).
+# 9-1 VALIDATION_HASH_PREFIX + 9-2 CCR_HASH_PREFIX 와 동일 prefix 재사용.
+ABC_HASH_PREFIX: Final[str] = "sha256:"
 
 
 # ── Frozen dataclasses ───────────────────────────────────────
@@ -1055,6 +1081,446 @@ def compute_allocation_hash(*, allocation: AllocationResult) -> str:
     return f"{CCR_HASH_PREFIX}{digest}"
 
 
+# ── Story 9.3 EXTENSION — frozen dataclasses (PRD §F9.3 + §A29 + §V7) ─────
+@dataclass(frozen=True, slots=True)
+class V7Verdict:
+    """Frozen V7 ABC 무결성 verdict (PRD §F9.3 + §A6 + §V7 verbatim).
+
+    `verify_v7_balance` 결과 — 1-Won precision invariant
+    (Σ(원가대상별 배부액) + 미사용능력 = Σ(부서 원가)) 만족 여부.
+
+    `is_balanced` = (|breakdown_sum + unused_cost - department_cost| ≤
+    V7_BALANCE_TOLERANCE_KRW) 일 때 True
+    `breakdown_sum` = Decimal (Σ cost_object_breakdown.allocated_krw)
+    `unused_cost` = Decimal (Σ unused_capacity.unused_cost_krw)
+    `expected_sum` = Decimal (Σ department_cost)
+    `delta_krw` = Decimal (절대 오차 = breakdown_sum + unused_cost - expected_sum)
+    `hash` = "sha256:" + 64-char hexdigest (V8 byte-identical)
+    """
+
+    is_balanced: bool
+    breakdown_sum: Decimal
+    unused_cost: Decimal
+    expected_sum: Decimal
+    delta_krw: Decimal
+    hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class MultiDepartmentCcrResult:
+    """Frozen multi-department CCR aggregation result (PRD §F9.3 + §7.2).
+
+    `aggregate_multi_department_ccr` 결과 — N개 부서 CCR 일괄 compute.
+
+    `department_count` = int (1 ≤ N ≤ MAX_DEPARTMENT_COUNT, validate_department_count)
+    `total_ccr_sum` = Decimal (Σ CCRResult.ccr_per_hour × practical_capacity_hours)
+    `per_dept_results` = tuple[CCRResult] (부서별 결과, 9-2 compute_ccr 재사용)
+    `aggregate_hash` = "sha256:" + 64-char hexdigest (V8 byte-identical)
+    """
+
+    department_count: int
+    total_ccr_sum: Decimal
+    per_dept_results: tuple[CCRResult, ...]
+    aggregate_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class DispatchState:
+    """Frozen M3 dispatch 상태 (PRD §F9.3 + AD-19 dual-route).
+
+    `dispatch_abc_path` 결과 — tenant.industry discriminator decision.
+
+    `tenant_industry` = str (tenant.industry, 예: 'service' | 'manufacturing' | 'mixed')
+    `resolved_engine_type` = Literal["trad", "abc"] (engine_type tag discriminator)
+    `dispatch_reason` = str (human-readable Korean reason, CR 11-4 D-002)
+    `hash` = "sha256:" + 64-char hexdigest (V8 byte-identical)
+    """
+
+    tenant_industry: str
+    resolved_engine_type: Literal["trad", "abc"]
+    dispatch_reason: str
+    hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class DepartmentAllocation:
+    """Frozen 부서별 ABC allocation 집계 (PRD §F9.3 + §A6 + §V7).
+
+    `compute_and_persist` 11-step pipeline 의 per-department step 결과.
+
+    `department_id` = str (부서 식별자)
+    `ccr` = CCRResult (9-2 compute_ccr 재사용)
+    `allocation` = AllocationResult (9-2 compute_allocation 재사용)
+    `v7_verdict` = V7Verdict (verify_v7_balance 결과)
+    """
+
+    department_id: str
+    ccr: CCRResult
+    allocation: AllocationResult
+    v7_verdict: V7Verdict
+
+
+@dataclass(frozen=True, slots=True)
+class UnusedCapacitySubRow:
+    """Frozen 부서별 미사용능력 sub-row (PRD §A9 + §F9.3 + §9 #18).
+
+    `compute_and_persist` 11-step pipeline 의 per-department unused step.
+
+    `department_id` = str (부서 식별자)
+    `unused_hours` = Decimal (미사용 시간)
+    `unused_cost_krw` = Decimal (KRW 정수, 미사용 원가, 1-Won precision)
+    `hash` = "sha256:" + 64-char hexdigest (V8 byte-identical)
+    """
+
+    department_id: str
+    unused_hours: Decimal
+    unused_cost_krw: Decimal
+    hash: str
+
+
+# ── Story 9.3 EXTENSION — typed exceptions (CR 12-5 D-14 envelope main.py) ──
+class EmptyDepartmentsError(ValueError):
+    """PRD §F9.3 + AD-15 envelope — multi-department CCR aggregation 입력 부재.
+
+    HTTP 422 EMPTY_DEPARTMENTS envelope (CR 12-5 D-14).
+    `aggregate_multi_department_ccr` / `validate_department_count` 호출
+    시점에 `department_ids` 빈 경우 raise.
+
+    `reason` is the human-readable Korean reason.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.reason = reason
+
+
+class TooManyDepartmentsError(ValueError):
+    """PRD §F9.3 + AD-15 envelope — multi-department CCR aggregation 한도 초과.
+
+    HTTP 422 TOO_MANY_DEPARTMENTS envelope (CR 12-5 D-14).
+    `validate_department_count` 호출 시점에 `len(department_ids) >
+    MAX_DEPARTMENT_COUNT` (50) 경우 raise.
+
+    `department_count` is the actual count (machine code),
+    `max_count` = MAX_DEPARTMENT_COUNT (constant),
+    `reason` is the human-readable Korean reason.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        department_count: int,
+        max_count: int,
+        reason: str,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.department_count = department_count
+        self.max_count = max_count
+        self.reason = reason
+
+
+# ── Story 9.3 EXTENSION — pure functions (PRD §F9.3 + §A29 + §V7 + AD-19) ──
+def _validate_department_count_inputs(
+    *,
+    department_ids: list[str],
+) -> None:
+    """Internal helper — department_ids 검증 (PRD §F9.3 + AD-8).
+
+    Edge cases (각 typed exception raise):
+      - empty department_ids → `EmptyDepartmentsError(reason="empty_departments")`
+      - len(department_ids) > MAX_DEPARTMENT_COUNT → `TooManyDepartmentsError`
+    """
+    if not department_ids:
+        raise EmptyDepartmentsError(
+            "department_ids must be non-empty for multi-department CCR aggregation",
+            reason="empty_departments",
+        )
+    if len(department_ids) > MAX_DEPARTMENT_COUNT:
+        raise TooManyDepartmentsError(
+            (
+                f"department_count ({len(department_ids)}) exceeds "
+                f"MAX_DEPARTMENT_COUNT ({MAX_DEPARTMENT_COUNT})"
+            ),
+            department_count=len(department_ids),
+            max_count=MAX_DEPARTMENT_COUNT,
+            reason="exceeds_max",
+        )
+
+
+def validate_department_count(
+    *,
+    department_ids: list[str],
+    max_count: int = MAX_DEPARTMENT_COUNT,
+) -> int:
+    """PRD §F9.3 + §7.2 verbatim — multi-department CCR aggregation department count.
+
+    Validates 1 ≤ len(department_ids) ≤ max_count (default `MAX_DEPARTMENT_COUNT=50`).
+
+    Pure-Python, stdlib-only, deterministic (AD-5 + AD-11).
+
+    Args:
+      department_ids: 부서 식별자 리스트 (tenant-relative UUID-as-string).
+      max_count: 한도 (default `MAX_DEPARTMENT_COUNT=50`).
+
+    Returns:
+      int (len(department_ids), == max_count guard pass).
+
+    Edge cases (typed exception raise):
+      - empty department_ids → `EmptyDepartmentsError(reason="empty_departments")`
+      - len > max_count → `TooManyDepartmentsError(...)`
+
+    AD-5 stdlib-only, AD-8 Decimal-as-string, AD-11 layer rule.
+    """
+    if not department_ids:
+        raise EmptyDepartmentsError(
+            "department_ids must be non-empty for multi-department CCR aggregation",
+            reason="empty_departments",
+        )
+    if len(department_ids) > max_count:
+        raise TooManyDepartmentsError(
+            (
+                f"department_count ({len(department_ids)}) exceeds "
+                f"max_count ({max_count})"
+            ),
+            department_count=len(department_ids),
+            max_count=max_count,
+            reason="exceeds_max",
+        )
+    return len(department_ids)
+
+
+def aggregate_multi_department_ccr(
+    *,
+    ccr_results: list[CCRResult],
+) -> MultiDepartmentCcrResult:
+    """PRD §F9.3 + §7.2 verbatim — N개 부서 CCR 일괄 compute aggregation.
+
+    공식:
+      - `department_count = validate_department_count(department_ids)` (1 ≤ N ≤ 50)
+      - `total_ccr_sum = Σ(ccr_results[i].ccr_per_hour × ccr.practical_capacity_hours)`
+        (KRW 정수, 1-Won precision)
+      - `per_dept_results = tuple(ccr_results)`
+
+    Pure-Python, stdlib-only, deterministic (AD-5 + AD-8 + AD-11).
+
+    Args:
+      ccr_results: 부서별 CCRResult 리스트 (9-2 compute_ccr 재사용).
+
+    Returns:
+      MultiDepartmentCcrResult(department_count, total_ccr_sum,
+                                per_dept_results, aggregate_hash).
+
+    Edge cases:
+      - empty ccr_results → `EmptyDepartmentsError(reason="empty_departments")`
+      - len > MAX_DEPARTMENT_COUNT → `TooManyDepartmentsError(...)`
+
+    V8 determinism: 동일 ccr_results → byte-identical aggregate_hash.
+
+    D-9-2-DEFER-2 (multi-department CCR) 해소.
+    """
+    department_ids = [ccr.department_id for ccr in ccr_results]
+    _validate_department_count_inputs(department_ids=department_ids)
+
+    total_ccr_sum = sum(
+        (ccr.ccr_per_hour * ccr.practical_capacity_hours for ccr in ccr_results),
+        Decimal("0"),
+    ).quantize(CCR_KRW_QUANTUM, rounding=ROUND_HALF_EVEN)
+
+    # Compute placeholder for hash (V8 determinism pre-compute).
+    result = MultiDepartmentCcrResult(
+        department_count=len(ccr_results),
+        total_ccr_sum=total_ccr_sum,
+        per_dept_results=tuple(ccr_results),
+        aggregate_hash="",  # placeholder
+    )
+    digest = hashlib.sha256(repr(result).encode()).hexdigest()
+    return MultiDepartmentCcrResult(
+        department_count=len(ccr_results),
+        total_ccr_sum=total_ccr_sum,
+        per_dept_results=tuple(ccr_results),
+        aggregate_hash=f"{ABC_HASH_PREFIX}{digest}",
+    )
+
+
+def verify_v7_balance(
+    *,
+    total_breakdown_sum: Decimal,
+    unused_cost: Decimal,
+    department_cost: Decimal,
+    tolerance: Decimal = V7_BALANCE_TOLERANCE_KRW,
+) -> V7Verdict:
+    """PRD §F9.3 + §A6 + §V7 verbatim — V7 ABC 무결성 1-Won precision 검증.
+
+    공식:
+      - `delta_krw = breakdown_sum + unused_cost - department_cost`
+      - `is_balanced = |delta_krw| ≤ tolerance`
+
+    Pure-Python, stdlib-only, deterministic (AD-5 + AD-8 + AD-11).
+
+    Args:
+      total_breakdown_sum: Σ cost_object_breakdown.allocated_krw
+                            (KRW 정수, 1-Won precision).
+      unused_cost: Σ unused_capacity.unused_cost_krw
+                    (KRW 정수, 1-Won precision).
+      department_cost: Σ 부서 원가 (KRW 정수, 1-Won precision).
+      tolerance: V7_BALANCE_TOLERANCE_KRW (default `Decimal("0.01")`).
+
+    Returns:
+      V7Verdict(is_balanced, breakdown_sum, unused_cost, expected_sum,
+                delta_krw, hash).
+
+    Edge cases:
+      - `is_balanced=False` → frontend disabled signal (compute_and_persist
+        11-step pipeline 에서 AllocationBalanceError raise 후 main.py envelope
+        REUSE 0 NEW handlers, CR 12-5 D-14 verbatim).
+
+    V8 determinism: 동일 3 inputs → byte-identical verdict hash.
+
+    D-9-2-DEFER-3 (Cost Object Breakdown backend persistence) 검증.
+    """
+    delta_krw = total_breakdown_sum + unused_cost - department_cost
+    is_balanced = abs(delta_krw) <= tolerance
+
+    verdict = V7Verdict(
+        is_balanced=is_balanced,
+        breakdown_sum=total_breakdown_sum,
+        unused_cost=unused_cost,
+        expected_sum=department_cost,
+        delta_krw=delta_krw,
+        hash="",  # placeholder
+    )
+    digest = hashlib.sha256(repr(verdict).encode()).hexdigest()
+    return V7Verdict(
+        is_balanced=is_balanced,
+        breakdown_sum=total_breakdown_sum,
+        unused_cost=unused_cost,
+        expected_sum=department_cost,
+        delta_krw=delta_krw,
+        hash=f"{ABC_HASH_PREFIX}{digest}",
+    )
+
+
+def dispatch_abc_path(
+    *,
+    tenant_industry: str,
+    requested_engine_type: str | None = None,
+) -> DispatchState:
+    """PRD §F9.3 + AD-19 dual-route — M3 dispatch EXTENSION.
+
+    공식 (AD-19 dual-route 결정):
+      - `tenant_industry == 'service'` → `resolved_engine_type = "abc"`
+        (M9 dispatch, AD-21 단일 소유)
+      - else (`'manufacturing'`, `'mixed'`, ...) →
+        `resolved_engine_type = "trad"` (기존 trad path, AD-18 backward compat)
+
+    Pure-Python, stdlib-only, deterministic (AD-5 + AD-11).
+
+    Args:
+      tenant_industry: tenant.industry 문자열 (예: 'service', 'manufacturing').
+      requested_engine_type: requested engine_type (optional, currently unused
+                              for 9-3 wire but reserved for A30 forward-lock).
+
+    Returns:
+      DispatchState(tenant_industry, resolved_engine_type, dispatch_reason,
+                    hash).
+
+    Edge cases:
+      - Empty tenant_industry → resolved_engine_type="trad" (fallback).
+
+    V8 determinism: 동일 tenant_industry → byte-identical dispatch hash.
+
+    A29 forward-lock dual-route wire 결정 (9-2 handoff).
+    """
+    if tenant_industry == "service":
+        resolved_engine_type: Literal["trad", "abc"] = "abc"
+        dispatch_reason = "서비스 업종 → M9 ABC dispatch (AD-19)"
+    else:
+        resolved_engine_type = "trad"
+        dispatch_reason = (
+            f"비서비스 업종 ({tenant_industry or 'unknown'}) → "
+            "기존 trad path (AD-18 backward compat)"
+        )
+
+    state = DispatchState(
+        tenant_industry=tenant_industry,
+        resolved_engine_type=resolved_engine_type,
+        dispatch_reason=dispatch_reason,
+        hash="",  # placeholder
+    )
+    digest = hashlib.sha256(repr(state).encode()).hexdigest()
+    return DispatchState(
+        tenant_industry=tenant_industry,
+        resolved_engine_type=resolved_engine_type,
+        dispatch_reason=dispatch_reason,
+        hash=f"{ABC_HASH_PREFIX}{digest}",
+    )
+
+
+def compute_abc_allocation_hash(
+    *,
+    multi_dept_ccr: MultiDepartmentCcrResult,
+    per_dept_allocations: list[DepartmentAllocation],
+    unused_capacity_breakdown: list[UnusedCapacitySubRow],
+) -> str:
+    """V8 determinism hash for 9-3 ABC allocation aggregate state.
+
+    `hashlib.sha256(repr(aggregate).encode()).hexdigest()` —
+    32 bytes hexdigest (64 chars), `sha256:` prefix.
+
+    Pure-Python, stdlib-only, deterministic (AD-5 + NFR16 + AD-11).
+
+    Args:
+      multi_dept_ccr: MultiDepartmentCcrResult (aggregate_multi_department_ccr).
+      per_dept_allocations: 부서별 DepartmentAllocation 리스트.
+      unused_capacity_breakdown: 부서별 UnusedCapacitySubRow 리스트.
+
+    Returns:
+      `f"sha256:{64-char-hexdigest}"`.
+
+    Note: 9-3 wire envelope = `{(multi_dept_ccr, per_dept_allocations,
+    unused_capacity_breakdown)}` aggregated hash (compute_and_persist
+    11-step pipeline 결과).
+
+    Type-safe: each input MUST be the expected type (MultiDepartmentCcrResult
+    / tuple[DepartmentAllocation] / tuple[UnusedCapacitySubRow]).
+    """
+    if not isinstance(multi_dept_ccr, MultiDepartmentCcrResult):
+        raise ValueError(
+            f"multi_dept_ccr must be MultiDepartmentCcrResult, "
+            f"got {type(multi_dept_ccr).__name__}"
+        )
+    if not all(
+        isinstance(alloc, DepartmentAllocation)
+        for alloc in per_dept_allocations
+    ):
+        raise ValueError(
+            "per_dept_allocations must be list[DepartmentAllocation]"
+        )
+    if not all(
+        isinstance(row, UnusedCapacitySubRow)
+        for row in unused_capacity_breakdown
+    ):
+        raise ValueError(
+            "unused_capacity_breakdown must be list[UnusedCapacitySubRow]"
+        )
+
+    aggregate = (
+        multi_dept_ccr,
+        tuple(per_dept_allocations),
+        tuple(unused_capacity_breakdown),
+    )
+    digest = hashlib.sha256(repr(aggregate).encode()).hexdigest()
+    return f"{ABC_HASH_PREFIX}{digest}"
+
+
 __all__ = [
     # Story 9.1 — Frozen dataclasses (100% validation)
     "CostPoolValidation",
@@ -1100,4 +1566,23 @@ __all__ = [
     "CCR_KRW_QUANTUM",
     "ABC_PRECISION_KRW_TOLERANCE",
     "CCR_HASH_PREFIX",
+    # Story 9.3 — Frozen dataclasses (V7 verify + multi-dept CCR + dispatch)
+    "V7Verdict",
+    "MultiDepartmentCcrResult",
+    "DispatchState",
+    "DepartmentAllocation",
+    "UnusedCapacitySubRow",
+    # Story 9.3 — Typed exceptions
+    "EmptyDepartmentsError",
+    "TooManyDepartmentsError",
+    # Story 9.3 — Pure functions
+    "verify_v7_balance",
+    "aggregate_multi_department_ccr",
+    "dispatch_abc_path",
+    "validate_department_count",
+    "compute_abc_allocation_hash",
+    # Story 9.3 — Constants
+    "V7_BALANCE_TOLERANCE_KRW",
+    "MAX_DEPARTMENT_COUNT",
+    "ABC_HASH_PREFIX",
 ]

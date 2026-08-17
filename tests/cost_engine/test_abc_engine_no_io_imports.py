@@ -1,19 +1,19 @@
-"""AST-based forbidden-import guard for Story 9.1 + 9.2 abc_engine.py.
+"""AST-based forbidden-import guard for Story 9.1 + 9.2 + 9.3 abc_engine.py.
 
-AD-1, AD-5, AD-11 enforcement — 9.1+9.2 EXTENSION surface whitelist.
+AD-1, AD-5, AD-11 enforcement — 9.1+9.2+9.3 EXTENSION surface whitelist.
 
 This test parses `packages/cost_engine/abc_engine.py` and asserts that
-only the 9.1+9.2 whitelisted stdlib modules are imported. Violations produce a
+only the 9.1+9.2+9.3 whitelisted stdlib modules are imported. Violations produce a
 clear file:line:module message that CI lint surfaces as a build failure.
 
-Allowed (Story 9.1+9.2 abc_engine.py whitelist — stdlib-only AD-5):
+Allowed (Story 9.1+9.2+9.3 abc_engine.py whitelist — stdlib-only AD-5):
   - __future__ (annotations)
   - hashlib (sha256 digest for V8 determinism)
   - dataclasses (frozen=True, slots=True)
-  - decimal (Decimal arithmetic + ROUND_HALF_EVEN, 9-2 CCR compute 1-Won precision)
-  - typing (Final, Union)
+  - decimal (Decimal arithmetic + ROUND_HALF_EVEN, 9-2/9-3 CCR compute 1-Won precision)
+  - typing (Final, Literal)
 
-Forbidden (9.1+9.2 explicitly disallows):
+Forbidden (9.1+9.2+9.3 explicitly disallows):
   - sqlalchemy, fastapi, starlette, requests, httpx
   - psycopg, asyncpg
   - time, datetime, random, os, socket, subprocess
@@ -32,13 +32,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 TARGET_FILE = ROOT / "packages" / "cost_engine" / "abc_engine.py"
 
-# Story 9.1 + Story 9.2 EXTENSION — same surface, no new external deps.
+# Story 9.1 + Story 9.2 + Story 9.3 EXTENSION — same surface, no new external deps.
 # 9-2 EXTENSION uses decimal.ROUND_HALF_EVEN (in `decimal` stdlib) for 1-Won precision.
-STORY_9_1_2_ALLOWED_TOP_LEVEL: frozenset[str] = frozenset(
+# 9-3 EXTENSION uses typing.Literal for DispatchState tag discriminator.
+STORY_9_1_2_3_ALLOWED_TOP_LEVEL: frozenset[str] = frozenset(
     {"__future__", "hashlib", "dataclasses", "decimal", "typing"}
 )
 
-STORY_9_1_2_FORBIDDEN_TOP_LEVEL: frozenset[str] = frozenset(
+STORY_9_1_2_3_FORBIDDEN_TOP_LEVEL: frozenset[str] = frozenset(
     {
         "sqlalchemy",
         "fastapi",
@@ -94,10 +95,10 @@ def test_abc_engine_whitelist_only() -> None:
     imports = _imports_in_file(TARGET_FILE)
     violations: list[str] = []
     for lineno, top in imports:
-        if top not in STORY_9_1_2_ALLOWED_TOP_LEVEL:
+        if top not in STORY_9_1_2_3_ALLOWED_TOP_LEVEL:
             violations.append(
                 f"{TARGET_FILE.relative_to(ROOT)}:{lineno} imports `{top}` "
-                f"— only {sorted(STORY_9_1_2_ALLOWED_TOP_LEVEL)} "
+                f"— only {sorted(STORY_9_1_2_3_ALLOWED_TOP_LEVEL)} "
                 f"allowed (Story 9.1+9.2 AD-5)"
             )
     assert not violations, "\n".join(violations)
@@ -109,7 +110,7 @@ def test_abc_engine_no_forbidden_imports() -> None:
     imports = _imports_in_file(TARGET_FILE)
     violations: list[str] = []
     for lineno, top in imports:
-        if top in STORY_9_1_2_FORBIDDEN_TOP_LEVEL:
+        if top in STORY_9_1_2_3_FORBIDDEN_TOP_LEVEL:
             violations.append(
                 f"{TARGET_FILE.relative_to(ROOT)}:{lineno} imports forbidden `{top}` "
                 f"(Story 9.1+9.2 AD-5 purity violation)"
@@ -137,7 +138,7 @@ def test_abc_engine_no_packages_services_or_apps_imports() -> None:
 @pytest.mark.engine
 def test_abc_engine_no_external_dependencies() -> None:
     """abc_engine.py must NOT import any non-stdlib package."""
-    stdlib_whitelist = STORY_9_1_2_ALLOWED_TOP_LEVEL
+    stdlib_whitelist = STORY_9_1_2_3_ALLOWED_TOP_LEVEL
     imports = _imports_in_file(TARGET_FILE)
     violations: list[str] = []
     for lineno, top in imports:
@@ -181,7 +182,7 @@ def test_abc_engine_9_2_no_clock_or_random() -> None:
 def test_abc_engine_9_2_stdlib_whitelist_count() -> None:
     """9-2 EXTENSION — stdlib whitelist size unchanged."""
     # 9-1 surface had 5 stdlib modules; 9-2 EXTENSION same surface, no new external deps.
-    assert len(STORY_9_1_2_ALLOWED_TOP_LEVEL) == 5
+    assert len(STORY_9_1_2_3_ALLOWED_TOP_LEVEL) == 5
 
 
 @pytest.mark.engine
@@ -208,3 +209,73 @@ def test_abc_engine_9_2_krw_quantum_constant() -> None:
     src = TARGET_FILE.read_text(encoding="utf-8")
     assert "CCR_KRW_QUANTUM" in src
     assert 'Decimal("1")' in src
+
+
+# ── Story 9.3 EXTENSION cases (dispatch + V7 verify + multi-dept CCR) ──
+
+
+@pytest.mark.engine
+def test_abc_engine_9_3_uses_typing_literal_for_dispatch() -> None:
+    """9-3 EXTENSION — DispatchState uses typing.Literal tag discriminator.
+
+    AD-19 dual-route 결정: M3 dispatch → 'trad' or 'abc' tag discriminator.
+    Literal 은 typing stdlib에 속하므로 whitelist 변경 0.
+    """
+    src = TARGET_FILE.read_text(encoding="utf-8")
+    assert "Literal" in src, (
+        "abc_engine.py must use `typing.Literal` for DispatchState "
+        "tag discriminator (9-3 AD-19 dual-route)"
+    )
+    assert "from typing import" in src, (
+        "abc_engine.py must import from `typing` for Literal/Final"
+    )
+
+
+@pytest.mark.engine
+def test_abc_engine_9_3_no_clock_or_random() -> None:
+    """9-3 EXTENSION — no clock or randomness (AD-5 + V8 determinism)."""
+    imports = _imports_in_file(TARGET_FILE)
+    for _, top in imports:
+        assert top not in {"time", "datetime", "random"}, (
+            f"abc_engine.py: {top} import forbidden (9-3 AD-5 + V8 determinism)"
+        )
+
+
+@pytest.mark.engine
+def test_abc_engine_9_3_stdlib_whitelist_count() -> None:
+    """9-3 EXTENSION — stdlib whitelist size unchanged (5 modules)."""
+    # 9-1 + 9-2 + 9-3 surface 누적, NO new external deps (Literal is part of typing).
+    assert len(STORY_9_1_2_3_ALLOWED_TOP_LEVEL) == 5
+
+
+@pytest.mark.engine
+def test_abc_engine_9_3_v7_balance_tolerance_constant() -> None:
+    """9-3 EXTENSION — `V7_BALANCE_TOLERANCE_KRW = Decimal("0.01")` constant present.
+
+    AD-8 1-Won precision + V7 ABC 무결성 1-Won precision invariant.
+    """
+    src = TARGET_FILE.read_text(encoding="utf-8")
+    assert "V7_BALANCE_TOLERANCE_KRW" in src
+    assert "Decimal(\"0.01\")" in src
+
+
+@pytest.mark.engine
+def test_abc_engine_9_3_max_department_count_constant() -> None:
+    """9-3 EXTENSION — `MAX_DEPARTMENT_COUNT = 50` constant present.
+
+    D-9-2-DEFER-2 (multi-department CCR aggregation) 해소.
+    """
+    src = TARGET_FILE.read_text(encoding="utf-8")
+    assert "MAX_DEPARTMENT_COUNT" in src
+    assert "50" in src
+
+
+@pytest.mark.engine
+def test_abc_engine_9_3_abc_hash_prefix_constant() -> None:
+    """9-3 EXTENSION — `ABC_HASH_PREFIX = "sha256:"` constant present.
+
+    V8 determinism trace (9-1 VALIDATION_HASH_PREFIX + 9-2 CCR_HASH_PREFIX 와 동일 prefix).
+    """
+    src = TARGET_FILE.read_text(encoding="utf-8")
+    assert "ABC_HASH_PREFIX" in src
+    assert '"sha256:"' in src

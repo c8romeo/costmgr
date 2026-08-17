@@ -83,6 +83,65 @@ manufacturing cost chain (COST_CALCULATION → CalcResponse), while
 
 ## Change history
 
+- **2026-08-16 (Story 9.3)** — A29 forward-lock dual-route wire 결정
+  (cj-style Epic 9 3번째 진입점, baseline_commit = `515efc4`):
+  - **POST /api/v1/calc is the SINGLE public endpoint** (AD-18). M3 owns
+    the route. M9 owns NO router (AD-19 + 9-2 in-memory contract preserved).
+  - **Dual-route gate**: `require_any_capability(COST_CALCULATION,
+    ABC_CALCULATION)` ANY-OF semantics (CR 12-5 D-14 + CR 6-2 V4
+    3-source contract).
+  - **Discriminated union response**: `CalcResponse | CalcAbcResponse`
+    with `engine_type: Literal["trad", "abc"]` tag discriminator
+    (Pydantic v2 + FastAPI tag).
+  - **M3 orchestrator dispatch**:
+    `calc_orchestrator._resolve_engine_type(industry)` returns
+    `"abc" if industry == 'service' else "trad"`. `_dispatch_abc_path`
+    LAZY-imports `AbcAllocationService.compute_and_persist`.
+  - **Pure kernel 9-3 EXTENSION** (`packages/cost_engine/abc_engine.py`,
+    A28 forward-lock 3-way wire 해소 — D-9-1-DEFER-1/2/4 해소):
+    - 5 NEW frozen dataclasses (DispatchState + V7Verdict +
+      MultiDepartmentCcrResult + DepartmentAllocation +
+      UnusedCapacitySubRow)
+    - 2 NEW typed exceptions (EmptyDepartmentsError +
+      TooManyDepartmentsError)
+    - 5 NEW pure functions (validate_department_count + dispatch_abc_path
+      + compute_abc_allocation_hash + validate_v7_balance +
+      compute_multi_dept_ccr)
+    - 3 NEW constants (ABC_HASH_PREFIX + V7_BALANCE_TOLERANCE_KRW +
+      MAX_DEPARTMENT_COUNT = 50)
+  - **Service layer EXTENSION** (`AbcAllocationService.compute_and_persist`,
+    11-step pipeline): load departments → validate count → per-dept CCR →
+    multi-dept CCR → per-dept allocation + V7 → cost_object_breakdown JSON
+    → unused_capacity JSON → V8 hash → idempotency + audit-first INSERT
+    → fiscal_period_snapshots INSERT → COMMIT. AD-22 ledger append-only
+    preserved (calc_log + verification_log BEFORE fiscal_period_snapshots).
+  - **Alembic 0028** (`apps/api/alembic/versions/
+    0028_abc_fiscal_period_breakdown.py`) adds 2 JSONB columns to
+    `fiscal_period_snapshots` (cost_object_breakdown + unused_capacity_breakdown)
+    + 2 GIN indexes (jsonb_path_ops) + 2 COMMENT ON COLUMN (NFR18 lock).
+    down_revision = `0027_budget_pre_standard` (8-3 wire tip).
+  - **2 NEW envelope handlers** (CR 12-5 D-14): 422 ABC_EMPTY_DEPARTMENTS
+    + 422 ABC_TOO_MANY_DEPARTMENTS.
+  - **Capability matrix v1.19 EXTENSION**: NO NEW capability row.
+    `ABC_CALCULATION` row fill changes from "9.1, 9.2" to "9.1, 9.2, 9.3".
+  - **4 honestly DEFER** (D-9-3-DEFER-1~4): Report #21 PDF export (9-4) +
+    Activity standard hour 자동 추출 (Epic 9 close-out follow-up) +
+    Unused capacity full breakdown (9-4) + Playwright E2E (Epic 9 close-out
+    follow-up).
+  - **Frontend RSC**: `apps/web/app/[locale]/(dashboard)/budget/
+    abc-calculation/page.tsx` + 4 NEW Client Components
+    (AbcDispatchPanel + AbcDispatchDecisionBadge +
+    AbcDispatchResultCard + AbcDispatchErrorToast) + 2 NEW TS mirrors
+    (m9-abc-dispatch.ts + m9-abc-v7-verdict-schema.ts).
+  - **Korean SSOT**: `abc_calculation` namespace (52 strings) in
+    `apps/web/messages/ko-KR.json`.
+  - **3중 게이트 FINAL CLEAN**: ruff scoped 0 NEW for 9-3 /
+    import-linter 2 KEPT / pytest focused 87 NEW passed (16 dispatch +
+    17 compute_and_persist + 8 alembic_0028 + 46 v1.19 drift) +
+    vitest 42 NEW 5 files / tsc zero NEW.
+  - 상세: [docs/abc-calculation.md](./abc-calculation.md) SSOT.
+  - **A30 forward-lock 결정 일정**: 9-4 spec 진입 시점.
+
 - **2026-08-16 (Story 9.2)** — A28 forward-lock 3-way wire 결정 (9-1
   handoff 진입점):
   - **CCR compute** (D-9-1-DEFER-1 해소) — `CCRPort.compute(tenant_id, period_key, department_id)` 단일 함수 (AD-21)
