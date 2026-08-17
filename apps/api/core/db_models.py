@@ -1204,3 +1204,73 @@ class BudgetScenario(Base):
     created_at_kst: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+
+
+# ── ai_insight_cache (Story 10.2, alembic 0030) ─────────────
+class AiInsightCache(Base):
+    """AD-25 verbatim 3-tuple AI insight cache row (master PRD §F10.1).
+
+    cache key = (tenant_id, period_key, calculation_result_hash) + per-kind row.
+    Per (tenant, period, kind, hash) UNIQUE constraint (idempotent INSERT).
+    INSERT-only by AD-2 — UPDATE/DELETE blocked by trigger (audit-first guard).
+
+    10-2 wire 진입 시점에 all 3 rows per cache entry are `source_kind='auto_analysis'`.
+    `source_kind='ai_reference'` 항목 추가는 Story 10.3 wire 진입 시점에 detailed wire
+    (AD-7 verbatim, 10-3 badge separation forward-bind).
+    """
+
+    __tablename__ = "ai_insight_cache"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "period_key",
+            "insight_kind",
+            "calculation_result_hash",
+            name="uq_ai_insight_cache_tenant_period_kind_hash",
+        ),
+        CheckConstraint(
+            "insight_kind IN ('cost_reduction_candidate', 'anomaly_pattern', 'forecast')",
+            name="ck_ai_insight_cache_insight_kind",
+        ),
+        CheckConstraint(
+            "source_kind IN ('auto_analysis', 'ai_reference')",
+            name="ck_ai_insight_cache_source_kind",
+        ),
+        CheckConstraint(
+            "period_key ~ '^\\d{4}-(0[1-9]|1[0-2])$'",
+            name="ck_ai_insight_cache_period_key_format",
+        ),
+        Index(
+            "idx_ai_insight_cache_tenant_period",
+            "tenant_id",
+            "period_key",
+        ),
+        Index(
+            "idx_ai_insight_cache_calculation_hash",
+            "calculation_result_hash",
+        ),
+        Index(
+            "idx_ai_insight_cache_published_at_desc",
+            "tenant_id",
+            "generated_at",
+        ),
+    )
+
+    insight_cache_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    period_key: Mapped[str] = mapped_column(Text, nullable=False)
+    calculation_result_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    insight_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    source_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

@@ -188,8 +188,10 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m5_ledger",
             "packages.services.m5_ledger.count_period_events",
             "packages.services.m5_ledger.query_period_closing_snapshot_all",
-            # m10_ai (Epic 10 — AI document extraction port)
+            # m10_ai (Epic 10 — AI document extraction port + kernels)
             "packages.services.m10_ai.extraction_port",
+            "packages.services.m10_ai.insight_cache_kernel",  # Story 10.2 (Epic 10 — Three-Insight Cache Policy pure kernel)
+            "packages.services.m10_ai.monthly_extraction_kernel",  # Story 10.1 (Epic 10 — monthly input extraction pure kernel)
             "packages.services.m10_ai",
             # Story 12.1 (Epic 12) — 2FA mandatory gate pure kernels
             # (RFC 6238 TOTP + PBKDF2-HMAC-SHA256 recovery hashing +

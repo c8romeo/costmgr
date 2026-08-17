@@ -203,3 +203,80 @@ class MonthlyExtractError(BaseModel):
     ]
     message_ko: str
     trace_id: str
+
+
+# ── Story 10.2 EXTENSION: Three-Insight Cache Schemas ──────
+# (cj-style Epic 10 3번째 진입점 wire, 2026-08-17)
+#
+# Pydantic v2 frozen models. Discriminated union pattern:
+# - `InsightEntry` carries insight_kind + source_kind tag discriminators
+# - `InsightListResponse` success envelope with `status='success'` tag
+# - `InsightCacheError` error envelope with error_code tag discriminator
+#
+# AD-15 cross-language parity SSOT:
+# - Python: apps/api/modules/m10_ai/schemas.py (InsightEntry)
+# - TS:     apps/web/lib/ai-insights.ts (InsightEntryTS) — honestly DEFER (d)
+#
+# AD-7 verbatim: 10-2 wire 진입 시점에 all 3 default insights are
+# `source_kind='auto_analysis'`. `source_kind='ai_reference'` 추가는
+# Story 10.3 wire 진입 시점에 detailed wire (badge separation).
+
+
+class InsightEntry(BaseModel):
+    """One AI insight entry returned by the M10 cache lookup.
+
+    Discriminator fields:
+      - insight_kind: Literal['cost_reduction_candidate', 'anomaly_pattern', 'forecast']
+      - source_kind:  Literal['auto_analysis', 'ai_reference']
+                      (10-2 wire 진입 시점: only 'auto_analysis' surfaced;
+                       'ai_reference' 추가 wire는 Story 10.3 진입 시점)
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    insight_kind: Literal["cost_reduction_candidate", "anomaly_pattern", "forecast"]
+    question: str
+    answer: str
+    source_kind: Literal["auto_analysis", "ai_reference"]
+    evidence_ref: str | None = None
+    generated_at: datetime
+
+
+class InsightListResponse(BaseModel):
+    """Body of `GET /api/v1/ai/insights` success envelope.
+
+    Discriminated union tag discriminator `status='success'` lets the
+    frontend narrow the response shape safely against `InsightCacheError`.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    insights: list[InsightEntry]
+    period_key: str
+    calculation_result_hash: str
+    hit_count: int
+    miss_count: int
+    status: Literal["success"] = "success"
+
+
+class InsightCacheError(BaseModel):
+    """Error envelope for `GET /api/v1/ai/insights` (CR 12-5 D-14 verbatim).
+
+    Discriminator `error_code` covers:
+      - AI_PIPA_CONSENT_MISSING     (403 — carry-over from 10-1)
+      - INSIGHT_CACHE_KEY_ERROR     (422 — invalid period_key / hash format)
+      - INSIGHT_COLD_COMPUTE_TIMEOUT (503 — NFR11 P95 ≤ 30s exceeded)
+      - AI_INSIGHT_CACHE_CONTAMINATION (500 — cross-channel leakage)
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    error_code: Literal[
+        "AI_PIPA_CONSENT_MISSING",
+        "INSIGHT_CACHE_KEY_ERROR",
+        "INSIGHT_COLD_COMPUTE_TIMEOUT",
+        "AI_INSIGHT_CACHE_CONTAMINATION",
+    ]
+    message_ko: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str

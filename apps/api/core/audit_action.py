@@ -66,6 +66,7 @@ class ActionClass(str, __import__("enum").Enum):
     ACCOUNT_BACKUP = "account_backup"  # Story 12.2 (NEW — daily auto-backup + JSON self-download audit)
     ACCOUNT_DELETION = "account_deletion"  # Story 12.3 (NEW — destructive endpoint + consent envelope audit)
     AI_EXTRACTION_EXECUTED = "ai_extraction_executed"  # Story 10.1 (NEW — monthly input extraction audit-first)
+    AI_INSIGHT_CACHE_ACCESSED = "ai_insight_cache_accessed"  # Story 10.2
 
 
 # ────────────────────────────────────────────────────────────
@@ -388,6 +389,20 @@ AIExtractionAction = Literal[
 ]
 
 
+# Story 10.2 (Epic 10) — ai_insight_cache_accessed (PRD §F10.1).
+# AD-25 verbatim 3-tuple cache key + audit-first INSERT (CR 1.1 verbatim).
+# 4 values: ai_insight_cache_hit (3 insights returned from cache),
+# ai_insight_cache_miss (cache miss → cold compute → INSERT 3 default insights),
+# ai_insight_cache_cold_compute (cold compute fell within NFR11 P95 ≤ 30s SLO),
+# ai_insight_cache_invalidation (AD-25 publisher cache invalidation log consume).
+AIInsightCacheAction = Literal[
+    "ai_insight_cache_hit",          # 10.2 cache hit (AC #2)
+    "ai_insight_cache_miss",         # 10.2 cache miss → cold compute (AC #3)
+    "ai_insight_cache_cold_compute",  # 10.2 cold compute within NFR11 SLO
+    "ai_insight_cache_invalidation",  # 10.2 F10.1-(c) cache invalidation log consume
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -413,6 +428,7 @@ AuditAction = (
     | AccountBackupAction
     | AccountDeletionAction
     | AIExtractionAction  # NEW — Story 10.1 (Epic 10)
+    | AIInsightCacheAction  # NEW — Story 10.2 (Epic 10)
 )
 
 
@@ -724,6 +740,22 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Story 10.2 (Epic 10) — three-insight cache access (PRD §F10.1).
+        # AD-25 verbatim 3-tuple cache key + audit-first INSERT (CR 1.1 verbatim).
+        # 4 NEW actions: hit / miss / cold_compute / invalidation log consume.
+        # Routes to audit_logs (NOT to a separate ledger — cache events are
+        # tenant-scoped platform-event trail only).
+        ActionClass.AI_INSIGHT_CACHE_ACCESSED: (
+            "audit_logs",
+            frozenset(
+                {
+                    "ai_insight_cache_hit",
+                    "ai_insight_cache_miss",
+                    "ai_insight_cache_cold_compute",
+                    "ai_insight_cache_invalidation",
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -850,5 +882,6 @@ __all__ = [
     "TwoFactorAuthAction",
     "AccountBackupAction",
     "AIExtractionAction",  # NEW — Story 10.1 (Epic 10)
+    "AIInsightCacheAction",  # NEW — Story 10.2 (Epic 10)
     "emit_audit_typed",
 ]

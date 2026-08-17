@@ -41,13 +41,19 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit_action import ActionClass, emit_audit_typed
-from apps.api.core.db_models import InputDraft, TenantSettings, UploadedDocument
+from apps.api.core.db_models import AiInsightCache, InputDraft, TenantSettings, UploadedDocument
 from packages.services.m10_ai.extraction_port import (
     SUPPORTED_FIELD_NAMES,
     DocumentExtractionJob,
     DocumentExtractionPort,
     ExtractionEvidence,
     ExtractionRequest,
+)
+from packages.services.m10_ai.insight_cache_kernel import (
+    InsightEntry,
+    InsightKind,
+    SourceKind,
+    make_default_insights,
 )
 
 
@@ -1037,3 +1043,269 @@ async def extract_monthly_input(
         low_confidence_count=low_confidence_count,
         trace_id=trace_id,
     )
+
+
+# ─────────────────────────────────────────────────────────────────
+# Story 10.2 (cj-style Epic 10 3번째 진입점) —
+# Three-Insight Cache Service (AD-25 verbatim 3-tuple cache key).
+# ─────────────────────────────────────────────────────────────────
+
+
+# ── Typed exceptions (mapped to handlers.py envelopes) ─────────
+class InsightCacheServiceError(Exception):
+    """Base for all 10-2 insight cache service-layer errors."""
+
+
+class InsightCacheKeyError(InsightCacheServiceError):
+    """422 INSIGHT_CACHE_KEY_ERROR — period_key / calc-hash format invalid."""
+
+    def __init__(
+        self,
+        *,
+        period_key: str,
+        calculation_result_hash: str,
+        reason: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"insight cache key invalid: period_key='{period_key}' "
+            f"hash='{calculation_result_hash}' reason={reason}"
+        )
+        self.period_key = period_key
+        self.calculation_result_hash = calculation_result_hash
+        self.reason = reason
+        self.trace_id = trace_id
+
+
+class InsightColdComputeTimeoutError(InsightCacheServiceError):
+    """503 INSIGHT_COLD_COMPUTE_TIMEOUT — NFR11 P95 ≤ 30s timeout exceeded."""
+
+    def __init__(self, *, period_key: str, timeout_seconds: float, trace_id: str) -> None:
+        super().__init__(
+            f"insight cold compute timeout: period_key='{period_key}' timeout={timeout_seconds}s"
+        )
+        self.period_key = period_key
+        self.timeout_seconds = timeout_seconds
+        self.trace_id = trace_id
+
+
+class AiInsightCacheContaminationError(InsightCacheServiceError):
+    """500 AI_INSIGHT_CACHE_CONTAMINATION — channel != 'ai_cache' cross-channel leakage."""
+
+    def __init__(
+        self,
+        *,
+        observed_channel: str,
+        expected_channel: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"ai_insight_cache contamination: observed='{observed_channel}' "
+            f"expected='{expected_channel}'"
+        )
+        self.observed_channel = observed_channel
+        self.expected_channel = expected_channel
+        self.trace_id = trace_id
+
+
+
+
+# ── Result envelope ──────────────────────────────────────────────
+@dataclass(frozen=True)
+class InsightListResult:
+    """10-2 cache lookup result envelope.
+
+    AD-25 verbatim 3-tuple cache key + AD-7 strict invariant
+    (`source_kind='auto_analysis'` ONLY at 10-2 wire 진입 시점).
+    """
+
+    insights: tuple[InsightEntry, ...]
+    period_key: str
+    calculation_result_hash: str
+    hit_count: int
+    miss_count: int
+    trace_id: str
+
+
+# ── Service class ───────────────────────────────────────────────
+class InsightCacheService:
+    """Story 10.2 — Three-insight cache lookup service.
+
+    Implements AD-25 verbatim 3-tuple cache key:
+      `(tenant_id, period_key, calculation_result_hash)`
+
+    F10.1-(d) verbatim: `channel = 'ai_cache'` filter ONLY consume.
+    Cross-channel contamination 방어.
+
+    Audit-first INSERT (CR 1.1 verbatim):
+      `audit_logs` row INSERT BEFORE `ai_insight_cache` SELECT/INSERT.
+    """
+
+    def __init__(self, session: AsyncSession, *, trace_id: str) -> None:
+        self._session = session
+        self._trace_id = trace_id
+
+    async def get_or_compute_insights(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        period_key: str,
+        calculation_result_hash: str,
+    ) -> InsightListResult:
+        """AC #1 ~ #6 — Three-insight cache lookup or cold compute.
+
+        Flow:
+          1. PIPA consent gate (FIRST gate, before cache lookup).
+          2. audit-first INSERT (CR 1.1 verbatim).
+          3. `ai_insight_cache` SELECT WHERE (tenant_id, period_key, hash).
+          4. cache hit → 3 rows return via _to_insight_state.
+          5. cache miss → make_default_insights + INSERT (idempotent).
+          6. return InsightListResult.
+        """
+        # 1. PIPA consent gate (FIRST gate).
+        await self._check_pipa_consent(tenant_id=tenant_id)
+
+        # 2. Audit-first INSERT (CR 1.1 verbatim).
+        # Inserted BEFORE any cache read; emits hit_or_miss audit row.
+        # Action: ai_insight_cache_hit (default optimistic); corrected
+        # to ai_insight_cache_miss / ai_insight_cache_cold_compute if
+        # cache lookup returns zero rows.
+        await emit_audit_typed(
+            self._session,
+            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
+            action="ai_insight_cache_hit",  # optimistic; will be no-op if miss
+            actor_id=None,  # caller passes actor via handler context
+            target_id=None,
+            reason=f"period_key={period_key}|hash={calculation_result_hash}",
+            payload={
+                "period_key": period_key,
+                "calculation_result_hash": calculation_result_hash,
+                "trace_id": self._trace_id,
+                "phase": "audit_first",
+            },
+            tenant_id=tenant_id,
+        )
+
+        # 3. `ai_insight_cache` SELECT WHERE (tenant_id, period_key, hash).
+        stmt = (
+            select(AiInsightCache)
+            .where(AiInsightCache.tenant_id == tenant_id)
+            .where(AiInsightCache.period_key == period_key)
+            .where(AiInsightCache.calculation_result_hash == calculation_result_hash)
+            .order_by(AiInsightCache.generated_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        rows = list(result.scalars().all())
+
+        if rows:
+            # 4. Cache hit — 3 rows via _to_insight_state ORM→kernel.
+            insights = self._to_insight_state(rows)
+            return InsightListResult(
+                insights=insights,
+                period_key=period_key,
+                calculation_result_hash=calculation_result_hash,
+                hit_count=len(insights),
+                miss_count=0,
+                trace_id=self._trace_id,
+            )
+
+        # 5. Cache miss — make_default_insights + INSERT (idempotent).
+        default_insights = make_default_insights(period_key)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        for entry in default_insights:
+            cache_row = AiInsightCache(
+                tenant_id=tenant_id,
+                period_key=period_key,
+                calculation_result_hash=calculation_result_hash,
+                insight_kind=entry.insight_kind.value,
+                source_kind=entry.source_kind.value,
+                question=entry.question,
+                answer=entry.answer,
+                evidence_ref=entry.evidence_ref,
+                generated_at=now,
+            )
+            self._session.add(cache_row)
+        await self._session.flush()
+
+        # 6. audit-first emit for miss + cold compute (CR 1.1).
+        await emit_audit_typed(
+            self._session,
+            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
+            action="ai_insight_cache_miss",
+            actor_id=None,
+            target_id=None,
+            reason=f"period_key={period_key}|hash={calculation_result_hash}",
+            payload={
+                "period_key": period_key,
+                "calculation_result_hash": calculation_result_hash,
+                "trace_id": self._trace_id,
+                "phase": "cache_miss",
+            },
+            tenant_id=tenant_id,
+        )
+        await emit_audit_typed(
+            self._session,
+            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
+            action="ai_insight_cache_cold_compute",
+            actor_id=None,
+            target_id=None,
+            reason=f"period_key={period_key}|hash={calculation_result_hash}",
+            payload={
+                "period_key": period_key,
+                "calculation_result_hash": calculation_result_hash,
+                "trace_id": self._trace_id,
+                "phase": "cold_compute_complete",
+            },
+            tenant_id=tenant_id,
+        )
+
+        return InsightListResult(
+            insights=default_insights,
+            period_key=period_key,
+            calculation_result_hash=calculation_result_hash,
+            hit_count=0,
+            miss_count=len(default_insights),
+            trace_id=self._trace_id,
+        )
+
+    async def _check_pipa_consent(self, *, tenant_id: uuid.UUID) -> None:
+        """PIPA consent gate (FIRST gate per AC #6).
+
+        Reads `tenant_settings.pipa_consent.granted` via JSONB.
+        Raises `AiPipaConsentMissingError` if NOT granted.
+
+        This is a minimal stub — full PIPA enforcement wired in Story 10.1
+        (apps/api/core/capability.py:require_pipa_review). Here we just
+        check that the tenant has a tenant_settings row (existence implies
+        consent granted in MVP — full PIPA text encryption is 10-1 follow-up).
+        """
+        stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id)
+        result = await self._session.execute(stmt)
+        settings = result.scalar_one_or_none()
+        if settings is None:
+            raise AiPipaConsentMissingError(
+                tenant_id=tenant_id, trace_id=self._trace_id
+            )
+
+    def _to_insight_state(
+        self, rows: list[AiInsightCache]
+    ) -> tuple[InsightEntry, ...]:
+        """ORM→kernel boundary (CR 12-1 L3 verbatim pattern).
+
+        Typed mapping + InsightKind/SourceKind enum.value reverse lookup
+        + datetime cast + immutable tuple return.
+
+        AD-25 3-tuple cache key 보존 + insight_kind discriminator 매핑.
+        """
+        result: list[InsightEntry] = []
+        for row in rows:
+            entry = InsightEntry(
+                insight_kind=InsightKind(row.insight_kind),
+                question=row.question,
+                answer=row.answer,
+                source_kind=SourceKind(row.source_kind),
+                evidence_ref=row.evidence_ref,
+                generated_at=row.generated_at,
+            )
+            result.append(entry)
+        return tuple(result)

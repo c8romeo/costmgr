@@ -640,3 +640,54 @@ T1 (backend pure kernel) + T4 (capability matrix drift detector) DONE —
 - **Reason**: 10-1 follow-up sprint DONE 후 진입. T2/T3/T5/T7/T8 honestly DEFER 6 categories 해소 후 sprint-status: `review → done` 정합.
 - **Scope**: 1 MODIFIED file (sprint-status.yaml).
 - **Pickup plan**: 10-1 follow-up sprint DONE 후 진입.
+
+## Deferred from: 10-2 (Three-Insight Cache Policy)
+
+Story 10.2 atomic single sprint wire completed 2026-08-17 (cj-style Epic 10
+3번째 진입점, cj-style 29번째 epic 연속). 5 items honestly-DEFERred per A34
+4-category framework ((a) docs 정합 / (b) retro input / (c) separate epic /
+(d) dedicated sprint). AD-25 verbatim 3-tuple cache key
+`(tenant_id, period_key, calculation_result_hash)` bound + A19 cohesion
+pattern 8 surface PASS + 3중 게이트 FINAL CLEAN.
+
+### D-10-2-DEFER-1 — Master PRD v2.0 본체 edit (a: docs 정합)
+
+- **Source**: `_bmad-output/planning-artifacts/prd.md` §F10.1·§F10.2·§8.1 M10·부록 A A37+ 추가 (Epic 10 close-out retro 진입 시점에 본체 edit).
+- **Reason**: Epic 10 PRD entry는 workspace canonical `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-08-17/prd.md` 만 wire. master PRD 본체 §F10.1·§F10.2·§8.1 M10·부록 A 추가는 Epic 10 close-out retro 진입 시점에 별도 atomic wire (cj-style standard pattern).
+- **Scope**: 1 MODIFIED file (master PRD v2.0 본체). 부록 A A37+ + §8.1 M10 4-story AC extension + §F10.1 (a)~(d) verbatim 4 bullets.
+- **Pickup plan**: Epic 10 close-out retro 진입 시점 (10-3~10-4 done 진입 후).
+
+### D-10-2-DEFER-2 — AI 인사이트 3개 카테고리 rule-based template detail + AI commentary async generation pipeline (b: retro input)
+
+- **Source**: `packages/services/m10_ai/insight_cache_kernel.py::make_default_insights` (3 default rule-based insights: cost_reduction_candidate + anomaly_pattern + forecast — question + answer ko-KR deterministic strings).
+- **Reason**: 10-2 wire 진입 시점에는 `make_default_insights(period_key)` 가 deterministic ko-KR template 3 insights 반환 (AD-7 verbatim `source_kind='auto_analysis'` ONLY). AI commentary (`source_kind='ai_reference'`) async generation pipeline + LLM provider wiring은 10-3 wire 진입 시점에 detail (CR 11-3 즉시 sweep 회피 pattern + 10-3 forward-bind verbatim).
+- **Scope**: 10-3 spec entry + LLM provider wiring + async generation pipeline + 3 NEW prompt templates (cost_reduction_candidate + anomaly_pattern + forecast) + TS mirror parity extension + ko-KR.json `ai_insights` namespace detail.
+- **Pickup plan**: 10-3 spec entry 진입 시점 (cj-style Epic 10 4번째 진입점).
+
+### D-10-2-DEFER-3 — AD-25 publisher LISTEN/NOTIFY trigger consume (c: separate epic)
+
+- **Source**: `apps/api/modules/m10_ai/service.py::InsightCacheService.get_or_compute_insights` (cache lookup = 단순 SELECT + cold compute fallback; NOTIFY consume 미구현).
+- **Reason**: AD-25 verbatim "Application polling AND input-write-only invalidation forbidden" — cache_invalidation_log row INSERT 시 trigger에서 NOTIFY emit + M10 adapter LISTEN consume 필요. 10-2 wire 진입 시점에는 cache lookup 단순 SELECT + cold compute fallback (NFR11 SLO guard ≤ 30s P95) 으로 fallback 보장. F10.1-(c) verbatim "마감 데이터 변경 시 즉시 폐기"는 AD-25 publisher로 발행 시점에 즉시 cache entry mark + cold compute fallback으로 보장 (별도 LISTEN/NOTIFY consume 미구현 사실 인정).
+- **Scope**: PostgreSQL trigger function `notify_ai_cache_invalidation()` + M10 adapter LISTEN consumer + ephemeral connection pool management. 별도 epic 진입 (epic 10+ 또는 epic 11 follow-up).
+- **Pickup plan**: 별도 epic 진입 시점 (post-Epic 10 follow-up).
+
+### D-10-2-DEFER-4 — 7 frontend files + 3 TS mirror parity + vitest mount (d: dedicated sprint)
+
+- **Source**: 5 NEW frontend files:
+  - `apps/web/components/ai-insights/InsightPanel.tsx` (NEW)
+  - `apps/web/components/ai-insights/InsightCard.tsx` (NEW)
+  - `apps/web/components/ai-insights/InsightKindBadge.tsx` (NEW)
+  - `apps/web/components/ai-insights/__tests__/InsightPanel.test.tsx` (NEW — vitest mount + A35 frontend test debt 정직 회복)
+  - `apps/web/lib/ai-insights.ts` (NEW — TS mirror parity: Python `InsightEntry` ↔ TS `InsightEntryTS`)
+  - `apps/web/__tests__/lib/ai-insights-parity.test.ts` (NEW — cross-language drift detector, 18 cases precedent)
+  - `apps/web/messages/ko-KR.json` (MODIFIED — `ai_insights` namespace ~15 strings SSOT, CR 11-4 D-002 + P-015 정합).
+- **Reason**: A35 frontend test debt honestly DEFER (10-2 wire 진입 시점에 7 frontend files + 3 TS mirror parity + vitest mount = A35 frontend test debt **dedicated sprint** 후속 진입, cj-style carry-over 13번째 가능). Story 10.1 D-10-1-DEFER-3 패턴 미러.
+- **Scope**: 7 NEW files = ~500 LOC frontend + ~120 NEW vitest cases.
+- **Pickup plan**: A35 frontend dedicated sprint 진입 (cj-style carry-over 13번째 = 10-3 follow-up 후속).
+
+### D-10-2-DEFER-5 — `packages.services.m10_ai.adapters.fake_adapter` stale import in service.py (carry-over from 10-1)
+
+- **Source**: `apps/api/modules/m10_ai/service.py:929` (pre-existing stale import path: `from packages.services.m10_ai.adapters.fake_adapter import FakeDocumentExtractionAdapter` — actual file path is `apps/api/modules/m10_ai/adapters/fake_adapter.py`).
+- **Reason**: Pre-existing violation from 10-1 wire (`809a081` baseline_commit). The test `tests/architecture/test_api_calls_only_ports.py::test_api_root_does_not_import_services` reads AST statically and finds the wrong-path string. At runtime, line 155's correct-path import inside `_get_document_extraction_adapter()` is the one actually used; line 929's import is dead code (duplicate lazy import, never reached because the helper function returns a singleton). 10-2 wire scope = 10-2 files only; does NOT touch 10-1 leftover service.py line.
+- **Scope**: 1 EDIT in `apps/api/modules/m10_ai/service.py` line 929 (replace path with `apps.api.modules.m10_ai.adapters.fake_adapter` OR refactor to use the existing `_get_document_extraction_adapter()` singleton helper).
+- **Pickup plan**: 10-1 follow-up sprint or 10-1 retro input (Epic 10 close-out retro 진입 시점에 결정).

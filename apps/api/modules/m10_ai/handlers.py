@@ -54,6 +54,9 @@ from apps.api.modules.m10_ai.schemas import (
     DraftResponse,
     DraftUpdateRequest,
     EvidenceResponse,
+    InsightCacheError,
+    InsightEntry,
+    InsightListResponse,
     MonthlyDraftResponse,
     MonthlyExtractError,
     MonthlyExtractRequest,
@@ -69,6 +72,7 @@ from apps.api.modules.m10_ai.service import (
     DocumentTooLargeError,
     DraftNotFoundError,
     DraftStateError,
+    InsightCacheService,
     MonthlyExtractionError,
     PromoteRequiredFieldsMissingError,
     extract_monthly_input,
@@ -553,4 +557,84 @@ async def extract_monthly_endpoint(
         drafts=drafts_response,
         low_confidence_count=result.low_confidence_count,
         status=status_value,
+    )
+
+
+# ── Story 10.2 EXTENSION: GET /api/v1/ai/insights ──────────
+# (cj-style Epic 10 3번째 진입점 wire, 2026-08-17)
+#
+# AD-25 verbatim 3-tuple cache key:
+#   (tenant_id, period_key, calculation_result_hash)
+# F10.1-(d) verbatim: channel = 'ai_cache' filter 강제
+#   (cross-channel contamination 방어).
+#
+# AD-7 strict invariant: 10-2 wire 진입 시점에 all 3 default insights
+# are `source_kind='auto_analysis'`. `ai_reference` 추가는 Story 10.3
+# wire 진입 시점에 detailed wire (badge separation).
+
+
+@router.get(
+    "/ai/insights",
+    response_model=InsightListResponse | InsightCacheError,
+    status_code=status.HTTP_200_OK,
+    summary="Three-Insight 캐시 조회 (AD-25 verbatim 3-tuple key)",
+    description=(
+        "3 insight entry 반환 (cost_reduction_candidate + anomaly_pattern + forecast). "
+        "AD-25 verbatim (tenant_id, period_key, calculation_result_hash) 캐시 키 기반. "
+        "캐시 hit sub-100ms, cold compute NFR11 P95 ≤ 30s. "
+        "channel='ai_cache' filter 강제 (F10.1-(d) verbatim cross-channel contamination 방지)."
+    ),
+)
+async def get_ai_insights(
+    period_key: str = Query(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="YYYY-MM fiscal period key (master PRD §V4 format)",
+    ),
+    calculation_result_hash: str = Query(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Epic 4 SHA-256 hex digest from fiscal_period_snapshots.calculation_result_hash",
+    ),
+    ctx: TenantContext = Depends(require_capability(Capability.AI_INSIGHT)),
+    session: AsyncSession = Depends(get_session),
+) -> Any:
+    """GET /api/v1/ai/insights — Three-insight cache lookup (Story 10.2).
+
+    PIPA gate + capability gate + audit-first INSERT (CR 1.1 verbatim).
+    Returns 3 insight entries:
+      - cost_reduction_candidate (auto_analysis)
+      - anomaly_pattern          (auto_analysis)
+      - forecast                 (auto_analysis)
+    All marked source_kind='auto_analysis' per AD-7 strict invariant
+    (10-2 wire 진입 시점).
+    """
+    trace_id = str(uuid.uuid4())
+    tenant_id = uuid.UUID(ctx.tenant_id)
+
+    service = InsightCacheService(session, trace_id=trace_id)
+    result = await service.get_or_compute_insights(
+        tenant_id=tenant_id,
+        period_key=period_key,
+        calculation_result_hash=calculation_result_hash,
+    )
+
+    return InsightListResponse(
+        insights=[
+            InsightEntry(
+                insight_kind=entry.insight_kind.value,
+                question=entry.question,
+                answer=entry.answer,
+                source_kind=entry.source_kind.value,
+                evidence_ref=entry.evidence_ref,
+                generated_at=entry.generated_at,
+            )
+            for entry in result.insights
+        ],
+        period_key=result.period_key,
+        calculation_result_hash=result.calculation_result_hash,
+        hit_count=result.hit_count,
+        miss_count=result.miss_count,
+        status="success",
     )

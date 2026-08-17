@@ -248,3 +248,48 @@ def test_capability_matrix_v1_21_ad17_invariant() -> None:
         "AD-17 violation: AI row has PROMOTE capability. "
         "InputPromoter is M2-only (master PRD §A17 verbatim)."
     )
+
+
+# ── Story 10.2 EXTENSION (cj-style 29번째 epic 연속) ─────────────
+# T6.1 NEW case: 10.2 story_coverage includes '10.2' reference + AD-25
+# verbatim cache key 3-tuple binding verification (forward-bind to
+# epics.md Story 10.2 wire 진입).
+
+
+def test_capability_matrix_v1_21_story_10_2_coverage() -> None:
+    """Story 10.2 (Three-Insight Cache Policy) is referenced in capability matrix.
+
+    10-2 wire 진입 시점에 AI_INSIGHT row MUST reference '10.2' alongside
+    '10.1, 10.3, 10.4'. P-015 SSOT parity preserved (4 stories = 1 row).
+    """
+    text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
+
+    # AI_INSIGHT row must include '10.2' in the story reference column
+    pattern = re.compile(
+        r"\|\s*`?AI_INSIGHT`?\s*\|[^|]*\b10\.2\b[^|]*\|",
+        re.MULTILINE,
+    )
+    assert pattern.search(text), (
+        "AI_INSIGHT row missing 10.2 story reference. "
+        "Story 10.2 (Three-Insight Cache Policy) is part of Epic 10 "
+        "4-story split + retro 5번째 진입점 (cj-style pattern)."
+    )
+
+
+def test_capability_matrix_v1_21_story_10_2_row_present() -> None:
+    """Story 10.2 row MUST exist with AI_INSIGHT capability reference.
+
+    Distinct from the AI_INSIGHT row (the row that lists 10.1~10.4 in its
+    story column). The Story 10.2 row uses format `| 10.2 — ... | `AI_INSIGHT` |`.
+    """
+    text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
+
+    # Story 10.2 row in story coverage table
+    pattern = re.compile(
+        r"\|\s*10\.2\s+—[^|]*\|\s*`?AI_INSIGHT`?",
+        re.MULTILINE,
+    )
+    assert pattern.search(text), (
+        "Story 10.2 row missing AI_INSIGHT capability reference. "
+        "Expected: `| 10.2 — Three-Insight Cache Policy | `AI_INSIGHT` |`"
+    )

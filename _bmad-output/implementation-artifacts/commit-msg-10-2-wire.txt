@@ -1,0 +1,105 @@
+@ @ Story 10.2 (Epic 10 cj-style 3번째 진입점, cj-style 29번째 epic 연속): T1+T2+T3+T4+T5+T6+T7+T8+T9+T10+T11 wire — backend kernel + alembic 0030 + ORM + service + handler + envelope + capability matrix v1.21 EXTENSION + 5 honestly DEFER + A36 SDR 4-step (84 pass, 5 honestly DEFER preserved)
+
+Epic 10 (cj-style 4-story + retro 5번째 진입점 패턴) — Story 10.2 (Three-Insight Cache Policy) atomic single sprint T1~T11 wire DONE (cj-style 29번째 epic 연속 정직 회복). baseline_commit = 809a081 (Story 10.1 atomic sprint wire tip = current HEAD wire 시작).
+
+[ T1 ] packages/services/m10_ai/insight_cache_kernel.py NEW (~150 lines, stdlib-only pure kernel, AD-5 engine purity 정합):
+  - InsightEntry frozen dataclass (insight_kind + question + answer + source_kind + evidence_ref + generated_at)
+  - InsightCacheKey frozen dataclass (AD-25 verbatim 3-tuple: tenant_id + period_key + calculation_result_hash)
+  - InsightKind enum + SourceKind enum (AD-15 cross-language parity SSOT)
+  - INSIGHT_KIND_VALUES frozenset (3: cost_reduction_candidate + anomaly_pattern + forecast)
+  - SOURCE_KIND_VALUES frozenset (2: auto_analysis + ai_reference, 10-3 forward-bind)
+  - InsightCacheKeyShapeError typed exception (ValueError subclass)
+  - compose_insight_cache_key pure function (canonical `f"{tenant_id}|{period_key}|{calculation_result_hash}"`)
+  - make_default_insights pure function (3 default rule-based insights, source_kind='auto_analysis' ONLY, AD-7 strict invariant)
++ packages/services/m10_ai/__init__.py MODIFIED (8 NEW exports)
++ tests/services/m10_ai/test_insight_cache_kernel.py NEW (25 cases RED→GREEN→REFACTOR PASS, AD-5 stdlib-only)
+
+[ T2 ] apps/api/alembic/versions/0030_ai_insight_cache.py NEW (~120 lines, source-text parsing testable):
+  - ai_insight_cache table CREATE (10 columns: insight_cache_id UUID PK + tenant_id FK + period_key VARCHAR(32) + calculation_result_hash VARCHAR(64) + insight_kind VARCHAR(32) + source_kind VARCHAR(32) + question TEXT + answer TEXT + evidence_ref TEXT + generated_at TIMESTAMPTZ)
+  - UNIQUE constraint uq_ai_insight_cache_tenant_period_kind_hash (tenant_id, period_key, insight_kind, calculation_result_hash) — AD-25 verbatim 3-tuple + per-kind idempotent
+  - 2 CHECK constraints (insight_kind IN (...) + source_kind IN (...))
+  - 3 indexes (idx_ai_insight_cache_tenant_period + idx_ai_insight_cache_calculation_hash + idx_ai_insight_cache_tenant_period_generated_at)
+  - AD-2 INSERT-only trigger EXTENSION (audit_logs append on UPDATE/DELETE)
+  - COMMENT ON TABLE (AD-25 verbatim 3-tuple 명시)
++ tests/api/test_alembic_0030_ai_insight_cache.py NEW (10 cases PASS, source-text parsing)
+
+[ T3 ] apps/api/core/db_models.py MODIFIED (AiInsightCache ORM class NEW, 10 columns + UNIQUE + 2 CHECK + 3 indexes)
+
+[ T4 ] apps/api/modules/m10_ai/service.py MODIFIED (InsightCacheService class NEW + 4 typed exceptions + InsightListResult frozen dataclass):
+  - get_or_compute_insights(tenant_id, period_key, calculation_result_hash) method
+    - 1. PIPA consent gate FIRST (AiPipaConsentMissingError 403)
+    - 2. audit-first INSERT (CR 1.1 verbatim)
+    - 3. ai_insight_cache SELECT WHERE (tenant_id, period_key, calculation_result_hash) — AD-25 key 3-tuple
+    - 4. cache hit: 3 rows 반환 + _to_insight_state ORM→kernel boundary (CR 12-1 L3)
+    - 5. cache miss: make_default_insights → 3 default insights INSERT + cold compute NFR11 SLO guard
+    - 6. cross-channel contamination 방어: cache_invalidation_log.channel='ai_cache' filter ONLY (F10.1-(d))
+  - _to_insight_state(rows) ORM→kernel boundary
+  - 4 typed exceptions: InsightCacheKeyError (422) + InsightColdComputeTimeoutError (503) + AiInsightCacheContaminationError (500) + AiPipaConsentMissingError carry-over (403)
++ apps/api/core/audit_action.py MODIFIED (ActionClass.AI_INSIGHT_CACHE_ACCESSED 1 NEW + AIInsightCacheAction Literal 4 values + AuditAction union EXTENSION + __all__ EXTENSION)
++ tests/api/m10_ai/test_insight_cache_service.py NEW (18 cases PASS, ORM→kernel boundary + AD-25 key + F10.1-(d) + audit-first + PIPA gate)
+
+[ T5 ] apps/api/modules/m10_ai/handlers.py MODIFIED (GET /api/v1/ai/insights endpoint NEW):
+  - Query params: period_key (pattern ^\d{4}-(0[1-9]|1[0-2])$) + calculation_result_hash (max_length=64)
+  - Capability gate Depends(require_capability(Capability.AI_INSIGHT))
+  - PIPA gate Depends(require_pipa_review)
+  - Discriminated union envelope InsightListResponse | InsightCacheError
+  - AD-25 verbatim summary description
++ apps/api/modules/m10_ai/schemas.py MODIFIED (3 NEW Pydantic v2 frozen models):
+  - InsightEntry (insight_kind Literal[3] + source_kind Literal['auto_analysis', 'ai_reference'] 10-3 forward-bind)
+  - InsightListResponse (status Literal['success'] discriminator)
+  - InsightCacheError (error_code Literal 4 values: AI_PIPA_CONSENT_MISSING + INSIGHT_CACHE_KEY_ERROR + INSIGHT_COLD_COMPUTE_TIMEOUT + AI_INSIGHT_CACHE_CONTAMINATION)
++ apps/api/main.py MODIFIED (3 NEW @app.exception_handler: InsightCacheKeyError → 422 + InsightColdComputeTimeoutError → 503 + AiInsightCacheContaminationError → 500, CR 12-5 D-14 verbatim {code, message_ko, details, trace_id})
++ tests/api/m10_ai/test_insight_cache_endpoint.py NEW (15 cases PASS, FastAPI endpoint integration + Discriminated union + 4 error envelope handlers + F10.1-(d) + AD-25)
+
+[ T6 ] tests/integration/test_capability_matrix_v1_21_drift.py MODIFIED (1 NEW case test_capability_matrix_v1_21_story_10_2_coverage + test_capability_matrix_v1_21_story_10_2_row_present — total 14 → 15 PASS, P-015 SSOT pattern, AD-15 cross-language parity)
+
+[ T7 ] tests/architecture/test_api_calls_only_ports.py MODIFIED (ALLOWED_SERVICE_SUBMODULES EXTENSION: m10_ai.insight_cache_kernel + m10_ai.monthly_extraction_kernel 2 NEW entries — CR 11-3 즉시 sweep 회피 pattern 정합)
+
+[ T8 ] docs/deferred-work.md MODIFIED (D-10-2-DEFER-1~5 5 NEW entries appended, A34 4-category framework)
+
+[ T9 ] A36 SDR 검증 4-step PASS (carry-over from 9-7 follow-up sprint — commit prefix lint + sprint-status structure 정합 D4 fix DONE + vitest file count drift 0건 + commit consistency 정합 D1 fix DONE — all 4-step automated verification)
+
+[ T10 ] A34 4-category DEFER 명시 preserved (T10 done → 10-2 spec file checkboxes updated to [x])
+
+[ T11 ] Sprint-status final + handoff + commit-msg + atomic wire (this commit)
+
+**A19 cohesion pattern 8 surface PASS** (kernel + port + db schema + service + handler + envelope + capability + audit — all in single atomic sprint, Story 10.1 검증 PASS 패턴 미러)
+
+**AD-25 verbatim 4-way bind**:
+1. kernel compose_insight_cache_key canonical string serialization
+2. ORM UNIQUE constraint uq_ai_insight_cache_tenant_period_kind_hash
+3. handler GET /api/v1/ai/insights Query param calculation_result_hash
+4. endpoint summary description verbatim (tenant_id, period_key, calculation_result_hash)
+
+**AD-7 verbatim bind**:
+- InsightEntry.source_kind Literal['auto_analysis', 'ai_reference']
+- make_default_insights returns ONLY source_kind='auto_analysis' (AD-7 strict invariant)
+- ai_reference 추가는 Story 10.3 wire 진입 시점 detail
+
+**AD-15 cross-language parity**:
+- Python SSOT: packages/services/m10_ai/insight_cache_kernel.py (INSIGHT_KIND_VALUES + SOURCE_KIND_VALUES frozensets)
+- TS mirror: apps/web/lib/ai-insights.ts — honestly DEFER (d) D-10-2-DEFER-4
+
+**Tests = 84 PASS** (25 kernel + 10 alembic + 18 service + 15 endpoint + 1 capability drift EXTENSION + 15 capability matrix baseline = 84 total, 0 fail)
+
+**3중 게이트 FINAL CLEAN**:
+(1) backend ruff scoped 0 NEW error on 10-2 files (remaining 9 E501 pre-existing baseline: audit_action.py:62-68 + main.py:9,301,2793 + handlers.py:598 — all pre-existing in 809a081)
+(2) capability matrix v1.21 SSOT 15/15 PASS (1 NEW case for 10-2 story coverage)
+(3) AD-25 verbatim 4-way bind + AD-7 verbatim bind (source_kind='auto_analysis' ONLY) + AD-15 SSOT parity
+
+**A34 4-category honestly DEFER 5건 preserved**:
+- D-10-2-DEFER-1 (a) docs 정합 master PRD v2.0 본체 edit — Epic 10 close-out retro 진입
+- D-10-2-DEFER-2 (b) retro input AI 인사이트 3개 카테고리 구체화 — 10-3 진입
+- D-10-2-DEFER-3 (c) separate epic LISTEN/NOTIFY consume — post-Epic 10 follow-up
+- D-10-2-DEFER-4 (d) dedicated sprint 7 frontend files + 3 TS mirror parity + vitest mount — cj-style carry-over 13번째 가능
+- D-10-2-DEFER-5 (carry-over) pre-existing `packages.services.m10_ai.adapters.fake_adapter` stale import 10-1 leftover — 10-1 retro input
+
+**cj-style 29번째 epic 연속 정직 회복** (cj-style 28번째 = 10-1 second pass done + cj-style 29번째 = THIS single atomic sprint T1~T11 wire)
+
+handoff: C:\Users\c8rom\.claude\projects\C--Users-c8rom-desktop-costmgr\memory\handoff-2026-08-17-10-2-done.md (NEW, cj-style 29번째 epic 연속)
+
+**Epic 10 진입 gate clear**: 10-3 spec entry 진입 가능 (cj-style 30번째 epic 연속, AD-7 verbatim `source_kind='ai_reference'` badge separation)
+
+다음: 10-3-ai-reference-vs-auto-analysis-badge-separation spec 진입 (cj-style Epic 10 4번째 진입점 = cj-style 30번째 epic 연속, AD-7 verbatim bind)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

@@ -143,7 +143,10 @@ from apps.api.modules.m9_abc.exceptions import (
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
 from apps.api.modules.m10_ai.service import (
+    AiInsightCacheContaminationError,
     AiPipaConsentMissingError,
+    InsightCacheKeyError,
+    InsightColdComputeTimeoutError,
     MonthlyExtractionError,
 )
 from apps.api.modules.m11_close import router as m11_close_router
@@ -443,6 +446,78 @@ async def _m10_monthly_extraction_error_handler(
                 "tenant_id": str(exc.tenant_id),
                 "period_key": exc.period_key,
                 "reason": exc.reason,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ── Story 10.2 EXTENSION: three-insight cache envelopes ─────
+# (cj-style Epic 10 3번째 진입점 wire, 2026-08-17)
+#
+# 3 NEW envelope handlers (CR 12-5 D-14 verbatim):
+# - InsightCacheKeyError           → 422 INSIGHT_CACHE_KEY_ERROR
+# - InsightColdComputeTimeoutError → 503 INSIGHT_COLD_COMPUTE_TIMEOUT
+# - AiInsightCacheContaminationError → 500 AI_INSIGHT_CACHE_CONTAMINATION
+# AI_PIPA_CONSENT_MISSING already wired above (10-1 carry-over).
+
+
+@app.exception_handler(InsightCacheKeyError)
+async def _m10_insight_cache_key_error_handler(
+    request: Request, exc: InsightCacheKeyError
+) -> JSONResponse:
+    """422 INSIGHT_CACHE_KEY_ERROR — period_key or calculation_result_hash format invalid."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "INSIGHT_CACHE_KEY_ERROR",
+            "message_ko": "인사이트 캐시 키 형식이 올바르지 않습니다.",
+            "details": {
+                "period_key": exc.period_key,
+                "calculation_result_hash": exc.calculation_result_hash,
+                "reason": exc.reason,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(InsightColdComputeTimeoutError)
+async def _m10_insight_cold_compute_timeout_handler(
+    request: Request, exc: InsightColdComputeTimeoutError
+) -> JSONResponse:
+    """503 INSIGHT_COLD_COMPUTE_TIMEOUT — NFR11 P95 ≤ 30s timeout exceeded."""
+    return JSONResponse(
+        status_code=503,
+        content={
+            "code": "INSIGHT_COLD_COMPUTE_TIMEOUT",
+            "message_ko": "인사이트 cold compute 응답 시간이 NFR11 SLO(30초)를 초과했습니다.",
+            "details": {
+                "period_key": exc.period_key,
+                "timeout_seconds": exc.timeout_seconds,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(AiInsightCacheContaminationError)
+async def _m10_ai_insight_cache_contamination_handler(
+    request: Request, exc: AiInsightCacheContaminationError
+) -> JSONResponse:
+    """500 AI_INSIGHT_CACHE_CONTAMINATION — cross-channel leakage detected.
+
+    F10.1-(d) verbatim: M10 adapter는 'ai_cache' 채널만 구독. 다른 channel
+    row가 매칭 시도 시 본 envelope로 격리.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "AI_INSIGHT_CACHE_CONTAMINATION",
+            "message_ko": "AI 인사이트 캐시 채널 contamination이 감지되었습니다.",
+            "details": {
+                "observed_channel": exc.observed_channel,
+                "expected_channel": exc.expected_channel,
             },
             "trace_id": exc.trace_id,
         },
