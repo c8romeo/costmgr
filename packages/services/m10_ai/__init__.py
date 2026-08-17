@@ -24,6 +24,13 @@ Story 10.2 EXTENSION (three-insight cache policy):
     - make_default_insights pure function (3 default rule-based insights)
     - InsightCacheKeyShapeError typed exception
 
+Story 10.3 EXTENSION note (AI reference vs auto analysis badge separation):
+    - `SourceKind` / `SOURCE_KIND_VALUES` re-export **그대로 보존** (SSOT 변경 0건).
+    - `ai_reference` opinion surface 는 service layer 로 진입
+      (`apps/api/modules/m10_ai/service.py::CommentService` + `ai_insight_comments`).
+    - F10.2-(a)~(d) verbatim bind: 파란 배지 '📊 자동 분석' (auto_analysis) /
+      보라 배지 '🤖 AI 참고(검증 필요)' (ai_reference) + SM-3a counter increment.
+
 AD-1 / AD-11 layering: pure kernel layer. Service layer
 (`apps/api/modules/m10_ai/`) imports from here.
 """

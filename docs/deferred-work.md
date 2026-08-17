@@ -691,3 +691,59 @@ pattern 8 surface PASS + 3중 게이트 FINAL CLEAN.
 - **Reason**: Pre-existing violation from 10-1 wire (`809a081` baseline_commit). The test `tests/architecture/test_api_calls_only_ports.py::test_api_root_does_not_import_services` reads AST statically and finds the wrong-path string. At runtime, line 155's correct-path import inside `_get_document_extraction_adapter()` is the one actually used; line 929's import is dead code (duplicate lazy import, never reached because the helper function returns a singleton). 10-2 wire scope = 10-2 files only; does NOT touch 10-1 leftover service.py line.
 - **Scope**: 1 EDIT in `apps/api/modules/m10_ai/service.py` line 929 (replace path with `apps.api.modules.m10_ai.adapters.fake_adapter` OR refactor to use the existing `_get_document_extraction_adapter()` singleton helper).
 - **Pickup plan**: 10-1 follow-up sprint or 10-1 retro input (Epic 10 close-out retro 진입 시점에 결정).
+
+## Deferred from: 10-3 (AI Reference vs Auto Analysis Badge Separation)
+
+Story 10.3 spec entry completed 2026-08-17. 5 items honestly-DEFERred
+per CR 11-3 discipline (24번째 epic 연속 — Epic 4·5·6·11·12·A19·7-1·7-2·8-1·8-2·8-3·9-1~9-7·10-1·10-2 + **10-3**):
+
+### D-10-3-DEFER-1 — Master PRD v2.0 본체 edit (a: docs 정합)
+
+- **Source**: `_bmad-output/planning-artifacts/prd.md` §F10.2·§8.1 M10-(b)·§12 AI 3종·§A11·§SM-3a·부록 A A37+ 추가 (Epic 10 close-out retro 진입 시점에 본체 edit).
+- **Reason**: Epic 10 PRD entry는 workspace canonical `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-08-17/prd.md` 만 wire. master PRD 본체 §F10.2·§8.1 M10-(b)·부록 A 추가는 Epic 10 close-out retro 진입 시점에 별도 atomic wire (cj-style standard pattern).
+- **Scope**: 1 MODIFIED file (master PRD v2.0 본체). 부록 A A37+ + §8.1 M10 4-story AC extension + §F10.2 (a)~(d) verbatim 4 bullets + §12 AI 3종 verbatim + §SM-3a 카운터 별도 추적 명시.
+- **Pickup plan**: Epic 10 close-out retro 진입 시점 (10-3~10-4 done 진입 후).
+
+### D-10-3-DEFER-2 — `ai_reference` 의견 async generation pipeline (b: retro input)
+
+- **Source**: `apps/api/modules/m10_ai/service.py::CommentService.list_comments` (cache miss path: returns 3 default `auto_analysis` insights + seed 1 row `ai_reference` 의견; full async generation pipeline for additional `ai_reference` opinions 미구현).
+- **Reason**: 10-3 wire 진입 시점에는 `ai_reference` 의견 1 row seed (deterministic ko-KR template, AD-7 verbatim `source_kind='ai_reference'`) 만 wire. AI commentary async generation pipeline (외부 LLM 호출 + JSON 응답 → `ai_insight_comments` INSERT) 진입 시점은 Epic 10 close-out retro에서 A37+ 결정 도출 (D-10-2-DEFER-2 carry-over + Epic 9 retro A31 Report #15 wire schedule).
+- **Scope**: LLM provider wiring + async generation pipeline + 3 NEW prompt templates (risk_warning + industry_benchmark + extended ai_reference) + TS mirror parity extension + ko-KR.json `ai_comments` namespace detail + rate limit + retry policy.
+- **Pickup plan**: Epic 10 close-out retro 결정 (A37+ 도출 후).
+
+### D-10-3-DEFER-3 — auto_analysis 의견 read-only DB-level enforcement trigger (c: separate epic)
+
+- **Source**: `apps/api/core/db_models.py::AiInsightComment` (10-3 wire 진입 시점 service-layer 검증 helper `validate_source_kind` + `AICommentImmutableAutoAnalysisError` typed exception 으로만 reject; DB-level trigger 별도 wire 0건).
+- **Reason**: AD-7 verbatim "deterministic template analysis is labeled `auto_analysis`; Attempts by M10 to write confirmed-input tables are denied and counted". 10-3 wire 진입 시점에는 service-layer 검증 helper + `_to_comment_state` ORM→kernel boundary typed mapping + audit_logs SELECT COUNT 카운터 derive 로 보장. DB-level INSERT-only trigger + UPDATE/DELETE 거부 trigger 별도 wire는 별도 epic 진입 (CR 12-5 L3 3-layer defense route|service|validation → DB 4th layer 추가 wire).
+- **Scope**: PostgreSQL trigger function `enforce_ai_insight_comments_immutable()` + UPDATE/DELETE 거부 trigger + AD-2 INSERT-only trigger EXTENSION + audit-first INSERT.
+- **Pickup plan**: 별도 epic 진입 시점 (post-Epic 10 follow-up).
+
+### D-10-3-DEFER-4 — 7 frontend files + 1 TS mirror parity + vitest mount + ko-KR.json SSOT (d: dedicated sprint)
+
+- **Source**: 7 NEW frontend files:
+  - `apps/web/components/ai-insights/AutoAnalysisBadge.tsx` (NEW — 파란 배지 "📊 자동 분석" + tooltip "이 의견은 고정 템플릿입니다")
+  - `apps/web/components/ai-insights/AiReferenceBadge.tsx` (NEW — 보라 배지 "🤖 AI 참고(검증 필요)" + tooltip "AI는 비권위적입니다 — 확정 책임은 사용자에게")
+  - `apps/web/components/ai-insights/CommentSection.tsx` (NEW — Discriminated union `AICommentEntry` props; source_kind discriminator 분기 + 2 badge component mount)
+  - `apps/web/components/ai-insights/__tests__/AutoAnalysisBadge.test.tsx` (NEW — vitest mount + A35 frontend test debt 정직 회복)
+  - `apps/web/components/ai-insights/__tests__/AiReferenceBadge.test.tsx` (NEW — vitest mount)
+  - `apps/web/lib/ai-comments.ts` (NEW — TS mirror parity: Python `AICommentEntry` ↔ TS `AICommentEntryTS`, Discriminated union narrowing)
+  - `apps/web/__tests__/lib/ai-comments-parity.test.ts` (NEW — cross-language drift detector, 18 cases precedent)
+  - `apps/web/messages/ko-KR.json` (MODIFIED — `ai_comments` namespace ~5 strings SSOT: badge labels 2 + tooltip 2 + warning 1, CR 11-4 D-002 + P-015 정합).
+- **Reason**: A35 frontend test debt honestly DEFER (10-3 wire 진입 시점에 7 frontend files + 1 TS mirror parity + vitest mount = A35 frontend test debt **dedicated sprint** 후속 진입, cj-style carry-over 14번째 가능). Story 10.1 D-10-1-DEFER-3 + Story 10.2 D-10-2-DEFER-4 패턴 미러.
+- **Scope**: 7 NEW files + 1 MODIFIED = ~600 LOC frontend + ~80 NEW vitest cases.
+- **Pickup plan**: A35 frontend dedicated sprint 진입 (cj-style carry-over 14번째 = 10-3 follow-up 후속).
+
+### D-10-3-DEFER-5 — `docs/deferred-work.md` EXTENSION 자체 (a: docs 정합 carry-over)
+
+- **Source**: 본 파일 `docs/deferred-work.md` (10-3 honestly DEFER items D-10-3-DEFER-1~4 EXTENSION 자체).
+- **Reason**: 본 파일 EXTENSION 자체 = D-10-3-DEFER-1 (a: docs 정합 carry-over). master PRD v2.0 본체 edit pattern 미러 (10-2 D-10-2-DEFER-5 패턴 미러 + carry-over).
+- **Scope**: 본 파일 1 MODIFIED (`docs/deferred-work.md`) EXTENSION = 본 section itself.
+- **Pickup plan**: Epic 10 close-out retro 진입 시점에 결정 (D-10-3-DEFER-1 + 본 carry-over 동시 해소).
+
+### D-10-3-DEFER-6 — PIPA dependency gate 10-1/10-2/10-3 carry-over (a: docs 정합 + handler 정합)
+
+- **Source**: Story 10.3 bmad-code-review 3rd sweep (cj-style 32번째 epic 연속, 2026-08-17). 3rd sweep Finding #4 (HIGH).
+- **Reason**: 10-3 wire 진입 시점에 `GET /api/v1/ai/comments` handler 가 `Depends(require_pipa_review)` 미적용 — `Depends(require_capability(Capability.AI_INSIGHT))` 만 적용. PIPA consent 검증은 service layer (`_check_pipa_consent`) 에서 re-check. 10-1 `POST /api/v1/ai/extract-monthly` + 10-2 `GET /api/v1/ai/insights` + 10-3 `GET /api/v1/ai/comments` 3개 endpoint 모두 동일한 carry-over pattern.
+- **Scope**: 3 MODIFIED handlers (`apps/api/modules/m10_ai/handlers.py` — `extract_monthly` + `get_ai_insights` + `get_ai_comments`) — `require_pipa_review` dependency 추가.
+- **Pickup plan**: 10-1-followup sprint 진입 시점에 10-1/10-2/10-3 3개 endpoint 일괄 정합. cj-style carry-over 가능. Or Epic 10 close-out retro 진입 시점에 결정.
+

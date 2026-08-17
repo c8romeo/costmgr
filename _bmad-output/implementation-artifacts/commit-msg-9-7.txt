@@ -1,0 +1,23 @@
+Story 9.7 (Epic 9 cj-style carry-over 11번째, 24번째 epic 연속): T1~T8 atomic wire — A35 frontend test debt 해소 + A36 SDR 검증 프로토콜 wire (D1/D2/D4/D5 자동화).
+
+[A35 wire] 5 NEW vitest component tests (AbcDispatchPanel + AbcDispatchDecisionBadge + AbcDispatchResultCard + AbcDispatchErrorToast + AbcValidationForm) + 3 NEW TS mirror parity tests (m9-abc-dispatch + report21 + report21-pdf) + 1 MODIFIED `apps/web/mocks/handlers.ts` (POST /api/v1/abc/validate handler).
+
+[A36 wire] 4-step SDR 검증 프로토콜: (1) commit prefix lint `scripts/check_commit_prefix.{py,mjs}` + (2) sprint-status structure `tests/integration/test_sprint_status_structure.py` + (3) vitest file count drift `tests/integration/test_vitest_file_count_drift.py` + (4) commit consistency `tests/integration/test_commit_consistency.py` + 1 MODIFIED `.github/workflows/ci.yml` (new `commit-prefix-lint` job).
+
+[D3 ✅ RESOLVED] 8 컴포넌트 마운트 (m9-abc 5건 standalone wire + m5-reports 3건 parent file cover 인정 per user option (a)) + 3 TS mirror parity wire. **vitest file count = 50 total (8 NEW) / vitest cases = 105 NEW** (R1 mitigation: actual `find` count).
+[D2 부분 해소] frontend vitest SDR overclaim 자동 검증 단계 추가 (vitest_file_count_claims_not_overclaim).
+[D1/D4/D5 자동화] A36 SDR 검증 프로토콜 commit prefix lint + sprint-status structure + commit consistency로 재발 방지.
+
+CR 11-3 honestly DEFER 24번째 epic 연속. cj-style carry-over sprint 11번째.
+
+[3중 게이트 FINAL CLEAN]
+- ruff scoped: 0 NEW (NEW files styled per stack_pin pattern)
+- import-linter: 2 KEPT (cost_engine_forbidden_io + engine_core_to_adapters_forbidden), 0 broken
+- pytest focused: 3 NEW (test_sprint_status_structure + test_vitest_file_count_drift + test_commit_consistency) + 0 fail
+- vitest: 529 total (105 NEW 9-7 wire = 50 test files, R1 actual find 결과) + 0 fail
+- tsc: zero NEW (no .ts changes outside __tests__)
+
+Refs: [[handoff-2026-08-17-epic-9-retro-done]], [[epic-9-handoffs-detail]]
+Supersedes: prior 9-7 spec-ready entry
+
+Co-Authored-By: Claude <noreply@anthropic.com>

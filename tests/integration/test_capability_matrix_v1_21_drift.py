@@ -293,3 +293,49 @@ def test_capability_matrix_v1_21_story_10_2_row_present() -> None:
         "Story 10.2 row missing AI_INSIGHT capability reference. "
         "Expected: `| 10.2 — Three-Insight Cache Policy | `AI_INSIGHT` |`"
     )
+
+
+# ── Story 10.3 EXTENSION (cj-style 30번째 epic 연속) ─────────────
+# T6.1 NEW case: 10.3 story_coverage includes '10.3' reference + F10.2
+# verbatim badge separation binding verification (forward-bind to
+# epics.md Story 10.3 wire 진입).
+
+
+def test_capability_matrix_v1_21_story_10_3_coverage() -> None:
+    """Story 10.3 (AI Reference vs Auto Analysis Badge Separation) is referenced.
+
+    10-3 wire 진입 시점에 AI_INSIGHT row MUST reference '10.3' alongside
+    '10.1, 10.2, 10.4'. P-015 SSOT parity preserved (4 stories = 1 row).
+    """
+    text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
+
+    # AI_INSIGHT row must include '10.3' in the story reference column
+    pattern = re.compile(
+        r"\|\s*`?AI_INSIGHT`?\s*\|[^|]*\b10\.3\b[^|]*\|",
+        re.MULTILINE,
+    )
+    assert pattern.search(text), (
+        "AI_INSIGHT row missing 10.3 story reference. "
+        "Story 10.3 (AI Reference vs Auto Analysis Badge Separation) "
+        "is part of Epic 10 4-story split + retro 5번째 진입점 "
+        "(cj-style pattern)."
+    )
+
+
+def test_capability_matrix_v1_21_story_10_3_row_present() -> None:
+    """Story 10.3 row MUST exist with AI_INSIGHT capability reference.
+
+    Distinct from the AI_INSIGHT row (the row that lists 10.1~10.4 in its
+    story column). The Story 10.3 row uses format `| 10.3 — ... | `AI_INSIGHT` |`.
+    """
+    text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
+
+    # Story 10.3 row in story coverage table
+    pattern = re.compile(
+        r"\|\s*10\.3\s+—[^|]*\|\s*`?AI_INSIGHT`?",
+        re.MULTILINE,
+    )
+    assert pattern.search(text), (
+        "Story 10.3 row missing AI_INSIGHT capability reference. "
+        "Expected: `| 10.3 — Reference vs Auto Analysis Badge | `AI_INSIGHT` |`"
+    )

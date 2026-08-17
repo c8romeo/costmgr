@@ -280,3 +280,95 @@ class InsightCacheError(BaseModel):
     message_ko: str
     details: dict[str, Any] = Field(default_factory=dict)
     trace_id: str
+
+
+# ── Story 10.3 EXTENSION: AI Reference vs Auto Analysis Badge Schemas ──
+# (cj-style Epic 10 4번째 진입점 wire, 2026-08-17)
+#
+# F10.2 (a)~(d) verbatim wire:
+#   (a) source_kind='auto_analysis' → 파란 배지 '📊 자동 분석'
+#       source_kind='ai_reference'  → 보라 배지 '🤖 AI 참고(검증 필요)'
+#   (b) source_kind 미매칭 value → strict reject + 1행 counter increment
+#   (c) auto_analysis 의견 수정 시도 → denied + 동일 카운터 추적 (SM-3a)
+#   (d) 1-line ko-KR 메시지로 reject ("분석 의견 출처가 불분명합니다")
+#
+# Discriminated union pattern (CR 12-5 D-13/D-14 verbatim):
+#   - `AICommentEntry` carries source_kind Literal tag discriminator
+#   - `AICommentListResponse` success envelope with `status='success'` tag
+#   - `AICommentError` discriminated union with error_code tag discriminator
+#
+# AD-15 cross-language parity SSOT (TS mirror:
+# apps/web/lib/ai-comments.ts — honestly DEFER (d), A35 dedicated sprint).
+#
+# AD-7 verbatim: 10-3 wire 진입 시점에 3 auto_analysis + 1 ai_reference opinions
+# surface. ai_reference async LLM generation pipeline is honestly DEFER (b)
+# retro input — seed 1 row with deterministic Korean body for shape verification.
+
+
+class AICommentEntry(BaseModel):
+    """One AI comment entry returned by the M10 comment lookup.
+
+    Discriminator fields:
+      - comment_kind:  Literal['cost_reduction_candidate', 'anomaly_pattern',
+                                'forecast', 'risk_warning', 'industry_benchmark']
+                       (master PRD §12 + 10-3 forward-fill 2 kinds)
+      - source_kind:   Literal['auto_analysis', 'ai_reference']
+                       (F10.2-(a) verbatim: badge 결정자)
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    comment_id: uuid.UUID
+    comment_kind: Literal[
+        "cost_reduction_candidate",
+        "anomaly_pattern",
+        "forecast",
+        "risk_warning",
+        "industry_benchmark",
+    ]
+    body_text: str
+    source_kind: Literal["auto_analysis", "ai_reference"]
+    evidence_ref: str | None = None
+    generated_at: datetime
+
+
+class AICommentListResponse(BaseModel):
+    """Body of `GET /api/v1/ai/comments` success envelope.
+
+    Discriminated union tag discriminator `status='success'` lets the
+    frontend narrow the response shape safely against `AICommentError`.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    comments: list[AICommentEntry]
+    period_key: str
+    calculation_result_hash: str
+    hit_count: int
+    miss_count: int
+    counter_total: int
+    status: Literal["success"] = "success"
+
+
+class AICommentError(BaseModel):
+    """Error envelope for `GET /api/v1/ai/comments` (CR 12-5 D-14 verbatim).
+
+    Discriminator `error_code` covers:
+      - AI_PIPA_CONSENT_MISSING            (403 — carry-over from 10-1/10-2)
+      - AI_COMMENT_SOURCE_KIND_INVALID     (422 — F10.2-(b) strict reject)
+      - AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS (422 — F10.2-(c) modify deny)
+      - AI_COMMENT_SOURCE_KIND_WARNING     (200 — F10.2-(d) 1-line ko-KR
+                                                          warning envelope)
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    error_code: Literal[
+        "AI_PIPA_CONSENT_MISSING",
+        "AI_COMMENT_SOURCE_KIND_INVALID",
+        "AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS",
+        "AI_COMMENT_SOURCE_KIND_WARNING",
+    ]
+    message_ko: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str

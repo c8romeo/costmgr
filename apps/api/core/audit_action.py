@@ -395,11 +395,19 @@ AIExtractionAction = Literal[
 # ai_insight_cache_miss (cache miss → cold compute → INSERT 3 default insights),
 # ai_insight_cache_cold_compute (cold compute fell within NFR11 P95 ≤ 30s SLO),
 # ai_insight_cache_invalidation (AD-25 publisher cache invalidation log consume).
+#
+# Story 10.3 EXTENSION (Epic 10, PRD §F10.2 (b)(c) + master PRD §SM-3a):
+# 2 NEW values (총 6 values) for the SM-3a counter trail —
+# ai_insight_cache_invalid_source_kind (F10.2-(b) source_kind 미매칭 strict reject),
+# ai_insight_cache_auto_analysis_modify_denied (F10.2-(c) auto_analysis 수정 시도 deny).
+# 카운터는 별도 table 없이 이 두 action 의 audit_logs row count 로 derive 한다.
 AIInsightCacheAction = Literal[
     "ai_insight_cache_hit",          # 10.2 cache hit (AC #2)
     "ai_insight_cache_miss",         # 10.2 cache miss → cold compute (AC #3)
     "ai_insight_cache_cold_compute",  # 10.2 cold compute within NFR11 SLO
     "ai_insight_cache_invalidation",  # 10.2 F10.1-(c) cache invalidation log consume
+    "ai_insight_cache_invalid_source_kind",  # 10.3 F10.2-(b) strict reject + counter
+    "ai_insight_cache_auto_analysis_modify_denied",  # 10.3 F10.2-(c) deny + counter
 ]
 
 
@@ -753,6 +761,9 @@ class _ActionRegistry:
                     "ai_insight_cache_miss",
                     "ai_insight_cache_cold_compute",
                     "ai_insight_cache_invalidation",
+                    # Story 10.3 EXTENSION (F10.2-(b)(c) SM-3a counter trail)
+                    "ai_insight_cache_invalid_source_kind",
+                    "ai_insight_cache_auto_analysis_modify_denied",
                 }
             ),
         ),

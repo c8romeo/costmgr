@@ -1274,3 +1274,77 @@ class AiInsightCache(Base):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+
+
+class AiInsightComment(Base):
+    """AD-7 + AD-25 verbatim AI insight comment row (master PRD §F10.2).
+
+    Story 10.3 (cj-style Epic 10 4번째 진입점, cj-style 30번째 epic 연속).
+
+    cache key = (tenant_id, period_key, calculation_result_hash) + per-kind row.
+    Per (tenant, period, kind, hash) UNIQUE constraint (idempotent INSERT).
+    INSERT-only by AD-2 — UPDATE/DELETE blocked by trigger (F10.2-(c)
+    `auto_analysis` 의견 read-only + audit-first guard).
+
+    `source_kind` discriminator (AD-7 verbatim, 10-2 kernel SSOT 보존):
+      - 'auto_analysis' → 파란 배지 '📊 자동 분석'
+                          + tooltip '이 의견은 고정 템플릿입니다'
+      - 'ai_reference'  → 보라 배지 '🤖 AI 참고(검증 필요)'
+                          + tooltip 'AI는 비권위적입니다 — 확정 책임은 사용자에게'
+    """
+
+    __tablename__ = "ai_insight_comments"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "period_key",
+            "comment_kind",
+            "calculation_result_hash",
+            name="uq_ai_insight_comments_tenant_period_kind_hash",
+        ),
+        CheckConstraint(
+            "comment_kind IN ('cost_reduction_candidate', 'anomaly_pattern', "
+            "'forecast', 'risk_warning', 'industry_benchmark')",
+            name="ck_ai_insight_comments_comment_kind",
+        ),
+        CheckConstraint(
+            "source_kind IN ('auto_analysis', 'ai_reference')",
+            name="ck_ai_insight_comments_source_kind",
+        ),
+        CheckConstraint(
+            "period_key ~ '^\\d{4}-(0[1-9]|1[0-2])$'",
+            name="ck_ai_insight_comments_period_key_format",
+        ),
+        Index(
+            "idx_ai_insight_comments_tenant_period",
+            "tenant_id",
+            "period_key",
+        ),
+        Index(
+            "idx_ai_insight_comments_calculation_hash",
+            "calculation_result_hash",
+        ),
+        Index(
+            "idx_ai_insight_comments_source_kind",
+            "tenant_id",
+            "source_kind",
+        ),
+    )
+
+    comment_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    period_key: Mapped[str] = mapped_column(Text, nullable=False)
+    calculation_result_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    comment_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    source_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    body_text: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )

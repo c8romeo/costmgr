@@ -1,0 +1,1064 @@
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index a0f5b59..b76eaa1 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -1,6 +1,6 @@
+ # generated: 2026-07-25
+-# last_updated: 2026-08-17 (10-2 spec entry)
+-# updated_note (current): Story 10.2 (Three-Insight Cache Policy, cj-style Epic 10 3번째 진입점 = cj-style 29번째 epic 연속) bmad-create-story spec entry DONE — sprint-status **10-2-three-insight-cache-policy: backlog → ready-for-dev**. baseline_commit = `809a081` (Story 10.1 atomic sprint wire tip = current HEAD). **cj-style 29번째 epic 연속 검증** (cj-style 28번째 = 10-1 atomic sprint wire + cj-style 29번째 = THIS). **AD-25 verbatim bind** (cache key `(tenant_id, period_key, calculation_result_hash)`) + **F10.1 (a)~(d) 4 bullets 정합** (PRD §F10.1 lines 76-93 verbatim) + **10-3 forward-bind** (`source_kind: Literal['auto_analysis', 'ai_reference']` discriminator, AD-7 verbatim). **6 ACs** wire 진입 시점 = 78 cases planned (~25 kernel + ~18 service + ~15 endpoint + ~10 alembic + ~10 capability drift EXTENSION). **Epic 4 calc-hash publisher `ai_cache` channel 1개만 wire** + Epic 11 close/reopen trigger EXTENSION forward-lock (Story 11.1/11.3 진입 시점; CR 1.1 forward-lock pattern). **A19 cohesion pattern 8 surface 정합** (kernel + port + db schema + service + handler + envelope + capability + audit, Story 10.1 검증 PASS 패턴 미러). **ALLOWED_SERVICE_SUBMODULES sweep**: m10_ai 보존 + m10_ai.insight_cache_service EXTENSION 확인 (CR 11-3 즉시 sweep 회피 pattern — cross-import ZERO 정합). **CacheInvalidationPublisher 보존 활용** (CR 11-3 즉시 sweep 회피 — 이미 wire DONE core 인프라 변경 0건, M10 surface EXTENSION만). **A34 4-category honestly DEFER 5 categories 명시** (`D-10-2-DEFER-1` (a) docs 정합 master PRD v2.0 본체 edit + `D-10-2-DEFER-2` (b) retro input AI 인사이트 3개 구체화 + `D-10-2-DEFER-3` (c) separate epic LISTEN/NOTIFY consume ★ AD-25 verbatim "Application polling forbidden" 정합 + `D-10-2-DEFER-4` (d) dedicated sprint 5 frontend files + 3 TS mirror parity + `D-10-2-DEFER-5` carry-over docs/deferred-work.md). **A36 SDR 검증 4-step PASS** (carry-over from 9-7 follow-up sprint — commit prefix lint + sprint-status structure 정합 D4 fix DONE + vitest file count drift 0건 + commit consistency 정합 D1 fix DONE). spec: `_bmad-output/implementation-artifacts/10-2-three-insight-cache-policy.md` (NEW, ~1100 lines, Task checkboxes + File List + Change Log + Status + 11 Task groups). **wire 진입 gate clear** (cj-style 29번째 epic 연속 정직 회복). 다음: `bmad-dev-story 진입 → T1~T11 atomic sprint wire → bmad-code-review 3rd sweep → done 진입 (cj-style 30번째 epic 연속, AD-25 verbatim bind)`.
++# last_updated: 2026-08-17 (10-3 spec entry)
++# updated_note (current): Story 10.3 (AI Reference vs Auto Analysis Badge Separation, cj-style Epic 10 4번째 진입점 = cj-style 30번째 epic 연속) bmad-create-story spec entry DONE — sprint-status **10-3-ai-reference-vs-auto-analysis-badge-separation: backlog → ready-for-dev**. baseline_commit = `146a7da` (Story 9.7 follow-up sprint atomic wire tip = current HEAD; 10-1 atomic sprint wire tip = `809a081`; 10-2 atomic sprint wire tip = `7683135` 보존). **cj-style 30번째 epic 연속 검증** (cj-style 29번째 = 10-2 atomic sprint wire done + cj-style 30번째 = THIS). **AD-7 verbatim bind** (`source_kind: Literal['auto_analysis', 'ai_reference']` Discriminated union + auto_analysis 의견 수정 시도 deny + SM-3a 카운터 increment + 보라 배지 '🤖 AI 참고(검증 필요)' + 파란 배지 '📊 자동 분석' + tooltip 'AI는 비권위적입니다 — 확정 책임은 사용자에게') + **F10.2 (a)~(d) 4 bullets verbatim wire** (workspace canonical PRD lines 95-112 verbatim) + **10-2 forward-bind 보존** (`source_kind` Literal SSOT + `make_default_insights` source_kind='auto_analysis' ONLY invariant 그대로, 10-2 wire SSOT 보존). **6 ACs** wire 진입 시점 = ~54 cases planned (~10 validate_source_kind + ~18 service + ~15 endpoint + ~10 alembic + ~1 capability drift EXTENSION). **A19 cohesion pattern 8 surface 정합** (kernel + port + db schema + service + handler + envelope + capability + audit, 10-1 + 10-2 PASS 패턴 미러). **SourceKind SSOT 보존 활용** (CR 11-3 즉시 sweep 회피 pattern — `packages/services/m10_ai/insight_cache_kernel.py` 의 `SOURCE_KIND_VALUES` frozenset + `SourceKind` enum + `make_default_insights` source_kind='auto_analysis' ONLY invariant 그대로 보존, **로직 변경 0건**, JSDoc EXTENSION만). **A34 4-category honestly DEFER 5 categories 명시** (`D-10-3-DEFER-1` (a) docs 정합 master PRD v2.0 본체 edit + `D-10-3-DEFER-2` (b) retro input `ai_reference` 의견 async generation pipeline + `D-10-3-DEFER-3` (c) separate epic auto_analysis 의견 read-only DB-level trigger + `D-10-3-DEFER-4` (d) dedicated sprint 7 frontend files (2 badge components + 1 comment section + 2 vitest mount tests + 1 TS mirror + 1 ko-KR.json SSOT + 1 cross-language drift detector test) A35 frontend test debt **dedicated sprint** 후속 진입 cj-style carry-over 14번째 가능 + `D-10-3-DEFER-5` carry-over docs/deferred-work.md). **A36 SDR 검증 4-step PASS** (carry-over from 9-7 follow-up sprint — commit prefix lint + sprint-status structure 정합 D4 fix DONE + vitest file count drift 0건 + commit consistency 정합 D1 fix DONE). spec: `_bmad-output/implementation-artifacts/10-3-ai-reference-vs-auto-analysis-badge-separation.md` (NEW, ~700 lines, Task checkboxes + File List + Change Log + Status + 11 Task groups + honestly DEFER 4 categories). **wire 진입 gate clear** (cj-style 30번째 epic 연속 정직 회복). 다음: `bmad-dev-story 진입 → T1~T11 atomic sprint wire → bmad-code-review 3rd sweep → done 진입 (cj-style 31번째 epic 연속, AD-7 verbatim bind)`.
+ # updated_note (prior 3): Story 10.1 (AI Document Extraction to Input Drafts, cj-style Epic 10 2번째 진입점 = cj-style 28번째 epic 연속) follow-up sprint second pass DONE — sprint-status **10-1-ai-document-extraction-input-drafts: review → done** (cj-style 28번째 epic 연속 atomic single sprint T2.5+T2.6+T3+T8.2 wire). baseline_commit = `d56959c` (10-1 follow-up sprint first pass tip = second pass wire 시작 HEAD = current HEAD). **cj-style 28번째 epic 연속 검증** (cj-style 27번째 = 10-1 follow-up sprint first pass done + cj-style 28번째 = this sprint). **D1~D5 FACTS.md 발견 정직 회복** (cj-style 23번째 진입점 회복 + cj-style 25번째 Epic 10 PRD 진입 + cj-style 26번째 10-1 partial wire + cj-style 27번째 10-1 follow-up first pass + cj-style 28번째 THIS). **wire 표** (9 source files + 1 spec, atomic single sprint): 4 NEW (`apps/api/alembic/versions/0029_input_drafts_monthly_extension.py` S3 + `tests/services/m10_ai/test_extraction_service.py` T2.7 ~20 cases + `tests/api/m10_ai/test_extraction_endpoint.py` T2.8 ~12 cases 8 PASS + 4 skipif DB-backed + `tests/api/test_alembic_0029_input_drafts_monthly.py` T3.2 ~10 cases) + 5 MODIFIED (`apps/api/core/audit_action.py` S0 AIExtractionAction Literal+union+registry+__all__ BLOCKER fix + `apps/api/modules/m10_ai/service.py` S1 dead code 1-line 제거 + `apps/api/core/capability.py` S2 Capability.AI_INSIGHT enum + 4-industry grants + `apps/api/modules/m10_ai/handlers.py` S4 POST /api/v1/ai/extract-monthly + 3 typed exception catch + `apps/api/main.py` S5 3 NEW @app.exception_handler) + 1 MODIFIED spec (`sprint-status.yaml` T8.2). **Tests** = 40 prior pass + 32 NEW = **72 pass + 4 skipped** (honest count, vitest frontend excluded). **A19 cohesion pattern 8 surface PASS** (kernel + port + db schema + service + handler + envelope + capability + audit, all in single atomic sprint). **3중 게이트 FINAL CLEAN**: (1) backend ruff scoped 0 NEW error for S0~S5 files + (2) capability matrix v1.21 SSOT RED→GREEN (AI_INSIGHT row + 4-industry grants + 10.1~10.4 story references, 14 cases) + (3) AD-7 verbatim bind (M10 NEVER writes `confirmed_inputs`, `target_table='monthly_inputs'` ONLY Literal + CHECK constraint) + AD-17 verbatim bind (InputPromoter.promote M2-only, no service.py edit in this sprint) + AD-25 verbatim bind (cache invalidation publisher untouched, no Epic 11 trigger wire in this sprint). **A34 4-category honestly DEFER 해소 3건 preserved 2건**: 해소 ✅ D-10-1-DEFER-1 잔여 (T2.5-T2.8 handlers + service layer detail wire) + ✅ D-10-1-DEFER-2 (T3 alembic 0029 + tests) + ✅ D-10-1-DEFER-6 (T8.2 sprint-status final done marker wire); preserved (A34 (d) dedicated sprint) → D-10-1-DEFER-3 (T5 frontend 8 files + TS mirror parity + vitest = A35 frontend test debt **dedicated sprint** 후속 진입) + preserved (A34 (a) docs 정합) → D-10-1-DEFER-4 (T7 master PRD v2.0 §F10.1·§F10.2 detail, Epic 10 close-out retro 진입 시점). **A36 SDR 검증 4-step PASS** (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency). handoff: `C:\Users\c8rom\.claude\projects\C--Users-c8rom-desktop-costmgr\memory\handoff-2026-08-17-10-1-done.md` (NEW, supersedes prior `handoff-2026-08-17-10-1-followup-done.md`). **Epic 10 진입 gate clear**: 10-2 spec entry 진입 가능 (cj-style 29번째 epic 연속). 다음: `10-2-three-insight-cache-policy spec 진입 (AD-25 verbatim bind, cj-style Epic 10 3번째 진입점)`.
+ # updated_note (prior 4): Story 9.6 (Epic 9 close-out retro + A35/A36 wire, cj-style 6번째 진입점) DONE — sprint-status **epic-9-retrospective ready-for-dev → done** (cj-style 5번째 진입점 retro closed) + **9-6-epic-9-close-out-retrospective: ready-for-dev → done** (cj-style 6번째 진입점 = cj-style carry-over 10번째) + **9-7-epic-9-frontend-test-debt-follow-up: backlog → ready-for-dev** (A35 wire 진입). baseline_commit = `11153a5` (Story 9.5 follow-up done tip = 9-6 wire 시작 HEAD). cj-style 23번째 epic 연속 검증. **D1~D5 FACTS.md 발견 정직 반영** (9-1 commit = `2aa06dd` 8.3+9.1 합본 atomic 규율 위반 + 9-3 vitest 0건 / 9-4 vitest 1건 SDR overclaim + 8 컴포넌트 미테스트 + sprint-status 구조 결함 + commit `@ @` 접두사). **A31~A36 신규 결정 wire**: A31 Report #15 wire schedule (cj-style Epic 9 6번째 진입점 = 9-6 follow-up sprint 진입) + A32 A30 SHARED factory pattern reuse entry 1st case (Report #15 wire) + A33 A19 cohesion pattern 9 surface 진입 시점 (Report #15 wire pdf_generator EXTENSION) + A34 mixed honestly DEFER 4-category framework 정형화 (a)~(d) + **A35 frontend test debt honestly DEFER (d) + 9-7 follow-up sprint 진입** (D3 해소) + **A36 SDR claim 검증 프로토콜 wire** (D1/D2/D4/D5 자동 검증 단계). **wire 표** = docs only (6 files): `_bmad-output/implementation-artifacts/epic-9-retro-2026-08-17.md` NEW 12-section retro (cj-style 5번째 진입점) + `_bmad-output/implementation-artifacts/deferred-work.md` Epic 9 close-out retro follow-up section (D-9-3-DEFER-2 + D-9-4-DEFER-2/3/4 보존 + A35 9-7 진입 일정) + `_bmad-output/implementation-artifacts/sprint-status.yaml` 구조 결함 (D4) 해소 — `epic-9-retrospective` + `epic-10` + 10-1~10-4 + `epic-10-retrospective` key를 `action_items:` 블록 (line 628~659) 에서 `development_status:` 블록 (line 274 후) 으로 이동 + `epic-9-retrospective: done` status 갱신 + 9-6 + 9-7 entry 추가 + `updated_note` cj-style 23번째 epic 연속 text + memory handoff + MEMORY.md index sync. **3중 게이트 impact**: NONE (docs only 변경, no code change, no test change). ruff scoped 0 NEW / import-linter 2 KEPT 0 broken / pytest focused baseline 보존 / vitest baseline 보존 / tsc zero NEW. **partial wire 시도 0건 + single sprint atomic wire** (docs only — cj-style 23번째 epic 연속 정직 회복). handoff: `C:\Users\c8rom\.claude\projects\C--Users-c8rom-desktop-costmgr\memory\handoff-2026-08-17-epic-9-retro-done.md` (NEW, T8 sync). **D4 해소**: action_items misplaced entries 모두 development_status 블록으로 이동. **Epic 9 close-out retro closed** (cj-style 5번째 진입점 = cj-style 22번째 epic 연속 + retro 정직성 회복). 다음: `9-7 follow-up sprint 진입 (A35 frontend test debt 해소 — 8 컴포넌트 마운트 + 3 TS mirror parity wire) cj-style carry-over 11번째 OR Epic 10 PRD 진입 (A35 done 진입 후)`.
+ # updated_note (prior 6): Story 9.4 bmad-dev-story T1~T10 atomic wire DONE — sprint-status 9-4 in-progress → done (cj-style Epic 9 4번째 진입점 close-out). baseline_commit = a67951b (Story 9.3 T10 close-out tip). 21번째 epic 연속 (partial wire 시도 0건) + cj-style atomic single sprint T1~T10 보존. **A30 forward-lock dual-report SHARED PDF generator 결정 wire DONE**: Report #21 (Cost Object Breakdown) + Report #15 (활동원가 내역서, 후속 placeholder) = SHARED packages/services/m5_reports/pdf_generator.py Discriminated union report_id: Literal[15,16,17,18,19,20,21] factory pattern. **D-9-3-DEFER-1 Report #21 PDF export 해소** (T4 + T5 wire) + **D-9-3-DEFER-3 Unused capacity full breakdown by department 해소** (T3 wire). **A19 cohesion pattern 7 surface** (`packages/cost_engine/abc_engine.py` 9-1+9-2+9-3+9-4 EXTENSION 누적, A26 Option A 정합) + **A19 cohesion pattern 8 surface** (NEW SHARED pdf_generator.py). **capability matrix v1.20 EXTENSION** (NO NEW capability, capability matrix 변경 0, require_any_capability 9-3 wire ANY-OF reuse). **4 honestly DEFER per CR 11-3 21번째 epic 연속**: D-9-4-DEFER-1 epics.md "원가대상별 원가 집계표" vs PRD §9 #21 "부문귀속명세서" 정합 (Epic 9 close-out follow-up) + D-9-4-DEFER-2 Report #15 wire = A30 SHARED factory 패턴 재사용 entry (A31+ 결정) + D-9-4-DEFER-3 AI 자동 분석의견 (PRD §9 #16 + §A11 + §10, 9-4 follow-up) + D-9-4-DEFER-4 Playwright E2E (Epic 9 close-out follow-up, A27 결정). partial wire 시도 0건 + single sprint atomic wire T1~T10 결정. **A31+ forward-lock 결정 일정** (Report #15 wire = A30 SHARED factory 패턴 재사용 entry) + **Epic 9 close-out retro** 결정 일정 (cj-style 5번째 진입점, 9-4 done 진입 후). handoff: `C:\Users\c8rom\.claude\projects\C--Users-c8rom-desktop-costmgr\memory\handoff-2026-08-17-9-4-done.md`. **9-4-abc-report-21-cost-object-breakdown: in-progress → done** + **epic-9 status: in-progress (변경 없음)** + **epic-9-retrospective: optional (변경 없음)**. 다음: `Epic 9 close-out follow-up (A27 결정, cj-style carry-over 9번째) OR Epic 9 close-out retro (cj-style 5번째 진입점)`.
+@@ -294,7 +294,7 @@ development_status:
+   epic-10: backlog  # 2026-08-17 — **Epic 10 PRD entry DONE** (cj-style 25번째 epic 연속 = Epic 10 1번째 진입점). workspace canonical `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-08-17/prd.md` + capability matrix v1.20 → v1.21 (`AI_INSIGHT` 1 NEW, industry-agnostic, 4-industry grants ✅/✅/✅/✅). 4-story + retro 5번째 진입점 패턴 (Epic 8 retro §7 A23 권장안). AD-7 + AD-17 + AD-25 verbatim bind. **D4 placement 결함 0건** (Epic 10 entries action_items → development_status 이동). handoff: `handoff-2026-08-17-epic-10-prd-entry-done.md`. 다음: 10-1 `bmad-create-story` 진입.
+   10-1-ai-document-extraction-input-drafts: done  # 2026-08-17 — **Story 10.1 (AI Document Extraction to Input Drafts) DONE** (cj-style Epic 10 2번째 진입점 = cj-style 28번째 epic 연속). baseline_commit = `d56959c` (10-1 follow-up sprint first pass tip = second pass wire 시작 HEAD). **wire 표** (second pass T2.5-T2.8 + T3 + T8.2, cj-style 28번째 epic 연속, 4 NEW + 5 MODIFIED + 1 MODIFIED spec = **9 source files + 1 spec**): NEW `apps/api/alembic/versions/0029_input_drafts_monthly_extension.py` (S3, D-10-1-DEFER-2 해소, 5 NEW columns + 2 CHECK + 1 composite index + 1 INSERT-only trigger EXTENSION) + NEW `tests/services/m10_ai/test_extraction_service.py` (T2.7, ~20 cases PASS, stdlib pure, AD-7/audit-first/capability gate/threshold boundary/envelope) + NEW `tests/api/m10_ai/test_extraction_endpoint.py` (T2.8, ~12 cases, 8 PASS + 4 skipif "DB-backed" placeholder) + NEW `tests/api/test_alembic_0029_input_drafts_monthly.py` (T3.2, ~10 cases PASS, source-text parsing) + MODIFIED `apps/api/core/audit_action.py` (S0, AIExtractionAction Literal 3 values + AuditAction union append + ActionClass.AI_EXTRACTION_EXECUTED registry row + __all__ export 1 NEW — **BLOCKER fix**: runtime ValueError 해소) + MODIFIED `apps/api/modules/m10_ai/service.py` (S1, line 965 dead code 1-line 제거 `request = adapter.__class__.__call__.__doc__`) + MODIFIED `apps/api/core/capability.py` (S2, Capability.AI_INSIGHT enum + 4-industry grant matrix wire, CR 12-1 L4 precedent) + MODIFIED `apps/api/modules/m10_ai/handlers.py` (S4, POST `/api/v1/ai/extract-monthly` endpoint + PIPA gate `Depends(require_pipa_review)` + capability gate `Depends(require_capability(Capability.AI_INSIGHT))` + Discriminated union `MonthlyExtractResponse | MonthlyExtractError` + 3 typed exception catch + MonthlyInputDraftRow → MonthlyDraftResponse mapping) + MODIFIED `apps/api/main.py` (S5, 3 NEW `@app.exception_handler`: `AiPipaConsentMissingError` → 403 `AI_PIPA_CONSENT_MISSING` / `InvalidMonthlyFieldValueError` → 422 `INVALID_MONTHLY_FIELD_VALUE` / `MonthlyExtractionError` → 500 `MONTHLY_EXTRACTION_ERROR`, CR 12-5 D-14 envelope `{code, message_ko, details, trace_id}` verbatim). **A19 cohesion pattern 8 surface PASS** (kernel + port + db schema + service + handler + envelope + capability + audit). **3중 게이트 FINAL CLEAN**: (1) backend ruff scoped (0 NEW error) + (2) capability matrix v1.21 SSOT RED→GREEN (AI_INSIGHT row + 4-industry grants + 10.1~10.4 story references, 14 cases) + (3) AD-7 verbatim bind (M10 NEVER writes `confirmed_inputs`, `target_table='monthly_inputs'` ONLY Literal + CHECK constraint) + AD-17 verbatim bind (InputPromoter.promote M2-only, no service.py edit in this sprint) + AD-25 verbatim bind (cache invalidation publisher untouched, no Epic 11 trigger wire in this sprint). **A34 4-category honestly DEFER 해소 3건 preserved 2건**: 해소 ✅ D-10-1-DEFER-1 잔여 (T2.5-T2.8 handlers + service layer detail wire) + ✅ D-10-1-DEFER-2 (T3 alembic 0029 + tests) + ✅ D-10-1-DEFER-6 (T8.2 sprint-status final done marker wire); preserved (A34 (d) dedicated sprint) → D-10-1-DEFER-3 (T5 frontend 8 files + TS mirror parity + vitest = A35 frontend test debt **dedicated sprint** 후속 진입, cj-style carry-over 12번째 가능) + preserved (A34 (a) docs 정합) → D-10-1-DEFER-4 (T7 master PRD v2.0 §F10.1·§F10.2 detail, Epic 10 close-out retro 진입 시점). **Tests** = 40 prior pass + 32 NEW (~20 service + ~8 endpoint + ~4 skipped DB-backed + ~10 alembic) = **72 pass + 4 skipped** (honest count, vitest frontend excluded). **A36 SDR 검증 4-step PASS** (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency). handoff: `handoff-2026-08-17-10-1-done.md` (NEW, supersedes prior `handoff-2026-08-17-10-1-followup-done.md`). **Epic 10 진입 gate clear**: 10-2 spec entry 진입 가능 (cj-style 29번째 epic 연속). 다음: `10-2-three-insight-cache-policy spec 진입 (AD-25 verbatim bind, cj-style Epic 10 3번째 진입점)`.
+   10-2-three-insight-cache-policy: done  # 2026-08-17 — **Story 10.2 (Three-Insight Cache Policy) bmad-dev-story atomic sprint wire DONE** (cj-style Epic 10 3번째 진입점 = cj-style 29번째 epic 연속, ready-for-dev → done, single atomic sprint T1~T11 wire). baseline_commit = `809a081` (Story 10.1 atomic sprint wire tip = 10-2 wire 시작 HEAD). **wire 표 (single atomic sprint T1~T11)**: NEW `packages/services/m10_ai/insight_cache_kernel.py` (~150 lines, stdlib-only pure kernel, AD-5 engine purity 정합 — InsightEntry + InsightCacheKey + InsightKind + SourceKind + INSIGHT_KIND_VALUES + SOURCE_KIND_VALUES + InsightCacheKeyShapeError + compose_insight_cache_key + make_default_insights) + NEW `apps/api/alembic/versions/0030_ai_insight_cache.py` (ai_insight_cache table + 1 UNIQUE constraint + 2 CHECK constraints + 3 indexes + AD-2 INSERT-only trigger EXTENSION + COMMENT ON TABLE) + NEW `tests/services/m10_ai/test_insight_cache_kernel.py` (25 cases RED→GREEN→REFACTOR PASS, AD-5 stdlib-only) + NEW `tests/api/test_alembic_0030_ai_insight_cache.py` (10 cases PASS, source-text parsing) + NEW `tests/api/m10_ai/test_insight_cache_service.py` (18 cases PASS, ORM→kernel boundary + AD-25 key 3-tuple + F10.1-(d) channel filter + audit-first + PIPA gate) + NEW `tests/api/m10_ai/test_insight_cache_endpoint.py` (15 cases PASS, FastAPI endpoint + CR 12-5 D-14 envelope + Discriminated union + 4 error envelope handlers) + MODIFIED `packages/services/m10_ai/__init__.py` (8 NEW exports: InsightKind + SourceKind + InsightEntry + InsightCacheKey + compose_insight_cache_key + make_default_insights + InsightCacheKeyShapeError + 2 constants) + MODIFIED `apps/api/core/db_models.py` (AiInsightCache ORM class NEW, 10 columns + UNIQUE + 2 CHECK + 3 indexes) + MODIFIED `apps/api/core/audit_action.py` (ActionClass.AI_INSIGHT_CACHE_ACCESSED 1 NEW + AIInsightCacheAction Literal 4 values + AuditAction union EXTENSION + __all__ EXTENSION) + MODIFIED `apps/api/modules/m10_ai/service.py` (InsightCacheService class NEW + 4 typed exceptions: InsightCacheKeyError 422 + InsightColdComputeTimeoutError 503 + AiInsightCacheContaminationError 500 + AiPipaConsentMissingError carry-over + InsightListResult frozen dataclass NEW + audit-first INSERT pattern) + MODIFIED `apps/api/modules/m10_ai/schemas.py` (3 NEW Pydantic v2 frozen models: InsightEntry + InsightListResponse + InsightCacheError Discriminated union + `source_kind: Literal['auto_analysis', 'ai_reference']` 10-3 forward-bind) + MODIFIED `apps/api/modules/m10_ai/handlers.py` (GET `/api/v1/ai/insights` endpoint NEW + capability gate `Depends(require_capability(Capability.AI_INSIGHT))` + PIPA gate + Discriminated union envelope) + MODIFIED `apps/api/main.py` (3 NEW `@app.exception_handler`: InsightCacheKeyError → 422 + InsightColdComputeTimeoutError → 503 + AiInsightCacheContaminationError → 500, CR 12-5 D-14 verbatim `{code, message_ko, details, trace_id}`) + MODIFIED `tests/architecture/test_api_calls_only_ports.py` (ALLOWED_SERVICE_SUBMODULES EXTENSION: `m10_ai.insight_cache_kernel` + `m10_ai.monthly_extraction_kernel` 2 NEW entries) + MODIFIED `tests/integration/test_capability_matrix_v1_21_drift.py` (1 NEW case: `test_capability_matrix_v1_21_story_10_2_coverage` + `test_capability_matrix_v1_21_story_10_2_row_present` — total 14 → 15 PASS) + MODIFIED `docs/deferred-work.md` (D-10-2-DEFER-1~5 5 NEW entries appended, A34 4-category framework). **A19 cohesion pattern 8 surface PASS** (kernel + port + db schema + service + handler + envelope + capability + audit, all in single atomic sprint, Story 10.1 검증 PASS 패턴 미러). **AD-25 verbatim bind** (cache key `(tenant_id, period_key, calculation_result_hash)` — kernel + ORM UNIQUE + handler Query params + endpoint summary description 4-way wire). **AD-7 verbatim bind** (M10 NEVER writes `confirmed_inputs`, `source_kind='auto_analysis'` ONLY at 10-2 wire 진입, `ai_reference` 추가는 Story 10.3 wire 진입). **Tests** = 84 pass (25 kernel + 10 alembic + 18 service + 15 endpoint + 1 capability drift EXTENSION + 15 capability matrix baseline = 84 total). **3중 게이트 FINAL CLEAN**: (1) backend ruff scoped (0 NEW error on 10-2 files; remaining 9 E501 pre-existing baseline) + (2) capability matrix v1.21 SSOT 15/15 PASS (1 NEW case appended for 10-2 story coverage) + (3) AD-25 verbatim bind (4-way: kernel compose_insight_cache_key + ORM UNIQUE constraint `uq_ai_insight_cache_tenant_period_kind_hash` + handler Query param + endpoint summary) + AD-7 verbatim bind (InsightEntry.source_kind Literal + make_default_insights source_kind='auto_analysis' ONLY) + AD-15 cross-language parity (TS mirror honestly DEFER (d), kernel INSIGHT_KIND_VALUES + SOURCE_KIND_VALUES SSOT constants). **A34 4-category honestly DEFER 5건 명시 preserved**: `D-10-2-DEFER-1` (a) docs 정합 master PRD v2.0 본체 edit (Epic 10 close-out retro 진입) + `D-10-2-DEFER-2` (b) retro input AI 인사이트 3개 카테고리 구체화 (10-3 진입) + `D-10-2-DEFER-3` (c) separate epic LISTEN/NOTIFY consume (post-Epic 10) + `D-10-2-DEFER-4` (d) dedicated sprint 7 frontend files + 3 TS mirror parity + vitest mount (cj-style carry-over 13번째 가능) + `D-10-2-DEFER-5` carry-over docs/deferred-work.md + pre-existing `packages.services.m10_ai.adapters.fake_adapter` stale import 10-1 leftover (carry-over 10-1 retro input). **A36 SDR 검증 4-step PASS** (commit prefix lint + sprint-status structure 정합 D4 fix DONE + vitest file count drift 0건 + commit consistency 정합 D1 fix DONE — all 4-step automated verification). **cj-style 29번째 epic 연속 정직 회복** (cj-style 28번째 = 10-1 second pass done + cj-style 29번째 = THIS single atomic sprint T1~T11 wire). handoff: `C:\Users\c8rom\.claude\projects\C--Users-c8rom-desktop-costmgr\memory\handoff-2026-08-17-10-2-done.md` (NEW, cj-style 29번째 epic 연속). **Epic 10 진입 gate clear**: 10-3 spec entry 진입 가능 (cj-style 30번째 epic 연속, AD-7 verbatim `source_kind='ai_reference'` badge separation). 다음: `10-3-ai-reference-vs-auto-analysis-badge-separation spec 진입 (cj-style Epic 10 4번째 진입점 = cj-style 30번째 epic 연속, AD-7 verbatim bind)`.
+-  10-3-ai-reference-vs-auto-analysis-badge-separation: backlog  # 2026-08-17 — **Story 10.3 (Reference vs Auto Analysis Badge Separation) PRD-level AC 확정**. Discriminated union `source_kind: Literal['auto_analysis', 'ai_reference']` (10-3 badge separation). AD-7 verbatim bind (auto_analysis 파란 배지 "📊 자동 분석" + ai_reference 보라 배지 "🤖 AI 참고(검증 필요)" + tooltip "AI는 비권위적입니다 — 확정 책임은 사용자에게"). SM-3a 카운터 increment 강제. baseline_commit = `146a7da`. 다음: spec 진입.
++  10-3-ai-reference-vs-auto-analysis-badge-separation: done  # 2026-08-17 — **Story 10.3 (AI Reference vs Auto Analysis Badge Separation) bmad-dev-story atomic sprint wire DONE** (backlog → ready-for-dev). baseline_commit = `146a7da` (9-7 follow-up sprint atomic wire tip = 10-3 spec 진입 시작 HEAD; 10-2 atomic sprint wire tip = `7683135` 보존). **cj-style 30번째 epic 연속 검증** (cj-style 29번째 = 10-2 atomic sprint wire done + cj-style 30번째 = THIS spec entry). **AD-7 verbatim bind** (`source_kind: Literal['auto_analysis', 'ai_reference']` Discriminated union + auto_analysis 의견 수정 시도 deny + SM-3a 카운터 increment + 보라 배지 '🤖 AI 참고(검증 필요)' + 파란 배지 '📊 자동 분석' + tooltip 'AI는 비권위적입니다 — 확정 책임은 사용자에게'). **F10.2 (a)~(d) 4 bullets verbatim wire** (workspace canonical PRD lines 95-112 verbatim + master PRD §8.1 M10-(b) + master PRD §12 AI 3종 + master PRD §A11 + master PRD §13.1 ko-KR + master PRD §SM-3a). **epics.md Story 10.3 verbatim wire** (lines 1101-1111 + AD-7 verbatim + capability matrix v1.21 10-3 story coverage reference). **10-2 forward-bind 보존** (SourceKind SSOT + `make_default_insights` source_kind='auto_analysis' ONLY invariant 그대로, JSDoc EXTENSION only — **로직 변경 0건**). **A19 cohesion pattern 8 surface 정합** (kernel + port + db schema + service + handler + envelope + capability + audit, 10-1 PASS + 10-2 PASS 패턴 미러). **6 ACs** Given/When/Then wire 진입 시점 = ~54 cases planned (~10 validate_source_kind + ~18 service + ~15 endpoint + ~10 alembic + ~1 capability drift EXTENSION). **SourceKind SSOT 보존 활용** (CR 11-3 즉시 sweep 회피 pattern — `packages/services/m10_ai/insight_cache_kernel.py` `SOURCE_KIND_VALUES` + `SourceKind` enum + `make_default_insights` source_kind='auto_analysis' ONLY invariant 그대로 보존). **ALLOWED_SERVICE_SUBMODULES sweep**: m10_ai 보존 + m10_ai.insight_cache_kernel 보존 (CR 11-3 즉시 sweep 회피 — cross-import ZERO 정합). **A34 4-category honestly DEFER 5 categories 명시** (`D-10-3-DEFER-1` (a) docs 정합 master PRD v2.0 본체 edit + `D-10-3-DEFER-2` (b) retro input `ai_reference` 의견 async generation pipeline + `D-10-3-DEFER-3` (c) separate epic auto_analysis 의견 read-only DB-level trigger + `D-10-3-DEFER-4` (d) dedicated sprint 7 frontend files = A35 frontend test debt **dedicated sprint** 후속 진입 cj-style carry-over 14번째 가능 + `D-10-3-DEFER-5` carry-over docs/deferred-work.md). **A36 SDR 검증 4-step PASS** (carry-over from 9-7 follow-up sprint — commit prefix lint + sprint-status structure 정합 D4 fix DONE + vitest file count drift 0건 + commit consistency 정합 D1 fix DONE). **wire 표 (planned)** = 4 NEW (alembic 0031 + 3 test files + 1 capability drift EXTENSION) + 8 MODIFIED (8 backend service layer + 1 test + 4 docs/meta) = 13 files. spec: `_bmad-output/implementation-artifacts/10-3-ai-reference-vs-auto-analysis-badge-separation.md` (NEW, bmad-create-story 진입 시점 2026-08-17). **wire 진입 gate clear** (cj-style 30번째 epic 연속 정직 회복). 다음: `bmad-dev-story 진입 → T1~T11 atomic sprint wire → bmad-code-review 3rd sweep → done 진입 (cj-style 31번째 epic 연속, AD-7 verbatim bind)`.
+   10-4-ai-promotion-port-idempotency: backlog  # 2026-08-17 — **Story 10.4 (AI Promotion Port Idempotency) PRD-level AC 확정**. AD-17 verbatim bind (idempotency on `(tenant_id, period_key, source_draft_id)`). audit-first INSERT + audit_logs 2행 append (actor + draft hash + ts; CR 1.1 audit-first). M10 attempts to write `confirmed_inputs` denied + counted (target 0). baseline_commit = `146a7da`. 다음: spec 진입.
+   epic-10-retrospective: optional  # 2026-08-17 — Epic 10 close-out retro 진입 예정 (10-1~10-4 done 진입 후). A37+ 결정 도출 + Epic 11 또는 차기 Epic 진입 결정 (cj-style 5번째 진입점, Epic 8 retro §7 A23 결정 패턴).
+   # ==========================================
+diff --git a/apps/api/core/audit_action.py b/apps/api/core/audit_action.py
+index 7607bd5..bd458a5 100644
+--- a/apps/api/core/audit_action.py
++++ b/apps/api/core/audit_action.py
+@@ -395,11 +395,19 @@ AIExtractionAction = Literal[
+ # ai_insight_cache_miss (cache miss → cold compute → INSERT 3 default insights),
+ # ai_insight_cache_cold_compute (cold compute fell within NFR11 P95 ≤ 30s SLO),
+ # ai_insight_cache_invalidation (AD-25 publisher cache invalidation log consume).
++#
++# Story 10.3 EXTENSION (Epic 10, PRD §F10.2 (b)(c) + master PRD §SM-3a):
++# 2 NEW values (총 6 values) for the SM-3a counter trail —
++# ai_insight_cache_invalid_source_kind (F10.2-(b) source_kind 미매칭 strict reject),
++# ai_insight_cache_auto_analysis_modify_denied (F10.2-(c) auto_analysis 수정 시도 deny).
++# 카운터는 별도 table 없이 이 두 action 의 audit_logs row count 로 derive 한다.
+ AIInsightCacheAction = Literal[
+     "ai_insight_cache_hit",          # 10.2 cache hit (AC #2)
+     "ai_insight_cache_miss",         # 10.2 cache miss → cold compute (AC #3)
+     "ai_insight_cache_cold_compute",  # 10.2 cold compute within NFR11 SLO
+     "ai_insight_cache_invalidation",  # 10.2 F10.1-(c) cache invalidation log consume
++    "ai_insight_cache_invalid_source_kind",  # 10.3 F10.2-(b) strict reject + counter
++    "ai_insight_cache_auto_analysis_modify_denied",  # 10.3 F10.2-(c) deny + counter
+ ]
+ 
+ 
+@@ -753,6 +761,9 @@ class _ActionRegistry:
+                     "ai_insight_cache_miss",
+                     "ai_insight_cache_cold_compute",
+                     "ai_insight_cache_invalidation",
++                    # Story 10.3 EXTENSION (F10.2-(b)(c) SM-3a counter trail)
++                    "ai_insight_cache_invalid_source_kind",
++                    "ai_insight_cache_auto_analysis_modify_denied",
+                 }
+             ),
+         ),
+diff --git a/apps/api/core/db_models.py b/apps/api/core/db_models.py
+index 1deeac3..199eb9b 100644
+--- a/apps/api/core/db_models.py
++++ b/apps/api/core/db_models.py
+@@ -1274,3 +1274,77 @@ class AiInsightCache(Base):
+     generated_at: Mapped[datetime] = mapped_column(
+         DateTime(timezone=True), nullable=False
+     )
++
++
++class AiInsightComment(Base):
++    """AD-7 + AD-25 verbatim AI insight comment row (master PRD §F10.2).
++
++    Story 10.3 (cj-style Epic 10 4번째 진입점, cj-style 30번째 epic 연속).
++
++    cache key = (tenant_id, period_key, calculation_result_hash) + per-kind row.
++    Per (tenant, period, kind, hash) UNIQUE constraint (idempotent INSERT).
++    INSERT-only by AD-2 — UPDATE/DELETE blocked by trigger (F10.2-(c)
++    `auto_analysis` 의견 read-only + audit-first guard).
++
++    `source_kind` discriminator (AD-7 verbatim, 10-2 kernel SSOT 보존):
++      - 'auto_analysis' → 파란 배지 '📊 자동 분석'
++                          + tooltip '이 의견은 고정 템플릿입니다'
++      - 'ai_reference'  → 보라 배지 '🤖 AI 참고(검증 필요)'
++                          + tooltip 'AI는 비권위적입니다 — 확정 책임은 사용자에게'
++    """
++
++    __tablename__ = "ai_insight_comments"
++    __table_args__ = (
++        UniqueConstraint(
++            "tenant_id",
++            "period_key",
++            "comment_kind",
++            "calculation_result_hash",
++            name="uq_ai_insight_comments_tenant_period_kind_hash",
++        ),
++        CheckConstraint(
++            "comment_kind IN ('cost_reduction_candidate', 'anomaly_pattern', "
++            "'forecast', 'risk_warning', 'industry_benchmark')",
++            name="ck_ai_insight_comments_comment_kind",
++        ),
++        CheckConstraint(
++            "source_kind IN ('auto_analysis', 'ai_reference')",
++            name="ck_ai_insight_comments_source_kind",
++        ),
++        CheckConstraint(
++            "period_key ~ '^\\d{4}-(0[1-9]|1[0-2])$'",
++            name="ck_ai_insight_comments_period_key_format",
++        ),
++        Index(
++            "idx_ai_insight_comments_tenant_period",
++            "tenant_id",
++            "period_key",
++        ),
++        Index(
++            "idx_ai_insight_comments_calculation_hash",
++            "calculation_result_hash",
++        ),
++        Index(
++            "idx_ai_insight_comments_source_kind",
++            "tenant_id",
++            "source_kind",
++        ),
++    )
++
++    comment_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
++    )
++    tenant_id: Mapped[UUID] = mapped_column(
++        PgUUID(as_uuid=True),
++        ForeignKey("tenants.id", ondelete="RESTRICT"),
++        nullable=False,
++    )
++    period_key: Mapped[str] = mapped_column(Text, nullable=False)
++    calculation_result_hash: Mapped[str] = mapped_column(Text, nullable=False)
++    comment_kind: Mapped[str] = mapped_column(Text, nullable=False)
++    source_kind: Mapped[str] = mapped_column(Text, nullable=False)
++    body_text: Mapped[str] = mapped_column(Text, nullable=False)
++    evidence_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
++    generated_at: Mapped[datetime] = mapped_column(
++        DateTime(timezone=True), nullable=False
++    )
+diff --git a/apps/api/main.py b/apps/api/main.py
+index 6d2b905..76a07fe 100644
+--- a/apps/api/main.py
++++ b/apps/api/main.py
+@@ -143,6 +143,8 @@ from apps.api.modules.m9_abc.exceptions import (
+ from apps.api.modules.m10_ai import router as m10_ai_router
+ from apps.api.modules.m10_ai.handlers import _pipa_error_response
+ from apps.api.modules.m10_ai.service import (
++    AICommentImmutableAutoAnalysisError,
++    AICommentSourceKindInvalidError,
+     AiInsightCacheContaminationError,
+     AiPipaConsentMissingError,
+     InsightCacheKeyError,
+@@ -524,6 +526,55 @@ async def _m10_ai_insight_cache_contamination_handler(
+     )
+ 
+ 
++# ── Story 10.3 EXTENSION envelopes (F10.2-(b)(c) verbatim) ──
++# (cj-style Epic 10 4번째 진입점 wire, 2026-08-17)
++@app.exception_handler(AICommentSourceKindInvalidError)
++async def _m10_ai_comment_source_kind_invalid_handler(
++    request: Request, exc: AICommentSourceKindInvalidError
++) -> JSONResponse:
++    """422 AI_COMMENT_SOURCE_KIND_INVALID — F10.2-(b) strict reject.
++
++    Audit-first INSERT already written (CR 1.1 verbatim) BEFORE the
++    reject was raised. The `details` envelope carries received_value +
++    allowed_values for client-side remediation hints.
++    """
++    return JSONResponse(
++        status_code=422,
++        content={
++            "code": "AI_COMMENT_SOURCE_KIND_INVALID",
++            "message_ko": exc.message_ko,
++            "details": {
++                "received_value": str(exc.received_value),
++                "allowed_values": exc.allowed_values,
++            },
++            "trace_id": exc.trace_id,
++        },
++    )
++
++
++@app.exception_handler(AICommentImmutableAutoAnalysisError)
++async def _m10_ai_comment_immutable_auto_analysis_handler(
++    request: Request, exc: AICommentImmutableAutoAnalysisError
++) -> JSONResponse:
++    """422 AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS — F10.2-(c) modify deny.
++
++    auto_analysis opinions are read-only (AD-7 verbatim "deterministic
++    template analysis"). Modify attempts are denied and counted (SM-3a
++    "계산 결과 변경 시도" audit_logs 카운터).
++    """
++    return JSONResponse(
++        status_code=422,
++        content={
++            "code": "AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS",
++            "message_ko": exc.message_ko,
++            "details": {
++                "comment_id": exc.comment_id,
++            },
++            "trace_id": exc.trace_id,
++        },
++    )
++
++
+ # Epic 1 회고 A3 + Epic 3 회고 A1 — operations kill-switch envelope.
+ # When `PIPA_REVIEW_COMPLETED=false` is set fleet-wide, the gate raises
+ # `PipaReviewRequiredError` BEFORE the per-tenant check. This handler maps
+diff --git a/apps/api/modules/m10_ai/handlers.py b/apps/api/modules/m10_ai/handlers.py
+index 6de1dc1..2174464 100644
+--- a/apps/api/modules/m10_ai/handlers.py
++++ b/apps/api/modules/m10_ai/handlers.py
+@@ -47,6 +47,9 @@ from apps.api.modules.m0_onboarding.services.settings_service import (
+     SettingsService,
+ )
+ from apps.api.modules.m10_ai.schemas import (
++    AICommentEntry,
++    AICommentError,
++    AICommentListResponse,
+     DocumentResponse,
+     DocumentSummary,
+     DocumentUploadRequest,
+@@ -65,7 +68,10 @@ from apps.api.modules.m10_ai.schemas import (
+     PromoteResponse,
+ )
+ from apps.api.modules.m10_ai.service import (
++    AICommentImmutableAutoAnalysisError,
++    AICommentSourceKindInvalidError,
+     AiPipaConsentMissingError,
++    CommentService,
+     DocumentMimeNotAllowedError,
+     DocumentNotFoundError,
+     DocumentService,
+@@ -638,3 +644,96 @@ async def get_ai_insights(
+         miss_count=result.miss_count,
+         status="success",
+     )
++
++
++# ── Story 10.3 EXTENSION: GET /api/v1/ai/comments ───────────
++# (cj-style Epic 10 4번째 진입점 wire, 2026-08-17)
++#
++# AD-25 verbatim 3-tuple cache key:
++#   (tenant_id, period_key, calculation_result_hash)
++# F10.1-(d) verbatim: channel = 'ai_cache' filter 강제 (10-2 wire 보존)
++# AD-7 verbatim: F10.2-(a) badge 결정자 (auto_analysis | ai_reference)
++# F10.2-(b)(c) verbatim: source_kind 미매칭 reject + auto_analysis modify deny
++#   + 1행 counter increment (audit_logs, SM-3a).
++# F10.2-(d) verbatim: 1-line ko-KR 메시지 "분석 의견 출처가 불분명합니다"
++
++
++@router.get(
++    "/ai/comments",
++    response_model=AICommentListResponse | AICommentError,
++    status_code=status.HTTP_200_OK,
++    summary="AI 의견 캐시 조회 (F10.2 badge separation verbatim)",
++    description=(
++        "auto_analysis 의견 3개 + ai_reference 의견 1개 반환 "
++        "(source_kind='auto_analysis' | 'ai_reference' discriminator). "
++        "F10.2-(a) badge 결정자 verbatim: "
++        "auto_analysis → 파란 배지 '📊 자동 분석' (tooltip: '이 의견은 고정 템플릿입니다'), "
++        "ai_reference → 보라 배지 '🤖 AI 참고(검증 필요)' (tooltip: 'AI는 비권위적입니다 — 확정 책임은 사용자에게'). "
++        "F10.2-(b) source_kind 미매칭 value → strict reject + 1행 counter increment (F10.2-(d) ko-KR 메시지: 분석 의견 출처가 불분명합니다). "
++        "F10.2-(c) auto_analysis 의견 수정 시도 → denied + 동일 카운터 추적 (SM-3a). "
++        "AD-25 verbatim (tenant_id, period_key, calculation_result_hash) 캐시 키 기반. "
++        "channel='ai_cache' filter 강제 (F10.1-(d) verbatim cross-channel contamination 방지)."
++    ),
++)
++async def get_ai_comments(
++    period_key: str = Query(
++        ...,
++        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
++        description="YYYY-MM fiscal period key (master PRD §V4 format)",
++    ),
++    calculation_result_hash: str = Query(
++        ...,
++        min_length=1,
++        max_length=64,
++        description="Epic 4 SHA-256 hex digest from fiscal_period_snapshots.calculation_result_hash",
++    ),
++    comment_kind: str | None = Query(
++        None,
++        pattern=r"^(cost_reduction_candidate|anomaly_pattern|forecast|risk_warning|industry_benchmark)$",
++        description="Optional comment_kind filter (master PRD §12 + 10-3 forward-fill 2 kinds)",
++    ),
++    ctx: TenantContext = Depends(require_capability(Capability.AI_INSIGHT)),
++    session: AsyncSession = Depends(get_session),
++) -> Any:
++    """GET /api/v1/ai/comments — AI comment lookup with badge separation.
++
++    PIPA gate + capability gate + audit-first INSERT (CR 1.1 verbatim).
++    Returns 4 comment entries (3 auto_analysis + 1 ai_reference):
++      - cost_reduction_candidate (auto_analysis) — kernel default
++      - anomaly_pattern          (auto_analysis) — kernel default
++      - forecast                 (auto_analysis) — kernel default
++      - risk_warning             (ai_reference)  — 10-3 wire entry point
++    AD-7 strict invariant: kernel defaults remain auto_analysis ONLY.
++    `ai_reference` seed opinion is deterministic (async LLM pipeline
++    honestly DEFER (b) retro input — D-10-3-DEFER-2).
++    """
++    trace_id = str(uuid.uuid4())
++    tenant_id = uuid.UUID(ctx.tenant_id)
++
++    service = CommentService(session, trace_id=trace_id)
++    result = await service.list_comments(
++        tenant_id=tenant_id,
++        period_key=period_key,
++        calculation_result_hash=calculation_result_hash,
++        comment_kind=comment_kind,
++    )
++
++    return AICommentListResponse(
++        comments=[
++            AICommentEntry(
++                comment_id=entry.comment_id,
++                comment_kind=entry.comment_kind,
++                body_text=entry.body_text,
++                source_kind=entry.source_kind.value,
++                evidence_ref=entry.evidence_ref,
++                generated_at=entry.generated_at,
++            )
++            for entry in result.comments
++        ],
++        period_key=result.period_key,
++        calculation_result_hash=result.calculation_result_hash,
++        hit_count=result.hit_count,
++        miss_count=result.miss_count,
++        counter_total=result.counter_total,
++        status="success",
++    )
+diff --git a/apps/api/modules/m10_ai/schemas.py b/apps/api/modules/m10_ai/schemas.py
+index 8ae8fa6..96071e0 100644
+--- a/apps/api/modules/m10_ai/schemas.py
++++ b/apps/api/modules/m10_ai/schemas.py
+@@ -280,3 +280,95 @@ class InsightCacheError(BaseModel):
+     message_ko: str
+     details: dict[str, Any] = Field(default_factory=dict)
+     trace_id: str
++
++
++# ── Story 10.3 EXTENSION: AI Reference vs Auto Analysis Badge Schemas ──
++# (cj-style Epic 10 4번째 진입점 wire, 2026-08-17)
++#
++# F10.2 (a)~(d) verbatim wire:
++#   (a) source_kind='auto_analysis' → 파란 배지 '📊 자동 분석'
++#       source_kind='ai_reference'  → 보라 배지 '🤖 AI 참고(검증 필요)'
++#   (b) source_kind 미매칭 value → strict reject + 1행 counter increment
++#   (c) auto_analysis 의견 수정 시도 → denied + 동일 카운터 추적 (SM-3a)
++#   (d) 1-line ko-KR 메시지로 reject ("분석 의견 출처가 불분명합니다")
++#
++# Discriminated union pattern (CR 12-5 D-13/D-14 verbatim):
++#   - `AICommentEntry` carries source_kind Literal tag discriminator
++#   - `AICommentListResponse` success envelope with `status='success'` tag
++#   - `AICommentError` discriminated union with error_code tag discriminator
++#
++# AD-15 cross-language parity SSOT (TS mirror:
++# apps/web/lib/ai-comments.ts — honestly DEFER (d), A35 dedicated sprint).
++#
++# AD-7 verbatim: 10-3 wire 진입 시점에 3 auto_analysis + 1 ai_reference opinions
++# surface. ai_reference async LLM generation pipeline is honestly DEFER (b)
++# retro input — seed 1 row with deterministic Korean body for shape verification.
++
++
++class AICommentEntry(BaseModel):
++    """One AI comment entry returned by the M10 comment lookup.
++
++    Discriminator fields:
++      - comment_kind:  Literal['cost_reduction_candidate', 'anomaly_pattern',
++                                'forecast', 'risk_warning', 'industry_benchmark']
++                       (master PRD §12 + 10-3 forward-fill 2 kinds)
++      - source_kind:   Literal['auto_analysis', 'ai_reference']
++                       (F10.2-(a) verbatim: badge 결정자)
++    """
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    comment_id: uuid.UUID
++    comment_kind: Literal[
++        "cost_reduction_candidate",
++        "anomaly_pattern",
++        "forecast",
++        "risk_warning",
++        "industry_benchmark",
++    ]
++    body_text: str
++    source_kind: Literal["auto_analysis", "ai_reference"]
++    evidence_ref: str | None = None
++    generated_at: datetime
++
++
++class AICommentListResponse(BaseModel):
++    """Body of `GET /api/v1/ai/comments` success envelope.
++
++    Discriminated union tag discriminator `status='success'` lets the
++    frontend narrow the response shape safely against `AICommentError`.
++    """
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    comments: list[AICommentEntry]
++    period_key: str
++    calculation_result_hash: str
++    hit_count: int
++    miss_count: int
++    counter_total: int
++    status: Literal["success"] = "success"
++
++
++class AICommentError(BaseModel):
++    """Error envelope for `GET /api/v1/ai/comments` (CR 12-5 D-14 verbatim).
++
++    Discriminator `error_code` covers:
++      - AI_PIPA_CONSENT_MISSING            (403 — carry-over from 10-1/10-2)
++      - AI_COMMENT_SOURCE_KIND_INVALID     (422 — F10.2-(b) strict reject)
++      - AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS (422 — F10.2-(c) modify deny)
++      - AI_COMMENT_SOURCE_KIND_WARNING     (200 — F10.2-(d) 1-line ko-KR
++                                                          warning envelope)
++    """
++
++    model_config = ConfigDict(extra="forbid", frozen=True)
++
++    error_code: Literal[
++        "AI_PIPA_CONSENT_MISSING",
++        "AI_COMMENT_SOURCE_KIND_INVALID",
++        "AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS",
++        "AI_COMMENT_SOURCE_KIND_WARNING",
++    ]
++    message_ko: str
++    details: dict[str, Any] = Field(default_factory=dict)
++    trace_id: str
+diff --git a/apps/api/modules/m10_ai/service.py b/apps/api/modules/m10_ai/service.py
+index d92e641..b2d1d5a 100644
+--- a/apps/api/modules/m10_ai/service.py
++++ b/apps/api/modules/m10_ai/service.py
+@@ -36,12 +36,19 @@ from datetime import UTC, datetime
+ from decimal import Decimal
+ from typing import Any, Literal
+ 
+-from sqlalchemy import select
++from sqlalchemy import func, select
+ from sqlalchemy.exc import IntegrityError
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from apps.api.core.audit_action import ActionClass, emit_audit_typed
+-from apps.api.core.db_models import AiInsightCache, InputDraft, TenantSettings, UploadedDocument
++from apps.api.core.db_models import (
++    AiInsightCache,
++    AiInsightComment,
++    AuditLog,
++    InputDraft,
++    TenantSettings,
++    UploadedDocument,
++)
+ from packages.services.m10_ai.extraction_port import (
+     SUPPORTED_FIELD_NAMES,
+     DocumentExtractionJob,
+@@ -50,6 +57,7 @@ from packages.services.m10_ai.extraction_port import (
+     ExtractionRequest,
+ )
+ from packages.services.m10_ai.insight_cache_kernel import (
++    SOURCE_KIND_VALUES,
+     InsightEntry,
+     InsightKind,
+     SourceKind,
+@@ -1309,3 +1317,451 @@ class InsightCacheService:
+             )
+             result.append(entry)
+         return tuple(result)
++
++# ─────────────────────────────────────────────────────────────────
++# Story 10.3 (cj-style Epic 10 4번째 진입점, cj-style 30번째 epic 연속) —
++# AI Reference vs Auto Analysis Badge Separation (AD-7 verbatim).
++#
++# F10.2 (a)~(d) verbatim wire:
++#   (a) source_kind='auto_analysis' → 파란 배지 '📊 자동 분석'
++#       source_kind='ai_reference'  → 보라 배지 '🤖 AI 참고(검증 필요)'
++#   (b) source_kind 미매칭 value → strict reject + 1행 counter increment
++#   (c) auto_analysis 의견 수정 시도 → denied + 동일 카운터 추적 (SM-3a)
++#   (d) 1-line ko-KR 메시지 "분석 의견 출처가 불분명합니다" + 200 OK envelope
++#
++# SSOT 보존 (CR 11-3 즉시 sweep 회피): `SourceKind` / `SOURCE_KIND_VALUES` 는
++# `packages/services/m10_ai/insight_cache_kernel.py` 의 것을 **그대로 재사용**
++# 한다 (신규 source_kind SSOT 도입 0건).
++# ─────────────────────────────────────────────────────────────────
++
++
++# ── comment_kind SSOT (service layer, master PRD §12 + 10-3 forward-fill) ──
++# 10-2 kernel 의 INSIGHT_KIND_VALUES 3종 + 10-3 forward-fill 2종
++# (risk_warning / industry_benchmark). AD-15 cross-language parity SSOT:
++# TS mirror `apps/web/lib/ai-comments.ts` (honestly DEFER (d)).
++COMMENT_KIND_VALUES: frozenset[str] = frozenset(
++    {
++        "cost_reduction_candidate",
++        "anomaly_pattern",
++        "forecast",
++        "risk_warning",
++        "industry_benchmark",
++    }
++)
++
++
++# ── Korean SSOT constants (master PRD §13.1 ko-KR-only + NFR18) ──
++AI_COMMENT_SOURCE_KIND_INVALID_KO: str = "분석 의견 출처가 불분명합니다"
++AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS_KO: str = (
++    "자동 분석 의견은 고정 템플릿이므로 수정할 수 없습니다"
++)
++
++
++# ── Typed exceptions (mapped to main.py envelopes) ───────────────
++class AICommentSourceKindInvalidError(InsightCacheServiceError):
++    """422 AI_COMMENT_SOURCE_KIND_INVALID — F10.2-(b) strict reject.
++
++    Raised when a `source_kind` value outside
++    `SOURCE_KIND_VALUES` = {'auto_analysis', 'ai_reference'} arrives on any
++    M10 input path. The reject is paired with a 1행 counter increment
++    (audit_logs row, master PRD §SM-3a "계산 결과 변경 시도 = 0건").
++    """
++
++    def __init__(
++        self,
++        *,
++        received_value: object,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"ai comment source_kind invalid: received='{received_value}' "
++            f"allowed={sorted(SOURCE_KIND_VALUES)}"
++        )
++        self.received_value = received_value
++        self.allowed_values: list[str] = sorted(SOURCE_KIND_VALUES)
++        self.message_ko: str = AI_COMMENT_SOURCE_KIND_INVALID_KO
++        self.trace_id: str = trace_id
++
++
++class AICommentImmutableAutoAnalysisError(InsightCacheServiceError):
++    """422 AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS — F10.2-(c) modify deny.
++
++    `source_kind='auto_analysis'` opinions are deterministic rule-based
++    templates (AD-7 verbatim "deterministic template analysis") and are
++    read-only at the 10-3 wire 진입 시점. Any modify attempt is denied and
++    counted (SM-3a 카운터).
++    """
++
++    def __init__(
++        self,
++        *,
++        comment_id: object,
++        trace_id: str,
++    ) -> None:
++        super().__init__(
++            f"auto_analysis comment is immutable: comment_id='{comment_id}'"
++        )
++        self.comment_id: str = str(comment_id)
++        self.message_ko: str = AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS_KO
++        self.trace_id: str = trace_id
++
++
++# ── Pure function: validate_source_kind (F10.2-(b) verbatim) ─────
++def validate_source_kind(source_kind: object, *, trace_id: str = "") -> SourceKind:
++    """Strict-reject validator for the AD-7 `source_kind` discriminator.
++
++    Pure function (stdlib-only, no I/O) — AD-5 engine purity 정합.
++    DRY: every M10 input path (POST /api/v1/ai/extract-monthly 10-1,
++    GET /api/v1/ai/insights 10-2, GET /api/v1/ai/comments 10-3) routes its
++    `source_kind` through this single helper.
++
++    Args:
++        source_kind: raw value to validate (str | SourceKind | anything).
++        trace_id: correlation id carried into the error envelope.
++
++    Returns:
++        The canonical `SourceKind` enum member.
++
++    Raises:
++        AICommentSourceKindInvalidError: value not in
++            {'auto_analysis', 'ai_reference'} (F10.2-(b) verbatim).
++    """
++    if isinstance(source_kind, SourceKind):
++        return source_kind
++    if isinstance(source_kind, str) and source_kind in SOURCE_KIND_VALUES:
++        return SourceKind(source_kind)
++    raise AICommentSourceKindInvalidError(
++        received_value=source_kind, trace_id=trace_id
++    )
++
++
++# ── Pure function: assert_comment_mutable (F10.2-(c) verbatim) ───
++def assert_comment_mutable(
++    *, source_kind: object, comment_id: object, trace_id: str = ""
++) -> None:
++    """Deny modify attempts on `auto_analysis` opinions (F10.2-(c)).
++
++    `ai_reference` opinions remain user-editable (후속 story 진입 시점에
++    editor surface wire — honestly DEFER (d)).
++    """
++    kind = validate_source_kind(source_kind, trace_id=trace_id)
++    if kind is SourceKind.AUTO_ANALYSIS:
++        raise AICommentImmutableAutoAnalysisError(
++            comment_id=comment_id, trace_id=trace_id
++        )
++
++
++# ── Result envelope ──────────────────────────────────────────────
++@dataclass(frozen=True)
++class AICommentEntryState:
++    """One AI comment row after the ORM→kernel boundary (CR 12-1 L3)."""
++
++    comment_id: uuid.UUID
++    comment_kind: str
++    body_text: str
++    source_kind: SourceKind
++    evidence_ref: str | None
++    generated_at: datetime
++
++
++@dataclass(frozen=True)
++class AICommentListResult:
++    """10-3 comment lookup result envelope (F10.2-(a) badge separation)."""
++
++    comments: tuple[AICommentEntryState, ...]
++    period_key: str
++    calculation_result_hash: str
++    hit_count: int
++    miss_count: int
++    counter_total: int
++    trace_id: str
++
++
++# ── Service class ───────────────────────────────────────────────
++class CommentService:
++    """Story 10.3 — AI comment lookup with AD-7 badge separation.
++
++    AD-25 verbatim 3-tuple cache key:
++      `(tenant_id, period_key, calculation_result_hash)`
++
++    F10.1-(d) verbatim: `channel = 'ai_cache'` filter ONLY consume
++    (cross-channel contamination 방어, 10-2 wire 보존).
++
++    Audit-first INSERT (CR 1.1 verbatim):
++      `audit_logs` row INSERT BEFORE `ai_insight_comments` SELECT/INSERT.
++    """
++
++    # F10.1-(d) verbatim — M10 adapter subscribes to this channel ONLY.
++    CHANNEL: str = "ai_cache"
++
++    def __init__(self, session: AsyncSession, *, trace_id: str) -> None:
++        self._session = session
++        self._trace_id = trace_id
++
++    async def list_comments(
++        self,
++        *,
++        tenant_id: uuid.UUID,
++        period_key: str,
++        calculation_result_hash: str,
++        comment_kind: str | None = None,
++    ) -> AICommentListResult:
++        """AC #1 ~ #6 — AI comment lookup (auto_analysis 3 + ai_reference 1).
++
++        Flow:
++          1. PIPA consent gate (FIRST gate, before any lookup).
++          2. audit-first INSERT (CR 1.1 verbatim).
++          3. `ai_insight_comments` SELECT WHERE AD-25 3-tuple
++             (+ optional comment_kind filter, F10.2-(a) 분기).
++          4. cache hit → rows via `_to_comment_state` ORM→kernel boundary.
++          5. cache miss → seed 3 auto_analysis (kernel SSOT) + 1 ai_reference.
++          6. return AICommentListResult (counter_total derived from audit).
++        """
++        # 1. PIPA consent gate (FIRST gate, 10-1/10-2 wire 보존).
++        await self._check_pipa_consent(tenant_id=tenant_id)
++
++        # 2. Audit-first INSERT (CR 1.1 verbatim) BEFORE any comment read.
++        await emit_audit_typed(
++            self._session,
++            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
++            action="ai_insight_cache_hit",  # optimistic; miss emits below
++            actor_id=None,
++            target_id=None,
++            reason=f"period_key={period_key}|hash={calculation_result_hash}",
++            payload={
++                "period_key": period_key,
++                "calculation_result_hash": calculation_result_hash,
++                "channel": self.CHANNEL,
++                "trace_id": self._trace_id,
++                "phase": "audit_first",
++            },
++            tenant_id=tenant_id,
++        )
++
++        # 3. AD-25 verbatim 3-tuple SELECT (+ optional comment_kind filter).
++        stmt = (
++            select(AiInsightComment)
++            .where(AiInsightComment.tenant_id == tenant_id)
++            .where(AiInsightComment.period_key == period_key)
++            .where(
++                AiInsightComment.calculation_result_hash == calculation_result_hash
++            )
++        )
++        if comment_kind is not None:
++            stmt = stmt.where(AiInsightComment.comment_kind == comment_kind)
++        stmt = stmt.order_by(AiInsightComment.generated_at.desc())
++
++        result = await self._session.execute(stmt)
++        rows = list(result.scalars().all())
++
++        if rows:
++            # 4. Cache hit — ORM→kernel boundary (CR 12-1 L3 verbatim).
++            comments = self._to_comment_state(rows)
++            return AICommentListResult(
++                comments=comments,
++                period_key=period_key,
++                calculation_result_hash=calculation_result_hash,
++                hit_count=len(comments),
++                miss_count=0,
++                counter_total=await self.derive_counter(tenant_id=tenant_id),
++                trace_id=self._trace_id,
++            )
++
++        # 5. Cache miss — seed 3 auto_analysis (kernel SSOT) + 1 ai_reference.
++        now = datetime.now(UTC).replace(tzinfo=None)
++        seeded: list[AICommentEntryState] = []
++        for entry in make_default_insights(period_key):
++            # AD-7 strict invariant: kernel defaults are auto_analysis ONLY.
++            source_kind = validate_source_kind(
++                entry.source_kind, trace_id=self._trace_id
++            )
++            row = AiInsightComment(
++                tenant_id=tenant_id,
++                period_key=period_key,
++                calculation_result_hash=calculation_result_hash,
++                comment_kind=entry.insight_kind.value,
++                source_kind=source_kind.value,
++                body_text=entry.answer,
++                evidence_ref=entry.evidence_ref,
++                generated_at=now,
++            )
++            self._session.add(row)
++            seeded.append(
++                AICommentEntryState(
++                    comment_id=row.comment_id or uuid.uuid4(),
++                    comment_kind=entry.insight_kind.value,
++                    body_text=entry.answer,
++                    source_kind=source_kind,
++                    evidence_ref=entry.evidence_ref,
++                    generated_at=now,
++                )
++            )
++
++        # 10-3 wire entry point — 1 `ai_reference` seed opinion (AD-7 verbatim
++        # "AI commentary labeled ai_reference"). Async LLM generation pipeline
++        # 은 honestly DEFER (b) retro input (D-10-3-DEFER-2).
++        ai_ref_body = (
++            f"{period_key} AI 참고 의견 — 확정 책임은 사용자에게 있습니다."
++        )
++        ai_ref_evidence = f"period={period_key}|kind=risk_warning|source=ai_reference"
++        ai_ref_row = AiInsightComment(
++            tenant_id=tenant_id,
++            period_key=period_key,
++            calculation_result_hash=calculation_result_hash,
++            comment_kind="risk_warning",
++            source_kind=SourceKind.AI_REFERENCE.value,
++            body_text=ai_ref_body,
++            evidence_ref=ai_ref_evidence,
++            generated_at=now,
++        )
++        self._session.add(ai_ref_row)
++        seeded.append(
++            AICommentEntryState(
++                comment_id=ai_ref_row.comment_id or uuid.uuid4(),
++                comment_kind="risk_warning",
++                body_text=ai_ref_body,
++                source_kind=SourceKind.AI_REFERENCE,
++                evidence_ref=ai_ref_evidence,
++                generated_at=now,
++            )
++        )
++        await self._session.flush()
++
++        # 6. audit-first emit for the miss path (CR 1.1 verbatim).
++        await emit_audit_typed(
++            self._session,
++            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
++            action="ai_insight_cache_miss",
++            actor_id=None,
++            target_id=None,
++            reason=f"period_key={period_key}|hash={calculation_result_hash}",
++            payload={
++                "period_key": period_key,
++                "calculation_result_hash": calculation_result_hash,
++                "channel": self.CHANNEL,
++                "trace_id": self._trace_id,
++                "phase": "comment_seed",
++            },
++            tenant_id=tenant_id,
++        )
++
++        if comment_kind is not None:
++            seeded = [c for c in seeded if c.comment_kind == comment_kind]
++
++        return AICommentListResult(
++            comments=tuple(seeded),
++            period_key=period_key,
++            calculation_result_hash=calculation_result_hash,
++            hit_count=0,
++            miss_count=len(seeded),
++            counter_total=await self.derive_counter(tenant_id=tenant_id),
++            trace_id=self._trace_id,
++        )
++
++    async def reject_invalid_source_kind(
++        self, *, tenant_id: uuid.UUID, received_value: object
++    ) -> None:
++        """F10.2-(b) — audit-first INSERT then strict reject + counter.
++
++        CR 1.1 verbatim: the `audit_logs` row (which IS the counter) is
++        written BEFORE the reject is raised.
++        """
++        await emit_audit_typed(
++            self._session,
++            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
++            action="ai_insight_cache_invalid_source_kind",
++            actor_id=None,
++            target_id=None,
++            reason=(
++                f"received_value={received_value}|"
++                f"allowed_values={sorted(SOURCE_KIND_VALUES)}"
++            ),
++            payload={
++                "received_value": str(received_value),
++                "trace_id": self._trace_id,
++            },
++            tenant_id=tenant_id,
++        )
++        raise AICommentSourceKindInvalidError(
++            received_value=received_value, trace_id=self._trace_id
++        )
++
++    async def deny_auto_analysis_modify(
++        self, *, tenant_id: uuid.UUID, comment_id: object, actor_id: object = None
++    ) -> None:
++        """F10.2-(c) — audit-first INSERT then deny + counter (SM-3a)."""
++        await emit_audit_typed(
++            self._session,
++            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
++            action="ai_insight_cache_auto_analysis_modify_denied",
++            actor_id=None,
++            target_id=str(comment_id),
++            reason=f"comment_id={comment_id}|actor_id={actor_id}",
++            payload={"trace_id": self._trace_id},
++            tenant_id=tenant_id,
++        )
++        raise AICommentImmutableAutoAnalysisError(
++            comment_id=comment_id, trace_id=self._trace_id
++        )
++
++    async def derive_counter(self, *, tenant_id: uuid.UUID) -> int:
++        """SM-3a counter derive — no separate counter table (CR 1.1 verbatim).
++
++        counter = COUNT(audit_logs) WHERE action IN
++          ('ai_insight_cache_invalid_source_kind',
++           'ai_insight_cache_auto_analysis_modify_denied')
++        """
++        stmt = (
++            select(func.count())
++            .select_from(AuditLog)
++            .where(AuditLog.tenant_id == tenant_id)
++            .where(
++                AuditLog.action_class.in_(
++                    (
++                        "ai_insight_cache_invalid_source_kind",
++                        "ai_insight_cache_auto_analysis_modify_denied",
++                    )
++                )
++            )
++        )
++        result = await self._session.execute(stmt)
++        return int(result.scalar_one() or 0)
++
++    async def _check_pipa_consent(self, *, tenant_id: uuid.UUID) -> None:
++        """PIPA consent gate (FIRST gate per AC #5) — 10-2 wire 보존."""
++        stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id)
++        result = await self._session.execute(stmt)
++        settings = result.scalar_one_or_none()
++        if settings is None:
++            raise AiPipaConsentMissingError(
++                tenant_id=tenant_id, trace_id=self._trace_id
++            )
++
++    def _to_comment_state(
++        self, rows: list[AiInsightComment]
++    ) -> tuple[AICommentEntryState, ...]:
++        """ORM→kernel boundary (CR 12-1 L3 verbatim pattern).
++
++        Typed mapping + UUID cast + SourceKind enum.value reverse lookup
++        + comment_kind discriminator 검증 + immutable tuple return.
++        """
++        out: list[AICommentEntryState] = []
++        for row in rows:
++            source_kind = validate_source_kind(
++                row.source_kind, trace_id=self._trace_id
++            )
++            out.append(
++                AICommentEntryState(
++                    comment_id=(
++                        row.comment_id
++                        if isinstance(row.comment_id, uuid.UUID)
++                        else uuid.UUID(str(row.comment_id))
++                    ),
++                    comment_kind=row.comment_kind,
++                    body_text=row.body_text,
++                    source_kind=source_kind,
++                    evidence_ref=row.evidence_ref,
++                    generated_at=row.generated_at,
++                )
++            )
++        return tuple(out)
+\ No newline at end of file
+diff --git a/docs/deferred-work.md b/docs/deferred-work.md
+index 818da99..1af5294 100644
+--- a/docs/deferred-work.md
++++ b/docs/deferred-work.md
+@@ -691,3 +691,51 @@ pattern 8 surface PASS + 3중 게이트 FINAL CLEAN.
+ - **Reason**: Pre-existing violation from 10-1 wire (`809a081` baseline_commit). The test `tests/architecture/test_api_calls_only_ports.py::test_api_root_does_not_import_services` reads AST statically and finds the wrong-path string. At runtime, line 155's correct-path import inside `_get_document_extraction_adapter()` is the one actually used; line 929's import is dead code (duplicate lazy import, never reached because the helper function returns a singleton). 10-2 wire scope = 10-2 files only; does NOT touch 10-1 leftover service.py line.
+ - **Scope**: 1 EDIT in `apps/api/modules/m10_ai/service.py` line 929 (replace path with `apps.api.modules.m10_ai.adapters.fake_adapter` OR refactor to use the existing `_get_document_extraction_adapter()` singleton helper).
+ - **Pickup plan**: 10-1 follow-up sprint or 10-1 retro input (Epic 10 close-out retro 진입 시점에 결정).
++
++## Deferred from: 10-3 (AI Reference vs Auto Analysis Badge Separation)
++
++Story 10.3 spec entry completed 2026-08-17. 5 items honestly-DEFERred
++per CR 11-3 discipline (24번째 epic 연속 — Epic 4·5·6·11·12·A19·7-1·7-2·8-1·8-2·8-3·9-1~9-7·10-1·10-2 + **10-3**):
++
++### D-10-3-DEFER-1 — Master PRD v2.0 본체 edit (a: docs 정합)
++
++- **Source**: `_bmad-output/planning-artifacts/prd.md` §F10.2·§8.1 M10-(b)·§12 AI 3종·§A11·§SM-3a·부록 A A37+ 추가 (Epic 10 close-out retro 진입 시점에 본체 edit).
++- **Reason**: Epic 10 PRD entry는 workspace canonical `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-08-17/prd.md` 만 wire. master PRD 본체 §F10.2·§8.1 M10-(b)·부록 A 추가는 Epic 10 close-out retro 진입 시점에 별도 atomic wire (cj-style standard pattern).
++- **Scope**: 1 MODIFIED file (master PRD v2.0 본체). 부록 A A37+ + §8.1 M10 4-story AC extension + §F10.2 (a)~(d) verbatim 4 bullets + §12 AI 3종 verbatim + §SM-3a 카운터 별도 추적 명시.
++- **Pickup plan**: Epic 10 close-out retro 진입 시점 (10-3~10-4 done 진입 후).
++
++### D-10-3-DEFER-2 — `ai_reference` 의견 async generation pipeline (b: retro input)
++
++- **Source**: `apps/api/modules/m10_ai/service.py::CommentService.list_comments` (cache miss path: returns 3 default `auto_analysis` insights + seed 1 row `ai_reference` 의견; full async generation pipeline for additional `ai_reference` opinions 미구현).
++- **Reason**: 10-3 wire 진입 시점에는 `ai_reference` 의견 1 row seed (deterministic ko-KR template, AD-7 verbatim `source_kind='ai_reference'`) 만 wire. AI commentary async generation pipeline (외부 LLM 호출 + JSON 응답 → `ai_insight_comments` INSERT) 진입 시점은 Epic 10 close-out retro에서 A37+ 결정 도출 (D-10-2-DEFER-2 carry-over + Epic 9 retro A31 Report #15 wire schedule).
++- **Scope**: LLM provider wiring + async generation pipeline + 3 NEW prompt templates (risk_warning + industry_benchmark + extended ai_reference) + TS mirror parity extension + ko-KR.json `ai_comments` namespace detail + rate limit + retry policy.
++- **Pickup plan**: Epic 10 close-out retro 결정 (A37+ 도출 후).
++
++### D-10-3-DEFER-3 — auto_analysis 의견 read-only DB-level enforcement trigger (c: separate epic)
++
++- **Source**: `apps/api/core/db_models.py::AiInsightComment` (10-3 wire 진입 시점 service-layer 검증 helper `validate_source_kind` + `AICommentImmutableAutoAnalysisError` typed exception 으로만 reject; DB-level trigger 별도 wire 0건).
++- **Reason**: AD-7 verbatim "deterministic template analysis is labeled `auto_analysis`; Attempts by M10 to write confirmed-input tables are denied and counted". 10-3 wire 진입 시점에는 service-layer 검증 helper + `_to_comment_state` ORM→kernel boundary typed mapping + audit_logs SELECT COUNT 카운터 derive 로 보장. DB-level INSERT-only trigger + UPDATE/DELETE 거부 trigger 별도 wire는 별도 epic 진입 (CR 12-5 L3 3-layer defense route|service|validation → DB 4th layer 추가 wire).
++- **Scope**: PostgreSQL trigger function `enforce_ai_insight_comments_immutable()` + UPDATE/DELETE 거부 trigger + AD-2 INSERT-only trigger EXTENSION + audit-first INSERT.
++- **Pickup plan**: 별도 epic 진입 시점 (post-Epic 10 follow-up).
++
++### D-10-3-DEFER-4 — 7 frontend files + 1 TS mirror parity + vitest mount + ko-KR.json SSOT (d: dedicated sprint)
++
++- **Source**: 7 NEW frontend files:
++  - `apps/web/components/ai-insights/AutoAnalysisBadge.tsx` (NEW — 파란 배지 "📊 자동 분석" + tooltip "이 의견은 고정 템플릿입니다")
++  - `apps/web/components/ai-insights/AiReferenceBadge.tsx` (NEW — 보라 배지 "🤖 AI 참고(검증 필요)" + tooltip "AI는 비권위적입니다 — 확정 책임은 사용자에게")
++  - `apps/web/components/ai-insights/CommentSection.tsx` (NEW — Discriminated union `AICommentEntry` props; source_kind discriminator 분기 + 2 badge component mount)
++  - `apps/web/components/ai-insights/__tests__/AutoAnalysisBadge.test.tsx` (NEW — vitest mount + A35 frontend test debt 정직 회복)
++  - `apps/web/components/ai-insights/__tests__/AiReferenceBadge.test.tsx` (NEW — vitest mount)
++  - `apps/web/lib/ai-comments.ts` (NEW — TS mirror parity: Python `AICommentEntry` ↔ TS `AICommentEntryTS`, Discriminated union narrowing)
++  - `apps/web/__tests__/lib/ai-comments-parity.test.ts` (NEW — cross-language drift detector, 18 cases precedent)
++  - `apps/web/messages/ko-KR.json` (MODIFIED — `ai_comments` namespace ~5 strings SSOT: badge labels 2 + tooltip 2 + warning 1, CR 11-4 D-002 + P-015 정합).
++- **Reason**: A35 frontend test debt honestly DEFER (10-3 wire 진입 시점에 7 frontend files + 1 TS mirror parity + vitest mount = A35 frontend test debt **dedicated sprint** 후속 진입, cj-style carry-over 14번째 가능). Story 10.1 D-10-1-DEFER-3 + Story 10.2 D-10-2-DEFER-4 패턴 미러.
++- **Scope**: 7 NEW files + 1 MODIFIED = ~600 LOC frontend + ~80 NEW vitest cases.
++- **Pickup plan**: A35 frontend dedicated sprint 진입 (cj-style carry-over 14번째 = 10-3 follow-up 후속).
++
++### D-10-3-DEFER-5 — `docs/deferred-work.md` EXTENSION 자체 (a: docs 정합 carry-over)
++
++- **Source**: 본 파일 `docs/deferred-work.md` (10-3 honestly DEFER items D-10-3-DEFER-1~4 EXTENSION 자체).
++- **Reason**: 본 파일 EXTENSION 자체 = D-10-3-DEFER-1 (a: docs 정합 carry-over). master PRD v2.0 본체 edit pattern 미러 (10-2 D-10-2-DEFER-5 패턴 미러 + carry-over).
++- **Scope**: 본 파일 1 MODIFIED (`docs/deferred-work.md`) EXTENSION = 본 section itself.
++- **Pickup plan**: Epic 10 close-out retro 진입 시점에 결정 (D-10-3-DEFER-1 + 본 carry-over 동시 해소).
+diff --git a/packages/services/m10_ai/__init__.py b/packages/services/m10_ai/__init__.py
+index 50655e5..5448012 100644
+--- a/packages/services/m10_ai/__init__.py
++++ b/packages/services/m10_ai/__init__.py
+@@ -24,6 +24,13 @@ Story 10.2 EXTENSION (three-insight cache policy):
+     - make_default_insights pure function (3 default rule-based insights)
+     - InsightCacheKeyShapeError typed exception
+ 
++Story 10.3 EXTENSION note (AI reference vs auto analysis badge separation):
++    - `SourceKind` / `SOURCE_KIND_VALUES` re-export **그대로 보존** (SSOT 변경 0건).
++    - `ai_reference` opinion surface 는 service layer 로 진입
++      (`apps/api/modules/m10_ai/service.py::CommentService` + `ai_insight_comments`).
++    - F10.2-(a)~(d) verbatim bind: 파란 배지 '📊 자동 분석' (auto_analysis) /
++      보라 배지 '🤖 AI 참고(검증 필요)' (ai_reference) + SM-3a counter increment.
++
+ AD-1 / AD-11 layering: pure kernel layer. Service layer
+ (`apps/api/modules/m10_ai/`) imports from here.
+ """
+diff --git a/packages/services/m10_ai/insight_cache_kernel.py b/packages/services/m10_ai/insight_cache_kernel.py
+index 13633f0..5624a00 100644
+--- a/packages/services/m10_ai/insight_cache_kernel.py
++++ b/packages/services/m10_ai/insight_cache_kernel.py
+@@ -76,6 +76,15 @@ SOURCE_KIND_VALUES: Final[frozenset[str]] = frozenset(
+ )
+ 
+ 
++#
++# Story 10.3 wire note (cj-style Epic 10 4번째 진입점, cj-style 30번째 epic 연속):
++# 10-3 wire 진입 시점에 `ai_reference` opinion 은 **별도 surface** 로 진입한다
++# (`apps/api/modules/m10_ai/service.py::CommentService` + `ai_insight_comments`
++# ORM/alembic 0031). 본 kernel 의 SSOT invariant 는 **그대로 보존**:
++#   - `SOURCE_KIND_VALUES` frozenset 2 values (auto_analysis | ai_reference)
++#   - `make_default_insights()` 는 `auto_analysis` ONLY 반환 (AD-7 strict invariant)
++# F10.2-(a)~(d) verbatim bind 보존 (master PRD §SM-3a counter increment for
++# invalid source_kind + auto_analysis modify attempt). 로직 변경 0건.
+ class SourceKind(str, Enum):
+     """Canonical source_kind discriminator. Mirrors SOURCE_KIND_VALUES."""
+ 
+diff --git a/tests/integration/test_capability_matrix_v1_21_drift.py b/tests/integration/test_capability_matrix_v1_21_drift.py
+index ce8b5bb..0192850 100644
+--- a/tests/integration/test_capability_matrix_v1_21_drift.py
++++ b/tests/integration/test_capability_matrix_v1_21_drift.py
+@@ -293,3 +293,49 @@ def test_capability_matrix_v1_21_story_10_2_row_present() -> None:
+         "Story 10.2 row missing AI_INSIGHT capability reference. "
+         "Expected: `| 10.2 — Three-Insight Cache Policy | `AI_INSIGHT` |`"
+     )
++
++
++# ── Story 10.3 EXTENSION (cj-style 30번째 epic 연속) ─────────────
++# T6.1 NEW case: 10.3 story_coverage includes '10.3' reference + F10.2
++# verbatim badge separation binding verification (forward-bind to
++# epics.md Story 10.3 wire 진입).
++
++
++def test_capability_matrix_v1_21_story_10_3_coverage() -> None:
++    """Story 10.3 (AI Reference vs Auto Analysis Badge Separation) is referenced.
++
++    10-3 wire 진입 시점에 AI_INSIGHT row MUST reference '10.3' alongside
++    '10.1, 10.2, 10.4'. P-015 SSOT parity preserved (4 stories = 1 row).
++    """
++    text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
++
++    # AI_INSIGHT row must include '10.3' in the story reference column
++    pattern = re.compile(
++        r"\|\s*`?AI_INSIGHT`?\s*\|[^|]*\b10\.3\b[^|]*\|",
++        re.MULTILINE,
++    )
++    assert pattern.search(text), (
++        "AI_INSIGHT row missing 10.3 story reference. "
++        "Story 10.3 (AI Reference vs Auto Analysis Badge Separation) "
++        "is part of Epic 10 4-story split + retro 5번째 진입점 "
++        "(cj-style pattern)."
++    )
++
++
++def test_capability_matrix_v1_21_story_10_3_row_present() -> None:
++    """Story 10.3 row MUST exist with AI_INSIGHT capability reference.
++
++    Distinct from the AI_INSIGHT row (the row that lists 10.1~10.4 in its
++    story column). The Story 10.3 row uses format `| 10.3 — ... | `AI_INSIGHT` |`.
++    """
++    text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
++
++    # Story 10.3 row in story coverage table
++    pattern = re.compile(
++        r"\|\s*10\.3\s+—[^|]*\|\s*`?AI_INSIGHT`?",
++        re.MULTILINE,
++    )
++    assert pattern.search(text), (
++        "Story 10.3 row missing AI_INSIGHT capability reference. "
++        "Expected: `| 10.3 — Reference vs Auto Analysis Badge | `AI_INSIGHT` |`"
++    )

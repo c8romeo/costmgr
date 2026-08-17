@@ -143,6 +143,8 @@ from apps.api.modules.m9_abc.exceptions import (
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
 from apps.api.modules.m10_ai.service import (
+    AICommentImmutableAutoAnalysisError,
+    AICommentSourceKindInvalidError,
     AiInsightCacheContaminationError,
     AiPipaConsentMissingError,
     InsightCacheKeyError,
@@ -518,6 +520,55 @@ async def _m10_ai_insight_cache_contamination_handler(
             "details": {
                 "observed_channel": exc.observed_channel,
                 "expected_channel": exc.expected_channel,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ── Story 10.3 EXTENSION envelopes (F10.2-(b)(c) verbatim) ──
+# (cj-style Epic 10 4번째 진입점 wire, 2026-08-17)
+@app.exception_handler(AICommentSourceKindInvalidError)
+async def _m10_ai_comment_source_kind_invalid_handler(
+    request: Request, exc: AICommentSourceKindInvalidError
+) -> JSONResponse:
+    """422 AI_COMMENT_SOURCE_KIND_INVALID — F10.2-(b) strict reject.
+
+    Audit-first INSERT already written (CR 1.1 verbatim) BEFORE the
+    reject was raised. The `details` envelope carries received_value +
+    allowed_values for client-side remediation hints.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "AI_COMMENT_SOURCE_KIND_INVALID",
+            "message_ko": exc.message_ko,
+            "details": {
+                "received_value": str(exc.received_value),
+                "allowed_values": exc.allowed_values,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(AICommentImmutableAutoAnalysisError)
+async def _m10_ai_comment_immutable_auto_analysis_handler(
+    request: Request, exc: AICommentImmutableAutoAnalysisError
+) -> JSONResponse:
+    """422 AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS — F10.2-(c) modify deny.
+
+    auto_analysis opinions are read-only (AD-7 verbatim "deterministic
+    template analysis"). Modify attempts are denied and counted (SM-3a
+    "계산 결과 변경 시도" audit_logs 카운터).
+    """
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS",
+            "message_ko": exc.message_ko,
+            "details": {
+                "comment_id": exc.comment_id,
             },
             "trace_id": exc.trace_id,
         },

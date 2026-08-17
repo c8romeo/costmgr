@@ -76,6 +76,15 @@ SOURCE_KIND_VALUES: Final[frozenset[str]] = frozenset(
 )
 
 
+#
+# Story 10.3 wire note (cj-style Epic 10 4번째 진입점, cj-style 30번째 epic 연속):
+# 10-3 wire 진입 시점에 `ai_reference` opinion 은 **별도 surface** 로 진입한다
+# (`apps/api/modules/m10_ai/service.py::CommentService` + `ai_insight_comments`
+# ORM/alembic 0031). 본 kernel 의 SSOT invariant 는 **그대로 보존**:
+#   - `SOURCE_KIND_VALUES` frozenset 2 values (auto_analysis | ai_reference)
+#   - `make_default_insights()` 는 `auto_analysis` ONLY 반환 (AD-7 strict invariant)
+# F10.2-(a)~(d) verbatim bind 보존 (master PRD §SM-3a counter increment for
+# invalid source_kind + auto_analysis modify attempt). 로직 변경 0건.
 class SourceKind(str, Enum):
     """Canonical source_kind discriminator. Mirrors SOURCE_KIND_VALUES."""
 

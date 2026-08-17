@@ -47,6 +47,9 @@ from apps.api.modules.m0_onboarding.services.settings_service import (
     SettingsService,
 )
 from apps.api.modules.m10_ai.schemas import (
+    AICommentEntry,
+    AICommentError,
+    AICommentListResponse,
     DocumentResponse,
     DocumentSummary,
     DocumentUploadRequest,
@@ -66,6 +69,7 @@ from apps.api.modules.m10_ai.schemas import (
 )
 from apps.api.modules.m10_ai.service import (
     AiPipaConsentMissingError,
+    CommentService,
     DocumentMimeNotAllowedError,
     DocumentNotFoundError,
     DocumentService,
@@ -564,9 +568,9 @@ async def extract_monthly_endpoint(
 # (cj-style Epic 10 3번째 진입점 wire, 2026-08-17)
 #
 # AD-25 verbatim 3-tuple cache key:
-#   (tenant_id, period_key, calculation_result_hash)
+#   tenant_id + period_key + calculation_result_hash
 # F10.1-(d) verbatim: channel = 'ai_cache' filter 강제
-#   (cross-channel contamination 방어).
+#   cross-channel contamination 방어.
 #
 # AD-7 strict invariant: 10-2 wire 진입 시점에 all 3 default insights
 # are `source_kind='auto_analysis'`. `ai_reference` 추가는 Story 10.3
@@ -636,5 +640,98 @@ async def get_ai_insights(
         calculation_result_hash=result.calculation_result_hash,
         hit_count=result.hit_count,
         miss_count=result.miss_count,
+        status="success",
+    )
+
+
+# ── Story 10.3 EXTENSION: GET /api/v1/ai/comments ───────────
+# (cj-style Epic 10 4번째 진입점 wire, 2026-08-17)
+#
+# AD-25 verbatim 3-tuple cache key:
+#   tenant_id + period_key + calculation_result_hash
+# F10.1-(d) verbatim: channel = 'ai_cache' filter 강제 (10-2 wire 보존)
+# AD-7 verbatim: F10.2-(a) badge 결정자 (auto_analysis | ai_reference)
+# F10.2-(b)(c) verbatim: source_kind 미매칭 reject + auto_analysis modify deny
+#   + 1행 counter increment (audit_logs, SM-3a).
+# F10.2-(d) verbatim: 1-line ko-KR 메시지 "분석 의견 출처가 불분명합니다"
+
+
+@router.get(
+    "/ai/comments",
+    response_model=AICommentListResponse | AICommentError,
+    status_code=status.HTTP_200_OK,
+    summary="AI 의견 캐시 조회 (F10.2 badge separation verbatim)",
+    description=(
+        "auto_analysis 의견 3개 + ai_reference 의견 1개 반환 "
+        "(source_kind='auto_analysis' | 'ai_reference' discriminator). "
+        "F10.2-(a) badge 결정자 verbatim: "
+        "auto_analysis → 파란 배지 '📊 자동 분석' (tooltip: '이 의견은 고정 템플릿입니다'), "
+        "ai_reference → 보라 배지 '🤖 AI 참고(검증 필요)' (tooltip: 'AI는 비권위적입니다 — 확정 책임은 사용자에게'). "
+        "F10.2-(b) source_kind 미매칭 value → strict reject + 1행 counter increment (F10.2-(d) ko-KR 메시지: 분석 의견 출처가 불분명합니다). "
+        "F10.2-(c) auto_analysis 의견 수정 시도 → denied + 동일 카운터 추적 (SM-3a). "
+        "AD-25 verbatim (tenant_id, period_key, calculation_result_hash) 캐시 키 기반. "
+        "channel='ai_cache' filter 강제 (F10.1-(d) verbatim cross-channel contamination 방지)."
+    ),
+)
+async def get_ai_comments(
+    period_key: str = Query(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="YYYY-MM fiscal period key (master PRD §V4 format)",
+    ),
+    calculation_result_hash: str = Query(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Epic 4 SHA-256 hex digest from fiscal_period_snapshots.calculation_result_hash",
+    ),
+    comment_kind: str | None = Query(
+        None,
+        pattern=r"^(cost_reduction_candidate|anomaly_pattern|forecast|risk_warning|industry_benchmark)$",
+        description="Optional comment_kind filter (master PRD §12 + 10-3 forward-fill 2 kinds)",
+    ),
+    ctx: TenantContext = Depends(require_capability(Capability.AI_INSIGHT)),
+    session: AsyncSession = Depends(get_session),
+) -> Any:
+    """GET /api/v1/ai/comments — AI comment lookup with badge separation.
+
+    PIPA gate + capability gate + audit-first INSERT (CR 1.1 verbatim).
+    Returns 4 comment entries (3 auto_analysis + 1 ai_reference):
+      - cost_reduction_candidate (auto_analysis) — kernel default
+      - anomaly_pattern          (auto_analysis) — kernel default
+      - forecast                 (auto_analysis) — kernel default
+      - risk_warning             (ai_reference)  — 10-3 wire entry point
+    AD-7 strict invariant: kernel defaults remain auto_analysis ONLY.
+    `ai_reference` seed opinion is deterministic (async LLM pipeline
+    honestly DEFER (b) retro input — D-10-3-DEFER-2).
+    """
+    trace_id = str(uuid.uuid4())
+    tenant_id = uuid.UUID(ctx.tenant_id)
+
+    service = CommentService(session, trace_id=trace_id)
+    result = await service.list_comments(
+        tenant_id=tenant_id,
+        period_key=period_key,
+        calculation_result_hash=calculation_result_hash,
+        comment_kind=comment_kind,
+    )
+
+    return AICommentListResponse(
+        comments=[
+            AICommentEntry(
+                comment_id=entry.comment_id,
+                comment_kind=entry.comment_kind,
+                body_text=entry.body_text,
+                source_kind=entry.source_kind.value,
+                evidence_ref=entry.evidence_ref,
+                generated_at=entry.generated_at,
+            )
+            for entry in result.comments
+        ],
+        period_key=result.period_key,
+        calculation_result_hash=result.calculation_result_hash,
+        hit_count=result.hit_count,
+        miss_count=result.miss_count,
+        counter_total=result.counter_total,
         status="success",
     )

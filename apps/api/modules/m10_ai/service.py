@@ -36,12 +36,19 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit_action import ActionClass, emit_audit_typed
-from apps.api.core.db_models import AiInsightCache, InputDraft, TenantSettings, UploadedDocument
+from apps.api.core.db_models import (
+    AiInsightCache,
+    AiInsightComment,
+    AuditLog,
+    InputDraft,
+    TenantSettings,
+    UploadedDocument,
+)
 from packages.services.m10_ai.extraction_port import (
     SUPPORTED_FIELD_NAMES,
     DocumentExtractionJob,
@@ -50,6 +57,7 @@ from packages.services.m10_ai.extraction_port import (
     ExtractionRequest,
 )
 from packages.services.m10_ai.insight_cache_kernel import (
+    SOURCE_KIND_VALUES,
     InsightEntry,
     InsightKind,
     SourceKind,
@@ -914,15 +922,16 @@ async def extract_monthly_input(
         InvalidMonthlyFieldValueError: parse failure (422 envelope, from kernel).
         MonthlyExtractionError: extraction wrapper failure (500 envelope).
     """
+    from packages.services.m10_ai.adapters.fake_adapter import (
+        FakeDocumentExtractionAdapter,
+    )
+
     from packages.services.m10_ai import (
         CONFIDENCE_RED_THRESHOLD,
         InvalidMonthlyFieldValueError,
         MonthlyFieldName,
         MonthlyInputDraftRow,
         normalize_monthly_field_value,
-    )
-    from packages.services.m10_ai.adapters.fake_adapter import (
-        FakeDocumentExtractionAdapter,
     )
 
     extraction_id = uuid.uuid4()
@@ -1309,3 +1318,463 @@ class InsightCacheService:
             )
             result.append(entry)
         return tuple(result)
+
+# ─────────────────────────────────────────────────────────────────
+# Story 10.3 (cj-style Epic 10 4번째 진입점, cj-style 30번째 epic 연속) —
+# AI Reference vs Auto Analysis Badge Separation (AD-7 verbatim).
+#
+# F10.2 (a)~(d) verbatim wire:
+#   (a) source_kind='auto_analysis' → 파란 배지 '📊 자동 분석'
+#       source_kind='ai_reference'  → 보라 배지 '🤖 AI 참고(검증 필요)'
+#   (b) source_kind 미매칭 value → strict reject + 1행 counter increment
+#   (c) auto_analysis 의견 수정 시도 → denied + 동일 카운터 추적 (SM-3a)
+#   (d) 1-line ko-KR 메시지 "분석 의견 출처가 불분명합니다" + 200 OK envelope
+#
+# SSOT 보존 (CR 11-3 즉시 sweep 회피): `SourceKind` / `SOURCE_KIND_VALUES` 는
+# `packages/services/m10_ai/insight_cache_kernel.py` 의 것을 **그대로 재사용**
+# 한다 (신규 source_kind SSOT 도입 0건).
+# ─────────────────────────────────────────────────────────────────
+
+
+# ── comment_kind SSOT (service layer, master PRD §12 + 10-3 forward-fill) ──
+# 10-2 kernel 의 INSIGHT_KIND_VALUES 3종 + 10-3 forward-fill 2종
+# (risk_warning / industry_benchmark). AD-15 cross-language parity SSOT:
+# TS mirror `apps/web/lib/ai-comments.ts` (honestly DEFER (d)).
+COMMENT_KIND_VALUES: frozenset[str] = frozenset(
+    {
+        "cost_reduction_candidate",
+        "anomaly_pattern",
+        "forecast",
+        "risk_warning",
+        "industry_benchmark",
+    }
+)
+
+
+# ── Korean SSOT constants (master PRD §13.1 ko-KR-only + NFR18) ──
+AI_COMMENT_SOURCE_KIND_INVALID_KO: str = "분석 의견 출처가 불분명합니다"
+AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS_KO: str = (
+    "자동 분석 의견은 고정 템플릿이므로 수정할 수 없습니다"
+)
+
+
+# ── Typed exceptions (mapped to main.py envelopes) ───────────────
+class AICommentSourceKindInvalidError(InsightCacheServiceError):
+    """422 AI_COMMENT_SOURCE_KIND_INVALID — F10.2-(b) strict reject.
+
+    Raised when a `source_kind` value outside
+    `SOURCE_KIND_VALUES` = {'auto_analysis', 'ai_reference'} arrives on any
+    M10 input path. The reject is paired with a 1행 counter increment
+    (audit_logs row, master PRD §SM-3a "계산 결과 변경 시도 = 0건").
+    """
+
+    def __init__(
+        self,
+        *,
+        received_value: object,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"ai comment source_kind invalid: received='{received_value}' "
+            f"allowed={sorted(SOURCE_KIND_VALUES)}"
+        )
+        self.received_value = received_value
+        self.allowed_values: list[str] = sorted(SOURCE_KIND_VALUES)
+        self.message_ko: str = AI_COMMENT_SOURCE_KIND_INVALID_KO
+        self.trace_id: str = trace_id
+
+
+class AICommentImmutableAutoAnalysisError(InsightCacheServiceError):
+    """422 AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS — F10.2-(c) modify deny.
+
+    `source_kind='auto_analysis'` opinions are deterministic rule-based
+    templates (AD-7 verbatim "deterministic template analysis") and are
+    read-only at the 10-3 wire 진입 시점. Any modify attempt is denied and
+    counted (SM-3a 카운터).
+    """
+
+    def __init__(
+        self,
+        *,
+        comment_id: object,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"auto_analysis comment is immutable: comment_id='{comment_id}'"
+        )
+        self.comment_id: str = str(comment_id)
+        self.message_ko: str = AI_COMMENT_IMMUTABLE_AUTO_ANALYSIS_KO
+        self.trace_id: str = trace_id
+
+
+# ── Pure function: validate_source_kind (F10.2-(b) verbatim) ─────
+def validate_source_kind(source_kind: object, *, trace_id: str = "") -> SourceKind:
+    """Strict-reject validator for the AD-7 `source_kind` discriminator.
+
+    Pure function (stdlib-only, no I/O) — AD-5 engine purity 정합.
+    DRY: every M10 input path (POST /api/v1/ai/extract-monthly 10-1,
+    GET /api/v1/ai/insights 10-2, GET /api/v1/ai/comments 10-3) routes its
+    `source_kind` through this single helper.
+
+    Args:
+        source_kind: raw value to validate (str | SourceKind | anything).
+        trace_id: correlation id carried into the error envelope.
+
+    Returns:
+        The canonical `SourceKind` enum member.
+
+    Raises:
+        AICommentSourceKindInvalidError: value not in
+            {'auto_analysis', 'ai_reference'} (F10.2-(b) verbatim).
+    """
+    if isinstance(source_kind, SourceKind):
+        return source_kind
+    if isinstance(source_kind, str) and source_kind in SOURCE_KIND_VALUES:
+        return SourceKind(source_kind)
+    raise AICommentSourceKindInvalidError(
+        received_value=source_kind, trace_id=trace_id
+    )
+
+
+# ── Pure function: assert_comment_mutable (F10.2-(c) verbatim) ───
+def assert_comment_mutable(
+    *, source_kind: object, comment_id: object, trace_id: str = ""
+) -> None:
+    """Deny modify attempts on `auto_analysis` opinions (F10.2-(c)).
+
+    `ai_reference` opinions remain user-editable (후속 story 진입 시점에
+    editor surface wire — honestly DEFER (d)).
+    """
+    kind = validate_source_kind(source_kind, trace_id=trace_id)
+    if kind is SourceKind.AUTO_ANALYSIS:
+        raise AICommentImmutableAutoAnalysisError(
+            comment_id=comment_id, trace_id=trace_id
+        )
+
+
+# ── Result envelope ──────────────────────────────────────────────
+@dataclass(frozen=True)
+class AICommentEntryState:
+    """One AI comment row after the ORM→kernel boundary (CR 12-1 L3)."""
+
+    comment_id: uuid.UUID
+    comment_kind: str
+    body_text: str
+    source_kind: SourceKind
+    evidence_ref: str | None
+    generated_at: datetime
+
+
+@dataclass(frozen=True)
+class AICommentListResult:
+    """10-3 comment lookup result envelope (F10.2-(a) badge separation)."""
+
+    comments: tuple[AICommentEntryState, ...]
+    period_key: str
+    calculation_result_hash: str
+    hit_count: int
+    miss_count: int
+    counter_total: int
+    trace_id: str
+
+
+# ── Service class ───────────────────────────────────────────────
+class CommentService:
+    """Story 10.3 — AI comment lookup with AD-7 badge separation.
+
+    AD-25 verbatim 3-tuple cache key:
+      `(tenant_id, period_key, calculation_result_hash)`
+
+    F10.1-(d) verbatim: `channel = 'ai_cache'` filter ONLY consume
+    (cross-channel contamination 방어, 10-2 wire 보존).
+
+    Audit-first INSERT (CR 1.1 verbatim):
+      `audit_logs` row INSERT BEFORE `ai_insight_comments` SELECT/INSERT.
+    """
+
+    # F10.1-(d) verbatim — M10 adapter subscribes to this channel ONLY.
+    CHANNEL: str = "ai_cache"
+
+    def __init__(self, session: AsyncSession, *, trace_id: str) -> None:
+        self._session = session
+        self._trace_id = trace_id
+
+    async def list_comments(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        period_key: str,
+        calculation_result_hash: str,
+        comment_kind: str | None = None,
+    ) -> AICommentListResult:
+        """AC #1 ~ #6 — AI comment lookup (auto_analysis 3 + ai_reference 1).
+
+        Flow:
+          1. PIPA consent gate (FIRST gate, before any lookup).
+          2. audit-first INSERT (CR 1.1 verbatim).
+          3. `ai_insight_comments` SELECT WHERE AD-25 3-tuple
+             (+ optional comment_kind filter, F10.2-(a) 분기).
+          4. cache hit → rows via `_to_comment_state` ORM→kernel boundary.
+          5. cache miss → seed 3 auto_analysis (kernel SSOT) + 1 ai_reference.
+          6. return AICommentListResult (counter_total derived from audit).
+        """
+        # 1. PIPA consent gate (FIRST gate, 10-1/10-2 wire 보존).
+        await self._check_pipa_consent(tenant_id=tenant_id)
+
+        # 2. Audit-first INSERT (CR 1.1 verbatim) BEFORE any comment read.
+        await emit_audit_typed(
+            self._session,
+            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
+            action="ai_insight_cache_hit",  # optimistic; miss emits below
+            actor_id=None,
+            target_id=None,
+            reason=f"period_key={period_key}|hash={calculation_result_hash}",
+            payload={
+                "period_key": period_key,
+                "calculation_result_hash": calculation_result_hash,
+                "channel": self.CHANNEL,
+                "trace_id": self._trace_id,
+                "phase": "audit_first",
+            },
+            tenant_id=tenant_id,
+        )
+
+        # 3. AD-25 verbatim 3-tuple SELECT (+ optional comment_kind filter).
+        stmt = (
+            select(AiInsightComment)
+            .where(AiInsightComment.tenant_id == tenant_id)
+            .where(AiInsightComment.period_key == period_key)
+            .where(
+                AiInsightComment.calculation_result_hash == calculation_result_hash
+            )
+        )
+        if comment_kind is not None:
+            stmt = stmt.where(AiInsightComment.comment_kind == comment_kind)
+        stmt = stmt.order_by(AiInsightComment.generated_at.desc())
+
+        result = await self._session.execute(stmt)
+        rows = list(result.scalars().all())
+
+        if rows:
+            # 4. Cache hit — ORM→kernel boundary (CR 12-1 L3 verbatim).
+            comments = self._to_comment_state(rows)
+            return AICommentListResult(
+                comments=comments,
+                period_key=period_key,
+                calculation_result_hash=calculation_result_hash,
+                hit_count=len(comments),
+                miss_count=0,
+                counter_total=await self.derive_counter(tenant_id=tenant_id),
+                trace_id=self._trace_id,
+            )
+
+        # 5. Cache miss — seed 3 auto_analysis (kernel SSOT) + 1 ai_reference.
+        now = datetime.now(UTC).replace(tzinfo=None)
+        seeded: list[AICommentEntryState] = []
+        for entry in make_default_insights(period_key):
+            # AD-7 strict invariant: kernel defaults are auto_analysis ONLY.
+            source_kind = validate_source_kind(
+                entry.source_kind, trace_id=self._trace_id
+            )
+            row = AiInsightComment(
+                tenant_id=tenant_id,
+                period_key=period_key,
+                calculation_result_hash=calculation_result_hash,
+                comment_kind=entry.insight_kind.value,
+                source_kind=source_kind.value,
+                body_text=entry.answer,
+                evidence_ref=entry.evidence_ref,
+                generated_at=now,
+            )
+            self._session.add(row)
+            seeded.append(
+                AICommentEntryState(
+                    comment_id=row.comment_id or uuid.uuid4(),
+                    comment_kind=entry.insight_kind.value,
+                    body_text=entry.answer,
+                    source_kind=source_kind,
+                    evidence_ref=entry.evidence_ref,
+                    generated_at=now,
+                )
+            )
+
+        # 10-3 wire entry point — 1 `ai_reference` seed opinion (AD-7 verbatim
+        # "AI commentary labeled ai_reference"). Async LLM generation pipeline
+        # 은 honestly DEFER (b) retro input (D-10-3-DEFER-2).
+        ai_ref_body = (
+            f"{period_key} AI 참고 의견 — 확정 책임은 사용자에게 있습니다."
+        )
+        ai_ref_evidence = f"period={period_key}|kind=risk_warning|source=ai_reference"
+        ai_ref_row = AiInsightComment(
+            tenant_id=tenant_id,
+            period_key=period_key,
+            calculation_result_hash=calculation_result_hash,
+            comment_kind="risk_warning",
+            source_kind=SourceKind.AI_REFERENCE.value,
+            body_text=ai_ref_body,
+            evidence_ref=ai_ref_evidence,
+            generated_at=now,
+        )
+        self._session.add(ai_ref_row)
+        seeded.append(
+            AICommentEntryState(
+                comment_id=ai_ref_row.comment_id or uuid.uuid4(),
+                comment_kind="risk_warning",
+                body_text=ai_ref_body,
+                source_kind=SourceKind.AI_REFERENCE,
+                evidence_ref=ai_ref_evidence,
+                generated_at=now,
+            )
+        )
+        await self._session.flush()
+
+        # 6. audit-first emit for the miss path (CR 1.1 verbatim).
+        await emit_audit_typed(
+            self._session,
+            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
+            action="ai_insight_cache_miss",
+            actor_id=None,
+            target_id=None,
+            reason=f"period_key={period_key}|hash={calculation_result_hash}",
+            payload={
+                "period_key": period_key,
+                "calculation_result_hash": calculation_result_hash,
+                "channel": self.CHANNEL,
+                "trace_id": self._trace_id,
+                "phase": "comment_seed",
+            },
+            tenant_id=tenant_id,
+        )
+
+        if comment_kind is not None:
+            seeded = [c for c in seeded if c.comment_kind == comment_kind]
+
+        return AICommentListResult(
+            comments=tuple(seeded),
+            period_key=period_key,
+            calculation_result_hash=calculation_result_hash,
+            hit_count=0,
+            miss_count=len(seeded),
+            counter_total=await self.derive_counter(tenant_id=tenant_id),
+            trace_id=self._trace_id,
+        )
+
+    async def reject_invalid_source_kind(
+        self, *, tenant_id: uuid.UUID, received_value: object
+    ) -> None:
+        """F10.2-(b) — audit-first INSERT then strict reject + counter.
+
+        CR 1.1 verbatim: the `audit_logs` row (which IS the counter) is
+        written BEFORE the reject is raised.
+        """
+        await emit_audit_typed(
+            self._session,
+            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
+            action="ai_insight_cache_invalid_source_kind",
+            actor_id=None,
+            target_id=None,
+            reason=(
+                f"received_value={received_value}|"
+                f"allowed_values={sorted(SOURCE_KIND_VALUES)}"
+            ),
+            payload={
+                "received_value": str(received_value),
+                "trace_id": self._trace_id,
+            },
+            tenant_id=tenant_id,
+        )
+        raise AICommentSourceKindInvalidError(
+            received_value=received_value, trace_id=self._trace_id
+        )
+
+    async def deny_auto_analysis_modify(
+        self, *, tenant_id: uuid.UUID, comment_id: object, actor_id: object = None
+    ) -> None:
+        """F10.2-(c) — audit-first INSERT then deny + counter (SM-3a)."""
+        await emit_audit_typed(
+            self._session,
+            action_class=ActionClass.AI_INSIGHT_CACHE_ACCESSED,
+            action="ai_insight_cache_auto_analysis_modify_denied",
+            actor_id=None,
+            target_id=str(comment_id),
+            reason=f"comment_id={comment_id}|actor_id={actor_id}",
+            payload={"trace_id": self._trace_id},
+            tenant_id=tenant_id,
+        )
+        raise AICommentImmutableAutoAnalysisError(
+            comment_id=comment_id, trace_id=self._trace_id
+        )
+
+    async def derive_counter(self, *, tenant_id: uuid.UUID) -> int:
+        """SM-3a counter derive — no separate counter table (CR 1.1 verbatim).
+
+        counter = COUNT(audit_logs) WHERE action_class = 'ai_insight_cache_accessed'
+                                       AND action IN
+          ('ai_insight_cache_invalid_source_kind',
+           'ai_insight_cache_auto_analysis_modify_denied')
+
+        Fix (cj-style 32번째 epic 연속, 3rd sweep): the prior filter
+        `AuditLog.action_class.in_(("ai_insight_cache_invalid_source_kind", ...))`
+        was on the wrong column — `action_class` carries the category enum
+        value (`'ai_insight_cache_accessed'`), not the action verb. The
+        actual counts were silently 0. Now filters on `action_class`
+        for category + `action` for the F10.2-(b)/(c) names.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(AuditLog)
+            .where(AuditLog.tenant_id == tenant_id)
+            .where(
+                AuditLog.action_class
+                == ActionClass.AI_INSIGHT_CACHE_ACCESSED.value
+            )
+            .where(
+                AuditLog.action.in_(
+                    (
+                        "ai_insight_cache_invalid_source_kind",
+                        "ai_insight_cache_auto_analysis_modify_denied",
+                    )
+                )
+            )
+        )
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def _check_pipa_consent(self, *, tenant_id: uuid.UUID) -> None:
+        """PIPA consent gate (FIRST gate per AC #5) — 10-2 wire 보존."""
+        stmt = select(TenantSettings).where(TenantSettings.tenant_id == tenant_id)
+        result = await self._session.execute(stmt)
+        settings = result.scalar_one_or_none()
+        if settings is None:
+            raise AiPipaConsentMissingError(
+                tenant_id=tenant_id, trace_id=self._trace_id
+            )
+
+    def _to_comment_state(
+        self, rows: list[AiInsightComment]
+    ) -> tuple[AICommentEntryState, ...]:
+        """ORM→kernel boundary (CR 12-1 L3 verbatim pattern).
+
+        Typed mapping + UUID cast + SourceKind enum.value reverse lookup
+        + comment_kind discriminator 검증 + immutable tuple return.
+        """
+        out: list[AICommentEntryState] = []
+        for row in rows:
+            source_kind = validate_source_kind(
+                row.source_kind, trace_id=self._trace_id
+            )
+            out.append(
+                AICommentEntryState(
+                    comment_id=(
+                        row.comment_id
+                        if isinstance(row.comment_id, uuid.UUID)
+                        else uuid.UUID(str(row.comment_id))
+                    ),
+                    comment_kind=row.comment_kind,
+                    body_text=row.body_text,
+                    source_kind=source_kind,
+                    evidence_ref=row.evidence_ref,
+                    generated_at=row.generated_at,
+                )
+            )
+        return tuple(out)
