@@ -915,8 +915,10 @@ Per AD-18 + AD-19:
 
 ## §9.4 ABC Report #21 Cost Object Breakdown Architecture (Story 9.4)
 
-> PRD §9 #21 verbatim: **"원가대상별 원가 집계표 (Cost Object Breakdown)"**.
-> PRD §7.3 verbatim: **"법인세법 시행규칙 제76조 2기준"**.
+> **PRD §9 #21 verbatim** (prd.md §7.3 + §9 #21): **"부문귀속명세서 (카브아웃 근거 공시, §7.3)"** — 법인세법 시행규칙 제76조 2기준.
+> **epics.md Story 9.4 UX label** (line 1052, 1056): **"원가대상별 원가 집계표 (Cost Object Breakdown)"** — ABC 결과 표시 보고서.
+> **9-4 implementation**: **합성 scope** (PRD §9 #21 SSOT + epics.md 9.4 product_id별 행 extension) wire.
+> **정합 차이 RESOLVED (9-5)**: PDF 라벨 = **"원가대상별 원가 집계표 (부문귀속명세서 §9 #21 기반)"** hybrid (PRD §9 #21 verbatim + epics.md UX label 모두 존중, 9-4 wire 변경 최소). UX 표기 = `[원가대상별 원가 집계표]` (epics.md 9.4 UX label 보존). 상세: deferred-work.md "Deferred from: Epic 9 close-out follow-up (2026-08-17)" D-9-4-DEFER-1 RESOLVED.
 > Epic 9 (ABC / TDABC Engine — Service Business) 4번째 진입점.
 > **A30 forward-lock:** SHARED PDF generator 결정 wire (Report #21 본 story +
 > Report #15 후속 placeholder). Discriminated union

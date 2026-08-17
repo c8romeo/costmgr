@@ -1,7 +1,9 @@
 # ABC Report #21 Cost Object Breakdown (Story 9.4, Epic 9)
 
-> PRD §9 #21 verbatim: **"원가대상별 원가 집계표 (Cost Object Breakdown)"**.
-> PRD §7.3 verbatim: **"법인세법 시행규칙 제76조 2기준"**.
+> **PRD §9 #21 verbatim** (prd.md §7.3 + §9 #21): **"부문귀속명세서 (카브아웃 근거 공시, §7.3)"** — 법인세법 시행규칙 제76조 2기준.
+> **epics.md Story 9.4 UX label** (line 1052, 1056): **"원가대상별 원가 집계표 (Cost Object Breakdown)"** — ABC 결과 표시 보고서.
+> **9-4 implementation**: **합성 scope** (PRD §9 #21 SSOT + epics.md 9.4 product_id별 행 extension) wire.
+> **정합 차이 RESOLVED (9-5)**: PDF 라벨 = **"원가대상별 원가 집계표 (부문귀속명세서 §9 #21 기반)"** hybrid (PRD §9 #21 verbatim + epics.md UX label 모두 존중, 9-4 wire 변경 최소). UX 표기 = `[원가대상별 원가 집계표]` (epics.md 9.4 UX label 보존). 상세: deferred-work.md "Deferred from: Epic 9 close-out follow-up (2026-08-17)" D-9-4-DEFER-1 RESOLVED.
 > Epic 9 (ABC / TDABC Engine — Service Business) 4번째 진입점.
 >
 > **baseline_commit:** `a67951b` (Story 9.3 T10 close-out tip — 2026-08-17)
@@ -224,10 +226,10 @@ define type-narrowing guards via `isReport21ResponseEnvelope` (CR
 
 | ID | Description | Reason | Follow-up |
 |----|-------------|--------|-----------|
-| D-9-4-DEFER-1 | epics.md "원가대상별 원가 집계표" vs PRD §9 #21 "부문귀속명세서" 정합 (PDF 라벨 + UX 표기 결정) | 9-4 본 진입점 scope-out | Epic 9 close-out follow-up |
-| D-9-4-DEFER-2 | Report #15 wire (활동원가 내역서) — A30 SHARED factory 패턴 재사용 entry | A31+ forward-lock 결정 후속 | 후속 story |
-| D-9-4-DEFER-3 | AI 자동 분석의견 (PRD §9 #16 + §A11 + §10) | 9-4 scope-out | 9-4 follow-up |
-| D-9-4-DEFER-4 | Playwright E2E (Report #21 폼 + PDF 다운로드 end-to-end) | Epic 9 close-out follow-up 결정 | Epic 9 close-out follow-up |
+| D-9-4-DEFER-1 | ✅ RESOLVED (9-5): epics.md "원가대상별 원가 집계표" vs PRD §9 #21 "부문귀속명세서" 정합 — hybrid PDF 라벨 "원가대상별 원가 집계표 (부문귀속명세서 §9 #21 기반)" + UX 표기 보존. architecture-inventory.md §9.4 incorrect verbatim claim 정정. | 9-4 scope-out | **DONE (2026-08-17)** |
+| D-9-4-DEFER-2 | Report #15 wire (활동원가 내역서) — A30 SHARED factory 패턴 재사용 entry | A31+ forward-lock 결정 후속 | Epic 9 close-out retro |
+| D-9-4-DEFER-3 | AI 자동 분석의견 (PRD §9 #16 + §A11 + §10) | 9-4 scope-out | Epic 11+ AI capability epic |
+| D-9-4-DEFER-4 | Playwright E2E (Report #21 폼 + PDF 다운로드 end-to-end) | Epic 9 close-out follow-up 결정 | Epic 9 close-out retro A31+ 결정 후 dedicated sprint |
 
 ## Reference
 

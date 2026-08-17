@@ -427,3 +427,80 @@ All 18 honestly DEFERred items listed above are structural W-class / UX polish /
 - MenuProvider boundary 500 error = dev server infra fix (Epic 12 close-out retro §7 follow-up OR Epic 7 진입 시 dev server hardening)
 
 **3중 게이트 impact (A19 sprint surface)**: **None**. A19 surface 0 NEW failures + pre-existing debt T0 honestly DEFER 정합. carry-over sprint atomic wire 완료.
+
+---
+
+## Deferred from: Epic 9 close-out follow-up (2026-08-17)
+
+> cj-style Epic 9 5번째 진입점 follow-up sprint (A27 결정 적용). **1 RESOLVE + 4 honestly DEFER** (CR 11-3 honest-DEFER discipline 22번째 epic 연속).
+
+### D-9-4-DEFER-1 ✅ RESOLVED (2026-08-17, 9-5 follow-up)
+
+**Conflict 분석 (verbatim wire)**:
+- PRD §9 #21 verbatim (prd.md line 137, 401, 513, 732): **"부문귀속명세서"** (법인세법 시행규칙 제76조 2기준 카브아웃 분할 근거 공시 보고서)
+- epics.md Story 9.4 (line 1052, 1056): **"원가대상별 원가 집계표"** (Cost Object Breakdown, ABC results display)
+- 9-4 architecture-inventory.md line 918 (9-4 sprint 추가): **INCORRECT** claim — "PRD §9 #21 verbatim: '원가대상별 원가 집계표 (Cost Object Breakdown)'" — 실제 PRD §9 #21 verbatim ≠ 이 문구 (PRD는 "부문귀속명세서")
+- 9-4 implementation = **합성 scope** (PRD §9 #21 SSOT + epics.md 9.4 product_id별 행 extension)
+
+**Resolution (hybrid label)**:
+- **PDF 라벨** = **"원가대상별 원가 집계표 (부문귀속명세서 §9 #21 기반)"** (hybrid — PRD §9 #21 verbatim + epics.md UX label 모두 존중)
+- **UX 표기** = `[원가대상별 원가 집계표]` (epics.md 9.4 UX label 보존, 변경 0)
+
+**선택 사유 (Option A vs B vs C)**:
+- Option A: PRD §9 #21 verbatim 보존 ("부문귀속명세서") → Report #21 = "부문귀속명세서". 9-4 wire 사후 변경 → cj-style discipline 위반 (atomic wire 사후 변경).
+- Option B: epics.md 9.4 UX label 보존 ("원가대상별 원가 집계표") → 9-4 wire 변경 없음, but PRD §9 #21 verbatim 무시 → PRD SSOT 위반.
+- **Option C (선택)**: Hybrid label → 양쪽 SSOT 모두 존중 + 9-4 wire 변경 최소.
+
+**Wire scope**:
+- `docs/architecture-inventory.md` §9.4 line 918 incorrect verbatim claim 수정 (5 line 확장)
+- `docs/abc-report-21.md` §1 line 3 incorrect verbatim claim 수정
+- `docs/abc-report-21.md` "Deferred Work" section D-9-4-DEFER-1 status: honestly DEFER → ✅ RESOLVED (9-5)
+
+**Where**: docs/architecture-inventory.md §9.4 (line 918+), docs/abc-report-21.md (§1 + Deferred Work table).
+
+### D-9-3-DEFER-2 (preserved — separate sprint)
+
+- **Activity standard hour 자동 추출** — Epic 9 close-out follow-up scope 외. 9-1 wire = manual entry 확정 (UX). 자동 추출 = time tracking data source 통합 필요 (별도 epic territory). 별도 sprint (cj-style carry-over 10번째, Epic 10+ 시점).
+- **Where**: `packages/cost_engine/abc_engine.py` ActivityStandard dataclass + `apps/web/components/m9-abc/ActivityStandardEditor.tsx` (9-1 wire)
+- **To pick up**: cj-style carry-over 10번째 sprint OR Epic 10+ activity management epic
+
+### D-9-4-DEFER-2 (preserved — retro decision input)
+
+- **Report #15 wire (활동원가 내역서)** = A30 SHARED factory 패턴 재사용. **A31+ 결정 wire** (Epic 9 close-out retro cj-style 5번째 진입점).
+- **Where**: `packages/services/m5_reports/pdf_generator.py::_compose_report15_pdf` placeholder (9-4 wire)
+- **To pick up**: Epic 9 close-out retro A31+ 결정 후 별도 story (cj-style Epic 9 6번째 진입점 OR Epic 10 진입)
+
+### D-9-4-DEFER-3 (preserved — separate epic)
+
+- **AI 자동 분석의견** (PRD §9 #16 + §A11 + §10) — **separate epic scope** (AI capability, 별도 epic territory). PRD §A11 (자동 분석 SSOT) + §10 (AI agent contract).
+- **Where**: PRD §9 #16 verbatim + §A11 (자동 분석 SSOT) + §10 (AI agent contract)
+- **To pick up**: Epic 11+ AI capability epic (별도 epic territory, A31+ 결정 영향)
+
+### D-9-4-DEFER-4 (preserved — dedicated sprint)
+
+- **Playwright E2E (Epic 9 전체)** — **dedicated sprint** (12-5 T6 pattern, A27 priority 미적용 사유: Epic 9 honestly DEFER profile = mixed, "단일 우선 항목 부재" → D-9-4-DEFER-1 lowest risk RESOLVE + 나머지 honestly DEFER 보존 결정).
+- **Where**: `apps/web/e2e/` Epic 9 4 stories (9-1+9-2+9-3+9-4 ~50-60 cases)
+- **To pick up**: Epic 9 close-out retro A31+ 결정 후 Playwright E2E dedicated sprint (12-5 T6 pattern)
+
+### A27 priority 미적용 사유 (Epic 9 honestly DEFER profile)
+
+Epic 8 retro §7 A27 verbatim:
+> "D-8-3-DEFER-7 Playwright E2E (8-1+8-2+8-3 모두 mirror, 12-5 T6 패턴) **우선 wire** + 나머지 7 items **honestly DEFER 유지**."
+
+A27 priority 적용 조건 = "단일 우선 항목 존재" (Epic 8 = Playwright E2E 1개). Epic 9 honestly DEFER profile = mixed (1 docs 정합 + 1 code work + 1 retro input + 1 separate epic + 1 dedicated sprint scope). 단일 우선 항목 부재 → **A27 priority 미적용 = D-9-4-DEFER-1 (lowest risk + docs only) RESOLVE + 나머지 honestly DEFER 보존**.
+
+### CR carry (Epic 9 follow-up sprint)
+
+- **CR 11-3 honest-DEFER discipline 22번째 epic 연속**: partial wire 시도 0건 + single sprint atomic wire + 4 honestly DEFER 보존
+- **CR 11-2**: SDR claim 보존 (baseline 보존, no NEW SDR claim)
+- **CR 11-4**: ko-KR.json SSOT cross-language parity (UX 표기 보존)
+- **CR 12-1**: layer rule 보존 (no code change, layer boundary 무관)
+- **cj-style carry-over sprint 9번째**: A19 → 12-4 → 12-5 T6 → 12-3 T7 → 11-4 → Epic 6 retro → Epic 12 follow-up → Epic 7/8 follow-up → **Epic 9 close-out follow-up**
+
+### 3중 게이트 impact (Epic 9 follow-up sprint surface)
+
+- **ruff scoped**: 0 NEW errors (docs only 변경)
+- **import-linter**: 2 KEPT, 0 broken (보존)
+- **pytest focused**: baseline 보존 (no code change, no test change)
+- **tsc**: zero NEW (docs only)
+- **vitest**: zero NEW (docs only)
