@@ -649,8 +649,10 @@ Acceptance Criteria:
   Report #15 PDF generator reuse (9-3 done 진입 시점 결정).
 - **Epic 9 close-out retro** (cj-style 5번째 진입점) 결정 일정: 9-4 done
   진입 시점에 retro 실행.
-- **wire scope**: ~38 files (target met) + cj-style atomic single sprint
-  T1~T10 (no partial wire).
+- **wire scope**: 13 NEW + 24 MODIFIED = 37 wire files + 1 story file
+  + cj-style atomic single sprint T1~T10 (no partial wire).
+- **atomic_commit**: `7683135` (T1~T10 atomic wire single sprint,
+  branch `9-3-dev-2026-08-17`).
 - **handoff memory**: `handoff-2026-08-17-9-3-done.md` (full T1~T10
   summary, key decisions, 4 honestly DEFER, A30/Epic 9 retro 일정).
 
@@ -674,7 +676,7 @@ Acceptance Criteria:
 
 **Wire summary (T1~T10 atomic, cj-style 19번째 epic 연속)**:
 - baseline_commit = `515efc4` (Story 9.2 T8 close-out tip)
-- atomic_commit = (T10 pending — wire commit SHA recorded in handoff)
+- atomic_commit = `7683135` (= `7683135754f89d0433308705a3f66ebf6edc594e`, T1~T10 atomic wire single sprint)
 - 14 NEW + 23 MODIFIED = 37 files
 - 4 honestly DEFER per CR 11-3 18번째 epic 연속
 - 9-2 wire 보존 (변경 0) + 9-1 wire 보존 (변경 0) + Walking Skeleton MVP wire 보존 (변경 0)
