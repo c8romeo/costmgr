@@ -1,0 +1,41 @@
+Story 10.1 (Epic 10 cj-style 1번째 진입점 = cj-style 25번째 epic 연속): bmad-create-story spec entry — AI Document Extraction to Input Drafts.
+
+[Story 10.1 ACs — 6 PRD-level Given/When/Then]
+- AC#1: input_drafts state='draft' INSERT (AD-7 verbatim "AI output → input_drafts only")
+- AC#2: UI "AI 초안" 카드 + RED badge 신뢰도 < 70% 강제 확정 (master PRD §8.1 M0-c + UJ-AI step 2)
+- AC#3: AD-17 promotion port M2-only 진입 (Story 10.4 detailed wire 진입 시점, 본 Story는 interface만)
+- AC#4: M10 → confirmed_inputs 직접 쓰기 거부 + counter increment target=0 (AD-7 verbatim + master PRD §A11)
+- AC#5: PIPA consent gate + Claude Sonnet 4.5 default (master PRD §13.2 + §A11)
+- AC#6: ko-KR SSOT + UI 정합 (master PRD §13.1 + NFR18)
+
+[AD bind verbatim]
+- AD-7 (AI non-authoritative): AI output → input_drafts only. confirmed_inputs 도달은 AD-17 경로만. M10 attempts → denied + counted.
+- AD-17 (AI draft promotion port): M2 only calls InputPromoter.promote(tenant_id, period_key, source_draft_id). DB adapter idempotent.
+- AD-23 (M10 AI defaults): tenant_settings.ai.* JSONB sub-block — model + consent + thresholds.
+- AD-15 (cross-language parity): TS mirror + UUID v7 + Decimal-as-string + ko-KR SSOT.
+
+[carry-over 자산 verbatim]
+- A28 (CCR↔Activity↔Breakdown 3-way wire 9-2 DONE) — INSERT route 동일 11-step pipeline 패턴 미러.
+- A29 (M3 dispatch dual-route + Discriminated union 9-3 DONE) — ExtractResponse envelope 동일 discriminated union pattern.
+- A30 (SHARED PDF generator Literal[15..21] 9-4 DONE) — source_kind: Literal['auto_analysis', 'ai_reference'] 동일 pattern.
+- A34 (mixed honestly DEFER 4-category framework (a)~(d)) — 4 honestly DEFER 적용.
+- A35 (frontend test debt 9-7 DONE) — 신규 React 컴포넌트 vitest mount + TS mirror parity + ko-KR.json SSOT 정합.
+- A36 (SDR 검증 프로토콜 9-7 DONE) — 4-step 자동 검증 단계 적용 (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency).
+
+[capability matrix v1.21] AI_INSIGHT capability 1 NEW (industry-agnostic, 4-industry grants ✅/✅/✅/✅) bind. Drift detector test `tests/integration/test_capability_matrix_v1_21_drift.py` 진입.
+
+[3중 게이트 impact] NONE (docs only spec entry).
+- ruff scoped: 0 NEW (spec doc markdown only)
+- import-linter: 2 KEPT 0 broken (변경 없음)
+- pytest focused: 변경 없음 (drift detector test는 bmad-dev-story wire 진입 시점에 작성)
+- vitest: 변경 없음
+- tsc: 변경 없음
+
+[working tree stability] CR 6-2 lesson 보존. 2 file 변경 (1 NEW spec doc + 1 MODIFIED sprint-status.yaml). Atomic commit = cj-style 25번째 epic 연속 정직 회복.
+
+[A36 SDR 검증 자동화] commit prefix lint + sprint-status structure 검증 + vitest file count drift + commit consistency 4-step 적용 (다음 Story 10.1 bmad-dev-story wire 진입 시점에 code change 검증).
+
+Refs: [[handoff-2026-08-17-epic-10-prd-entry-done]], [[handoff-2026-08-17-9-7-done]], [[epic-9-handoffs-detail]]
+Supersedes: prior 10-1 backlog entry
+
+Co-Authored-By: Claude <noreply@anthropic.com>
