@@ -1,0 +1,38 @@
+Epic 10 PRD entry (cj-style 25번째 epic 연속 = Epic 10 1번째 진입점): docs-only atomic wire — Epic 10 PRD 슬롯 확정 + capability matrix v1.21 + sprint-status D4 placement 결함 해소.
+
+[Epic 10 PRD 진입] 4-story + retro 5번째 진입점 cj-style 패턴 미러 (Epic 8 retro §7 A23 권장안). workspace canonical `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-08-17/prd.md` NEW + 5 sections (§1 한 문장 정의 + §2 UJ-AI + §3 F10.1/F10.2 detail 4 bullets each + §4 4-story PRD-level Given/When/Then AC + §5 AD-7/AD-17/AD-25 verbatim bind + §6 capability matrix v1.21 spec + §7 A23~A36 결정 이력 verbatim + §8 risk profile + §9 NON-GOAL + §10 OPEN QUESTIONS + §11 next steps + 부록 A/B/C).
+
+[AD bind verbatim]
+- AD-7 (AI non-authoritative): `AI output → input_drafts` only; M10 attempts to write `confirmed_inputs` → denied + counted (target 0); AI commentary `source_kind='ai_reference'`; 자동 분석 `source_kind='auto_analysis'`.
+- AD-17 (AI draft promotion port): `InputPromoter.promote(tenant_id, period_key, source_draft_id)` idempotent; audit-first INSERT + audit_logs 2행 append.
+- AD-25 (AI insight cache invalidation): cache key `(tenant_id, period_key, calculation_result_hash)`; Epic 4 calc-hash publisher channel `ai_cache` 만 Epic 10 wire 진입 시점 wire; Epic 11 close/reopen trigger EXTENSION은 Story 11.1/11.3 진입 시점 (CR 1.1 forward-lock).
+
+[capability matrix v1.20 → v1.21] 6 surgical edits: title + description box + matrix table row (`AI_INSIGHT` 1 NEW, industry-agnostic, 4-industry grants ✅/✅/✅/✅) + industry notes + story reference + changelog. CR 12-1 L4 precedent (TWO_FACTOR_AUTH / BACKUP_EXPORT / BUDGET_SCENARIO 모두 industry-agnostic). Drift detector test `tests/integration/test_capability_matrix_v1_21_drift.py` 는 Epic 10 wire 진입 시점에 별도 atomic wire.
+
+[D4 placement 결함 0건] Epic 10 entries 6건 (epic-10 + 10-1·10-2·10-3·10-4 + epic-10-retrospective) action_items block → development_status block 이동. Epic 9-6 retro claim 정직 보정 (line 281 "D4 해소" 주장 깸 — 실제 action_items에 잔존했음). Epic 11/12 action_items misplaced entries는 보존 (D4 partial resolution — Epic 11/12 spin-up sprints 진입 시점에 해소).
+
+[carry-over 결정 verbatim]
+- Epic 8 Retro A23~A27: A23 (4-story + retro 5번째 진입점 패턴) + A24 (capability matrix v1.21) + A25 (A19 cohesion pattern 6 surface 보존) + A26 (cross-import 0건 정합) + A27 (Epic 9 honestly DEFER mixed profile 보존).
+- Epic 9 Retro A28~A36: A28 (CCR↔Activity↔Breakdown 3-way wire DONE) + A29 (M3 dispatch dual-route DONE) + A30 (SHARED PDF generator Literal[15..21] DONE) + A31 (Report #15 wire schedule) + A32 (A30 SHARED factory reuse entry) + A33 (A19 cohesion 9 surface 진입 시점) + A34 (mixed honestly DEFER 4-category framework (a)~(d)) + A35 (frontend test debt DONE 9-7 sprint) + A36 (SDR 검증 프로토콜 DONE 9-7 sprint).
+
+[A34 4-Category Mixed DEFER Framework 적용]
+- (a) docs 정합 (lowest risk + docs only RESOLVE): Epic 10 spec 진입 시점에 §F10.1·§F10.2 detail PRD 정합.
+- (b) retro input: Epic 10 close-out retro에서 A37+ 결정 도출.
+- (c) separate epic: AI 인사이트 3개 카테고리 (절감·이상·예측) 별도 epic.
+- (d) dedicated sprint: AI extraction 정확도 > 95% 개선 전용 sprint.
+
+[3중 게이트 impact] NONE (docs only 변경).
+- ruff scoped: 0 NEW (PRD entry 자체 변경 없음)
+- import-linter: 2 KEPT 0 broken (변경 없음)
+- pytest focused: 변경 없음 (capability matrix drift detector는 Epic 10 wire 진입 시점에 작성)
+- vitest: 변경 없음
+- tsc: 변경 없음 (tsbuildinfo는 auto-generated, commit 대상 제외)
+
+[working tree stability] CR 6-2 lesson 보존. 5 file 변경 (1 NEW prd.md + 1 NEW commit-msg file + 2 MODIFIED docs/capability-matrix.md + sprint-status.yaml). Atomic commit = cj-style 25번째 epic 연속 정직 회복.
+
+[A36 SDR 검증 프로토콜] commit prefix lint + sprint-status structure 검증 + vitest file count drift + commit consistency 4-step 자동 검증 단계 적용. Epic 10 wire 진입 시점에 frontend test debt 정직 + SDR overclaim 자동 검증.
+
+Refs: [[handoff-2026-08-17-epic-10-prd-entry-done]], [[handoff-2026-08-17-9-7-done]], [[handoff-2026-08-17-epic-9-retro-done]], [[handoff-2026-08-16-epic-8-retro-done]], [[handoff-2026-08-17-epic-10-prd-entry-done]]
+Supersedes: (none — 첫 Epic 10 PRD entry)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

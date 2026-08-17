@@ -1,8 +1,20 @@
-# Capability Matrix (v1.20)
+# Capability Matrix (v1.21)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.21 (2026-08-17, Epic 10 PRD entry)** — `AI_INSIGHT` capability 1 NEW
+> (industry-agnostic, 4-industry grants ✅/✅/✅/✅ — CR 12-1 L4 precedent like
+> `TWO_FACTOR_AUTH` / `BACKUP_EXPORT` / `BUDGET_SCENARIO`). Epic 10 4 stories
+> (10-1 AI Document Extraction + 10-2 Three-Insight Cache + 10-3 Reference vs
+> Auto Badge + 10-4 Promotion Port) bind to single `AI_INSIGHT` row. AD-7
+> (AI non-authoritative) + AD-17 (promotion port idempotency) + AD-25 (cache
+> invalidation) bind. 본 PRD entry는 **docs-only** (Epic 10 PRD 진입, capability
+> matrix v1.20 → v1.21 wire); Epic 10 wire 진입 시점에 `AI_INSIGHT` 실제 grant
+> + 4 NEW endpoints (`POST /api/v1/ai/extract` 10-1 + `GET /api/v1/ai/insights`
+> 10-2 + `GET /api/v1/ai/comments source_kind discriminator` 10-3 +
+> `POST /api/v1/ai/promote` 10-4) + drift detector test 별도 atomic wire.
 >
 > **v1.20 (2026-08-17, Story 9.4, Epic 9)** — A30 forward-lock dual-report PDF
 > generator 결정 wire (PRD §9 #21 + §7.3 + §9 공통 + §A6+A9+V7+V8). Story 9.4
@@ -317,6 +329,7 @@ class CalcResponse(BaseModel):
 | `DRIVER` | 9.x | ❌ | ✅ | ✅ | ✅ |
 | `SEGMENT_SPLIT` | 9.x | ❌ | ❌ | ✅ | ✅ |
 | `AI_EXTRACT` | 1.3 | ✅ | ✅ | ✅ | ✅ |
+| `AI_INSIGHT` | 10.1, 10.2, 10.3, 10.4 | ✅ | ✅ | ✅ | ✅ |
 | `PRODUCT` | 2.1 | ✅ | ✅ | ✅ | ✅ |
 | `PRODUCT_MATERIAL` | 2.1 | ✅ | ❌ | ✅ | ✅ |
 | `MONTHLY_INPUT_PRODUCTION` | 3.1 | ✅ | ❌ | ✅ | ✅ |
@@ -375,6 +388,21 @@ class CalcResponse(BaseModel):
   `packages/services/m2_input/inventory_math.py`).
 - **AI_EXTRACT** is granted to every industry (PRD §4.2 AI cross-cutting
   feature). Tenant-only restriction is PIPA consent, not industry.
+- **AI_INSIGHT (v1.21 NEW, Epic 10)** — `AI_EXTRACT` 와 별개 row. Granted
+  to ALL 4 canonical industries (industry-agnostic, CR 12-1 L4 precedent —
+  `TWO_FACTOR_AUTH` / `BACKUP_EXPORT` / `BUDGET_SCENARIO` 와 동일 pattern).
+  AD-7 (AI non-authoritative: `AI output → input_drafts` only; M10 attempts
+  to write `confirmed_inputs` → denied + counted, target 0) + AD-17
+  (promotion port idempotency on `(tenant_id, period_key, source_draft_id)`)
+  + AD-25 (cache invalidation: key `(tenant_id, period_key,
+  calculation_result_hash)`; Epic 4 calc-hash publisher channel `ai_cache`
+  만 Epic 10 wire 진입 시점에 wire; Epic 11 close/reopen trigger EXTENSION은
+  Story 11.1/11.3 진입 시점 — CR 1.1 forward-lock) bind. Epic 10 wire 진입
+  시점 4 NEW endpoints + Discriminated union `source_kind: Literal['auto_analysis',
+  'ai_reference']` (10-3 badge separation) + strict reject 외 value counter
+  increment (AD-7 SM-3a 정합). Capability row 신설 1개 (capability matrix
+  v1.21 = v1.20 + 1 NEW row). A19 cohesion pattern 보존: Epic 10 wire 자체는
+  신규 pure kernel surface 없이 service layer + frontend 위주.
 - **ABC_CALCULATION dual-route gate (Story 9.3)** — `POST /api/v1/calc`
   uses `require_any_capability(COST_CALCULATION, ABC_CALCULATION)` —
   ANY-OF semantics. M3 orchestrator's `_resolve_engine_type(industry)`
@@ -433,6 +461,10 @@ class CalcResponse(BaseModel):
 | 4.4 — V8 골든 byte-identical CI gate | (no new capability; 12 fixture 매트릭스가 `COST_CALCULATION` 응답 verdict envelope 의 V8 fail-path audit action (`verify_v8_golden_match`) 으로 wire) |
 | 5.x — Inventory | `OPENING_INVENTORY`, `INVENTORY_LEDGER` |
 | 9.x — ABC | `COST_POOL`, `ACTIVITY`, `DRIVER`, `SEGMENT_SPLIT`, `ABC_CALCULATION` (9.1) |
+| 10.1 — AI Document Extraction | `AI_INSIGHT` |
+| 10.2 — Three-Insight Cache Policy | `AI_INSIGHT` |
+| 10.3 — Reference vs Auto Analysis Badge | `AI_INSIGHT` |
+| 10.4 — AI Promotion Port Idempotency | `AI_INSIGHT` |
 
 ## Changelog
 
@@ -542,6 +574,24 @@ class CalcResponse(BaseModel):
   fiscal_periods.status='closed' + fiscal_period_snapshots.state='committed').
 - Future: each capability addition appends one row to the matrix and
   one row to the Changelog.
+- 2026-08-17 — v1.21 (Epic 10 PRD entry): **`AI_INSIGHT` capability 1 NEW**
+  (industry-agnostic, 4-industry grants ✅/✅/✅/✅ — CR 12-1 L4 precedent like
+  `TWO_FACTOR_AUTH` / `BACKUP_EXPORT` / `BUDGET_SCENARIO`). Epic 10 4 stories
+  (10-1 AI Document Extraction + 10-2 Three-Insight Cache + 10-3 Reference vs
+  Auto Badge + 10-4 Promotion Port) bind to single `AI_INSIGHT` row (CR 11-3
+  즉시 sweep 회피 패턴 — 1 row 신설로 4 stories wire, `ABC_CALCULATION` 1 row
+  4 stories wire 동일 pattern). 본 entry는 **docs-only PRD entry** (Epic 10
+  PRD 진입, capability matrix v1.20 → v1.21 wire); Epic 10 wire 진입 시점에
+  4 NEW endpoints + `AI_INSIGHT` 실제 grant + drift detector test (P-015 SSOT
+  pattern, v1.18 ABC_CALCULATION row 12 cases precedent) 별도 atomic wire.
+  AD-7 (AI non-authoritative) + AD-17 (promotion port idempotency) + AD-25
+  (cache invalidation, Epic 4 calc-hash publisher channel `ai_cache` 만 Epic
+  10 wire 진입 시점 wire; Epic 11 close/reopen trigger EXTENSION은 Story
+  11.1/11.3 진입 시점 forward-lock) bind. 결정: A28/A29/A30 forward-lock
+  chain 보존 (Epic 9 retro 9-7 follow-up sprint DONE, atomic commit
+  `146a7da`) + A35 frontend test debt + A36 SDR 검증 프로토콜 wire 진입 정합.
+  3중 게이트 impact = NONE (docs only 변경). Drift detector 신규:
+  `tests/integration/test_capability_matrix_v1_21_drift.py`.
 - 2026-08-17 — v1.20 (Story 9.4, Epic 9): **A30 forward-lock dual-report
   PDF generator** 결정 wire (PRD §9 #21 원가대상별 원가 집계표 + §7.3
   법인세법 시행규칙 제76조 2기준). No NEW capability — capability 행 자체는

@@ -282,6 +282,20 @@ development_status:
   9-6-epic-9-close-out-retrospective: done  # 2026-08-17 — **Story 9.6 (Epic 9 close-out retro + A35/A36 wire, cj-style 6번째 진입점 = cj-style carry-over 10번째) atomic wire DONE** (ready-for-dev → done). baseline_commit = `11153a5` (Story 9.5 follow-up done tip). **wire 표** = docs only (6 files): `_bmad-output/implementation-artifacts/epic-9-retro-2026-08-17.md` NEW 12-section retro + `_bmad-output/implementation-artifacts/deferred-work.md` Epic 9 close-out retro follow-up section (A35 9-7 진입 일정) + `_bmad-output/implementation-artifacts/sprint-status.yaml` D4 해소 + `C:\Users\c8rom\.claude\projects\C--Users-c8rom-desktop-costmgr\memory\handoff-2026-08-17-epic-9-retro-done.md` NEW handoff + `C:\Users\c8rom\.claude\projects\C--Users-c8rom-desktop-costmgr\memory\MEMORY.md` index sync + `_bmad-output/implementation-artifacts/epic-9-retro-FACTS.md` (untracked 보존). **A31~A36 결정 wire**: A31 Report #15 wire schedule (cj-style Epic 9 6번째 진입점 = 9-6 follow-up sprint 진입) + A32 A30 SHARED factory pattern reuse entry 1st case (Report #15 wire) + A33 A19 cohesion pattern 9 surface 진입 시점 (Report #15 wire pdf_generator EXTENSION) + A34 mixed honestly DEFER 4-category framework 정형화 (a)~(d) + A35 frontend test debt honestly DEFER (d) + 9-7 follow-up sprint 진입 + A36 SDR claim 검증 프로토콜 wire. **3중 게이트 impact**: NONE (docs only 변경, no code change, no test change). ruff scoped 0 NEW / import-linter 2 KEPT 0 broken / pytest focused baseline 보존 / vitest baseline 보존 / tsc zero NEW. **partial wire 시도 0건 + single sprint atomic wire** (docs only — cj-style 23번째 epic 연속 정직 회복). supersedes prior `epic-9-retrospective` misplaced entry. 다음: `9-7 follow-up sprint 진입 (A35 frontend test debt 해소 — 8 컴포넌트 마운트 + 3 TS mirror parity wire) cj-style carry-over 11번째 OR Epic 10 PRD 진입 (A35 done 진입 후)`.
   9-7-epic-9-frontend-test-debt-follow-up: done  # 2026-08-17 — **Story 9.7 (Epic 9 frontend test debt 해소 + A36 SDR 검증 프로토콜 wire, cj-style carry-over 11번째) atomic wire DONE** (ready-for-dev → done). baseline_commit = `8df01bc` (Story 9.6 follow-up done tip = 9-7 wire 시작 HEAD). **A35 frontend test debt 해소 + A36 SDR 검증 프로토콜 wire DONE**. **wire 표 (실측)** = 18 files (13 NEW + 5 MODIFIED) atomic commit + 3 NEW memory handoff files follow-up commit. **A35 wire**: 5 NEW vitest component tests (AbcDispatchPanel + AbcDispatchDecisionBadge + AbcDispatchResultCard + AbcDispatchErrorToast + AbcValidationForm) + 3 NEW TS mirror parity tests (m9-abc-dispatch + report21 + report21-pdf) + 1 MODIFIED `apps/web/mocks/handlers.ts` (POST /api/v1/abc/validate handler) — **vitest file count = 50 total (8 NEW) / vitest cases = 105 NEW** (R1 mitigation: actual `find` count). **A36 wire**: 2 NEW scripts (commit prefix lint `scripts/check_commit_prefix.{py,mjs}` — D5 fix) + 3 NEW pytest integration tests (`test_sprint_status_structure.py` — D4 fix + `test_vitest_file_count_drift.py` — D2 fix + `test_commit_consistency.py` — D1 fix) + 1 MODIFIED `.github/workflows/ci.yml` (new `commit-prefix-lint` job). **docs sync (atomic commit)**: 3 MODIFIED (`sprint-status.yaml` 9-7 done + `deferred-work.md` D3 ✅ RESOLVED + `epic-9-retro-2026-08-17.md` A35 + A36 → done). **memory handoff (follow-up commit)**: 1 NEW `handoff-2026-08-17-9-7-done.md` + MEMORY.md index sync + `epic-9-handoffs-detail.md` 9-7 section. **resolves**: **D3 ✅ RESOLVED** (8 컴포넌트 마운트 — m9-abc 5건 standalone wire + m5-reports 3건 parent file cover 인정 per user option (a)) + 3 TS mirror parity wire (D2 부분 해소 frontend vitest file count 실측 자동 검증 단계 추가). **D1/D4/D5 자동화**: commit prefix lint + sprint-status structure 검증 + commit 정합성 검증 단계 wire. **3중 게이트 impact**: ruff scoped 0 NEW (NEW files: scripts + parity tests styled per stack_pin) / import-linter 2 KEPT 0 broken (m9_abc + m11_* 보존) / pytest focused 3 NEW (sprint_status_structure + vitest_file_count_drift + commit_consistency) / vitest 105 NEW (8 files, R1 mitigation actual count) + 0 fail / tsc zero NEW. **partial wire 시도 0건 + single sprint atomic wire T1~T8** (cj-style 24번째 epic 연속 정직 회복). **Epic 10 진입 gate clear** (A35 done 진입 후). 다음: **Epic 10 PRD 진입** (10-1 AI Document Extraction + 10-2 Three-Insight Cache + 10-3 AI Reference vs Auto Analysis Badge + 10-4 AI Promotion Port — cj-style 4-story + retro 5번째 진입점 패턴 미러, capability matrix v1.21).
   # ==========================================
+  # Epic 10: AI Assistance (cj-style 4-story + retro 5번째 진입점 pattern per Epic 8 retro §7 A23)
+  # ==========================================
+  # Epic 10 status: in-progress (2026-08-17 — Epic 10 PRD entry DONE; cj-style 25번째 epic 연속 = Epic 10 1번째 진입점).
+  # Capability matrix v1.20 → v1.21 (`AI_INSIGHT` capability 1 NEW, industry-agnostic, 4-industry grants).
+  # AD-7 (AI non-authoritative) + AD-17 (promotion port idempotency) + AD-25 (cache invalidation) bind.
+  # D4 placement 결함 해소: Epic 10 entries moved from action_items block to development_status block (2026-08-17).
+  # Epic 9 retro 결정 carry-over: A28/A29/A30 forward-lock chain 보존 + A31~A36 (9-7 follow-up sprint DONE 2026-08-17).
+  epic-10: backlog  # 2026-08-17 — **Epic 10 PRD entry DONE** (cj-style 25번째 epic 연속 = Epic 10 1번째 진입점). workspace canonical `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-08-17/prd.md` + capability matrix v1.20 → v1.21 (`AI_INSIGHT` 1 NEW, industry-agnostic, 4-industry grants ✅/✅/✅/✅). 4-story + retro 5번째 진입점 패턴 (Epic 8 retro §7 A23 권장안). AD-7 + AD-17 + AD-25 verbatim bind. **D4 placement 결함 0건** (Epic 10 entries action_items → development_status 이동). handoff: `handoff-2026-08-17-epic-10-prd-entry-done.md`. 다음: 10-1 `bmad-create-story` 진입.
+  10-1-ai-document-extraction-input-drafts: backlog  # 2026-08-17 — **Story 10.1 (AI Document Extraction to Input Drafts) PRD-level AC 확정**. AD-7 bind (`AI output → input_drafts` only; M10 attempts to write `confirmed_inputs` → denied + counted). master PRD §8.1 M0-c 70% 임계값 + UJ-AI step 2 + RED badge 신뢰도 < 70% 강제 확정. baseline_commit = `146a7da` (9-7 done tip). 다음: spec 진입 OR Epic 10 PRD 검증 (`bmad-validate-prd`).
+  10-2-three-insight-cache-policy: backlog  # 2026-08-17 — **Story 10.2 (Three-Insight Cache Policy) PRD-level AC 확정**. AD-25 verbatim bind (cache key `(tenant_id, period_key, calculation_result_hash)`). Epic 11 close/reopen trigger 의존성 명시 (CR 1.1 forward-lock; Epic 4 calc-hash publisher channel `ai_cache` 만 Epic 10 wire 진입 시점 wire; Epic 11 trigger EXTENSION은 Story 11.1/11.3 진입 시점). baseline_commit = `146a7da`. 다음: spec 진입.
+  10-3-ai-reference-vs-auto-analysis-badge-separation: backlog  # 2026-08-17 — **Story 10.3 (Reference vs Auto Analysis Badge Separation) PRD-level AC 확정**. Discriminated union `source_kind: Literal['auto_analysis', 'ai_reference']` (10-3 badge separation). AD-7 verbatim bind (auto_analysis 파란 배지 "📊 자동 분석" + ai_reference 보라 배지 "🤖 AI 참고(검증 필요)" + tooltip "AI는 비권위적입니다 — 확정 책임은 사용자에게"). SM-3a 카운터 increment 강제. baseline_commit = `146a7da`. 다음: spec 진입.
+  10-4-ai-promotion-port-idempotency: backlog  # 2026-08-17 — **Story 10.4 (AI Promotion Port Idempotency) PRD-level AC 확정**. AD-17 verbatim bind (idempotency on `(tenant_id, period_key, source_draft_id)`). audit-first INSERT + audit_logs 2행 append (actor + draft hash + ts; CR 1.1 audit-first). M10 attempts to write `confirmed_inputs` denied + counted (target 0). baseline_commit = `146a7da`. 다음: spec 진입.
+  epic-10-retrospective: optional  # 2026-08-17 — Epic 10 close-out retro 진입 예정 (10-1~10-4 done 진입 후). A37+ 결정 도출 + Epic 11 또는 차기 Epic 진입 결정 (cj-style 5번째 진입점, Epic 8 retro §7 A23 결정 패턴).
+  # ==========================================
   # Epic 11: Monthly Close & Audit (11-1 → 11-2 → 11-3 cj-style 3-story per Epic 5 retro §6 W1 pattern)
   # ==========================================
   # Epic 11 status: in-progress (2026-08-08 — 11-1 spec + dev-story done).
@@ -625,36 +639,10 @@ development_status:
     owner: "Amelia (Developer)"
     status: in-progress
   # Epic 9 development_status entries moved from action_items block to development_status block (D4 부분 해소, 2026-08-17).
-  # Epic 10/11/12 action_items entries are still misplaced (D4 partial resolution — full D4 fix deferred to Epic 10/11/12 spin-up sprints).
+  # Epic 10 development_status entries moved from action_items block to development_status block (D4 부분 해소, 2026-08-17).
+  # Epic 11/12 action_items entries are still misplaced (D4 partial resolution — full D4 fix deferred to Epic 11/12 spin-up sprints).
   # Epic 9 retro + A31~A36 결정 wire (9-6 follow-up sprint) → see development_status block lines 281-285.
-  # ==========================================
-  # Epic 10: AI Assistance
-  # ==========================================
-  - epic: 2
-    action: "epic-10 → backlog (development_status, misplaced in action_items block - resolved)"
-    owner: "Amelia (Developer)"
-    status: in-progress
-  - epic: 2
-    action: "10-1-ai-document-extraction-input-drafts → backlog (development_status, misplaced in action_items block - resolved)"
-    owner: "Amelia (Developer)"
-    status: in-progress
-  - epic: 2
-    action: "10-2-three-insight-cache-policy → backlog (development_status, misplaced in action_items block - resolved)"
-    owner: "Amelia (Developer)"
-    status: in-progress
-  - epic: 2
-    action: "10-3-ai-reference-vs-auto-analysis-badge-separation → backlog (development_status, misplaced in action_items block - resolved)"
-    owner: "Amelia (Developer)"
-    status: in-progress
-  - epic: 2
-    action: "10-4-ai-promotion-port-idempotency → backlog (development_status, misplaced in action_items block - resolved)"
-    owner: "Amelia (Developer)"
-    status: in-progress
-  - epic: 2
-    action: "epic-10-retrospective → optional (development_status, misplaced in action_items block - resolved)"
-    owner: "Amelia (Developer)"
-    status: in-progress
-
+  # Epic 10 PRD entry + D4 placement 결함 해소 (Epic 10 entries moved from action_items block to development_status block) → see development_status block (2026-08-17).
   # ==========================================
   # Epic 11: Monthly Close & Audit
   # ==========================================
