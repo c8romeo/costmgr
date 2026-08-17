@@ -195,7 +195,79 @@ jobs:
             }
 
   # ─────────────────────────────────────────────────────────
-  # 5. test-architecture (Story 0.1 — pytest fixture tests)
+  # 5. commit-prefix-lint (Story 9.7 — A36 wire, D5 fix)
+  # ─────────────────────────────────────────────────────────
+  commit-prefix-lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+        with:
+          # fetch-depth: 0 so `git log -1` sees the full commit message
+          fetch-depth: 0
+      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
+        with: { node-version-file: ".nvmrc" }
+      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
+        with: { python-version-file: ".python-version" }
+      - run: pip install uv==0.11.32
+      - name: Compute PR head commit (for [STACK BUMP] bypass)
+        if: github.event_name == 'pull_request'
+        id: pr_head
+        run: |
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+      - name: Node commit prefix check
+        id: node_prefix_check
+        run: |
+          set +e
+          node scripts/check_commit_prefix.mjs
+          exit_code=$?
+          echo "exit=$exit_code"
+          exit $exit_code
+        env:
+          PYTHONIOENCODING: utf-8
+          COMMIT_PREFIX_BYPASS_PR_HEAD_SHA: ${{ steps.pr_head.outputs.head_sha }}
+      - name: Python commit prefix check
+        id: py_prefix_check
+        run: |
+          set +e
+          uv run python scripts/check_commit_prefix.py
+          exit_code=$?
+          echo "exit=$exit_code"
+          exit $exit_code
+        env:
+          PYTHONIOENCODING: utf-8
+          COMMIT_PREFIX_BYPASS_PR_HEAD_SHA: ${{ steps.pr_head.outputs.head_sha }}
+      - name: Annotate violation on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15 # v7.0.1
+        with:
+          script: |
+            const msg = 'COMMIT_PREFIX_VIOLATION detected. Commit subject starts with `@` (PowerShell here-string artifact). Use `git commit -F <file>` instead of `@\'...\'@`. Add `[STACK BUMP]` to commit subject to bypass.';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: msg,
+            });
+      - name: Apply commit-prefix-violation label
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15 # v7.0.1
+        with:
+          script: |
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['commit-prefix-violation'],
+              });
+            } catch (e) {
+              core.warning(`Failed to apply label: ${e.message}`);
+            }
+
+  # ─────────────────────────────────────────────────────────
+  # 6. test-architecture (Story 0.1 — pytest fixture tests)
   # ─────────────────────────────────────────────────────────
   test-architecture:
     needs: setup

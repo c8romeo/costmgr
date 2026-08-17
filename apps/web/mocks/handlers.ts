@@ -10,6 +10,10 @@
 //   - POST /api/v1/inventory/closing-guard/close-attempt → 200 OK | 409 NEGATIVE_CLOSING_INVENTORY
 //   - GET /api/v1/inventory/closing-guard/audit-trail → empty array
 //
+// Story 9.7 — T3 A35 wire — AbcValidationForm:
+//   - POST /api/v1/abc/validate → default 200 ValidationResponse envelope.
+//     Tests override via `server.use(http.post(...))` for 422 / 404 envelopes.
+//
 // Components that need different fixtures should override handlers per-test
 // via `server.use(...)` from "mocks/server".
 
@@ -24,6 +28,9 @@ const API_CLOSING_GUARD_CLOSE_ATTEMPT =
   "/api/v1/inventory/closing-guard/close-attempt";
 const API_CLOSING_GUARD_AUDIT_TRAIL =
   "/api/v1/inventory/closing-guard/audit-trail";
+
+// Story 9.7 — AbcValidationForm
+const API_ABC_VALIDATE = "/api/v1/abc/validate";
 
 export const handlers = [
   http.get(API, () => {
@@ -111,5 +118,52 @@ export const handlers = [
   // GET /api/v1/inventory/closing-guard/audit-trail
   http.get(API_CLOSING_GUARD_AUDIT_TRAIL, () => {
     return HttpResponse.json([]);
+  }),
+
+  // ── Story 9.7 — AbcValidationForm ──────────────────────────
+  // POST /api/v1/abc/validate
+  // Default: 200 OK with all_valid=true ValidationResponse (3-layer guard).
+  // Tests override via `server.use(http.post(API_ABC_VALIDATE, ...))`
+  // for 422 ABC_COST_POOL_INVALID_SUM / 404 ABC_VALIDATION_NOT_FOUND envelopes.
+  http.post(API_ABC_VALIDATE, async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as {
+      cost_pool_id?: string;
+      activity_id?: string;
+    };
+    const costPoolId = body.cost_pool_id ?? "cp-mock";
+    const activityId = body.activity_id ?? "act-mock";
+    return HttpResponse.json({
+      cost_pool_id: costPoolId,
+      activity_id: activityId,
+      cost_pool: [
+        {
+          department_id: "dept-mock-A",
+          sum_pct: "100",
+          department_count: 1,
+          is_valid: true,
+          hash: "sha256:" + "0".repeat(64),
+        },
+      ],
+      activities: [
+        {
+          activity_id: activityId,
+          sum_pct: "100",
+          product_count: 2,
+          is_valid: true,
+          hash: "sha256:" + "1".repeat(64),
+        },
+      ],
+      drivers: [
+        {
+          driver_id: "drv-mock-001",
+          sum_pct: "100",
+          activity_count: 2,
+          is_valid: true,
+          hash: "sha256:" + "2".repeat(64),
+        },
+      ],
+      all_valid: true,
+      trace_id: "trace-mock-abc-validate",
+    });
   }),
 ];

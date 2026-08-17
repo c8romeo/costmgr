@@ -653,3 +653,96 @@ A27 priority 적용 조건 = "단일 우선 항목 존재" (Epic 8 = Playwright 
 - **D1~D5 정직 발견** + **A31~A36 결정 wire** + **A35 frontend test debt honestly DEFER (d) + 9-7 follow-up sprint 진입** + **A36 SDR 검증 프로토콜 wire**
 - 9-6 follow-up sprint atomic wire (cj-style 23번째 epic 연속 = 9-6 docs only atomic wire)
 - Epic 10 진입 gate = 9-7 follow-up sprint done 진입 후 (A35 결정)
+
+---
+
+## Deferred from: Epic 9 follow-up sprint 9-7 (2026-08-17, cj-style carry-over 11번째)
+
+> 9-7 follow-up sprint atomic wire (T1~T8) 진입. **D3 ✅ RESOLVED** (8 컴포넌트 마운트 + 3 TS mirror parity wire) + **A36 SDR 검증 프로토콜 4-step wire** (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency) — D1/D2/D4/D5 자동화. (CR 11-3 honestly DEFER discipline 24번째 epic 연속).
+
+### D3 ✅ RESOLVED — frontend test debt 해소
+
+- **Epic 9 출하 컴포넌트 16개 중 vitest standalone 부재 8건 발견** (FACTS.md §D3)
+- **wire 표 (실측)** = vitest file count = 50 total (8 NEW) / vitest cases = 105 NEW (R1 mitigation: actual `find` count)
+- **wire scope (user option (a))**:
+  - 5 unmounted components standalone wire:
+    - `apps/web/__tests__/components/m9-abc.AbcDispatchPanel.test.tsx` NEW (12 cases)
+    - `apps/web/__tests__/components/m9-abc.AbcDispatchDecisionBadge.test.tsx` NEW (12 cases)
+    - `apps/web/__tests__/components/m9-abc.AbcDispatchResultCard.test.tsx` NEW (14 cases)
+    - `apps/web/__tests__/components/m9-abc.AbcDispatchErrorToast.test.tsx` NEW (14 cases)
+    - `apps/web/__tests__/components/m9-abc.AbcValidationForm.test.tsx` NEW (9 cases)
+  - 3 components skip (이미 `m5-reports.Report21Panel.test.tsx` 15 case cover, cj-style 'no redundancy' 원칙):
+    - `CostObjectBreakdownTable` (m5-reports)
+    - `PdfExportButton` (m5-reports)
+    - `UnusedCapacityAccordion` (m5-reports)
+  - 3 TS mirror parity NEW:
+    - `apps/web/__tests__/lib/m9-abc-dispatch-parity.test.ts` NEW (15 cases) — constants pin + types shape + isCalcAbcResponse/isCalcResponse narrowing
+    - `apps/web/__tests__/lib/report21-parity.test.ts` NEW (17 cases) — REPORT21_ERROR_CODES pin + envelope shape + isReport21ResponseEnvelope unknown reject + fetchReport21TS discriminated union
+    - `apps/web/__tests__/lib/report21-pdf-parity.test.ts` NEW (12 cases) — Report21PdfResponse shape + downloadReport21PdfTS + base64PdfToBlob + triggerPdfDownload
+- **MSW handler wire**:
+  - `apps/web/mocks/handlers.ts` MODIFIED — POST /api/v1/abc/validate default 200 ValidationResponse (3-layer guard) + tests override via `server.use()` for 422 / 404 envelopes
+- **CR 11-4 D-001/D-005 규율 적용** — parity tests pin Korean SSOT constants + reject unknown state (isCalcAbcResponse / isReport21ResponseEnvelope / isCalcResponse)
+
+### A36 wire DONE — SDR 검증 프로토콜 4-step
+
+- **D1/D2/D4/D5 자동화** (FACTS.md 발견 기반)
+- **(1) D5 commit prefix lint** (NEW):
+  - `scripts/check_commit_prefix.py` NEW — Python mirror of `check_stack_pin.py` pattern. Reads `git log -1 --format=%s` + rejects `^\s*@\s` prefix (PowerShell here-string artifact). Bypass via `[STACK BUMP]` tag in commit OR `COMMIT_PREFIX_BYPASS=1` env var OR `COMMIT_PREFIX_BYPASS_PR_HEAD_SHA=<sha>` (PR builds).
+  - `scripts/check_commit_prefix.mjs` NEW — Node mirror with same logic.
+- **(2) D4 sprint-status structure validator** (NEW):
+  - `tests/integration/test_sprint_status_structure.py` NEW — uses PyYAML to parse `_bmad-output/implementation-artifacts/sprint-status.yaml`. Asserts:
+    - `development_status:` block exists
+    - No `epic-N` keys in `action_items:` block (D4 defect catch)
+    - No `N-X-...` story keys in `action_items:` block (D4 defect catch)
+    - action_items entries have required keys (epic:int, action:str, owner:str, status:str)
+    - Status values in valid vocabulary (epic: backlog/ready-for-dev/in-progress/done/optional; action: open/in-progress/done)
+- **(3) D2 vitest file count drift detector** (NEW):
+  - `tests/integration/test_vitest_file_count_drift.py` NEW — extends `tests/integration/test_sdr_test_count_drift.py` pattern. Counts vitest test files via `find apps/web/__tests__ -name "*.test.ts*"`. Parses SDR claims via regex `vitest\s+~?(\d+)\s+NEW(?:\s*\(\s*\d+\s*files?\s*\))?`. Asserts actual ≥ claim (no SDR overclaim).
+  - **R1 mitigation**: T7 docs use actual `find` count (50 total / 105 NEW cases), NOT planned estimate.
+- **(4) D1 commit consistency validator** (NEW):
+  - `tests/integration/test_commit_consistency.py` NEW — parses `git log -1 --format=%s` for current commit. Asserts:
+    - Commit subject contains `N-X-slug` story key (D1 traceability check)
+    - Story key matches `sprint-status.yaml` `development_status:` block entry
+    - Latest `handoff-*.md` memory file `atomic_commit:` field matches current git HEAD hash (D1 9-1 case catch: `e12bea9` vs `2aa06dd`)
+- **CI workflow wire**:
+  - `.github/workflows/ci.yml` MODIFIED — new `commit-prefix-lint` job (after `stack-pin-check`). Runs `scripts/check_commit_prefix.{py,mjs}` with `COMMIT_PREFIX_BYPASS_PR_HEAD_SHA` env var. Auto-applies `commit-prefix-violation` label on PR + annotation comment.
+
+### D-9-3-DEFER-2 + D-9-4-DEFER-2/3/4 (preserved — Epic 10+ scope)
+
+- **D-9-3-DEFER-2** Activity standard hour 자동 추출 — Epic 11+ activity management epic 결정 시
+- **D-9-4-DEFER-2** Report #15 wire (활동원가 내역서) — A31~A33 결정 후 Epic 10 진입 시 wire
+- **D-9-4-DEFER-3** AI 자동 분석의견 — separate epic (AI capability)
+- **D-9-4-DEFER-4** Playwright E2E (Epic 9 전체) — dedicated sprint (12-5 T6 pattern)
+
+### CR carry (9-7 follow-up sprint)
+
+- **CR 11-3 honest-DEFER discipline 24번째 epic 연속**: partial wire 시도 0건 + single sprint atomic wire T1~T8 (18 files atomic commit: 13 NEW + 5 MODIFIED + 3 NEW memory handoff follow-up commit)
+- **CR 11-2**: SDR overclaim 방지 (vitest file count + cases = R1 actual find 결과)
+- **CR 11-4 D-001/D-005**: parity tests pin Korean SSOT + reject unknown state (m9-abc-dispatch + report21 + report21-pdf)
+- **CR 4-3 / CR 6-1**: "SDR overclaim" lesson 재발 방지 자동화 (A36 wire)
+- **cj-style carry-over sprint 11번째**: A19 → 12-4 → 12-5 T6 → 12-3 T7 → 11-4 → Epic 6 retro → Epic 12 follow-up → Epic 7/8/9 follow-up → Epic 9 close-out retro (9-6) → **9-7 Epic 9 frontend test debt 해소 + A36 SDR 검증 프로토콜**
+
+### 3중 게이트 impact (9-7 follow-up sprint surface)
+
+- **ruff scoped**: 0 NEW (NEW files: scripts + parity tests styled per stack_pin pattern)
+- **import-linter**: 2 KEPT (m9_abc + m11_*), 0 broken
+- **pytest focused**: 3 NEW (test_sprint_status_structure + test_vitest_file_count_drift + test_commit_consistency) + 0 fail
+- **tsc**: zero NEW (no .ts changes outside __tests__)
+- **vitest**: 105 NEW (8 NEW test files: 5 component + 3 parity, R1 actual find 결과) + 0 fail
+
+### 다음 단계 (Epic 10 PRD 진입 + 9-7 sprint done close)
+
+- **Epic 10 PRD 진입** (9-7 done 진입 후, A35 결정 gate clear):
+  - 10-1 AI Document Extraction + 10-2 Three-Insight Cache + 10-3 AI Reference vs Auto Analysis Badge + 10-4 AI Promotion Port
+  - cj-style 4-story + retro 5번째 진입점 패턴 미러 (Epic 9 cj-style 4-story pattern)
+  - capability matrix v1.21 (Epic 9 v1.20 fill + Epic 10 capability 1개 신규 동반)
+- **D-9-4-DEFER-3 AI 자동 분석의견** (Epic 10 capability 결정 시)
+- **D-9-4-DEFER-4 Playwright E2E (Epic 9 전체)** (dedicated sprint 진입, 12-5 T6 pattern)
+
+### retro 5번째 진입점 closed + 9-7 follow-up sprint DONE
+
+- **9-7 follow-up sprint atomic wire DONE** (cj-style 24번째 epic 연속)
+- retro 문서 + sprint-status + deferred-work + A36 SDR 검증 프로토콜 모두 wire
+- **A31~A36 결정 모두 DONE** (A31~A34 retro 자체 closed + A35 9-7 wire DONE + A36 9-7 wire DONE)
+- **D1/D2/D4/D5 자동화 완료** (A36 wire)
+- Epic 10 진입 gate = **A35 done 진입 후** (cj-style 25번째 epic 연속 = Epic 10 1번째 진입점)
