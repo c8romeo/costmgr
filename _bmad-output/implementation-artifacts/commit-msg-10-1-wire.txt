@@ -1,0 +1,33 @@
+@ @ Story 10.1 (Epic 10 cj-style 1번째 진입점, cj-style 26번째 epic 연속): T1+T4 partial wire — backend pure kernel + capability matrix v1.21 drift detector (40 cases pass, 6 honestly DEFER preserved).
+
+baseline_commit = c20acbe (Epic 10 PRD entry atomic commit)
+
+Wire contents (T1 backend pure kernel + T4 capability matrix drift detector):
+- T1.1 packages/services/m10_ai/extraction_port.py MODIFIED — 6 monthly input fields 별도 MONTHLY_INPUT_FIELD_NAMES frozenset + MonthlyFieldName enum + InputTargetTable Literal discriminator + ALLOWED_INPUT_TARGET_TABLES + Literal import 추가
+- T1.2 packages/services/m10_ai/monthly_extraction_kernel.py NEW (~225 lines, stdlib-only pure kernel) — normalize_monthly_field_value + compute_extraction_confidence 2 pure functions + MonthlyInputDraftRow frozen dataclass + InvalidMonthlyFieldValueError typed exception + 4 constants (CONFIDENCE_RED_THRESHOLD 0.70 / CONFIDENCE_YELLOW_THRESHOLD 0.90 / _KO_THOUSAND_SEPARATOR / _KO_NUMBER_PATTERN)
+- T1.3 packages/services/m10_ai/__init__.py MODIFIED — 10 NEW exports + dangling ALLOWED_MIME_DEFAULT symbol 제거 (bug fix)
+- T1.4 tests/services/m10_ai/test_monthly_extraction_kernel.py NEW 26 cases (RED → GREEN → REFACTOR, all PASS)
+- T4.1 tests/integration/test_capability_matrix_v1_21_drift.py NEW 14 cases (all PASS, P-015 SSOT pattern, AI_INSIGHT row + 4-industry grants + 10.1-10.4 story references + AD-7/17 invariants)
+
+3중 게이트 FINAL CLEAN:
+- backend ruff clean (no I/O import, no Pydantic, no SQLAlchemy in pure kernel)
+- capability matrix v1.21 SSOT (AI_INSIGHT row + 4-industry grants + 10.x story references)
+- AD-7 (AI non-authoritative) + AD-17 (promotion port idempotency) + AD-25 (cache invalidation) bind preserved
+
+Tests: 40 pass, 0 fail (verified 2026-08-17)
+
+honestly DEFER 6 categories (A34 4-category framework):
+- D-10-1-DEFER-1 (a: docs 정합) T2 service layer + tests (apps/api/modules/m10_ai/service.py + schemas.py + handlers.py + exceptions.py + main.py + tests/api/modules/m10_ai/test_extraction_service.py + test_extraction_endpoint.py)
+- D-10-1-DEFER-2 (a: docs 정합) T3 alembic migration + tests (alembic/versions/0029_input_drafts_monthly_extension.py + tests/api/test_alembic_0029_input_drafts_monthly.py)
+- D-10-1-DEFER-3 (d: dedicated sprint) T5 frontend + TS mirror + vitest (apps/web/components/ai-extract/* + apps/web/lib/ai-extract.ts + apps/web/__tests__/lib/ai-extract-parity.test.ts)
+- D-10-1-DEFER-4 (a: docs 정합) T7 master PRD v2.0 본체 edit (Epic 10 close-out retro 진입 시점)
+- D-10-1-DEFER-5 (a: docs 정합) T8.1 docs/deferred-work.md EXTENSION
+- D-10-1-DEFER-6 (a: docs 정합) T8.2 sprint-status.yaml 10-1 final done status (partial review → follow-up sprint 후 done)
+
+A36 SDR 검증 프로토콜 (cj-style 26번째 epic 연속 = 9-7 follow-up sprint carry-over):
+- commit prefix lint PASS (Story 10.1 wire prefix `@ @`)
+- sprint-status structure 정합 (D4 fix DONE, Epic 10 entries in development_status block)
+- vitest file count drift 0건 (5 unmounted component SSOT pattern 보존)
+- commit consistency 정합 (handoff memory file sync)
+
+다음: 10-1 follow-up sprint (T2/T3/T5/T7/T8 honestly DEFER 해소) → 10-1 done 진입 → 10-2 spec entry 진입 (cj-style 27번째 epic 연속)

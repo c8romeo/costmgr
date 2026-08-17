@@ -33,7 +33,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final, Protocol
+from typing import Final, Literal, Protocol
 
 # ── Canonical field schema (Story 1.3 — Task 1.1) ─────────────
 # MVP set per Open Question 1 (cj-style default applied 2026-08-01):
@@ -183,6 +183,52 @@ class DocumentExtractionPort(Protocol):
         ...
 
 
+# ── Story 10.1 EXTENSION: Monthly Input Field Schema ────────
+# (cj-style Epic 10 2번째 진입점 wire 진입, 2026-08-17)
+#
+# 6-stream monthly input extraction fields (master PRD §3.1):
+# - 직접재료비 / 직접노무비 / 제조간접비 / 판매관리비 / 매출 / 기말재고
+#
+# Story 1.3 baseline (onboarding extraction) 보존 — MONTHLY_INPUT_FIELD_NAMES
+# 별도 frozenset + MonthlyFieldName 별도 enum + MonthlyInputDraftRow 별도
+# dataclass (target_table discriminator).
+#
+# AD-7 verbatim bind: AI output → input_drafts only. confirmed_inputs 도달은
+# AD-17 promotion port만 (Story 10.4 detailed wire).
+MONTHLY_INPUT_FIELD_NAMES: Final[frozenset[str]] = frozenset(
+    {
+        "direct_material_cost",  # 직접재료비
+        "direct_labor_cost",  # 직접노무비
+        "manufacturing_overhead",  # 제조간접비
+        "selling_admin_cost",  # 판매관리비
+        "revenue",  # 매출
+        "inventory_closing",  # 기말재고
+    }
+)
+
+
+class MonthlyFieldName(str, Enum):
+    """Canonical monthly input field_name enum. Mirrors MONTHLY_INPUT_FIELD_NAMES."""
+
+    DIRECT_MATERIAL_COST = "direct_material_cost"
+    DIRECT_LABOR_COST = "direct_labor_cost"
+    MANUFACTURING_OVERHEAD = "manufacturing_overhead"
+    SELLING_ADMIN_COST = "selling_admin_cost"
+    REVENUE = "revenue"
+    INVENTORY_CLOSING = "inventory_closing"
+
+
+# ── Story 10.1 EXTENSION: target_table discriminator ─────────
+# Discriminated union discriminator for input_drafts.target_table:
+# - 'onboarding_inputs' = Story 1.3 wire (5 onboarding fields)
+# - 'monthly_inputs' = Story 10.1 wire (6 monthly input fields)
+# AD-7 strict invariant: M10 NEVER writes to 'confirmed_inputs'.
+InputTargetTable = Literal["onboarding_inputs", "monthly_inputs"]
+ALLOWED_INPUT_TARGET_TABLES: Final[frozenset[str]] = frozenset(
+    {"onboarding_inputs", "monthly_inputs"}
+)
+
+
 # ── Constants re-exported for cross-language parity tests ────
 # `tests/integration/test_badge_consistency.py` reads these constants
 # from the Python source (regex-parse) and asserts the TS mirror has
@@ -195,4 +241,9 @@ __all__: Final[tuple[str, ...]] = (
     "DocumentExtractionJob",
     "ExtractionRequest",
     "DocumentExtractionPort",
+    # Story 10.1 EXTENSION (monthly input extraction)
+    "MONTHLY_INPUT_FIELD_NAMES",
+    "MonthlyFieldName",
+    "InputTargetTable",
+    "ALLOWED_INPUT_TARGET_TABLES",
 )
