@@ -34,7 +34,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -910,11 +910,9 @@ async def extract_monthly_input(
     """
     from packages.services.m10_ai import (
         CONFIDENCE_RED_THRESHOLD,
-        DocumentExtractionPort,
         InvalidMonthlyFieldValueError,
         MonthlyFieldName,
         MonthlyInputDraftRow,
-        compute_extraction_confidence,
         normalize_monthly_field_value,
     )
     from packages.services.m10_ai.adapters.fake_adapter import (
@@ -962,7 +960,6 @@ async def extract_monthly_input(
     # in tests + dev without ANTHROPIC_API_KEY.)
     adapter: DocumentExtractionPort = FakeDocumentExtractionAdapter()
     request_doc_id = uuid.uuid4()
-    request = adapter.__class__.__call__.__doc__  # type: ignore[attr-defined]
     # The actual extraction call uses the canonical ExtractionRequest shape.
     from packages.services.m10_ai.extraction_port import ExtractionRequest
 

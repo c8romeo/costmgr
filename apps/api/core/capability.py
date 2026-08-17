@@ -67,6 +67,13 @@ class Capability(str, Enum):
     # industries can use AI extraction). This is a defense-in-depth gate
     # on the M10 routes, not a tenant-kind filter.
     AI_EXTRACT = "ai_extract"
+    # Story 10.1 (Epic 10) — AI insight capability (PRD §F10.1 + §8.1 M10).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors TWO_FACTOR_AUTH /
+    # BACKUP_EXPORT / BUDGET_SCENARIO / CVP_SIMULATION / ABC_CALCULATION).
+    # Granted to all 4 industries. Gates POST /api/v1/ai/extract-monthly.
+    # Drift detector: tests/integration/test_capability_matrix_v1_21_drift.py
+    # (matrix row already declared; backend enum was the missing half).
+    AI_INSIGHT = "ai_insight"
     # Story 2.1 — product catalog. Every industry has SOME product type
     # (service tenants register `service` products even without a BOM).
     # The PRODUCT capability gates the catalog CRUD itself.
@@ -197,6 +204,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (PRD §F4.2 + §V3).
             Capability.INVENTORY_CLOSING_GUARD,
             Capability.AI_EXTRACT,  # Story 1.3 — all industries can use AI extraction
+            # Story 10.1 (Epic 10) — manufacturing tenants get AI_INSIGHT
+            # (industry-agnostic, validation guard CR 12-1 L4 + 7-1/7-2/8-1
+            # /8-2/8-3 precedent). Gates POST /api/v1/ai/extract-monthly.
+            Capability.AI_INSIGHT,
             # Story 2.1 — manufacturing tenants can register all 5 product types.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,
@@ -245,6 +256,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.ACTIVITY,
             Capability.DRIVER,
             Capability.AI_EXTRACT,
+            # Story 10.1 (Epic 10) — service tenants get AI_INSIGHT
+            # (industry-agnostic, validation guard CR 12-1 L4).
+            Capability.AI_INSIGHT,
             # Story 2.1 — service tenants get PRODUCT (catalog CRUD) but
             # NOT PRODUCT_MATERIAL (no BOM → no physical raw/semi entries).
             Capability.PRODUCT,
@@ -288,6 +302,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.DRIVER,
             Capability.SEGMENT_SPLIT,
             Capability.AI_EXTRACT,
+            # Story 10.1 (Epic 10) — 겸영 tenants get AI_INSIGHT
+            # (industry-agnostic, validation guard CR 12-1 L4).
+            Capability.AI_INSIGHT,
             # Story 2.1 — both engines → full product catalog.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,
@@ -344,6 +361,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.DRIVER,
             Capability.SEGMENT_SPLIT,
             Capability.AI_EXTRACT,
+            # Story 10.1 (Epic 10) — full matrix tenants get AI_INSIGHT
+            # (industry-agnostic, validation guard CR 12-1 L4).
+            Capability.AI_INSIGHT,
             # Story 2.1 — full catalog + 격리 버킷.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,

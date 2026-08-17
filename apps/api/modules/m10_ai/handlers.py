@@ -36,6 +36,7 @@ from fastapi import APIRouter, Depends, Header, Query, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.core.capability import Capability, require_capability
 from apps.api.core.db import get_session
 from apps.api.core.pipa_gate import (
     PipaConsentMissingError,
@@ -53,17 +54,27 @@ from apps.api.modules.m10_ai.schemas import (
     DraftResponse,
     DraftUpdateRequest,
     EvidenceResponse,
+    MonthlyDraftResponse,
+    MonthlyExtractError,
+    MonthlyExtractRequest,
+    MonthlyExtractResponse,
     PromoteRequest,
     PromoteResponse,
 )
 from apps.api.modules.m10_ai.service import (
+    AiPipaConsentMissingError,
     DocumentMimeNotAllowedError,
     DocumentNotFoundError,
     DocumentService,
     DocumentTooLargeError,
     DraftNotFoundError,
     DraftStateError,
+    MonthlyExtractionError,
     PromoteRequiredFieldsMissingError,
+    extract_monthly_input,
+)
+from packages.services.m10_ai.monthly_extraction_kernel import (
+    InvalidMonthlyFieldValueError,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["m10-ai"])
@@ -427,7 +438,9 @@ def _pipa_error_response(exc: PipaConsentMissingError) -> JSONResponse:
 
 
 # ── Story 10.1 EXTENSION: Monthly Input Extraction Endpoint ──
-# (cj-style Epic 10 2번째 진입점 wire partial, 2026-08-17)
+# (cj-style Epic 10 cj-style 28번째 epic 연속 wire, 2026-08-17)
+#
+# D-10-1-DEFER-1 잔여 해소: T2.5 POST /api/v1/ai/extract-monthly detailed wire.
 #
 # AD-7 verbatim: M10 NEVER writes to `confirmed_inputs`. This endpoint
 # returns `MonthlyExtractResponse` (target_table='monthly_inputs' ONLY).
@@ -438,17 +451,106 @@ def _pipa_error_response(exc: PipaConsentMissingError) -> JSONResponse:
 # Epic 10 wire 진입 시점에는 `ai_cache` channel 1개만 wire. The other 3
 # channels are Epic 11 close/reopen trigger EXTENSION (Story 11.1/11.3).
 #
-# Status: T2 service layer EXTENSION done (`extract_monthly_input` service method
-# in service.py + `MonthlyExtractRequest`/`MonthlyExtractResponse`/`MonthlyExtractError`
-# schemas in schemas.py + `AiPipaConsentMissingError`/`MonthlyExtractionError` typed
-# exceptions). The HTTP endpoint (`POST /api/v1/ai/extract-monthly`) detailed wire
-# belongs to 10-1 follow-up sprint (D-10-1-DEFER-1 partial 해소) — handler
-# `extract_monthly_endpoint()` is registered in this module's follow-up commit
-# (avoid NotImplementedError + Depends(...) syntax in this partial wire).
-#
-# Capability gate (FOLLOW-UP SPRINT): `AI_INSIGHT` (industry-agnostic, 4-industry grants).
+# Capability gate: `AI_INSIGHT` (industry-agnostic, 4-industry grants).
 # Discriminated union envelope: `MonthlyExtractResponse | MonthlyExtractError`.
 # Error envelopes (CR 12-5 D-14):
 #   403 AI_PIPA_CONSENT_MISSING — PIPA consent not granted
 #   422 INVALID_MONTHLY_FIELD_VALUE — parse failure
-#   500 MONTHLY_EXTRACTION_ERROR — wrapper failure
+#   500 MONTHTHLY_EXTRACTION_ERROR — wrapper failure
+@router.post(
+    "/ai/extract-monthly",
+    response_model=MonthlyExtractResponse | MonthlyExtractError,
+    status_code=status.HTTP_200_OK,
+    summary="AI 월간 입력 추출 (Story 10.1)",
+    description=(
+        "Body: { period_key, document_type: 'pdf'|'xlsx', document_b64 }. "
+        "Capability gate: AI_INSIGHT (industry-agnostic). PIPA consent "
+        "RE-CHECKED at the service layer (FIRST gate, fail-closed). "
+        "AD-7 verbatim: M10 NEVER writes confirmed_inputs; output → "
+        "input_drafts.target_table='monthly_inputs' only. Audit-first "
+        "INSERT into audit_logs with action_class=AI_EXTRACTION_EXECUTED "
+        "BEFORE the adapter call (CR 1.1 lesson). Returns discriminated "
+        "union MonthlyExtractResponse | MonthlyExtractError."
+    ),
+)
+async def extract_monthly_endpoint(
+    body: MonthlyExtractRequest,
+    response: Response,
+    ctx: TenantContext = Depends(require_pipa_review),
+    _cap: TenantContext = Depends(require_capability(Capability.AI_INSIGHT)),
+    session: AsyncSession = Depends(get_session),
+) -> Any:
+    """POST /api/v1/ai/extract-monthly — Story 10.1 monthly extraction entry.
+
+    Discriminated union return (MonthlyExtractResponse | MonthlyExtractError):
+    - success → status='success' with full draft set
+    - low confidence (≥ 1 field < 0.70) → status='low_confidence_warning'
+    - service raises AiPipaConsentMissingError → 403 envelope
+    - service raises InvalidMonthlyFieldValueError → 422 envelope
+    - service raises MonthlyExtractionError → 500 envelope
+    """
+    trace_id = str(uuid.uuid4())
+    response.headers["X-Trace-Id"] = trace_id
+
+    try:
+        document_bytes = base64.b64decode(body.document_b64, validate=True)
+    except (binascii.Error, ValueError):
+        return MonthlyExtractError(
+            error_code="MONTHLY_EXTRACTION_ERROR",
+            message_ko="base64 디코딩 실패",
+            trace_id=trace_id,
+        )
+
+    try:
+        result = await extract_monthly_input(
+            session=session,
+            tenant_id=ctx.tenant_id,
+            period_key=body.period_key,
+            document_bytes=document_bytes,
+            document_type=body.document_type,
+            trace_id=trace_id,
+        )
+    except AiPipaConsentMissingError as e:
+        return MonthlyExtractError(
+            error_code="AI_PIPA_CONSENT_MISSING",
+            message_ko="월간 AI 추출은 개인정보 처리 동의가 필요합니다.",
+            trace_id=e.trace_id,
+        )
+    except InvalidMonthlyFieldValueError as e:
+        return MonthlyExtractError(
+            error_code="INVALID_MONTHLY_FIELD_VALUE",
+            message_ko=str(e),
+            trace_id=trace_id,
+        )
+    except MonthlyExtractionError as e:
+        return MonthlyExtractError(
+            error_code="MONTHLY_EXTRACTION_ERROR",
+            message_ko=f"월간 AI 추출 실패: {e.reason}",
+            trace_id=e.trace_id,
+        )
+
+    # Map MonthlyInputDraftRow → MonthlyDraftResponse.
+    # AD-7 strict invariant: target_table='monthly_inputs' ONLY.
+    drafts_response = [
+        MonthlyDraftResponse(
+            field_name=d.field_name.value,
+            value=d.value,
+            confidence=d.confidence,
+            target_table="monthly_inputs",  # AD-7 strict invariant
+            evidence_page=d.evidence.page if d.evidence else None,
+            requires_user_confirmation=d.requires_user_confirmation,
+        )
+        for d in result.drafts
+    ]
+
+    status_value = (
+        "low_confidence_warning" if result.low_confidence_count > 0
+        else "success"
+    )
+    return MonthlyExtractResponse(
+        extraction_id=result.extraction_id,
+        period_key=result.period_key,
+        drafts=drafts_response,
+        low_confidence_count=result.low_confidence_count,
+        status=status_value,
+    )

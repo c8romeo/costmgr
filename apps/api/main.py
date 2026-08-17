@@ -142,6 +142,10 @@ from apps.api.modules.m9_abc.exceptions import (
 )
 from apps.api.modules.m10_ai import router as m10_ai_router
 from apps.api.modules.m10_ai.handlers import _pipa_error_response
+from apps.api.modules.m10_ai.service import (
+    AiPipaConsentMissingError,
+    MonthlyExtractionError,
+)
 from apps.api.modules.m11_close import router as m11_close_router
 from apps.api.modules.m11_close.exceptions import (
     ReopenAuditEmitFailedError,
@@ -223,6 +227,9 @@ from apps.api.modules.m12_account.services.two_factor_challenge_service import (
     ChallengeTokenInvalidError,
     ChallengeTokenPurposeMismatchError,
     TwoFactorChallengeFailedError,
+)
+from packages.services.m10_ai.monthly_extraction_kernel import (
+    InvalidMonthlyFieldValueError,
 )
 from packages.services.m12_account.totp import (
     TotpInvalidCodeError,
@@ -375,6 +382,71 @@ async def _forbidden_role_handler(request: Request, exc: ForbiddenRoleError) -> 
 @app.exception_handler(PipaConsentMissingError)
 async def _pipa_consent_handler(request: Request, exc: PipaConsentMissingError) -> JSONResponse:
     return _pipa_error_response(exc)
+
+
+# ── Story 10.1 (Epic 10 cj-style 28번째 epic 연속 wire) — 3 NEW envelope handlers
+# (CR 12-5 D-14 verbatim `{code, message_ko, details, trace_id}` envelope).
+#   - AiPipaConsentMissingError     → 403 AI_PIPA_CONSENT_MISSING
+#   - InvalidMonthlyFieldValueError → 422 INVALID_MONTHLY_FIELD_VALUE
+#   - MonthlyExtractionError        → 500 MONTHLY_EXTRACTION_ERROR
+
+
+@app.exception_handler(AiPipaConsentMissingError)
+async def _m10_ai_pipa_consent_missing_handler(
+    request: Request, exc: AiPipaConsentMissingError
+) -> JSONResponse:
+    """403 AI_PIPA_CONSENT_MISSING — monthly AI extraction requires PIPA consent."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": "AI_PIPA_CONSENT_MISSING",
+            "message_ko": (
+                "월간 AI 추출은 개인정보 처리 동의가 필요합니다. "
+                "설정에서 동의해 주세요."
+            ),
+            "details": {"tenant_id": str(exc.tenant_id)},
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(InvalidMonthlyFieldValueError)
+async def _m10_invalid_monthly_field_value_handler(
+    request: Request, exc: InvalidMonthlyFieldValueError
+) -> JSONResponse:
+    """422 INVALID_MONTHLY_FIELD_VALUE — kernel parse failure on a monthly input field."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "INVALID_MONTHLY_FIELD_VALUE",
+            "message_ko": "월간 입력 필드 값이 올바르지 않습니다.",
+            "details": {
+                "field_name": getattr(exc, "field_name", None),
+                "raw_value": getattr(exc, "raw_value", None),
+            },
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+@app.exception_handler(MonthlyExtractionError)
+async def _m10_monthly_extraction_error_handler(
+    request: Request, exc: MonthlyExtractionError
+) -> JSONResponse:
+    """500 MONTHLY_EXTRACTION_ERROR — extraction wrapper failure (operator action needed)."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "MONTHLY_EXTRACTION_ERROR",
+            "message_ko": "월간 AI 추출 처리에 실패했습니다.",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                "reason": exc.reason,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
 
 
 # Epic 1 회고 A3 + Epic 3 회고 A1 — operations kill-switch envelope.

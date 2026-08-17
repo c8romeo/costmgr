@@ -374,6 +374,19 @@ AccountDeletionAction = Literal[
     "two_factor_verified",  # CR 12-5 L3 Layer 3 — handler audit-first BEFORE challenge_token mint
 ]
 
+# Story 10.1 (Epic 10) — ai_extraction_executed (PRD §8.1 M10 (c)).
+# AD-7 verbatim: AI output → input_drafts (NOT confirmed_inputs).
+# monthly_extraction_executed is the live audit-first INSERT value
+# used in apps/api/modules/m10_ai/service.py:944 (#d56959c).
+# The other 2 values are forward-fill for 10-1 follow-up sprint
+# (D-10-1-DEFER-3 frontend RED 배지 후속) + 10-4 (AD-7 strict
+# invariant promote-denied counter).
+AIExtractionAction = Literal[
+    "monthly_extraction_executed",              # 10.1 service audit-first INSERT
+    "monthly_extraction_low_confidence_warning",  # 10-1 frontend RED 배지 후속
+    "monthly_extraction_promote_denied",        # 10-4 AD-7 strict invariant guard
+]
+
 
 # Union type for type checking
 AuditAction = (
@@ -399,6 +412,7 @@ AuditAction = (
     | TwoFactorAuthAction
     | AccountBackupAction
     | AccountDeletionAction
+    | AIExtractionAction  # NEW — Story 10.1 (Epic 10)
 )
 
 
@@ -693,6 +707,23 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Story 10.1 (Epic 10) — AI monthly input extraction (PRD §8.1 M10 (c)).
+        # AD-2 audit_logs INSERT-only preserved; AD-7 strict invariant enforced
+        # via service-layer target_table='monthly_inputs' discriminator (NEVER
+        # 'confirmed_inputs'). 3 NEW actions: monthly_extraction_executed (live
+        # in service.py:944 #d56959c), monthly_extraction_low_confidence_warning
+        # (10-1 frontend RED 배지 후속), monthly_extraction_promote_denied
+        # (10-4 AD-7 strict invariant promote-denied counter).
+        ActionClass.AI_EXTRACTION_EXECUTED: (
+            "audit_logs",
+            frozenset(
+                {
+                    "monthly_extraction_executed",
+                    "monthly_extraction_low_confidence_warning",
+                    "monthly_extraction_promote_denied",
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -818,5 +849,6 @@ __all__ = [
     "ReopenOperatorAction",
     "TwoFactorAuthAction",
     "AccountBackupAction",
+    "AIExtractionAction",  # NEW — Story 10.1 (Epic 10)
     "emit_audit_typed",
 ]

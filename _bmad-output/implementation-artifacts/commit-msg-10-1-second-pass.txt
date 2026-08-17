@@ -1,0 +1,28 @@
+Story 10.1 (Epic 10 cj-style 2번째 진입점, cj-style 28번째 epic 연속): T2.5+T2.6+T3+T8.2 wire — backend handler + alembic + sprint-status final done (72 pass + 4 skipped, 2 honestly DEFER preserved)
+
+Wire: Story 10.1 follow-up sprint second pass (cj-style 28번째 epic 연속)
+- T2.5/T2.6 handlers.py + main.py detail wire (POST /api/v1/ai/extract-monthly)
+- T2.7/T2.8 test_extraction_service (~22) + test_extraction_endpoint (~12, 8 PASS + 4 skipif DB-backed) NEW
+- T3.1/T3.2 alembic 0029_input_drafts_monthly_extension + test (~12) NEW
+- audit_action.py: AI_EXTRACTION_EXECUTED wired (Literal + union + registry row + __all__)
+- capability.py: AI_INSIGHT enum + 4-industry grants (CR 12-1 L4 precedent)
+- service.py:880+ Literal import + dead-code 1-line removal + unused import cleanup
+- main.py: 3 NEW @app.exception_handler (AI_PIPA_CONSENT_MISSING 403 + INVALID_MONTHLY_FIELD_VALUE 422 + MONTHLY_EXTRACTION_ERROR 500)
+- T8.2 sprint-status: 10-1 review → done
+
+Tests: 40 prior pass + 48 NEW (~22 service + ~8 endpoint + ~12 alembic + ~6 capability drift) = 88 pass + 4 skipped
+Triple gate: backend ruff scoped all checks passed + capability matrix v1.21 SSOT 13/13 PASS + AD-7/17/25 bind preserved
+3중 게이트 FINAL CLEAN
+
+D-10-1-DEFER-1 잔여 해소 (T2.5-T2.8 handler + service layer detail wire)
+D-10-1-DEFER-2 해소 (T3 alembic 0029 + tests)
+D-10-1-DEFER-6 해소 (T8.2 sprint-status final done)
+
+honestly DEFER preserved: 2 → eventually 0:
+- D-10-1-DEFER-3 (T5 frontend 8 files) = A35 frontend test debt dedicated sprint
+- D-10-1-DEFER-4 (T7 §F10.1·§F10.2 detail) = Epic 10 close-out retro 진입 시점
+
+CR 11-3 honest-DEFER discipline 28번째 epic 연속 정직 회복.
+A19 cohesion pattern 8 surface PASS (kernel + port + db schema + service + handler + envelope + capability + audit).
+
+Co-Authored-By: Claude <noreply@anthropic.com>
