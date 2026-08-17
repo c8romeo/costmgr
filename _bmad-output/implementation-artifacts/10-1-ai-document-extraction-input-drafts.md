@@ -10,6 +10,7 @@ target_sprint: cj-style Epic 10 2번째 진입점 (cj-style 26번째 epic 연속
 estimated_complexity: medium-high
 honestly_defer_count: 6
 wire_partial: true
+wire_commit: 43d32ac
 wire_completed_subtasks: [T1.1, T1.2, T1.3, T1.4, T4.1]
 wire_honestly_defer_subtasks: [T2.1, T2.2, T2.3, T2.4, T2.5, T2.6, T2.7, T2.8, T3.1, T3.2, T5.1, T5.2, T5.3, T5.4, T5.5, T5.6, T5.7, T5.8, T6.5, T7.1, T7.2, T7.3, T7.4, T8.1, T8.2]
 ---
