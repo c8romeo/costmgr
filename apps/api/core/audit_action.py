@@ -106,9 +106,18 @@ UploadedDocumentAction = Literal[
 ]
 
 # input_draft actions (m10_ai)
+# Story 10.4 (Epic 10) — `input_draft_promoted` EXTENSION for
+# InputPromoter.promote() audit-first INSERT Row 1 (AD-17 verbatim
+# "records actor plus draft hash in audit_logs"). The 2 existing
+# values (`input_draft_confirm` / `input_draft_reject`) cover the
+# review-state transitions; the new value covers the
+# state-machine terminal `state='promoted'` transition.
+# Drift detector: tests/integration/test_audit_action_consistency.py
+# enforces ActionClass registry ↔ DB CHECK ↔ call sites parity.
 InputDraftAction = Literal[
     "input_draft_confirm",
     "input_draft_reject",
+    "input_draft_promoted",  # 10-4 AD-17 audit-first INSERT Row 1
 ]
 
 # product actions (m1_baseline)
@@ -382,10 +391,19 @@ AccountDeletionAction = Literal[
 # The other 2 values are forward-fill for 10-1 follow-up sprint
 # (D-10-1-DEFER-3 frontend RED 배지 후속) + 10-4 (AD-7 strict
 # invariant promote-denied counter).
+#
+# Story 10.4 (Epic 10) — `monthly_extraction_promote_executed`
+# EXTENSION for InputPromoter.promote() audit-first INSERT Row 2
+# (CR 1.1 verbatim 2-row append pattern). Mirrors AD-17 verbatim
+# "writes the canonical confirmed-input shape" — the action
+# captures the M2 service role executing the canonical INSERT into
+# `monthly_input_rows` (NOT directly into `confirmed_inputs` —
+# AD-7 strict invariant preserved).
 AIExtractionAction = Literal[
     "monthly_extraction_executed",              # 10.1 service audit-first INSERT
     "monthly_extraction_low_confidence_warning",  # 10-1 frontend RED 배지 후속
     "monthly_extraction_promote_denied",        # 10-4 AD-7 strict invariant guard
+    "monthly_extraction_promote_executed",      # 10-4 AD-17 audit-first INSERT Row 2
 ]
 
 
@@ -476,7 +494,14 @@ class _ActionRegistry:
         ),
         ActionClass.INPUT_DRAFT: (
             "audit_logs",
-            frozenset({"input_draft_confirm", "input_draft_reject"}),
+            frozenset(
+                {
+                    "input_draft_confirm",
+                    "input_draft_reject",
+                    # 10-4 EXTENSION — AD-17 audit-first INSERT Row 1
+                    "input_draft_promoted",
+                }
+            ),
         ),
         ActionClass.PRODUCT: (
             "audit_logs",
@@ -745,6 +770,8 @@ class _ActionRegistry:
                     "monthly_extraction_executed",
                     "monthly_extraction_low_confidence_warning",
                     "monthly_extraction_promote_denied",
+                    # 10-4 EXTENSION — AD-17 audit-first INSERT Row 2
+                    "monthly_extraction_promote_executed",
                 }
             ),
         ),

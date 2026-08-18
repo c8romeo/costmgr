@@ -16,7 +16,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -111,14 +111,20 @@ class DraftUpdateRequest(BaseModel):
         return v
 
 
-class PromoteRequest(BaseModel):
-    """Body of `POST /api/v1/ai-drafts/promote`."""
+class OnboardingPromoteRequest(BaseModel):
+    """Body of `POST /api/v1/ai-drafts/promote` (Story 1.3, renamed 10-4).
+
+    Story 10.4 free the names `PromoteRequest` / `PromoteResponse` for the
+    new `POST /api/v1/ai/promote` AD-17 verbatim input-draft promotion port.
+    No wire/semantic change to the Story 1.3 endpoint; pure namespace
+    uniquification (CR 12-1 immediately-sweep pattern).
+    """
 
     model_config = ConfigDict(extra="forbid")
     document_id: uuid.UUID
 
 
-class PromoteResponse(BaseModel):
+class OnboardingPromoteResponse(BaseModel):
     document_id: uuid.UUID
     promoted_at: datetime
     fields: dict[str, Any]
@@ -372,3 +378,300 @@ class AICommentError(BaseModel):
     message_ko: str
     details: dict[str, Any] = Field(default_factory=dict)
     trace_id: str
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Story 10.4 EXTENSION: AI Promotion Port Schemas
+# (cj-style Epic 10 5번째 진입점 wire, 2026-08-18)
+#
+# AD-17 verbatim invariants:
+#   - Only M2 may call `InputPromoter.promote(tenant_id, period_key,
+#     source_draft_id)` → MonthlyInput
+#   - Idempotent on (tenant_id, period_key, source_draft_id) 3-tuple via
+#     UNIQUE constraint + state='promoted' 1회 전이 (no replay beyond that)
+#   - Audit-first INSERT 2행 append (CR 1.1 verbatim):
+#     Row 1: action_class=INPUT_DRAFT, action=input_draft_promoted (NEW)
+#     Row 2: action_class=AI_EXTRACTION_EXECUTED,
+#            action=monthly_extraction_promote_executed (NEW)
+#   - Canonical 6-stream shape (master PRD §3.1: 직접재료비/직접노무비/
+#     제조간접비/판매관리비/매출/기말재고) from `input_drafts.confirmed_value`
+#     JSONB.
+#
+# AD-7 strict invariant: M10 NEVER writes `confirmed_inputs` /
+# `monthly_input_rows` except via the canonical `InputPromoter.promote(...)`
+# path. Direct INSERT attempts are rejected with 422 INPUT_PROMOTION_DENIED +
+# `monthly_extraction_promote_denied` counter increment (10-1 forward-fill
+# audit_logs slot — AD-25 cross-channel counter).
+#
+# Discriminated union envelope pattern with `status` tag discriminator
+# (CR 12-5 D-13 verbatim — `status` is the Pydantic v2 discriminator field):
+#   `PromoteResponse | PromoteDraftImmutableError | ... | AiPipaConsentMissingError`
+#
+# `status` discriminator values (each envelope carries exactly one literal):
+#   - "success"                 → PromoteResponse (200)
+#   - "draft_immutable"         → PromoteDraftImmutableError (409)
+#   - "source_draft_not_found"  → PromoteSourceDraftNotFoundError (404)
+#   - "idempotency_mismatch"    → PromoteIdempotencyMismatchError (422)
+#   - "m2_only"                 → PromoteM2OnlyError (403, AD-17 verbatim)
+#   - "pipa_consent_missing"    → AiPipaConsentMissingError (403, D-10-3-DEFER-6)
+#   - "promotion_denied"        → InputPromotionDeniedError (422, AD-7 guard)
+#
+# AD-15 cross-language parity SSOT:
+#   Python: apps/api/modules/m10_ai/schemas.py (this file)
+#   TS:     apps/web/lib/ai-promote.ts (honestly DEFER (d), A35 dedicated sprint)
+#
+# Pre-existing `PromoteRequest` / `PromoteResponse` (Story 1.3
+# onboarding drafts → company info subblock) renamed to
+# `OnboardingPromoteRequest` / `OnboardingPromoteResponse` to free the
+# names for the new AD-17 spec verbatim envelopes. No semantic change to
+# the Story 1.3 endpoint; pure namespace uniquification
+# (CR 12-1 immediately-sweep pattern).
+# ──────────────────────────────────────────────────────────────────────
+
+
+class PromoteRequest(BaseModel):
+    """Body of `POST /api/v1/ai/promote` (Story 10.4 spec verbatim, AC #4).
+
+    AD-17 verbatim: only M2 may call `InputPromoter.promote(...)`. `actor_id`
+    is the M2 service-role actor (synthetic identifier emitted by M2 module
+    authority). HTTP-layer M2-only check (`get_current_m2_user` capability
+    gate) validates the caller's role membership in `m2_service_role`.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    tenant_id: uuid.UUID = Field(
+        ...,
+        description="Tenant scope (AD-22 + CR 1.1 audit baseline)",
+    )
+    period_key: str = Field(
+        ...,
+        min_length=1,
+        max_length=32,
+        description="YYYY-MM period key (master PRD §V4 format, e.g. '2026-07')",
+    )
+    source_draft_id: uuid.UUID = Field(
+        ...,
+        description="input_drafts.draft_id row to promote (AD-7 strict invariant target)",
+    )
+    confirmed_value_hash: str | None = Field(
+        default=None,
+        max_length=256,
+        description=(
+            "Hex-encoded SHA-256 of `input_drafts.confirmed_value` "
+            "(optional integrity check; AD-17 idempotency 3-tuple anchor)"
+        ),
+    )
+    actor_id: uuid.UUID = Field(
+        ...,
+        description="M2 service-role actor_id (synthetic; AD-17 verbatim only M2 may call)",
+    )
+
+
+class PromoteResponse(BaseModel):
+    """Body of `POST /api/v1/ai/promote` success envelope (AC #5 verbatim).
+
+    Discriminator `status='success'` distinguishes from error envelopes. The
+    `audit_log_ids` tuple carries the audit-first INSERT 2-row UUIDs
+    (Row 1: INPUT_DRAFT/input_draft_promoted + Row 2: AI_EXTRACTION_EXECUTED/
+    monthly_extraction_promote_executed, in order).
+
+    `idempotent_replay=True` indicates the call replayed an existing
+    promotion (3-tuple match) without re-emitting new audit rows —
+    the prior `monthly_input_promotions` row is returned as-is.
+
+    `promotion_id` and `idempotency_key` mirror the kernel
+    `PromotionResult` wire contract (T1) so the HTTP surface stays
+    1:1 with the port contract (AD-15 cross-language parity SSOT).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["success"] = "success"
+    tenant_id: uuid.UUID
+    period_key: str
+    source_draft_id: uuid.UUID
+    promotion_id: uuid.UUID = Field(
+        ...,
+        description=(
+            "monthly_input_promotions.promotion_id PRIMARY KEY (mirror of "
+            "kernel PromotionResult.promotion_id — AD-15 parity SSOT)"
+        ),
+    )
+    idempotency_key: uuid.UUID = Field(
+        ...,
+        description=(
+            "UUID v5 derivation of 3-tuple (kernel PromotionResult.idempotency_key — "
+            "AD-17 verbatim 3-tuple anchor + AD-15 parity SSOT)"
+        ),
+    )
+    confirmed_input_row_id: uuid.UUID = Field(
+        ...,
+        description=(
+            "monthly_input_rows.id PRIMARY KEY (AD-7 strict invariant target — "
+            "service INSERTs into monthly_input_rows ONLY via this path)"
+        ),
+    )
+    promoted_at: datetime
+    draft_hash: bytes = Field(
+        ...,
+        description="SHA-256 of the promoted draft content (idempotency anchor + audit linkage)",
+    )
+    idempotent_replay: bool = Field(
+        ...,
+        description="True if 3-tuple idempotency replay (no new audit rows emitted this call)",
+    )
+    audit_log_ids: tuple[uuid.UUID, uuid.UUID] = Field(
+        ...,
+        description=(
+            "Audit-first INSERT 2 row UUIDs (Row 1 + Row 2). Tuple enforces "
+            "fixed-length exactly 2 elements per audit-first invariant."
+        ),
+    )
+
+
+# ── Story 10.4 error envelopes (CR 12-5 D-14 verbatim wire shape
+# `{status, code, message_ko, details, trace_id}` — `status` is the
+# discriminated-union tag discriminator) ──
+
+
+class PromoteDraftImmutableError(BaseModel):
+    """409 PROMOTE_DRAFT_IMMUTABLE — source_draft already in 'promoted' state.
+
+    AD-17 verbatim 1회 전이: once a draft transitions to state='promoted',
+    no further promote attempts on the same `draft_id` are accepted. The
+    3-tuple `(tenant_id, period_key, source_draft_id)` UNIQUE on
+    `monthly_input_promotions` enforces this at the DB layer; the
+    service-layer state check + this envelope are defense-in-depth.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["draft_immutable"] = "draft_immutable"
+    code: Literal["PROMOTE_DRAFT_IMMUTABLE"] = "PROMOTE_DRAFT_IMMUTABLE"
+    message_ko: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str
+
+
+class PromoteSourceDraftNotFoundError(BaseModel):
+    """404 PROMOTE_SOURCE_DRAFT_NOT_FOUND — tenant-scoped `source_draft_id` missing.
+
+    Service-layer SELECT enforces `input_drafts.tenant_id = ctx.tenant_id`
+    before promoting. Cross-tenant `source_draft_id` is rejected as
+    not-found (NOT 403 — tenant isolation is invisible to caller).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["source_draft_not_found"] = "source_draft_not_found"
+    code: Literal["PROMOTE_SOURCE_DRAFT_NOT_FOUND"] = "PROMOTE_SOURCE_DRAFT_NOT_FOUND"
+    message_ko: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str
+
+
+class PromoteIdempotencyMismatchError(BaseModel):
+    """422 PROMOTE_IDEMPOTENCY_MISMATCH — same 3-tuple called with different value hash.
+
+    AD-17 verbatim idempotency: a 3-tuple replay MUST use the same
+    `confirmed_value_hash`. If the new call carries a different hash,
+    the service rejects (the original promotion stays intact and
+    idempotent on subsequent same-hash replays).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["idempotency_mismatch"] = "idempotency_mismatch"
+    code: Literal["PROMOTE_IDEMPOTENCY_MISMATCH"] = "PROMOTE_IDEMPOTENCY_MISMATCH"
+    message_ko: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str
+
+
+class PromoteM2OnlyError(BaseModel):
+    """403 INPUT_PROMOTION_M2_ONLY — AD-17 verbatim only M2 may call.
+
+    HTTP-layer enforcement: `get_current_m2_user` capability gate
+    (T4.3 capability.py EXTENSION) verifies the caller carries
+    `m2_service_role` in their authenticated session roles. The
+    kernel-side `validate_promotion_request` re-checks the
+    `actor_role='m2_service_role'` Literal in the request payload
+    as a defense-in-depth audit anchor.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["m2_only"] = "m2_only"
+    code: Literal["INPUT_PROMOTION_M2_ONLY"] = "INPUT_PROMOTION_M2_ONLY"
+    message_ko: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str
+
+
+class AiPipaConsentMissingError(BaseModel):
+    """403 AI_PIPA_CONSENT_MISSING — PIPA consent missing at promote time.
+
+    D-10-3-DEFER-6 PIPA gate 4 endpoints carry-over 해소 verification:
+    this envelope is now reachable on `POST /api/v1/ai/promote` in
+    addition to 10-1's `/ai/extract-monthly`, 10-2's `/ai/insights`,
+    and 10-3's `/ai/comments`. All 4 endpoints share the
+    `Depends(require_pipa_review)` dependency, so a single
+    `PipaConsentMissingError` → 403 AI_PIPA_CONSENT_MISSING mapping
+    fires uniformly across the AI surface.
+
+    Name `AiPipaConsentMissingError` is verbatim from the 10-4 spec;
+    the Pydantic envelope coexists with the Python exception of the
+    same name (defined in `apps.api.modules.m10_ai.service`) by virtue
+    of living in a different module. `handlers.py` disambiguates via
+    `import ... as AiPipaConsentMissingEnvelope` for the schemas-side
+    Pydantic model.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["pipa_consent_missing"] = "pipa_consent_missing"
+    code: Literal["AI_PIPA_CONSENT_MISSING"] = "AI_PIPA_CONSENT_MISSING"
+    message_ko: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str
+
+
+class InputPromotionDeniedError(BaseModel):
+    """422 INPUT_PROMOTION_DENIED — AD-7 strict invariant guard.
+
+    Service-layer defense-in-depth: M10 service attempting direct INSERT
+    into `confirmed_inputs` / `monthly_input_rows` outside the canonical
+    `InputPromoter.promote(...)` path is rejected. The
+    `monthly_extraction_promote_denied` counter is incremented
+    (10-1 forward-fill slot — audit_logs counter via
+    `monthly_extraction_promote_denied`) and a 1-row audit INSERT is
+    emitted (action_class=AI_EXTRACTION_EXECUTED,
+    action=monthly_extraction_promote_denied carry-over from 10-1).
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Literal["promotion_denied"] = "promotion_denied"
+    code: Literal["INPUT_PROMOTION_DENIED"] = "INPUT_PROMOTION_DENIED"
+    message_ko: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str
+
+
+# ── Discriminated union (CR 12-5 D-13 verbatim `status` tag discriminator)
+# `status` field on each envelope carries a unique Literal value; Pydantic v2
+# uses it for OpenAPI schema discrimination AND for runtime serialization
+# branch resolution.
+PromoteEnvelope = Annotated[
+    Union[
+        PromoteResponse,
+        PromoteDraftImmutableError,
+        PromoteSourceDraftNotFoundError,
+        PromoteIdempotencyMismatchError,
+        PromoteM2OnlyError,
+        AiPipaConsentMissingError,
+        InputPromotionDeniedError,
+    ],
+    Field(discriminator="status"),
+]

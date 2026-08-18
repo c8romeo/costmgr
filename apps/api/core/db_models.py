@@ -681,6 +681,60 @@ class MonthlyInputRow(Base):
     )
 
 
+# ── monthly_input_promotions (Story 10.4 — T3 ORM mirror) ───────
+# AD-17 verbatim InputPromoter.promote() idempotency ledger.
+# Schema:
+#   - promotion_id        UUID PK DEFAULT gen_random_uuid()
+#   - tenant_id           UUID NOT NULL FK → tenants(id) ON DELETE RESTRICT
+#   - period_key          VARCHAR(32) NOT NULL (master PRD §V4)
+#   - source_draft_id     UUID NOT NULL FK → input_drafts(draft_id)
+#                         ON DELETE RESTRICT
+#   - monthly_input_row_id UUID NULL FK → monthly_input_rows(id)
+#                         ON DELETE SET NULL
+#   - idempotency_key     UUID NOT NULL (UUID v5 derivation from kernel)
+#   - promoted_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+# UNIQUE constraint `uq_monthly_input_promotions_tenant_period_draft`
+# ON (tenant_id, period_key, source_draft_id) — DB-level idempotency
+# (alembic 0032 wire). INSERT-only trigger
+# `trg_monthly_input_promotions_insert_only` enforces AD-2
+# append-only invariant.
+class MonthlyInputPromotion(Base):
+    __tablename__ = "monthly_input_promotions"
+
+    promotion_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    period_key: Mapped[str] = mapped_column(Text, nullable=False)
+    source_draft_id: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("input_drafts.draft_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    monthly_input_row_id: Mapped[UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("monthly_input_rows.row_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    idempotency_key: Mapped[UUID] = mapped_column(
+        PgUUID(as_uuid=True), nullable=False
+    )
+    promoted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "period_key ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'",
+            name="monthly_input_promotions_period_key_format",
+        ),
+    )
+
+
 # ── fiscal_period_snapshots (Story 4.2 — Task 1.4) ────────────
 # Append-only-leaning ledger (AD-22) of per-tenant per-period calculation
 # results. M3 module is the only writer (services/calc_orchestrator.py).

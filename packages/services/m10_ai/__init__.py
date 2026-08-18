@@ -28,8 +28,25 @@ Story 10.3 EXTENSION note (AI reference vs auto analysis badge separation):
     - `SourceKind` / `SOURCE_KIND_VALUES` re-export **그대로 보존** (SSOT 변경 0건).
     - `ai_reference` opinion surface 는 service layer 로 진입
       (`apps/api/modules/m10_ai/service.py::CommentService` + `ai_insight_comments`).
-    - F10.2-(a)~(d) verbatim bind: 파란 배지 '📊 자동 분석' (auto_analysis) /
+    - F10.2-(a)~(d) verbatim bind: 파란 배지 '� 자동 분석' (auto_analysis) /
       보라 배지 '🤖 AI 참고(검증 필요)' (ai_reference) + SM-3a counter increment.
+
+Story 10.4 EXTENSION (AI promotion port idempotency, cj-style Epic 10
+5번째 진입점 = cj-style 33번째 epic 연속):
+    - PROMOTE_STATUS_VALUES (6 values: success + idempotent_replay +
+      draft_not_found + draft_superseded + idempotency_mismatch + m2_only_denied)
+    - PromotionRequest frozen dataclass (tenant_id + period_key +
+      source_draft_id + actor_id + actor_role)
+    - PromotionResult frozen dataclass (promotion_id + idempotency_key +
+      status + monthly_input_row_id + idempotent_replay + trace_id)
+    - compute_promotion_idempotency_key pure function (UUID v5 derivation
+      on 3-tuple, AD-17 verbatim "idempotent on (tenant_id, period_key,
+      source_draft_id)")
+    - validate_promotion_request pure function (period_key YYYY-MM +
+      actor_role='m2_service_role' ONLY, AD-17 verbatim "only M2 may call")
+    - InputPromoterPort Protocol (port contract for DB adapter)
+    - D-10-3-DEFER-6 PIPA gate carry-over 해소 wire 진입 (T4 handler 진입
+      시점에 4 endpoints 모두 `Depends(require_pipa_review)` 적용)
 
 AD-1 / AD-11 layering: pure kernel layer. Service layer
 (`apps/api/modules/m10_ai/`) imports from here.
@@ -37,6 +54,8 @@ AD-1 / AD-11 layering: pure kernel layer. Service layer
 
 from packages.services.m10_ai.extraction_port import (
     ALLOWED_INPUT_TARGET_TABLES,
+    MONTHLY_INPUT_FIELD_NAMES,
+    SUPPORTED_FIELD_NAMES,
     DocumentExtractionJob,
     DocumentExtractionPort,
     ExtractionEvidence,
@@ -44,9 +63,7 @@ from packages.services.m10_ai.extraction_port import (
     ExtractionRequest,
     FieldName,
     InputTargetTable,
-    MONTHLY_INPUT_FIELD_NAMES,
     MonthlyFieldName,
-    SUPPORTED_FIELD_NAMES,
 )
 from packages.services.m10_ai.insight_cache_kernel import (
     INSIGHT_KIND_VALUES,
@@ -66,6 +83,16 @@ from packages.services.m10_ai.monthly_extraction_kernel import (
     MonthlyInputDraftRow,
     compute_extraction_confidence,
     normalize_monthly_field_value,
+)
+from packages.services.m10_ai.promoter_port import (
+    ALLOWED_PROMOTER_ACTOR_ROLE,
+    PERIOD_KEY_PATTERN,
+    PROMOTE_STATUS_VALUES,
+    InputPromoterPort,
+    PromotionRequest,
+    PromotionResult,
+    compute_promotion_idempotency_key,
+    validate_promotion_request,
 )
 
 __all__ = (
@@ -98,4 +125,13 @@ __all__ = (
     "compose_insight_cache_key",
     "make_default_insights",
     "InsightCacheKeyShapeError",
+    # Story 10.4 EXTENSION (AI promotion port idempotency)
+    "PROMOTE_STATUS_VALUES",
+    "ALLOWED_PROMOTER_ACTOR_ROLE",
+    "PERIOD_KEY_PATTERN",
+    "PromotionRequest",
+    "PromotionResult",
+    "compute_promotion_idempotency_key",
+    "validate_promotion_request",
+    "InputPromoterPort",
 )

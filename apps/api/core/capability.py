@@ -646,3 +646,115 @@ def require_any_role(*allowed_roles: str):
         return ctx
 
     return _dep
+
+
+# ──────────────────────────────────────────────────────────────────
+# Story 10.4 (Epic 10 5번째 진입점, cj-style 33번째 epic 연속) — AD-17
+# verbatim "only M2 may call InputPromoter.promote" M2-only gate.
+#
+# AD-17 invariants:
+#   - `InputPromoter.promote(tenant_id, period_key, source_draft_id)` is the
+#     canonical promotion port. Only the M2 module authority may invoke it.
+#   - Cross-module HTTP access (frontend, owner UI, other modules) MUST be
+#     rejected at the FastAPI dependency boundary BEFORE body parsing —
+#     this is the 1st line of defense.
+#   - The service-layer (kernel `validate_promotion_request`) re-checks
+#     `actor_role='m2_service_role'` Literal as the canonical audit anchor —
+#     this is the 2nd line of defense.
+#   - The audit_logs INSERT (CR 1.1 verbatim — Row 1 + Row 2 audit-first
+#     INSERT) carries the actor role as part of the audit baseline.
+#
+# Mirrors `require_role` factory shape but with a SYNTHETIC service-role
+# identifier (`m2_service_role`) rather than a human RBAC role. The M2
+# module issues inter-module service-role JWTs distinct from
+# owner/member/viewer/consultant_proxy; only those unlock this gate.
+# ──────────────────────────────────────────────────────────────────
+
+
+# Synthetic service-role identifier (M2 module authority). Distinct from
+# the 4 human RBAC roles (owner/member/viewer/consultant_proxy).
+M2_SERVICE_ROLE: Final[str] = "m2_service_role"
+
+
+class M2OnlyUserError(Exception):
+    """403 INPUT_PROMOTION_M2_ONLY — caller is NOT the M2 module authority.
+
+    AD-17 verbatim: only the M2 module may invoke
+    `InputPromoter.promote(...)`. Cross-module HTTP access (frontend,
+    owner UI, other modules) is rejected at the FastAPI dependency layer
+    with this typed exception. The kernel-side
+    `validate_promotion_request` re-checks the `actor_role` Literal as a
+    defense-in-depth guard; this HTTP-side gate is the 1st line of
+    defense that fires BEFORE body parsing.
+
+    Distinct from `ForbiddenRoleError` (which gates RBAC roles — owner
+    / member / viewer / consultant_proxy). The M2 service-role is a
+    synthetic identifier, not a human RBAC role, so it gets its own
+    typed exception to keep the AD-15 envelope mapping unambiguous.
+
+    Mapped to HTTP 403 INPUT_PROMOTION_M2_ONLY by main.py global
+    handler (T4 B4 wire).
+    """
+
+    def __init__(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        actual_role: str,
+        trace_id: str,
+    ) -> None:
+        super().__init__(
+            f"AD-17 M2-only denied: actual_role={actual_role!r}, "
+            f"required={M2_SERVICE_ROLE!r}"
+        )
+        self.tenant_id = tenant_id
+        self.user_id = user_id
+        self.actual_role = actual_role
+        self.trace_id = trace_id
+
+
+async def get_current_m2_user(
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> TenantContext:
+    """FastAPI dependency — AD-17 verbatim M2-only gate.
+
+    Verifies the authenticated session carries `role='m2_service_role'`
+    in its JWT. The M2 module issues inter-module service-role JWTs
+    (distinct from owner/member/viewer/consultant_proxy); only those
+    tokens unlock this gate.
+
+    Returns the `TenantContext` so the route can use it directly.
+    Raises `M2OnlyUserError` (403 INPUT_PROMOTION_M2_ONLY) otherwise —
+    the Pydantic envelope `PromoteM2OnlyError` carries the wire shape
+    (`status='m2_only'`, `code='INPUT_PROMOTION_M2_ONLY'`, etc.).
+
+    Layer ordering in the route:
+        @router.post(
+            "/ai/promote",
+            dependencies=[
+                Depends(require_pipa_review),   # 1st: AD-22 + D-10-3-DEFER-6
+                Depends(get_current_m2_user),   # 2nd: AD-17 M2-only
+                Depends(require_capability(Capability.AI_INSIGHT)),  # 3rd: industry
+            ],
+        )
+
+    The dependency returns the same `TenantContext` so all three gates
+    stack without re-fetching the JWT. Mirrors `require_role("owner")`
+    shape but with a synthetic service-role identifier rather than a
+    human RBAC role.
+    """
+    trace_id = str(uuid.uuid4())
+    if ctx.role != M2_SERVICE_ROLE:
+        raise M2OnlyUserError(
+            tenant_id=ctx.tenant_id,
+            user_id=ctx.user_id,
+            actual_role=ctx.role,
+            trace_id=trace_id,
+        )
+    return ctx
+
+
+# Alias for naming consistency with the `require_*` factory family.
+# Both names point to the same dependency.
+require_m2_only = get_current_m2_user

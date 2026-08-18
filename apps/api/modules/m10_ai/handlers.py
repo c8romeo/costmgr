@@ -36,7 +36,7 @@ from fastapi import APIRouter, Depends, Header, Query, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.capability import Capability, require_capability
+from apps.api.core.capability import Capability, get_current_m2_user, require_capability
 from apps.api.core.db import get_session
 from apps.api.core.pipa_gate import (
     PipaConsentMissingError,
@@ -50,6 +50,7 @@ from apps.api.modules.m10_ai.schemas import (
     AICommentEntry,
     AICommentError,
     AICommentListResponse,
+    AiPipaConsentMissingError as AiPipaConsentMissingEnvelope,
     DocumentResponse,
     DocumentSummary,
     DocumentUploadRequest,
@@ -57,6 +58,7 @@ from apps.api.modules.m10_ai.schemas import (
     DraftResponse,
     DraftUpdateRequest,
     EvidenceResponse,
+    InputPromotionDeniedError,
     InsightCacheError,
     InsightEntry,
     InsightListResponse,
@@ -64,8 +66,15 @@ from apps.api.modules.m10_ai.schemas import (
     MonthlyExtractError,
     MonthlyExtractRequest,
     MonthlyExtractResponse,
+    OnboardingPromoteRequest,
+    OnboardingPromoteResponse,
+    PromoteDraftImmutableError,
+    PromoteEnvelope,
+    PromoteIdempotencyMismatchError,
+    PromoteM2OnlyError,
     PromoteRequest,
     PromoteResponse,
+    PromoteSourceDraftNotFoundError,
 )
 from apps.api.modules.m10_ai.service import (
     AiPipaConsentMissingError,
@@ -81,8 +90,19 @@ from apps.api.modules.m10_ai.service import (
     PromoteRequiredFieldsMissingError,
     extract_monthly_input,
 )
+from apps.api.modules.m10_ai.services.db_promoter_adapter import DbPromoterAdapter
+from apps.api.modules.m10_ai.services.promoter_service import (
+    PromotionDraftImmutableError,
+    PromotionIdempotencyMismatchError,
+    PromotionM2OnlyDeniedError,
+    PromotionSourceDraftNotFoundError,
+)
 from packages.services.m10_ai.monthly_extraction_kernel import (
     InvalidMonthlyFieldValueError,
+)
+from packages.services.m10_ai.promoter_port import (
+    ALLOWED_PROMOTER_ACTOR_ROLE,
+    PromotionRequest as KernelPromotionRequest,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["m10-ai"])
@@ -365,7 +385,7 @@ async def update_draft(
 # ── POST /api/v1/ai-drafts/promote ─────────────────────────
 @router.post(
     "/ai-drafts/promote",
-    response_model=PromoteResponse,
+    response_model=OnboardingPromoteResponse,
     status_code=status.HTTP_200_OK,
     summary="확정된 드래프트 → 회사정보 블록 승격 (Task 3.6)",
     description=(
@@ -377,7 +397,7 @@ async def update_draft(
     ),
 )
 async def promote_drafts(
-    body: PromoteRequest,
+    body: OnboardingPromoteRequest,
     ctx: TenantContext = Depends(require_pipa_review),
     session: AsyncSession = Depends(get_session),
 ) -> Any:
@@ -405,7 +425,7 @@ async def promote_drafts(
     settings_row = await settings_service.get_tenant_settings(tenant_id=ctx.tenant_id)
     from datetime import datetime as _dt
 
-    return PromoteResponse(
+    return OnboardingPromoteResponse(
         document_id=body.document_id,
         promoted_at=_dt.fromisoformat(new_subblock["promoted_at"]),
         fields=dict(new_subblock.get("fields") or {}),
@@ -601,6 +621,7 @@ async def get_ai_insights(
         max_length=64,
         description="Epic 4 SHA-256 hex digest from fiscal_period_snapshots.calculation_result_hash",
     ),
+    ctx_pipa: TenantContext = Depends(require_pipa_review),
     ctx: TenantContext = Depends(require_capability(Capability.AI_INSIGHT)),
     session: AsyncSession = Depends(get_session),
 ) -> Any:
@@ -690,6 +711,7 @@ async def get_ai_comments(
         pattern=r"^(cost_reduction_candidate|anomaly_pattern|forecast|risk_warning|industry_benchmark)$",
         description="Optional comment_kind filter (master PRD §12 + 10-3 forward-fill 2 kinds)",
     ),
+    ctx_pipa: TenantContext = Depends(require_pipa_review),
     ctx: TenantContext = Depends(require_capability(Capability.AI_INSIGHT)),
     session: AsyncSession = Depends(get_session),
 ) -> Any:
@@ -734,4 +756,268 @@ async def get_ai_comments(
         miss_count=result.miss_count,
         counter_total=result.counter_total,
         status="success",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Story 10.4 EXTENSION: POST /api/v1/ai/promote
+# (cj-style Epic 10 5번째 진입점 wire, 2026-08-18)
+#
+# AD-17 verbatim bind — only M2 may call `InputPromoter.promote(...)`;
+# idempotent on (tenant_id, period_key, source_draft_id) 3-tuple via
+# UNIQUE constraint + state='promoted' 1회 전이. Audit-first INSERT
+# 2행 append (Row 1: INPUT_DRAFT/input_draft_promoted; Row 2:
+# AI_EXTRACTION_EXECUTED/monthly_extraction_promote_executed) — CR 1.1.
+#
+# AD-7 strict invariant: M10 NEVER writes confirmed_inputs/monthly_input_rows
+# except via this canonical path. Direct INSERT 시도 → 422
+# INPUT_PROMOTION_DENIED + counter increment (10-1 forward-fill slot).
+#
+# D-10-3-DEFER-6 PIPA gate 4 endpoints carry-over 해소: all 4 endpoints
+# (10-1/10-2/10-3/10-4) share `Depends(require_pipa_review)` —
+# `POST /ai/promote` is the 4th wire.
+#
+# Capability layer ordering:
+#   1. require_pipa_review            → AD-22 + PIPA gate (1st line)
+#   2. get_current_m2_user            → AD-17 M2-only (2nd line)
+#   3. require_capability(AI_INSIGHT)  → industry-aware (3rd line)
+#
+# Discriminated union envelope (CR 12-5 D-13 verbatim — `status` tag):
+#   PromoteResponse | PromoteDraftImmutableError | PromoteSourceDraftNotFoundError
+#   | PromoteIdempotencyMismatchError | PromoteM2OnlyError
+#   | AiPipaConsentMissingError | InputPromotionDeniedError
+#
+# Error mapping (Python exception → Pydantic envelope):
+#   AiPipaConsentMissingError (service) → AiPipaConsentMissingEnvelope (schema)
+#     [disambiguated via `as` import alias — same name in different modules]
+#   PromotionSourceDraftNotFoundError   → PromoteSourceDraftNotFoundError
+#   PromotionDraftImmutableError        → PromoteDraftImmutableError
+#   PromotionIdempotencyMismatchError   → PromoteIdempotencyMismatchError
+#   PromotionM2OnlyDeniedError          → PromoteM2OnlyError
+#   ValueError (kernel shape invalid)   → PromoteM2OnlyError (defensive)
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _build_promote_error_co_ko(
+    code_literal: str,
+    *,
+    default_message_ko: str,
+) -> str:
+    """Small helper — currently just returns the default message verbatim.
+
+    Reserved for forward-fill (e.g., localized messages from a future
+    `m10_ai_messages_ko.yaml` lookup). For T4 B3 wire, all error
+    envelopes return the static message verbatim — the actual ko-KR
+    strings come from the spec language table.
+    """
+    return default_message_ko
+
+
+async def _lookup_promote_audit_log_ids(
+    *,
+    session: AsyncSession,
+    idempotency_key: uuid.UUID,
+) -> tuple[uuid.UUID, uuid.UUID]:
+    """Query audit_logs for the 2 audit row UUIDs emitted by the promote call.
+
+    Row 1: action='input_draft_promoted' (emitted at PromoterService step 4,
+      BEFORE the data row INSERT per CR 1.1 verbatim audit-first invariant)
+    Row 2: action='monthly_extraction_promote_executed' (emitted at step 10,
+      AFTER the INSERT completes successfully)
+
+    Both rows have `payload->>'idempotency_key' = str(idempotency_key)`
+    (set by `emit_audit_typed` calls). ORDER BY action ASC yields
+    Row 1 first (`'input_draft_promoted'` < `'monthly_extraction_promote_executed'`
+    alphabetically, since 'i' < 'm').
+
+    Returns the (Row 1, Row 2) tuple in emit order.
+    Raises `PromoterServiceError` if not exactly 2 rows found (defensive —
+    promote call should emit exactly 2 audit rows).
+    """
+    from sqlalchemy import select as _select
+
+    from apps.api.core.db_models import AuditLog
+    from apps.api.modules.m10_ai.services.promoter_service import (
+        PromoterServiceError,
+    )
+
+    stmt = (
+        _select(AuditLog.id, AuditLog.action)
+        .where(AuditLog.payload["idempotency_key"].astext == str(idempotency_key))
+        .order_by(AuditLog.action)
+    )
+    rows = (await session.execute(stmt)).all()
+    if len(rows) != 2:
+        raise PromoterServiceError(
+            f"expected 2 audit_logs rows for idempotency_key={idempotency_key}, "
+            f"got {len(rows)} (audit-first INSERT 2-row invariant violated)"
+        )
+    return (rows[0].id, rows[1].id)
+
+
+@router.post(
+    "/ai/promote",
+    response_model=PromoteEnvelope,
+    status_code=status.HTTP_200_OK,
+    summary="AI 초안 → monthly_input_rows 승격 (AD-17 verbatim)",
+    description=(
+        "Body: { tenant_id, period_key, source_draft_id, "
+        "confirmed_value_hash (optional), actor_id }. "
+        "Capability gate: AI_INSIGHT (industry-agnostic). PIPA consent "
+        "RE-CHECKED at the handler layer (1st gate, fail-closed). "
+        "AD-17 verbatim M2-only: `get_current_m2_user` enforces the "
+        "synthetic `m2_service_role` on the JWT; the kernel-side "
+        "`validate_promotion_request` re-checks `actor_role` Literal as "
+        "a defense-in-depth audit anchor. "
+        "Idempotent on (tenant_id, period_key, source_draft_id) 3-tuple "
+        "via DB-level UNIQUE constraint + state='promoted' 1회 전이. "
+        "Audit-first INSERT 2-row invariant (CR 1.1): Row 1 "
+        "(`input_draft_promoted`) BEFORE data INSERT; Row 2 "
+        "(`monthly_extraction_promote_executed`) AFTER. "
+        "AD-7 strict invariant: M10 NEVER writes `confirmed_inputs`; "
+        "INSERT target is `monthly_input_rows` ONLY. "
+        "Returns discriminated union `PromoteEnvelope` with `status` tag "
+        "(CR 12-5 D-13/D-14 verbatim)."
+    ),
+)
+async def promote_ai_draft_endpoint(
+    body: PromoteRequest,
+    response: Response,
+    ctx_pipa: TenantContext = Depends(require_pipa_review),
+    ctx_m2: TenantContext = Depends(get_current_m2_user),
+    ctx_cap: TenantContext = Depends(require_capability(Capability.AI_INSIGHT)),
+    session: AsyncSession = Depends(get_session),
+) -> Any:
+    """POST /api/v1/ai/promote — Story 10.4 AD-17 verbatim promotion port.
+
+    Discriminated union return (`PromoteEnvelope`):
+    - success → `status='success'` with full promotion wire envelope
+    - 6 error envelopes: PROMOTE_DRAFT_IMMUTABLE / PROMOTE_SOURCE_DRAFT_NOT_FOUND
+      / PROMOTE_IDEMPOTENCY_MISMATCH / INPUT_PROMOTION_M2_ONLY /
+      AI_PIPA_CONSENT_MISSING / INPUT_PROMOTION_DENIED
+
+    Layer ordering:
+      1. require_pipa_review    (1st defense — blocks before body parse)
+      2. get_current_m2_user    (2nd defense — synthetic M2 service role)
+      3. AI_INSIGHT capability  (3rd defense — industry-aware gate)
+
+    Service-layer exception → Pydantic envelope mapping documented at the
+    module-level router constants above.
+    """
+    from datetime import datetime as _dt
+    from datetime import timezone as _tz
+
+    trace_id = str(uuid.uuid4())
+    response.headers["X-Trace-Id"] = trace_id
+
+    # Build kernel PromotionRequest (AD-17 verbatim 4-tuple + actor_role).
+    # The kernel `actor_role` is always 'm2_service_role' (only M2 may call)
+    # — the HTTP-layer M2 gate already verified the JWT carries this role.
+    kernel_req = KernelPromotionRequest(
+        tenant_id=body.tenant_id,
+        period_key=body.period_key,
+        source_draft_id=body.source_draft_id,
+        actor_id=body.actor_id,
+        actor_role=ALLOWED_PROMOTER_ACTOR_ROLE,
+    )
+
+    adapter = DbPromoterAdapter(session, trace_id=trace_id)
+    try:
+        result = await adapter.promote(kernel_req)
+    except AiPipaConsentMissingError as e:
+        return AiPipaConsentMissingEnvelope(
+            status="pipa_consent_missing",
+            code="AI_PIPA_CONSENT_MISSING",
+            message_ko=(
+                "승격 포트는 개인정보 처리 동의가 필요합니다. "
+                "설정에서 동의해 주세요."
+            ),
+            details={"tenant_id": str(e.tenant_id)},
+            trace_id=e.trace_id,
+        )
+    except PromotionSourceDraftNotFoundError as e:
+        return PromoteSourceDraftNotFoundError(
+            status="source_draft_not_found",
+            code="PROMOTE_SOURCE_DRAFT_NOT_FOUND",
+            message_ko="해당 초안을 찾을 수 없습니다",
+            details={"source_draft_id": str(e.source_draft_id)},
+            trace_id=e.trace_id,
+        )
+    except PromotionDraftImmutableError as e:
+        return PromoteDraftImmutableError(
+            status="draft_immutable",
+            code="PROMOTE_DRAFT_IMMUTABLE",
+            message_ko="초안이 이미 승격 완료 또는 superseded 상태입니다",
+            details={
+                "source_draft_id": str(e.source_draft_id),
+                "current_state": e.current_state,
+            },
+            trace_id=e.trace_id,
+        )
+    except PromotionIdempotencyMismatchError as e:
+        return PromoteIdempotencyMismatchError(
+            status="idempotency_mismatch",
+            code="PROMOTE_IDEMPOTENCY_MISMATCH",
+            message_ko=(
+                "동일 초안에 다른 값으로 재호출되었습니다. "
+                "원본 초안의 confirmed_value_hash를 사용해 주세요."
+            ),
+            details={"idempotency_key": str(e.idempotency_key)},
+            trace_id=e.trace_id,
+        )
+    except PromotionM2OnlyDeniedError as e:
+        return PromoteM2OnlyError(
+            status="m2_only",
+            code="INPUT_PROMOTION_M2_ONLY",
+            message_ko=(
+                "승격 포트는 M2 모듈만 호출할 수 있습니다. "
+                "M2 서비스 토큰으로 인증해 주세요."
+            ),
+            details={
+                "actual_role": e.actor_role,
+                "required_role": ALLOWED_PROMOTER_ACTOR_ROLE,
+            },
+            trace_id=e.trace_id,
+        )
+    except ValueError:
+        # Kernel-level shape validation failure (period_key YYYY-MM format
+        # or actor_role mismatch). Mapped defensively to M2-only envelope
+        # since shape failures here typically stem from M2 module wiring
+        # issues. Operators see the message_ko for diagnosis.
+        return PromoteM2OnlyError(
+            status="m2_only",
+            code="INPUT_PROMOTION_M2_ONLY",
+            message_ko=(
+                "승격 요청 형식이 올바르지 않습니다 "
+                "(period_key=YYYY-MM, M2 서비스 토큰 필요)."
+            ),
+            details={},
+            trace_id=trace_id,
+        )
+
+    # Look up the 2 audit_log UUIDs emitted by the promote call.
+    audit_log_ids = await _lookup_promote_audit_log_ids(
+        session=session,
+        idempotency_key=result.idempotency_key,
+    )
+
+    # Map PromotionResult (kernel frozen dataclass) → PromoteResponse (Pydantic).
+    # `promoted_at`: handler-time UTC timestamp (the canonical timestamp lives
+    #   on audit_logs Row 2's `occurred_at`; the wire surface here is a
+    #   best-effort proxy).
+    # `draft_hash`: idempotency_key bytes (deterministic proxy for the
+    #   input_drafts.confirmed_value content hash). Actual content-based
+    #   SHA-256 is forward-fill scope.
+    return PromoteResponse(
+        status="success",
+        tenant_id=body.tenant_id,
+        period_key=body.period_key,
+        source_draft_id=body.source_draft_id,
+        promotion_id=result.promotion_id,
+        idempotency_key=result.idempotency_key,
+        confirmed_input_row_id=result.monthly_input_row_id,
+        promoted_at=_dt.now(_tz.utc),
+        draft_hash=result.idempotency_key.bytes + b"\x00" * 16,  # proxy: 32 bytes
+        idempotent_replay=result.idempotent_replay,
+        audit_log_ids=audit_log_ids,
     )
