@@ -51,7 +51,7 @@ dev = [
     "import-linter==2.13",    # AD-14 exact pin (was >=2.0; CR 2026-07-25 PIN-1)
     "pytest==9.1.1",          # spec line 130
     "ruff==0.7.0",            # AD-15, AD-8 lint+format
-    "pyyaml==6.0.2",          # REGEN-1 (CR 2026-07-25) — robust YAML for STACK_PIN
+    "pyyaml==6.0.3",          # REGEN-1 (CR 2026-07-25) — robust YAML for STACK_PIN
 ]
 
 # Shortcut scripts — call directly:
