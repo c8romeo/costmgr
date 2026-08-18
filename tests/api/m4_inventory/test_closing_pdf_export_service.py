@@ -347,3 +347,88 @@ def test_export_closing_pdf_audit_target_id_is_tenant_id() -> None:
 
     # B7: target_id MUST be the tenant_id (not a per-PDF uuid5).
     assert captured.get("target_id") == tenant_id
+
+
+def test_export_closing_pdf_audit_emits_actor_id_smoke_fix_t2() -> None:
+    """smoke-fix T2 (2026-08-18): actor_id must flow handler→service→emit_audit_typed.
+
+    Bug: emit_audit_typed requires actor_id as a keyword arg (no default).
+    The 6-3 wire omitted it, causing the entire PDF export endpoint to
+    500 with CLOSING_PDF_EXPORT_AUDIT_EMIT_ERROR. Smoke 2026-08-18 hit
+    this; the fix wires actor_id from ctx.user_id through the service
+    constructor into _emit_audit_export.
+
+    This test verifies the actor_id from the service constructor reaches
+    emit_audit_typed verbatim.
+    """
+    tenant_id = uuid.uuid4()
+    actor_id = uuid.uuid4()
+    session = _make_session()
+    svc = ClosingPdfExportService(
+        session,
+        tenant_id=tenant_id,
+        trace_id="trace-actor-id",
+        actor_id=actor_id,  # NEW — smoke-fix T2
+    )
+    svc._query_closing_data = AsyncMock(  # type: ignore[method-assign]
+        return_value={
+            "closing_snapshot_events": [],
+            "ledger_events": [],
+            "fiscal_period_snapshots": [],
+        }
+    )
+
+    from apps.api.modules.m4_inventory.services import (
+        closing_pdf_export_service as svc_mod,
+    )
+
+    captured: dict[str, Any] = {}
+
+    async def fake_emit(**kwargs: Any) -> None:
+        captured.update(kwargs)
+
+    svc_mod.emit_audit_typed = fake_emit  # type: ignore[assignment]
+    _run_export(svc, period_key="2026-07", industry="manufacturing")
+
+    # actor_id must flow through verbatim.
+    assert captured.get("actor_id") == actor_id
+
+
+def test_export_closing_pdf_audit_actor_id_optional_smoke_fix_t2() -> None:
+    """smoke-fix T2: actor_id is optional (None allowed) for back-compat.
+
+    When the service is constructed without actor_id (e.g. by tests or
+    a future caller without user context), export_closing_pdf must still
+    complete cleanly without raising. The audit row will carry
+    actor_id=None (representing a system-level export).
+    """
+    tenant_id = uuid.uuid4()
+    session = _make_session()
+    svc = ClosingPdfExportService(
+        session,
+        tenant_id=tenant_id,
+        trace_id="trace-no-actor",
+        # actor_id intentionally omitted
+    )
+    svc._query_closing_data = AsyncMock(  # type: ignore[method-assign]
+        return_value={
+            "closing_snapshot_events": [],
+            "ledger_events": [],
+            "fiscal_period_snapshots": [],
+        }
+    )
+
+    from apps.api.modules.m4_inventory.services import (
+        closing_pdf_export_service as svc_mod,
+    )
+
+    captured: dict[str, Any] = {}
+
+    async def fake_emit(**kwargs: Any) -> None:
+        captured.update(kwargs)
+
+    svc_mod.emit_audit_typed = fake_emit  # type: ignore[assignment]
+    _run_export(svc, period_key="2026-07", industry="manufacturing")
+
+    # actor_id is optional — None is acceptable.
+    assert captured.get("actor_id") is None

@@ -187,10 +187,12 @@ class ClosingPdfExportService:
         *,
         tenant_id: uuid.UUID,
         trace_id: str,
+        actor_id: uuid.UUID | None = None,
     ) -> None:
         self.session = session
         self.tenant_id = tenant_id
         self.trace_id = trace_id
+        self.actor_id = actor_id
 
     # ── Operation: export closing PDF (read-only + PDF render) ──
     async def export_closing_pdf(
@@ -260,6 +262,7 @@ class ClosingPdfExportService:
             closing_snapshot_count=len(closing_snapshot_events),
             ledger_event_count=len(ledger_events),
             is_empty=is_empty,
+            actor_id=self.actor_id,
         )
 
         # 4. Build ClosingPdfDocument + render byte stream.
@@ -521,6 +524,7 @@ class ClosingPdfExportService:
         closing_snapshot_count: int,
         ledger_event_count: int,
         is_empty: bool,
+        actor_id: uuid.UUID | None = None,
     ) -> None:
         """Audit-first emit (CR 1.1) — closing_pdf_export_viewed audit row.
 
@@ -531,6 +535,12 @@ class ClosingPdfExportService:
         B7: `target_id` = tenant_id (matches 6-2 audit-trail join
         contract). Per-row differentiation comes from the `action`
         field, not `target_id`.
+
+        Smoke-fix T2 (2026-08-18): actor_id is REQUIRED by emit_audit_typed
+        — the previous version omitted it, causing the entire PDF export
+        endpoint to 500 with CLOSING_PDF_EXPORT_AUDIT_EMIT_ERROR. Source
+        comes from the handler (ctx.user_id) and flows through the
+        service constructor.
         """
         try:
             await emit_audit_typed(
@@ -538,7 +548,7 @@ class ClosingPdfExportService:
                 tenant_id=self.tenant_id,
                 action_class=ActionClass.MONTHLY_CLOSING_REPORT,
                 action="closing_pdf_export_viewed",
-                target_table="closing_period",
+                actor_id=actor_id,
                 target_id=self.tenant_id,
                 payload={
                     "trace_id": self.trace_id,

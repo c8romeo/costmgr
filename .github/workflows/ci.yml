@@ -446,3 +446,101 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/
           if-no-files-found: ignore
+
+  # ─────────────────────────────────────────────────────────
+  # 11. smoke-e2e (smoke-fix sprint 2026-08-18 — T6)
+  #
+  # Drives the MVP critical path over real HTTP against a fresh
+  # Postgres + alembic + RLS + dev_seed. Catches runtime regressions
+  # that pure unit tests miss (typed exception → wrong status,
+  # missing exception handlers, audit_emit wire breaks, V8
+  # regression false-positives, smoke idempotency holes).
+  # Cost: ~3-4 min wall-clock. PR gate.
+  # ─────────────────────────────────────────────────────────
+  smoke-e2e:
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15@sha256:74e110c41804365e3915fcc09d5e7a1eff50161aaa94d5da0e58e0cd75ae509c
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 54322:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CI: "true"
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:54322/postgres"
+      SUPABASE_JWT_SECRET: "ci-only-jwt-secret-do-not-ship-1234567890"
+      JWT_LEEWAY_SEC: "30"
+      LOG_LEVEL: "WARNING"
+      ENVIRONMENT: "ci"
+      PIPA_REVIEW_COMPLETED: "true"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
+        with: { python-version-file: ".python-version" }
+      - run: pip install uv==0.11.32
+      - run: uv sync --frozen
+      - name: Install psql
+        run: apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null
+      - name: Apply Alembic migration
+        run: uv run alembic -c apps/api/alembic.ini upgrade head
+      - name: Apply Supabase CI shim (auth.jwt() stub + roles)
+        run: |
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0000_supabase_ci_shim.sql
+      - name: Apply RLS policies
+        run: |
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0001_rls_policies.sql
+      - name: Run dev seed (creates tenant + user + industry baseline)
+        run: uv run python scripts/dev_seed.py
+      - name: Boot uvicorn (background)
+        run: |
+          mkdir -p /tmp/smoke
+          nohup uv run uvicorn apps.api.main:app --host 127.0.0.1 --port 8765 \
+            > /tmp/smoke/uvicorn.log 2>&1 &
+          echo "uvicorn PID=$!"
+          # Wait for /health to return 200.
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8765/health >/dev/null; then
+              echo "uvicorn ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8765/health || (echo "uvicorn failed to start"; tail -50 /tmp/smoke/uvicorn.log; exit 1)
+      - name: Run smoke E2E (expect 36/36)
+        run: |
+          PYTHONIOENCODING=utf-8 \
+            uv run python scripts/smoke_e2e.py \
+              --base-url http://127.0.0.1:8765 \
+              --period-key 2026-08 \
+            2>&1 | tee /tmp/smoke/smoke.log
+          SMOKE_EXIT=${PIPESTATUS[0]}
+          if [ $SMOKE_EXIT -ne 0 ]; then
+            echo "::error::smoke_e2e.py exited with $SMOKE_EXIT"
+            exit $SMOKE_EXIT
+          fi
+      - name: Upload smoke artifacts (logs)
+        if: always()
+        uses: actions/upload-artifact@5d5cc99d66b86fc1631cb4e6c5e34ba1da8e4887 # v4.4.0
+        with:
+          name: smoke-e2e-artifacts
+          path: |
+            /tmp/smoke/uvicorn.log
+            /tmp/smoke/smoke.log
+          if-no-files-found: ignore
+      - name: Kill uvicorn
+        if: always()
+        run: |
+          pkill -f "uvicorn apps.api.main:app" || true

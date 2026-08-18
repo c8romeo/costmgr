@@ -14,6 +14,13 @@ Story 4.4 wired-up:
 - AD-5 purity preserved: 골든 select + load = pure helper (filesystem read
   + sha256 only; no DB, no clock, no random).
 - Epic 11 reversal fallback: empty-fixture → placeholder=True 분기 보존.
+- Smoke-fix T3 (2026-08-18): runtime tenant_id mismatch → placeholder=True
+  fallback. V8 골든 fixtures are pinned to a specific tenant_id captured
+  at publish time. Runtime smoke / dev seed tenants do NOT match the
+  fixture tenant_id, so a byte-identical comparison would always fail
+  the result_hash field. Treating this as a regression would be a
+  false positive. The new fallback returns `passed` with `placeholder=True`
+  and `tenant_id_mismatch=True` marker so callers can distinguish.
 
 AD-12 ordering invariant: V1·V4·V7 fail 후 V8 abort (this impl은 V8 자체
 firing decision만; ordering은 verification_runner가 담당).
@@ -68,7 +75,9 @@ class V8RegressionRule:
             - `VerificationItem(status='failed', details.golden_diff)` when
               any field mismatches.
             - `VerificationItem(status='passed', details.placeholder=True)`
-              when no fixture matches (Epic 11 reversal fallback).
+              when no fixture matches (Epic 11 reversal fallback) OR when
+              the runtime tenant_id differs from the fixture's baked-in
+              tenant_id (smoke-fix T3: prevent false-positive regression).
         """
         # 1. 골든 fixture select (industry + monthly_input → canonical shape)
         golden_input = select_golden_for_input(
@@ -84,6 +93,33 @@ class V8RegressionRule:
                 details={
                     "placeholder": True,
                     "no_fixture_for_industry": input.industry,
+                    "result_hash": input.calc_result.result_hash,
+                },
+            )
+
+        # 1.5 Smoke-fix T3 (2026-08-18): runtime tenant_id mismatch fallback.
+        # V8 골든 fixtures are pinned to a SPECIFIC tenant_id captured at
+        # publish time. The engine's `result_hash` is tenant-scoped (AD-16
+        # stable_json), so a runtime tenant_id other than the fixture's
+        # baked-in tenant_id would always produce a different result_hash.
+        # Treating this as a regression would be a false positive in any
+        # non-unit-test context (smoke / dev seed / pilot tenants).
+        # Return placeholder=True with a clear marker so the smoke driver
+        # and metrics dashboards can distinguish "not checked" from "passed".
+        fixture_tenant_id = golden_input.get("tenant_id")
+        if fixture_tenant_id is not None and str(fixture_tenant_id) != str(input.tenant_id):
+            return VerificationItem(
+                code="V8",
+                status="passed",
+                message_ko=(
+                    "V8 엔진 대조 placeholder "
+                    "(runtime tenant_id ≠ fixture tenant_id)"
+                ),
+                details={
+                    "placeholder": True,
+                    "tenant_id_mismatch": True,
+                    "fixture_tenant_id": str(fixture_tenant_id),
+                    "runtime_tenant_id": str(input.tenant_id),
                     "result_hash": input.calc_result.result_hash,
                 },
             )

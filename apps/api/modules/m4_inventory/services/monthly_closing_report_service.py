@@ -562,7 +562,21 @@ class MonthlyClosingReportService:
         self,
         period_key: str,
     ) -> list[dict[str, Any]]:
-        """fiscal_period_snapshots engine_type='trad' (4-2 wire)."""
+        """fiscal_period_snapshots engine_type='trad' (4-2 wire).
+
+        Smoke-fix T5 (2026-08-18): also project a sentinel product_id
+        column to match the pure-kernel `FiscalPeriodSnapshotLite`
+        contract (product_id, engine_type). The table itself is
+        period-level (no product_id), but the pure kernel NamedTuple
+        carries a product_id slot — the kernel never reads it (only
+        `engine_type` is filtered), but the consumer at line 277-282
+        still needs the key present in the dict to construct the
+        NamedTuple without raising KeyError.
+
+        Sentinel = all-zeros UUID, reserved as `__FISCAL_PERIOD_AGG__`
+        so any future consumer that DOES try to use it sees a clear
+        "this is a period-level aggregate, not a product row" marker.
+        """
         result = await self.session.execute(
             text(
                 """
@@ -582,6 +596,10 @@ class MonthlyClosingReportService:
             {
                 "snapshot_id": str(row[0]),
                 "engine_type": row[1],
+                # Sentinel product_id (table is period-level, not
+                # product-level). Pure kernel ignores this field but
+                # the consumer NamedTuple requires it.
+                "product_id": "00000000-0000-0000-0000-000000000000",
             }
             for row in result.fetchall()
         ]

@@ -940,6 +940,7 @@ async def export_closing_pdf(
 
     svc = ClosingPdfExportService(
         session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+        actor_id=ctx.user_id,
     )
     result = await svc.export_closing_pdf(period_key, industry=industry)
     safe_name = escape_content_disposition_filename(period_key)

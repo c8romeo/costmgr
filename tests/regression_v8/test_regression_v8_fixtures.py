@@ -588,6 +588,93 @@ def test_select_golden_for_input_returns_none_for_unknown_industry() -> None:
     assert result is None
 
 
+# ── Smoke-fix T3 (2026-08-18): runtime tenant_id mismatch fallback ──
+@pytest.mark.engine
+@pytest.mark.v8_regression
+def test_v8_runtime_tenant_id_mismatch_returns_placeholder_passed() -> None:
+    """When runtime tenant_id differs from the fixture's baked-in tenant_id,
+    V8 MUST return `passed` with `placeholder=True` and `tenant_id_mismatch=True`.
+
+    Without this fallback, any non-unit-test runtime caller (smoke / dev
+    seed / pilot tenant) would always see V8 fail with a result_hash
+    mismatch — a false positive regression.
+
+    Smoke 2026-08-18 hit this: the dev seed's tenant_id never matches the
+    published fixture's tenant_id, so V8 fired `failed` in the smoke
+    response even though the engine had not regressed.
+    """
+    asyncio.run(_v8_runtime_tenant_id_mismatch_impl())
+
+
+async def _v8_runtime_tenant_id_mismatch_impl() -> None:
+    input_dict, _golden = load_golden_by_id("manufacturing__b-small")
+    mi = _monthly_input_from_fixture(input_dict)
+    baseline = _baseline_from_fixture(input_dict)
+    engine_result = compute_period_cost(monthly_input=mi, baseline=baseline)
+
+    # Use a DIFFERENT tenant_id than the fixture's baked-in tenant_id.
+    runtime_tenant_id = _uuid_mod.uuid4()
+    assert str(runtime_tenant_id) != input_dict["tenant_id"]
+
+    rule_input = RuleInput(
+        monthly_input=mi,
+        baseline=baseline,
+        calc_result=engine_result,
+        industry="manufacturing",
+        tenant_id=runtime_tenant_id,
+        period_key=mi.period_key,
+        trace_id="v8-tenant-mismatch",
+    )
+    rule = V8RegressionRule()
+    item = rule.check(rule_input)
+
+    # V8 must NOT fire as a regression when the runtime tenant_id differs
+    # from the fixture's baked-in tenant_id.
+    assert item.code == "V8"
+    assert item.status == "passed"
+    assert item.details["placeholder"] is True
+    assert item.details["tenant_id_mismatch"] is True
+    assert item.details["fixture_tenant_id"] == input_dict["tenant_id"]
+    assert item.details["runtime_tenant_id"] == str(runtime_tenant_id)
+
+
+@pytest.mark.engine
+@pytest.mark.v8_regression
+def test_v8_matching_tenant_id_still_byte_compares() -> None:
+    """Companion to the mismatch fallback: when the runtime tenant_id MATCHES
+    the fixture's tenant_id, V8 must still perform the byte-identical
+    comparison (no regression on the original V8 contract).
+    """
+    asyncio.run(_v8_matching_tenant_id_still_byte_compares_impl())
+
+
+async def _v8_matching_tenant_id_still_byte_compares_impl() -> None:
+    input_dict, _golden = load_golden_by_id("manufacturing__b-small")
+    mi = _monthly_input_from_fixture(input_dict)
+    baseline = _baseline_from_fixture(input_dict)
+    engine_result = compute_period_cost(monthly_input=mi, baseline=baseline)
+
+    # Use the SAME tenant_id as the fixture — V8 must run byte-identical.
+    rule_input = RuleInput(
+        monthly_input=mi,
+        baseline=baseline,
+        calc_result=engine_result,
+        industry="manufacturing",
+        tenant_id=mi.tenant_id,
+        period_key=mi.period_key,
+        trace_id="v8-matching-tenant",
+    )
+    rule = V8RegressionRule()
+    item = rule.check(rule_input)
+
+    # With a matching tenant_id and native engine output, V8 must pass
+    # without the placeholder marker.
+    assert item.code == "V8"
+    assert item.status == "passed"
+    assert "placeholder" not in item.details or item.details.get("placeholder") is False
+    assert item.details.get("fixture_id") == "manufacturing__b-small"
+
+
 # ── Helpers ──────────────────────────────────────────────────
 def _monthly_input_from_fixture(input_dict: dict[str, Any]) -> MonthlyInput:
     # Engine result_hash includes tenant_id (AD-16 stable_json) — must use

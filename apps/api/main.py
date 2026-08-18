@@ -59,6 +59,12 @@ from apps.api.modules.m4_inventory.services.closing_pdf_export_service import (
     ClosingPdfExportInvalidIndustryError,
     ClosingPdfExportSizeExceededError,
 )
+from apps.api.modules.m4_inventory.services.closing_period_service import (
+    ClosingPeriodAlreadyClosedError,
+    ClosingPeriodAuditEmitError,
+    ClosingPeriodBlockedError,
+    ClosingPeriodEmptyPeriodError,
+)
 from apps.api.modules.m4_inventory.services.ledger_service import (
     AppendOnlyLedgerViolationError,
     InventoryLedgerInvalidEventTypeError,
@@ -81,6 +87,9 @@ from apps.api.modules.m5_reports.exceptions import (
     Report21NoBreakdownError,
     Report21PdfGenerationError,
     Report21PeriodNotCommittedError,
+)
+from apps.api.modules.m6_verification.services.closing_period_snapshot_verifier import (
+    ClosingPeriodSnapshotInconsistencyError,
 )
 from apps.api.modules.m7_simulation import router as m7_simulation_router
 from apps.api.modules.m7_simulation.exceptions import (
@@ -1330,6 +1339,136 @@ async def _m4_closing_pdf_export_audit_emit_handler(
         content={
             "code": "CLOSING_PDF_EXPORT_AUDIT_EMIT_ERROR",
             "message_ko": "PDF export audit emit 실패 (관리자에게 문의)",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                **exc.details,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# Story 6.1 — ClosingPeriod exception handlers (AD-15 §4 envelope).
+# Without these, FastAPI returns HTTP 500 for any ClosingPeriodService
+# typed error, violating the typed envelope contract.
+# Smoke 2026-08-18 revealed: ClosingPeriodAlreadyClosedError → 500 instead
+# of 409 AD-15 envelope. Same audit-blind pattern repeats for the other
+# 4 typed exceptions below — all wired to their canonical HTTP code.
+#
+# Mapping:
+# - 409 ALREADY_CLOSED — idempotent re-confirm (PRD §F4.3 + AD-6).
+# - 409 CLOSING_PERIOD_BLOCKED — closing ≥ 0 inventory invariant violated.
+# - 409 EMPTY_PERIOD — no ledger events at all (cannot snapshot).
+# - 409 CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY — V4 post-emit consistency fail.
+# - 500 CLOSING_PERIOD_AUDIT_EMIT_ERROR — CR 1.1 audit-first fail-closed.
+# ─────────────────────────────────────────────────────────────
+
+
+@app.exception_handler(ClosingPeriodAlreadyClosedError)
+async def _m4_closing_period_already_closed_handler(
+    request: Request, exc: ClosingPeriodAlreadyClosedError
+) -> JSONResponse:
+    """409 ALREADY_CLOSED — closing period already confirmed (idempotent no-op).
+
+    PRD §F4.3 + AD-6: a second confirm on the same period_key is a
+    well-defined operation, NOT an error. The smoke driver previously
+    hit this as 500 because there was no FastAPI exception handler —
+    AD-15 envelope violation.
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "ALREADY_CLOSED",
+            "message_ko": "이미 마감되었습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                "finalized_at": exc.finalized_at,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingPeriodBlockedError)
+async def _m4_closing_period_blocked_handler(
+    request: Request, exc: ClosingPeriodBlockedError
+) -> JSONResponse:
+    """409 CLOSING_PERIOD_BLOCKED — closing ≥ 0 inventory invariant violated."""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "CLOSING_PERIOD_BLOCKED",
+            "message_ko": "마감 차단: 재고가 음수인 품목이 있습니다",
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                **exc.details,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingPeriodEmptyPeriodError)
+async def _m4_closing_period_empty_period_handler(
+    request: Request, exc: ClosingPeriodEmptyPeriodError
+) -> JSONResponse:
+    """409 EMPTY_PERIOD — no ledger events at all (cannot snapshot)."""
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "EMPTY_PERIOD",
+            "message_ko": (
+                "마감할 수 없습니다: 해당 기간에 입력된 데이터가 없습니다"
+            ),
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingPeriodSnapshotInconsistencyError)
+async def _m4_closing_period_snapshot_inconsistency_handler(
+    request: Request, exc: ClosingPeriodSnapshotInconsistencyError
+) -> JSONResponse:
+    """409 CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY — V4 post-emit consistency fail.
+
+    Story 6.1 V4 wire (CR 6-1 R4 patch D3 + D4): ledger aggregate ≠
+    closing_snapshot aggregate (race condition between read and write).
+    Audit-first emit already done inside the verifier BEFORE the raise.
+    """
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": "CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY",
+            "message_ko": (
+                "V4 검증 실패: ledger aggregate ≠ closing_snapshot aggregate"
+            ),
+            "details": {
+                "tenant_id": str(exc.tenant_id),
+                "period_key": exc.period_key,
+                "failures": exc.failures,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )
+
+
+@app.exception_handler(ClosingPeriodAuditEmitError)
+async def _m4_closing_period_audit_emit_handler(
+    request: Request, exc: ClosingPeriodAuditEmitError
+) -> JSONResponse:
+    """500 CLOSING_PERIOD_AUDIT_EMIT_ERROR — CR 1.1 audit-first fail-closed."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "CLOSING_PERIOD_AUDIT_EMIT_ERROR",
+            "message_ko": "closing_period audit emit 실패 (관리자에게 문의)",
             "details": {
                 "tenant_id": str(exc.tenant_id),
                 **exc.details,

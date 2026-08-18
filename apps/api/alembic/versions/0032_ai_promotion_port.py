@@ -158,10 +158,15 @@ def upgrade() -> None:
         $$ LANGUAGE plpgsql
         """
     )
+    # NOTE: asyncpg cannot run multi-statement prepared statements, so
+    # DROP and CREATE must be in separate op.execute() calls (matches the
+    # downgrade pattern in this same migration). Verified by smoke 2026-08-18.
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_monthly_input_promotions_insert_only "
+        "ON monthly_input_promotions"
+    )
     op.execute(
         """
-        DROP TRIGGER IF EXISTS trg_monthly_input_promotions_insert_only
-            ON monthly_input_promotions;
         CREATE TRIGGER trg_monthly_input_promotions_insert_only
           BEFORE UPDATE OR DELETE ON monthly_input_promotions
           FOR EACH ROW
