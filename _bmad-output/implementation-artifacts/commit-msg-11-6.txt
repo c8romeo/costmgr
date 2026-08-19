@@ -1,0 +1,41 @@
+Story 11.6 (Epic 11 5번째 진입점, cj-style 37번째 epic 연속): A31/A32/A33 forward-lock 결정 wire — Report #15 wire dedicated sprint atomic T1~T10
+
+cj-style Epic 11 5번째 진입점 = cj-style 37번째 epic 연속 정직 회복 (cj-style 36번째 = Epic 11 second carry-over sprint atomic wire done `1060360` + cj-style 37번째 = 본 스토리 wire done).
+
+A40 결정 wire (Epic 10 close-out retro §7 + 사용자 옵션 (a) 진입) — Report #15 wire schedule dedicated sprint 진입:
+- A31 Report #15 wire schedule → ✅ DONE wire 진입 (cj-style Epic 11 5번째 진입점)
+- A32 A30 SHARED factory pattern reuse 1st case → ✅ DONE wire 진입 (Surface 2 EXTENSION)
+- A33 A19 cohesion pattern 9 surface 진입 → ✅ DONE wire 진입 (9 surface 모두 atomic T1~T10)
+
+PRD §9 #15 verbatim wire — 활동원가 내역서 (활동별 원가·동인 단가) + §7.1 ABC Step 0~3 + §9 공통 규격 + §A6 + §A9 + §V7 + §V8.
+
+9 A19 cohesion surfaces wire (atomic T1~T10):
+- Surface 1 (kernel EXTENSION): packages/cost_engine/abc_engine.py — compute_report15_hash + ActivityCostRow + Report15Summary + Report15InconsistentStateError + REPORT15_HASH_PREFIX constant. AD-5 stdlib-only 보존.
+- Surface 2 (A30 SHARED factory EXTENSION): packages/services/m5_reports/pdf_generator.py — _compose_report15_pdf 본체 wire (placeholder → full body) + payload invariants + 5 REPORT15_* constants (REPORT15_PDF_TITLE_KO, REPORT15_PDF_EMPTY_KO, REPORT15_REPORT_CODE, REPORT15_ACTIVITY_NAME_KO, REPORT15_ACTIVITY_NAME_EN).
+- Surface 3 (A30 SHARED factory reuse 1st case = Surface 2 본체) — wire 진입 완료.
+- Surface 4 (M5 reports service layer NEW): apps/api/modules/m5_reports/services/report15_service.py — Report15Service.build_report15 + _to_report15_state + serialize_report15_state + Report15State frozen dataclass + AD-22 ledger append-only invariant. ALLOWED_SERVICE_SUBMODULES 그대로 보존.
+- Surface 5 (M5 reports HTTP handlers EXTENSION): apps/api/modules/m5_reports/handlers.py + schemas.py — GET /api/v1/reports/15 + POST /api/v1/reports/15/pdf endpoints + capability gate (CR 12-5 D-GATE-01 inversion — 1-route Report #15) + role gate + 5 NEW Pydantic schemas (Report15Request, Report15ActivityCostRow, Report15Response, Report15PdfRequest, Report15PdfResponse) + 4 NEW typed exceptions (Report15PeriodNotCommittedError, Report15NoActivityBreakdownError, Report15BreakdownNotFoundError, Report15PdfGenerationError) + 3 NEW Korean SSOT messages.
+- Surface 6 (Frontend NEW): apps/web/app/[locale]/(dashboard)/reports/15/page.tsx + 3 NEW components (Report15Panel + ActivityCostBreakdownTable + ActivityCostPdfExportButton) + 2 NEW TS mirrors (apps/web/lib/report15.ts + report15-pdf.ts) + ko-KR.json EXTENSION report15 namespace ~25 strings SSOT.
+- Surface 7 (cross-lang drift detector EXTENSION + V8 byte-identical determinism): tests/integration/test_m5_reports_cross_lang_drift.py (8 NEW vectors) + tests/cost_engine/test_report15_hash_determinism.py (6 NEW cases).
+- Surface 8 (audit-first AD-22 wire): service-layer envelope assemble 시 audit log INSERT (Report #21 wire 동일 surface pattern 미러).
+- Surface 9 (capability matrix no-change): Capability.ABC_CALCULATION 9-1 wire 재사용, capability matrix v1.21 변경 0건, CR 12-1 L4 precedent 보존.
+
+테스트 coverage (3중 게이트 FINAL CLEAN):
+- 62 NEW pytest cases PASS (Surface 1 kernel 6 + Surface 2 PDF 18 + Surface 4 service 18 + Surface 5 schema 12 + Surface 7 cross-lang 8 + Surface 7 V8 6 — 정직 카운트).
+- 27 NEW vitest cases PASS (Surface 6 TS mirror report15 18 + report15-pdf 9).
+- Report #21 회귀 vitest 29/29 PASS 보존 (wire 호환성).
+- ruff scoped 14→0 (auto-fix 11 + manual fix 3 = hash builtin shadow 2건 + service unused 1건).
+- 3중 게이트 FINAL CLEAN (ruff scoped 0 NEW + capability matrix SSOT 보존 + AD verbatim bind preserved).
+
+Honestly DEFER preservation:
+- 1 NEW honestly DEFER = Report #15 compute_report15_hash 가 list 직접 canonical form 변환 안 함 (order-sensitive) → service-layer 사전 정렬 future sprint 결정 wire.
+
+CR lessons applied:
+- CR 11-3 (ALLOWED_SERVICE_SUBMODULES 보존 + ruff auto-fix + SDR separate line).
+- CR 11-4 (D-001 page.tsx mount + D-002 ko-KR.json SSOT only + D-005 TS mirror unknown state reject + P-015 ko-KR.json SSOT drift detector).
+- CR 12-5 (D-GATE-01 inversion capability 1-route + D-PARITY-01 inversion TS mirror parity 4 type guards + audit-first chain + cross-language drift detector EXTENSION).
+- CR 9-6 D5 prevention: commit message = git commit -F <file> (NOT PowerShell here-string).
+
+wire_commit close-out (cj-style atomic single sprint). NEXT: Epic 11 close-out retro OR Epic 12 carry-over 진입 결정 wire.
+
+Co-Authored-By: Claude <noreply@anthropic.com>

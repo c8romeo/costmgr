@@ -27,6 +27,14 @@ determinism + PDF byte-equality determinism (PRD §9 #21 + §7.3 + §V7 +
 §V8 verbatim, A30 forward-lock SHARED PDF generator 결정 wire = Story 9.4
 본 진입점 + Report #15 후속).
 
+Story 11.6 EXTENSION: 1 NEW pure function (compute_report15_hash) + 2 frozen
+dataclasses (ActivityCostRow + Report15Summary) + 1 typed exception
+(Report15InconsistentStateError) + 1 NEW constant (REPORT15_HASH_PREFIX) —
+Report #15 (활동원가 내역서 — 활동별 원가·동인 단가) hash determinism
+(PRD §9 #15 verbatim + §7.1 ABC Step 0~3 + §9 공통 규격, A33 forward-lock
+A19 cohesion 9 surface 진입 + A32 forward-lock A30 SHARED factory reuse
+1st case + A31 forward-lock Report #15 wire schedule 결정 wire 진입).
+
 Pure-Python, stdlib-only helpers consumed by:
 - `apps/api/modules/m9_abc/services/abc_validation_service.py`
   (Story 9.1 T2 service layer — validate_100_percent_guard orchestrator)
@@ -82,18 +90,44 @@ hashlib.sha256 결정론 digest — 동일 입력 → byte-identical hash
 (Epic 4 baseline + 7-1/7-2/8-1/8-2/8-3 패턴). hash format =
 `sha256:` + 64-char hexdigest (32 bytes).
 
-A19 cohesion pattern 7 surface (9-2 EXTENSION 누적):
+A19 cohesion pattern 8 surface (9-2 EXTENSION 누적 + 11-6 forward-compat):
   1: `inventory_math.py` (Epic 5)
   2: `cvp.py` (7-1)
   3: `projection.py` (7-2)
   4: `budget_period_key.py` (8-1)
   5: `budget_variance.py` (8-2)
   6: `budget_pre_standard.py` (8-3)
-  7: `abc_engine.py` (9-1 + 9-2 + 9-3 EXTENSION — A26 Option A 채택, NO
+  7: `abc_engine.py` (9-1 + 9-2 + 9-3 + 9-4 EXTENSION — A26 Option A 채택, NO
      cross-import with other A19 surfaces, 동일 surface 누적 wire).
+
+Story 11.6 A19 cohesion 9 surface 진입 — A33 forward-lock 결정 wire:
+  8: `pdf_generator.py` (A30 SHARED factory, packages/services/m5_reports/) —
+     11-6 EXTENSION 시점에 `_compose_report15_pdf` 본체 wire + Report #15
+     payload invariants.
 
 AD-21 CCRPort.compute 단일 소유 — M9 service layer ONLY. 9-3 진입 시점에
 A29 M3 dispatch ↔ M9 dispatch dual-route 결정 후 9-3 wire (forward-lock).
+
+PRD §9 #15 verbatim — 활동원가 내역서 (활동별 원가·동인 단가):
+- 11-6 wire = `ActivityCostRow` (frozen dataclass, 활동별 행 — activity_id +
+  activity_name_ko + activity_name_en + total_cost_krw + total_cost_usd +
+  driver_count + cost_per_driver_krw + cost_per_driver_usd + allocated_krw +
+  allocated_usd + hash) — 활동별 원가·동인 단가 envelope.
+- 11-6 wire = `Report15Summary` (frozen dataclass — activity_count +
+  total_cost_krw + total_cost_usd + total_driver_count + hash) — Report #15
+  KPI envelope (9-4 Report21Summary 패턴 미러).
+- 11-6 wire = `compute_report15_hash` — activity_breakdown + period_key +
+  v7_verdict envelope 일관성 검증 + V8 byte-identical determinism.
+- 11-6 wire = `Report15InconsistentStateError` — `main.py` envelope REUSE
+  0 NEW handlers, CR 12-5 D-14 verbatim (Report #21 동일 pattern).
+- PRD §A6 verbatim "완전배부·대차평형 1원 단위" + §A9 verbatim "미사용능력
+  별도 관리" + §V7 (ABC 무결성) + §V8 (byte-identical determinism) 모두
+  Report #15 wire 진입 시점에 그대로 보존 (9-1 + 9-2 + 9-3 + 9-4 wire
+  시점에 이미 wire).
+- A30 SHARED factory = `packages/services/m5_reports/pdf_generator.py`
+  (Story 9.4 NEW SHARED factory, Discriminated union `report_id: Literal[
+  15, 16, 17, 18, 19, 20, 21]`, Report #21 본 진입점 + Report #15 1st
+  reuse case — A32 forward-lock 결정 wire 진입).
 """
 
 from __future__ import annotations
@@ -167,6 +201,14 @@ ABC_HASH_PREFIX: Final[str] = "sha256:"
 # + 9-3 ABC_HASH_PREFIX 와 동일 prefix 재사용 — cross-language TS mirror
 # parity (CR 11-3 cross-language fixture).
 REPORT_PDF_HASH_PREFIX: Final[str] = "sha256:"
+
+
+# ── Story 11.6 NEW constant (PRD §9 #15 + §V8 byte-identical determinism) ────
+# Hash prefix for compute_report15_hash (Report #15 activity cost detail
+# hash determinism, V8 trace). 9-1 VALIDATION_HASH_PREFIX + 9-2 CCR_HASH_PREFIX
+# + 9-3 ABC_HASH_PREFIX + 9-4 REPORT_PDF_HASH_PREFIX 와 동일 prefix 재사용
+# — cross-language TS mirror parity (CR 11-3 cross-language fixture).
+REPORT15_HASH_PREFIX: Final[str] = "sha256:"
 
 
 # ── Frozen dataclasses ───────────────────────────────────────
@@ -1732,6 +1774,189 @@ def compute_report_pdf_hash(*, pdf_bytes: bytes) -> str:
     return f"{REPORT_PDF_HASH_PREFIX}{digest}"
 
 
+# ── Story 11.6 EXTENSION — frozen dataclasses (PRD §9 #15 + §7.1 + §V7 + §A6 + §A9) ─────
+@dataclass(frozen=True, slots=True)
+class ActivityCostRow:
+    """Frozen Report #15 활동별 원가·동인 단가 행 (PRD §9 #15 verbatim).
+
+    활동원가 내역서 — 활동별 행 envelope. KRW + USD 두 통화 모두 지원
+    (PRD §9 공통 규격 "KRW·USD 동시 표시"). 동인 단가는 KRW 정수 1-Won precision
+    (AD-8 Decimal-as-string).
+
+    `activity_id` = str (활동 식별자 — tenant-relative UUID-as-string)
+    `activity_name_ko` = str (활동명 한글, ko-KR.json SSOT, CR 11-4 D-002)
+    `activity_name_en` = str (활동명 영문, en-US.json SSOT)
+    `total_cost_krw` = Decimal (KRW 정수, 활동별 총 원가, 1-Won precision)
+    `total_cost_usd` = Decimal (USD, 환율 적용 AD-23 settings aggregate)
+    `driver_count` = int (동인 개수, ≥ 1)
+    `cost_per_driver_krw` = Decimal (KRW 정수, 동인당 원가 = total_cost_krw /
+                                     driver_count, 1-Won precision)
+    `cost_per_driver_usd` = Decimal (USD, 동인당 원가)
+    `allocated_krw` = Decimal (KRW 정수, 배부 완료된 원가 = total_cost_krw 와 동일)
+    `allocated_usd` = Decimal (USD, 배부 완료된 원가)
+    `hash` = "sha256:" + 64-char hexdigest (V8 byte-identical)
+
+    AD-23 settings aggregate (KRW/USD 환율) 그대로 보존 — service layer 가
+    tenant_settings.currency.exchange_rate_krw_per_usd 적용 후 envelope.
+    """
+
+    activity_id: str
+    activity_name_ko: str
+    activity_name_en: str
+    total_cost_krw: Decimal
+    total_cost_usd: Decimal
+    driver_count: int
+    cost_per_driver_krw: Decimal
+    cost_per_driver_usd: Decimal
+    allocated_krw: Decimal
+    allocated_usd: Decimal
+    hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class Report15Summary:
+    """Frozen Report #15 (활동원가 내역서) 요약 (PRD §9 #15 + §7.1 + §V7).
+
+    `compute_report15_hash` 결과 — 활동별 원가·동인 단가 KPI envelope
+    (9-4 Report21Summary 패턴 미러).
+
+    `activity_count` = int (1 ≤ N, 활동 distinct count)
+    `total_cost_krw` = Decimal (Σ ActivityCostRow.total_cost_krw,
+                                 KRW 정수, 1-Won precision)
+    `total_cost_usd` = Decimal (Σ ActivityCostRow.total_cost_usd, USD)
+    `total_driver_count` = int (Σ ActivityCostRow.driver_count, ≥ activity_count)
+    `hash` = "sha256:" + 64-char hexdigest (V8 byte-identical)
+    """
+
+    activity_count: int
+    total_cost_krw: Decimal
+    total_cost_usd: Decimal
+    total_driver_count: int
+    hash: str
+
+
+# ── Story 11.6 EXTENSION — typed exception (CR 12-5 D-14 envelope main.py) ──
+class Report15InconsistentStateError(ValueError):
+    """PRD §V7 envelope — Report #15 활동원가 내역서 inconsistency.
+
+    HTTP 422 REPORT15_INCONSISTENT_STATE envelope (CR 12-5 D-14).
+    `compute_report15_hash` 입력 검증 시 Σ(활동별 원가) ≠ Σ(부서 원가) —
+    V7 ABC 무결성 깨짐 (period 미커밋 또는 activity_breakdown 부재) 시 raise.
+
+    11-6 wire = `Report15Service.build_report15` 가 V7 verdict 기반으로
+    computation 후 raise 가능 — `main.py` envelope REUSE 0 NEW handlers
+    (9-4 wire `Report21InconsistentStateError` 패턴 미러, CR 12-5 D-14 verbatim).
+
+    `period_key` identifies which period failed (machine code),
+    `expected_sum` is the expected Σ department cost (Decimal-as-string),
+    `actual_sum` is the actual activity breakdown sum (Decimal-as-string),
+    `reason` is the human-readable Korean reason.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        period_key: str,
+        expected_sum: Decimal,
+        actual_sum: Decimal,
+        reason: str,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.period_key = period_key
+        self.expected_sum = expected_sum
+        self.actual_sum = actual_sum
+        self.reason = reason
+
+
+# ── Story 11.6 EXTENSION — pure function (PRD §9 #15 + §7.1 + §V8) ──────
+def compute_report15_hash(
+    *,
+    activity_breakdown: list[ActivityCostRow],
+    period_key: str,
+    v7_verdict: V7Verdict,
+) -> str:
+    """V8 determinism hash for Report #15 (활동원가 내역서, PRD §9 #15 verbatim).
+
+    `hashlib.sha256(repr(aggregate).encode()).hexdigest()` —
+    32 bytes hexdigest (64 chars), `sha256:` prefix.
+
+    Pure-Python, stdlib-only, deterministic (AD-5 + NFR16 + AD-11).
+
+    Args:
+      activity_breakdown: 활동별 원가·동인 단가 행 리스트
+                          (ActivityCostRow, build_report15 결과).
+      period_key: 회계 기간 키 (예: "2026-Q1", "2026-08").
+      v7_verdict: 9-3 `verify_v7_balance` 결과 (V7 ABC 무결성 verdict).
+
+    Returns:
+      `f"sha256:{64-char-hexdigest}"`.
+
+    Edge cases (typed exception raise):
+      - empty activity_breakdown → `Report15InconsistentStateError(
+        reason="no_activity_breakdown")` (period 미커밋 or activity 부재).
+      - `len(period_key) == 0` → `Report15InconsistentStateError(
+        reason="empty_period_key")`.
+      - activity_breakdown items not ActivityCostRow → raise ValueError.
+      - v7_verdict not V7Verdict → raise ValueError.
+
+    V8 determinism: 동일 3 inputs → byte-identical hash.
+
+    A32 forward-lock (A30 SHARED factory reuse 1st case) 진입점 결정 wire.
+    A33 forward-lock (A19 cohesion 9 surface) 진입점 결정 wire.
+    A31 forward-lock (Report #15 wire schedule) 진입점 결정 wire.
+
+    Note: Report #21 `compute_report21_hash` 와 동일 surface pattern 미러
+    (cost_object_breakdown + unused_capacity_breakdown + period_key + v7_verdict).
+    Report #15 는 activity_breakdown 단일 입력 (unused_capacity 별도 표기
+    없음 — Report #15 = 활동별 원가·동인 단가 KPI focus, unused = Report #21
+    에서만 별도 행 표시 PRD §A9 verbatim).
+    """
+    if not isinstance(activity_breakdown, list):
+        raise ValueError(
+            f"activity_breakdown must be list[ActivityCostRow], "
+            f"got {type(activity_breakdown).__name__}"
+        )
+    if not all(
+        isinstance(row, ActivityCostRow) for row in activity_breakdown
+    ):
+        raise ValueError(
+            "activity_breakdown items must be ActivityCostRow"
+        )
+    if not isinstance(v7_verdict, V7Verdict):
+        raise ValueError(
+            f"v7_verdict must be V7Verdict, "
+            f"got {type(v7_verdict).__name__}"
+        )
+    if not period_key:
+        raise Report15InconsistentStateError(
+            "period_key must be non-empty for Report #15 build_report15",
+            period_key=period_key or "",
+            expected_sum=v7_verdict.expected_sum,
+            actual_sum=v7_verdict.breakdown_sum + v7_verdict.unused_cost,
+            reason="empty_period_key",
+        )
+    if not activity_breakdown:
+        raise Report15InconsistentStateError(
+            "Report #15 requires activity_breakdown",
+            period_key=period_key,
+            expected_sum=v7_verdict.expected_sum,
+            actual_sum=v7_verdict.breakdown_sum + v7_verdict.unused_cost,
+            reason="no_activity_breakdown",
+        )
+
+    # Aggregate envelope = (activity_breakdown, period_key, v7_verdict).
+    # Frozen dataclass + tuple 순서 보존.
+    aggregate = (
+        tuple(activity_breakdown),
+        period_key,
+        v7_verdict,
+    )
+    digest = hashlib.sha256(repr(aggregate).encode()).hexdigest()
+    return f"{REPORT15_HASH_PREFIX}{digest}"
+
+
 __all__ = [
     # Story 9.1 — Frozen dataclasses (100% validation)
     "CostPoolValidation",
@@ -1805,4 +2030,13 @@ __all__ = [
     "compute_report_pdf_hash",
     # Story 9.4 — Constants
     "REPORT_PDF_HASH_PREFIX",
+    # Story 11.6 — Frozen dataclasses (Report #15 activity cost detail)
+    "ActivityCostRow",
+    "Report15Summary",
+    # Story 11.6 — Typed exception
+    "Report15InconsistentStateError",
+    # Story 11.6 — Pure function
+    "compute_report15_hash",
+    # Story 11.6 — Constant
+    "REPORT15_HASH_PREFIX",
 ]

@@ -1,4 +1,4 @@
-"""apps.api.modules.m5_reports.exceptions — Story 9.4 typed exceptions.
+"""apps.api.modules.m5_reports.exceptions — Story 9.4 + 11.6 typed exceptions.
 
 Story 9.4 (Epic 9 4번째 진입점) — 4 NEW typed exceptions + Korean SSOT
 envelope messages for Report #21 (Cost Object Breakdown):
@@ -9,11 +9,21 @@ envelope messages for Report #21 (Cost Object Breakdown):
   - Report21PdfGenerationError             (500 REPORT_PDF_GENERATION_ERROR)
                                               (CR 12-5 D-14 typed envelope main.py REUSE 0 NEW)
 
+Story 11.6 EXTENSION (Epic 11 6번째 진입점 = cj-style 37번째 epic 연속) —
+4 NEW typed exceptions + Korean SSOT envelope messages for Report #15
+(활동원가 내역서 — 활동별 원가·동인 단가):
+
+  - Report15PeriodNotCommittedError        (422 REPORT15_PERIOD_NOT_COMMITTED)
+  - Report15NoActivityBreakdownError       (422 REPORT15_NO_ACTIVITY_BREAKDOWN)
+  - Report15BreakdownNotFoundError         (404 REPORT15_BREAKDOWN_NOT_FOUND)
+  - Report15PdfGenerationError             (500 REPORT_PDF_GENERATION_ERROR)
+                                              (CR 12-5 D-14 typed envelope main.py REUSE 0 NEW)
+
 Pure re-export from kernel + service-layer extensions (AD-15 §4 envelope).
 """
 from __future__ import annotations
 
-# Pure kernel exceptions re-export (9-1 + 9-2 + 9-3 surface 유지)
+# Pure kernel exceptions re-export (9-1 + 9-2 + 9-3 + 9-4 + 11-6 surfaces)
 from packages.cost_engine.abc_engine import (
     AbcValidationNotFoundError,
     ActivityValidationError,
@@ -22,6 +32,7 @@ from packages.cost_engine.abc_engine import (
     CostPoolValidationError,
     DriverValidationError,
     EmptyDepartmentsError,
+    Report15InconsistentStateError,
     Report21InconsistentStateError,
     TooManyDepartmentsError,
 )
@@ -118,6 +129,100 @@ class Report21PdfGenerationError(Exception):
         self.reason = reason
 
 
+# ── Story 11.6 typed exceptions (CR 12-5 D-14 envelope main.py handler 등록) ──
+
+
+class Report15PeriodNotCommittedError(Exception):
+    """PRD §9 #15 + §7.1 — Report #15 (활동원가 내역서) period 미커밋 HTTP 422 envelope.
+
+    Period가 아직 commit되지 않은 시점 — V7 verdict + activity_breakdown 부재 시
+    `Report15Service.build_report15` 가 envelope RAISE.
+
+    `period_key` identifies which period failed (machine code),
+    `reason` is the human-readable Korean reason.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        period_key: str,
+        reason: str,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.period_key = period_key
+        self.reason = reason
+
+
+class Report15NoActivityBreakdownError(Exception):
+    """PRD §9 #15 + §V7 — Report #15 (activity_breakdown 부재) HTTP 422 envelope.
+
+    활동별 원가·동인 단가 rows 부재 시 raise. service-layer pre-validation
+    guard (CR 12-5 L3 3-layer defense, Report #21 wire 동일 surface 미러).
+    Report #15 는 활동 1개 이상 필수 (PRD §9 #15 verbatim "활동별").
+
+    `period_key` identifies which period failed (machine code),
+    `reason` is the human-readable Korean reason.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        period_key: str,
+        reason: str,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.period_key = period_key
+        self.reason = reason
+
+
+class Report15BreakdownNotFoundError(Exception):
+    """PRD §9 #15 + §F9.3 — Report #15 (breakdown not found) HTTP 404 envelope.
+
+    Commit 안된 period + 기존 activity_breakdown 부재 시 service-layer RAISE
+    (compute_and_persist 11-step pipeline 미실행 OR JSONB subdoc 부재).
+
+    `period_key` identifies which period failed (machine code),
+    `reason` is the human-readable Korean reason.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        period_key: str,
+        reason: str,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.period_key = period_key
+        self.reason = reason
+
+
+class Report15PdfGenerationError(Exception):
+    """PRD §9 #15 + §V8 — Report #15 PDF generation HTTP 500 envelope.
+
+    PDF byte composition 실패 시 service-layer RAISE. CR 12-5 D-14
+    typed envelope main.py REUSE 0 NEW handlers (Report #21 동일 surface).
+    A30 SHARED factory `_compose_report15_pdf` 본체 wire (Story 11.6).
+
+    `reason` is the human-readable Korean reason.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.reason = reason
+
+
 # ── Korean SSOT envelope messages (CR 12-5 D-14) ─────────────────
 
 
@@ -134,9 +239,20 @@ REPORT_PDF_GENERATION_ERROR_KO: str = (
     "리포트 PDF 생성 실패 — 서버 관리자에게 문의하세요"
 )
 
+# 11-6 wire → Report #15 (활동원가 내역서) Korean SSOT (PRD §9 #15 verbatim):
+REPORT15_PERIOD_NOT_COMMITTED_KO: str = (
+    "리포트 #15 생성 전 회계기간이 커밋되지 않았습니다"
+)
+REPORT15_NO_ACTIVITY_BREAKDOWN_KO: str = (
+    "리포트 #15: 활동별 원가 데이터가 없습니다"
+)
+REPORT15_BREAKDOWN_NOT_FOUND_KO: str = (
+    "리포트 #15: 활동원가 내역서를 찾을 수 없습니다"
+)
+
 
 __all__ = [
-    # Re-exports from kernel (9-1 + 9-2 + 9-3 + 9-4 surfaces)
+    # Re-exports from kernel (9-1 + 9-2 + 9-3 + 9-4 + 11-6 surfaces)
     "CostPoolValidationError",
     "ActivityValidationError",
     "DriverValidationError",
@@ -146,14 +262,23 @@ __all__ = [
     "EmptyDepartmentsError",
     "TooManyDepartmentsError",
     "Report21InconsistentStateError",
+    "Report15InconsistentStateError",
     # 9-4 service-layer typed exceptions (CR 12-5 D-14 envelope main.py handler)
     "Report21PeriodNotCommittedError",
     "Report21NoBreakdownError",
     "Report21BreakdownNotFoundError",
     "Report21PdfGenerationError",
+    # 11-6 service-layer typed exceptions (CR 12-5 D-14 envelope main.py handler)
+    "Report15PeriodNotCommittedError",
+    "Report15NoActivityBreakdownError",
+    "Report15BreakdownNotFoundError",
+    "Report15PdfGenerationError",
     # Korean messages (CR 12-5 D-14)
     "REPORT21_PERIOD_NOT_COMMITTED_KO",
     "REPORT21_NO_COST_OBJECT_BREAKDOWN_KO",
     "REPORT21_BREAKDOWN_NOT_FOUND_KO",
     "REPORT_PDF_GENERATION_ERROR_KO",
+    "REPORT15_PERIOD_NOT_COMMITTED_KO",
+    "REPORT15_NO_ACTIVITY_BREAKDOWN_KO",
+    "REPORT15_BREAKDOWN_NOT_FOUND_KO",
 ]
