@@ -19,6 +19,8 @@
 
 import { http, HttpResponse } from "msw";
 
+import { m10AiHandlers } from "./m10-ai-handlers";
+
 const API = "/api/v1/tenants/me";
 const API_INDUSTRY = "/api/v1/tenants/me/industry";
 
@@ -33,6 +35,10 @@ const API_CLOSING_GUARD_AUDIT_TRAIL =
 const API_ABC_VALIDATE = "/api/v1/abc/validate";
 
 export const handlers = [
+  // Sprint 10.5 T5 wire (A38) — Epic 10 m10-ai 4 endpoints.
+  // Tests can override per-case via `server.use(http.post(...))`.
+  ...m10AiHandlers,
+
   http.get(API, () => {
     return HttpResponse.json({
       industry: null,

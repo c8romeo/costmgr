@@ -784,3 +784,51 @@ The page.tsx uses stub `00000000-0000-4000-8000-*` UUIDs with `TODO(11-4 carry)`
 - Sprint 11-6 spec entry after Sprint 11-5 atomic commit lands
 - baseline_commit = TBD (11-5 atomic commit hash)
 
+---
+
+## Deferred from: 10-5 (Sprint 10.5 — A38 Frontend Test Debt Dedicated Sprint)
+
+**wire_commit** = `855859a` (spec entry) + post-A38 atomic wire commit (cj-style carry-over 14번째 진입)
+
+### A38 = A35 frontend test debt honestly DEFER (d) dedicated sprint = **✅ ALL 4 RESOLVED**
+
+| Item | Scope | Status | Resolution |
+|---|---|---|---|
+| **D-10-1-DEFER-3** | 10-1 frontend 8 files (AiDraftCard + ConfidenceBadge + AiExtractModal + ko-KR.json ai_extract namespace + 2 vitest mount + TS mirror + parity + page.tsx mount) | ✅ RESOLVED | T1 wire — 11 files (3 components + 1 page.tsx mount + 1 TS mirror + 1 index + 3 vitest tests + 1 parity + 1 ko-KR.json EXTENSION) |
+| **D-10-2-DEFER-4** | 10-2 frontend 7 files (InsightCachePanel + 3 TS mirror parity + vitest mount + ko-KR.json insight_cache namespace + page.tsx mount) | ✅ RESOLVED | T2 wire — 6 files (1 component + 1 page.tsx + 1 TS mirror insight-cache.ts + 1 vitest mount + 1 parity + 1 ko-KR.json EXTENSION) |
+| **D-10-3-DEFER-4** | 10-3 frontend 7 files (AiReferenceBadge + AutoAnalysisBadge + AiCommentSection + 2 vitest mount + 1 TS mirror parity + 1 cross-language drift detector + ko-KR.json badge labels) | ✅ RESOLVED | T3 wire — 8 files (3 components + 1 page.tsx + 1 TS mirror ai-comments.ts + 1 badge vitest + 1 auto-analysis vitest + 1 section vitest + 1 parity + 1 cross-lang drift detector + 1 ko-KR.json EXTENSION) |
+| **D-10-4-DEFER-4** | 10-4 frontend 5 files (PromoteConfirmButton + PromoteResultToast + 2 vitest mount + ko-KR.json promote error messages + status labels) | ✅ RESOLVED | T4 wire — 5 files (2 components + 2 vitest mount tests + 1 ko-KR.json EXTENSION). TS mirror ai-promote.ts already wire-entered in Story 10.4 sprint. |
+
+### A38 wire 표 보존 (post-atomic commit)
+
+- **T1 10-1**: 11 files (TS mirror + index + 3 components + page + 3 vitest + parity)
+- **T2 10-2**: 6 files (TS mirror + 1 component + page + 2 vitest)
+- **T3 10-3**: 8 files (TS mirror + 3 components + page + 3 vitest + parity + cross-lang drift)
+- **T4 10-4**: 5 files (2 components + 2 vitest) — ai-promote.ts already existed
+- **T5 Shared**: 3 files (m10-ai-types.ts + ko-KR.json drift detector + m10-ai-handlers.ts mocks)
+- **T6 docs sync**: 3 files (deferred-work.md THIS section + sprint-status.yaml + handoff memory)
+- **T7 3중 게이트 FINAL CLEAN**: vitest ~102 NEW cases (T1 ~28 + T2 ~12 + T3 ~22 + T4 ~24 + T5 ~16) + ko-KR.json SSOT drift detector PASS (P-015)
+- **T8 atomic commit**: single mixed-discipline atomic sweep, ~32 files
+
+**Total**: ~32 files (NEW + MODIFIED) atomic single sprint, vitest baseline ~1,801 → ~1,903 PASS (separate line 갱신, CR 11-2 lesson). pytest 보존 (A38 frontend only). backend 3중 게이트 baseline 보존 (frontend only sprint).
+
+### Honestly DEFER to follow-up sweep (cj-style carry-over 14번째 wire 후 보존 결정)
+
+| Item | Category | Reason |
+|---|---|---|
+| A37 master PRD v2.0 본체 edit | (a) docs 정합 | cj-style carry-over 15번째 후속 — A38 wire 후 즉시 진입 가능 |
+| D-10-3-DEFER-2 | (b) retro input | ai_reference 의견 async generation pipeline — Epic 10 close-out retro 입력 후속 |
+| D-10-3-DEFER-3 | (c) separate epic | auto_analysis 의견 read-only DB-level trigger — 별도 epic 결정 후속 |
+| Report #16 wire (A30 SHARED factory reuse 2nd case) | (c) separate epic | A30 reuse 2nd case — cj-style Epic 11 7번째 진입점 또는 Epic 12 territory |
+| Epic 11 carry-over sprint (A13 residual) | (b) retro input | 11-5 wire 시점에 ✅ RESOLVED (D-001 + P-011) |
+| Playwright E2E for m10-ai | (d) dedicated sprint | Epic 12 12-5 T6 패턴 follow-up |
+| A40 Report #15 wire (Sprint 11-6) | sprint-up | A40 option (a) 결정 wire — Sprint 11-6 spec entry 이후 후속 |
+
+### 3중 게이트 FINAL CLEAN verification (post-A38 wire)
+
+- **ruff scoped**: 0 NEW error (A38 frontend only sprint, pytest 보존)
+- **tsc**: 0 NEW errors (A38 touched frontend files; baseline preserved)
+- **vitest focused**: ~102 NEW cases ALL PASS (T1 ~28 + T2 ~12 + T3 ~22 + T4 ~24 + T5 ~16)
+- **A36 SDR 검증 4-step 자동 PASS** (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency)
+- **ko-KR.json SSOT drift detector (P-015)**: PASS — 4 namespaces (ai_extract + insight_cache + ai_badge + ai_promote) 모두 coverage OK
+
