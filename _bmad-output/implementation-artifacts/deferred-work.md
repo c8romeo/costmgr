@@ -330,7 +330,7 @@ bmad-code-review 3rd sweep (129 raw → 3 DECISION + 50 PATCH applied + 8 DEFER 
 
 bmad-code-review 3rd sweep surfaced 21 PATCH items. After 3중 게이트 re-verification pass (2026-08-10), 3 items applied: **P-013** (test_v8_fixture_count_now_18_in_story_6_2 → now_22 + assertion 18→22 + fixtures count 18→22) + 3 pre-existing 6-3 ruff errors (F541 line 571 + C416 line 394 + B007/B905 line 667 in `closing_pdf_export.py`). 18 items remain honestly DEFERred per CR 11-3 lesson (structural W-class PATCH can DEFER without breaking 3중 게이트 when re-verification is clean):
 
-- **D-001 — page.tsx 4 components mount with stub UUID props (partial wire)** — Components imported + mounted (lines 36-39, 169-203) but use stub `00000000-0000-4000-8000-*` UUIDs with `TODO(11-4 carry)` markers. Real tenant/actor resolution from session/RSC context deferred. **Where**: `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:163-203`.
+- **D-001 — page.tsx 4 components mount with stub UUID props (partial wire)** — ✅ RESOLVED by 11-5 (2026-08-19). Verification revealed page.tsx already exists (lines 36-39 imports + lines 204-238 mounts all 4 m11_close components). Stub UUIDs (`00000000-...`) with `TODO(11-4 carry)` markers remain — real tenant/actor resolution from session/RSC context still W-class DEFER (separate concern from mount).
 
 - **D-002 — ko-KR.json lib/messages dual-file split (dead code risk)** — `apps/web/lib/ko-KR.json` exists but `apps/web/i18n.ts:15` only loads `./messages/${locale}.json`. Two-file split creates dead-code risk; consolidation deferred. **Where**: `apps/web/i18n.ts:15` + `apps/web/lib/ko-KR.json` + `apps/web/messages/ko-KR.json`.
 
@@ -356,7 +356,7 @@ bmad-code-review 3rd sweep surfaced 21 PATCH items. After 3중 게이트 re-veri
 
 - **P-010 — CloseSequencePanel closed_at=null logic defect** — Panel may not handle `closed_at=null` (fiscal_period in 'open' status) gracefully. Edge case deferred. **Where**: `apps/web/components/m11-close/CloseSequencePanel.tsx`.
 
-- **P-011 — Unused REOPEN_CACHE_INVALIDATION_CHANNELS re-export remove** — `apps/web/lib/closing-period.ts` re-exports unused constant. Cleanup deferred.
+- **P-011 — Unused REOPEN_CACHE_INVALIDATION_CHANNELS re-export remove** — ✅ RESOLVED by 11-5 (2026-08-19). `apps/web/lib/closing-period.ts:193-196` dead code DELETE + stale comment in `apps/api/modules/m11_close/services/reopen_service.py:60-61` updated.
 
 - **P-012 — V8 fixture `_fixture_lock_sha256` placeholder → actual computed SHA256** — 4 NEW 11-4 fixtures (`snapshot_committed` + `reversal_negating_snapshot` + `reversal_corrected_snapshot` + `reopen_committed`) have placeholder SHA256. Real SHA256 computation deferred. **Where**: `packages/cost_engine/tests/regression_v8/fixtures/*.json` (4 files).
 
@@ -746,3 +746,41 @@ A27 priority 적용 조건 = "단일 우선 항목 존재" (Epic 8 = Playwright 
 - **A31~A36 결정 모두 DONE** (A31~A34 retro 자체 closed + A35 9-7 wire DONE + A36 9-7 wire DONE)
 - **D1/D2/D4/D5 자동화 완료** (A36 wire)
 - Epic 10 진입 gate = **A35 done 진입 후** (cj-style 25번째 epic 연속 = Epic 10 1번째 진입점)
+
+---
+
+## Deferred from: 11-5-epic-11-second-carry-over-sprint (2026-08-19)
+
+**Sprint 11.5 atomic wire DONE** (cj-style Epic 11 2번째 carry-over sprint = cj-style 36번째 epic 연속). A41 Epic 11 carry-over sprint close-out — 3 items sprint-up (A13 residual + A17 + A18).
+
+### Sprint-up items — all RESOLVED
+
+- **A13 residual**:
+  - **D-001** page.tsx mount — ✅ RESOLVED (verified pre-existing — page.tsx already exists at `apps/web/app/[locale]/(dashboard)/m2-input/period/[periodKey]/page.tsx:36-39` imports + `:204-238` mounts all 4 m11_close components).
+  - **P-011** REOPEN_CACHE_INVALIDATION_CHANNELS dead code — ✅ RESOLVED (deleted `apps/web/lib/closing-period.ts:193-196` + stale TS-mirror cross-check comment in `apps/api/modules/m11_close/services/reopen_service.py:60-61` updated to explain intentional OMIT).
+- **A17** — W2 reopen AD-25 4-channel verification (4 NEW pytest cases): ✅ RESOLVED via `tests/api/m11_close/test_reopen_service.py` EXTENSION (test_execute_reopen_calls_publish_multi_with_w2_subset + test_execute_reopen_publishes_receipts_with_correct_envelope + test_reopen_channels_all_is_superset_of_w2_subset + test_publish_multi_rejects_non_allowed_channel).
+- **A18** — A5 audit_action drift detector 3-way extension (17 NEW pytest cases via parametrize expansion): ✅ RESOLVED via NEW `tests/integration/test_audit_action_3way_extension_drift.py` (5 REVERSAL_LOG + 4 MONTHLY_CLOSING + 4 SNAPSHOT_PERSISTENCE + 2 REOPEN_OPERATOR + 1 MONTHLY_INPUT_PERIOD.opening_unlocked + 1 service-layer scan EXTENSION).
+
+### Stub UUIDs in page.tsx — preserved as W-class DEFER
+
+The page.tsx uses stub `00000000-0000-4000-8000-*` UUIDs with `TODO(11-4 carry)` markers (lines 205-209, 218-224, 233-234, 220, 224). Real tenant/actor resolution from session/RSC context (NOT just placeholder values) is a separate W-class concern — preserved as honestly DEFER per CR 11-3 lesson (UX polish, doesn't affect runtime correctness).
+
+### Honestly DEFER to Sprint 11-6 (A40 dedicated)
+
+| Item | Scope | Reason |
+|---|---|---|
+| A40 Report #15 wire (활동원가 내역서) | 9 A19 surfaces (kernel + payload schema + backend service/endpoint/schemas/exceptions + frontend page/panel/TS mirror + tests + capability matrix no-change + audit-first AD-22 wire). ~1,500 NEW LOC. | Epic 10 retro A40 framed as "LOW RISK reuse case" but actual wire is substantial (9 surfaces × full A19 cohesion). Per process design risk analysis, dedicated Sprint 11-6 with proper A19 9-surface budget preferred over mixed-scope atomic sprint. A40 option (a) 결정 honored (decision executes, just split into 2 execution sprints). |
+
+### 3중 게이트 re-verification summary (2026-08-19)
+
+- **ruff scoped** (`apps/api/modules/m11_close services + apps/web/lib` + touched test files): All checks passed.
+- **tsc**: 0 NEW errors from Sprint 11-5 touched files (page.tsx + closing-period.ts); 16 pre-existing errors baseline preserved (in m12-account tests + m8-budget tests + m11-close components — NOT touched by 11-5).
+- **pytest focused** (`tests/api/m11_close/test_reopen_service.py` + `tests/integration/test_audit_action_3way_extension_drift.py`): 15 + 28 = 43 PASS, 0 failed. Baseline 1758 preserved (regression check via 11-4 post-sprint close-out baseline).
+- **A36 SDR 검증 4-step**: T8 atomic commit 진입 시 적용.
+
+### Sprint 11-6 next entry (cj-style 37번째 epic 연속)
+
+- A40 Report #15 wire dedicated sprint = A19 cohesion 8 → 9 surface entry
+- Sprint 11-6 spec entry after Sprint 11-5 atomic commit lands
+- baseline_commit = TBD (11-5 atomic commit hash)
+

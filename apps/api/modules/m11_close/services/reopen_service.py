@@ -57,8 +57,9 @@ REOPEN_CHANNELS_ALL: tuple[str, ...] = (
 # that only invalidates the caches directly affected:
 #   - fiscal_period_cache (period re-opened for input)
 #   - closing_snapshot_cache (snapshot invalidated for re-commit)
-# Cross-checked with TS mirror REOPEN_CACHE_INVALIDATION_CHANNELS
-# (`apps/web/lib/closing-period.ts`) + V8 fixture `reopen_committed.json`.
+# Cross-checked with V8 fixture `reopen_committed.json`.
+# NOTE: TS mirror is intentionally OMITTED — REOPEN_CACHE_INVALIDATION_CHANNELS
+# was unused dead code in apps/web/lib/closing-period.ts (P-011) and removed.
 REOPEN_CHANNELS_W2_SUBSET: tuple[str, ...] = (
     "fiscal_period_cache",
     "closing_snapshot_cache",

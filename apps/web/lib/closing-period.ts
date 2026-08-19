@@ -188,9 +188,3 @@ export const CACHE_INVALIDATION_CHANNELS = [
 
 export type CacheInvalidationChannel =
   (typeof CACHE_INVALIDATION_CHANNELS)[number];
-
-// W2 reopen flow uses only 2 channels (subset of 4).
-export const REOPEN_CACHE_INVALIDATION_CHANNELS = [
-  "fiscal_period_cache",
-  "closing_snapshot_cache",
-] as const;
