@@ -1,8 +1,25 @@
-# Capability Matrix (v1.23)
+# Capability Matrix (v1.24)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.24 (2026-08-20, Phase 3 PRD entry)** — Auth Foundation capability gates
+> 5 NEW rows: `LOGIN` (이메일·비밀번호 로그인, Phase 3 T2 wire 진입) +
+> `SIGNUP` (회원가입 + tenant 생성 flow, Phase 3 T3 wire 진입) +
+> `AUTH_MIDDLEWARE` (Supabase session check + (dashboard) 보호, Phase 3 T4 wire 진입) +
+> `FORGOT_PASSWORD` (Supabase resetPasswordForEmail + reset-password, Phase 3 T6 wire 진입) +
+> `LOGOUT` (signOut + audit-first INSERT, Phase 3 T5 wire 진입). All 5
+> industry-agnostic 4-industry grants ✅/✅/✅/✅ (CR 12-1 L4 precedent like
+> `LISTEN_NOTIFY` / `AI_INSIGHT` / `TWO_FACTOR_AUTH` /
+> `LISTEN_NOTIFY_TENANT_FANOUT` / `LISTEN_NOTIFY_MULTIPROCESS`). AD-26 Auth
+> Foundation 신규 (Supabase SSR + sb-access-token cookie session + next-intl
+> middleware EXTENSION + auth route group (auth) 공개 + dashboard route group
+> (dashboard) 보호 + Epic 12 2FA 게이트 보존). Phase 3 wire scope 결정 보존
+> T1~T8 (T1 Supabase SSR client + T2 login page + T3 signup page + T4 auth
+> middleware EXTENSION + T5 logout + T6 forgot-password + T7 capability v1.24
+> EXTENSION + T8 tests + 3중 게이트 FINAL CLEAN atomic commit). wire_commit = TBD
+> (cj-style Phase 3 3번째 진입점 진입 시점, expected cj-style 51번째 epic 연속 정직 회복).
 >
 > **v1.23 (2026-08-20, Story 14.1, Epic 14)** — LISTEN/NOTIFY Consume 2nd Batch
 > EXTENSION capability gates 2 NEW rows: `LISTEN_NOTIFY_TENANT_FANOUT`
@@ -370,6 +387,11 @@ class CalcResponse(BaseModel):
 | `LISTEN_NOTIFY` | 13.1 | ✅ | ✅ | ✅ | ✅ |
 | `LISTEN_NOTIFY_TENANT_FANOUT` | 14.1 | ✅ | ✅ | ✅ | ✅ |
 | `LISTEN_NOTIFY_MULTIPROCESS` | 14.1 | ✅ | ✅ | ✅ | ✅ |
+| `LOGIN` | Phase 3 | ✅ | ✅ | ✅ | ✅ |
+| `SIGNUP` | Phase 3 | ✅ | ✅ | ✅ | ✅ |
+| `AUTH_MIDDLEWARE` | Phase 3 | ✅ | ✅ | ✅ | ✅ |
+| `FORGOT_PASSWORD` | Phase 3 | ✅ | ✅ | ✅ | ✅ |
+| `LOGOUT` | Phase 3 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 

@@ -71,7 +71,7 @@ def test_capability_matrix_v1_21_title() -> None:
     text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
 
     # Title must be ≥ v1.21 (forward-lock). Accept any newer pin.
-    assert "# Capability Matrix (v1.21)" in text or "# Capability Matrix (v1.22)" in text or "# Capability Matrix (v1.23)" in text, (
+    assert "# Capability Matrix (v1.21)" in text or "# Capability Matrix (v1.22)" in text or "# Capability Matrix (v1.23)" in text or "# Capability Matrix (v1.24)" in text, (
         "Capability matrix title is older than v1.21. "
         "Expected `# Capability Matrix (v1.21)` or newer as first heading."
     )
