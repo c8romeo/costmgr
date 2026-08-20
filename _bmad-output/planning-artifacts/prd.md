@@ -1,11 +1,14 @@
 ---
-title: bizup 통합 PRD v2.0
+title: bizup 통합 PRD v2.1
 status: final
 created: 2026-07-12
-updated: 2026-07-25
+updated: 2026-08-20
+changelog:
+  - v2.1 (2026-08-20): Epic 10 close-out retro A37 결정 wire — §F10.1 (Three-Insight Cache Policy) + §F10.2 (AI Reference vs Auto Analysis Badge Separation) + §12 AI 3종 update + §13.1 AI 배지 ko-KR cross-ref + §14 NFR (NFR18 ko-KR + AI 추출/insight/cache/reject counter 4 rows) + §14.B NON-GOAL #5·6 정합 + §부록 A A37~A42 + AD-7/AD-17/AD-25 architectural decisions 표 추가. cj-style carry-over 15번째 docs only atomic wire.
+  - v2.0 (2026-07-25): final
 ---
 
-# 비즈업(Biz-Up) 통합 제품요구사항정의서(PRD) v2.0
+# 비즈업(Biz-Up) 통합 제품요구사항정의서(PRD) v2.1
 ## 원가경영관리 웹 SaaS — 전통 개별원가 엔진 + 활동기준원가(ABC) 엔진 통합판
 
 | 항목 | 내용 |
@@ -549,9 +552,31 @@ CCR(Capacity Cost Rate) = 부서 원가 ÷ 실제적 조업능력(practical capa
 
 | 기능 | 내용 | 원칙 |
 |------|------|------|
-| 문서추출 온보딩 | 사업자등록증·재무제표·급여대장·거래명세서·활동 초안·동인 실적을 Claude Vision으로 초안 생성 | "AI는 초안, 확정은 사람" — 확정 전 검토 강제, 추출 항목별 신뢰도 표시 |
-| 인사이트 큐레이션 | 마감 데이터 기반 질문 3개 자동 생성·캐시(예: "부대찌개 원가율이 전월 대비 상승한 이유는?") + 답변 | 계산 결과를 변경하지 않음. 서술형 의견은 '자동 분석(고정 템플릿)'과 'AI 참고(구분 배지)'를 분리 |
-| 고정·변동 추정 | 계정별 고정/변동 3단계 추정(과거 패턴 → 제안 → 사용자 확정) | 확정값만 계산에 사용 [A7] |
+| 문서추출 온보딩 | 사업자등록증·재무제표·급여대장·거래명세서·활동 초안·동인 실적을 Claude Vision으로 초안 생성 | "AI는 초안, 확정은 사람" — 확정 전 검토 강제, 추출 항목별 신뢰도 표시. AI 출력은 `input_drafts.target_table='monthly_inputs'` 에만 저장하며 `confirmed_inputs` 직접 쓰기는 거부 + 카운터 증가 (target 0) [AD-7]. Story 10.1 wire (PRD §8.1 M10-(c)) |
+| 인사이트 큐레이션 | 마감 데이터 기반 질문 3개 자동 생성·캐시(예: "부대찌개 원가율이 전월 대비 상승한 이유는?") + 답변 | 계산 결과를 변경하지 않음. 서술형 의견은 '자동 분석(고정 템플릿)'과 'AI 참고(구분 배지)'를 분리 [§F10.2]. 캐시 키 `(tenant_id, period_key, calculation_result_hash)` 3-tuple lock + 마감 데이터 변경 시 4-channel publisher 무효화 [AD-25]. Story 10.2 wire (PRD §8.1 M10-(d)). SM-3a "계산 결과 변경 시도 = 0건" 별도 추적 |
+| 고정·변동 추정 | 계정별 고정/변동 3단계 추정(과거 패턴 → 제안 → 사용자 확정) | 확정값만 계산에 사용 [A7]. 본 1차 PRD 범위는 본 PRD v2.0 시점에 Epic 10 4-story (10-1~10-4) wire 진입으로 §12 3종 중 문서추출 + 인사이트 큐레이션 2종 wire, 고정·변동 추정은 1차 PRD 범위 외 (후속 Epic) |
+
+---
+
+## F10. AI 기능 명세 (Epic 10 wire 정합, 2026-08-20 master PRD v2.0 edit)
+
+> 본 절은 §12 AI 기능 3종 가운데 **문서추출 (Story 10.1) + 인사이트 큐레이션 (Story 10.2) + 배지 분리 (Story 10.3) + 승격 포트 (Story 10.4)** wire 의 PRD-level AC 를 상세화한다. Epic 10 PRD entry (`_bmad-output/planning-artifacts/prds/prd-costmgr-2026-08-17/prd.md`) §3 verbatim 보존.
+
+### F10.1 Three-Insight Cache Policy (§8.1 M10-(a)(d) 확장)
+
+- **(a)** 시스템은 `fiscal_period_snapshots.state='committed'` 전이 시점에 `ai_cache` 키 `(tenant_id, period_key, calculation_result_hash)` 3-tuple 로 **인사이트 질문 3개 + 답변 3개**를 lock 한다 (NFR11 P95 ≤ 30s, [AD-25 verbatim]).
+- **(b)** 시스템은 cache hit 시 마지막 마감 완료 시점부터 다음 마감 시작 시점까지 보존된 인사이트를 반환하고, 동일 hit 은 0~수십 ms 내 응답한다 (cache 없으면 NFR11 SLO 내 cold compute).
+- **(c)** 시스템은 마감 데이터 변경 (Epic 11 AD-22 reversal INSERT) 시 AD-25 publisher 가 invalidation log 를 emit 하면 adapter 가 `WHERE tenant_id=? AND period_key=?` 매칭 cache entry 를 즉시 폐기한다.
+- **(d)** 시스템은 `cache_invalidation_log` 채널에 `ai_cache` 외 채널 (`cost_engine_cache` / `fiscal_period_cache` / `closing_snapshot_cache`) 이 추가되어도 본 캐시만 영향받지 않도록 channel-specific invalidation filter 를 강제한다 (`channel = 'ai_cache'` filter). Epic 11 close / reopen trigger 진입 시점에 4-channel publisher EXTENSION.
+
+### F10.2 AI Reference vs Auto Analysis Badge Separation (§8.1 M10-(b)(e) 확장)
+
+- **(a)** 시스템은 보고서 의견 section 진입 시 모든 문장별 `source_kind` (`auto_analysis` | `ai_reference`) 를 함께 렌더링하고:
+  - `source_kind='auto_analysis'` → 파란 배지 "📊 자동 분석" + tooltip "이 의견은 고정 템플릿입니다" (§12 verbatim).
+  - `source_kind='ai_reference'` → 보라 배지 "🤖 AI 참고(검증 필요)" + tooltip "AI는 비권위적입니다 — 확정 책임은 사용자에게" ([AD-7 verbatim]).
+- **(b)** 시스템은 `auto_analysis` / `ai_reference` 키 외 value (예: `human_authored` 등) 도착 시 strict reject + 1행 counter increment 를 wire 한다 (§A11 시스템은 틀리지 않는다 / hover 후 미변경 = 안전).
+- **(c)** 시스템은 SM-3a "계산 결과 변경 시도 = 0건" 별도 tracking 을 위해 `auto_analysis` 의견 수정 시도도 동일 카운터로 추적한다 (AD-7 "M10 attempts to write confirmed-input tables are denied and counted (target zero)").
+- **(d)** 시스템은 `source_kind` 강제 검증 실패 시 1-line ko-KR 메시지로 reject (예: "분석 의견 출처가 불분명합니다") + counter 증가 + 200 OK envelope.
 
 ---
 
@@ -562,6 +587,7 @@ CCR(Capacity Cost Rate) = 부서 원가 ÷ 실제적 조업능력(practical capa
 - 대시보드: 월 체크리스트(순차입력 안내)·TOP5/WORST5·12개월 추이
 - 디자인: 클리어블루 + 옐로우 포인트 + 화이트, Pretendard, 음수 (1,234) 빨강 표기
 - 거래처 입력 안내 문구: "거래처 정보를 입력하면, 거래처별로 정교한 판매전략을 수립하는 데 도움이 됩니다"
+- **AI 배지 (F10.2-(a))** — `source_kind='auto_analysis'` 파란 배지 "📊 자동 분석" + `source_kind='ai_reference'` 보라 배지 "🤖 AI 참고(검증 필요)" + tooltip 한국어 only [NFR18 / §13.1 ko-KR 정합]. 2차 로드맵: 다국어 [§14.B NON-GOAL #5]
 
 ## 13.2 기술 스택
 | 계층 | 선택 | 비고 |
@@ -602,6 +628,10 @@ CCR(Capacity Cost Rate) = 부서 원가 ÷ 실제적 조업능력(practical capa
 | 동시 사용자 (테넌트당) | 10 | 50 | 동시접속 카운터 |
 | 데이터 볼륨 (테넌트당) | 제품 500, 자재 2,000, 월 50K 트랜잭션 | 10× | DB row count |
 | 인프라 페이로드 | Supabase Free → Pro 승격 트리거: 동시 30 테넌트 또는 월 10K 트랜잭션 | — | 운영자 콘솔 알림 |
+| **언어 (UI 라벨)** | **한국어 only** (1차), [§14.B NON-GOAL #5] 정합 | 다국어 (en-US + ja-JP 우선) | `apps/web/messages/ko-KR.json` SSOT 1권 강제 + `apps/web/lib/i18n/*` `notFound` 시 ko-KR fallback + ESLint rule forbid-non-ko-KR-keys |
+| **AI 추출 응답** | P95 ≤ 30초 (M10-c + 10-1 wire) | 동일 | Anthropic Claude Vision 응답 시간 측정 + NFR11 SLO |
+| **AI 인사이트 cache hit** | sub-100ms (10-2 wire) | 동일 | in-memory + DB lookup 시간 측정 |
+| **AI 배지 reject counter** | **target 0건** (10-3 wire, [AD-7 verbatim]) | 동일 | `audit_logs.action_name='ai_badge_source_kind_rejected'` count |
 
 **용어**: RPO/RTO 정의는 §부록 C 참조. 본 표 임계값은 IR·architecture 단계에서 재검증될 수 있다.
 
@@ -728,6 +758,37 @@ PRD 본문에서 단언되었으나 확정 전 재논의가 필요한 결정. �
 | A34 | mixed honestly DEFER 4-category framework — (a) docs 정합 / (b) retro input / (c) separate epic / (d) dedicated sprint |
 | A35 | frontend test debt honestly DEFER (d) — vitest mount + TS mirror parity 정직 회복 (9-7 wire 진입) |
 | A36 | SDR 검증 프로토콜 wire — 4-step 자동화 (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency) |
+
+### Epic 10 close-out 결정 (2026-08-19, cj-style 5번째 진입점)
+
+| 결정 | 내용 |
+|------|------|
+| **A37** | **Master PRD v2.0 본체 edit** (§F10.1·§F10.2 + §8.1 M10 + §12 AI 3종 + §13.1 ko-KR + §14 NFR + §14.B NON-GOAL #5·6 + §AD-7/17/25 verbatim + §SM-3a + §A11 + §NFR18 + §부록 A A23~A42). cj-style carry-over 15번째 docs only atomic wire (Epic 10 PRD extension → master PRD 본체 edit). 결정 wire 일자: 2026-08-20 |
+| **A38** | A35 frontend test debt dedicated sprint (cj-style carry-over 14번째) — Epic 10 4 stories frontend files + TS mirror parity + vitest mount 일괄 wire |
+| **A39** | D-10-2-DEFER-3 LISTEN/NOTIFY consume 별도 epic territory 결정 (post-Epic 10) — AD-25 cache invalidation trigger EXTENSION for close/reopen (separate epic territory, Epic 13+ 진입 시점 결정) |
+| **A40** | A31/A32/A33 (Report #15 wire schedule) 처리 결정 — Epic 11 carry-over sprint 진입 시 wire (cj-style Epic 11 4번째 진입점 = Epic 11 Story 11.5 + 11.6 진입 결정) |
+| **A41** | Epic 11 carry-over sprint 진입 결정 (A13/A17/A18 sprint-up items) — 11-3 DEFER 8 items triage + W2 reopen 4-channel 검증 + A5 drift detector 3-way extension. ✅ done via 11-4 (cj-style carry-over 11번째) + 11-5 (cj-style 36번째) atomic wire |
+| **A42** | A36 SDR 검증 4-step 자동화 wire 보존 + Epic 11+ 적용 — commit prefix lint + sprint-status structure 검증 + vitest file count drift + commit consistency 자동 검증 단계 모두 PASS |
+
+### Architectural Decisions (AD) — Epic 0~10 wire 정합 (2026-08-20 master PRD v2.0 edit)
+
+> 본 절은 §3 회계 공리 헌장 (A1~A11) 외 **아키텍처 결정을 위한 AD (Architectural Decision)** 을 추가한다. AD-7·17·25 는 Epic 10 wire 진입 시점에 신규 bind 되었으며 master PRD v2.0 본체에 정식 등록한다.
+
+| AD | 내용 | Story bind | Capability | 결정 wire |
+|---|---|---|---|---|
+| **AD-7 AI non-authoritative** | AI output → `input_drafts` only. `confirmed_inputs` 도달은 **AD-17 경로만**. AI commentary `source_kind='ai_reference'`. 자동 분석 `source_kind='auto_analysis'`. M10 attempts to write confirmed-input tables → denied + counted (target 0). System은 strict reject 외 value 도달 시 counter increment (F10.2-(b) 정합) | 10-1·10-3·10-4 | `AI_INSIGHT` (capability matrix v1.21, Epic 10 wire) | Epic 10 PRD entry 2026-08-17 |
+| **AD-17 AI draft promotion port** | Only M2 may call `InputPromoter.promote(tenant_id, period_key, source_draft_id) -> MonthlyInput`. **Idempotent on `(tenant_id, period_key, source_draft_id)`**. Promotion retains draft with `state='promoted'`, records actor + draft hash in audit_logs, writes canonical confirmed-input shape. M10 never writes confirmed inputs | 10-1 + 10-4 | `AI_INSIGHT` | Epic 10 PRD entry 2026-08-17 |
+| **AD-25 AI insight cache invalidation** | M10 cache key: `(tenant_id, period_key, calculation_result_hash)`. New AD-4 commit, AD-22 reversal insert, or M11 reopen emits one DB notification per `cache_invalidation_log` channel. M10 adapter consumes it and invalidates matching entries. Application polling + input-write-only invalidation forbidden | 10-2 | `AI_INSIGHT` | Epic 10 PRD entry 2026-08-17 |
+
+> **AD-22 reversal insert** = Epic 11 wire 결정 (master PRD §8.1 M11-(b) verbatim "입력·변경 시도는 역분개(A8)로만 허용"). 본 master PRD v2.0 edit 시점에 AD-22 cross-ref 보존.
+>
+> **AD-4 commit** = master PRD §8.1 M3-(a) verbatim "단일 트랜잭션으로 실행하고, 도중 실패 시 전체 롤백".
+>
+> **SM-3a** = §2.B 성공 지표 SM-3 inline 정의 "계산 결과 변경 시도 = 0건" 별도 추적 (§12 인사이트 큐레이션 원칙 검증).
+>
+> **§A11** = §3 회계 공리 헌장 A11 "오류의 가시화 (숨기지 않는 시스템)" — F10.2-(b) strict reject + counter increment 의 정당화 근거.
+
+---
 
 ## 부록 B. 보존 산식 — A×B×C×D 예산 편성 엔진 (2차 구현용)
 
