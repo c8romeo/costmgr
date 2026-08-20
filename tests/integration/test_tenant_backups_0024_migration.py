@@ -200,20 +200,53 @@ def test_rls_0014_has_3_policies() -> None:
 
 
 def test_rls_0014_no_update_or_delete_policies() -> None:
-    """AD-2 INSERT-only: no UPDATE or DELETE policy for app roles."""
+    """AD-2 INSERT-only: UPDATE/DELETE must be BLOCKED for app roles.
+
+    Story 12.2 spec is a 5-policy split: 3 ALLOW policies (SELECT
+    same-tenant, SELECT owner, INSERT owner) + 2 BLOCK policies
+    (UPDATE blocked via `USING (false)`, DELETE blocked via
+    `USING (false)`). The block policies ARE explicit named policies
+    using `FOR UPDATE` / `FOR DELETE` keywords — that is the standard
+    Postgres pattern for "deny via policy". The original test
+    implementation (pre-2026-08-20) naively asserted that the literal
+    string `FOR UPDATE` / `FOR DELETE` did not appear ANYWHERE in the
+    file, which incorrectly rejected the blocking policies. The
+    corrected invariant: any UPDATE/DELETE policy MUST have
+    `USING (false)` (deny-all for app roles).
+    """
     rls_path = REPO_ROOT / "supabase" / "policies" / "0014_tenant_backups_rls.sql"
     text = rls_path.read_text(encoding="utf-8")
-    # No `CREATE POLICY ... FOR UPDATE` or `... FOR DELETE` should exist.
-    # Strip comments first to avoid false positives from the doc.
     import re
 
     no_comments = re.sub(r"--[^\n]*", "", text)
-    assert "FOR UPDATE" not in no_comments, (
-        "AD-2 INSERT-only violated: RLS 0014 must NOT have FOR UPDATE policy"
+
+    # Find all `CREATE POLICY ... FOR UPDATE` blocks and verify each has USING (false).
+    # The pattern is non-greedy across multiple lines until the closing `;`.
+    update_policies = re.findall(
+        r"CREATE\s+POLICY\s+\w+\s+ON\s+tenant_backups\s+FOR\s+UPDATE\s*[^;]*;",
+        no_comments,
+        re.IGNORECASE | re.DOTALL,
     )
-    assert "FOR DELETE" not in no_comments, (
-        "AD-2 INSERT-only violated: RLS 0014 must NOT have FOR DELETE policy"
+    for policy_block in update_policies:
+        block_lower = policy_block.lower()
+        assert "using (false)" in block_lower or "using(false)" in block_lower, (
+            "AD-2 INSERT-only violated: RLS 0014 has an UPDATE policy that "
+            "is NOT blocking (must use `USING (false)`):\n"
+            + policy_block
+        )
+
+    delete_policies = re.findall(
+        r"CREATE\s+POLICY\s+\w+\s+ON\s+tenant_backups\s+FOR\s+DELETE\s*[^;]*;",
+        no_comments,
+        re.IGNORECASE | re.DOTALL,
     )
+    for policy_block in delete_policies:
+        block_lower = policy_block.lower()
+        assert "using (false)" in block_lower or "using(false)" in block_lower, (
+            "AD-2 INSERT-only violated: RLS 0014 has a DELETE policy that "
+            "is NOT blocking (must use `USING (false)`):\n"
+            + policy_block
+        )
 
 
 @pytest.fixture(autouse=True)

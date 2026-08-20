@@ -58,13 +58,22 @@ def test_capability_matrix_v1_21_ai_insight_row_present() -> None:
 
 
 def test_capability_matrix_v1_21_title() -> None:
-    """Title line should reflect v1.21 (not v1.20)."""
+    """Title line should be at least v1.21 (forward-lock preserved).
+
+    v1.21 was the last REAL drift detector SSOT (introduced by Story 10.1).
+    Subsequent versions (v1.22 LISTEN_NOTIFY, v1.23 LISTEN_NOTIFY_TENANT_FANOUT +
+    LISTEN_NOTIFY_MULTIPROCESS) build on top, so this test accepts any title
+    ≥ v1.21 to avoid regression-spam on every bump. The strict pin tests
+    for v1.17/v1.18/v1.19/v1.20 are stale historical pins (mutually
+    exclusive — at most one can ever pass); they will be removed in a
+    separate sweep.
+    """
     text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
 
-    # First non-blank header should be v1.21
-    assert "# Capability Matrix (v1.21)" in text, (
-        "Capability matrix title is not v1.21. "
-        "Expected `# Capability Matrix (v1.21)` as first heading."
+    # Title must be ≥ v1.21 (forward-lock). Accept any newer pin.
+    assert "# Capability Matrix (v1.21)" in text or "# Capability Matrix (v1.22)" in text or "# Capability Matrix (v1.23)" in text, (
+        "Capability matrix title is older than v1.21. "
+        "Expected `# Capability Matrix (v1.21)` or newer as first heading."
     )
 
 

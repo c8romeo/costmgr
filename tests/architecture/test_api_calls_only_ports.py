@@ -190,6 +190,9 @@ def test_api_root_does_not_import_services() -> None:
             "packages.services.m5_ledger.query_period_closing_snapshot_all",
             # m10_ai (Epic 10 — AI document extraction port + kernels)
             "packages.services.m10_ai.extraction_port",
+            "packages.services.m10_ai.promoter_port",  # AD-17 promotion port (m10_ai imports the abstract port; concrete impl is M2-only)
+            "packages.services.m10_ai.adapters",  # Story 10.1 fake_adapter test double
+            "packages.services.m10_ai.adapters.fake_adapter",
             "packages.services.m10_ai.insight_cache_kernel",  # Story 10.2 (Epic 10 — Three-Insight Cache Policy pure kernel)
             "packages.services.m10_ai.monthly_extraction_kernel",  # Story 10.1 (Epic 10 — monthly input extraction pure kernel)
             "packages.services.m10_ai",
@@ -276,9 +279,22 @@ def test_apps_api_has_no_unintended_dunder_imports_at_module_load() -> None:
     ``test_api_does_not_import_engine_core_or_adapters``. Only the ``money``
     submodule is allowed; ``period_cost`` or other engine internals must NOT
     leak into the API runtime.
+
+    CRITICAL (CR-NEW lesson 2026-08-20): Do NOT delete-and-reimport
+    ``packages.cost_engine.*`` from ``sys.modules`` here. The original
+    implementation (pre-2026-08-20) aggressively purged the sys.modules
+    cache and re-imported ``apps.api.main``, which caused ``packages.cost_engine.*``
+    modules to be replaced with fresh instances mid-test-run. Subsequent
+    tests that imported ``packages.cost_engine.cvp`` (e.g. m7 projection
+    cross-language drift, which uses ``CVPBaseline``) received a DIFFERENT
+    module instance than the one used by their test fixtures, causing
+    10+ spurious failures. The fix: just import apps.api.main (which is
+    idempotent — Python's import system returns the cached module if
+    already loaded) and inspect the resulting sys.modules. The boundary
+    check is "did the import graph leak engine internals", not "are
+    these the same module instances as 5 minutes ago".
     """
     import importlib
-    import sys
 
     # AD-8 cross-cutting primitive exception + service-layer engine entry points.
     # The runtime import graph pulls these in transitively when apps.api.main
@@ -295,21 +311,19 @@ def test_apps_api_has_no_unintended_dunder_imports_at_module_load() -> None:
         }
     )
 
-    # Pre-clean any cached engine imports
-    for mod_name in list(sys.modules):
-        if mod_name.startswith("packages.cost_engine"):
-            del sys.modules[mod_name]
-
-    if "apps.api.main" in sys.modules:
-        del sys.modules["apps.api.main"]
-
-    # If FastAPI is unavailable (very minimal env), skip rather than fail
+    # If FastAPI is unavailable (very minimal env), skip rather than fail.
+    # Import apps.api.main idempotently (Python returns cached module if
+    # already loaded). DO NOT purge sys.modules cache — that breaks the
+    # module identity invariant for downstream tests that have already
+    # imported packages.cost_engine.* submodules.
     try:
         importlib.import_module("apps.api.main")
     except ModuleNotFoundError as e:
         if "fastapi" in str(e):
             pytest.skip(f"FastAPI not installed in this environment: {e}")
         raise
+
+    import sys
 
     core_imports = [
         name for name in sys.modules

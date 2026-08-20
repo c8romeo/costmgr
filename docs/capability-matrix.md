@@ -1,8 +1,30 @@
-# Capability Matrix (v1.21)
+# Capability Matrix (v1.23)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.23 (2026-08-20, Story 14.1, Epic 14)** — LISTEN/NOTIFY Consume 2nd Batch
+> EXTENSION capability gates 2 NEW rows: `LISTEN_NOTIFY_TENANT_FANOUT`
+> (cross-tenant invalidation fan-out, 14-1 wire) + `LISTEN_NOTIFY_MULTIPROCESS`
+> (leader/follower multi-process coordination, 14-1 wire). Both industry-agnostic
+> 4-industry grants ✅/✅/✅/✅ (CR 12-1 L4 precedent like `LISTEN_NOTIFY` /
+> `AI_INSIGHT` / `TWO_FACTOR_AUTH`). AD-25 cache invalidation trigger EXTENSION
+> 4-channel → 5+ channels (cross_tenant_fanout channel 추가). 14-1 wire = atomic
+> single sprint T1~T9 (alembic 0034 + listener EXTENSION + main.py lifespan +
+> adapter EXTENSION + capability v1.22 → v1.23 EXTENSION + V8 determinism +
+> cross-language drift EXTENSION + multi-process coordination tests +
+> cross-tenant fan-out e2e). wire_commit = `7835463`.
+>
+> **v1.22 (2026-08-20, Story 13.1, Epic 13)** — LISTEN/NOTIFY Consume Trigger
+> EXTENSION capability gate 1 NEW row: `LISTEN_NOTIFY` (industry-agnostic,
+> 4-industry grants ✅/✅/✅/✅). CR 12-5 D-GATE-01 inversion: capability gate
+> enforced through `Depends(require_capability(Capability.LISTEN_NOTIFY))`.
+> AD-25 cache invalidation trigger 3-channel → 4-channel (cache_invalidation_log
+> + pg_notify listener). 13-1 wire = atomic single sprint T1~T8 (alembic 0033 +
+> listener EXTENSION + main.py lifespan EXTENSION + adapter EXTENSION +
+> capability v1.21 → v1.22 + V8 determinism + cross-language drift EXTENSION
+> + LISTEN/NOTIFY consume tests). wire_commit = `f2ea2f6`.
 >
 > **v1.21 (2026-08-17, Epic 10 PRD entry)** — `AI_INSIGHT` capability 1 NEW
 > (industry-agnostic, 4-industry grants ✅/✅/✅/✅ — CR 12-1 L4 precedent like
@@ -345,6 +367,9 @@ class CalcResponse(BaseModel):
 | `BUDGET_SCENARIO` | 8.1 | ✅ | ✅ | ✅ | ✅ |
 | `CVP_SIMULATION` | 7.1 | ✅ | ✅ | ✅ | ✅ |
 | `ABC_CALCULATION` | 9.1, 9.2, 9.3 | ✅ | ✅ | ✅ | ✅ |
+| `LISTEN_NOTIFY` | 13.1 | ✅ | ✅ | ✅ | ✅ |
+| `LISTEN_NOTIFY_TENANT_FANOUT` | 14.1 | ✅ | ✅ | ✅ | ✅ |
+| `LISTEN_NOTIFY_MULTIPROCESS` | 14.1 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 

@@ -443,7 +443,15 @@ def test_step_6_5_v8_golden_mismatch_returns_failed_envelope() -> None:
 
 
 async def _step_6_5_v8_golden_mismatch_returns_failed_envelope_impl() -> None:
-    fixture = _make_fixture()
+    # CR-NEW (2026-08-20): Use `_make_fixture_from_v8` so V8 byte-identical
+    # compares against the golden fixture baked at publish time. The
+    # original implementation used `_make_fixture()` with a hardcoded
+    # tenant_id 11111111-... which does NOT match the V8 golden fixture's
+    # random uuid4 — V8's smoke-fix T3 fallback returns placeholder=True
+    # (status='passed') for tenant_id mismatch, masking the regression.
+    # With the V8-aware fixture, V8 runs the actual byte-identical
+    # comparison and detects the 1 KRW material_cost drift.
+    fixture = _make_fixture_from_v8("manufacturing__b-small")
     engine_result = compute_period_cost(
         monthly_input=fixture.monthly_input,
         baseline=fixture.baseline,

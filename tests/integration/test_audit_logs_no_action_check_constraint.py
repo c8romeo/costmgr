@@ -68,12 +68,13 @@ def test_alembic_0022_does_not_exist() -> None:
         "the audit_logs.action column is intentionally CHECK-less per "
         "A5 drift detector design (tests/integration/test_audit_action_consistency.py)"
     )
-    # Also reject any 0023-prefixed alembic migration file at all.
-    stray_0023 = sorted(versions_dir.glob("0023_*.py"))
-    assert not stray_0023, (
-        f"unexpected 0023 alembic migrations found: {[p.name for p in stray_0023]} — "
-        "audit_logs must remain CHECK-less"
-    )
+    # NOTE (CR 11-3 lesson 2026-08-20): Do NOT glob `0023_*.py` here. The
+    # specific filename pin above is the ONLY invariant we care about —
+    # audit_logs must remain CHECK-less. Other 0023 migrations are
+    # LEGITIMATE (e.g. `0023_used_challenge_tokens.py` from Story 12.4
+    # 2FA TOTP wire, which has nothing to do with audit_logs).
+    # The original over-broad glob assertion incorrectly rejected any
+    # 0023 file. Removed; the specific filename check is sufficient.
 
 
 def test_alembic_0001_audit_logs_action_has_no_check_constraint() -> None:
