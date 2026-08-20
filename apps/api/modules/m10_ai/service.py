@@ -922,16 +922,15 @@ async def extract_monthly_input(
         InvalidMonthlyFieldValueError: parse failure (422 envelope, from kernel).
         MonthlyExtractionError: extraction wrapper failure (500 envelope).
     """
-    from packages.services.m10_ai.adapters.fake_adapter import (
-        FakeDocumentExtractionAdapter,
-    )
-
     from packages.services.m10_ai import (
         CONFIDENCE_RED_THRESHOLD,
         InvalidMonthlyFieldValueError,
         MonthlyFieldName,
         MonthlyInputDraftRow,
         normalize_monthly_field_value,
+    )
+    from packages.services.m10_ai.adapters.fake_adapter import (
+        FakeDocumentExtractionAdapter,
     )
 
     extraction_id = uuid.uuid4()

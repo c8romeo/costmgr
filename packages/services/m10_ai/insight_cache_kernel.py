@@ -35,12 +35,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Final
 
-
 # ── Insight kind discriminator (master PRD §12 verbatim) ─────
 # Three insight categories per master PRD §12:
 #   - cost_reduction_candidate (원가 절감 후보)
 #   - anomaly_pattern          (이상 패턴)
-#   - forecast                 (예측)
+#   - forecast                 (예측)  # noqa: ERA001
 # Each is a rule-based template that gets materialized on cache miss.
 # AD-15 cross-language parity SSOT: TS mirror
 # `apps/web/lib/ai-insights.ts` MUST mirror this frozenset.

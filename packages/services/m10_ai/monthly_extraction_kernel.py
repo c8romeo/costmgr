@@ -37,7 +37,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from enum import Enum
 from typing import Final, Literal
 
 from packages.services.m10_ai.extraction_port import (

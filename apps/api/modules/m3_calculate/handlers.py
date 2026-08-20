@@ -32,7 +32,7 @@ the verdict envelope is the application-level contract for lock.
 from __future__ import annotations
 
 import uuid as _uuid_mod
-from typing import Annotated, Union
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,12 +70,12 @@ router = APIRouter(prefix="/api/v1", tags=["m3-calculate"])
 
 @router.post(
     "/calc",
-    response_model=Union[CalcResponse, CalcAbcResponse],
+    response_model=CalcResponse | CalcAbcResponse,
     status_code=status.HTTP_200_OK,
     summary="원가 계산 (§6.1 8단계 산식 체인 + Epic 9 ABC dual-route)",
     responses={
         200: {
-            "model": Union[CalcResponse, CalcAbcResponse],
+            "model": CalcResponse | CalcAbcResponse,
             "description": (
                 "계산 성공 (verified). Discriminated union envelope: "
                 "CalcResponse (engine_type='trad') or CalcAbcResponse "

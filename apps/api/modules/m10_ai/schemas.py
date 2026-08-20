@@ -16,7 +16,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -392,7 +392,7 @@ class AICommentError(BaseModel):
 #   - Audit-first INSERT 2행 append (CR 1.1 verbatim):
 #     Row 1: action_class=INPUT_DRAFT, action=input_draft_promoted (NEW)
 #     Row 2: action_class=AI_EXTRACTION_EXECUTED,
-#            action=monthly_extraction_promote_executed (NEW)
+#            action=monthly_extraction_promote_executed (NEW)  # noqa: ERA001
 #   - Canonical 6-stream shape (master PRD §3.1: 직접재료비/직접노무비/
 #     제조간접비/판매관리비/매출/기말재고) from `input_drafts.confirmed_value`
 #     JSONB.
@@ -664,14 +664,6 @@ class InputPromotionDeniedError(BaseModel):
 # uses it for OpenAPI schema discrimination AND for runtime serialization
 # branch resolution.
 PromoteEnvelope = Annotated[
-    Union[
-        PromoteResponse,
-        PromoteDraftImmutableError,
-        PromoteSourceDraftNotFoundError,
-        PromoteIdempotencyMismatchError,
-        PromoteM2OnlyError,
-        AiPipaConsentMissingError,
-        InputPromotionDeniedError,
-    ],
+    PromoteResponse | PromoteDraftImmutableError | PromoteSourceDraftNotFoundError | PromoteIdempotencyMismatchError | PromoteM2OnlyError | AiPipaConsentMissingError | InputPromotionDeniedError,
     Field(discriminator="status"),
 ]

@@ -144,16 +144,21 @@ def test_promote_response_frozen_model() -> None:
 
 
 def test_promote_envelope_is_annotated_union() -> None:
-    """PromoteEnvelope = Annotated[Union[7 variants], Field(discriminator='status')]."""
-    # Resolve the Annotated metadata — promote envelope must carry a discriminator
-    # tag for the Pydantic v2 discriminated union machinery to work.
-    from typing import get_type_hints
+    """PromoteEnvelope = Annotated[<7 variants>, Field(discriminator='status')].
 
-    hints = get_type_hints(PromoteEnvelope, include_extras=True)
-    # Pydantic v2 stores the Annotated origin metadata on the globalns.
-    # We assert the type name starts with "Annotated" or "Union".
-    type_name = str(PromoteEnvelope)
-    assert "Annotated" in type_name or "Union" in type_name
+    Introspects via `get_args` so the assertion holds for both the legacy
+    `Union[...]` spelling and the PEP 604 `X | Y` spelling (UP007).
+    """
+    envelope_args = get_args(PromoteEnvelope)
+    assert len(envelope_args) == 2, "PromoteEnvelope must be Annotated[union, FieldInfo]"
+
+    union_type, field_info = envelope_args
+
+    # 1 success + 6 typed error envelopes = 7 variants (AD-7 strict invariant).
+    assert len(get_args(union_type)) == 7
+
+    # Pydantic v2 discriminated-union machinery requires the `status` tag.
+    assert getattr(field_info, "discriminator", None) == "status"
 
 
 def test_promote_response_status_tag_literal() -> None:

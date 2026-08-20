@@ -30,6 +30,7 @@ from __future__ import annotations
 import base64
 import binascii
 import uuid
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Query, Response, status
@@ -50,7 +51,6 @@ from apps.api.modules.m10_ai.schemas import (
     AICommentEntry,
     AICommentError,
     AICommentListResponse,
-    AiPipaConsentMissingError as AiPipaConsentMissingEnvelope,
     DocumentResponse,
     DocumentSummary,
     DocumentUploadRequest,
@@ -58,7 +58,6 @@ from apps.api.modules.m10_ai.schemas import (
     DraftResponse,
     DraftUpdateRequest,
     EvidenceResponse,
-    InputPromotionDeniedError,
     InsightCacheError,
     InsightEntry,
     InsightListResponse,
@@ -75,6 +74,9 @@ from apps.api.modules.m10_ai.schemas import (
     PromoteRequest,
     PromoteResponse,
     PromoteSourceDraftNotFoundError,
+)
+from apps.api.modules.m10_ai.schemas import (
+    AiPipaConsentMissingError as AiPipaConsentMissingEnvelope,
 )
 from apps.api.modules.m10_ai.service import (
     AiPipaConsentMissingError,
@@ -102,6 +104,8 @@ from packages.services.m10_ai.monthly_extraction_kernel import (
 )
 from packages.services.m10_ai.promoter_port import (
     ALLOWED_PROMOTER_ACTOR_ROLE,
+)
+from packages.services.m10_ai.promoter_port import (
     PromotionRequest as KernelPromotionRequest,
 )
 
@@ -905,7 +909,6 @@ async def promote_ai_draft_endpoint(
     module-level router constants above.
     """
     from datetime import datetime as _dt
-    from datetime import timezone as _tz
 
     trace_id = str(uuid.uuid4())
     response.headers["X-Trace-Id"] = trace_id
@@ -1016,7 +1019,7 @@ async def promote_ai_draft_endpoint(
         promotion_id=result.promotion_id,
         idempotency_key=result.idempotency_key,
         confirmed_input_row_id=result.monthly_input_row_id,
-        promoted_at=_dt.now(_tz.utc),
+        promoted_at=_dt.now(UTC),
         draft_hash=result.idempotency_key.bytes + b"\x00" * 16,  # proxy: 32 bytes
         idempotent_replay=result.idempotent_replay,
         audit_log_ids=audit_log_ids,

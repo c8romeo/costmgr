@@ -510,8 +510,8 @@ serialize_allocation_state_for_api = serialize_allocation_state
 #  11. COMMIT
 #
 # M3 orchestrator's `_dispatch_abc_path` calls this method via:
-#   m9_service = AbcAllocationService(session, trace_id)
-#   outcome = await m9_service.compute_and_persist(tenant_id, period_key)
+#   m9_service = AbcAllocationService(session, trace_id)  # noqa: ERA001
+#   outcome = await m9_service.compute_and_persist(tenant_id, period_key)  # noqa: ERA001
 
 
 # ABC dual-route result envelope (M3 CalcOutcomeABC field shape).

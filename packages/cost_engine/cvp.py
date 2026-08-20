@@ -561,7 +561,7 @@ def compute_bep_hash(result: BEPResult | CVPResult | TargetProfitResult) -> str:
     Returns:
         `f"sha256:{64-char-hexdigest}"`.
     """
-    if not isinstance(result, (BEPResult, CVPResult, TargetProfitResult)):
+    if not isinstance(result, BEPResult | CVPResult | TargetProfitResult):
         raise CVPInvalidInputError(
             f"result must be BEPResult, CVPResult, or TargetProfitResult, "
             f"got {type(result).__name__}",
