@@ -74,6 +74,16 @@ class Capability(str, Enum):
     # Drift detector: tests/integration/test_capability_matrix_v1_21_drift.py
     # (matrix row already declared; backend enum was the missing half).
     AI_INSIGHT = "ai_insight"
+    # Story 13.1 (Epic 13) — LISTEN/NOTIFY cache invalidation consume
+    # capability (PRD §F13.1 + §AD-25 + A39/A51/A52 결정 wire).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors AI_INSIGHT
+    # 10-1 wire pattern). All 4 industries can register the LISTEN
+    # daemon (PostgreSQL NOTIFY is a tenant-level primitive, not a
+    # industry-specific feature). Gates the daemon registration only;
+    # the 4-channel dispatch table is unchanged for all industries.
+    # Drift detector: tests/integration/test_capability_matrix_v1_22_drift.py
+    # (capability matrix v1.22 NEW row).
+    LISTEN_NOTIFY = "listen_notify"
     # Story 2.1 — product catalog. Every industry has SOME product type
     # (service tenants register `service` products even without a BOM).
     # The PRODUCT capability gates the catalog CRUD itself.
@@ -208,6 +218,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, validation guard CR 12-1 L4 + 7-1/7-2/8-1
             # /8-2/8-3 precedent). Gates POST /api/v1/ai/extract-monthly.
             Capability.AI_INSIGHT,
+            # Story 13.1 (Epic 13) — manufacturing tenants get LISTEN_NOTIFY
+            # (industry-agnostic, validation guard CR 12-1 L4 + AI_INSIGHT
+            # 10-1 wire pattern). Gates the LISTEN daemon registration for
+            # AD-25 cache invalidation consume trigger EXTENSION.
+            Capability.LISTEN_NOTIFY,
             # Story 2.1 — manufacturing tenants can register all 5 product types.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,
@@ -259,6 +274,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 10.1 (Epic 10) — service tenants get AI_INSIGHT
             # (industry-agnostic, validation guard CR 12-1 L4).
             Capability.AI_INSIGHT,
+            # Story 13.1 (Epic 13) — service tenants get LISTEN_NOTIFY
+            # (industry-agnostic, validation guard CR 12-1 L4 + AI_INSIGHT
+            # 10-1 wire pattern). Gates the LISTEN daemon registration.
+            Capability.LISTEN_NOTIFY,
             # Story 2.1 — service tenants get PRODUCT (catalog CRUD) but
             # NOT PRODUCT_MATERIAL (no BOM → no physical raw/semi entries).
             Capability.PRODUCT,
@@ -305,6 +324,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 10.1 (Epic 10) — 겸영 tenants get AI_INSIGHT
             # (industry-agnostic, validation guard CR 12-1 L4).
             Capability.AI_INSIGHT,
+            # Story 13.1 (Epic 13) — 겸영 tenants get LISTEN_NOTIFY
+            # (industry-agnostic, validation guard CR 12-1 L4 + AI_INSIGHT
+            # 10-1 wire pattern). Gates the LISTEN daemon registration.
+            Capability.LISTEN_NOTIFY,
             # Story 2.1 — both engines → full product catalog.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,
@@ -364,6 +387,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 10.1 (Epic 10) — full matrix tenants get AI_INSIGHT
             # (industry-agnostic, validation guard CR 12-1 L4).
             Capability.AI_INSIGHT,
+            # Story 13.1 (Epic 13) — full matrix tenants get LISTEN_NOTIFY
+            # (industry-agnostic, validation guard CR 12-1 L4 + AI_INSIGHT
+            # 10-1 wire pattern). Gates the LISTEN daemon registration.
+            Capability.LISTEN_NOTIFY,
             # Story 2.1 — full catalog + 격리 버킷.
             Capability.PRODUCT,
             Capability.PRODUCT_MATERIAL,

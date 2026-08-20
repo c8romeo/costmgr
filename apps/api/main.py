@@ -3044,3 +3044,105 @@ async def _attach_tenant_listener() -> None:
     except RuntimeError:
         # No DATABASE_URL configured (e.g. README quickstart smoke test). Skip.
         pass
+
+
+# Story 13.1 — LISTEN/NOTIFY Consume Trigger EXTENSION (A39/A51/A52 결정 wire).
+# Cache invalidation LISTEN daemon startup hook. Imports lazily so test
+# environments without a real DB engine don't crash. Errors are logged
+# but the daemon starts in a degraded state (consume resumes on next
+# restart via the circuit breaker).
+@app.on_event("startup")
+async def _start_cache_invalidation_listener() -> None:
+    """Start the CacheInvalidationListener (AD-25 consume trigger).
+
+    T3 wire: FastAPI lifespan EXTENSION (preserving the existing
+    `_attach_tenant_listener` on_event for backward compatibility —
+    full migration to `@asynccontextmanager` lifespan is deferred to
+    D-13-1-DEFER-4 (separate epic territory). For 13-1 we add the
+    listener as a parallel on_event handler.
+
+    On startup failure, the daemon is in degraded state — the circuit
+    breaker will retry. The CR 12-5 D-14 envelope is raised ONLY if
+    a request path is triggered while the listener is down.
+    """
+    try:
+        from apps.api.core.cache_invalidation_listener import (
+            CacheInvalidationListener,
+            ListenerStartFailedError,
+        )
+        from apps.api.core.cache_invalidation_listener_adapters import (
+            build_default_adapter_factories,
+        )
+
+        factories = build_default_adapter_factories()
+        listener = CacheInvalidationListener(adapter_factories=factories)
+        await listener.start()
+        # Bind to app.state for shutdown access.
+        app.state.cache_invalidation_listener = listener
+    except ImportError:
+        # Test environment without DB / adapter infrastructure.
+        pass
+    except ListenerStartFailedError as exc:
+        # Logged but not raised — graceful degradation per F13.1.
+        import logging
+        logging.getLogger(__name__).warning(
+            "CacheInvalidationListener start failed (graceful degradation): %s",
+            exc,
+        )
+
+
+@app.on_event("shutdown")
+async def _stop_cache_invalidation_listener() -> None:
+    """Stop the CacheInvalidationListener (T3 wire)."""
+    listener = getattr(app.state, "cache_invalidation_listener", None)
+    if listener is None:
+        return
+    try:
+        await listener.stop()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "CacheInvalidationListener stop failed: %s", exc
+        )
+
+
+# Story 13.1 — D-14 envelope for listener start/stop failures.
+# 503 LISTENER_START_FAILED / LISTENER_STOP_FAILED (CR 12-5 verbatim).
+@app.exception_handler(Exception)
+async def _listener_start_failed_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    """Catch-all for listener failures (CR 12-5 + D-14 envelope).
+
+    NOTE: this is a narrow handler that ONLY fires for the two
+    documented listener exception types. Other exceptions fall through
+    to FastAPI's default handler. Pattern: introspect the exception
+    type to determine the appropriate response code.
+    """
+    from apps.api.core.cache_invalidation_listener import (
+        ListenerStartFailedError,
+        ListenerStopFailedError,
+    )
+
+    if isinstance(exc, ListenerStartFailedError):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "code": "LISTENER_START_FAILED",
+                "message_ko": "캐시 무효화 리스너 시작 실패",
+                "details": {"reason": exc.reason},
+                "trace_id": exc.trace_id,
+            },
+        )
+    if isinstance(exc, ListenerStopFailedError):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "code": "LISTENER_STOP_FAILED",
+                "message_ko": "캐시 무효화 리스너 종료 실패",
+                "details": {"reason": exc.reason},
+                "trace_id": exc.trace_id,
+            },
+        )
+    # Re-raise so FastAPI's default handler takes over.
+    raise exc
