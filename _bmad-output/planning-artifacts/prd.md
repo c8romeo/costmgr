@@ -1,14 +1,15 @@
 ---
-title: bizup 통합 PRD v2.1
+title: bizup 통합 PRD v2.2
 status: final
 created: 2026-07-12
 updated: 2026-08-20
 changelog:
+  - v2.2 (2026-08-20): Epic 13 PRD entry A51 결정 wire — §F13 (LISTEN/NOTIFY Consume Trigger EXTENSION) 신규 + §8.1 M10-(d)·§F10.1-(d) 4-channel EXTENSION 진입 결정 verbatim bind + §15 로드맵 Epic 13 row + §부록 A A39 (status in-progress → done 진입 wire) + A51 Epic 13 PRD entry 결정. cj-style Epic 13 1번째 진입점 docs only atomic wire.
   - v2.1 (2026-08-20): Epic 10 close-out retro A37 결정 wire — §F10.1 (Three-Insight Cache Policy) + §F10.2 (AI Reference vs Auto Analysis Badge Separation) + §12 AI 3종 update + §13.1 AI 배지 ko-KR cross-ref + §14 NFR (NFR18 ko-KR + AI 추출/insight/cache/reject counter 4 rows) + §14.B NON-GOAL #5·6 정합 + §부록 A A37~A42 + AD-7/AD-17/AD-25 architectural decisions 표 추가. cj-style carry-over 15번째 docs only atomic wire.
   - v2.0 (2026-07-25): final
 ---
 
-# 비즈업(Biz-Up) 통합 제품요구사항정의서(PRD) v2.1
+# 비즈업(Biz-Up) 통합 제품요구사항정의서(PRD) v2.2
 ## 원가경영관리 웹 SaaS — 전통 개별원가 엔진 + 활동기준원가(ABC) 엔진 통합판
 
 | 항목 | 내용 |
@@ -477,7 +478,7 @@ CCR(Capacity Cost Rate) = 부서 원가 ÷ 실제적 조업능력(practical capa
   - (a) 시스템은 인사이트 질문 3개 생성·캐시 시 "캐시 = 마감 완료 시점부터 다음 마감 시작까지 보존, 마감 데이터 변경 시 폐기" 정책을 강제한다 (검수 medium 해소).
   - (b) 시스템은 계산 결과를 변경하지 않으며(SM-3a 검증), AI 의견은 "자동 분석(고정 템플릿)"과 "AI 참고(구분 배지)"로 분리 표시한다.
   - **(c) 10-1 (AI 문서추출 → 입력 초안)** — 시스템은 PDF/Excel 업로드 시 6 monthly input fields (직접재료비/직접노무비/제조간접비/판매관리비/매출/기말재고) 를 추출하고, `extraction_confidence < 0.70` 인 항목은 빨강 배지(RED) 로 표시하며 사용자 확정을 강제한다 [A11, V-row §8.1 M0-c]. AI 출력은 `input_drafts.target_table='monthly_inputs'` 에만 저장하며 `confirmed_inputs` 직접 쓰기는 거부 + 카운터 증가 (target 0) [AD-7].
-  - **(d) 10-2 (인사이트 캐시 정책)** — 시스템은 인사이트 캐시 키 `(tenant_id, period_key, calculation_result_hash)` 로 저장하며 마감 데이터 변경 시 4-channel publisher (`ai_cache` 외 3 channel `cost_engine_cache`/`fiscal_period_cache`/`closing_snapshot_cache` 는 Epic 11 close/reopen trigger 진입 시점에 EXTENSION) 로 무효화한다 [AD-25].
+  - **(d) 10-2 (인사이트 캐시 정책)** — 시스템은 인사이트 캐시 키 `(tenant_id, period_key, calculation_result_hash)` 로 저장하며 마감 데이터 변경 시 4-channel publisher (`ai_cache` 외 3 channel `cost_engine_cache`/`fiscal_period_cache`/`closing_snapshot_cache` 는 Epic 13 LISTEN/NOTIFY consume trigger EXTENSION wire 진입 시점에 4-channel cache eviction publisher 로 무효화한다 [AD-25, §F13 신규].
   - **(e) 10-3 (자동 분석 vs AI 참고 배지 분리)** — 시스템은 `source_kind: Literal['auto_analysis', 'ai_reference']` Discriminated union 으로 분리 렌더링하고 (auto_analysis 파란 배지 "📊 자동 분석" + ai_reference 보라 배지 "🤖 AI 참고(검증 필요)" + tooltip "AI는 비권위적입니다 — 확정 책임은 사용자에게"), strict reject 외 value counter increment 강제 [AD-7 SM-3a].
   - **(f) 10-4 (승격 포트 멱등성)** — 시스템은 `InputPromoter.promote(tenant_id, period_key, source_draft_id)` 호출을 idempotent 로 처리하며, audit_logs 2행 append (actor + draft hash + ts) [AD-17]. M10 attempts to write `confirmed_inputs` 는 denied + 카운터 증가 (target 0) [AD-7].
 
@@ -567,7 +568,7 @@ CCR(Capacity Cost Rate) = 부서 원가 ÷ 실제적 조업능력(practical capa
 - **(a)** 시스템은 `fiscal_period_snapshots.state='committed'` 전이 시점에 `ai_cache` 키 `(tenant_id, period_key, calculation_result_hash)` 3-tuple 로 **인사이트 질문 3개 + 답변 3개**를 lock 한다 (NFR11 P95 ≤ 30s, [AD-25 verbatim]).
 - **(b)** 시스템은 cache hit 시 마지막 마감 완료 시점부터 다음 마감 시작 시점까지 보존된 인사이트를 반환하고, 동일 hit 은 0~수십 ms 내 응답한다 (cache 없으면 NFR11 SLO 내 cold compute).
 - **(c)** 시스템은 마감 데이터 변경 (Epic 11 AD-22 reversal INSERT) 시 AD-25 publisher 가 invalidation log 를 emit 하면 adapter 가 `WHERE tenant_id=? AND period_key=?` 매칭 cache entry 를 즉시 폐기한다.
-- **(d)** 시스템은 `cache_invalidation_log` 채널에 `ai_cache` 외 채널 (`cost_engine_cache` / `fiscal_period_cache` / `closing_snapshot_cache`) 이 추가되어도 본 캐시만 영향받지 않도록 channel-specific invalidation filter 를 강제한다 (`channel = 'ai_cache'` filter). Epic 11 close / reopen trigger 진입 시점에 4-channel publisher EXTENSION.
+- **(d)** 시스템은 `cache_invalidation_log` 채널에 `ai_cache` 외 채널 (`cost_engine_cache` / `fiscal_period_cache` / `closing_snapshot_cache`) 이 추가되어도 본 캐시만 영향받지 않도록 channel-specific invalidation filter 를 강제한다 (`channel = 'ai_cache'` filter). **Epic 13 LISTEN/NOTIFY consume trigger EXTENSION wire 진입 시점에 4-channel publisher EXTENSION (A51 결정, §F13 신규)**. D-10-2-DEFER-3 ✅ RESOLVED 진입.
 
 ### F10.2 AI Reference vs Auto Analysis Badge Separation (§8.1 M10-(b)(e) 확장)
 
@@ -577,6 +578,42 @@ CCR(Capacity Cost Rate) = 부서 원가 ÷ 실제적 조업능력(practical capa
 - **(b)** 시스템은 `auto_analysis` / `ai_reference` 키 외 value (예: `human_authored` 등) 도착 시 strict reject + 1행 counter increment 를 wire 한다 (§A11 시스템은 틀리지 않는다 / hover 후 미변경 = 안전).
 - **(c)** 시스템은 SM-3a "계산 결과 변경 시도 = 0건" 별도 tracking 을 위해 `auto_analysis` 의견 수정 시도도 동일 카운터로 추적한다 (AD-7 "M10 attempts to write confirmed-input tables are denied and counted (target zero)").
 - **(d)** 시스템은 `source_kind` 강제 검증 실패 시 1-line ko-KR 메시지로 reject (예: "분석 의견 출처가 불분명합니다") + counter 증가 + 200 OK envelope.
+
+---
+
+## F13. LISTEN/NOTIFY Consume Trigger EXTENSION (Epic 13 wire 정합, 2026-08-20 master PRD v2.2 edit)
+
+> 본 절은 **A39 결정 wire (Epic 13 = LISTEN/NOTIFY 전용 epic)** + **A51 Epic 13 PRD entry 결정 wire** 의 PRD-level AC 를 상세화한다. AD-25 cache invalidation trigger EXTENSION for close/reopen 의 wire 진입 근거 + 4-channel publisher EXTENSION 진입 결정을 verbatim bind 한다. Story 13-1 = NOTIFY trigger (alembic 0033) + LISTEN daemon (FastAPI lifespan) + 4-channel cache eviction handlers + reconnect/backoff + V8 determinism + cross-lang drift detector.
+
+### F13.1 LISTEN/NOTIFY 토폴로지 (§AD-25 EXTENSION)
+
+- **(a)** 시스템은 PostgreSQL `LISTEN/NOTIFY` 채널을 통해 cache invalidation 을 trigger 한다. `cache_invalidation_log` 테이블 AFTER INSERT 트리거가 `pg_notify('cache_invalidation_log', payload)` 를 emit 하고 (channel 명 = `cache_invalidation_log`, payload = JSON `{channel: str, tenant_id: str, period_key: str, trace_id: str, correction_group_id: str}`), M10/M3/M11 adapter 가 LISTEN daemon 을 통해 4 channel 모두를 consume 한다 [AD-25 verbatim EXTENSION, §F13 신규].
+- **(b)** 시스템은 4 channel 모두 (`ai_cache` / `cost_engine_cache` / `fiscal_period_cache` / `closing_snapshot_cache`) 에 대해 channel-specific eviction handler 를 wire 하며, 각 handler 는 매칭 cache entry 를 즉시 폐기한다. NOTIFY payload 는 channel 명을 명시적으로 포함하여 cross-channel leakage 를 차단한다 (channel-specific filter 강제).
+- **(c)** 시스템은 LISTEN daemon 이 FastAPI lifespan context manager 안에서 start/stop 되도록 wire 한다 (`apps/api/main.py` lifespan 진입 시 start, shutdown 시 stop). Daemon 은 asyncio task + reconnect/backoff (exponential + jitter + circuit breaker) + persistent failure 시 graceful degradation (다음 restart 시 reconnect) 을 보장한다.
+- **(d)** 시스템은 NOTIFY trigger 가 application polling 으로 대체되지 않도록 강제한다. Polling-only invalidation 은 forbidden. AD-25 verbatim "Application polling + input-write-only invalidation forbidden" 보존.
+
+### F13.2 4-Channel Cache Eviction Handlers (§M10/M3/M11 EXTENSION)
+
+- **(a)** M10 AI cache eviction — `apps/api/modules/m10_ai/service.py` EXTENSION (DELETE FROM `ai_insight_cache` WHERE `tenant_id=?` AND `period_key=?` 매칭 entry 즉시 폐기).
+- **(b)** M3 cost engine cache eviction — `packages/cost_engine/...` EXTENSION (in-process LRU eviction hook + on-notify handler).
+- **(c)** M11 fiscal_period cache eviction — `apps/api/modules/m11_close/...` EXTENSION (fiscal_period state='committed' cache invalidate).
+- **(d)** M11 closing_snapshot cache eviction — `apps/api/modules/m11_close/services/snapshot_service.py` EXTENSION (closing_snapshot hash mismatch 시 즉시 evict).
+
+### F13.3 V8 Determinism + Cross-Language Drift (§CR 12-5 EXTENSION)
+
+- **(a)** 시스템은 NOTIFY payload JSON serialization 이 결정적 (alphabetical key ordering) 임을 강제한다. V8 byte-identical determinism 검증 — payload bytes 가 동일 입력에 대해 동일하게 직렬화되어야 한다 (드롭/순서 차이로 인한 cache miss 방지).
+- **(b)** 시스템은 LISTEN payload shape 가 Python (`cache_invalidation_listener.py`) 와 TypeScript (`envelope.ts` cross-language drift detector) 양쪽에서 동일하게 파싱됨을 강제한다 [CR 12-5 D-PARITY-01 inversion 적용]. Drift 발생 시 drift detector test fail + 1-line ko-KR reject.
+- **(c)** 시스템은 capability gate `LISTEN_NOTIFY` (capability matrix v1.22, Epic 13 wire 진입) 를 통해 LISTEN daemon 시작/정지가 tenant 별로 on/off 가능하도록 wire 한다 [CR 12-5 D-GATE-01 inversion 적용]. 미허용 tenant 의 listener 는 등록되지 않는다.
+
+### F13.4 Tests + Wire Scope (cj-style Epic 13 1번째 진입점)
+
+- alembic 0033 — `pg_notify` trigger on `cache_invalidation_log` AFTER INSERT (channel + tenant_id + period_key + trace_id + correction_group_id payload).
+- `apps/api/core/cache_invalidation_listener.py` NEW — asyncio task + reconnect/backoff + 4-channel routing.
+- `apps/api/main.py` lifespan EXTENSION — listener start/stop on boot/shutdown.
+- 4 channels cache eviction handler EXTENSION (M10/M3/M11).
+- V8 determinism byte-identical test NEW.
+- CR 12-5 cross-language drift detector EXTENSION.
+- Tests expected ~30-40 NEW pytest (NOTIFY trigger SQL + listener unit + reconnect + eviction handlers + V8 determinism + cross-lang drift).
 
 ---
 
@@ -698,6 +735,10 @@ PRD 본문에서 단언되었으나 확정 전 재논의가 필요한 결정. �
 - **제조 부문 ABC 개방** (부문-엔진 매핑 해제, 병행 분석 뷰)
 - 멀티에이전트 원가분석 위원회 (AI 에이전트 협의체가 월 마감 데이터를 다각 분석)
 
+## Epic 13 (1차 출시 후 — A39 결정 wire, 2026-08-20 Epic 10 close-out retro §7)
+
+- **LISTEN/NOTIFY Consume Trigger EXTENSION** — AD-25 cache invalidation trigger EXTENSION for close/reopen (4-channel publisher EXTENSION: `ai_cache` / `cost_engine_cache` / `fiscal_period_cache` / `closing_snapshot_cache`). alembic 0033 (NOTIFY trigger) + LISTEN daemon (FastAPI lifespan) + 4-channel eviction handlers (M10/M3/M11 EXTENSION) + reconnect/backoff + V8 determinism + CR 12-5 cross-lang drift detector EXTENSION. Story 13-1 wire 진입 시점에 cj-style Epic 13 1번째 진입점 결정 verbatim bind. D-10-2-DEFER-3 ✅ RESOLVED. 1차 출시 직후 진입 권장 (PRD §F13 신규, §8.1 M10-(d)·§F10.1-(d) EXTENSION 결정 wire)
+
 ## 이론 근거 (2026-07 웹 검증 요지)
 - **AI-driven ABC**: AI 결합 ABC가 원가 배부 오류를 크게 줄이고, 이상감지·예측 모델·동인 자동 식별이 실무 표준으로 부상 — 비즈업 M10(1차) → 이상감지 알림(2차) → 멀티에이전트(3차)의 단계 승격 경로와 일치.
 - **TDABC의 표준화**: 시간방정식·CCR 기반 TDABC가 전통 ABC의 구축·유지 부담을 낮추는 사실상의 표준 — 1차 장착 근거.
@@ -765,10 +806,20 @@ PRD 본문에서 단언되었으나 확정 전 재논의가 필요한 결정. �
 |------|------|
 | **A37** | **Master PRD v2.0 본체 edit** (§F10.1·§F10.2 + §8.1 M10 + §12 AI 3종 + §13.1 ko-KR + §14 NFR + §14.B NON-GOAL #5·6 + §AD-7/17/25 verbatim + §SM-3a + §A11 + §NFR18 + §부록 A A23~A42). cj-style carry-over 15번째 docs only atomic wire (Epic 10 PRD extension → master PRD 본체 edit). 결정 wire 일자: 2026-08-20 |
 | **A38** | A35 frontend test debt dedicated sprint (cj-style carry-over 14번째) — Epic 10 4 stories frontend files + TS mirror parity + vitest mount 일괄 wire |
-| **A39** | D-10-2-DEFER-3 LISTEN/NOTIFY consume 별도 epic territory 결정 (post-Epic 10) — AD-25 cache invalidation trigger EXTENSION for close/reopen (separate epic territory, Epic 13+ 진입 시점 결정) |
+| **A39** | D-10-2-DEFER-3 LISTEN/NOTIFY consume 별도 epic territory 결정 (post-Epic 10) — AD-25 cache invalidation trigger EXTENSION for close/reopen. **결정 wire 진입 2026-08-20 (사용자 옵션 (a))**: Epic 13 = LISTEN/NOTIFY 전용 epic (Epic 13 1번째 진입점). Story 13-1 = LISTEN/NOTIFY consume trigger EXTENSION wire 진입. D-10-2-DEFER-3 ✅ RESOLVED 진입. A45/A46/A50 preserved (Epic 13 후속 story 진입). cj-style Epic 13 1번째 진입점 결정 verbatim bind. AD-25 verbatim 100% binding 진입. **✅ done 진입 2026-08-20** (Epic 13 PRD entry 결정 wire 완료 + §F13 LISTEN/NOTIFY 명세 신규 + §8.1 M10-(d)·§F10.1-(d) EXTENSION 진입 + §15 로드맵 Epic 13 row + A51 결정 wire) |
 | **A40** | A31/A32/A33 (Report #15 wire schedule) 처리 결정 — Epic 11 carry-over sprint 진입 시 wire (cj-style Epic 11 4번째 진입점 = Epic 11 Story 11.5 + 11.6 진입 결정) |
 | **A41** | Epic 11 carry-over sprint 진입 결정 (A13/A17/A18 sprint-up items) — 11-3 DEFER 8 items triage + W2 reopen 4-channel 검증 + A5 drift detector 3-way extension. ✅ done via 11-4 (cj-style carry-over 11번째) + 11-5 (cj-style 36번째) atomic wire |
 | **A42** | A36 SDR 검증 4-step 자동화 wire 보존 + Epic 11+ 적용 — commit prefix lint + sprint-status structure 검증 + vitest file count drift + commit consistency 자동 검증 단계 모두 PASS |
+
+### Epic 13 PRD entry 결정 (2026-08-20, cj-style Epic 13 1번째 진입점)
+
+| 결정 | 내용 |
+|------|------|
+| **A51** | **Epic 13 = LISTEN/NOTIFY 전용 epic PRD entry** — Epic 10 close-out retro §7 A39 결정 verbatim wire (cj-style Epic 13 1번째 진입점). Story 13-1 = LISTEN/NOTIFY consume trigger EXTENSION wire 진입 (NOTIFY trigger alembic 0033 + LISTEN daemon FastAPI lifespan + 4-channel cache eviction handlers + reconnect/backoff + V8 determinism + CR 12-5 cross-lang drift detector EXTENSION). 결정 wire = master PRD v2.2 atomic edit (§F13 신규 + §8.1 M10-(d)·§F10.1-(d) EXTENSION + §15 로드맵 Epic 13 row + §부록 A A39 done 진입 + A51 NEW). AD-25 verbatim 100% binding. D-10-2-DEFER-3 ✅ RESOLVED. capability matrix v1.22 신규 row `LISTEN_NOTIFY` (Epic 13 wire 진입). CR 11-3 honest-DEFER discipline + A36 SDR 검증 4-step 자동 적용 (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency 모두 PASS 예정). deadline: Story 13-1 bmad-create-story + bmad-dev-story atomic wire 진입 |
+| **A52** | (예정) Story 13-1 atomic wire T1~TN — LISTEN/NOTIFY consume trigger EXTENSION code/test/migration atomic wire. 추정 wire scope = ~800-1,200 LOC atomic wire (cj-style Epic 13 1번째 진입점 표준). 3중 게이트 impact = ruff scoped ~5-10 NEW + import-linter 2 KEPT 0 broken + pytest focused ~30-40 NEW + vitest baseline 보존. deadline: Epic 13 PRD entry done 진입 후 즉시 |
+| **A45** | (preserved) Epic 11 close-out retro 2nd (2026-08-20) — 11-3 honestly DEFER 3 items (T10 docs LOW + A5 partial LOW + reopen state transition LOW) still-pending. Epic 13 후속 story (13-2+) 진입 시점에 follow-up sprint 결정 |
+| **A46** | (preserved) Epic 11 close-out retro 2nd (2026-08-20) — 11-5 A13 residual stub UUIDs (`00000000-...`) with `TODO(11-4 carry)` markers preserved as W-class DEFER. Epic 13 후속 story (13-3+) 진입 시점에 session/RSC context resolution sweep 결정 |
+| **A50** | (preserved) Epic 11 close-out retro 2nd (2026-08-20) — A39 LISTEN/NOTIFY consume trigger EXTENSION 결정 = 별도 epic territory. Epic 13 PRD entry 진입 ✅ done (A51 결정 wire = A39 결정 = Epic 13 진입 결정 wire). A50 reframing close-out 완료 |
 
 ### Architectural Decisions (AD) — Epic 0~10 wire 정합 (2026-08-20 master PRD v2.0 edit)
 
