@@ -5,7 +5,7 @@ priority: HIGH
 epic: 14
 story_num: 1
 story_key: 14-1-listen-notify-consume-cross-tenant-fanout
-baseline_commit: TBD
+baseline_commit: 9c69fa1879302928430f1f2da2d7a45f712d5c2e
 created: 2026-08-20
 updated: 2026-08-20
 ---

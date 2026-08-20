@@ -200,6 +200,27 @@ class Capability(str, Enum):
     # drivers/validate,validate} routes. Documented in capability-matrix v1.18.
     # 9-2 / 9-3 / 9-4 동일 capability 재사용 (CR 11-3 즉시 sweep 회피).
     ABC_CALCULATION = "abc_calculation"
+    # Story 14.1 (Epic 14) — Cross-tenant invalidation fan-out capability
+    # (PRD §F14.1 + §AD-25 EXTENSION 5+ channels + A53+A57+A58+A59 결정 wire).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors LISTEN_NOTIFY 13-1
+    # wire pattern). All 4 industries can register the cross-tenant fan-out
+    # channel listener (PostgreSQL NOTIFY is a tenant-level primitive, not
+    # an industry-specific feature). Gates the cross_tenant_fanout channel
+    # listener registration for cross-tenant invalidation fan-out
+    # (multi-tenant isolation 검증 포함, CR 0-2 RLS lesson 적용).
+    # Drift detector: tests/integration/test_capability_matrix_v1_23_drift.py
+    # (capability matrix v1.23 EXTENSION 2 NEW rows).
+    LISTEN_NOTIFY_TENANT_FANOUT = "listen_notify_tenant_fanout"
+    # Story 14.1 (Epic 14) — Multi-process coordination capability
+    # (PRD §F14.2 + §AD-25 EXTENSION 5+ channels + A53+A57+A58+A59 결정 wire).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors LISTEN_NOTIFY 13-1
+    # wire pattern). All 4 industries can register the multi-process
+    # coordination leader election listener (PostgreSQL advisory lock is a
+    # tenant-level primitive, not industry-specific). Gates the
+    # multi-process coordination leader election + follower takeover.
+    # Drift detector: tests/integration/test_capability_matrix_v1_23_drift.py
+    # (capability matrix v1.23 EXTENSION 2 NEW rows).
+    LISTEN_NOTIFY_MULTIPROCESS = "listen_notify_multiprocess"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -263,6 +284,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 9.1 — manufacturing tenants get ABC_CALCULATION
             # (industry-agnostic, validation guard CR 12-1 L4 + 7-1/7-2/8-1/8-2/8-3 precedent).
             Capability.ABC_CALCULATION,
+            # Story 14.1 (Epic 14) — manufacturing tenants get
+            # LISTEN_NOTIFY_TENANT_FANOUT + LISTEN_NOTIFY_MULTIPROCESS
+            # (industry-agnostic, validation guard CR 12-1 L4 +
+            # LISTEN_NOTIFY 13-1 wire pattern).
+            Capability.LISTEN_NOTIFY_TENANT_FANOUT,
+            Capability.LISTEN_NOTIFY_MULTIPROCESS,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -306,6 +333,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 9.1 — service tenants get ABC_CALCULATION
             # (industry-agnostic, validation guard CR 12-1 L4).
             Capability.ABC_CALCULATION,
+            # Story 14.1 (Epic 14) — service tenants get
+            # LISTEN_NOTIFY_TENANT_FANOUT + LISTEN_NOTIFY_MULTIPROCESS
+            # (industry-agnostic, validation guard CR 12-1 L4 +
+            # LISTEN_NOTIFY 13-1 wire pattern).
+            Capability.LISTEN_NOTIFY_TENANT_FANOUT,
+            Capability.LISTEN_NOTIFY_MULTIPROCESS,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -369,6 +402,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 9.1 — 겸영 tenants get ABC_CALCULATION
             # (industry-agnostic, validation guard CR 12-1 L4).
             Capability.ABC_CALCULATION,
+            # Story 14.1 (Epic 14) — 겸영 tenants get
+            # LISTEN_NOTIFY_TENANT_FANOUT + LISTEN_NOTIFY_MULTIPROCESS
+            # (industry-agnostic, validation guard CR 12-1 L4 +
+            # LISTEN_NOTIFY 13-1 wire pattern).
+            Capability.LISTEN_NOTIFY_TENANT_FANOUT,
+            Capability.LISTEN_NOTIFY_MULTIPROCESS,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -429,6 +468,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Story 9.1 — full matrix tenants get ABC_CALCULATION
             # (industry-agnostic, validation guard CR 12-1 L4).
             Capability.ABC_CALCULATION,
+            # Story 14.1 (Epic 14) — full matrix tenants get
+            # LISTEN_NOTIFY_TENANT_FANOUT + LISTEN_NOTIFY_MULTIPROCESS
+            # (industry-agnostic, validation guard CR 12-1 L4 +
+            # LISTEN_NOTIFY 13-1 wire pattern).
+            Capability.LISTEN_NOTIFY_TENANT_FANOUT,
+            Capability.LISTEN_NOTIFY_MULTIPROCESS,
         }
     ),
 }

@@ -90,12 +90,17 @@ class TestConstants:
         assert NOTIFY_CHANNEL_NAME == "cache_invalidation_log"
 
     def test_allowed_channels_4_channels(self) -> None:
+        # Story 14.1 EXTENSION: cross_tenant_fanout 추가 → 4 → 5+ channels
+        # (AD-25 verbatim EXTENSION). Baseline (13-1) was 4 channels; 14-1
+        # adds the 5th. We assert exactly the 5+ set so any new channel
+        # introduced in the future must be a deliberate wire scope decision.
         assert ALLOWED_CHANNELS == frozenset(
             {
                 "ai_cache",
                 "cost_engine_cache",
                 "fiscal_period_cache",
                 "closing_snapshot_cache",
+                "cross_tenant_fanout",
             }
         )
 
@@ -333,9 +338,24 @@ class TestPayloadDispatch:
         assert parsed.to_dict() == payload
 
     def test_4_channel_payload_dispatch(self) -> None:
-        """Each of the 4 channels can be parsed separately."""
+        """Each of the 5+ channels can be parsed separately.
+
+        Story 14.1 EXTENSION: cross_tenant_fanout 추가 → 4 → 5+ channels.
+        The dispatch table may dispatch any of the 5+ allowed channels; the
+        parse_payload function must accept each channel's payload shape:
+        - 5 keys for the 4 baseline channels
+        - 7 keys for cross_tenant_fanout
+        """
+        from tests.api.core.test_cache_invalidation_listener_14_1 import (
+            _make_cross_tenant_payload as _make_7_key,
+        )
+
         for channel in ALLOWED_CHANNELS:
-            payload = _make_valid_payload(channel=channel)
+            if channel == "cross_tenant_fanout":
+                # 7-key shape required.
+                payload = _make_7_key()
+            else:
+                payload = _make_valid_payload(channel=channel)
             raw = serialize_payload_for_v8(payload)
             parsed = parse_payload(raw)
             assert parsed.channel == channel

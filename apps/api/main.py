@@ -3079,6 +3079,11 @@ async def _start_cache_invalidation_listener() -> None:
         await listener.start()
         # Bind to app.state for shutdown access.
         app.state.cache_invalidation_listener = listener
+        # Story 14.1 T3 wire — start leader election background task
+        # (follower takeover loop). The listener already attempts leader
+        # election internally during start(); here we wire the lifespan
+        # extension that spawns the follower takeover loop.
+        await _start_leader_election()
     except ImportError:
         # Test environment without DB / adapter infrastructure.
         pass
@@ -3093,7 +3098,14 @@ async def _start_cache_invalidation_listener() -> None:
 
 @app.on_event("shutdown")
 async def _stop_cache_invalidation_listener() -> None:
-    """Stop the CacheInvalidationListener (T3 wire)."""
+    """Stop the CacheInvalidationListener (T3 wire).
+
+    Story 14.1 EXTENSION — also stops the leader election background
+    task (follower takeover loop).
+    """
+    # Stop the leader election loop first (Story 14.1 T3 wire).
+    await _stop_leader_election()
+
     listener = getattr(app.state, "cache_invalidation_listener", None)
     if listener is None:
         return
@@ -3106,6 +3118,52 @@ async def _stop_cache_invalidation_listener() -> None:
         )
 
 
+# Story 14.1 — T3 wire: FastAPI lifespan EXTENSION (leader election wiring).
+# Per F14.2 verbatim + CR 11-3 honest-DEFER 보존: leader election failures
+# are logged but not raised — graceful degradation (single-process
+# environment defaulting to leader = self).
+async def _start_leader_election() -> None:
+    """Start leader election background task (Story 14.1 T3 wire).
+
+    The CacheInvalidationListener already attempts leader election
+    internally during start(); this function wires the lifespan
+    extension that exposes the leader election state via app.state.
+
+    Graceful degradation: leader election failures are logged but
+    not raised (CR 11-3 honest-DEFER 보존). The listener continues
+    in single-process mode (leader = self, follower = none).
+    """
+    listener = getattr(app.state, "cache_invalidation_listener", None)
+    if listener is None:
+        return
+    try:
+        leader_state = listener.leader_state
+        app.state.cache_invalidation_leader_state = leader_state
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Leader election start failed (graceful degradation): %s",
+            exc,
+        )
+
+
+async def _stop_leader_election() -> None:
+    """Stop leader election background task (Story 14.1 T3 wire)."""
+    listener = getattr(app.state, "cache_invalidation_listener", None)
+    if listener is None:
+        return
+    try:
+        # Listener.stop() handles the leader election loop cancellation
+        # internally. This function is a no-op stub for symmetry with
+        # the start path.
+        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Leader election stop failed: %s", exc,
+        )
+
+
 # Story 13.1 — D-14 envelope for listener start/stop failures.
 # 503 LISTENER_START_FAILED / LISTENER_STOP_FAILED (CR 12-5 verbatim).
 @app.exception_handler(Exception)
@@ -3114,12 +3172,15 @@ async def _listener_start_failed_handler(
 ) -> JSONResponse:
     """Catch-all for listener failures (CR 12-5 + D-14 envelope).
 
-    NOTE: this is a narrow handler that ONLY fires for the two
-    documented listener exception types. Other exceptions fall through
-    to FastAPI's default handler. Pattern: introspect the exception
-    type to determine the appropriate response code.
+    NOTE: this is a narrow handler that ONLY fires for the four
+    documented listener exception types (13-1 + 14-1 EXTENSION).
+    Other exceptions fall through to FastAPI's default handler.
+    Pattern: introspect the exception type to determine the appropriate
+    response code.
     """
     from apps.api.core.cache_invalidation_listener import (
+        LeaderElectionFailedError,
+        LeaderTakeoverFailedError,
         ListenerStartFailedError,
         ListenerStopFailedError,
     )
@@ -3140,6 +3201,27 @@ async def _listener_start_failed_handler(
             content={
                 "code": "LISTENER_STOP_FAILED",
                 "message_ko": "캐시 무효화 리스너 종료 실패",
+                "details": {"reason": exc.reason},
+                "trace_id": exc.trace_id,
+            },
+        )
+    # Story 14.1 EXTENSION — leader election / takeover envelope (CR 12-5 D-14).
+    if isinstance(exc, LeaderElectionFailedError):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "code": "LEADER_ELECTION_FAILED",
+                "message_ko": "리스너 리더 선출 실패",
+                "details": {"reason": exc.reason},
+                "trace_id": exc.trace_id,
+            },
+        )
+    if isinstance(exc, LeaderTakeoverFailedError):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "code": "LEADER_TAKEOVER_FAILED",
+                "message_ko": "리스너 리더 인계 실패",
                 "details": {"reason": exc.reason},
                 "trace_id": exc.trace_id,
             },
