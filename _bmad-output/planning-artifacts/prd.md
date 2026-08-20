@@ -690,10 +690,15 @@ CCR(Capacity Cost Rate) = 부서 원가 ÷ 실제적 조업능력(practical capa
   - 회사명: 1~100자, trim 후 빈 문자열 불허.
 - **(c)** 시스템은 가입 성공 시 atomic transaction 으로 다음을 수행한다 (CR 1-1 audit-first INSERT 정합):
   1. `supabase.auth.signUp({ email, password, options: { data: { company_name } } })` 호출 → Supabase auth.users row 1개 생성 + 인증 메일 발송 (이메일 인증 링크).
-  2. Backend callback (Supabase Database Webhook 또는 trigger) 가 `auth.users` INSERT 시 `users` row 1개 + `tenants` row 1개 (company_name) + `user_tenants` row 1개 (role='owner') + `tenant_settings` row 1개 (`onboarding.industry = null`) 를 atomic 으로 생성.
-  3. `audit_logs` row 1개 (action_name='tenant_created', actor_user_id, tenant_id, payload={company_name, industry=null}).
+  2. Frontend 가 `useUser()` 훅에서 `sb-access-token` 을 읽고, **pre-onboarding JWT (즉 `app_metadata.tenant_id` 가 비어있는 JWT)** 로 `POST /api/v1/onboarding/complete-signup` 호출. Backend 의 `SignupService.complete_signup()` 이 한 트랜잭션에서:
+     - `users` row 1개 (없으면 — Supabase 의 `auth.users.id` 와 동일 id)
+     - `tenants` row 1개 (company_name, industry)
+     - `tenant_memberships` row 1개 (role='owner') — **정정**: PRD v3.0 초안의 `user_tenants` 는 실제 테이블명 `tenant_memberships` 의 오기로 wire 진입 시점에 정정됨 (alembic 0001 `tenant_memberships` SSOT)
+     - `tenant_settings` row 1개 (`onboarding.industry` = body.industry, settings_version=1)
+     - `audit_logs` row 1개 (action='tenant_signup_completed', actor_user_id, tenant_id, payload={tenant_name, industry, owner_user_id})
+  3. Frontend 가 `supabase.auth.refreshSession()` 호출 → **두 번째 mint** 에서 `custom_access_token_hook` (alembic 0035) 가 `tenant_memberships` 행을 읽어 `app_metadata.tenant_id`/`role`/`industry` 를 주입. 이후 모든 API 호출은 `get_tenant_context` 가 `tenant_id` 를 인식하고 RLS 가 격리 동작.
 - **(d)** 시스템은 이메일 인증 완료 후 `/[locale]/(auth)/onboarding/industry` 로 자동 redirect (Story 1.1 IndustrySelector 진입). 이메일 인증 미완료 시 `/[locale]/(auth)/email-verification-pending` 안내 페이지 표시 + 재발송 버튼.
-- **(e)** 실패 시 ko-KR 메시지 표시: `SIGNUP_DUPLICATE_EMAIL_KO = "이미 가입된 이메일입니다"` (409), `SIGNUP_WEAK_PASSWORD_KO = "비밀번호는 10자 이상이며 대소문자·숫자·특수문자를 포함해야 합니다"` (422), `SIGNUP_INVALID_EMAIL_KO = "이메일 형식이 올바르지 않습니다"` (422), `SIGNUP_NETWORK_ERROR_KO = "네트워크 오류. 잠시 후 다시 시도해 주세요"` (네트워크 실패), `SIGNUP_PASSWORD_MISMATCH_KO = "비밀번호가 일치하지 않습니다"` (client-side validation).
+- **(e)** 실패 시 ko-KR 메시지 표시: `SIGNUP_DUPLICATE_EMAIL_KO = "이미 가입된 이메일입니다"` (409), `SIGNUP_WEAK_PASSWORD_KO = "비밀번호는 10자 이상이며 대소문자·숫자·특수문자를 포함해야 합니다"` (422), `SIGNUP_INVALID_EMAIL_KO = "이메일 형식이 올바르지 않습니다"` (422), `SIGNUP_NETWORK_ERROR_KO = "네트워크 오류. 잠시 후 다시 시도해 주세요"` (네트워크 실패), `SIGNUP_PASSWORD_MISMATCH_KO = "비밀번호가 일치하지 않습니다"` (client-side validation). `ALREADY_HAS_TENANT_KO = "이미 테넌트에 속해 있어 회원가입을 완료할 수 없습니다"` (409, 동일 user 가 두 번째 signup-completion 시도 시).
 
 ### F15.3 Auth Middleware EXTENSION — Supabase Session Check + (dashboard) 보호 (M0-(f) AC verbatim)
 

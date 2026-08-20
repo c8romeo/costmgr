@@ -10,7 +10,7 @@ Re-exports:
 
 from __future__ import annotations
 
-from apps.api.modules.m0_onboarding.handlers import router
+from apps.api.modules.m0_onboarding.handlers import router, signup_router
 from apps.api.modules.m0_onboarding.menu import (
     GRACE_PERIOD_DAYS,
     INDUSTRY_LABEL_KO,
@@ -30,4 +30,5 @@ __all__ = [
     "get_menu",
     "get_menu_labels",
     "router",
+    "signup_router",
 ]

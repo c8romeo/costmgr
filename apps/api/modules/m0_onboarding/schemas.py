@@ -23,6 +23,62 @@ from packages.services.m0_onboarding.industry_menu import (
 
 
 # ── Request bodies ──────────────────────────────────────────
+class SignupCompleteRequest(BaseModel):
+    """Body of POST /api/v1/onboarding/complete-signup (Phase 3-0 NEW).
+
+    Atomic tenant creation flow. The user is already authenticated via
+    Supabase (JWT carries `sub` + role, but no `tenant_id` because
+    `tenant_memberships` was empty at mint time). This endpoint
+    creates the first `tenants` row + `tenant_memberships` row
+    (and `tenant_settings`) for them.
+
+    `tenant_name` and `industry` are user-supplied; `tenant_id` is
+    SERVER-generated (UUIDv4) and returned in the response.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    tenant_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="User-supplied business name (PRD §F15.2).",
+    )
+    industry: Industry = Field(
+        ...,
+        description="4-industry enum (manufacturing / manufacturing_retail / service / mixed).",
+    )
+
+
+# ── Response bodies ─────────────────────────────────────────
+
+
+class SignupCompleteResponse(BaseModel):
+    """Body of POST /api/v1/onboarding/complete-signup.
+
+    Returns the new `tenant_id` + the user's role within it + the
+    industry they selected. The frontend uses this to:
+      1. Populate the tenant context in client state.
+      2. Call `supabase.auth.refreshSession()` to re-mint a JWT now
+         that `tenant_memberships` has a row, so subsequent API calls
+         have `app_metadata.tenant_id` populated.
+      3. Redirect to the dashboard.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    tenant_id: UUID = Field(..., description="Newly created tenant UUID.")
+    role: Literal["owner", "member", "viewer", "consultant_proxy"] = Field(
+        ..., description="User's role in the new tenant (always 'owner' for signup)."
+    )
+    industry: Industry
+    settings_version: int = Field(
+        ..., description="Initial tenant_settings version (= 1)."
+    )
+    trace_id: str = Field(..., description="Server-generated UUID for audit correlation.")
+
+
+# ── Request bodies ──────────────────────────────────────────
 class IndustryUpdateRequest(BaseModel):
     """Body of POST /api/v1/tenant-settings/onboarding/industry.
 

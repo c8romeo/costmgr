@@ -28,6 +28,14 @@ from apps.api.core.settings import get_settings
 
 # Typed error per AD-15
 TENANT_FORBIDDEN = "TENANT_FORBIDDEN"
+# Phase 3-0: JWT `app_metadata.role` allowlist. alembic 0001
+# `tenant_memberships.role` CHECK 제약과 동일 집합. RLS 가
+# `auth.jwt() -> 'app_metadata' ->> 'role'` 로 결정하므로
+# decoder 단계에서 검증해야 한다. 외부 노출 이름(`ALLOWED_ROLES`)은
+# tests 가 회귀 가드로 import 한다 (private `_ALLOWED_ROLES` 는
+# 모듈 내부 전용 alias).
+ALLOWED_ROLES = frozenset({"owner", "member", "viewer", "consultant_proxy"})
+_ALLOWED_ROLES = ALLOWED_ROLES
 # Cross-tenant access violation — the spec's example error string
 # (AC #3). Raised when a service or query targets a tenant other than
 # the JWT's `app_metadata.tenant_id`. Distinct from TENANT_FORBIDDEN
@@ -55,9 +63,16 @@ class AuthError(Exception):
 
 @dataclass(frozen=True)
 class JWTClaims:
-    """Decoded JWT claims — pure value object."""
+    """Decoded JWT claims — pure value object.
 
-    tenant_id: uuid.UUID
+    Phase 3-0: `tenant_id` is `Optional` to support the pre-onboarding
+    path (`decode_jwt(token, require_tenant=False)`). Every other
+    authenticated route still receives a concrete UUID because
+    `require_tenant=True` (default) rejects empty `app_metadata.tenant_id`
+    at decode time.
+    """
+
+    tenant_id: uuid.UUID | None
     role: str
     user_id: uuid.UUID
     # Story 6.3 B8: industry is server-controlled (read from
@@ -78,13 +93,21 @@ def _error_payload(code: str, message_ko: str, trace_id: str | None = None) -> d
     }
 
 
-def decode_jwt(token: str) -> JWTClaims:
+def decode_jwt(token: str, *, require_tenant: bool = True) -> JWTClaims:
     """Decode and verify a Supabase JWT.
 
     - HS256 signature verified with `SUPABASE_JWT_SECRET`.
     - `exp` claim validated (with 30s leeway, configurable via JWT_LEEWAY_SEC).
     - `tenant_id` and `role` extracted from `app_metadata` (server-controlled).
     - Raises `TENANT_FORBIDDEN` (401) on any failure.
+
+    Phase 3-0 (Epic 1 carry-over = auth contract): `require_tenant=False` 는
+    signup 직후 단계 — 사용자는 Supabase `auth.users` 에 존재하지만 아직
+    `tenant_memberships` 가 없어 hook 가 `app_metadata.tenant_id` 를 주입하지
+    못한 JWT — 에서 사용한다. 이 경로에서는 tenant_id 가 없어도 `sub` /
+    `role` / `industry` 만으로 user identity 를 인정해
+    `POST /api/v1/onboarding/complete-signup` 가 첫 테넌트를 만들 수 있게
+    한다.
     """
     settings = get_settings()
     if not settings.supabase_jwt_secret:
@@ -131,20 +154,27 @@ def decode_jwt(token: str) -> JWTClaims:
     app_metadata = payload.get("app_metadata") or {}
     tenant_id_raw = app_metadata.get("tenant_id")
     if not tenant_id_raw:
-        raise AuthError(
-            code=TENANT_FORBIDDEN,
-            message_ko="토큰에 테넌트 정보가 없습니다",
-            details={"reason": "no_tenant_id"},
-        )
-
-    try:
-        tenant_id = uuid.UUID(str(tenant_id_raw))
-    except (ValueError, TypeError) as e:
-        raise AuthError(
-            code=TENANT_FORBIDDEN,
-            message_ko="토큰의 테넌트 ID 형식이 잘못되었습니다",
-            details={"reason": "invalid_tenant_id"},
-        ) from e
+        if require_tenant:
+            raise AuthError(
+                code=TENANT_FORBIDDEN,
+                message_ko="토큰에 테넌트 정보가 없습니다",
+                details={"reason": "no_tenant_id"},
+            )
+        # Phase 3-0: pre-onboarding 경로. tenant_id 가 비어있어도
+        # user_id / role / industry 는 인정. 후속 endpoint 가
+        # tenant_memberships 를 만들고, 사용자가
+        # `supabase.auth.refreshSession()` 으로 새 JWT 를 받으면
+        # `app_metadata.tenant_id` 가 채워진다.
+        tenant_id = None
+    else:
+        try:
+            tenant_id = uuid.UUID(str(tenant_id_raw))
+        except (ValueError, TypeError) as e:
+            raise AuthError(
+                code=TENANT_FORBIDDEN,
+                message_ko="토큰의 테넌트 ID 형식이 잘못되었습니다",
+                details={"reason": "invalid_tenant_id"},
+            ) from e
 
     user_id_raw = payload.get("sub")
     if not user_id_raw:
@@ -162,7 +192,22 @@ def decode_jwt(token: str) -> JWTClaims:
             details={"reason": "invalid_sub"},
         ) from e
 
-    role = str(app_metadata.get("role") or "viewer")  # Task 5.3 default
+    # Phase 3-0 (auth 계약 수직 슬라이스): role allowlist 검증 추가.
+    # 기존 코드는 토큰의 role 필드를 그대로 통과시켜 handler-level
+    # `require_role("owner")` 만 의존했다. 하지만 SQL GUC인
+    # `request.jwt.claims` 로 rebuild 해서 publish 할 때, RLS 정책
+    # (예: m0_onboarding 의 `auth.jwt() -> 'app_metadata' ->> 'role'`)
+    # 도 이 값을 신뢰한다. 따라서 JWT 시크릿으로 사인된 페이로드라 해도
+    # allowlist 바깥의 값은 거부하는 게 옳다.
+    # alembic 0001 의 `tenant_memberships.role` CHECK 제약과 동일 집합.
+    role_raw = app_metadata.get("role") or "viewer"
+    role = str(role_raw)
+    if role not in _ALLOWED_ROLES:
+        raise AuthError(
+            code=TENANT_FORBIDDEN,
+            message_ko="토큰의 역할 정보가 유효하지 않습니다",
+            details={"reason": "invalid_role", "role": role},
+        )
     # Story 6.3 B8: industry is server-controlled and lives in
     # `app_metadata.industry`. If absent (older tokens, before the
     # Story 6.3 wire), the handler will treat it as missing and

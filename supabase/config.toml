@@ -46,6 +46,19 @@ double_confirm_changes = true
 enable_confirmations = false
 
 [auth.hook.custom_access_token]
-# Wired in Epic 1 Story 1.3 — injects tenant_id into app_metadata at JWT mint.
-enabled = false
+# Phase 3-0: hook enabled. The PL/pgSQL function
+# `public.custom_access_token_hook` is created by alembic 0035.
+# Without this enabled, every JWT mint carries an empty app_metadata
+# → `apps.api.core.security.decode_jwt` rejects with
+# `reason="no_tenant_id"` → every API request returns 401.
+#
+# Function contract (see apps/api/alembic/versions/0035_*.py):
+#   - Reads tenant_memberships + tenants joined by auth.users.id
+#   - Picks the highest-privilege membership (owner > member > viewer
+#     > consultant_proxy), breaking ties by oldest joined_at
+#   - Injects { tenant_id, role, industry } into claims.app_metadata
+#   - SECURITY DEFINER so the read is not blocked by RLS during mint
+#     (no user session exists yet at hook time)
+#   - STABLE — pure read, no DB writes
+enabled = true
 uri = "pg-functions://postgres/public/custom_access_token_hook"

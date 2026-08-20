@@ -67,6 +67,7 @@ class ActionClass(str, __import__("enum").Enum):
     ACCOUNT_DELETION = "account_deletion"  # Story 12.3 (NEW — destructive endpoint + consent envelope audit)
     AI_EXTRACTION_EXECUTED = "ai_extraction_executed"  # Story 10.1 (NEW — monthly input extraction audit-first)
     AI_INSIGHT_CACHE_ACCESSED = "ai_insight_cache_accessed"  # Story 10.2
+    TENANT = "tenant"  # Phase 3-0 (NEW — tenant signup completion audit-first)
 
 
 # ────────────────────────────────────────────────────────────
@@ -91,6 +92,13 @@ TenantSettingsAction = Literal[
     "onboarding_field_saved",  # Story 1.2 fiscal_year_start / currency / language
     "allocation_criterion_saved",  # Story 1.2 allocation_criteria JSONB
     "company_subblock_promoted",  # Story 1.3 confirmed drafts → tenant_settings JSONB
+]
+
+# tenant actions (Phase 3-0 — signup completion)
+# Distinct from TenantSettingsAction because the target aggregate is
+# the `tenants` row itself (creation), not the `tenant_settings` JSONB.
+TenantAction = Literal[
+    "tenant_signup_completed",  # Phase 3-0 — atomic tenants + users + tenant_memberships + tenant_settings
 ]
 
 # service_role action
@@ -455,6 +463,7 @@ AuditAction = (
     | AccountDeletionAction
     | AIExtractionAction  # NEW — Story 10.1 (Epic 10)
     | AIInsightCacheAction  # NEW — Story 10.2 (Epic 10)
+    | TenantAction  # NEW — Phase 3-0 (Epic 1 carry-over = auth contract)
 )
 
 
@@ -480,6 +489,10 @@ class _ActionRegistry:
                     "company_subblock_promoted",
                 }
             ),
+        ),
+        ActionClass.TENANT: (
+            "audit_logs",
+            frozenset({"tenant_signup_completed"}),
         ),
         ActionClass.SERVICE_ROLE: ("audit_logs", frozenset({"service_role_bypass"})),
         ActionClass.UPLOADED_DOCUMENT: (

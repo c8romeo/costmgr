@@ -24,6 +24,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.db import get_session
@@ -31,7 +32,12 @@ from apps.api.core.jsonb_schemas import (
     OnboardingField,
     OnboardingValidationError,
 )
-from apps.api.core.tenant_context import TenantContext, get_tenant_context
+from apps.api.core.tenant_context import (
+    PreOnboardingUser,
+    TenantContext,
+    get_pre_onboarding_user,
+    get_tenant_context,
+)
 from apps.api.modules.m0_onboarding.schemas import (
     AllocationCriteriaUpdateRequest,
     CompletionStatusResponse,
@@ -43,6 +49,8 @@ from apps.api.modules.m0_onboarding.schemas import (
     IndustryUpdateResponse,
     LanguageField,
     OnboardingFieldSavedResponse,
+    SignupCompleteRequest,
+    SignupCompleteResponse,
     TenantSettingsResponse,
 )
 from apps.api.modules.m0_onboarding.services.settings_service import (
@@ -52,9 +60,115 @@ from apps.api.modules.m0_onboarding.services.settings_service import (
     SettingsService,
     TenantSettingsNotFoundError,
 )
+from apps.api.modules.m0_onboarding.services.signup_service import (
+    AlreadyHasTenantError,
+    SignupService,
+    TenantNameValidationError,
+)
 from packages.services.m0_onboarding.industry_menu import Industry
 
 router = APIRouter(prefix="/api/v1/tenant-settings", tags=["m0-onboarding"])
+
+# Phase 3-0 — atomic signup-completion router. Separate from
+# `router` (tenant-settings) because the auth contract is different:
+# accepts JWTs without `app_metadata.tenant_id` (pre-onboarding
+# state), routed through `get_pre_onboarding_user` instead of
+# `get_tenant_context`.
+signup_router = APIRouter(prefix="/api/v1/onboarding", tags=["m0-onboarding-signup"])
+
+
+# ── POST /api/v1/onboarding/complete-signup (Phase 3-0 NEW) ───
+@signup_router.post(
+    "/complete-signup",
+    response_model=SignupCompleteResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="회원가입 완료 — 원자적 테넌트 생성",
+    description=(
+        "Phase 3-0 (Epic 1 carry-over = auth contract). Frontend 가 "
+        "`supabase.auth.signUp()` 으로 발급받은 JWT (이때는 "
+        "`app_metadata.tenant_id` 가 비어있음) 를 Authorization 헤더에 "
+        "실어 호출. 응답으로 받은 `tenant_id` 를 클라이언트 상태에 저장한 "
+        "뒤 `supabase.auth.refreshSession()` 으로 새 JWT 를 받으면 "
+        "`app_metadata.tenant_id` 가 채워진다. 한 트랜잭션에서 users + "
+        "tenants + tenant_memberships + tenant_settings + audit_logs "
+        "원자적 INSERT (PRD §F15.2 verbatim)."
+    ),
+    responses={
+        201: {"description": "Tenant created successfully."},
+        401: {"description": "Invalid/expired JWT (TENANT_FORBIDDEN)."},
+        409: {
+            "description": "ALREADY_HAS_TENANT — user already has a tenant."
+        },
+        422: {"description": "Invalid body (Pydantic) or tenant_name invalid."},
+    },
+)
+async def complete_signup(
+    body: SignupCompleteRequest,
+    user: PreOnboardingUser = Depends(get_pre_onboarding_user),
+    session: AsyncSession = Depends(get_session),
+) -> SignupCompleteResponse:
+    """Atomic tenant creation for fresh signups.
+
+    The pre-onboarding JWT has `sub` (= user_id) + role, but no
+    `tenant_id`. This endpoint creates the first tenant for the user
+    in a single transaction.
+    """
+    trace_id = str(uuid.uuid4())
+    service = SignupService(session, trace_id=trace_id)
+    try:
+        result = await service.complete_signup(
+            user_id=user.user_id,
+            user_email=user.email,
+            tenant_name=body.tenant_name,
+            industry=body.industry,
+        )
+    except TenantNameValidationError as e:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(  # type: ignore[return-value]
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "code": "TENANT_NAME_INVALID",
+                "message_ko": "사업장 이름이 잘못되었습니다",
+                "details": {"reason": e.reason},
+                "trace_id": e.trace_id,
+            },
+        )
+    except AlreadyHasTenantError as e:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(  # type: ignore[return-value]
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "code": "ALREADY_HAS_TENANT",
+                "message_ko": "이미 테넌트에 속해 있어 회원가입을 완료할 수 없습니다",
+                "details": {
+                    "existing_tenant_id": str(e.existing_tenant_id),
+                    "existing_role": e.existing_role,
+                },
+                "trace_id": e.trace_id,
+            },
+        )
+    except IntegrityError as e:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(  # type: ignore[return-value]
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "code": "SIGNUP_INTEGRITY_ERROR",
+                "message_ko": "회원가입 중 무결성 오류가 발생했습니다",
+                "details": {"reason": str(e.orig)},
+                "trace_id": trace_id,
+            },
+        )
+
+    return SignupCompleteResponse(
+        tenant_id=result.tenant_id,
+        role=result.role,  # type: ignore[arg-type]
+        industry=result.industry,
+        settings_version=result.settings_version,
+        trace_id=result.trace_id,
+    )
 
 
 # ── POST /api/v1/tenant-settings/onboarding/industry ────────
