@@ -1,8 +1,29 @@
-# Capability Matrix (v1.24)
+# Capability Matrix (v1.25)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.25 (2026-08-22, Phase 4 PRD entry)** — Deployment config + Dockerfile +
+> health check + observability + database backup capability gates 4 NEW rows:
+> `DEPLOYMENT_PROD` (Vercel frontend production deployment + Railway backend
+> production deployment, Phase 4 T1+T2 wire 진입) +
+> `DEPLOYMENT_STAGING` (Vercel frontend staging deployment + Railway backend
+> staging deployment, Phase 4 T1+T2 wire 진입) +
+> `DEPLOYMENT_DATABASE_BACKUP` (Supabase PostgreSQL PITR 7일 자동 backup +
+> phase_4_backup_strategy table, Phase 4 T6 wire 진입) +
+> `DEPLOYMENT_HEALTH_CHECK` (`GET /api/v1/health` + `GET /api/health` +
+> Sentry observability, Phase 4 T5 wire 진입). All 4 industry-agnostic
+> 4-industry grants ✅/✅/✅/✅ (CR 12-1 L4 precedent like `LISTEN_NOTIFY` /
+> `AI_INSIGHT` / `TWO_FACTOR_AUTH` / `LISTEN_NOTIFY_TENANT_FANOUT` /
+> `LISTEN_NOTIFY_MULTIPROCESS` / `LOGIN` / `SIGNUP` / `AUTH_MIDDLEWARE` /
+> `FORGOT_PASSWORD` / `LOGOUT`). AD-27 Deployment 신규 (Vercel frontend +
+> Railway backend + Supabase PostgreSQL production + Sentry observability
+> 결정 wire). Phase 4 wire scope 결정 보존 T1~T8 (T1 Vercel config + T2
+> Railway config + T3 per-app Dockerfile + T4 deployment runbook + T5 health
+> check + observability + T6 database backup strategy + T7 capability v1.25
+> EXTENSION + T8 tests + 3중 게이트 FINAL CLEAN atomic commit). wire_commit = TBD
+> (cj-style Phase 4 3번째 진입점 진입 시점, expected cj-style 55번째 epic 연속 정직 회복).
 >
 > **v1.24 (2026-08-20, Phase 3 PRD entry)** — Auth Foundation capability gates
 > 5 NEW rows: `LOGIN` (이메일·비밀번호 로그인, Phase 3 T2 wire 진입) +
@@ -392,6 +413,10 @@ class CalcResponse(BaseModel):
 | `AUTH_MIDDLEWARE` | Phase 3 | ✅ | ✅ | ✅ | ✅ |
 | `FORGOT_PASSWORD` | Phase 3 | ✅ | ✅ | ✅ | ✅ |
 | `LOGOUT` | Phase 3 | ✅ | ✅ | ✅ | ✅ |
+| `DEPLOYMENT_PROD` | Phase 4 | ✅ | ✅ | ✅ | ✅ |
+| `DEPLOYMENT_STAGING` | Phase 4 | ✅ | ✅ | ✅ | ✅ |
+| `DEPLOYMENT_DATABASE_BACKUP` | Phase 4 | ✅ | ✅ | ✅ | ✅ |
+| `DEPLOYMENT_HEALTH_CHECK` | Phase 4 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
