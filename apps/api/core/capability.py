@@ -221,6 +221,22 @@ class Capability(str, Enum):
     # Drift detector: tests/integration/test_capability_matrix_v1_23_drift.py
     # (capability matrix v1.23 EXTENSION 2 NEW rows).
     LISTEN_NOTIFY_MULTIPROCESS = "listen_notify_multiprocess"
+    # Story phase-3.1 (Phase 3 cj-style 2번째 진입점) — Auth Foundation
+    # Wire (PRD §F15 + AD-26 + A65+A66+A67+A68+A69 결정 wire).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors 2FA / backup /
+    # deletion / 4-stage close / reversal / LOCK pattern). All 4 industries
+    # have the LOGIN + SIGNUP + AUTH_MIDDLEWARE + FORGOT_PASSWORD + LOGOUT
+    # surface — authentication is operational infrastructure, not
+    # industry-specific. Gates the corresponding auth endpoints. The
+    # capability matrix v1.24 (already declared in `docs/capability-matrix.md`
+    # during Phase 3 PRD entry) declares the 5 NEW rows; this backend enum
+    # is the missing half. Drift detector:
+    # tests/integration/test_capability_matrix_v1_24_drift.py.
+    LOGIN = "login"
+    SIGNUP = "signup"
+    AUTH_MIDDLEWARE = "auth_middleware"
+    FORGOT_PASSWORD = "forgot_password"
+    LOGOUT = "logout"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -290,6 +306,14 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # LISTEN_NOTIFY 13-1 wire pattern).
             Capability.LISTEN_NOTIFY_TENANT_FANOUT,
             Capability.LISTEN_NOTIFY_MULTIPROCESS,
+            # Story phase-3.1 — manufacturing tenants get LOGIN + SIGNUP +
+            # AUTH_MIDDLEWARE + FORGOT_PASSWORD + LOGOUT (industry-agnostic,
+            # security baseline CR 12-1 L4 + 2FA / deletion / backup pattern).
+            Capability.LOGIN,
+            Capability.SIGNUP,
+            Capability.AUTH_MIDDLEWARE,
+            Capability.FORGOT_PASSWORD,
+            Capability.LOGOUT,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -339,6 +363,14 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # LISTEN_NOTIFY 13-1 wire pattern).
             Capability.LISTEN_NOTIFY_TENANT_FANOUT,
             Capability.LISTEN_NOTIFY_MULTIPROCESS,
+            # Story phase-3.1 — service tenants get LOGIN + SIGNUP +
+            # AUTH_MIDDLEWARE + FORGOT_PASSWORD + LOGOUT (industry-agnostic,
+            # security baseline CR 12-1 L4).
+            Capability.LOGIN,
+            Capability.SIGNUP,
+            Capability.AUTH_MIDDLEWARE,
+            Capability.FORGOT_PASSWORD,
+            Capability.LOGOUT,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -408,6 +440,14 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # LISTEN_NOTIFY 13-1 wire pattern).
             Capability.LISTEN_NOTIFY_TENANT_FANOUT,
             Capability.LISTEN_NOTIFY_MULTIPROCESS,
+            # Story phase-3.1 — 겸영 tenants get LOGIN + SIGNUP +
+            # AUTH_MIDDLEWARE + FORGOT_PASSWORD + LOGOUT (industry-agnostic,
+            # security baseline CR 12-1 L4).
+            Capability.LOGIN,
+            Capability.SIGNUP,
+            Capability.AUTH_MIDDLEWARE,
+            Capability.FORGOT_PASSWORD,
+            Capability.LOGOUT,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -474,6 +514,14 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # LISTEN_NOTIFY 13-1 wire pattern).
             Capability.LISTEN_NOTIFY_TENANT_FANOUT,
             Capability.LISTEN_NOTIFY_MULTIPROCESS,
+            # Story phase-3.1 — full matrix tenants get LOGIN + SIGNUP +
+            # AUTH_MIDDLEWARE + FORGOT_PASSWORD + LOGOUT (industry-agnostic,
+            # security baseline CR 12-1 L4).
+            Capability.LOGIN,
+            Capability.SIGNUP,
+            Capability.AUTH_MIDDLEWARE,
+            Capability.FORGOT_PASSWORD,
+            Capability.LOGOUT,
         }
     ),
 }

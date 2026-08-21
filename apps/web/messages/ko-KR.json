@@ -1,4 +1,70 @@
 {
+  "auth": {
+    "login": {
+      "title": "로그인",
+      "subtitle": "costmgr 계정으로 로그인합니다.",
+      "email_label": "이메일",
+      "password_label": "비밀번호",
+      "show_password": "보기",
+      "hide_password": "숨기기",
+      "submit": "로그인",
+      "submitting": "로그인 중...",
+      "signup_link": "회원가입",
+      "forgot_password_link": "비밀번호 찾기",
+      "error_invalid_credentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
+      "error_network": "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      "error_rate_limited": "로그인 5회 실패로 30초간 제한됩니다.",
+      "error_invalid_input": "이메일과 비밀번호를 입력해 주세요.",
+      "error_reset_success": "비밀번호가 성공적으로 변경되었습니다. 다시 로그인해 주세요."
+    },
+    "signup": {
+      "title": "회원가입",
+      "subtitle": "비밀번호 10자 이상, 영문 대소문자·숫자·특수문자 각 1개 이상 포함.",
+      "email_label": "이메일",
+      "password_label": "비밀번호",
+      "password_confirm_label": "비밀번호 확인",
+      "company_name_label": "회사명",
+      "submit": "가입하기",
+      "submitting": "가입 중...",
+      "login_link": "로그인으로 돌아가기",
+      "error_duplicate_email": "이미 가입된 이메일입니다.",
+      "error_weak_password": "비밀번호가 보안 규칙에 부합하지 않습니다 (10자 이상, 대소문자·숫자·특수문자 각 1개 이상).",
+      "error_invalid_email": "이메일 형식이 올바르지 않습니다.",
+      "error_network": "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      "error_password_mismatch": "비밀번호 확인이 일치하지 않습니다.",
+      "error_already_has_tenant": "이미 다른 테넌트에 속해 있습니다. 기존 계정으로 로그인해 주세요.",
+      "email_verification_pending_title": "이메일 인증을 완료해 주세요",
+      "email_verification_pending_body": "인증 메일을 보냈습니다. 메일의 링크를 클릭해 가입을 완료해 주세요.",
+      "email_verification_resend": "인증 메일 재발송"
+    },
+    "logout": {
+      "button": "로그아웃",
+      "error_failed": "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      "error_network": "네트워크 오류로 로그아웃하지 못했습니다."
+    },
+    "forgot_password": {
+      "title": "비밀번호 찾기",
+      "subtitle": "가입한 이메일을 입력하시면 재설정 링크를 보내드립니다.",
+      "email_label": "이메일",
+      "submit": "재설정 링크 보내기",
+      "submitting": "전송 중...",
+      "back_to_login": "로그인으로 돌아가기",
+      "success_message": "이메일이 등록된 경우, 재설정 링크가 곧 도착합니다.",
+      "error_network": "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+    },
+    "reset_password": {
+      "title": "비밀번호 재설정",
+      "subtitle": "새 비밀번호를 입력해 주세요.",
+      "password_label": "새 비밀번호",
+      "password_confirm_label": "비밀번호 확인",
+      "submit": "비밀번호 변경",
+      "submitting": "변경 중...",
+      "error_invalid_token": "재설정 링크가 유효하지 않거나 만료되었습니다. 다시 요청해 주세요.",
+      "error_weak_password": "비밀번호가 보안 규칙에 부합하지 않습니다.",
+      "error_password_mismatch": "비밀번호 확인이 일치하지 않습니다.",
+      "error_network": "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+    }
+  },
   "industry": {
     "title": "업종을 선택해 주세요",
     "manufacturing": "제조업",

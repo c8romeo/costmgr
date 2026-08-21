@@ -210,6 +210,7 @@ updated: 2026-08-20
 
 **MAX SDR claim 갱신** (CR 11-2 lesson — separate line for unambiguous parser match):
 - **2026-08-20** — MAX SDR claim 갱신: **3737 tests collected** (2401 → 3737, +1336 from 9-1~9-7+10-1~10-5+11-5+11-6+12-1~12-5+13-1+14-1 wire 누적 − 4 stale capability_matrix_v1_17/18/19/20 pin files 삭제 후 = -50 + 추가 -39 from capability_matrix stale pin sweep 정확화). 실제 `pytest --collect-only -q` = 3737.
+- **2026-08-21** — MAX SDR claim 갱신: **3855 tests collected** (3737 → 3855, +118 from Phase 3-0 atomic wire `1db21d2` +43 NEW pytest tests + Phase 3-1 atomic wire +31 NEW pytest tests + 추가 +44 from Phase 3-0 sprint-status follow-up `7c6aaa9` 등 누적 wire 영향). 실제 `pytest --collect-only -q` = 3855.
 
 ### A19 cohesion pattern 8 surface EXTENSION PASS (cj-style Epic 14 2번째 진입점 standard)
 
