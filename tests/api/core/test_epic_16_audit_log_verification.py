@@ -122,3 +122,69 @@ class TestCR1Compliance:
 
     def test_test_action_name(self) -> None:
         assert "tenant_idp_tested" in EXPECTED_NEW_AUTH_ACTIONS
+
+
+class TestTypoActionRejected:
+    """D-EPIC-16-REVIEW-DEFER-3 (M5) RESOLVED — emit_audit_typed typo guard.
+
+    The original review flagged the risk that emit_audit_typed might let an
+    arbitrary string action pass through without validation. The actual
+    implementation calls `_ActionRegistry.validate()` which checks the
+    action against the frozenset of accepted actions for the given
+    ActionClass. This test pins that behavior: a typo (e.g. an extra
+    underscore) MUST raise ValueError, and a known-good action MUST pass.
+    """
+
+    @pytest.mark.parametrize(
+        "typo_action",
+        [
+            "tenant_idp_create",  # missing trailing 'd'
+            "tenant_idp_created_typo",
+            "TENANT_IDP_CREATED",  # case-sensitive
+            " tenant_idp_created",  # leading whitespace
+            "tenant_idp_created ",  # trailing whitespace
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_typo_action_raises_value_error(self, typo_action: str) -> None:
+        from unittest.mock import AsyncMock
+
+        from apps.api.core.audit_action import emit_audit_typed
+
+        session = AsyncMock()
+
+        with pytest.raises(ValueError, match="audit_action: action"):
+            await emit_audit_typed(
+                session,
+                action_class=ActionClass.AUTH,
+                action=typo_action,
+                actor_id=None,
+                target_id=None,
+                tenant_id=None,
+                payload={},
+            )
+
+    @pytest.mark.asyncio
+    async def test_unknown_action_class_raises_value_error(self) -> None:
+        """Unknown ActionClass must raise ValueError before any DB call."""
+        from unittest.mock import AsyncMock
+
+        from apps.api.core.audit_action import emit_audit_typed
+
+        session = AsyncMock()
+
+        class BogusClass(str):
+            """Test-only fake ActionClass that str-matches but isn't registered."""
+
+        bogus_class = BogusClass("bogus_value")
+
+        with pytest.raises(ValueError, match="audit_action: unknown ActionClass"):
+            await emit_audit_typed(
+                session,
+                action_class=bogus_class,  # type: ignore[arg-type]
+                action="any_action",
+                actor_id=None,
+                target_id=None,
+                tenant_id=None,
+                payload={},
+            )

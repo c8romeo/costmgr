@@ -970,7 +970,11 @@
     "step_reports_title": "보고서",
     "step_security_title": "보안",
     "skip_button": "건너뛰기",
-    "complete_button": "시작하기"
+    "complete_button": "시작하기",
+    "tooltip_dashboard": "대시보드 위젯 5종을 자유롭게 추가/제거하세요",
+    "tooltip_data": "ABC/TDABC 분석을 위한 원가 데이터를 입력하세요",
+    "tooltip_reports": "월간/분기/연간 보고서를 자동 생성합니다",
+    "tooltip_security": "TOTP 앱으로 2차 인증을 설정하세요"
   },
   "support": {
     "title": "고객 지원",
