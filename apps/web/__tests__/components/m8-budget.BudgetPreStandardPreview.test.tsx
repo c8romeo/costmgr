@@ -13,7 +13,7 @@ import koKR from "../../messages/ko-KR.json";
 vi.mock("next-intl", () => ({
   useTranslations: (namespace: string) => {
     return (key: string) => {
-      const messages = (koKR as Record<string, Record<string, string>>)[namespace];
+      const messages = (koKR as unknown as Record<string, Record<string, string>>)[namespace];
       return messages?.[key] ?? `[${namespace}.${key}]`;
     };
   },

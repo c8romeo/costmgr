@@ -21,7 +21,7 @@ import koKR from "../../messages/ko-KR.json";
 vi.mock("next-intl", () => ({
   useTranslations: (namespace: string) => {
     return (key: string, vars?: Record<string, string | number>) => {
-      const messages = (koKR as Record<string, Record<string, string>>)[namespace];
+      const messages = (koKR as unknown as Record<string, Record<string, string>>)[namespace];
       let template = messages?.[key] ?? `[${namespace}.${key}]`;
       if (vars) {
         for (const [k, v] of Object.entries(vars)) {

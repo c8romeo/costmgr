@@ -30,6 +30,11 @@ import type {
   MonthlyClosingReportV4VerdictResponse,
 } from "./monthly-closing-report";
 import type { BackupListResponse } from "./m12-account-backup";
+import type {
+  ActivityStreamGroup,
+  AuditLogPage,
+  AuditLogQueryFilters,
+} from "./audit/audit-log-client";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8765";
 
@@ -759,6 +764,116 @@ export async function fetchIdPConfigServerSide(
     if (res.status === 404) return null;
     if (!res.ok) return null;
     const data = (await res.json()) as IdPConfig[];
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Epic 17 T2 (AC #2.1) — Audit Log Viewer initial server-side fetch.
+// RSC fetch for `GET /api/v1/audit-log` to seed the /audit-log page
+// with the first page of audit entries (PRD §F21.2 + AD-32 (b)).
+// Mirrors `apps/api/modules/audit/audit_log_routes.py`
+// `list_audit_log` route (capability gate AUDIT_LOG_VIEW, owner/admin
+// only). TS mirror parity mandatory (CR 11-4 D-004).
+//
+// Per F-20 race-free pattern: races inside this fetch are unlikely
+// (no parallel inputs), but the 5s AbortController prevents a wedged
+// backend from stalling the initial render — on timeout / error we
+// return null and let the Client Component's `useEffect` mount fetch
+// surface a typed CR 12-5 D-14 envelope to the user.
+//
+// All filters are sent as query params. RLS auto-isolation is enforced
+// at the backend (CR 0-2 verbatim) — the cookie Bearer token is
+// forwarded verbatim and the route handlers attach the tenant context
+// automatically.
+export async function fetchAuditLogServerSide(
+  accessToken: string | undefined,
+  filters: AuditLogQueryFilters,
+  page: number,
+  pageSize: number,
+  traceId: string,
+): Promise<AuditLogPage | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const qs = new URLSearchParams();
+  qs.set("page", String(page));
+  qs.set("page_size", String(pageSize));
+  if (filters.actor_id) qs.set("actor_id", filters.actor_id);
+  if (filters.action) qs.set("action", filters.action);
+  if (filters.action_class) qs.set("action_class", filters.action_class);
+  if (filters.resource_type) qs.set("resource_type", filters.resource_type);
+  if (filters.resource_id) qs.set("resource_id", filters.resource_id);
+  if (filters.start_date) qs.set("start_date", filters.start_date);
+  if (filters.end_date) qs.set("end_date", filters.end_date);
+  if (filters.trace_id) qs.set("trace_id", filters.trace_id);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(`${apiBaseUrl()}/api/v1/audit-log?${qs.toString()}`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+      signal: abortCtl.signal,
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    const data = (await res.json()) as AuditLogPage;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Epic 17 T3 (AC #3.1) — Activity Stream initial server-side fetch.
+// RSC fetch for `GET /api/v1/activity?window_days=...` to seed the
+// /activity page with the first activity groups (PRD §F21.3 + AD-32
+// (c)). Mirrors `apps/api/modules/audit/audit_log_routes.py`
+// `get_activity_stream` route (no capability gate; all tenant
+// members can view activity). TS mirror parity mandatory (CR 11-4
+// D-004).
+//
+// windowDays is a typed literal (1 | 7 | 30 | 90) — the page-level
+// ALLOWED_WINDOWS guard already filters invalid values, but we
+// forward the request as-is and let the backend reject malformed
+// ranges (returning null → empty timeline in the Client Component).
+export async function fetchActivityStreamServerSide(
+  accessToken: string | undefined,
+  windowDays: 1 | 7 | 30 | 90,
+  traceId: string,
+): Promise<ActivityStreamGroup[] | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/activity?window_days=${windowDays}`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    const data = (await res.json()) as ActivityStreamGroup[];
     return data;
   } catch {
     return null;
