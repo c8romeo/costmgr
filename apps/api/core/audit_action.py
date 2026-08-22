@@ -70,6 +70,7 @@ class ActionClass(str, __import__("enum").Enum):
     TENANT = "tenant"  # Phase 3-0 (NEW — tenant signup completion audit-first)
     AUTH = "auth"  # Epic 15 (NEW — magic_link + social_oauth + sso audit-first INSERT)
     INFRA = "infra"  # Phase 5 (NEW — cross-region backup + failover + DR drill audit-first INSERT)
+    AUDIT = "audit"  # Epic 17 (NEW — audit log viewer export audit-first INSERT)
 
 
 # ────────────────────────────────────────────────────────────
@@ -461,6 +462,21 @@ InfraAction = Literal[
 ]
 
 
+# Epic 17 (cj-style 82번째 epic 연속 정직 회복 wire) — AUDIT actions
+# (audit log viewer CSV export audit-first INSERT, AD-32 (f) verbatim).
+# PRD §F21.5 + AC #5.5 — audit-first INSERT `audit_log_exported` BEFORE
+# the CSV byte stream flush (CR 1-1 verbatim + ActionClass.AUDIT).
+# Routes to `audit_logs` (NOT to a separate ledger — audit log viewer
+# export events are tenant-scoped platform-event trail only, mirroring
+# AUTH (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) pattern).
+# 1 NEW value: `audit_log_exported` (CSV export wire).
+# Drift detector: tests/integration/test_audit_action_consistency.py
+# enforces ActionClass registry ↔ DB CHECK ↔ call sites parity.
+AuditAction = Literal[
+    "audit_log_exported",  # §F21.5 CSV export Row audit-first INSERT
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -489,6 +505,7 @@ AuditAction = (
     | AIInsightCacheAction  # NEW — Story 10.2 (Epic 10)
     | TenantAction  # NEW — Phase 3-0 (Epic 1 carry-over = auth contract)
     | InfraAction  # NEW — Phase 5 (multi-region backup + failover + DR drill)
+    | AuditAction  # NEW — Epic 17 (audit log viewer CSV export)
 )
 
 
@@ -867,6 +884,21 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Epic 17 (cj-style 82번째 wire) — AUDIT 1 value (audit log
+        # viewer CSV export audit-first INSERT, AD-32 (f) verbatim).
+        # Routes to audit_logs (NOT to a separate ledger — audit log
+        # viewer events are tenant-scoped platform-event trail only,
+        # mirroring AUTH (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH
+        # (Epic 12) pattern). Drift detector enforces ActionClass
+        # registry ↔ DB CHECK ↔ call sites parity (3-way gate).
+        ActionClass.AUDIT: (
+            "audit_logs",
+            frozenset(
+                {
+                    "audit_log_exported",  # §F21.5 CSV export Row audit-first
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -995,5 +1027,6 @@ __all__ = [
     "AIExtractionAction",  # NEW — Story 10.1 (Epic 10)
     "AIInsightCacheAction",  # NEW — Story 10.2 (Epic 10)
     "InfraAction",  # NEW — Phase 5 (multi-region backup + failover + DR drill)
+    "AuditAction",  # NEW — Epic 17 (audit log viewer CSV export)
     "emit_audit_typed",
 ]

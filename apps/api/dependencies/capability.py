@@ -1,16 +1,22 @@
 """
 apps/api/dependencies/capability.py — FastAPI dependency helpers for capability gates.
 
-Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — T6 (AC #6.3) — F19.6.
+Epic 17 (cj-style 82번째 epic 연속 정직 회복 wire) — T6 (AC #6.3) — F21.6.
 
-Re-exports `require_capability` from `apps.api.core.capability` plus 5
-Epic-16-specific named dependencies for the IdP admin territory gates:
+Re-exports `require_capability` from `apps.api.core.capability` plus
+Epic-15/16/17-specific named dependencies:
 
+Epic 15:
   - `require_launch_landing()` — gates `/api/v1/launch/landing` (1st release)
   - `require_launch_tos()` — gates `/api/v1/launch/tos-acceptance` (1st release)
   - `require_launch_support()` — gates `/api/v1/launch/support-tickets` (1st release)
   - `require_launch_monitoring()` — gates `/api/v1/launch/*` (1st release)
-  - `require_tenant_idp_management()` — gates `/api/v1/admin/tenant/{slug}/idp` (Epic 16)
+
+Epic 16:
+  - `require_tenant_idp_management()` — gates `/api/v1/admin/tenant/{slug}/idp`
+
+Epic 17:
+  - `require_audit_log_view()` — gates `/api/v1/audit-log[/...]` + `/audit-log/export`
 
 Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
 """
@@ -30,6 +36,7 @@ __all__ = [
     "require_launch_support",
     "require_launch_monitoring",
     "require_tenant_idp_management",
+    "require_audit_log_view",
 ]
 
 
@@ -43,3 +50,16 @@ require_launch_monitoring = require_capability(Capability.LAUNCH_MONITORING)
 # (mirrors SSO_ENTERPRISE / LISTEN_NOTIFY / AUTH_MIDDLEWARE / DEPLOYMENT_*
 # / LAUNCH_* pattern). All 4 industries can manage their tenant IdP.
 require_tenant_idp_management = require_capability(Capability.TENANT_IDP_MANAGEMENT)
+# Epic 17 — Audit log viewer capability (F21.6 + AC #6.3 + AD-32 (g)).
+# Gates the audit log viewer routes in
+# apps/api/modules/audit/audit_log_routes.py (audit_log list / count /
+# entry lookup / CSV export).
+# (the activity route is NOT gated — activity stream is intentionally
+# broad like Slack presence; PRD §F21.3 verbatim.) Industry-agnostic per
+# CR 12-1 L4 precedent (mirrors MULTI_REGION_BACKUP + MULTI_REGION_FAILOVER
+# Phase 5 wire pattern + TENANT_IDP_MANAGEMENT Epic 16 wire +
+# SSO_ENTERPRISE Epic 15 wire + LISTEN_NOTIFY 13/14 wire +
+# AUTH_MIDDLEWARE Phase 3 wire + LAUNCH_* 1st release wire +
+# DEPLOYMENT_* Phase 4 wire pattern verbatim). All 4 industries get
+# audit log viewer capability.
+require_audit_log_view = require_capability(Capability.AUDIT_LOG_VIEW)

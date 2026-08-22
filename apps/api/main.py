@@ -29,6 +29,15 @@ from apps.api.core.pipa_gate import (
     PipaReviewRequiredError,
 )
 from apps.api.core.security import AuthError
+from apps.api.modules.audit.audit_log_routes import (
+    AuditLogEntryNotFoundError,
+    AuditLogExportForbiddenError,
+    AuditLogExportTooLargeError,
+    AuditLogQueryInvalidFilterError,
+)
+from apps.api.modules.audit.audit_log_routes import (
+    router as audit_log_router,
+)
 from apps.api.modules.auth import auth_audit_router, sso_router
 from apps.api.modules.auth.sso.idp_admin_routes import router as idp_admin_router
 from apps.api.modules.launch import launch_router
@@ -382,6 +391,18 @@ app.include_router(launch_router)
 app.include_router(idp_admin_router)
 
 
+# Epic 17 (cj-style 82번째 epic 연속 정직 회복 wire) — Audit log viewer
+# + activity stream + CSV export. 5 routes mounted at /api/v1/:
+# - GET /api/v1/audit-log              (PRD §F21.2 AC #2.1, owner/admin)
+# - GET /api/v1/audit-log/count        (UI page indicator)
+# - GET /api/v1/audit-log/{entry_id}   (AuditLogDetailModal target)
+# - GET /api/v1/audit-log/export       (CSV streaming, owner/admin + audit-first INSERT)
+# - GET /api/v1/activity               (PRD §F21.3 AC #3.1, all members)
+# Capability gate AUDIT_LOG_VIEW (CR 12-1 L4 industry-agnostic, mirrored
+# in capability matrix v1.30 EXTENSION).
+app.include_router(audit_log_router)
+
+
 @app.exception_handler(AuthError)
 async def _auth_error_handler(request: Request, exc: AuthError) -> JSONResponse:
     """Map `AuthError` (AD-15) to HTTP 401 with the typed error contract.
@@ -435,6 +456,79 @@ async def _forbidden_role_handler(request: Request, exc: ForbiddenRoleError) -> 
                 "required_role": exc.required_role,
             },
             "trace_id": exc.trace_id,
+        },
+    )
+
+
+# ── Epic 17 (cj-style 82번째 epic 연속 정직 회복 wire) — 4 NEW envelope
+# handlers for the audit log viewer + activity stream + CSV export
+# surface (CR 12-5 D-14 verbatim `{code, message_ko, details, trace_id}`):
+#   - AuditLogQueryInvalidFilterError → 400 AUDIT_LOG_QUERY_INVALID_FILTER_KO
+#   - AuditLogEntryNotFoundError       → 404 AUDIT_LOG_ENTRY_NOT_FOUND_KO
+#   - AuditLogExportForbiddenError     → 403 AUDIT_LOG_EXPORT_FORBIDDEN_KO
+#   - AuditLogExportTooLargeError      → 413 AUDIT_LOG_EXPORT_TOO_LARGE_KO
+# Without these handlers, FastAPI returns HTTP 500 for typed query /
+# export failures. AD-32 (a)~(e) sub-decisions verbatim bind.
+@app.exception_handler(AuditLogQueryInvalidFilterError)
+async def _audit_log_query_invalid_filter_handler(
+    request: Request, exc: AuditLogQueryInvalidFilterError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AuditLogEntryNotFoundError)
+async def _audit_log_entry_not_found_handler(
+    request: Request, exc: AuditLogEntryNotFoundError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AuditLogExportForbiddenError)
+async def _audit_log_export_forbidden_handler(
+    request: Request, exc: AuditLogExportForbiddenError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AuditLogExportTooLargeError)
+async def _audit_log_export_too_large_handler(
+    request: Request, exc: AuditLogExportTooLargeError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=413,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
         },
     )
 

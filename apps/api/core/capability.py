@@ -308,6 +308,23 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # detector lives at tests/integration/test_capability_matrix_v1_29
     # _drift.py (capability matrix v1.29 EXTENSION 2 NEW rows).
     MULTI_REGION_FAILOVER = "multi_region_failover"
+    # Epic 17 (cj-style 82번째 epic 연속 정직 회복 wire) — AUDIT_LOG_VIEW —
+    # Audit log viewer + activity stream territory (PRD §F21 + AD-32
+    # (a)~(g) sub-decisions). Industry-agnostic per CR 12-1 L4 precedent
+    # (mirrors MULTI_REGION_BACKUP + MULTI_REGION_FAILOVER Phase 5 wire
+    # pattern + TENANT_IDP_MANAGEMENT Epic 16 wire + SSO_ENTERPRISE
+    # Epic 15 wire + LISTEN_NOTIFY 13/14 wire + AUTH_MIDDLEWARE Phase 3
+    # wire + LAUNCH_* 1st release wire + DEPLOYMENT_* Phase 4 wire
+    # pattern verbatim). All 4 industries get AUDIT_LOG_VIEW capability
+    # (audit log viewer is operational infrastructure / observability,
+    # not industry-specific). Gates the audit log viewer routes
+    # (audit_log list / count / entry lookup / CSV export).
+    # (Note: the activity route is intentionally NOT gated — the
+    # activity stream is broad, all tenant members allowed, PRD §F21.3
+    # verbatim.) Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_30_drift.py (capability
+    # matrix v1.30 EXTENSION 1 NEW row).
+    AUDIT_LOG_VIEW = "audit_log_view"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -420,6 +437,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Phase 4 v1.25 pattern verbatim).
             Capability.MULTI_REGION_BACKUP,
             Capability.MULTI_REGION_FAILOVER,
+            # Epic 17 (cj-style 82번째 wire) — manufacturing tenants get
+            # AUDIT_LOG_VIEW (industry-agnostic, observability baseline
+            # CR 12-1 L4 precedent + MULTI_REGION_BACKUP +
+            # MULTI_REGION_FAILOVER Phase 5 wire pattern verbatim).
+            Capability.AUDIT_LOG_VIEW,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -510,6 +532,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, CR 12-1 L4 precedent).
             Capability.MULTI_REGION_BACKUP,
             Capability.MULTI_REGION_FAILOVER,
+            # Epic 17 (cj-style 82번째 wire) — service tenants get
+            # AUDIT_LOG_VIEW (industry-agnostic, observability baseline
+            # CR 12-1 L4 precedent + MULTI_REGION_BACKUP +
+            # MULTI_REGION_FAILOVER Phase 5 wire pattern verbatim).
+            Capability.AUDIT_LOG_VIEW,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -620,6 +647,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, CR 12-1 L4 precedent).
             Capability.MULTI_REGION_BACKUP,
             Capability.MULTI_REGION_FAILOVER,
+            # Epic 17 (cj-style 82번째 wire) — 겸영 tenants get
+            # AUDIT_LOG_VIEW (industry-agnostic, observability baseline
+            # CR 12-1 L4 precedent + MULTI_REGION_BACKUP +
+            # MULTI_REGION_FAILOVER Phase 5 wire pattern verbatim).
+            Capability.AUDIT_LOG_VIEW,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -727,6 +759,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, CR 12-1 L4 precedent).
             Capability.MULTI_REGION_BACKUP,
             Capability.MULTI_REGION_FAILOVER,
+            # Epic 17 (cj-style 82번째 wire) — 겸영+기타 tenants get
+            # AUDIT_LOG_VIEW (industry-agnostic, observability baseline
+            # CR 12-1 L4 precedent + MULTI_REGION_BACKUP +
+            # MULTI_REGION_FAILOVER Phase 5 wire pattern verbatim).
+            Capability.AUDIT_LOG_VIEW,
         }
     ),
 }
