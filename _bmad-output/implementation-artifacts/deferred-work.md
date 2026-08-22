@@ -832,3 +832,16 @@ The page.tsx uses stub `00000000-0000-4000-8000-*` UUIDs with `TODO(11-4 carry)`
 - **A36 SDR 검증 4-step 자동 PASS** (commit prefix lint + sprint-status structure + vitest file count drift + commit consistency)
 - **ko-KR.json SSOT drift detector (P-015)**: PASS — 4 namespaces (ai_extract + insight_cache + ai_badge + ai_promote) 모두 coverage OK
 
+## Deferred from: code review of epic-16-tenant-idp-admin-wire (2026-08-22)
+
+Epic 16 (cj-style 69번째 epic 연속 정직 회복 bmad-code-review) 후속 결정 wire — A104 follow-up 결정 wire 진입 시점에 처리.
+
+| Item | Category | Reason |
+|---|---|---|
+| **C1**: T4 frontend territory completely missing (7 files: `settings/sso/page.tsx` + 4 components + `admin-idp-client.ts` + `ko-KR.json settings.sso.*` EXTENSION + vitest) | (c) separate sprint | 사용자 권장 결정: T4 wire 별도 sprint (option (a) 진입 시점). A104 결정 wire 진입 시점에 T4 follow-up sprint 진입 결정 |
+| **H8**: AC7.4 spec file rename variance — `test_epic_16_saml_routes_extended.py` → actual `test_epic_16_tenant_idp_lookup.py` | (a) docs 정합 | Spec 회기 update — 기능적으로 similar coverage (lookup module + saml_routes integration smoke). PRD §F19.7 AC7.4 filename 정합 update 필요 |
+| **M5**: `audit_action.py` typo risk — emit_audit_typed가 frozenset validation 없이 action name 통과시킴 | (b) retro input | CR 1-1 lesson carry. 1차 출시 후 결정 (Epic 17+ 또는 별도 epic) |
+| **M7**: acme seed URL placeholder deviation (actual `idp.example.com` vs spec verbatim `idp.acme.com`) | (a) docs 정합 | Epic 15 backward-compat 우선 (Epic 15 wire 의 hardcoded `acme` placeholder 보존 결정). Atomic sprint 한계 인정. PRD §F19.5 AC5.3 정합 sweep 결정 |
+| **M9**: AC7.2 routes test count underrun (19 vs spec ~25) — coverage gap | (b) retro input | Epic 16 close-out retro (cj-style 71번째) 진입 시점에 A104 결정. RLS multi-tenant isolation + audit-first INSERT 검증 보강 |
+| **L11**: `OnboardingTooltip.tsx` removed `step_dashboard_title` stale i18n key may persist in `ko-KR.json` | (a) docs 정합 | P-015 ko-KR.json SSOT drift detector sweep 결정 (cj-style carry-over pattern) |
+
