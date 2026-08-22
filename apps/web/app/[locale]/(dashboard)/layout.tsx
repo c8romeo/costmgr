@@ -14,6 +14,10 @@
  * re-renders for the duration of the request — `MenuProvider` receives
  * the string and uses it directly. No re-render refetch cascade.
  *
+ * Hot-fix 2026-08-22: <Sidebar> was rendered OUTSIDE <MenuProvider>, but
+ * `Sidebar` calls `useMenuContext()` which throws if no provider is found.
+ * Moved <Sidebar> INSIDE <MenuProvider> so the context is available.
+ *
  * Sub-route folders for each menu item are NOT created here — they
  * land in their respective stories (m1_baseline, m2_input, …). The
  * catch-all `[...rest]/page.tsx` keeps the URL stable.
@@ -35,10 +39,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      <Sidebar accessToken={accessToken} />
-      <main style={{ flex: 1, padding: "1.5rem 2rem" }}>
-        <MenuProvider accessToken={accessToken}>{children}</MenuProvider>
-      </main>
+      <MenuProvider accessToken={accessToken}>
+        <Sidebar accessToken={accessToken} />
+        <main style={{ flex: 1, padding: "1.5rem 2rem" }}>{children}</main>
+      </MenuProvider>
     </div>
   );
 }
