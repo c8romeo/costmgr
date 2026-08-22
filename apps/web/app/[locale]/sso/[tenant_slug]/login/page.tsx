@@ -1,0 +1,36 @@
+/**
+ * apps/web/app/[locale]/sso/[tenant_slug]/login/page.tsx — SSO entry per tenant.
+ *
+ * Epic 15 — T5.2 (AC #3.6) — F17.3 SSO enterprise UI.
+ * - /sso/<tenant_slug>/login → trigger SAML AuthnRequest to IdP.
+ * - Tenant slug routed to the per-tenant IdP metadata.
+ * - D-001 actual mount: page.tsx renders real JSX (CR 11-4 D-001).
+ * - Epic 12 2FA gate preserved (D-GATE-01 inversion).
+ */
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+
+interface SSOLoginPageProps {
+  params: { locale: string; tenant_slug: string };
+  searchParams: { relay_state?: string };
+}
+
+export default function SSOLoginPage({ params, searchParams }: SSOLoginPageProps) {
+  // Encode the original path (searchParams.relay_state or /dashboard default)
+  // as URL-safe base64 and forward to the backend SSO login route.
+  const original = searchParams.relay_state ?? `/${params.locale}/dashboard`;
+  const relayB64 = Buffer.from(original, "utf-8")
+    .toString("base64")
+    .replace(/=+$/, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  const ssoUrl = `/api/v1/auth/sso/login?tenant_slug=${encodeURIComponent(
+    params.tenant_slug,
+  )}&relay_state=${encodeURIComponent(relayB64)}`;
+
+  // The backend redirects to the IdP. We forward the browser via Next
+  // redirect (HTTP 307 preserves the method).
+  redirect(ssoUrl);
+}

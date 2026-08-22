@@ -47,7 +47,14 @@ function isAuthPath(pathname: string): boolean {
     /^\/(?:[a-z]{2}-[A-Z]{2})?\/signup(\/|$|\?)/.test(pathname) ||
     /^\/(?:[a-z]{2}-[A-Z]{2})?\/forgot-password(\/|$|\?)/.test(pathname) ||
     /^\/(?:[a-z]{2}-[A-Z]{2})?\/reset-password(\/|$|\?)/.test(pathname) ||
-    /^\/(?:[a-z]{2}-[A-Z]{2})?\/auth\/2fa(\/|$|\?)/.test(pathname)
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/auth\/2fa(\/|$|\?)/.test(pathname) ||
+    // Epic 15 (cj-style 60번째) — magic link + OAuth callback + SSO
+    // login pages are public (the auth-callback itself only finalizes
+    // a session that was initiated by a signed-in caller).
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/magic-link(\/|$|\?)/.test(pathname) ||
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/magic-link-sent(\/|$|\?)/.test(pathname) ||
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/auth-callback(\/|$|\?)/.test(pathname) ||
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/sso\/[^/]+\/login(\/|$|\?)/.test(pathname)
   );
 }
 

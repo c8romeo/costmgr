@@ -35,6 +35,8 @@ from apps.api.modules.m0_onboarding import (
 from apps.api.modules.m0_onboarding import (
     signup_router as m0_onboarding_signup_router,
 )
+from apps.api.modules.auth import auth_audit_router
+from apps.api.modules.auth import sso_router
 from apps.api.modules.m1_baseline import router as m1_baseline_router
 from apps.api.modules.m2_input import router as m2_input_router
 from apps.api.modules.m2_input.services.monthly_input_service import (
@@ -356,6 +358,18 @@ app.include_router(m12_account_router)
 # - GET /api/v1/health/ready   (readiness: DB + JWT verification)
 # Preserves the legacy /health route for backward compat with CI smoke tests.
 app.include_router(health_router)
+
+# Epic 15 (cj-style 60번째 epic 연속 정직 회복 wire) — AD-28 verbatim +
+# SSO enterprise SAML + magic link + social OAuth (PRD §F17 + AC #3.1~#3.8).
+# 4 SSO routes + 2 auth-audit routes:
+# - GET  /api/v1/auth/sso/login         (SAML AuthnRequest → IdP redirect)
+# - POST /api/v1/auth/sso/acs           (SAML response ACS endpoint)
+# - GET  /api/v1/auth/sso/metadata      (SP metadata XML)
+# - GET  /api/v1/auth/sso/sls           (Single Logout Service)
+# - POST /api/v1/auth/audit/magic-link-sent
+# - POST /api/v1/auth/audit/social-oauth-initiated
+app.include_router(sso_router)
+app.include_router(auth_audit_router)
 
 
 @app.exception_handler(AuthError)

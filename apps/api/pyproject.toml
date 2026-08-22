@@ -31,6 +31,10 @@ dependencies = [
     # encryption (users.totp_secret BYTEA + totp_recovery_codes_hash JSONB).
     # Pin exact minor version per AD-14 exact-pin policy.
     "cryptography==43.0.1",     # NFR6 AES-256-GCM at-rest encryption
+    # Story Epic 15 — SSO enterprise SAML 2.0 validator (PRD §F17.3 + AD-28).
+    # AD-14 exact pin: minor version frozen. python3-saml pulls in lxml
+    # + signxml as transitive deps; both are pinned in the lockfile.
+    "python3-saml==1.16.0",  # SSO SAML 2.0 response validation (Epic 15)
 ]
 
 [project.optional-dependencies]

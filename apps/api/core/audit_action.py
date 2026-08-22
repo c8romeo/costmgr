@@ -68,6 +68,7 @@ class ActionClass(str, __import__("enum").Enum):
     AI_EXTRACTION_EXECUTED = "ai_extraction_executed"  # Story 10.1 (NEW — monthly input extraction audit-first)
     AI_INSIGHT_CACHE_ACCESSED = "ai_insight_cache_accessed"  # Story 10.2
     TENANT = "tenant"  # Phase 3-0 (NEW — tenant signup completion audit-first)
+    AUTH = "auth"  # Epic 15 (NEW — magic_link + social_oauth + sso audit-first INSERT)
 
 
 # ────────────────────────────────────────────────────────────
@@ -493,6 +494,25 @@ class _ActionRegistry:
         ActionClass.TENANT: (
             "audit_logs",
             frozenset({"tenant_signup_completed"}),
+        ),
+        # Epic 15 — AUTH 3 values (magic link + social OAuth + SSO enterprise
+        # SAML audit-first INSERT per CR 1-1 verbatim). AD-2 audit_logs
+        # INSERT-only preserved; no DB CHECK constraint on action
+        # (matches TWO_FACTOR_AUTH / ACCOUNT_BACKUP / ACCOUNT_DELETION
+        # pattern). Drift detector enforces ActionClass registry ↔ DB
+        # CHECK (no-op for audit_logs) ↔ call sites parity (3-way gate).
+        # Routes to audit_logs (NOT to a separate ledger — auth events
+        # are tenant-scoped platform-event trail only, mirroring
+        # TWO_FACTOR_AUTH pattern).
+        ActionClass.AUTH: (
+            "audit_logs",
+            frozenset(
+                {
+                    "magic_link_sent",
+                    "social_oauth_initiated",
+                    "sso_identity_linked",
+                }
+            ),
         ),
         ActionClass.SERVICE_ROLE: ("audit_logs", frozenset({"service_role_bypass"})),
         ActionClass.UPLOADED_DOCUMENT: (

@@ -63,6 +63,47 @@
       "error_weak_password": "비밀번호가 보안 규칙에 부합하지 않습니다.",
       "error_password_mismatch": "비밀번호 확인이 일치하지 않습니다.",
       "error_network": "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+    },
+    "magic_link": {
+      "title": "매직 링크로 로그인",
+      "subtitle": "이메일로 전송된 링크를 클릭하면 로그인됩니다",
+      "email_label": "이메일 주소",
+      "send_button": "매직 링크 전송",
+      "sending_button": "전송 중...",
+      "sent_message": "메일함을 확인해 주세요. 로그인 링크가 전송되었습니다.",
+      "alt_text": "비밀번호 로그인으로 돌아가기",
+      "sent_page_title": "메일함을 확인해 주세요",
+      "sent_page_body": "로그인 링크가 전송되었습니다. 이메일을 확인하고 링크를 클릭해 로그인을 완료해 주세요.",
+      "sent_page_hint": "이메일이 도착하지 않았다면 스팸 메일함을 확인하거나 잠시 후 다시 시도해 주세요.",
+      "sent_page_back": "로그인으로 돌아가기",
+      "link_button": "매직 링크로 로그인",
+      "error": {
+        "rate_limited": "너무 많은 요청이 있었습니다. 30초 후 다시 시도해 주세요.",
+        "network": "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+      }
+    },
+    "social": {
+      "divider_or": "또는",
+      "google_button": "구글로 계속하기",
+      "naver_button": "네이버로 계속하기",
+      "kakao_button": "카카오로 계속하기",
+      "error": {
+        "rate_limited": "너무 많은 요청이 있었습니다. 60초 후 다시 시도해 주세요.",
+        "provider_disabled": "이 로그인 방식은 현재 사용할 수 없습니다",
+        "network": "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+      }
+    },
+    "sso": {
+      "enterprise_button": "엔터프라이즈 SSO 로그인",
+      "tenant_label": "회사 도메인",
+      "continue_button": "SSO 로그인 계속",
+      "error": {
+        "invalid_tenant": "유효하지 않은 회사 도메인입니다",
+        "redirecting": "SSO 제공업체로 리다이렉트 중...",
+        "invalid_response": "SSO 응답이 유효하지 않습니다",
+        "expired": "SSO 세션이 만료되었습니다. 다시 로그인해 주세요.",
+        "signature_failed": "SSO 서명 검증에 실패했습니다. 시스템 관리자에게 문의하세요."
+      }
     }
   },
   "industry": {

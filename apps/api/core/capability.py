@@ -253,6 +253,23 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     DEPLOYMENT_STAGING = "deployment_staging"
     DEPLOYMENT_DATABASE_BACKUP = "deployment_database_backup"
     DEPLOYMENT_HEALTH_CHECK = "deployment_health_check"
+    # Story Epic 15 — Magic link + Social OAuth + SSO enterprise SAML
+    # capability gates (PRD §F17.5 + AD-28 + A79+A80+A81+A82 결정 wire).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors 2FA / backup /
+    # deletion / 4-stage close / reversal / LOCK / auth / LISTEN_NOTIFY
+    # / DEPLOYMENT_* pattern). All 4 industries have the magic link +
+    # social OAuth + SSO surface — authentication is operational
+    # infrastructure, not industry-specific. Gates the corresponding
+    # auth endpoints (POST /api/v1/auth/audit/magic-link-sent, etc.).
+    # The capability matrix v1.26 (already declared in
+    # `docs/capability-matrix.md` during Epic 15 PRD entry) declares
+    # the 5 NEW rows; this backend enum is the missing half. Drift
+    # detector: tests/integration/test_capability_matrix_v1_26_drift.py.
+    MAGIC_LINK = "magic_link"
+    SOCIAL_OAUTH_GOOGLE = "social_oauth_google"
+    SOCIAL_OAUTH_NAVER = "social_oauth_naver"
+    SOCIAL_OAUTH_KAKAO = "social_oauth_kakao"
+    SSO_ENTERPRISE = "sso_enterprise"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -339,6 +356,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.DEPLOYMENT_STAGING,
             Capability.DEPLOYMENT_DATABASE_BACKUP,
             Capability.DEPLOYMENT_HEALTH_CHECK,
+            # Story Epic 15 — manufacturing tenants get MAGIC_LINK +
+            # SOCIAL_OAUTH_GOOGLE + SOCIAL_OAUTH_NAVER +
+            # SOCIAL_OAUTH_KAKAO + SSO_ENTERPRISE (industry-agnostic,
+            # auth surface EXTENSION, CR 12-1 L4 precedent +
+            # DEPLOYMENT_* 4-1 wire pattern).
+            Capability.MAGIC_LINK,
+            Capability.SOCIAL_OAUTH_GOOGLE,
+            Capability.SOCIAL_OAUTH_NAVER,
+            Capability.SOCIAL_OAUTH_KAKAO,
+            Capability.SSO_ENTERPRISE,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -405,6 +432,15 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.DEPLOYMENT_STAGING,
             Capability.DEPLOYMENT_DATABASE_BACKUP,
             Capability.DEPLOYMENT_HEALTH_CHECK,
+            # Story Epic 15 — service tenants get MAGIC_LINK +
+            # SOCIAL_OAUTH_GOOGLE + SOCIAL_OAUTH_NAVER +
+            # SOCIAL_OAUTH_KAKAO + SSO_ENTERPRISE (industry-agnostic,
+            # CR 12-1 L4 precedent).
+            Capability.MAGIC_LINK,
+            Capability.SOCIAL_OAUTH_GOOGLE,
+            Capability.SOCIAL_OAUTH_NAVER,
+            Capability.SOCIAL_OAUTH_KAKAO,
+            Capability.SSO_ENTERPRISE,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -491,6 +527,15 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.DEPLOYMENT_STAGING,
             Capability.DEPLOYMENT_DATABASE_BACKUP,
             Capability.DEPLOYMENT_HEALTH_CHECK,
+            # Story Epic 15 — 겸영 tenants get MAGIC_LINK +
+            # SOCIAL_OAUTH_GOOGLE + SOCIAL_OAUTH_NAVER +
+            # SOCIAL_OAUTH_KAKAO + SSO_ENTERPRISE (industry-agnostic,
+            # CR 12-1 L4 precedent).
+            Capability.MAGIC_LINK,
+            Capability.SOCIAL_OAUTH_GOOGLE,
+            Capability.SOCIAL_OAUTH_NAVER,
+            Capability.SOCIAL_OAUTH_KAKAO,
+            Capability.SSO_ENTERPRISE,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -574,6 +619,15 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.DEPLOYMENT_STAGING,
             Capability.DEPLOYMENT_DATABASE_BACKUP,
             Capability.DEPLOYMENT_HEALTH_CHECK,
+            # Story Epic 15 — 겸영+기타 tenants get MAGIC_LINK +
+            # SOCIAL_OAUTH_GOOGLE + SOCIAL_OAUTH_NAVER +
+            # SOCIAL_OAUTH_KAKAO + SSO_ENTERPRISE (industry-agnostic,
+            # CR 12-1 L4 precedent).
+            Capability.MAGIC_LINK,
+            Capability.SOCIAL_OAUTH_GOOGLE,
+            Capability.SOCIAL_OAUTH_NAVER,
+            Capability.SOCIAL_OAUTH_KAKAO,
+            Capability.SSO_ENTERPRISE,
         }
     ),
 }
