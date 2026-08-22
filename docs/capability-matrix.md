@@ -1,8 +1,12 @@
-# Capability Matrix (v1.27)
+# Capability Matrix (v1.28)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.28 (2026-08-22, Epic 16 PRD entry)** — Tenant IdP admin management capability gate 1 NEW row: `TENANT_IDP_MANAGEMENT` (Epic 15 SSO enterprise SAML forward-reference `docs/sso-enterprise.md` §4.1 step 3 `Configure tenant_idps (TODO Epic 16)` verbatim 자연스러운 carry-over chain 결정 wire, `tenant_idps` table schema (alembic 0038, 13 columns + RLS policy CR 0-2 verbatim) + IdP metadata XML validation service 8 steps + Tenant IdP CRUD API 5 routes + Tenant IdP admin UI 4 components + per-tenant IdP routing EXTENSION Epic 15 `saml_routes.py` + ACS `idp_x509_cert` 동적 로딩 + audit-first INSERT 4 NEW 결정 + capability gate `TENANT_IDP_MANAGEMENT` per-tenant on/off 결정, Epic 16 T1~T8 wire 진입). industry-agnostic 4-industry grants ✅/✅/✅/✅ (CR 12-1 L4 precedent like `LAUNCH_*` / `SSO_ENTERPRISE` / `SOCIAL_OAUTH_*` / `MAGIC_LINK` / `LISTEN_NOTIFY_*` / `AI_INSIGHT` / `TWO_FACTOR_AUTH` / `AUTH_MIDDLEWARE` / `LOGIN` / `SIGNUP` / `FORGOT_PASSWORD` / `LOGOUT` / `DEPLOYMENT_*`). AD-30 Tenant IdP admin management 신규 (tenant_idps table + IdP metadata validator + CRUD API + admin UI + per-tenant routing + audit-first INSERT 6 sub-decisions 결정 wire). Epic 16 wire scope 결정 보존 T1~T8 (T1 tenant_idps table + T2 IdP metadata validator + T3 Tenant IdP CRUD API + T4 admin UI + T5 per-tenant routing EXTENSION + T6 Capability v1.28 EXTENSION + T7 Tests + T8 3중 게이트 FINAL CLEAN atomic commit). wire_commit = TBD (cj-style Epic 16 3번째 진입점 진입 시점, expected cj-style 69번째 epic 연속 정직 회복).
+>
+> **v1.27 (2026-08-22, 1st release launch PRD entry)** — 1st release launch (Epic 15 close-out retro §12 옵션 (d) 결정 wire, A83 결정) capability gates 4 NEW rows:
 >
 > **v1.27 (2026-08-22, 1st release launch PRD entry)** — 1st release launch (Epic 15 close-out retro §12 옵션 (d) 결정 wire, A83 결정) capability gates 4 NEW rows:
 > `LAUNCH_LANDING` (`/landing` public route + LandingHero + LandingFeatures + LandingPricing + LandingCTA + ko-KR inline copy EXTENSION, vercel.json public route EXTENSION, (public) route group 신규, 1st release T1 wire 진입) +
@@ -463,6 +467,7 @@ class CalcResponse(BaseModel):
 | `LAUNCH_TOS` | 1st release | ✅ | ✅ | ✅ | ✅ |
 | `LAUNCH_SUPPORT` | 1st release | ✅ | ✅ | ✅ | ✅ |
 | `LAUNCH_MONITORING` | 1st release | ✅ | ✅ | ✅ | ✅ |
+| `TENANT_IDP_MANAGEMENT` | Epic 16 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
