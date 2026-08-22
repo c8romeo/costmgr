@@ -132,3 +132,48 @@ def capture_message(message: str, *, level: str = "info") -> None:
         sentry_sdk.capture_message(message, level=level)
     except Exception:  # noqa: BLE001 — capture must never raise
         pass
+
+
+def capture_failover_breadcrumb(
+    *,
+    region_from: str,
+    region_to: str,
+    reason: str,
+    drill_mode: bool = False,
+    elapsed_seconds: float | None = None,
+) -> None:
+    """Capture a failover breadcrumb in Sentry.
+
+    Phase 5 (cj-style 75번째 wire) — AD-31 (e) verbatim + PRD §F20.5
+    + AC #5.4. Adds a structured breadcrumb to the Sentry trail so
+    on-call engineers can correlate failover events with downstream
+    symptoms (e.g., 503 spikes, latency increase).
+
+    Args:
+        region_from: Source region ('primary_seoul' | 'secondary_tokyo').
+        region_to: Destination region.
+        reason: Trigger reason ('health_probe' | 'manual' | 'drill').
+        drill_mode: True if drill test (no actual production failover).
+        elapsed_seconds: Measured failover time (None if not completed).
+    """
+    if not _SENTRY_INITIALIZED:
+        return
+    try:
+        import sentry_sdk
+
+        data: dict[str, Any] = {
+            "region_from": region_from,
+            "region_to": region_to,
+            "reason": reason,
+            "drill_mode": drill_mode,
+        }
+        if elapsed_seconds is not None:
+            data["elapsed_seconds"] = elapsed_seconds
+        sentry_sdk.add_breadcrumb(
+            category="failover",
+            message=f"Failover {region_from} → {region_to} ({reason})",
+            level="info" if drill_mode else "warning",
+            data=data,
+        )
+    except Exception:  # noqa: BLE001 — capture must never raise
+        pass

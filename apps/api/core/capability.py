@@ -294,6 +294,20 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # at tests/integration/test_capability_matrix_v1_28_drift.py
     # (capability matrix v1.28 EXTENSION 1 NEW row).
     TENANT_IDP_MANAGEMENT = "tenant_idp_management"
+    # Phase 5 (cj-style 75번째 wire) — MULTI_REGION_BACKUP —
+    # Cross-region backup territory (alembic 0039 phase_5_replication_lag
+    # + phase_5_dr_drill_results + failover_orchestrator + dr_drill +
+    # multi-region health observability). Industry-agnostic per CR 12-1
+    # L4 precedent (mirrors DEPLOYMENT_DATABASE_BACKUP pattern). All 4
+    # industries get multi-region backup capability.
+    MULTI_REGION_BACKUP = "multi_region_backup"
+    # Phase 5 (cj-style 75번째 wire) — MULTI_REGION_FAILOVER —
+    # Cross-region failover trigger capability (POST /api/v1/admin/
+    # failover owner-only). Industry-agnostic per CR 12-1 L4 precedent.
+    # All 4 industries get multi-region failover capability. Drift
+    # detector lives at tests/integration/test_capability_matrix_v1_29
+    # _drift.py (capability matrix v1.29 EXTENSION 2 NEW rows).
+    MULTI_REGION_FAILOVER = "multi_region_failover"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -400,6 +414,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Epic 16 (cj-style 69번째) — manufacturing tenants get
             # TENANT_IDP_MANAGEMENT (industry-agnostic, CR 12-1 L4 precedent).
             Capability.TENANT_IDP_MANAGEMENT,
+            # Phase 5 (cj-style 75번째 wire) — manufacturing tenants get
+            # MULTI_REGION_BACKUP + MULTI_REGION_FAILOVER
+            # (industry-agnostic, CR 12-1 L4 precedent + DEPLOYMENT_*
+            # Phase 4 v1.25 pattern verbatim).
+            Capability.MULTI_REGION_BACKUP,
+            Capability.MULTI_REGION_FAILOVER,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -485,6 +505,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Epic 16 (cj-style 69번째) — service tenants get
             # TENANT_IDP_MANAGEMENT (industry-agnostic, CR 12-1 L4 precedent).
             Capability.TENANT_IDP_MANAGEMENT,
+            # Phase 5 (cj-style 75번째 wire) — service tenants get
+            # MULTI_REGION_BACKUP + MULTI_REGION_FAILOVER
+            # (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.MULTI_REGION_BACKUP,
+            Capability.MULTI_REGION_FAILOVER,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -590,6 +615,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Epic 16 (cj-style 69번째) — 겸영 tenants get
             # TENANT_IDP_MANAGEMENT (industry-agnostic, CR 12-1 L4 precedent).
             Capability.TENANT_IDP_MANAGEMENT,
+            # Phase 5 (cj-style 75번째 wire) — 겸영 tenants get
+            # MULTI_REGION_BACKUP + MULTI_REGION_FAILOVER
+            # (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.MULTI_REGION_BACKUP,
+            Capability.MULTI_REGION_FAILOVER,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -692,6 +722,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Epic 16 (cj-style 69번째) — 겸영+기타 tenants get
             # TENANT_IDP_MANAGEMENT (industry-agnostic, CR 12-1 L4 precedent).
             Capability.TENANT_IDP_MANAGEMENT,
+            # Phase 5 (cj-style 75번째 wire) — 겸영+기타 tenants get
+            # MULTI_REGION_BACKUP + MULTI_REGION_FAILOVER
+            # (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.MULTI_REGION_BACKUP,
+            Capability.MULTI_REGION_FAILOVER,
         }
     ),
 }

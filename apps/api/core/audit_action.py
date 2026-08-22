@@ -69,6 +69,7 @@ class ActionClass(str, __import__("enum").Enum):
     AI_INSIGHT_CACHE_ACCESSED = "ai_insight_cache_accessed"  # Story 10.2
     TENANT = "tenant"  # Phase 3-0 (NEW — tenant signup completion audit-first)
     AUTH = "auth"  # Epic 15 (NEW — magic_link + social_oauth + sso audit-first INSERT)
+    INFRA = "infra"  # Phase 5 (NEW — cross-region backup + failover + DR drill audit-first INSERT)
 
 
 # ────────────────────────────────────────────────────────────
@@ -438,6 +439,28 @@ AIInsightCacheAction = Literal[
 ]
 
 
+# Phase 5 — INFRA actions (multi-region backup + failover + DR drill).
+# PRD §F20.1 + §F20.2 + §F20.3 verbatim + AD-31 (a)~(f) sub-decisions.
+# Audit routes to `audit_logs` (ActionClass.INFRA — system-only table
+# mutation + audit-first INSERT pattern, CR 1-1 verbatim). 4 values:
+# - `replica_status_changed` — phase_5_replication_lag row INSERT
+#   (every 5-second health probe captures status transition).
+# - `failover_initiated` — failover_orchestrator.trigger_failover()
+#   audit-first INSERT Row 1 (BEFORE secondary promotion).
+# - `failover_completed` — failover_orchestrator.trigger_failover()
+#   audit-first INSERT Row 2 (AFTER secondary promotion + DNS update).
+# - `dr_drill_completed` — dr_drill cron quarterly drill result
+#   audit-first INSERT (6 drill steps + RPO/RTO measurement).
+# Drift detector: tests/integration/test_audit_action_consistency.py
+# enforces ActionClass registry ↔ DB CHECK ↔ call sites parity.
+InfraAction = Literal[
+    "replica_status_changed",  # §F20.1 replication_lag row audit-first
+    "failover_initiated",      # §F20.2 failover Row 1 audit-first
+    "failover_completed",      # §F20.2 failover Row 2 audit-first
+    "dr_drill_completed",      # §F20.3 quarterly DR drill result audit-first
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -465,6 +488,7 @@ AuditAction = (
     | AIExtractionAction  # NEW — Story 10.1 (Epic 10)
     | AIInsightCacheAction  # NEW — Story 10.2 (Epic 10)
     | TenantAction  # NEW — Phase 3-0 (Epic 1 carry-over = auth contract)
+    | InfraAction  # NEW — Phase 5 (multi-region backup + failover + DR drill)
 )
 
 
@@ -970,5 +994,6 @@ __all__ = [
     "AccountBackupAction",
     "AIExtractionAction",  # NEW — Story 10.1 (Epic 10)
     "AIInsightCacheAction",  # NEW — Story 10.2 (Epic 10)
+    "InfraAction",  # NEW — Phase 5 (multi-region backup + failover + DR drill)
     "emit_audit_typed",
 ]

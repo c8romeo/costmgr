@@ -221,3 +221,114 @@ async def health_ready() -> dict[str, Any]:
     envelope["jwt_verification"] = jwt_status
     envelope["platform"] = platform.system()
     return envelope
+
+
+# ────────────────────────────────────────────────────────────
+# Phase 5 EXTENSION (cj-style 75번째 wire) — Multi-region health
+# ────────────────────────────────────────────────────────────
+
+
+@router.get("/multi-region")
+async def health_multi_region() -> dict[str, Any]:
+    """GET /api/v1/health/multi-region — Multi-region health observability.
+
+    Phase 5 (cj-style 75번째 wire) — AD-31 (e) verbatim + PRD §F20.5
+    + AC #5.1~#5.4. Reads latest replication_lag row from
+    `phase_5_replication_lag` (system-only table, no RLS — CR 0-2).
+
+    Response envelope (CR 12-5 D-14 verbatim):
+        {
+            "status": "healthy" | "degraded" | "unhealthy",
+            "primary": {
+                "region": "primary_seoul",
+                "replication_status": "healthy" | "lagging" | "stalled" | "disconnected",
+                "lag_seconds": 12,
+                "last_wal_received_at": "2026-08-22T10:00:00Z"
+            },
+            "secondary": {
+                "region": "secondary_tokyo",
+                "replication_status": "healthy",
+                "lag_seconds": 8,
+                "last_wal_received_at": "2026-08-22T10:00:00Z"
+            },
+            "timestamp": "2026-08-22T10:00:01Z"
+        }
+
+    Status logic:
+    - "healthy": both regions healthy AND lag < 60s on both.
+    - "degraded": at least one region lagging OR lag > 60s.
+    - "unhealthy": at least one region stalled/disconnected.
+
+    CR 12-5 D-PARITY-01 inversion: Python backend envelope mirrors
+    the TypeScript Next.js /api/health/multi-region envelope.
+    """
+    from sqlalchemy import text
+
+    from apps.api.core.db import get_engine
+
+    engine = get_engine()
+    async with engine.connect() as conn:
+        # Fetch latest replication_lag rows for primary + secondary.
+        result = await conn.execute(
+            text(
+                """
+                SELECT region, replication_status, lag_seconds,
+                       last_wal_received_at
+                FROM public.phase_5_replication_lag
+                WHERE region IN ('primary_seoul', 'secondary_tokyo')
+                ORDER BY recorded_at DESC
+                LIMIT 2
+                """
+            )
+        )
+        rows = result.mappings().all()
+
+    primary_row = next(
+        (r for r in rows if r["region"] == "primary_seoul"), None
+    )
+    secondary_row = next(
+        (r for r in rows if r["region"] == "secondary_tokyo"), None
+    )
+
+    primary = {
+        "region": "primary_seoul",
+        "replication_status": (
+            primary_row["replication_status"] if primary_row else "disconnected"
+        ),
+        "lag_seconds": int(primary_row["lag_seconds"]) if primary_row else 0,
+        "last_wal_received_at": (
+            primary_row["last_wal_received_at"].isoformat()
+            if primary_row and primary_row["last_wal_received_at"]
+            else None
+        ),
+    }
+    secondary = {
+        "region": "secondary_tokyo",
+        "replication_status": (
+            secondary_row["replication_status"]
+            if secondary_row
+            else "disconnected"
+        ),
+        "lag_seconds": int(secondary_row["lag_seconds"]) if secondary_row else 0,
+        "last_wal_received_at": (
+            secondary_row["last_wal_received_at"].isoformat()
+            if secondary_row and secondary_row["last_wal_received_at"]
+            else None
+        ),
+    }
+
+    # Status aggregation logic.
+    statuses = {primary["replication_status"], secondary["replication_status"]}
+    if "stalled" in statuses or "disconnected" in statuses:
+        status_value = "unhealthy"
+    elif "lagging" in statuses or primary["lag_seconds"] > 60 or secondary["lag_seconds"] > 60:
+        status_value = "degraded"
+    else:
+        status_value = "healthy"
+
+    return {
+        "status": status_value,
+        "primary": primary,
+        "secondary": secondary,
+        "timestamp": datetime.now(UTC).isoformat(),
+    }

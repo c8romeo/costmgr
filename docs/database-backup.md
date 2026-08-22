@@ -1,6 +1,8 @@
 # Costmgr Database Backup Runbook
 
 > **Phase 4 (cj-style 55번째 epic 연속 정직 회복 wire)** — Production database backup strategy + Supabase PITR + manual export procedure. RPO 5 minutes, RTO 1 hour.
+>
+> **Phase 5 EXTENSION (cj-style 75번째 wire)** — Cross-region backup strategy + failover runbook. RPO 1 hour, RTO 4 hours. D-PHASE-4-DR-DEFER-1/2 ✅ RESOLVED.
 
 ## Table of Contents
 
@@ -14,6 +16,8 @@
 8. [Retention Policy](#8-retention-policy)
 9. [Testing](#9-testing)
 10. [Cross-References](#10-cross-references)
+11. [Cross-Region Backup Strategy](#11-cross-region-backup-strategy) **(Phase 5 NEW)**
+12. [Cross-Region Failover Runbook](#12-cross-region-failover-runbook) **(Phase 5 NEW)**
 
 ---
 
@@ -271,5 +275,168 @@ If a restore drill fails:
 ## Known Limitations
 
 - Storage backend (`s3://costmgr-backups/YYYY-MM-DD/` vs Supabase Storage) is **deferred to Phase 4 close-out retro** (OQ-1).
-- Multi-region backup is **deferred to Phase 5+** (OQ-3).
+- Multi-region backup is **resolved via Phase 5 wire** — see [§11](#11-cross-region-backup-strategy) and [§12](#12-cross-region-failover-runbook).
 - Restore time is dependent on Supabase's PITR performance, which is not directly controllable.
+
+---
+
+## 11. Cross-Region Backup Strategy
+
+> **Phase 5 (cj-style 75번째 wire)** — AD-31 (c) verbatim + PRD §F20.4.
+
+### 11.1 Purpose
+
+Phase 4 §6 honestly-deferred cross-region read replica + disaster recovery to Phase 5. This section resolves **D-PHASE-4-DR-DEFER-1** (Seoul region disaster 시 backup restoration 불가) and **D-PHASE-4-DR-DEFER-2** (cross-region read replica carry-over) via:
+
+- Cross-region PITR: primary Seoul (`ap-northeast-2`) + secondary Tokyo (`ap-northeast-1`).
+- Regional retention tiers: 30-day hot + 90-day cold + 365-day archive per region.
+- Encrypted-at-rest + TLS 1.3 in-transit.
+
+### 11.2 RPO and RTO SLA
+
+| Metric | Target | Phase 4 baseline | Improvement |
+|---|---|---|---|
+| **RPO** (Recovery Point Objective) | ≤ 3600 seconds (1 hour) | ≤ 5 minutes | 12× looser due to cross-region replication lag baseline |
+| **RTO** (Recovery Time Objective) | ≤ 14400 seconds (4 hours) | ≤ 1 hour | 4× looser due to cross-region promotion overhead |
+
+**Rationale**: Cross-region replication + promotion introduces additional latency. The looser SLA reflects the realistic operational constraint while still satisfying enterprise customer contractual obligations (NFR1 verbatim).
+
+### 11.3 Regional Architecture
+
+```
+┌─────────────────┐   WAL streaming   ┌─────────────────┐
+│  Primary Seoul  │ ────────────────► │ Secondary Tokyo │
+│ (ap-northeast-2)│  (async, 60s lag) │ (ap-northeast-1) │
+└─────────────────┘                   └─────────────────┘
+        │                                       │
+        ▼                                       ▼
+   30-day hot                            30-day hot
+   90-day cold                           90-day cold
+   365-day archive                       365-day archive
+   (Seoul region)                        (Tokyo region)
+```
+
+### 11.4 Retention Policy (per region)
+
+| Tier | Duration | Storage Class | Encryption |
+|---|---|---|---|
+| **Hot** | 30 days | Supabase managed PostgreSQL | AES-256 at rest (Supabase managed) |
+| **Cold** | 90 days | Supabase Storage cold tier | AES-256 at rest + TLS 1.3 in-transit |
+| **Archive** | 365 days | Supabase Storage archive tier | AES-256 at rest + TLS 1.3 in-transit |
+
+Per-region retention: **both regions** maintain identical hot/cold/archive tiers. This ensures either region can independently serve restore requests without depending on the other.
+
+### 11.5 Encryption
+
+- **At rest**: Supabase managed AES-256-GCM (NFR6 verbatim — Epic 12 2FA wire precedent).
+- **In transit**: TLS 1.3 cross-region (Supabase managed replication protocol).
+- **PII minimization**: audit log cert fingerprints use SHA-256 hash (NOT raw certificate). NFR4 PII minimization preserved.
+
+### 11.6 Cross-References
+
+- [Master PRD §F20.4](../_bmad-output/planning-artifacts/prd.md#F20.4) — Cross-region backup strategy
+- [Master PRD AD-31](../_bmad-output/planning-artifacts/prd.md#AD-31) — Multi-Region Backup & DR 신규 결정
+- [alembic 0039 migration](../apps/api/alembic/versions/0039_phase_5_multi_region_backup.py) — `phase_5_replication_lag` + `phase_5_dr_drill_results` tables
+- [failover_orchestrator](../apps/api/jobs/failover_orchestrator.py) — Cross-region failover automation
+
+---
+
+## 12. Cross-Region Failover Runbook
+
+> **Phase 5 (cj-style 75번째 wire)** — AD-31 (a)(b)(f) verbatim + PRD §F20.2 + §F20.3 + §F20.5.
+
+### 12.1 Automatic Failover Trigger
+
+**Health probe** (PRD §F20.2 verbatim):
+
+- Interval: 5 seconds.
+- Probe target: `SELECT 1` against primary Seoul connection.
+- Threshold: 3 consecutive failures → automatic failover.
+- Code path: `apps/api/jobs/failover_orchestrator.py::_health_probe_loop`.
+
+### 12.2 Manual Failover Trigger
+
+**Endpoint**: `POST /api/v1/admin/failover` (owner-only, AD-22 + Epic 12 2FA 챌린지 보존).
+
+**Request body** (JSON):
+
+```json
+{
+  "reason": "manual_test" | "production_incident",
+  "confirmation_2fa_code": "123456"
+}
+```
+
+**Required RBAC**:
+
+- Caller role: `owner` (NOT admin) — AD-22 owner-only.
+- 2FA verification: valid TOTP code within last 30 seconds — Epic 12 2FA 챌린지 보존.
+
+**Response**:
+
+- `200 OK` — failover initiated + completed within 30s RTO.
+- `409 Conflict` — `FAILOVER_IN_PROGRESS` (another failover in flight).
+- `503 Service Unavailable` — `FAILOVER_TARGET_UNHEALTHY` (Tokyo unhealthy).
+- `504 Gateway Timeout` — `FAILOVER_TIMEOUT` (RTO SLA exceeded).
+
+### 12.3 Quarterly DR Drill (PRD §F20.3)
+
+**Schedule**: KST 1st Sunday 03:00 (UTC Saturday 18:00).
+
+**Drill mode**: Production deploys run drill in **staging environment** only. The `drill_mode=True` flag prevents actual production failover.
+
+**6 drill steps**:
+
+1. Probe primary Seoul health.
+2. Probe secondary Tokyo health.
+3. Capture RPO baseline (replication lag seconds).
+4. Capture RTO baseline (0 — never measured).
+5. Invoke `FailoverOrchestrator.trigger_failover(drill_mode=True)`.
+6. Measure RPO/RTO + record result in `phase_5_dr_drill_results`.
+
+**Quarterly schedule**:
+
+- Q1: January 1st Sunday.
+- Q2: April 1st Sunday.
+- Q3: July 1st Sunday.
+- Q4: October 1st Sunday.
+
+**Drill results table**: `phase_5_dr_drill_results` (system-only, no RLS — CR 0-2 verbatim).
+
+### 12.4 Multi-Region Health Observability
+
+**Endpoint**: `GET /api/v1/health/multi-region` (PRD §F20.5 verbatim).
+
+**Response**:
+
+```json
+{
+  "status": "healthy" | "degraded" | "unhealthy",
+  "primary": {
+    "region": "primary_seoul",
+    "replication_status": "healthy" | "lagging" | "stalled" | "disconnected",
+    "lag_seconds": 12,
+    "last_wal_received_at": "2026-08-22T10:00:00Z"
+  },
+  "secondary": {
+    "region": "secondary_tokyo",
+    "replication_status": "healthy",
+    "lag_seconds": 8,
+    "last_wal_received_at": "2026-08-22T10:00:00Z"
+  },
+  "timestamp": "2026-08-22T10:00:01Z"
+}
+```
+
+**CR 12-5 D-14 envelope**: `{code, message_ko, details, trace_id}` for all error paths (2 NEW error classes: MultiRegionUnavailableError + MultiRegionDataStaleError).
+
+### 12.5 Cross-References
+
+- [Master PRD §F20.2](../_bmad-output/planning-artifacts/prd.md#F20.2) — Cross-region failover automation
+- [Master PRD §F20.3](../_bmad-output/planning-artifacts/prd.md#F20.3) — DR drill + automated quarterly test
+- [Master PRD §F20.5](../_bmad-output/planning-artifacts/prd.md#F20.5) — Multi-region health observability
+- [Master PRD AD-31 (a)(b)(f)](../_bmad-output/planning-artifacts/prd.md#AD-31) — Multi-Region Backup & DR sub-decisions
+- [failover_orchestrator](../apps/api/jobs/failover_orchestrator.py) — Failover automation + health probe loop
+- [dr_drill](../apps/api/jobs/dr_drill.py) — Quarterly DR drill cron
+- [Capability matrix v1.29](./capability-matrix.md#v1.29) — `MULTI_REGION_BACKUP` + `MULTI_REGION_FAILOVER` capability gates
+- [health endpoint](../apps/api/core/health.py) — `/api/v1/health/multi-region` route
