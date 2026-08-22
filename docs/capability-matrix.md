@@ -1,8 +1,14 @@
-# Capability Matrix (v1.26)
+# Capability Matrix (v1.27)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.27 (2026-08-22, 1st release launch PRD entry)** — 1st release launch (Epic 15 close-out retro §12 옵션 (d) 결정 wire, A83 결정) capability gates 4 NEW rows:
+> `LAUNCH_LANDING` (`/landing` public route + LandingHero + LandingFeatures + LandingPricing + LandingCTA + ko-KR inline copy EXTENSION, vercel.json public route EXTENSION, (public) route group 신규, 1st release T1 wire 진입) +
+> `LAUNCH_TOS` (`docs/terms-of-service.md` + `docs/privacy-policy.md` 한국 PIPA + GDPR 정합 + signup flow EXTENSION `(auth)/tos` + `(auth)/privacy` 결정, 1st release T2 wire 진입) +
+> `LAUNCH_SUPPORT` (`docs/support.md` + `support@bizup.kr` email + HelpWidget + FAQ `docs/faq.md`, 1st release T4 wire 진입) +
+> `LAUNCH_MONITORING` (smoke test RE-RUN 정직 결정 + backup drill 0036 PITR quarterly + Sentry alert wiring production + RPO 4h/RTO 24h SLA verification, 1st release T5 wire 진입). All 4 industry-agnostic 4-industry grants ✅/✅/✅/✅ (CR 12-1 L4 precedent like `LISTEN_NOTIFY` / `AI_INSIGHT` / `TWO_FACTOR_AUTH` / `LISTEN_NOTIFY_TENANT_FANOUT` / `LISTEN_NOTIFY_MULTIPROCESS` / `LOGIN` / `SIGNUP` / `AUTH_MIDDLEWARE` / `FORGOT_PASSWORD` / `LOGOUT` / `DEPLOYMENT_PROD` / `DEPLOYMENT_STAGING` / `DEPLOYMENT_DATABASE_BACKUP` / `DEPLOYMENT_HEALTH_CHECK` / `MAGIC_LINK` / `SOCIAL_OAUTH_GOOGLE` / `SOCIAL_OAUTH_NAVER` / `SOCIAL_OAUTH_KAKAO` / `SSO_ENTERPRISE`). AD-29 1st release launch 신규 (Marketing landing + ToS/Privacy + Onboarding + Support + Verification + Comms 6 sub-decisions 결정 wire). 1st release wire scope 결정 보존 T1~T8 (T1 Landing page + T2 ToS/Privacy + T3 Onboarding guide + T4 Support channels + T5 Production verification + T6 Capability v1.27 EXTENSION + T7 Tests + T8 Launch comms + 3중 게이트 FINAL CLEAN atomic commit). wire_commit = TBD (cj-style 1st release 3번째 진입점 진입 시점, expected cj-style 64번째 epic 연속 정직 회복).
 >
 > **v1.26 (2026-08-22, Epic 15 PRD entry)** — Magic link + Social OAuth
 > (Google/Naver/Kakao) + SSO enterprise SAML capability gates 5 NEW rows:
@@ -453,6 +459,10 @@ class CalcResponse(BaseModel):
 | `SOCIAL_OAUTH_NAVER` | Epic 15 | ✅ | ✅ | ✅ | ✅ |
 | `SOCIAL_OAUTH_KAKAO` | Epic 15 | ✅ | ✅ | ✅ | ✅ |
 | `SSO_ENTERPRISE` | Epic 15 | ✅ | ✅ | ✅ | ✅ |
+| `LAUNCH_LANDING` | 1st release | ✅ | ✅ | ✅ | ✅ |
+| `LAUNCH_TOS` | 1st release | ✅ | ✅ | ✅ | ✅ |
+| `LAUNCH_SUPPORT` | 1st release | ✅ | ✅ | ✅ | ✅ |
+| `LAUNCH_MONITORING` | 1st release | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
