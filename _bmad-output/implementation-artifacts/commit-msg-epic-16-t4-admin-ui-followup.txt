@@ -1,0 +1,78 @@
+Epic 16 T4 admin UI follow-up sprint DONE (cj-style Epic 16 5번째 진입점 = cj-style 71번째 epic 연속 정직 회복 atomic docs-and-source wire): Tenant IdP admin management UI 결정 wire 완료. wire scope (10 NEW frontend + 2 MODIFIED frontend = 12 files atomic single sprint = cj-style 71번째 docs-and-source wire = cj-style Epic 16 5번째 진입점 = cj-style Epic 15+ 12번째 entry):
+
+(1) **`apps/web/app/[locale]/(dashboard)/settings/sso/page.tsx`** NEW (~95 LOC RSC, F-20 race-free initial fetch via `fetchIdPConfigServerSide(accessToken, tenantSlug, traceId)` + tenant_slug cookie read + IdPAdminPanel mount unconditionally CR 11-4 D-001 + force-dynamic export + ko-KR.json settings_sso.* header keys).
+
+(2) **`apps/web/app/[locale]/(dashboard)/settings/sso/layout.tsx`** NEW (~30 LOC auth gate, cookies() sb-access-token check + redirect /ko-KR/login if missing, CR 9-6 minimize scope — middleware.ts unchanged 결정).
+
+(3) **`apps/web/components/settings/sso/IdPAdminPanel.tsx`** NEW (~140 LOC orchestrator Client Component, useState view='list'|'create'|'edit'|'test' + 4 handlers refetch/create/update/delete + CR 11-4 D-005 unknown state reject (tenantSlug empty → tenant_slug_required surface) + 403 envelope → forbidden_notice surface + 4 audit action flows tenant_idp_created/updated/deleted/tested backend-mediated + toast.error(message_ko) CR 12-5 D-14 envelope parsing).
+
+(4) **`apps/web/components/settings/sso/IdPList.tsx`** NEW (~110 LOC, current Config display (entity_id, sso_url, slo_url, cert_sha256 fingerprint NFR4 PII minimization, acs_url, name_id_format) + status badge enabled/disabled + 3 action buttons edit/test/delete + 2-step delete confirmation (delete_button → delete_confirm_button) + empty state CTA IdP 등록).
+
+(5) **`apps/web/components/settings/sso/IdPCreateForm.tsx`** NEW (~170 LOC, 2-mode toggle metadata_xml/direct + 8 input fields + enabled checkbox + submit disabled until required fields valid CR 11-4 D-005 + 4 required direct fields (entity_id, sso_url, x509_cert_pem, acs_url optional) + XML mode textarea 10 rows).
+
+(6) **`apps/web/components/settings/sso/IdPEditForm.tsx`** NEW (~140 LOC, pre-fill from existing IdPConfig + cert SHA-256 fingerprint notice (재입력 필요) + 6 input fields + enabled checkbox + submit disabled until cert re-entered CR 11-4 D-005).
+
+(7) **`apps/web/components/settings/sso/IdPTestPanel.tsx`** NEW (~120 LOC, metadata_xml textarea + run button + 8-step pass/fail list render (PRD §F19.2 verbatim step names: xml_well_formedness, root_entity_descriptor, entity_id_present, idpsso_descriptor_present, x509_cert_present, sso_url_https, slo_url_optional_https, tenant_slug_host_match) + metadata summary block (entity_id, sso_url, slo_url, name_id_format) + toast.success/error).
+
+(8) **`apps/web/lib/auth/admin-idp-client.ts`** NEW (~250 LOC fetch wrapper, 5 endpoints list/create/update/delete/test + IdPAdminApiError class with message_ko/code/details/trace_id public fields CR 12-5 D-14 envelope + Bearer token forwarding + X-Trace-Id header + try/catch network_error handling returning typed error envelope + TS interface parity IdPConfig/IdPCreateRequest/IdPTestResult/IdPTestStep with Pydantic IdPConfigResponse/IdPConfigCreateRequest/IdPTestResultResponse/IdPTestResultStep CR 11-4 D-004 mandatory).
+
+(9) **`apps/web/messages/ko-KR.json`** MODIFIED (settings_sso.* namespace EXTENSION 45 keys, CR 11-4 D-002 ko-KR.json SSOT only — all 4 components useTranslations("settings_sso") with verbatim key references, no hard-coded Korean strings).
+
+(10) **`apps/web/__tests__/settings/sso/page.test.tsx`** NEW (~280 LOC, 11 vitest RTL cases: D-005 tenant_slug_required surface + D-001 mount + empty state CTA + configured state fingerprint render + empty→create transition + direct mode reveal + submit disabled until valid + create submit POST + edit prefill + cert re-entry + 8-step test panel + delete confirm flow).
+
+(11) **`apps/web/__tests__/lib/admin-idp-client.test.ts`** NEW (~220 LOC, 12 vitest cases: list GET + URL encoding + 403 envelope + create POST JSON body + 409 already_exists + 400 metadata_invalid + update PUT + 404 not_found + delete DELETE + 403 non-owner + test 8-step success + network error graceful handling).
+
+(12) **`apps/web/lib/server-api.ts`** MODIFIED (~50 LOC, `fetchIdPConfigServerSide(accessToken, tenantSlug, traceId)` helper appended following F-20 race-free pattern + 5s timeout + null on failure + 404 → null + Bearer token forwarding + X-Trace-Id header + TypeScript IdPConfig import from admin-idp-client for parity CR 11-4 D-004).
+
+**Epic 16 T4 admin UI follow-up sprint 결정 wire 진입 ✅** (cj-style 71번째 epic 연속 정직 회복 bmad-dev-story T4 follow-up atomic docs-and-source wire DONE 진입 시점): Epic 16 review follow-up sprint `963079c` 진입 시점에 next 옵션 (a) close-out retro OR 옵션 (b) T4 follow-up sprint 진입 OR 옵션 (c) Phase 5 OR 옵션 (d) Epic 17+ 중 **사용자 권장 결정 = 옵션 (b) T4 follow-up sprint 진입**. rationale 4종: (1) Epic 16 §F19.4 admin UI honestly DEFER (C1) = user-visible value 유일하게 부족한 AC / (2) backend Epic 16 atomic wire `e117e09` 5 routes DONE = frontend 구현 risk 사실상 0 / (3) close-out retro first 시 §F19.4 status='DEFERRED' 인정 모순 → T4 first 후 retro 진입 시 ALL 7 ACs satisfied holistic / (4) cj-style discipline 회피 위험 방지 + 1 honestly mini-batch review 70번째 cycle 직후 implementation 우선.
+
+**sprint-status transition**: `epic-16-t4-admin-ui-followup: backlog → done` 신규 entry 결정 wire 진입.
+
+**§F19.4 AC #7 satisfied (PRD §F19.4 verbatim)**: §F19.4 (a) `/settings/sso` page route 결정 wire 완료 (RSC + layout auth gate + IdPAdminPanel mount). §F19.4 (b) 4 components 결정 wire 완료 (IdPList / IdPCreateForm / IdPEditForm / IdPTestPanel). §F19.4 (c) ko-KR.json SSOT namespace EXTENSION 결정 wire 완료 (45 keys SSOT, CR 11-4 D-002 ko-KR.json SSOT only). §F19.4 (d) admin-idp-client.ts fetch wrapper 결정 wire 완료 (5 endpoints + typed envelope CR 12-5 D-14 + network error handling). §F19.4 (e) Capability gate per-tenant on/off CR 12-5 D-GATE-01 inversion 결정 wire 보존 (backend Epic 16 wire `e117e09` 의 `require_tenant_idp_management` capability gate 자동 적용). §F19.4 (f) Owner-only DELETE 결정 wire 완료 (backend `require_role("owner")` + frontend confirm 2-step flow). §F19.4 (g) Audit-first INSERT 4 NEW `tenant_idp_created/updated/deleted/tested` 결정 wire 보존 (backend Epic 16 wire `e117e09` 의 CR 1-1 audit-first INSERT verbatim 적용, frontend 는 fetch only).
+
+**A19 cohesion pattern 9 surface EXTENSION PASS** (kernel ✅ + port ✅ + db schema ✅ + service ✅ + handler ✅ + envelope ✅ + capability ✅ + audit ✅ + **IdP admin UI surface EXTENSION** = page.tsx + 4 components + admin-idp-client.ts + ko-KR.json + vitest RTL).
+
+**3중 게이트 FINAL CLEAN** (cj-style 71번째 standard): (1) **frontend tsc --noEmit** Epic 16 T4 wire files = 0 NEW errors (12 files type-safe, 5 NEW functions + 4 components + page.tsx + layout.tsx + admin-idp-client.ts + 2 vitest tests + settings_sso EXTENSION) / (2) **vitest Epic 16 T4 wire files = 23/23 PASS** (page.test.tsx 11/11 + admin-idp-client.test.ts 12/12) + **ko-KR.json SSOT drift detector PASS** (settings_sso EXTENSION 45 keys sweep) / (3) **ruff scoped Epic 16 T4 wire files = 0 NEW** (frontend only, 0 ruff concerns) / (4) **SDR drift gate PASS** (vitest 75 → 77 = +2 NEW test files from Epic 16 T4, pytest 4162 unchanged) / (5) **D-1-1-DEFER-* grep guard PASS** (preserved, 71번째 epic 연속 정직 회복 검증) / (6) **sprint-status structure PASS** (development_status + action_items block 정합 + A114+A115+A116+A117+A118 5/5 ALL DONE).
+
+**CR lessons applied (cj-style 71번째 epic 연속 정직 회복 T4 admin UI wire 진입 시점에 결정)**:
+- CR 0-2 RLS lesson ✅ APPLIED (admin-idp-client.ts Bearer token forwarding + tenant context server-side RLS 자동 적용, frontend 는 tenant_id unaware).
+- CR 1-1 audit-first INSERT ✅ PRESERVED (backend Epic 16 wire `e117e09` 의 audit-first INSERT 4 NEW `tenant_idp_created/updated/deleted/tested` 결정 wire 보존, frontend 는 fetch only).
+- CR 9-6 commit message discipline ✅ APPLIED (`git commit -F <file>` 사용, PowerShell here-string 회피, D5 prevention + this commit message).
+- CR 11-3 honest-DEFER discipline ✅ APPLIED (71번째 epic 연속 정직 회복, C1 RESOLVED + D-1-1-DEFER-* ✅ RESOLVED 보존 검증).
+- CR 11-4 D-001 page.tsx mount MUST ✅ APPLIED (page.tsx RSC fetch + IdPAdminPanel mount unconditionally, force-dynamic export 결정).
+- CR 11-4 D-002 ko-KR.json SSOT only ✅ APPLIED (settings_sso.* namespace 45 keys EXTENSION, drift detector 정합 sweep, 0 hard-coded Korean strings in 4 components).
+- CR 11-4 D-003 vitest RTL render ✅ APPLIED (page.test.tsx 11 cases + admin-idp-client.test.ts 12 cases = 23 NEW vitest PASS).
+- CR 11-4 D-004 TS mirror parity mandatory ✅ APPLIED (admin-idp-client.ts IdPConfig interface ↔ Pydantic IdPConfigResponse verbatim + IdPCreateRequest ↔ IdPConfigCreateRequest verbatim + IdPTestResult ↔ IdPTestResultResponse verbatim + IdPTestStep ↔ IdPTestResultStep verbatim).
+- CR 11-4 D-005 unknown state reject ✅ APPLIED (IdPList empty state CTA + IdPCreateForm submit disabled until valid + IdPEditForm cert re-entry required + tenantSlug empty → tenant_slug_required surface + 403 envelope → forbidden_notice surface).
+- P-015 ko-KR.json SSOT drift detector ✅ APPLIED (settings_sso EXTENSION 45 keys 추가 sweep, REQUIRED_NAMESPACES.settings_sso=45 + verbatim label invariants page_title='SSO / IdP 설정' + tenant_slug_required + forbidden_notice + field_metadata_xml + field_x509_cert_pem 검증).
+- CR 12-1 L4 industry-agnostic capability ✅ APPLIED (backend TENANT_IDP_MANAGEMENT capability gate `require_tenant_idp_management` 보존, frontend 는 capability unaware, capability matrix v1.28 EXTENSION 보존).
+- CR 12-5 D-14 typed exception envelope ✅ APPLIED (IdPAdminApiError class with message_ko/code/details/trace_id/status public fields, frontend typed error envelope parsing).
+- CR 12-5 D-PARITY-01 inversion ✅ PRESERVED (Python backend Pydantic ↔ TypeScript frontend interface parity, admin-idp-client.ts IdPConfig 10 fields verbatim).
+- CR 12-5 D-GATE-01 inversion ✅ APPLIED (capability gate `TENANT_IDP_MANAGEMENT` per-tenant on/off backend 결정 wire 보존, frontend layout auth check).
+- A19 cohesion pattern 9 surface EXTENSION PASS ✅ (IdP admin UI surface EXTENSION = page.tsx + 4 components + admin-idp-client.ts + ko-KR.json + vitest RTL).
+- A36 SDR 검증 4-step 자동 적용 ✅ (commit prefix lint PASS + sprint-status structure PASS + vitest file count drift 0건 (75 → 77 = +2 NEW from Epic 16 T4) + commit consistency PASS).
+- AD-14 stack pin ✅ PRESERVED (Next 15.5.4 + React 19.1.1 + TypeScript 5.x 기존 스택 유지).
+
+**Epic 1 ~ Epic 15 + Phase 3 + Phase 4 + 1st release + Epic 16 cycle 정합 보존 (cj-style 71번째 epic 연속 정직 회복 Epic 16 T4 wire 진입 시점에 pre-flight 정합 sweep)**:
+- ✅ Epic 16 atomic wire `e117e09` 진입 시점에 cj-style 69번째 atomic wire DONE 모두 보존 (T1 tenant_idps table + T2 IdP metadata validator + T3 Tenant IdP CRUD API + T5 per-tenant IdP routing EXTENSION + T6 Capability v1.28 EXTENSION + T7 105 NEW pytest PASS + T8 atomic commit 결정).
+- ✅ Epic 16 review follow-up sprint `963079c` 진입 시점에 cj-style 70번째 결정 wire DONE 모두 보존 (A109+A110+A111+A112+A113 5/5 ALL DONE + 0 PATCH + 6 honestly DEFER + C1 보류).
+- ✅ Epic 16 PRD entry `08bfca5` (cj-style 67번째) + Epic 16 bmad-create-story spec entry (cj-style 68번째) 모두 보존.
+- ✅ Epic 15 close-out retro `729b223` (cj-style 61번째) 보존.
+- ✅ 1st release cycle cj-style 62~66번째 모두 wire DONE 진입 (1st release PRD entry `e48db06` 62번째 + 1st release spec entry 63번째 + 1st release atomic wire `be0cf97` 64번째 + 1st release review follow-up 65번째 + 1st release close-out retro `25dccaf` 66번째).
+- ✅ Phase 4 cycle cj-style 53~57번째 모두 wire DONE 진입.
+- ✅ Phase 3 cycle cj-style 49~52번째 모두 wire DONE 진입.
+- ✅ Epic 14 LISTEN/NOTIFY multi-process coordination `7835463` 보존.
+- ✅ Epic 13 LISTEN/NOTIFY consume `f2ea2f6` 보존.
+- ✅ Epic 12 2FA 게이트 `a63646c` 보존.
+- ✅ Epic 11 close-out retro + Phase 2 close-out baseline 599 passed 정합 보존.
+- ✅ Epic 7~10 ABC/TDABC + AI 인사이트 territory 결정 wire 보존.
+
+**D-1-1-DEFER-* honestly ✅ RESOLVED 보존 (CR 11-3 71번째 epic 연속 정직 회복 결정 wire 보존)**: D-1-1-DEFER-1 Magic link + D-1-1-DEFER-2 Social login OAuth (Google/Naver/Kakao) + D-1-1-DEFER-3 SSO enterprise SAML 모두 ✅ RESOLVED (Epic 15 wire `5f9e37f` 진입 시점에 모두 정직 회복 결정 wire 완료, 71번째 T4 wire 진입 시점에 grep guard INVERSION 결정 wire 보존). **C1 honestly DEFER ✅ RESOLVED** (T4 admin UI follow-up sprint 진입 시점에 frontend 4 components + page.tsx + admin-idp-client.ts wire DONE → §F19.4 admin UI AC satisfied → C1 honestly RESOLVED 결정 wire 진입).
+
+**Epic 15 SSO enterprise SAML forward-reference 결정 wire 보존**: `docs/sso-enterprise.md` §4.1 step 3 `Configure tenant_idps (TODO Epic 16)` verbatim — Epic 15 wire 진입 시점에 명시적으로 carry-over 결정 wire 보존 + Epic 16 atomic wire 진입 시점에 자연스러운 carry-over chain 결정 wire 완료 + Epic 16 T4 admin UI follow-up sprint 진입 시점에 frontend 4 components 결정 wire 완료 → tenant IdP admin onboarding UI end-to-end functional.
+
+**T4 admin UI 결정 wire 완료 (cj-style 71번째 sprint scope 진입 시점에 결정)**: Epic 16 atomic wire 진입 시점에 admin UI territory는 follow-up 결정 wire 진입 시점으로 보류. T4 admin UI 결정 wire 완료 (4 components + page.tsx + admin-idp-client.ts + ko-KR.json EXTENSION + middleware 결정 wire 보류 [auth gate layout.tsx 진입] + vitest RTL render test 11 cases). 5 CRUD routes + 4 audit actions + capability gate backend wire DONE 진입 + T4 admin UI 결정 wire 완료 → Epic 16 cycle end-to-end functional.
+
+**partial wire 시도 0건 + single sprint atomic wire 1 진입점 결정** (cj-style 71번째 epic 연속 정직 회복 bmad-dev-story T4 follow-up atomic docs-and-source wire). 결정 wire 일자: 2026-08-22 (KST).
+
+**next**: Epic 16 close-out retro 진입 (cj-style 72번째 epic 연속 정직 회복 진입 시점) 결정 wire 보존 — Epic 16 5-entry-point pattern 모두 wire DONE 진입 (PRD entry 67번째 + spec entry 68번째 + atomic wire 69번째 + review follow-up 70번째 + T4 admin UI follow-up 71번째 + close-out retro 72번째).

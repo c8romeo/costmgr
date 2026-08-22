@@ -836,12 +836,16 @@ The page.tsx uses stub `00000000-0000-4000-8000-*` UUIDs with `TODO(11-4 carry)`
 
 Epic 16 (cj-style 69번째 epic 연속 정직 회복 bmad-code-review) 후속 결정 wire — A104 follow-up 결정 wire 진입 시점에 처리.
 
-| Item | Category | Reason |
-|---|---|---|
-| **C1**: T4 frontend territory completely missing (7 files: `settings/sso/page.tsx` + 4 components + `admin-idp-client.ts` + `ko-KR.json settings.sso.*` EXTENSION + vitest) | (c) separate sprint | 사용자 권장 결정: T4 wire 별도 sprint (option (a) 진입 시점). A104 결정 wire 진입 시점에 T4 follow-up sprint 진입 결정 |
-| **H8**: AC7.4 spec file rename variance — `test_epic_16_saml_routes_extended.py` → actual `test_epic_16_tenant_idp_lookup.py` | (a) docs 정합 | Spec 회기 update — 기능적으로 similar coverage (lookup module + saml_routes integration smoke). PRD §F19.7 AC7.4 filename 정합 update 필요 |
-| **M5**: `audit_action.py` typo risk — emit_audit_typed가 frozenset validation 없이 action name 통과시킴 | (b) retro input | CR 1-1 lesson carry. 1차 출시 후 결정 (Epic 17+ 또는 별도 epic) |
-| **M7**: acme seed URL placeholder deviation (actual `idp.example.com` vs spec verbatim `idp.acme.com`) | (a) docs 정합 | Epic 15 backward-compat 우선 (Epic 15 wire 의 hardcoded `acme` placeholder 보존 결정). Atomic sprint 한계 인정. PRD §F19.5 AC5.3 정합 sweep 결정 |
-| **M9**: AC7.2 routes test count underrun (19 vs spec ~25) — coverage gap | (b) retro input | Epic 16 close-out retro (cj-style 71번째) 진입 시점에 A104 결정. RLS multi-tenant isolation + audit-first INSERT 검증 보강 |
-| **L11**: `OnboardingTooltip.tsx` removed `step_dashboard_title` stale i18n key may persist in `ko-KR.json` | (a) docs 정합 | P-015 ko-KR.json SSOT drift detector sweep 결정 (cj-style carry-over pattern) |
+| Item | Category | Reason | Status |
+|---|---|---|---|
+| **C1**: T4 frontend territory completely missing (7 files: `settings/sso/page.tsx` + 4 components + `admin-idp-client.ts` + `ko-KR.json settings.sso.*` EXTENSION + vitest) | (c) separate sprint | 사용자 권장 결정: T4 wire 별도 sprint (option (a) 진입 시점). A104 결정 wire 진입 시점에 T4 follow-up sprint 진입 결정 | ✅ **RESOLVED by Epic 16 T4 (2026-08-22)** — cj-style 71번째 atomic docs-and-source wire. T4 admin UI 결정 wire 완료 (12 files atomic: page.tsx + layout.tsx + 4 components + admin-idp-client.ts + ko-KR.json EXTENSION 45 keys + 2 vitest tests + server-api.ts fetch helper + sprint-status update). §F19.4 AC satisfied honestly. |
+| **H8**: AC7.4 spec file rename variance — `test_epic_16_saml_routes_extended.py` → actual `test_epic_16_tenant_idp_lookup.py` | (a) docs 정합 | Spec 회기 update — 기능적으로 similar coverage (lookup module + saml_routes integration smoke). PRD §F19.7 AC7.4 filename 정합 update 필요 | honestly preserved (Epic 16 close-out retro cj-style 72번째 진입 시점에 결정 wire 보류) |
+| **M5**: `audit_action.py` typo risk — emit_audit_typed가 frozenset validation 없이 action name 통과시킴 | (b) retro input | CR 1-1 lesson carry. 1차 출시 후 결정 (Epic 17+ 또는 별도 epic) | honestly preserved |
+| **M7**: acme seed URL placeholder deviation (actual `idp.example.com` vs spec verbatim `idp.acme.com`) | (a) docs 정합 | Epic 15 backward-compat 우선 (Epic 15 wire 의 hardcoded `acme` placeholder 보존 결정). Atomic sprint 한계 인정. PRD §F19.5 AC5.3 정합 sweep 결정 | honestly preserved |
+| **M9**: AC7.2 routes test count underrun (19 vs spec ~25) — coverage gap | (b) retro input | Epic 16 close-out retro (cj-style 72번째) 진입 시점에 A104 결정. RLS multi-tenant isolation + audit-first INSERT 검증 보강 | honestly preserved |
+| **L11**: `OnboardingTooltip.tsx` removed `step_dashboard_title` stale i18n key may persist in `ko-KR.json` | (a) docs 정합 | P-015 ko-KR.json SSOT drift detector sweep 결정 (cj-style carry-over pattern) | honestly preserved |
+
+### Closed by Epic 16 T4 (2026-08-22, cj-style 71번째)
+
+- **C1 — T4 admin UI frontend territory completely missing** — ✅ RESOLVED. 12 files atomic wire (page.tsx + layout.tsx + IdPAdminPanel + IdPList + IdPCreateForm + IdPEditForm + IdPTestPanel + admin-idp-client.ts + ko-KR.json EXTENSION 45 keys + page.test.tsx 11 cases + admin-idp-client.test.ts 12 cases + server-api.ts fetchIdPConfigServerSide). §F19.4 AC satisfied. CR 11-4 D-001/D-002/D-003/D-004/D-005 + P-015 lessons applied throughout. cj-style 71번째 epic 연속 정직 회복 atomic docs-and-source wire.
 

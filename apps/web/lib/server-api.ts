@@ -23,6 +23,7 @@ import type {
   ProductListResponse,
   TenantSettingsResponse,
 } from "./api-client";
+import type { IdPConfig } from "./auth/admin-idp-client";
 import type {
   MonthlyClosingReportResponse,
   MonthlyClosingReportAuditTrailResponse,
@@ -713,6 +714,51 @@ export async function fetchBudgetPreStandardServerSide(
     if (res.status === 404) return null;
     if (!res.ok) return null;
     const data = (await res.json()) as BudgetPreStandardResponse;
+    return data;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Epic 16 T4 (AC #7.1) — Tenant IdP admin list server-side fetch.
+// RSC fetch for `GET /api/v1/admin/tenant/{slug}/idp` to seed the
+// /settings/sso page with the tenant's current IdP config list (PRD
+// §F19.4 + AD-30 (d)). Mirrors `apps/api/modules/auth/sso/idp_admin_routes.py`
+// `list_tenant_idp` route. TS mirror parity mandatory (CR 11-4 D-004).
+//
+// 403 (no TENANT_IDP_MANAGEMENT capability or wrong role) → returns
+// null. The page Client Component surfaces a typed error envelope.
+// Returns null on any failure so the page falls back to its empty
+// state rendering.
+export async function fetchIdPConfigServerSide(
+  accessToken: string | undefined,
+  tenantSlug: string,
+  traceId: string,
+): Promise<IdPConfig[] | null> {
+  const headers = new Headers();
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+  headers.set("X-Trace-Id", traceId);
+
+  const abortCtl = new AbortController();
+  const timeoutId = setTimeout(() => abortCtl.abort(), 5000);
+
+  try {
+    const res = await fetch(
+      `${apiBaseUrl()}/api/v1/admin/tenant/${encodeURIComponent(tenantSlug)}/idp`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+        signal: abortCtl.signal,
+      },
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    const data = (await res.json()) as IdPConfig[];
     return data;
   } catch {
     return null;
