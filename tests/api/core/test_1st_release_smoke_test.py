@@ -23,7 +23,8 @@ def smoke_test_module():
     if not SMOKE_TEST_PATH.exists():
         pytest.fail(f"smoke_test.py not found at {SMOKE_TEST_PATH}")
     spec = importlib.util.spec_from_file_location("smoke_test", SMOKE_TEST_PATH)
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules["smoke_test"] = module
     spec.loader.exec_module(module)
