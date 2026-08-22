@@ -270,6 +270,20 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     SOCIAL_OAUTH_NAVER = "social_oauth_naver"
     SOCIAL_OAUTH_KAKAO = "social_oauth_kakao"
     SSO_ENTERPRISE = "sso_enterprise"
+    # Story 1st-release (1st release launch wire — cj-style 64번째 진입점) —
+    # LAUNCH_LANDING + LAUNCH_TOS + LAUNCH_SUPPORT + LAUNCH_MONITORING
+    # (PRD §F18.1~§F18.6 + AD-29 + capability matrix v1.27 EXTENSION 4 NEW
+    # rows). Industry-agnostic per CR 12-1 L4 precedent (mirrors
+    # MAGIC_LINK / SOCIAL_OAUTH_* / SSO_ENTERPRISE / DEPLOYMENT_* / LOGIN /
+    # SIGNUP / AUTH_MIDDLEWARE / FORGOT_PASSWORD / LOGOUT). All 4 industries
+    # can access the launch territory (landing page, ToS/Privacy, support
+    # channels, production verification, launch communications). Drift
+    # detector lives at tests/integration/test_capability_matrix_v1_27_drift.py
+    # (capability matrix v1.27 NEW 4 rows).
+    LAUNCH_LANDING = "launch_landing"
+    LAUNCH_TOS = "launch_tos"
+    LAUNCH_SUPPORT = "launch_support"
+    LAUNCH_MONITORING = "launch_monitoring"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -366,6 +380,13 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.SOCIAL_OAUTH_NAVER,
             Capability.SOCIAL_OAUTH_KAKAO,
             Capability.SSO_ENTERPRISE,
+            # Story 1st-release (cj-style 64번째) — manufacturing tenants get
+            # LAUNCH_LANDING + LAUNCH_TOS + LAUNCH_SUPPORT +
+            # LAUNCH_MONITORING (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.LAUNCH_LANDING,
+            Capability.LAUNCH_TOS,
+            Capability.LAUNCH_SUPPORT,
+            Capability.LAUNCH_MONITORING,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -441,6 +462,13 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.SOCIAL_OAUTH_NAVER,
             Capability.SOCIAL_OAUTH_KAKAO,
             Capability.SSO_ENTERPRISE,
+            # Story 1st-release (cj-style 64번째) — service tenants get
+            # LAUNCH_LANDING + LAUNCH_TOS + LAUNCH_SUPPORT +
+            # LAUNCH_MONITORING (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.LAUNCH_LANDING,
+            Capability.LAUNCH_TOS,
+            Capability.LAUNCH_SUPPORT,
+            Capability.LAUNCH_MONITORING,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -536,6 +564,13 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.SOCIAL_OAUTH_NAVER,
             Capability.SOCIAL_OAUTH_KAKAO,
             Capability.SSO_ENTERPRISE,
+            # Story 1st-release (cj-style 64번째) — 겸영 tenants get
+            # LAUNCH_LANDING + LAUNCH_TOS + LAUNCH_SUPPORT +
+            # LAUNCH_MONITORING (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.LAUNCH_LANDING,
+            Capability.LAUNCH_TOS,
+            Capability.LAUNCH_SUPPORT,
+            Capability.LAUNCH_MONITORING,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -628,6 +663,13 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.SOCIAL_OAUTH_NAVER,
             Capability.SOCIAL_OAUTH_KAKAO,
             Capability.SSO_ENTERPRISE,
+            # Story 1st-release (cj-style 64번째) — 겸영+기타 tenants get
+            # LAUNCH_LANDING + LAUNCH_TOS + LAUNCH_SUPPORT +
+            # LAUNCH_MONITORING (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.LAUNCH_LANDING,
+            Capability.LAUNCH_TOS,
+            Capability.LAUNCH_SUPPORT,
+            Capability.LAUNCH_MONITORING,
         }
     ),
 }

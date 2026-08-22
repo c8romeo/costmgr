@@ -1,0 +1,12 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+  <text x="60" y="240" font-family="sans-serif" font-size="80" font-weight="700" fill="#f5f5f5">
+    costmgr
+  </text>
+  <text x="60" y="320" font-family="sans-serif" font-size="40" font-weight="400" fill="#a0a0a0">
+    원가 관리, AI로 자동화합니다
+  </text>
+  <text x="60" y="560" font-family="sans-serif" font-size="24" font-weight="400" fill="#a0a0a0">
+    ABC 엔진 + TDABC + AI 인사이트
+  </text>
+</svg>

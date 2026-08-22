@@ -54,7 +54,16 @@ function isAuthPath(pathname: string): boolean {
     /^\/(?:[a-z]{2}-[A-Z]{2})?\/magic-link(\/|$|\?)/.test(pathname) ||
     /^\/(?:[a-z]{2}-[A-Z]{2})?\/magic-link-sent(\/|$|\?)/.test(pathname) ||
     /^\/(?:[a-z]{2}-[A-Z]{2})?\/auth-callback(\/|$|\?)/.test(pathname) ||
-    /^\/(?:[a-z]{2}-[A-Z]{2})?\/sso\/[^/]+\/login(\/|$|\?)/.test(pathname)
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/sso\/[^/]+\/login(\/|$|\?)/.test(pathname) ||
+    // 1st release launch (cj-style 64번째 진입점) — public landing + ToS/Privacy +
+    // support + announcements routes (auth required for /support and /announcements
+    // per (auth) route group; the route guard below still sends unauthenticated
+    // users to /login for those — but /landing and /tos and /privacy are
+    // also public so they're listed here to be safe).
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/landing(\/|$|\?)/.test(pathname) ||
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/tos(\/|$|\?)/.test(pathname) ||
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/privacy(\/|$|\?)/.test(pathname) ||
+    /^\/(?:[a-z]{2}-[A-Z]{2})?\/onboarding(\/|$|\?)/.test(pathname)
   );
 }
 

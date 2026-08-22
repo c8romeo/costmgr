@@ -35,12 +35,23 @@
       "error_already_has_tenant": "이미 다른 테넌트에 속해 있습니다. 기존 계정으로 로그인해 주세요.",
       "email_verification_pending_title": "이메일 인증을 완료해 주세요",
       "email_verification_pending_body": "인증 메일을 보냈습니다. 메일의 링크를 클릭해 가입을 완료해 주세요.",
-      "email_verification_resend": "인증 메일 재발송"
+      "email_verification_resend": "인증 메일 재발송",
+      "tos_required": "이용약관 및 개인정보처리방침에 동의해야 가입할 수 있습니다."
     },
     "logout": {
       "button": "로그아웃",
       "error_failed": "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
       "error_network": "네트워크 오류로 로그아웃하지 못했습니다."
+    },
+    "tos": {
+      "title": "이용약관",
+      "accept_label": "이용약관에 동의합니다",
+      "view_link": "이용약관 전문 보기"
+    },
+    "privacy": {
+      "title": "개인정보처리방침",
+      "accept_label": "개인정보처리방침에 동의합니다",
+      "view_link": "개인정보처리방침 전문 보기"
     },
     "forgot_password": {
       "title": "비밀번호 찾기",
@@ -891,5 +902,36 @@
     "idempotent_replay_label": "ℹ️ 멱등 재호출 (기존 promotion 반환)",
     "error_envelope_status_label": "❌ 실패",
     "audit_log_ids_label": "감사로그 ID"
+  },
+  "landing": {
+    "title": "원가 관리, AI로 자동화합니다",
+    "subtitle": "ABC 엔진 + TDABC + AI 인사이트로 제조·유통·서비스·IT 4개 산업군 지원",
+    "cta_primary": "무료로 시작하기",
+    "cta_secondary": "로그인",
+    "features_title": "핵심 기능",
+    "pricing_title": "심플한 가격",
+    "pricing_price": "월 1만원",
+    "pricing_period": "VAT 포함",
+    "trial_notice": "14일 무료 체험"
+  },
+  "onboarding": {
+    "welcome_title": "환영합니다!",
+    "welcome_subtitle": "4단계로 시작해 보세요",
+    "step_dashboard_title": "대시보드",
+    "step_data_title": "데이터 입력",
+    "step_reports_title": "보고서",
+    "step_security_title": "보안",
+    "skip_button": "건너뛰기",
+    "complete_button": "시작하기"
+  },
+  "support": {
+    "title": "고객 지원",
+    "email_label": "이메일 문의",
+    "email_value": "support@bizup.kr",
+    "widget_button": "도움이 필요하신가요?",
+    "contact_form_title": "문의하기",
+    "faq_link": "자주 묻는 질문",
+    "sla_p1": "P1: 4시간 이내 응답",
+    "sla_p2": "P2: 24시간 이내 응답"
   }
 }

@@ -59,6 +59,10 @@
     {
       "source": "/api/health",
       "destination": "/api/health/route"
+    },
+    {
+      "source": "/landing",
+      "destination": "/[locale]/(public)/landing"
     }
   ]
 }

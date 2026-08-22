@@ -29,14 +29,14 @@ from apps.api.core.pipa_gate import (
     PipaReviewRequiredError,
 )
 from apps.api.core.security import AuthError
+from apps.api.modules.auth import auth_audit_router, sso_router
+from apps.api.modules.launch import launch_router
 from apps.api.modules.m0_onboarding import (
     router as m0_onboarding_router,
 )
 from apps.api.modules.m0_onboarding import (
     signup_router as m0_onboarding_signup_router,
 )
-from apps.api.modules.auth import auth_audit_router
-from apps.api.modules.auth import sso_router
 from apps.api.modules.m1_baseline import router as m1_baseline_router
 from apps.api.modules.m2_input import router as m2_input_router
 from apps.api.modules.m2_input.services.monthly_input_service import (
@@ -370,6 +370,7 @@ app.include_router(health_router)
 # - POST /api/v1/auth/audit/social-oauth-initiated
 app.include_router(sso_router)
 app.include_router(auth_audit_router)
+app.include_router(launch_router)
 
 
 @app.exception_handler(AuthError)
