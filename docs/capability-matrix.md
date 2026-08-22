@@ -1,8 +1,39 @@
-# Capability Matrix (v1.25)
+# Capability Matrix (v1.26)
 
 > **Single source of truth** for the `Industry × Capability` gating that
 > Epic 1 / 2 / 3 / 4 / 11 / 12 stories need to coordinate. Replaces the per-story
 > capability tables with one consolidated matrix.
+>
+> **v1.26 (2026-08-22, Epic 15 PRD entry)** — Magic link + Social OAuth
+> (Google/Naver/Kakao) + SSO enterprise SAML capability gates 5 NEW rows:
+> `MAGIC_LINK` (Supabase `signInWithOtp` + 5회 cool-down + email 존재 여부
+> 노출 방지 + audit-first INSERT `magic_link_sent`, Epic 15 T1+T2 wire 진입) +
+> `SOCIAL_OAUTH_GOOGLE` (Supabase `signInWithOAuth` + provider whitelist +
+> 3회 cool-down + audit-first INSERT `social_oauth_initiated`, Epic 15 T3+T4
+> wire 진입) +
+> `SOCIAL_OAUTH_NAVER` (Supabase `signInWithOAuth` Option A 우선 / Option B
+> custom Naver OAuth flow 결정 wire 보존, Epic 15 T3+T4 wire 진입) +
+> `SOCIAL_OAUTH_KAKAO` (Supabase `signInWithOAuth` + provider whitelist +
+> 3회 cool-down, Epic 15 T3+T4 wire 진입) +
+> `SSO_ENTERPRISE` (`python3-saml==1.16.0` AD-14 stack pin + SAML response
+> validation + JIT user provisioning + multi-tenant isolation RLS +
+> audit-first INSERT `sso_identity_linked`, Epic 15 T5+T6 wire 진입). All 5
+> industry-agnostic 4-industry grants ✅/✅/✅/✅ (CR 12-1 L4 precedent like
+> `LISTEN_NOTIFY` / `AI_INSIGHT` / `TWO_FACTOR_AUTH` /
+> `LISTEN_NOTIFY_TENANT_FANOUT` / `LISTEN_NOTIFY_MULTIPROCESS` / `LOGIN` /
+> `SIGNUP` / `AUTH_MIDDLEWARE` / `FORGOT_PASSWORD` / `LOGOUT` /
+> `DEPLOYMENT_PROD` / `DEPLOYMENT_STAGING` / `DEPLOYMENT_DATABASE_BACKUP` /
+> `DEPLOYMENT_HEALTH_CHECK`). AD-28 Magic link + Social OAuth + SSO enterprise
+> SAML 신규 (Supabase `signInWithOtp` + `signInWithOAuth` +
+> `python3-saml==1.16.0` AD-14 stack pin + JIT user provisioning +
+> multi-tenant isolation CR 0-2 RLS lesson + audit-first INSERT 3 NEW 결정
+> wire). D-1-1-DEFER-1/2/3 honestly ✅ RESOLVED 58번째 epic 연속 정직 회복
+> (CR 11-3 discipline). Epic 15 wire scope 결정 보존 T1~T8 (T1 Magic link
+> wrapper + T2 Magic link UI + T3 Social OAuth wrapper + T4 OAuth callback
+> + T5 SSO SAML backend + T6 SSO UI + T7 capability v1.26 EXTENSION + T8
+> tests + 3중 게이트 FINAL CLEAN atomic commit). wire_commit = TBD
+> (cj-style Epic 15 3번째 진입점 진입 시점, expected cj-style 60번째 epic 연속
+> 정직 회복).
 >
 > **v1.25 (2026-08-22, Phase 4 PRD entry)** — Deployment config + Dockerfile +
 > health check + observability + database backup capability gates 4 NEW rows:
@@ -417,6 +448,11 @@ class CalcResponse(BaseModel):
 | `DEPLOYMENT_STAGING` | Phase 4 | ✅ | ✅ | ✅ | ✅ |
 | `DEPLOYMENT_DATABASE_BACKUP` | Phase 4 | ✅ | ✅ | ✅ | ✅ |
 | `DEPLOYMENT_HEALTH_CHECK` | Phase 4 | ✅ | ✅ | ✅ | ✅ |
+| `MAGIC_LINK` | Epic 15 | ✅ | ✅ | ✅ | ✅ |
+| `SOCIAL_OAUTH_GOOGLE` | Epic 15 | ✅ | ✅ | ✅ | ✅ |
+| `SOCIAL_OAUTH_NAVER` | Epic 15 | ✅ | ✅ | ✅ | ✅ |
+| `SOCIAL_OAUTH_KAKAO` | Epic 15 | ✅ | ✅ | ✅ | ✅ |
+| `SSO_ENTERPRISE` | Epic 15 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
