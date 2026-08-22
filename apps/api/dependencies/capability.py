@@ -18,6 +18,9 @@ Epic 16:
 Epic 17:
   - `require_audit_log_view()` — gates `/api/v1/audit-log[/...]` + `/audit-log/export`
 
+Phase 6:
+  - `require_audit_log_retention()` — gates `/api/v1/audit-log/retention[/...]` + `/audit-log/erase`
+
 Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
 """
 from __future__ import annotations
@@ -37,6 +40,7 @@ __all__ = [
     "require_launch_monitoring",
     "require_tenant_idp_management",
     "require_audit_log_view",
+    "require_audit_log_retention",
 ]
 
 
@@ -63,3 +67,15 @@ require_tenant_idp_management = require_capability(Capability.TENANT_IDP_MANAGEM
 # DEPLOYMENT_* Phase 4 wire pattern verbatim). All 4 industries get
 # audit log viewer capability.
 require_audit_log_view = require_capability(Capability.AUDIT_LOG_VIEW)
+# Phase 6 — Audit log retention capability (F22.6 + AC #6.3 + AD-33 (f)
+# sub-decision). Gates the audit log retention routes in
+# apps/api/modules/audit/retention/retention_routes.py (retention policy
+# DSL CRUD + automatic purge job trigger + cold-archive action +
+# GDPR Article 17 erasure endpoint). Industry-agnostic per CR 12-1 L4
+# precedent (mirrors MULTI_REGION_BACKUP/FAILOVER Phase 5 wire +
+# AUDIT_LOG_VIEW Epic 17 wire + TENANT_IDP_MANAGEMENT Epic 16 wire +
+# SSO_ENTERPRISE Epic 15 wire + LISTEN_NOTIFY 13/14 wire +
+# AUTH_MIDDLEWARE Phase 3 wire + LAUNCH_* 1st release wire +
+# DEPLOYMENT_* Phase 4 wire pattern verbatim). All 4 industries get
+# audit log retention capability (compliance baseline).
+require_audit_log_retention = require_capability(Capability.AUDIT_LOG_RETENTION)

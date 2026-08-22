@@ -325,6 +325,23 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_30_drift.py (capability
     # matrix v1.30 EXTENSION 1 NEW row).
     AUDIT_LOG_VIEW = "audit_log_view"
+    # Phase 6 (cj-style 87번째 epic 연속 정직 회복 wire) — AUDIT_LOG_RETENTION
+    # — Audit Log Retention Policy territory (PRD §F22 + AD-33 (a)~(g)
+    # sub-decisions). Industry-agnostic per CR 12-1 L4 precedent (mirrors
+    # MULTI_REGION_BACKUP + MULTI_REGION_FAILOVER Phase 5 wire +
+    # AUDIT_LOG_VIEW Epic 17 wire + TENANT_IDP_MANAGEMENT Epic 16 wire +
+    # SSO_ENTERPRISE Epic 15 wire + LISTEN_NOTIFY 13/14 wire +
+    # AUTH_MIDDLEWARE Phase 3 wire + LAUNCH_* 1st release wire +
+    # DEPLOYMENT_* Phase 4 wire pattern verbatim). All 4 industries get
+    # AUDIT_LOG_RETENTION capability (audit log retention is operational
+    # infrastructure / compliance baseline, not industry-specific). Gates
+    # the retention policy DSL + automatic purge job + archive storage +
+    # GDPR Article 17 erasure routes
+    # (apps/api/modules/audit/retention/retention_routes.py +
+    # erasure.py). Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_31_drift.py
+    # (capability matrix v1.31 EXTENSION 1 NEW row).
+    AUDIT_LOG_RETENTION = "audit_log_retention"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -442,6 +459,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # CR 12-1 L4 precedent + MULTI_REGION_BACKUP +
             # MULTI_REGION_FAILOVER Phase 5 wire pattern verbatim).
             Capability.AUDIT_LOG_VIEW,
+            # Phase 6 (cj-style 87번째 wire) — manufacturing/service/겸영/겸영+기타
+            # tenants get AUDIT_LOG_RETENTION (industry-agnostic, compliance
+            # baseline CR 12-1 L4 precedent + AUDIT_LOG_VIEW Epic 17 wire +
+            # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
+            Capability.AUDIT_LOG_RETENTION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -537,6 +559,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # CR 12-1 L4 precedent + MULTI_REGION_BACKUP +
             # MULTI_REGION_FAILOVER Phase 5 wire pattern verbatim).
             Capability.AUDIT_LOG_VIEW,
+            # Phase 6 (cj-style 87번째 wire) — manufacturing/service/겸영/겸영+기타
+            # tenants get AUDIT_LOG_RETENTION (industry-agnostic, compliance
+            # baseline CR 12-1 L4 precedent + AUDIT_LOG_VIEW Epic 17 wire +
+            # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
+            Capability.AUDIT_LOG_RETENTION,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -652,6 +679,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # CR 12-1 L4 precedent + MULTI_REGION_BACKUP +
             # MULTI_REGION_FAILOVER Phase 5 wire pattern verbatim).
             Capability.AUDIT_LOG_VIEW,
+            # Phase 6 (cj-style 87번째 wire) — manufacturing/service/겸영/겸영+기타
+            # tenants get AUDIT_LOG_RETENTION (industry-agnostic, compliance
+            # baseline CR 12-1 L4 precedent + AUDIT_LOG_VIEW Epic 17 wire +
+            # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
+            Capability.AUDIT_LOG_RETENTION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -764,6 +796,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # CR 12-1 L4 precedent + MULTI_REGION_BACKUP +
             # MULTI_REGION_FAILOVER Phase 5 wire pattern verbatim).
             Capability.AUDIT_LOG_VIEW,
+            # Phase 6 (cj-style 87번째 wire) — manufacturing/service/겸영/겸영+기타
+            # tenants get AUDIT_LOG_RETENTION (industry-agnostic, compliance
+            # baseline CR 12-1 L4 precedent + AUDIT_LOG_VIEW Epic 17 wire +
+            # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
+            Capability.AUDIT_LOG_RETENTION,
         }
     ),
 }

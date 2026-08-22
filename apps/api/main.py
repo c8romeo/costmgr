@@ -38,6 +38,13 @@ from apps.api.modules.audit.audit_log_routes import (
 from apps.api.modules.audit.audit_log_routes import (
     router as audit_log_router,
 )
+from apps.api.modules.audit.retention.erasure import (
+    AuditLogPiiErasureForbiddenError,
+    AuditLogPiiErasureNotFoundError,
+)
+from apps.api.modules.audit.retention.retention_dsl import (
+    AuditLogRetentionPolicyInvalidError,
+)
 from apps.api.modules.auth import auth_audit_router, sso_router
 from apps.api.modules.auth.sso.idp_admin_routes import router as idp_admin_router
 from apps.api.modules.launch import launch_router
@@ -402,6 +409,19 @@ app.include_router(idp_admin_router)
 # in capability matrix v1.30 EXTENSION).
 app.include_router(audit_log_router)
 
+# Phase 6 (cj-style 87번째 epic 연속 정직 회복 wire) — Audit Log Retention
+# Policy territory (PRD §F22 + AD-33 verbatim). 8 routes mounted at
+# /api/v1/audit-log/retention[/...] plus POST /api/v1/audit-log/erase
+# (GDPR Article 17). Capability gate AUDIT_LOG_RETENTION
+# (capability matrix v1.31 EXTENSION). audit-first INSERT 5 NEW
+# AUDIT actions (audit_log_purged / archived / pii_masked /
+# cold_archived / personal_data_erased).
+from apps.api.modules.audit.retention.retention_routes import (
+    router as audit_log_retention_router,
+)
+
+app.include_router(audit_log_retention_router)
+
 
 @app.exception_handler(AuthError)
 async def _auth_error_handler(request: Request, exc: AuthError) -> JSONResponse:
@@ -523,6 +543,59 @@ async def _audit_log_export_too_large_handler(
 ) -> JSONResponse:
     return JSONResponse(
         status_code=413,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+# Phase 6 (cj-style 87번째 wire) — 4 NEW exception handlers (CR 12-5 D-14
+# envelope verbatim `{code, message_ko, details, trace_id}`):
+#   - AuditLogRetentionPolicyInvalidError  → 400
+#   - AuditLogPiiErasureForbiddenError      → 403
+#   - AuditLogPiiErasureNotFoundError       → 404
+@app.exception_handler(AuditLogRetentionPolicyInvalidError)
+async def _audit_log_retention_policy_invalid_handler(
+    request: Request, exc: AuditLogRetentionPolicyInvalidError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AuditLogPiiErasureForbiddenError)
+async def _audit_log_pii_erasure_forbidden_handler(
+    request: Request, exc: AuditLogPiiErasureForbiddenError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(AuditLogPiiErasureNotFoundError)
+async def _audit_log_pii_erasure_not_found_handler(
+    request: Request, exc: AuditLogPiiErasureNotFoundError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=404,
         content={
             "code": exc.code,
             "message_ko": exc.message_ko,

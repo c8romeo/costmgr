@@ -472,8 +472,25 @@ InfraAction = Literal[
 # 1 NEW value: `audit_log_exported` (CSV export wire).
 # Drift detector: tests/integration/test_audit_action_consistency.py
 # enforces ActionClass registry ↔ DB CHECK ↔ call sites parity.
+# Phase 6 (cj-style 87번째 wire) — AUDIT 5 NEW values
+# (audit log retention policy + purge job + archive + GDPR Article 17
+# erasure + cold-archive + personal-data-erased audit-first INSERT,
+# AD-33 (e) verbatim). PRD §F22.5 + AC #5.1~#5.8 — audit-first INSERT
+# for each new destructive operation BEFORE the destructive event
+# (CR 1-1 verbatim). Each new audit action emits BEFORE the
+# destructive operation (purge / archive / mask / cold-archive /
+# personal-data-erased). Routes to `audit_logs`.
+# Drift detector: tests/api/core/test_epic_17_audit_action.py
+# (Epic 17 cj-style 82번째 wire backend, EXTENSION in Phase 6)
+# enforces ActionClass registry ↔ DB CHECK ↔ call sites parity.
 AuditAction = Literal[
     "audit_log_exported",  # §F21.5 CSV export Row audit-first INSERT
+    # Phase 6 (cj-style 87번째 wire) — 5 NEW values
+    "audit_log_purged",  # §F22.5 + AC #5.1 — purge job BEFORE DELETE
+    "audit_log_archived",  # §F22.5 + AC #5.2 — purge job BEFORE archive snapshot
+    "audit_log_pii_masked",  # §F22.5 + AC #5.3 — erasure BEFORE PII mask UPDATE
+    "audit_log_cold_archived",  # §F22.5 + AC #5.4 — manual cold-archive BEFORE S3 copy
+    "audit_log_personal_data_erased",  # §F22.5 + AC #5.5 — GDPR Article 17 BEFORE erasure
 ]
 
 
@@ -505,7 +522,7 @@ AuditAction = (
     | AIInsightCacheAction  # NEW — Story 10.2 (Epic 10)
     | TenantAction  # NEW — Phase 3-0 (Epic 1 carry-over = auth contract)
     | InfraAction  # NEW — Phase 5 (multi-region backup + failover + DR drill)
-    | AuditAction  # NEW — Epic 17 (audit log viewer CSV export)
+    | AuditAction  # NEW — Epic 17 (audit log viewer CSV export) + Phase 6 EXTENSION (5 NEW values)
 )
 
 
@@ -891,11 +908,23 @@ class _ActionRegistry:
         # mirroring AUTH (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH
         # (Epic 12) pattern). Drift detector enforces ActionClass
         # registry ↔ DB CHECK ↔ call sites parity (3-way gate).
+        # Phase 6 (cj-style 87번째 wire) — AUDIT EXTENSION 5 NEW values
+        # (audit log retention + purge + archive + GDPR Article 17
+        # erasure + cold-archive audit-first INSERT, AD-33 (e) verbatim).
+        # PRD §F22.5 — each destructive operation emits audit log BEFORE
+        # the destructive event (CR 1-1 verbatim). Drift detector
+        # enforces ActionClass registry ↔ DB CHECK ↔ call sites parity.
         ActionClass.AUDIT: (
             "audit_logs",
             frozenset(
                 {
                     "audit_log_exported",  # §F21.5 CSV export Row audit-first
+                    # Phase 6 (cj-style 87번째 wire) — 5 NEW values (AD-33 (e))
+                    "audit_log_purged",  # §F22.5 + AC #5.1 — purge job BEFORE DELETE
+                    "audit_log_archived",  # §F22.5 + AC #5.2 — purge job BEFORE archive snapshot
+                    "audit_log_pii_masked",  # §F22.5 + AC #5.3 — erasure BEFORE PII mask UPDATE
+                    "audit_log_cold_archived",  # §F22.5 + AC #5.4 — manual cold-archive BEFORE S3 copy
+                    "audit_log_personal_data_erased",  # §F22.5 + AC #5.5 — GDPR Article 17 BEFORE erasure
                 }
             ),
         ),
