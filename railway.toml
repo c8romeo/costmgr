@@ -1,0 +1,41 @@
+# costmgr — Railway backend deployment config
+#
+# Phase 4 (cj-style 55번째 epic 연속 정직 회복 wire)
+# AD-27 verbatim: Railway backend (FastAPI + Dockerfile + health check endpoint)
+# healthcheckPath = "/api/v1/health" 정합 sweep with apps/api/core/health.py (Phase 4 T5 wire)
+#
+# Re-run digest refresh on:
+#   - Python major version bump
+#   - Railway runtime EOL announcement
+#   - Supply-chain security advisory
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/api/Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[env]
+# Required: Supabase connection
+DATABASE_URL = "${DATABASE_URL}"
+SUPABASE_URL = "${SUPABASE_URL}"
+SUPABASE_ANON_KEY = "${SUPABASE_ANON_KEY}"
+SUPABASE_SERVICE_ROLE_KEY = "${SUPABASE_SERVICE_ROLE_KEY}"
+SUPABASE_JWT_SECRET = "${SUPABASE_JWT_SECRET}"
+# Required: Sentry observability (server side)
+SENTRY_DSN = "${SENTRY_DSN}"
+ENVIRONMENT = "production"
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+PORT = "8000"
+
+[[services]]
+name = "costmgr-api"
+source = "."
+# Internal Railway healthcheck is satisfied by healthcheckPath above.
+# Railway re-runs the container command below on healthcheckTimeout expiration.
+command = ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

@@ -22,6 +22,8 @@ from apps.api.core.capability import (
     ForbiddenRoleError,
     IndustryCapabilityError,
 )
+from apps.api.core.health import router as health_router
+from apps.api.core.observability import init_sentry
 from apps.api.core.pipa_gate import (
     PipaConsentMissingError,
     PipaReviewRequiredError,
@@ -268,6 +270,11 @@ app = FastAPI(
     description="원가 관리 SaaS — FastAPI modular monolith (AD-1)",
 )
 
+# Phase 4 (cj-style 55번째 epic 연속 정직 회복 wire) — AD-27 verbatim +
+# Sentry observability initialization (PRD §F16.5 + AC #5.4).
+# init_sentry() is a no-op if SENTRY_DSN is unset; never raises.
+init_sentry(app=app)
+
 # Story 1.1 — M0 onboarding (industry selector + menu auto-toggle)
 app.include_router(m0_onboarding_router)
 # Phase 3-0 — atomic signup completion (pre-onboarding JWT → first tenant).
@@ -340,6 +347,15 @@ app.include_router(m5_reports_router)
 # - POST /api/v1/account/2fa/challenge-tokens/consume (200 token consumed)
 # - GET  /api/v1/m2-entry-gate                      (200 M2 entry gate state)
 app.include_router(m12_account_router)
+
+# Phase 4 (cj-style 55번째 epic 연속 정직 회복 wire) — AD-27 verbatim +
+# Deployment health check endpoints (PRD §F16.5 + AC #5.1~#5.6).
+# 3 NEW routes:
+# - GET /api/v1/health         (combined liveness + readiness)
+# - GET /api/v1/health/live    (liveness: process alive)
+# - GET /api/v1/health/ready   (readiness: DB + JWT verification)
+# Preserves the legacy /health route for backward compat with CI smoke tests.
+app.include_router(health_router)
 
 
 @app.exception_handler(AuthError)

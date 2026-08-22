@@ -39,7 +39,7 @@ from packages.services.m0_onboarding.industry_menu import Industry
 
 
 # ── Capability enum ──────────────────────────────────────────
-class Capability(str, Enum):
+class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydantic v2 interop baseline, pre-Phase-4)
     """Backend capabilities gated by industry.
 
     These map to menu items the sidebar hides for incompatible industries
@@ -237,6 +237,22 @@ class Capability(str, Enum):
     AUTH_MIDDLEWARE = "auth_middleware"
     FORGOT_PASSWORD = "forgot_password"
     LOGOUT = "logout"
+    # Story phase-4 (Phase 4 cj-style 3번째 진입점) — Deployment territory
+    # capability gates (PRD §F16.7 + AD-27 + A73+A74+A76+A77+A78 결정 wire).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors 2FA / backup /
+    # deletion / 4-stage close / reversal / LOCK / auth / LISTEN_NOTIFY
+    # pattern). All 4 industries have the DEPLOYMENT_PROD +
+    # DEPLOYMENT_STAGING + DEPLOYMENT_DATABASE_BACKUP + DEPLOYMENT_HEALTH_CHECK
+    # surface — deployment is operational infrastructure, not
+    # industry-specific. Gates the corresponding deployment endpoints.
+    # The capability matrix v1.25 (already declared in
+    # `docs/capability-matrix.md` during Phase 4 PRD entry) declares the
+    # 4 NEW rows; this backend enum is the missing half. Drift detector:
+    # tests/integration/test_capability_matrix_v1_25_drift.py.
+    DEPLOYMENT_PROD = "deployment_prod"
+    DEPLOYMENT_STAGING = "deployment_staging"
+    DEPLOYMENT_DATABASE_BACKUP = "deployment_database_backup"
+    DEPLOYMENT_HEALTH_CHECK = "deployment_health_check"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -314,6 +330,15 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.AUTH_MIDDLEWARE,
             Capability.FORGOT_PASSWORD,
             Capability.LOGOUT,
+            # Story phase-4 — manufacturing tenants get DEPLOYMENT_PROD +
+            # DEPLOYMENT_STAGING + DEPLOYMENT_DATABASE_BACKUP +
+            # DEPLOYMENT_HEALTH_CHECK (industry-agnostic, operational
+            # infrastructure CR 12-1 L4 + LISTEN_NOTIFY 13-1/14-1 wire
+            # pattern). All 4 industries get deployment capability.
+            Capability.DEPLOYMENT_PROD,
+            Capability.DEPLOYMENT_STAGING,
+            Capability.DEPLOYMENT_DATABASE_BACKUP,
+            Capability.DEPLOYMENT_HEALTH_CHECK,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -371,6 +396,15 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.AUTH_MIDDLEWARE,
             Capability.FORGOT_PASSWORD,
             Capability.LOGOUT,
+            # Story phase-4 — service tenants get DEPLOYMENT_PROD +
+            # DEPLOYMENT_STAGING + DEPLOYMENT_DATABASE_BACKUP +
+            # DEPLOYMENT_HEALTH_CHECK (industry-agnostic, operational
+            # infrastructure CR 12-1 L4 + LISTEN_NOTIFY 13-1/14-1 wire
+            # pattern). All 4 industries get deployment capability.
+            Capability.DEPLOYMENT_PROD,
+            Capability.DEPLOYMENT_STAGING,
+            Capability.DEPLOYMENT_DATABASE_BACKUP,
+            Capability.DEPLOYMENT_HEALTH_CHECK,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -448,6 +482,15 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.AUTH_MIDDLEWARE,
             Capability.FORGOT_PASSWORD,
             Capability.LOGOUT,
+            # Story phase-4 — 겸영 tenants get DEPLOYMENT_PROD +
+            # DEPLOYMENT_STAGING + DEPLOYMENT_DATABASE_BACKUP +
+            # DEPLOYMENT_HEALTH_CHECK (industry-agnostic, operational
+            # infrastructure CR 12-1 L4 + LISTEN_NOTIFY 13-1/14-1 wire
+            # pattern). All 4 industries get deployment capability.
+            Capability.DEPLOYMENT_PROD,
+            Capability.DEPLOYMENT_STAGING,
+            Capability.DEPLOYMENT_DATABASE_BACKUP,
+            Capability.DEPLOYMENT_HEALTH_CHECK,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -522,6 +565,15 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.AUTH_MIDDLEWARE,
             Capability.FORGOT_PASSWORD,
             Capability.LOGOUT,
+            # Story phase-4 — full matrix tenants get DEPLOYMENT_PROD +
+            # DEPLOYMENT_STAGING + DEPLOYMENT_DATABASE_BACKUP +
+            # DEPLOYMENT_HEALTH_CHECK (industry-agnostic, operational
+            # infrastructure CR 12-1 L4 + LISTEN_NOTIFY 13-1/14-1 wire
+            # pattern). All 4 industries get deployment capability.
+            Capability.DEPLOYMENT_PROD,
+            Capability.DEPLOYMENT_STAGING,
+            Capability.DEPLOYMENT_DATABASE_BACKUP,
+            Capability.DEPLOYMENT_HEALTH_CHECK,
         }
     ),
 }
