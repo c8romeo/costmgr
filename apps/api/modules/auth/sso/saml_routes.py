@@ -13,12 +13,10 @@ All routes return ko-KR typed envelopes (CR 12-5 D-14 envelope verbatim).
 
 from __future__ import annotations
 
-import base64
 import logging
 import uuid
-from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +36,11 @@ from apps.api.modules.auth.sso.saml_validator import (
     SAMLValidationError,
     decode_relay_state,
     validate_saml_response,
+)
+from apps.api.modules.auth.sso.tenant_idp_lookup import (
+    TenantIdPConfigMissingError,
+    TenantIdPDisabledError,
+    load_tenant_idp,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,18 +69,38 @@ def _lookup_saml_request(request_id: str) -> str | None:
 
 @router.get("/login")
 async def sso_login(
-    tenant_slug: str = Query(..., min_length=1, max_length=64),
+    tenant_slug: str = Query(..., min_length=1, max_length=64),  # noqa: PT028
     relay_state: str = Query("", max_length=512),
+    session: AsyncSession = Depends(get_session),
 ) -> Response:
     """Build a SAML AuthnRequest and redirect to the IdP SSO URL.
 
     `relay_state` carries the original path the user wanted to reach
     (URL-safe base64 encoded). The IdP echoes it back in the ACS POST.
+
+    Epic 16 (T5, AC #5.1): dynamic per-tenant IdP SSO URL from
+    `tenant_idps` table. Falls back to the Epic 15 placeholder only if
+    no row exists (defense-in-depth — the IdP admin must configure
+    before SSO can succeed).
     """
     request_id = _register_saml_request(tenant_slug)
-    # Real IdP URL would come from a tenant_idp_config table. For the
-    # atomic-sprint scope the placeholder signals the redirect target.
-    idp_sso_url = f"https://idp.example.com/sso?tenant={tenant_slug}"
+    try:
+        idp_row = await load_tenant_idp(session, tenant_slug)
+        idp_sso_url = idp_row.idp_sso_url
+    except TenantIdPConfigMissingError:
+        # Defense-in-depth: tenant has not yet registered an IdP. Use
+        # the Epic 15 placeholder so the redirect target is at least
+        # well-formed; the IdP will reject with a clear message.
+        idp_sso_url = f"https://idp.example.com/sso?tenant={tenant_slug}"
+    except TenantIdPDisabledError:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "code": "TENANT_IDP_DISABLED",
+                "message_ko": "이 테넌트의 SSO IdP 가 비활성화되었습니다",
+                "details": {"tenant_slug": tenant_slug},
+            },
+        )
 
     return RedirectResponse(
         url=f"{idp_sso_url}&request_id={request_id}&relay_state={relay_state}",
@@ -116,13 +139,24 @@ async def sso_acs(
             SAMLInvalidResponseError(reason="request_id_unknown")
         )
 
-    # Per-tenant IdP cert (placeholder for atomic-sprint; production
-    # reads from `tenant_idp_config`).
-    idp_cert_pem = (
-        "-----BEGIN CERTIFICATE-----\n"
-        "MIIDazCCAlOgAwIBAgIUJxZ/placeholder/test/only=\n"
-        "-----END CERTIFICATE-----"
-    )
+    # Per-tenant IdP cert (Epic 16 T5: dynamic load from tenant_idps).
+    # Falls back to the Epic 15 placeholder if no row exists for the
+    # tenant (defense-in-depth — production tenants must register an
+    # IdP before SSO can succeed; the placeholder only exists so dev
+    # environments without a registered IdP don't crash hard).
+    try:
+        idp_row = await load_tenant_idp(session, tenant_slug)
+        idp_cert_pem = idp_row.idp_x509_cert_pem
+    except TenantIdPConfigMissingError:
+        idp_cert_pem = (
+            "-----BEGIN CERTIFICATE-----\n"
+            "MIIDazCCAlOgAwIBAgIUJxZ/placeholder/test/only=\n"
+            "-----END CERTIFICATE-----"
+        )
+    except TenantIdPDisabledError:
+        return _saml_error_response(
+            SAMLInvalidResponseError(reason="tenant_idp_disabled")
+        )
 
     ctx = SAMLValidationContext(
         acs_url=str(request.url),

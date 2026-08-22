@@ -527,3 +527,52 @@ Epic 16 cj-style 2번째 진입점 (본 스토리) = cj-style 68번째 epic 연�
 Epic 16 close-out retro 진입 결정 wire 보존 (cj-style Epic 16 5번째 진입점 = cj-style 71번째 epic 연속 정직 회복 진입 시점) — A92+A93+A94+A95+A96 정직 검증 + A19 cohesion 9 surface EXTENSION PASS 검증 (IdP admin surface EXTENSION) + D-1-1-DEFER-1/2/3 grep guard 67~68~71번째 epic 연속 정직 회복 검증 결정 wire 보존.
 
 Epic 16 bmad-code-review follow-up sprint 진입 결정 wire 보존 (cj-style Epic 16 4번째 진입점 = cj-style 70번째 epic 연속 정직 회복 진입 시점, 1st release review follow-up sprint precedent mirror).
+
+---
+
+## Review Findings (cj-style 69번째 epic 연속 정직 회복 bmad-code-review — 2026-08-22)
+
+**Review mode**: full | **Diff**: 9 modified + 13 untracked Epic 16 files (~3,315 lines) | **Layers**: Blind Hunter + Edge Case Hunter + Acceptance Auditor (3/3 PASS) | **Total raw findings**: ~100 → **36 unique after dedup**
+
+### patch (24) — to be applied during review follow-up sprint (cj-style 70번째 진입 시점)
+
+- [ ] [Review][Patch] **C2**: sso_login/sso_cs GUC `app.tenant_id` 미설정 — `apps/api/modules/auth/sso/saml_routes.py:88,148` (RLS auto-apply 깨짐 → Epic 15 placeholder fallback → per-tenant routing functionally broken in production)
+- [ ] [Review][Patch] **C3**: XXE / billion-laughs DoS — `apps/api/modules/auth/sso/idp_metadata_validator.py:154` (`ET.fromstring` stdlib vulnerable, use `defusedxml.ElementTree.fromstring`)
+- [ ] [Review][Patch] **C4**: DELETE audit-first violation — `apps/api/modules/auth/sso/idp_admin_routes.py:555-583` (existence check should be BEFORE `emit_audit_typed`)
+- [ ] [Review][Patch] **C5**: TOCTOU race in `create_tenant_idp` — `apps/api/modules/auth/sso/idp_admin_routes.py:708-721` (try/except IntegrityError → typed envelope)
+- [ ] [Review][Patch] **H1**: PUT update UNIQUE pre-check missing — `apps/api/modules/auth/sso/idp_admin_routes.py:853-885`
+- [ ] [Review][Patch] **H2**: `load_tenant_idp` cross-tenant guard missing — `apps/api/modules/auth/sso/tenant_idp_lookup.py`
+- [ ] [Review][Patch] **H3**: DELETE soft-delete blocks re-POST via UNIQUE — `apps/api/modules/auth/sso/idp_admin_routes.py:909` + alembic 0038 (partial UNIQUE on enabled=TRUE)
+- [ ] [Review][Patch] **H4**: Soft-delete `ON CONFLICT DO NOTHING` alembic — `apps/api/alembic/versions/0038_epic_16_tenant_idps.py:329` (add `DO UPDATE SET updated_at = NOW()` OR explicit comment)
+- [ ] [Review][Patch] **H5**: `sso_login` fallback to real `idp.example.com` leaks tenant_slug — `apps/api/modules/auth/sso/saml_routes.py:94` (404 + typed envelope instead of fallback)
+- [ ] [Review][Patch] **H6**: `sso_acs` cross-tenant SAML response bind — `apps/api/modules/auth/sso/tenant_idp_lookup.py:1472` (verify idp_row.tenant_slug == tenant_slug)
+- [ ] [Review][Patch] **H7**: `lxml` dependency added but unused — `apps/api/pyproject.toml:247` (remove from `[project.dependencies]`)
+- [ ] [Review][Patch] **M1**: Step 8 tenant_slug label-match spoofable — `apps/api/modules/auth/sso/idp_metadata_validator.py:229` (use `entity_host.split(".")[-2]` + case-insensitive)
+- [ ] [Review][Patch] **M2**: `create_tenant_idp` returns empty `created_at`/`updated_at` — `apps/api/modules/auth/sso/idp_admin_routes.py:781-782` (add RETURNING)
+- [ ] [Review][Patch] **M3**: `_placeholder_acs_host()` silent fallback masks missing ACS URL — `apps/api/modules/auth/sso/idp_admin_routes.py:691,705,821,834` (require acs_url when metadata_xml absent)
+- [ ] [Review][Patch] **M4**: `POST /test` synthesized step list lies — `apps/api/modules/auth/sso/idp_admin_routes.py:644-657` (run each step independently with try/except)
+- [ ] [Review][Patch] **M6**: Migration `idp_sso_url LIKE 'https://%'` accepts `https://` empty host — `apps/api/alembic/versions/0038_epic_16_tenant_idps.py:230` (add `~ '^https://[^/]+'`)
+- [ ] [Review][Patch] **M10**: `OnboardingTooltip.tsx` 3-line removal unrelated to Epic 16 — `apps/web/components/onboarding/OnboardingTooltip.tsx:255-262` (revert, separate cleanup commit)
+- [ ] [Review][Patch] **M11**: `middleware.ts` `/onboarding` removed from public routes — `apps/web/lib/auth/middleware.ts` (verify (auth)/onboarding/page.tsx OR revert)
+- [ ] [Review][Patch] **M12**: drift detector incomplete — Python only, not markdown — `tests/integration/test_capability_matrix_v1_28_drift.py:2990-3000` (parse markdown table)
+- [ ] [Review][Patch] **L1**: XML size unbounded DoS — `apps/api/modules/auth/sso/idp_metadata_validator.py:154` (add `len(metadata_xml) > 1_000_000` check)
+- [ ] [Review][Patch] **L2**: X509 cert size unbounded — `apps/api/modules/auth/sso/idp_metadata_validator.py:1277` (base64 decode size check)
+- [ ] [Review][Patch] **L3**: Step 5 encryption-only cert accepted — `apps/api/modules/auth/sso/idp_metadata_validator.py:1259` (skip non-signing keys)
+- [ ] [Review][Patch] **L5**: Step 8 expected_tenant_slug=None short-circuit — `apps/api/modules/auth/sso/idp_metadata_validator.py:229` (require non-empty)
+- [ ] [Review][Patch] **L6-L10**: Various small fixes (whitespace bypass, UUID typing, audit log 500 handling, __all__ pollution, lookup envelope violation)
+
+### defer (7) — to be decided in follow-up sprint
+
+- [x] [Review][Defer] **C1**: T4 frontend territory completely missing — 7 files (page + 4 components + admin-idp-client + ko-KR.json + vitest) — **deferred to T4 follow-up sprint (A104 결정 wire 진입 시점)** — user explicitly approved option (a) at review entry
+- [x] [Review][Defer] **H8**: AC7.4 spec file rename — `test_epic_16_saml_routes_extended.py` → `test_epic_16_tenant_idp_lookup.py` — **deferred to spec 회기 update** (similar coverage exists)
+- [x] [Review][Defer] **M5**: `audit_action.py` typo risk — **deferred** (CR 1-1 lesson carry, 1차 출시 후 결정)
+- [x] [Review][Defer] **M7**: acme seed URL placeholder deviation (`idp.example.com` vs spec `idp.acme.com`) — **deferred** (Epic 15 backward-compat 우선, atomic sprint 한계 인정)
+- [x] [Review][Defer] **M8**: `pyproject.toml` vs `requirements.txt` location variance — **deferred/dismissed** (현재 poetry 사용, pyproject.toml 정합)
+- [x] [Review][Defer] **M9**: AC7.2 routes test count underrun (19 vs ~25) — **deferred to close-out retro** (A104 결정)
+- [x] [Review][Defer] **L11**: `OnboardingTooltip` removed `step_dashboard_title` stale i18n key — **deferred** (P-015 detector sweep)
+
+### dismiss (5) — false positive or handled elsewhere
+
+- [Review][Dismiss] **L4**: Step 8 TLD-1 slug — duplicate of M1 (merged)
+- [Review][Dismiss] **M8** partial: `pyproject.toml` not `requirements.txt` — 정합 (poetry 사용)
+- [Review][Dismiss] (기타 false positives per step-03 best-effort parsing)

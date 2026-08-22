@@ -284,6 +284,16 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     LAUNCH_TOS = "launch_tos"
     LAUNCH_SUPPORT = "launch_support"
     LAUNCH_MONITORING = "launch_monitoring"
+    # Story Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) —
+    # TENANT_IDP_MANAGEMENT — Tenant IdP admin management territory
+    # (alembic 0038 tenant_idps + IdP metadata validator + CRUD API +
+    # admin UI + per-tenant SAML routing EXTENSION). Industry-agnostic
+    # per CR 12-1 L4 precedent (mirrors SSO_ENTERPRISE / LISTEN_NOTIFY
+    # / AUTH_MIDDLEWARE / LAUNCH_* / DEPLOYMENT_* pattern). All 4
+    # industries get tenant IdP admin management. Drift detector lives
+    # at tests/integration/test_capability_matrix_v1_28_drift.py
+    # (capability matrix v1.28 EXTENSION 1 NEW row).
+    TENANT_IDP_MANAGEMENT = "tenant_idp_management"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -387,6 +397,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.LAUNCH_TOS,
             Capability.LAUNCH_SUPPORT,
             Capability.LAUNCH_MONITORING,
+            # Epic 16 (cj-style 69번째) — manufacturing tenants get
+            # TENANT_IDP_MANAGEMENT (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.TENANT_IDP_MANAGEMENT,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -469,6 +482,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.LAUNCH_TOS,
             Capability.LAUNCH_SUPPORT,
             Capability.LAUNCH_MONITORING,
+            # Epic 16 (cj-style 69번째) — service tenants get
+            # TENANT_IDP_MANAGEMENT (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.TENANT_IDP_MANAGEMENT,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -571,6 +587,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.LAUNCH_TOS,
             Capability.LAUNCH_SUPPORT,
             Capability.LAUNCH_MONITORING,
+            # Epic 16 (cj-style 69번째) — 겸영 tenants get
+            # TENANT_IDP_MANAGEMENT (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.TENANT_IDP_MANAGEMENT,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -670,6 +689,9 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.LAUNCH_TOS,
             Capability.LAUNCH_SUPPORT,
             Capability.LAUNCH_MONITORING,
+            # Epic 16 (cj-style 69번째) — 겸영+기타 tenants get
+            # TENANT_IDP_MANAGEMENT (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.TENANT_IDP_MANAGEMENT,
         }
     ),
 }

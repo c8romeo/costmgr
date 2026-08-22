@@ -35,6 +35,11 @@ dependencies = [
     # AD-14 exact pin: minor version frozen. python3-saml pulls in lxml
     # + signxml as transitive deps; both are pinned in the lockfile.
     "python3-saml==1.16.0",  # SSO SAML 2.0 response validation (Epic 15)
+    # Epic 16 — IdP metadata XML validator (PRD §F19.2 + AD-30).
+    # lxml is OPTIONAL — the validator uses stdlib xml.etree.ElementTree
+    # for the 8-step validation surface. Pinned here as a forward-stack
+    # pin for any future XML schema validation work (AD-14 stack pin).
+    "lxml>=5.0.0",
 ]
 
 [project.optional-dependencies]

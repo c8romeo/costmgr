@@ -30,6 +30,7 @@ from apps.api.core.pipa_gate import (
 )
 from apps.api.core.security import AuthError
 from apps.api.modules.auth import auth_audit_router, sso_router
+from apps.api.modules.auth.sso.idp_admin_routes import router as idp_admin_router
 from apps.api.modules.launch import launch_router
 from apps.api.modules.m0_onboarding import (
     router as m0_onboarding_router,
@@ -371,6 +372,14 @@ app.include_router(health_router)
 app.include_router(sso_router)
 app.include_router(auth_audit_router)
 app.include_router(launch_router)
+
+# Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — AD-30 verbatim +
+# Tenant IdP admin management (PRD §F19.3 + AC #3.1~#3.8).
+# 5 CRUD routes at /api/v1/admin/tenant/{tenant_slug}/idp (GET/POST/PUT/
+# DELETE/TEST). Capability gate TENANT_IDP_MANAGEMENT (CR 12-1 L4 industry-
+# agnostic). audit-first INSERT 4 NEW AUTH actions (tenant_idp_created/
+# updated/deleted/tested).
+app.include_router(idp_admin_router)
 
 
 @app.exception_handler(AuthError)

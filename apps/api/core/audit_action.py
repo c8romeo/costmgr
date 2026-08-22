@@ -511,6 +511,22 @@ class _ActionRegistry:
                     "magic_link_sent",
                     "social_oauth_initiated",
                     "sso_identity_linked",
+                    # Story Epic 16 (cj-style 69번째 epic 연속 정직
+                    # 회복 wire) — 4 NEW audit-first INSERT actions for
+                    # tenant_idps CRUD operations (CR 1-1 verbatim):
+                    # `tenant_idp_created` (POST /api/v1/admin/tenant/
+                    # {slug}/idp success), `tenant_idp_updated` (PUT
+                    # success), `tenant_idp_deleted` (DELETE soft delete
+                    # via enabled=FALSE), `tenant_idp_tested` (POST /test
+                    # validation dry-run). Mirrors the SSO identity
+                    # linked envelope (Epic 15 wire `5f9e37f` carry-over
+                    # pattern verbatim). Routes to audit_logs (NOT to a
+                    # separate ledger — auth events are tenant-scoped
+                    # platform-event trail only).
+                    "tenant_idp_created",
+                    "tenant_idp_updated",
+                    "tenant_idp_deleted",
+                    "tenant_idp_tested",
                 }
             ),
         ),
