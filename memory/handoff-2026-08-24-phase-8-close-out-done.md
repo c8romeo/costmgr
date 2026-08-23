@@ -8,7 +8,7 @@ metadata:
 # Phase 8 Performance/Load Testing close-out retro DONE (cj-style 96번째 wire 진입)
 
 **결정 wire 일자**: 2026-08-24 (KST)
-**wire_commit**: TBD (cj-style Phase 8 close-out retro atomic docs-only wire = cj-style 96번째 docs only)
+**wire_commit**: `ab495a8` (cj-style Phase 8 close-out retro atomic docs-only wire = cj-style 96번째 docs only)
 **cj-style entry point**: 96 (Phase 8 close-out retro 진입 = Phase 8 PRD 93 + spec 94 + wire 95 + retro 96 = 4-entry-point pattern ALL DONE)
 **baseline_commit**: `60d4ea1` (Phase 8 bmad-dev-story atomic wire T1~T8 tip = cj-style 95번째 wire DONE 진입 시점)
 

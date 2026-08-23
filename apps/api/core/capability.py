@@ -393,6 +393,24 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # lives at tests/integration/test_capability_matrix_v1_33_drift.py
     # (capability matrix v1.33 EXTENSION 1 NEW row).
     PERFORMANCE_TESTING = "performance_testing"
+    # Phase 9 (cj-style 99번째 wire) — CHAOS_ENGINEERING — Chaos
+    # Engineering / Game Day territory (PRD §F25 + AD-36 (a)~(g)
+    # sub-decisions). Industry-agnostic per CR 12-1 L4 precedent
+    # (mirrors PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_*
+    # Phase 7 wire + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW
+    # Epic 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire +
+    # TENANT_IDP_MANAGEMENT Epic 16 wire + SSO_ENTERPRISE Epic 15 wire
+    # + LISTEN_NOTIFY 13/14 wire + AUTH_MIDDLEWARE Phase 3 wire +
+    # LAUNCH_* 1st release wire + DEPLOYMENT_* Phase 4 wire pattern
+    # verbatim). All 4 industries get CHAOS_ENGINEERING capability
+    # (chaos engineering is operational resilience / observability
+    # baseline, not industry-specific). Gates the chaos experiment
+    # routes (manual k6 + manual abort + auto-rollback + continuous
+    # chaos + chaos_game_day + tenant-scoped + multi-region chaos
+    # routes). Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_34_drift.py
+    # (capability matrix v1.34 EXTENSION 1 NEW row).
+    CHAOS_ENGINEERING = "chaos_engineering"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -530,6 +548,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # observability baseline CR 12-1 L4 precedent + OBSERVABILITY_*
             # Phase 7 wire pattern verbatim).
             Capability.PERFORMANCE_TESTING,
+            # Phase 9 (cj-style 99번째 wire) — manufacturing tenants get
+            # CHAOS_ENGINEERING (industry-agnostic, chaos engineering
+            # baseline CR 12-1 L4 precedent + PERFORMANCE_TESTING Phase 8
+            # wire + OBSERVABILITY_* Phase 7 wire pattern verbatim).
+            Capability.CHAOS_ENGINEERING,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -644,6 +667,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # PERFORMANCE_TESTING (industry-agnostic, performance /
             # observability baseline CR 12-1 L4 precedent).
             Capability.PERFORMANCE_TESTING,
+            # Phase 9 (cj-style 99번째 wire) — service tenants get
+            # CHAOS_ENGINEERING (industry-agnostic, chaos engineering
+            # baseline CR 12-1 L4 precedent).
+            Capability.CHAOS_ENGINEERING,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -778,6 +805,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # PERFORMANCE_TESTING (industry-agnostic, performance /
             # observability baseline CR 12-1 L4 precedent).
             Capability.PERFORMANCE_TESTING,
+            # Phase 9 (cj-style 99번째 wire) — 겸영 tenants get
+            # CHAOS_ENGINEERING (industry-agnostic, chaos engineering
+            # baseline CR 12-1 L4 precedent).
+            Capability.CHAOS_ENGINEERING,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -909,6 +940,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # PERFORMANCE_TESTING (industry-agnostic, performance /
             # observability baseline CR 12-1 L4 precedent).
             Capability.PERFORMANCE_TESTING,
+            # Phase 9 (cj-style 99번째 wire) — full matrix tenants get
+            # CHAOS_ENGINEERING (industry-agnostic, chaos engineering
+            # baseline CR 12-1 L4 precedent).
+            Capability.CHAOS_ENGINEERING,
         }
     ),
 }

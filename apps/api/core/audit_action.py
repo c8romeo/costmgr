@@ -73,6 +73,7 @@ class ActionClass(str, __import__("enum").Enum):
     AUDIT = "audit"  # Epic 17 (NEW — audit log viewer export audit-first INSERT)
     OBSERVABILITY = "observability"  # Phase 7 (NEW — observability stack alert + sampling audit-first INSERT)
     PERFORMANCE_TEST = "performance_test"  # Phase 8 (NEW — k6 load test + SLO/SLI + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
+    CHAOS_ENGINEERING = "chaos_engineering"  # Phase 9 (NEW — chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
 
 
 # ────────────────────────────────────────────────────────────
@@ -560,6 +561,44 @@ PerformanceTestAction = Literal[
 ]
 
 
+# Phase 9 (cj-style 99번째 wire) — CHAOS_ENGINEERING actions
+# (chaos experiment start/complete + manual abort + auto-rollback
+# audit-first INSERT, AD-36 (c)(d)(e) verbatim). PRD §F25.1~§F25.7 +
+# AC §F25.1-7 + §F25.3-8 + §F25.6-4 + §F25.6-6 — audit-first INSERT
+# for each new destructive / observation event BEFORE the actual
+# operation (CR 1-1 verbatim + ActionClass.CHAOS_ENGINEERING). Routes
+# to `audit_logs` (NOT to a separate ledger — chaos engineering events
+# are tenant-scoped platform-event trail only, mirroring AUTH (Epic 15)
+# / INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) / AUDIT (Epic 17 / Phase
+# 6) / OBSERVABILITY (Phase 7) / PERFORMANCE_TEST (Phase 8) pattern).
+# 4 NEW values:
+# - `chaos_experiment_started` — chaos experiment run started (manual
+#   trigger or quarterly game day or continuous chaos L1 single_request;
+#   experiment_name + blast_radius + intensity + tenant_id + trace_id
+#   payload; owner-only RBAC AD-22 + Epic 12 2FA 챌린지 보존).
+# - `chaos_experiment_completed` — chaos experiment run completed
+#   (blast radius assessment + observed metrics + auto-rollback
+#   performance summary payload; AD-22 owner-only RBAC).
+# - `chaos_experiment_aborted` — manual abort via POST /api/v1/admin/
+#   chaos/{experiment_id}/abort (owner-only RBAC AD-22 + Epic 12 2FA
+#   챌린지 보존 + abort conditions 4 rules trigger payload; CR 1-1
+#   verbatim).
+# - `chaos_rollback_triggered` — auto-rollback strategy executed
+#   (automatic / manual / hybrid / scheduled abort strategy payload;
+#   AD-22 owner-only RBAC; steady state recovery verification payload).
+# Drift detector: tests/api/core/test_phase_9_audit_action.py
+# (Phase 9 cj-style 99번째 wire backend) enforces ActionClass registry
+# ↔ DB CHECK (no-op for audit_logs per AD-2) ↔ call sites parity
+# (3-way gate). Phase 8 cj-style 95번째 wire
+# `test_phase_8_performance_audit_action.py` pattern verbatim applied.
+ChaosEngineeringAction = Literal[
+    "chaos_experiment_started",  # §F25.1-7 — chaos experiment run start
+    "chaos_experiment_completed",  # §F25.3-8 — chaos experiment completion
+    "chaos_experiment_aborted",  # §F25.3-8 + §F25.1-5 — manual/abort trigger
+    "chaos_rollback_triggered",  # §F25.6-6 — auto-rollback strategy execution
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -591,6 +630,7 @@ AuditAction = (
     | AuditAction  # NEW — Epic 17 (audit log viewer CSV export) + Phase 6 EXTENSION (5 NEW values)
     | ObservabilityAction  # NEW — Phase 7 (observability alert + sampling audit-first INSERT)
     | PerformanceTestAction  # NEW — Phase 8 (k6 load test + SLO + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
+    | ChaosEngineeringAction  # NEW — Phase 9 (chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
 )
 
 
@@ -1038,6 +1078,29 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 9 (cj-style 99번째 wire) — CHAOS_ENGINEERING 4 values
+        # (chaos experiment start/complete + manual abort + auto-rollback
+        # audit-first INSERT, AD-36 (c)(d)(e) verbatim). Routes to
+        # audit_logs (NOT to a separate ledger — chaos engineering events
+        # are tenant-scoped platform-event trail only, mirroring AUTH
+        # (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) / AUDIT
+        # (Epic 17 / Phase 6) / OBSERVABILITY (Phase 7) / PERFORMANCE_TEST
+        # (Phase 8) pattern). target_table=`chaos_engineering` aligns with
+        # ActionClass.CHAOS_ENGINEERING value (audit_log target_table
+        # column populated verbatim — RLS preserved). Drift detector
+        # enforces ActionClass registry ↔ DB CHECK (no-op for audit_logs
+        # per AD-2) ↔ call sites parity.
+        ActionClass.CHAOS_ENGINEERING: (
+            "audit_logs",
+            frozenset(
+                {
+                    "chaos_experiment_started",  # §F25.1-7 — chaos experiment run start
+                    "chaos_experiment_completed",  # §F25.3-8 — chaos experiment completion
+                    "chaos_experiment_aborted",  # §F25.3-8 + §F25.1-5 — manual/abort trigger
+                    "chaos_rollback_triggered",  # §F25.6-6 — auto-rollback strategy execution
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1169,5 +1232,6 @@ __all__ = [
     "AuditAction",  # NEW — Epic 17 (audit log viewer CSV export)
     "ObservabilityAction",  # NEW — Phase 7 (observability alert + sampling audit-first INSERT)
     "PerformanceTestAction",  # NEW — Phase 8 (k6 load test + SLO + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
+    "ChaosEngineeringAction",  # NEW — Phase 9 (chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
     "emit_audit_typed",
 ]

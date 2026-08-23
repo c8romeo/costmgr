@@ -490,6 +490,7 @@ class CalcResponse(BaseModel):
 | `OBSERVABILITY_METRICS` | Phase 7 | ✅ | ✅ | ✅ | ✅ |
 | `PERFORMANCE_TESTING` | Phase 8 | ✅ | ✅ | ✅ | ✅ |
 | `CHAOS_ENGINEERING` | Phase 9 | ✅ | ✅ | ✅ | ✅ |
+| `CHAOS_ENGINEERING` | Phase 9 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 

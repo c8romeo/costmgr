@@ -28,6 +28,9 @@ Phase 7:
 Phase 8:
   - `require_performance_testing()` — gates `/api/v1/performance-testing/load-tests[/...]` (k6 manual trigger + status) + `/api/v1/performance-testing/slo/dashboard` + `/performance-testing/latency-regression/invalidate` + `/performance-testing/cost-engine-benchmark/invalidate`
 
+Phase 9:
+  - `require_chaos_engineering()` — gates `/api/v1/admin/chaos[/...]` (chaos experiment trigger + manual abort + auto-rollback + continuous chaos toggle) + `/chaos/game-day[/...]` + `/chaos/rollbacks[/...]`
+
 Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
 """
 from __future__ import annotations
@@ -51,6 +54,7 @@ __all__ = [
     "require_observability_traces",
     "require_observability_metrics",
     "require_performance_testing",
+    "require_chaos_engineering",
 ]
 
 
@@ -131,3 +135,18 @@ require_observability_metrics = require_capability(Capability.OBSERVABILITY_METR
 # observability baseline, not industry-specific). Drift detector lives
 # at tests/integration/test_capability_matrix_v1_33_drift.py.
 require_performance_testing = require_capability(Capability.PERFORMANCE_TESTING)
+# Phase 9 — Chaos Engineering capability (F25.6 + AC #6.3 + AD-36 (g)
+# sub-decision). Gates the chaos engineering routes in
+# apps/api/modules/chaos/ routes (chaos experiment trigger + manual
+# abort + auto-rollback + chaos_game_day + continuous_chaos +
+# multi-region chaos + tenant-scoped chaos). Industry-agnostic per
+# CR 12-1 L4 precedent (mirrors PERFORMANCE_TESTING Phase 8 wire +
+# OBSERVABILITY_* Phase 7 wire + AUDIT_LOG_RETENTION Phase 6 wire +
+# AUDIT_LOG_VIEW Epic 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5
+# wire + TENANT_IDP_MANAGEMENT Epic 16 wire + SSO_ENTERPRISE Epic 15
+# wire + LISTEN_NOTIFY 13/14 wire + AUTH_MIDDLEWARE Phase 3 wire +
+# LAUNCH_* 1st release wire + DEPLOYMENT_* Phase 4 wire pattern
+# verbatim). All 4 industries get CHAOS_ENGINEERING capability
+# (operational resilience baseline, not industry-specific). Drift
+# detector lives at tests/integration/test_capability_matrix_v1_34_drift.py.
+require_chaos_engineering = require_capability(Capability.CHAOS_ENGINEERING)
