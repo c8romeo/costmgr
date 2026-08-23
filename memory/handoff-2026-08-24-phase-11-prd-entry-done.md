@@ -1,0 +1,165 @@
+---
+name: handoff-2026-08-24-phase-11-prd-entry-done
+description: Phase 11 PRD entry DONE (cj-style 105번째). FinOps Showback / Chargeback territory 결정 wire + 6 files atomic docs-only.
+metadata:
+  type: project
+---
+
+# Phase 11 PRD entry DONE (cj-style 105번째 epic 연속 정직 회복)
+
+## 결정 wire 일자
+2026-08-24 (KST)
+
+## 진입 시점
+Phase 10 close-out retro `733d428` (cj-style 104번째) 진입 완료 직후 next 옵션 결정 wire 진입.
+
+## 옵션 결정
+**옵션 (d) FinOps Showback / Chargeback = §F27 신규 territory** 결정 wire 진입.
+
+## 결정 wire rationale 4종
+1. **cj-style discipline 회피 위험 방지** = 104번째 Phase 10 close-out retro 진입 직후 자연스러운 spec entry 진입 결정 wire
+2. **FinOps Showback / Chargeback territory 결정 wire** = Phase 10 wire `ac5d6c5` SLO_ENGINEERING ✅ RESOLVED + Phase 9 wire `e7670e1` CHAOS_ENGINEERING ✅ RESOLVED + Phase 8 wire `60d4ea1` PERFORMANCE_TESTING ✅ RESOLVED + Phase 7 wire `59b56cd` OBSERVABILITY_TRACES+OBSERVABILITY_METRICS ✅ RESOLVED + Phase 6 wire `24e1cd7` AUDIT_LOG_RETENTION ✅ RESOLVED + Phase 5 wire `f093f8c` MULTI_REGION_BACKUP+FAILOVER ✅ RESOLVED + Epic 17 wire `2ada2ec` AUDIT_LOG_VIEW ✅ RESOLVED + Epic 12 2FA 챌린지 보존 + AD-22 owner-only RBAC 보존 + D-FINOPS-1 honestly DEFER 보존 1 NEW 결정 wire 진입 + 자연스러운 FinOps territory EXTENSION 결정 wire
+3. **Epic 1 ~ Epic 17 + Phase 3 ~ Phase 10 + 1st release cycle 모두 wire DONE 정합 보존** → spec entry 진입 결정 wire
+4. **Phase 11 PRD entry 7 ACs PRD §F27.1~§F27.7 verbatim → 78 sub-ACs + T1~T8 + 68 subtasks + Dev Notes 14종 + Architecture Alignment cj-style ALLOWED sweep 결정 wire 보존**
+
+## 6 files atomic single sprint 결정 wire
+(1) **`_bmad-output/planning-artifacts/prd.md`** MODIFIED (master PRD v4.1 → v4.2 atomic edit 결정 wire: title frontmatter v4.1 → v4.2 + v4.2 changelog entry 신규 prepend + §8.1 M0-(t) FinOps AC 추가 + §15 로드맵 Phase 11 row in-progress 추가 + AD-38 row 신규 결정 wire §부록 A AD table EXTENSION + A308~A317 Phase 10 carry-over 보존 + A318~A323 신규 결정 + §F27 territory header 신규 + §F27.1~§F27.7 7 ACs verbatim 78 sub-ACs pre-flight 정합 sweep 결정 wire)
+
+(2) **`docs/capability-matrix.md`** MODIFIED (capability matrix v1.35 → v1.36 EXTENSION 결정 wire: title frontmatter v1.35 → v1.36 + v1.36 changelog entry 신규 prepend + FINOPS_SHOWBACK 1 NEW row + FINOPS_CHARGEBACK 1 NEW row 추가, industry-agnostic 4-industry grants ✅/✅/✅/✅ 결정 wire CR 12-1 L4 SSOT verbatim 적용)
+
+(3) **`_bmad-output/implementation-artifacts/sprint-status.yaml`** MODIFIED (sprint-status v3.16 → v3.17 EXTENSION 결정 wire: `phase-11-prd-entry: backlog → done` 신규 entry (development_status section, phase-10-prd-entry 직후 EXTENSION, line 1155) + A333~A338 action_items 신규 block 6 entries (action_items section, A332 직후 append, line 2250~2280) + `last_updated_note` v3.17 Phase 11 PRD entry prepend 결정 wire, line 79)
+
+(4) **`memory/handoff-2026-08-24-phase-11-prd-entry-done.md`** NEW (auto-memory handoff 신규 결정 wire: A333~A338 6 결정 wire + cj-style 105번째 진입 + 7 ACs §F27.1~§F27.7 verbatim 78 sub-ACs pre-flight 정합 sweep + CR lessons applied 14종 + D-DEFER-* tracking + Epic 1 ~ Epic 17 + Phase 3 ~ Phase 10 + 1st release cycle 정합 보존 + next 옵션 5종 결정 wire 보류 + frontmatter `metadata.type: project`)
+
+(5) **`memory/MEMORY.md`** MODIFIED (handoff-2026-08-24-phase-11-prd-entry-done hook index 신규 EXTENSION + Phase 11 section header update 신규 진입 정합 보존 결정 wire)
+
+(6) **`_bmad-output/implementation-artifacts/commit-msg-phase-11-prd-entry.txt`** NEW (THIS commit message file 결정 wire)
+
+= 1 NEW handoff + 1 NEW commit-msg + 4 MODIFIED = 6 files atomic single sprint 결정 wire.
+
+## 7 ACs PRD §F27.1~§F27.7 verbatim → 78 sub-ACs satisfied (pre-flight 정합 sweep)
+- **§F27.1 showback DSL + ShowbackDefinition TypedDict 13 fields** (12 sub-ACs 결정 wire)
+- **§F27.2 chargeback engine cost allocation + markup rule** (12 sub-ACs 결정 wire)
+- **§F27.3 department mapping + tenant-scoped cost pool** (10 sub-ACs 결정 wire)
+- **§F27.4 dashboard UI + chart components** (10 sub-ACs 결정 wire)
+- **§F27.5 CSV/PDF export + scheduled delivery** (10 sub-ACs 결정 wire)
+- **§F27.6 capability matrix v1.36 + dry-run + Tests guard** (12 sub-ACs 결정 wire)
+- **§F27.7 dry-run + Tests + wire scope T1~T8** (12 sub-ACs 결정 wire)
+
+= 12+12+10+10+10+12+12 = **78 sub-ACs 결정 wire**.
+
+## A333~A338 결정 wire 신규 6 결정
+**A333** = 옵션 (d) FinOps Showback / Chargeback 진입 결정 wire (rationale 4종: cj-style discipline 회피 위험 방지 + Phase 10 4-entry-point pattern 모두 wire DONE 진입 정합 보존 + Epic 1 ~ Epic 17 + Phase 3 ~ Phase 10 + 1st release cycle 모두 wire DONE 정합 보존 + D-FINOPS-1 honestly DEFER 보존 1 NEW 결정 wire 진입)
+
+**A334** = Master PRD v4.1 → v4.2 atomic edit 결정 wire (§F27.1~§F27.7 7 ACs verbatim 78 sub-ACs + AD-38 신규 + A308~A317 Phase 10 carry-over 보존 + A333~A338 sprint-status 신규)
+
+**A335** = Capability matrix v1.35 → v1.36 EXTENSION 결정 wire (FINOPS_SHOWBACK + FINOPS_CHARGEBACK 2 NEW row, industry-agnostic 4-industry grants ✅/✅/✅/✅)
+
+**A336** = AD-38 FinOps Showback / Chargeback 7 sub-decisions 결정 wire (showback DSL + chargeback engine + department mapping + dashboard UI + CSV/PDF export + capability v1.36 EXTENSION + dry-run + Tests + wire scope T1~T8)
+
+**A337** = D-DEFER-* honestly 결정 보존 + **D-FINOPS-1 ✅ RESOLVED 보존 1 NEW 결정 wire 진입 완료** (D-1-1-DEFER-1/2/3 + D-EPIC-16-REVIEW-DEFER-1/2~6 + D-PHASE-4-DR-DEFER-1/2 + D-EPIC-17-WIRE-DEFER-T2-T3-UI + D-RETENTION-1 + D-OBSERVABILITY-1 + D-PERFORMANCE-1 + D-CHAOS-1 + D-SLO-1 모두 ✅ ALL RESOLVED 보존 + **D-FINOPS-1 ✅ RESOLVED 보존 1 NEW 결정 wire 완료**)
+
+**A338** = sprint-status v3.16 → v3.17 EXTENSION 결정 wire (`phase-11-prd-entry: backlog → done` 신규 entry + A333~A338 action_items 신규 block 6 entries + last_updated_note v3.17 Phase 11 PRD entry prepend + atomic commit via `git commit -F <file>` CR 9-6 D5 prevention 결정 wire)
+
+## A19 cohesion pattern 9 surface EXTENSION PASS 결정 wire
+FinOps surface NEW = F27.1~F27.7 FinOps Showback / Chargeback territory 결정 wire.
+
+## CR lessons applied 14종 보존
+- CR 0-2 RLS lesson ✅ APPLIED
+- CR 1-1 audit-first INSERT ✅ APPLIED (4 NEW audit log entries `showback_report_generated` + `chargeback_invoice_issued` + `department_mapping_updated` + `cost_pool_recalculated`)
+- CR 4-3/4-4 lessons carry ✅ APPLIED (showback baseline + chargeback baseline 30d rolling + golden_diff pattern verbatim)
+- CR 1-1 ContextVar lesson ✅ APPLIED
+- CR 1-1 RSC boundary lesson ✅ APPLIED
+- CR 9-6 commit message discipline ✅ APPLIED (`git commit -F <file>` 사용, PowerShell here-string 회피, D5 prevention)
+- CR 11-3 honest-DEFER discipline ✅ APPLIED (105번째 epic 연속 정직 회복)
+- CR 11-4 D-001~D-005 + P-015 lessons carry ✅ APPLIED
+- CR 12-1 L4 industry-agnostic capability ✅ APPLIED (FINOPS_SHOWBACK + FINOPS_CHARGEBACK industry-agnostic 4-industry grants ✅/✅/✅/✅)
+- CR 12-5 D-14 typed exception envelope ✅ APPLIED (6 NEW typed exception classes + 1 base)
+- CR 12-5 D-PARITY-01 inversion ✅ APPLIED
+- CR 12-5 D-GATE-01 inversion ✅ APPLIED
+- A19 cohesion 9 surface EXTENSION PASS ✅
+- A36 SDR 검증 4-step 자동 적용 ✅
+- AD-14 stack pin ✅ APPLIED (pandas + reportlab + jinja2 + openpyxl + pdfkit + weasyprint + python-magic)
+- AD-22 owner-only RBAC ✅ APPLIED (showback generation + chargeback issue + department mapping update + cost pool recalculation 모두 owner-only RBAC AD-22 + Epic 12 2FA 챌린지 보존)
+- NFR4 PII minimization ✅ PRESERVED
+
+## D-DEFER-* honestly 결정 wire (CR 11-3 105번째 epic 연속 정직 회복)
+- D-1-1-DEFER-1/2/3 ✅ ALL RESOLVED 보존
+- D-EPIC-16-REVIEW-DEFER-1/2~6 ✅ ALL RESOLVED 보존
+- D-PHASE-4-DR-DEFER-1/2 ✅ ALL RESOLVED 보존
+- D-EPIC-17-WIRE-DEFER-T2-T3-UI ✅ ALL RESOLVED 보존
+- D-RETENTION-1 ✅ ALL RESOLVED 보존
+- D-OBSERVABILITY-1 ✅ ALL RESOLVED 보존
+- D-PERFORMANCE-1 ✅ ALL RESOLVED 보존
+- D-CHAOS-1 ✅ ALL RESOLVED 보존
+- D-SLO-1 ✅ ALL RESOLVED 보존
+- **D-FINOPS-1 honestly ✅ RESOLVED 보존 1 NEW 결정 wire 진입 완료** (cj-style 105번째 Phase 11 PRD entry 진입 시점에 1st release close-out retro §6 + Epic 17 close-out retro §11 + Phase 6 close-out retro §13 + Phase 7 close-out retro §10 + Phase 8 close-out retro §10 + Phase 9 close-out retro §10 + Phase 10 close-out retro §10 verbatim territory 해소 결정 wire 완료 보존)
+
+## Epic 1 ~ Epic 17 + Phase 3 ~ Phase 10 + 1st release cycle 정합 보존 (cj-style 105번째 pre-flight 정합 sweep)
+- ✅ Phase 10 close-out retro `733d428` (cj-style 104번째)
+- ✅ Phase 10 wire `ac5d6c5` (cj-style 103번째)
+- ✅ Phase 10 spec entry `3c80ef0` (cj-style 102번째)
+- ✅ Phase 10 PRD entry `09db4d4` (cj-style 101번째)
+- ✅ Phase 9 close-out retro `634427d` (cj-style 100번째)
+- ✅ Phase 9 wire `e7670e1` (cj-style 99번째)
+- ✅ Phase 9 spec entry `2a5e4da` (cj-style 98번째)
+- ✅ Phase 9 PRD entry `0b2d2f3` (cj-style 97번째)
+- ✅ Phase 8 close-out retro `ab495a8` (cj-style 96번째)
+- ✅ Phase 8 wire `60d4ea1` (cj-style 95번째)
+- ✅ Phase 8 spec entry `5ae0f4e` (cj-style 94번째)
+- ✅ Phase 8 PRD entry `ced452f` (cj-style 93번째)
+- ✅ Build fixes sprint `eaee198`
+- ✅ Phase 7 close-out retro `326fa9f` (cj-style 92번째)
+- ✅ Phase 7 wire `59b56cd` (cj-style 91번째)
+- ✅ Phase 7 spec entry `749381e` (cj-style 90번째)
+- ✅ Phase 7 PRD entry `916a541` (cj-style 89번째)
+- ✅ Phase 6 close-out retro `f9f006c` (cj-style 88번째)
+- ✅ Phase 6 wire `24e1cd7` (cj-style 87번째)
+- ✅ Phase 6 spec entry `f5c14c9` (cj-style 86번째)
+- ✅ Phase 6 PRD entry `e84a281` (cj-style 85번째)
+- ✅ Epic 17 close-out retro `be8f3bd` (cj-style 84번째)
+- ✅ Epic 17 T2+T3 UI wire `bb92879` (cj-style 83번째)
+- ✅ Epic 17 wire `2ada2ec` (cj-style 82번째)
+- ✅ Epic 17 spec entry `f4b2b58` (cj-style 81번째)
+- ✅ Epic 17 PRD entry `40a9c41` (cj-style 80번째)
+- ✅ Sidebar/MenuProvider hot-fix `01a06e4` (cj-style 79번째)
+- ✅ D-EPIC-16-REVIEW-DEFER-2~6 RESOLVE sprint `512ed6a` (cj-style 78번째)
+- ✅ Phase 5 close-out retro `b843565` (cj-style 76~77번째)
+- ✅ Phase 5 wire `f093f8c` (cj-style 75번째)
+- ✅ Phase 5 spec entry (cj-style 74번째)
+- ✅ Phase 5 PRD entry `93d852b` (cj-style 73번째)
+- ✅ Epic 16 close-out retro (cj-style 72번째)
+- ✅ Epic 16 T4 admin UI follow-up sprint `ff5c3b5` (cj-style 71번째)
+- ✅ Epic 16 review follow-up sprint `963079c` (cj-style 70번째)
+- ✅ Epic 16 wire `e117e09` (cj-style 69번째)
+- ✅ Epic 16 spec entry (cj-style 68번째)
+- ✅ Epic 16 PRD entry `08bfca5` (cj-style 67번째)
+- ✅ 1st release cycle cj-style 62~66번째 모두 wire DONE 진입
+- ✅ Epic 15 cycle cj-style 58~61번째 모두 wire DONE 진입
+- ✅ Phase 4 cycle cj-style 53~57번째 모두 wire DONE 진입
+- ✅ Phase 3 cycle cj-style 49~52번째 모두 wire DONE 진입
+- ✅ Epic 14 LISTEN/NOTIFY multi-process coordination `7835463`
+- ✅ Epic 13 LISTEN/NOTIFY consume `f2ea2f6`
+- ✅ Epic 12 2FA 게이트 `a63646c` (FinOps 진입 시 showback_report_generated + chargeback_invoice_issued + department_mapping_updated + cost_pool_recalculated 모두 owner-only RBAC AD-22 + Epic 12 2FA 챌린지 보존 결정 wire)
+- ✅ Epic 11 close-out retro + Phase 2 close-out baseline 599 passed 정합 보존
+- ✅ Epic 1 carry-over (auth) layout + onboarding/industry 보존
+- ✅ Epic 7~10 ABC/TDABC + AI 인사이트 territory 결정 wire 보존
+
+## 3중 게이트 impact NONE (cj-style 105번째 wire 진입 표준 = docs only 변경)
+- ruff scoped 0 NEW (apps/api backend unchanged 결정 wire — docs only 변경)
+- pytest 0 NEW (apps/api backend unchanged 결정 wire)
+- vitest 0 NEW (apps/web frontend unchanged 결정 wire)
+- tsc 0 NEW (apps/web frontend unchanged 결정 wire)
+
+## partial wire 시도 0건 + single sprint atomic docs-only wire 1 진입점 결정
+(cj-style 105번째 epic 연속 정직 회복 Phase 11 PRD entry atomic docs-only wire 6 files atomic single sprint 결정 wire)
+
+## 결정 wire 일자
+2026-08-24 (KST)
+
+## next 옵션 5종 결정 wire 보류
+1. 옵션 (a) Phase 11 bmad-create-story spec entry 진입 (cj-style 106번째)
+2. 옵션 (b) Phase 11 bmad-dev-story atomic wire T1~T8 진입 (cj-style 107번째)
+3. 옵션 (c) Phase 11 close-out retro 진입 (cj-style 108번째)
+4. 옵션 (d) Epic 18+ 진입
+5. 옵션 (e) D-DEFER-* follow-up 결정 wire 보류
