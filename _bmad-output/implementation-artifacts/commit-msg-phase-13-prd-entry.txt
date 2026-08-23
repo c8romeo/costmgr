@@ -1,0 +1,102 @@
+Phase 13 PRD entry DONE (cj-style 113번째 epic 연속 정직 회복 atomic docs-only wire)
+
+FinOps Forecasting & Capacity Planning territory 결정 wire + 6 files atomic single sprint:
+1 MODIFIED master PRD v4.3 → v4.4 (front matter title + v4.4 changelog + §F29 territory 신규
+F29.1 forecast definition DSL 12 sub-ACs + F29.2 forecast engine 4 methods ARIMA+Prophet+LSTM+ensemble
+12 sub-ACs + F29.3 capacity headroom analyzer 3 resource types 12 sub-ACs + F29.4 budget burn-rate
+projection 12 sub-ACs + F29.5 forecast accuracy tracker 10 sub-ACs + F29.6 forecast dashboard UI
+10 sub-ACs + F29.7 Capability matrix v1.38 EXTENSION 12 sub-ACs + F29.8 dry-run + Tests + wire
+scope T1~T8 12 sub-ACs = 8 ACs + 92 sub-ACs 결정 wire) + 1 MODIFIED capability matrix v1.37 →
+v1.38 EXTENSION FINOPS_FORECASTING_CAPACITY_PLANNING 1 NEW row industry-agnostic 4-industry
+grants ✅/✅/✅/✅ (CR 12-1 L4 precedent 미러) + 1 MODIFIED sprint-status v3.24 → v3.25 EXTENSION
+(`phase-13-prd-entry: backlog → done` 신규 entry + A394~A398 action_items 신규 block 5
+entries + last_updated_note v3.25 Phase 13 PRD entry prepend) + 1 NEW handoff memory
+`memory/handoff-2026-08-24-phase-13-prd-entry-done.md` + 1 MODIFIED MEMORY.md hook EXTENSION
+(Phase 13 PRD entry 1st entry-point DONE 진입 정합 보존 + 4-entry-point pattern Phase 13 PRD
+entry DONE + spec/wire/retro 결정 wire 보류 결정) + 1 NEW commit-msg
+`commit-msg-phase-13-prd-entry.txt` 결정 wire = 2 NEW + 4 MODIFIED = 6 files atomic single sprint.
+
+AD-40 FinOps Forecasting & Capacity Planning 신규 (a)~(g) 7 sub-decisions 결정 wire:
+(a) forecast definition DSL ForecastDefinition TypedDict 11 fields + 5 target_metrics
+(department + cost_center + product_line + service + tenant_total) + (b) forecast engine 4
+methods (ARIMA + Prophet + LSTM + ensemble) + 8 KST holidays for Prophet seasonality + (c)
+capacity headroom analyzer 3 resource types (compute + storage + network) + 90일 lookahead +
+(d) budget burn-rate projection 4-input formula + (e) forecast accuracy tracker MAE + MAPE +
+RMSE + model retraining trigger 0.20 threshold + (f) Capability matrix v1.38 EXTENSION
+FINOPS_FORECASTING_CAPACITY_PLANNING 1 NEW row + (g) dry-run mode + Tests + wire scope T1~T8
+결정 wire.
+
+CR lessons applied 14종 결정 wire 보존:
+- CR 0-2 RLS lesson ✅ APPLIED (forecast + capacity + accuracy tables RLS 자동 적용)
+- CR 1-1 audit-first INSERT ✅ APPLIED (7 NEW audit log entries forecast_definition_updated +
+  forecast_generated + capacity_headroom_analyzed + budget_burn_rate_projected +
+  forecast_accuracy_degraded + model_retraining_triggered + forecast_dry_run_executed +
+  ActionClass.FINOPS_FORECAST 신규 정의)
+- CR 1-1 ContextVar lesson ✅ APPLIED
+- CR 1-1 RSC boundary lesson ✅ APPLIED (admin/finops/forecast page RSC + Client Component
+  delegation)
+- CR 4-3/4-4 lessons carry ✅ APPLIED (forecast + capacity baseline + golden_diff pattern
+  verbatim)
+- CR 9-6 commit message discipline ✅ APPLIED (git commit -F <file> D5 prevention)
+- CR 11-3 honest-DEFER discipline ✅ APPLIED (cj-style 113th epic 연속 정직 회복)
+- CR 11-4 D-001~D-005 + P-015 ✅ APPLIED (ko-KR.json SSOT only)
+- CR 12-1 L4 industry-agnostic capability ✅ APPLIED (FINOPS_FORECASTING_CAPACITY_PLANNING
+  industry-agnostic 4-industry grants ✅/✅/✅/✅)
+- CR 12-5 D-14 typed exception envelope ✅ APPLIED (14 NEW typed exceptions:
+  ForecastDefinitionInvalidError + ForecastScopeInvalidError + ForecastHistoryUnavailableError +
+  ForecastEngineError + ForecastModelTrainingError + ForecastSeasonalityDetectionError +
+  CapacityHeadroomAnalysisError + CapacityThresholdBreachError + CapacityMetricUnavailableError +
+  BudgetBurnRateProjectionError + BudgetOverrunPredictionError + ForecastAccuracyTrackingError +
+  ModelRetrainingTriggerError + ModelPerformanceDegradationError)
+- CR 12-5 D-PARITY-01 inversion ✅ APPLIED
+- CR 12-5 D-GATE-01 inversion ✅ APPLIED
+- A19 cohesion 9 surface EXTENSION PASS ✅ (FinOps Forecasting & Capacity Planning surface NEW)
+- A36 SDR 검증 4-step 자동 적용 ✅
+- AD-14 stack pin ✅ APPLIED (statsmodels==0.14.1 + prophet==1.1.5 + tensorflow==2.15.0 +
+  slack-sdk==3.23.0 + pdpyras==5.2.0 + sendgrid==6.11.0 + Recharts 2.12.7)
+- AD-22 owner-only RBAC ✅ APPLIED (forecast definition + capacity analysis + burn-rate
+  projection + model retraining 모두 owner-only RBAC AD-22 + Epic 12 2FA 챌린지 보존)
+- NFR4 PII minimization ✅ PRESERVED
+
+D-DEFER-* honestly 결정 wire 보존 (CR 11-3 113th epic 연속 정직 회복 검증):
+D-FINOPS-3 신규 honestly preserved 113th + D-FINOPS-2 ✅ RESOLVED + D-FINOPS-1 ✅ RESOLVED +
+D-SLO-1 ✅ RESOLVED + D-CHAOS-1 ✅ RESOLVED + D-PERFORMANCE-1 ✅ RESOLVED + D-OBSERVABILITY-1
+✅ RESOLVED + D-RETENTION-1 ✅ RESOLVED + D-EPIC-17-WIRE-DEFER-T2-T3-UI ✅ RESOLVED +
+D-PHASE-4-DR-DEFER-1/2 ✅ RESOLVED + D-EPIC-16-REVIEW-DEFER-2~6 ✅ RESOLVED +
+D-1-1-DEFER-1/2/3 ✅ RESOLVED 모두 preserved.
+
+Epic 1 ~ Epic 17 + Phase 3 ~ Phase 12 + 1st release cycle 정합 보존 (cj-style 113th epic
+연속 정직 회복 pre-flight 정합 sweep 결정 wire 보존): ✅ Phase 12 close-out retro 3354e83
+(cj-style 112th) + ✅ Phase 12 atomic wire T1~T8 f3c0e63 (cj-style 111th) + ✅ Phase 12 spec
+entry 8c5f374 (cj-style 110th) + ✅ Phase 12 PRD entry 344c7eb (cj-style 109th) + ✅ Phase 11
+close-out retro 80df15b (cj-style 108th) + ✅ Phase 11 atomic wire T1~T8 e020ad0 (cj-style
+107th) + ✅ Phase 11 spec entry 82c93a8 (cj-style 106th) + ✅ Phase 11 PRD entry 16d7698
+(cj-style 105th) + ✅ Phase 10 close-out retro (cj-style 104th) + ✅ Phase 10 atomic wire
+T1~T8 (cj-style 103rd) + ✅ Phase 10 spec entry (cj-style 102nd) + ✅ Phase 10 PRD entry
+(cj-style 101st) + ✅ Phase 9 close-out retro (cj-style 100th) + ✅ Phase 9 atomic wire T1~T8
+(cj-style 99th) + ✅ Phase 9 spec entry (cj-style 98th) + ✅ Phase 9 PRD entry (cj-style 97th)
++ ✅ Build fixes sprint eaee198 + ✅ Phase 8 close-out retro + ✅ Phase 8 atomic wire T1~T8 +
+✅ Phase 8 spec entry + ✅ Phase 8 PRD entry + ✅ Epic 17 close-out retro + ✅ Epic 17
+T2+T3 UI + ✅ Epic 17 atomic wire + ✅ Epic 17 spec entry + ✅ Epic 17 PRD entry + ✅
+Sidebar/MenuProvider hot-fix + ✅ D-EPIC-16-REVIEW-DEFER-2~6 RESOLVE sprint + ✅ Phase 5
+close-out retro + ✅ Phase 5 atomic wire + ✅ Phase 5 spec entry + ✅ Phase 5 PRD entry +
+✅ Epic 16 close-out retro + ✅ Epic 16 T4 admin UI follow-up + ✅ Epic 16 review follow-up +
+✅ Epic 16 atomic wire + ✅ Epic 16 spec entry + ✅ Epic 16 PRD entry + ✅ 1st release cycle
+cj-style 62~66 + ✅ Epic 15 cycle cj-style 58~61 + ✅ Phase 4 cycle cj-style 53~57 + ✅ Phase 3
+cycle cj-style 49~52 + ✅ Epic 14 LISTEN/NOTIFY + ✅ Epic 13 LISTEN/NOTIFY consume + ✅ Epic 12
+2FA 챌린지 보존 + AD-22 owner-only RBAC 보존 + ✅ Epic 11 close-out retro + Phase 2 close-out
+baseline 599 passed + ✅ Epic 1 carry-over + ✅ Epic 7~10 ABC/TDABC + AI 인사이트 territory.
+
+partial wire 시도 0건 + single sprint atomic docs-only wire 1 진입점 결정 wire (cj-style
+113th epic 연속 정직 회복 Phase 13 PRD entry 6 files atomic single sprint 결정 wire).
+결정 wire 일자: 2026-08-24 (KST).
+
+next: 옵션 (a) Phase 13 bmad-create-story spec entry 진입 (cj-style Phase 13 2nd entry =
+cj-style 114th epic 연속 정직 회복 atomic docs-only wire 진입 시점) / 옵션 (b) Phase 13
+bmad-dev-story atomic wire T1~T8 진입 (cj-style Phase 13 3rd entry = cj-style 115th wire
+진입 시점) / 옵션 (c) Phase 13 close-out retro 진입 (cj-style 116th) / 옵션 (d) Epic 18+
+진입 / 옵션 (e) D-DEFER-* follow-up 결정 wire 보류.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
