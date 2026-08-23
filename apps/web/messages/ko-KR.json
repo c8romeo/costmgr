@@ -1094,5 +1094,33 @@
     "empty_state": "선택한 기간에 활동이 없습니다.",
     "loading_state": "활동 스트림을 불러오는 중...",
     "error_load_failed": "활동 스트림을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+  },
+  "performance": {
+    "sla_dashboard_title": "SLO 대시보드",
+    "sla_dashboard_subtitle": "테넌트의 SLO/SLI 상태, p99 latency budget, 부하 테스트 결과를 확인합니다.",
+    "sla_section_label": "SLA",
+    "sla_cost_calculation_label": "SLA-1 비용 계산 p99 < 5s",
+    "sla_audit_log_query_label": "SLA-2 감사 로그 조회 p99 < 2s",
+    "sla_login_label": "SLA-3 로그인 p99 < 1s",
+    "sla_multi_region_failover_label": "SLA-4 멀티 리전 페일오버 RTO < 30s",
+    "p99_budget_section_label": "p99 예산",
+    "p99_regression_banner_title": "p99 회귀 감지",
+    "p99_regression_threshold_label": "회귀 임계치 (20%)",
+    "p99_regression_owner_ack_prompt": "회귀가 감지되었습니다. owner 권한으로 확인 처리해 주세요.",
+    "k6_load_test_section_label": "k6 부하 테스트",
+    "k6_load_test_trigger_button": "부하 테스트 실행",
+    "k6_load_test_scenario_label": "시나리오",
+    "k6_load_test_owner_only_notice": "k6 부하 테스트 실행은 owner 권한이 필요합니다 (2FA 챌린지 포함).",
+    "k6_load_test_dry_run_label": "드라이런 모드 (실제 부하 미발생)",
+    "cost_engine_benchmark_section_label": "비용 엔진 벤치마크 V8",
+    "cost_engine_benchmark_run_button": "V8 골든 벤치마크 실행",
+    "cost_engine_benchmark_threshold_label": "회귀 임계치 (5%)",
+    "baseline_freeze_notice": "기준선이 동결되었습니다. 새 기준선을 만들려면 owner 승인이 필요합니다.",
+    "loading_slo": "SLO 데이터를 불러오는 중...",
+    "loading_k6_results": "k6 테스트 결과를 불러오는 중...",
+    "loading_benchmark": "V8 벤치마크 결과를 불러오는 중...",
+    "empty_state": "현재 활성 SLO/벤치마크 데이터가 없습니다.",
+    "error_load_failed": "성능 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "error_owner_only": "이 작업은 owner 권한이 필요합니다."
   }
 }

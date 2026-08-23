@@ -488,6 +488,7 @@ class CalcResponse(BaseModel):
 | `AUDIT_LOG_RETENTION` | Phase 6 | ✅ | ✅ | ✅ | ✅ |
 | `OBSERVABILITY_TRACES` | Phase 7 | ✅ | ✅ | ✅ | ✅ |
 | `OBSERVABILITY_METRICS` | Phase 7 | ✅ | ✅ | ✅ | ✅ |
+| `PERFORMANCE_TESTING` | Phase 8 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 

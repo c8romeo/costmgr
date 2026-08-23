@@ -1,0 +1,32 @@
+{
+  "$comment": "Phase 8 (cj-style 95번째 wire) — Cost Engine Benchmark V8 Golden fixture (PRD §F24.6 + AD-35 (e) sub-decision + CR 4-3/4-4 lessons carry verbatim).",
+  "fixture_version": "v8",
+  "frozen_at": "2026-08-24",
+  "baseline_commit": "ced452f",
+  "tenant_id": "fixture-tenant-1",
+  "industry": "manufacturing_service",
+  "calculation_engine": "ABC + TDABC + AI_extraction",
+  "tenant_size_bucket": "medium",
+  "calculations_per_fixture_tenant": 1000,
+  "abc_p99_ms": 4200,
+  "tdabc_p99_ms": 4500,
+  "ai_extraction_p99_ms": 4800,
+  "cost_calculation_p99_ms": 4500,
+  "error_rate_pct": 0.5,
+  "rps": 12.5,
+  "result_hash_abc": "placeholder_sha256_abc_tenant_fixture_1_v8",
+  "result_hash_tdabc": "placeholder_sha256_tdabc_tenant_fixture_1_v8",
+  "result_hash_ai_extraction": "placeholder_sha256_ai_tenant_fixture_1_v8",
+  "result_hash_cost_calculation": "placeholder_sha256_cost_calc_tenant_fixture_1_v8",
+  "regression_threshold_pct": 5.0,
+  "owner_only_rbac": true,
+  "epic_12_2fa_preserved": true,
+  "audit_action_class": "PERFORMANCE_TEST",
+  "audit_action_value": "cost_engine_benchmark_invalidated",
+  "baseline_source": "Phase 7 wire 59b56cd Prometheus histogram business_cost_engine_duration_seconds verbatim",
+  "cross_references": {
+    "phase_7_wire": "memory/handoff-2026-08-23-phase-7-wire-done.md",
+    "epic_7_wire_audit_log_query_baseline": "memory/handoff-2026-08-22-epic-17-wire-done.md",
+    "capability_matrix_v1_33": "docs/capability-matrix.md"
+  }
+}

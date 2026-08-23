@@ -72,6 +72,7 @@ class ActionClass(str, __import__("enum").Enum):
     INFRA = "infra"  # Phase 5 (NEW — cross-region backup + failover + DR drill audit-first INSERT)
     AUDIT = "audit"  # Epic 17 (NEW — audit log viewer export audit-first INSERT)
     OBSERVABILITY = "observability"  # Phase 7 (NEW — observability stack alert + sampling audit-first INSERT)
+    PERFORMANCE_TEST = "performance_test"  # Phase 8 (NEW — k6 load test + SLO/SLI + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
 
 
 # ────────────────────────────────────────────────────────────
@@ -522,6 +523,43 @@ ObservabilityAction = Literal[
 ]
 
 
+# Phase 8 (cj-style 95번째 wire) — PERFORMANCE_TEST actions
+# (k6 load test + SLO/SLI modifications + latency regression detection +
+# performance regression gate + cost-engine benchmark V8 invalidation
+# audit-first INSERT, AD-35 (c)(d)(e)(f) verbatim). PRD §F24.1~§F24.6 +
+# AC §F24.1-10 + §F24.2-8 + §F24.3-8 + §F24.4-5 + §F24.5-6 + §F24.6-6 —
+# audit-first INSERT for each new destructive / observation event BEFORE
+# the actual operation (CR 1-1 verbatim + ActionClass.PERFORMANCE_TEST).
+# Routes to `audit_logs` (NOT to a separate ledger — performance/load
+# testing events are tenant-scoped platform-event trail only, mirroring
+# AUTH (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) / AUDIT
+# (Epic 17 / Phase 6) / OBSERVABILITY (Phase 7) pattern).
+# 4 NEW values:
+# - `performance_test_started` — k6 load test run started (manual
+#   trigger or nightly schedule; scenario + VU + tenant_id + trace_id
+#   payload; owner-only RBAC AD-22 + Epic 12 2FA 챌린지 보존).
+# - `performance_test_completed` — k6 load test run completed (summary
+#   metrics p95/p99 latency + RPS + error rate + tenant-scoped result_hash
+#   payload).
+# - `p99_regression_detected` — latency regression detector golden_diff
+#   exceeded threshold 20% (baseline + current + delta + tenant_id
+#   payload; CR 1-1 verbatim).
+# - `cost_engine_benchmark_invalidated` — cost-engine benchmark V8
+#   golden diff exceeded threshold 5% (V8 snapshot + current + delta +
+#   tenant_id + invalidation reason payload; AD-22 owner-only RBAC).
+# Drift detector: tests/api/core/test_phase_8_performance_audit_action.py
+# (Phase 8 cj-style 95번째 wire backend) enforces ActionClass registry ↔
+# DB CHECK (no-op for audit_logs per AD-2) ↔ call sites parity (3-way
+# gate). Phase 7 cj-style 91번째 wire `test_phase_7_observability_audit_action.py`
+# pattern verbatim applied.
+PerformanceTestAction = Literal[
+    "performance_test_started",  # §F24.1-10 — k6 load test run start
+    "performance_test_completed",  # §F24.1-10 — k6 load test run completion
+    "p99_regression_detected",  # §F24.4-5 — latency regression detection
+    "cost_engine_benchmark_invalidated",  # §F24.6-6 — V8 golden invalidate
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -552,6 +590,7 @@ AuditAction = (
     | InfraAction  # NEW — Phase 5 (multi-region backup + failover + DR drill)
     | AuditAction  # NEW — Epic 17 (audit log viewer CSV export) + Phase 6 EXTENSION (5 NEW values)
     | ObservabilityAction  # NEW — Phase 7 (observability alert + sampling audit-first INSERT)
+    | PerformanceTestAction  # NEW — Phase 8 (k6 load test + SLO + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
 )
 
 
@@ -976,6 +1015,29 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 8 (cj-style 95번째 wire) — PERFORMANCE_TEST 4 values
+        # (k6 load test start/complete + latency regression detection +
+        # cost-engine benchmark invalidation audit-first INSERT, AD-35
+        # (c)(d)(e)(f) verbatim). Routes to audit_logs (NOT to a separate
+        # ledger — performance/load testing events are tenant-scoped
+        # platform-event trail only, mirroring AUTH (Epic 15) / INFRA
+        # (Phase 5) / TWO_FACTOR_AUTH (Epic 12) / AUDIT (Epic 17 / Phase
+        # 6) / OBSERVABILITY (Phase 7) pattern). target_table=
+        # `performance_test` aligns with ActionClass.PERFORMANCE_TEST value
+        # (audit_log target_table column populated verbatim — RLS
+        # preserved). Drift detector enforces ActionClass registry ↔ DB
+        # CHECK (no-op for audit_logs per AD-2) ↔ call sites parity.
+        ActionClass.PERFORMANCE_TEST: (
+            "audit_logs",
+            frozenset(
+                {
+                    "performance_test_started",  # §F24.1-10 — k6 load test start
+                    "performance_test_completed",  # §F24.1-10 — k6 load test completion
+                    "p99_regression_detected",  # §F24.4-5 — latency regression detection
+                    "cost_engine_benchmark_invalidated",  # §F24.6-6 — V8 golden invalidate
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1106,5 +1168,6 @@ __all__ = [
     "InfraAction",  # NEW — Phase 5 (multi-region backup + failover + DR drill)
     "AuditAction",  # NEW — Epic 17 (audit log viewer CSV export)
     "ObservabilityAction",  # NEW — Phase 7 (observability alert + sampling audit-first INSERT)
+    "PerformanceTestAction",  # NEW — Phase 8 (k6 load test + SLO + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
     "emit_audit_typed",
 ]

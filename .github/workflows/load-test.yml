@@ -1,0 +1,65 @@
+# Phase 8 / §F24.1 — k6 load testing GH Actions workflow.
+#
+# CR 9-6 commit message discipline + CR 12-5 D-PARITY-01 verbatim.
+# Triggers: workflow_dispatch (manual) + nightly KST 02:00 (UTC 17:00) cron.
+# k6==0.45.0 AD-14 stack pin verbatim.
+# Owner-only RBAC AD-22 enforced via jobs.environment: production.
+# Epic 12 2FA 챌린지 보존 + dry-run mode.
+name: k6-load-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "k6 scenario to run"
+        required: true
+        type: choice
+        options:
+          - auth-login
+          - cost-calculation
+          - onboarding-flow
+          - audit-log-query
+          - multi-region-failover
+        default: auth-login
+      dry_run:
+        description: "Dry-run mode (synthetic summary, no real load)"
+        required: false
+        type: boolean
+        default: true
+  schedule:
+    # Nightly KST 02:00 (UTC 17:00)
+    - cron: "0 17 * * *"
+
+jobs:
+  load-test:
+    name: k6 ${{ inputs.scenario || 'auth-login' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6=0.45.0
+
+      - name: Run k6 load test (dry-run default)
+        run: |
+          SCENARIO="${{ inputs.scenario || 'auth-login' }}"
+          DRY_RUN="${{ inputs.dry_run || 'true' }}"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "::notice::Dry-run mode: skipping actual load generation"
+            echo "synthetic_summary=true scenario=$SCENARIO k6_version=0.45.0" >> "$GITHUB_OUTPUT"
+          else
+            k6 run --out json=results.json "apps/api/tests/load/k6/${SCENARIO}.js"
+          fi
+
+      - name: Upload k6 results
+        if: ${{ inputs.dry_run == false }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-${{ inputs.scenario || 'auth-login' }}-results
+          path: results.json

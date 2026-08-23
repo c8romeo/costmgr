@@ -54,6 +54,15 @@ dependencies = [
     "prometheus-client==0.20.0",
     # PyYAML for alert_rules.yaml config loading (F23.3).
     "pyyaml==6.0.2",
+    # Phase 8 (cj-style 95번째 wire) — Performance/Load Testing territory
+    # (PRD §F24). AD-14 stack pin — k6 binary version is enforced at the
+    # GitHub Actions workflow level (.github/workflows/load-test.yml pins
+    # `apt-get install k6=0.45.0`). The `k6` Python wrapper below provides
+    # subprocess orchestration for local dev + CI (load_test_runner.py).
+    "k6-python-wrapper==0.1.0",
+    # tenant_settings.latency_budget JSONB override JSON-schema validation
+    # (F24.3-7 — p99 latency budget per-tenant override).
+    "jsonschema==4.23.0",
 ]
 
 [project.optional-dependencies]

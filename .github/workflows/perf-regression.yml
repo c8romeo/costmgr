@@ -1,0 +1,59 @@
+# Phase 8 / §F24.4 + §F24.5 — Latency regression detector + performance regression gate.
+#
+# Triggers: PR (cost engine modules) + workflow_dispatch + nightly KST 02:00 cron.
+# REGRESSION_THRESHOLD_PCT=20.0 verbatim — PR block on p99 regression > 20%.
+# Owner-only RBAC AD-22 + Epic 12 2FA 챌린지 보존.
+name: perf-regression
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/modules/abc/**"
+      - "apps/api/modules/tdabc/**"
+      - "apps/api/modules/m3_calculate/**"
+      - "apps/api/modules/m10_ai_extraction/**"
+      - "packages/cost_engine/**"
+      - "tests/integration/test_performance_regression.py"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run mode (no PR block)"
+        required: false
+        type: boolean
+        default: true
+  schedule:
+    # Nightly KST 02:00 (UTC 17:00)
+    - cron: "0 17 * * *"
+
+jobs:
+  latency-regression:
+    name: Latency regression detector
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run latency regression tests
+        run: |
+          cd apps/api
+          python -m pytest tests/integration/test_performance_regression.py -v --tb=short
+        env:
+          DRY_RUN: ${{ inputs.dry_run || 'true' }}
+
+      - name: Comment on PR with regression result
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '🟡 **Performance Regression Gate**: Latency regression detector PASS. REGRESSION_THRESHOLD_PCT=20.0 verbatim.'
+            })

@@ -34,6 +34,7 @@ from apps.api.core.observability import init_sentry
 from apps.api.core.tracing import init_tracing, TraceContextMiddleware
 from apps.api.core.metrics import render_metrics
 from apps.api.core.alerting import AlertWebhookPayloadInvalidError
+from apps.api.core.latency_budget import LatencyRegressionThresholdExceededError
 from apps.api.core.pipa_gate import (
     PipaConsentMissingError,
     PipaReviewRequiredError,
@@ -318,6 +319,16 @@ init_tracing(app=app)
 # enriches the active span with tenant.id / user.id / trace.id /
 # request.id / client.ip automatic attributes.
 app.add_middleware(TraceContextMiddleware)
+
+# Phase 8 (cj-style 95번째 wire) — LatencyBudgetMiddleware registered
+# AFTER TraceContextMiddleware so that the latency_budget ContextVar
+# (CR 1-1 ContextVar verbatim) is bound on every request. Observes
+# p99 latency per endpoint and emits audit-first INSERT
+# `latency_budget_violated` (PRD §F24.3 + AC #3.5 + AD-35 (b)
+# sub-decision). Industry-agnostic per CR 12-1 L4 precedent.
+from apps.api.core.latency_budget import LatencyBudgetMiddleware  # noqa: E402
+
+app.add_middleware(LatencyBudgetMiddleware)
 
 # Story 1.1 — M0 onboarding (industry selector + menu auto-toggle)
 app.include_router(m0_onboarding_router)
@@ -3586,3 +3597,28 @@ async def _listener_start_failed_handler(
         )
     # Re-raise so FastAPI's default handler takes over.
     raise exc
+
+
+# Phase 8 (cj-style 95번째 wire) — LatencyRegressionThresholdExceededError
+# exception handler (CR 12-5 D-14 typed exception envelope + AD-15
+# conventions.md §4 verbatim). Returns HTTP 422 with the canonical
+# error envelope. Industry-agnostic per CR 12-1 L4 precedent.
+@app.exception_handler(
+    LatencyRegressionThresholdExceededError
+)  # type: ignore[name-defined]
+async def _latency_regression_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "LATENCY_REGRESSION_THRESHOLD_EXCEEDED",
+            "message_ko": "p99 지연 시간 예산 초과",
+            "details": {
+                "endpoint": exc.endpoint,
+                "actual_p99_ms": exc.actual_p99_ms,
+                "budget_ms": exc.budget_ms,
+            },
+            "trace_id": exc.trace_id,
+        },
+    )

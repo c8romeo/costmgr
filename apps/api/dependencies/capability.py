@@ -25,6 +25,9 @@ Phase 7:
   - `require_observability_traces()` — gates `/api/v1/observability/traces/lookup` + `/observability/alerts/ack` + PagerDuty integration
   - `require_observability_metrics()` — gates `/api/v1/metrics` Prometheus exposition + Grafana embed
 
+Phase 8:
+  - `require_performance_testing()` — gates `/api/v1/performance-testing/load-tests[/...]` (k6 manual trigger + status) + `/api/v1/performance-testing/slo/dashboard` + `/performance-testing/latency-regression/invalidate` + `/performance-testing/cost-engine-benchmark/invalidate`
+
 Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
 """
 from __future__ import annotations
@@ -47,6 +50,7 @@ __all__ = [
     "require_audit_log_retention",
     "require_observability_traces",
     "require_observability_metrics",
+    "require_performance_testing",
 ]
 
 
@@ -101,3 +105,29 @@ require_audit_log_retention = require_capability(Capability.AUDIT_LOG_RETENTION)
 # baseline, not industry-specific).
 require_observability_traces = require_capability(Capability.OBSERVABILITY_TRACES)
 require_observability_metrics = require_capability(Capability.OBSERVABILITY_METRICS)
+# Phase 8 — Performance / Load Testing capability (F24.6 + AC #6.3 +
+# AD-35 (g) sub-decision). Gates the performance / load testing routes
+# in apps/api/modules/performance_testing/performance_routes.py:
+# - `POST /api/v1/performance-testing/load-tests` — manual k6 load test
+#   trigger (AD-22 owner-only RBAC + Epic 12 2FA 챌린지 보존)
+# - `GET /api/v1/performance-testing/load-tests/{run_id}` — k6 load test
+#   status lookup
+# - `GET /api/v1/performance-testing/slo/dashboard` — SLO dashboard view
+# - `POST /api/v1/performance-testing/slo/modify` — SLO manual modify
+#   (AD-22 owner-only RBAC + Epic 12 2FA 챌린지 보존)
+# - `POST /api/v1/performance-testing/latency-regression/invalidate` —
+#   latency regression manual trigger (AD-22 owner-only RBAC + Epic 12
+#   2FA 챌린지 보존)
+# - `POST /api/v1/performance-testing/cost-engine-benchmark/invalidate` —
+#   cost-engine benchmark V8 manual invalidate (AD-22 owner-only RBAC +
+#   Epic 12 2FA 챌린지 보존)
+# Industry-agnostic per CR 12-1 L4 precedent (mirrors OBSERVABILITY_*
+# Phase 7 wire + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW Epic
+# 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire +
+# TENANT_IDP_MANAGEMENT Epic 16 wire + SSO_ENTERPRISE Epic 15 wire +
+# LISTEN_NOTIFY 13/14 wire + AUTH_MIDDLEWARE Phase 3 wire + LAUNCH_*
+# 1st release wire + DEPLOYMENT_* Phase 4 wire pattern verbatim).
+# All 4 industries get PERFORMANCE_TESTING capability (performance /
+# observability baseline, not industry-specific). Drift detector lives
+# at tests/integration/test_capability_matrix_v1_33_drift.py.
+require_performance_testing = require_capability(Capability.PERFORMANCE_TESTING)
