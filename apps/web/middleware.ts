@@ -25,7 +25,7 @@ import createMiddleware from "next-intl/middleware";
 
 import { routeGuard, type RouteGuardRequest } from "@/lib/auth/middleware";
 
-export const runtime = "edge";
+export const runtime = "experimental-edge";
 
 const intlMiddleware = createMiddleware({
   locales: ["ko-KR"],

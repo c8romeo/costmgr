@@ -2,11 +2,12 @@
 // Story 0.5 — T6.6 (AC #6)
 
 import createNextIntlPlugin from "next-intl/plugin";
+import type { NextConfig } from "next";
 
 const withNextIntl = createNextIntlPlugin("./i18n.ts");
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   reactStrictMode: true,
 };
 

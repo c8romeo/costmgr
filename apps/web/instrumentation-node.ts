@@ -20,8 +20,8 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import {
   BatchSpanProcessor,
-  TraceIdRatioBased,
-  ALWAYS_ON,
+  TraceIdRatioBasedSampler,
+  AlwaysOnSampler,
 } from '@opentelemetry/sdk-trace-base';
 
 const OTEL_SDK_DISABLED: boolean =
@@ -31,7 +31,10 @@ if (!OTEL_SDK_DISABLED) {
   const samplerRatio = parseFloat(
     process.env.OTEL_TRACES_SAMPLER_ARG ?? '0.1',
   );
-  const sampler = samplerRatio >= 1.0 ? ALWAYS_ON : new TraceIdRatioBased(samplerRatio);
+  const sampler =
+    samplerRatio >= 1.0
+      ? new AlwaysOnSampler()
+      : new TraceIdRatioBasedSampler(samplerRatio);
 
   const sdk = new NodeSDK({
     resource: new Resource({
