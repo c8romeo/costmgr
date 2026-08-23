@@ -1,0 +1,46 @@
+A38 Frontend Test Debt Dedicated Sprint (cj-style Epic 10 carry-over 14번째 진입점 = cj-style 38번째 epic 연속) bmad-create-story spec entry DONE — sprint-status 10-5-a38-frontend-test-debt-dedicated: backlog → ready-for-dev.
+
+- baseline_commit = 197c96d (Sprint 11-6 spec entry tip = Epic 10 close-out retro wire done 진입 후 진입점)
+- cj-style Epic 10 carry-over 14번째 진입점 = Epic 10 PRD entry cj-style 25번째 → 10-1 cj-style 28번째 → 10-2 cj-style 29번째 → 10-3 cj-style 32번째 → 10-4 cj-style 34번째 → Epic 10 retro cj-style 35번째 → THIS A38 spec entry cj-style 38번째
+- A38 결정 wire 진입 (Epic 10 close-out retro §7 A38 + §11.2 명시 "A38 ... cj-style carry-over 14번째 진입 retro closed 후 즉시")
+- A38 = A35 frontend test debt honestly DEFER (d) dedicated sprint = Epic 10 4 stories (10-1 + 10-2 + 10-3 + 10-4) 모두 frontend test debt 일괄 해소
+
+cj-style carry-over 14번째 검증 (cj-style 9번째 = 9-5 Epic 9 close-out follow-up + cj-style 10번째 = 9-6 Epic 9 close-out retro + cj-style 11번째 = 9-7 Epic 9 frontend test debt follow-up + cj-style 12번째 = smoke-fix sprint + cj-style 13번째 = 9-7 carry-over 재진 + cj-style 14번째 = THIS A38 frontend test debt dedicated).
+
+Sprint scope (cj-style atomic T1~T8):
+- T1: 10-1 frontend debt 해소 (~9 files = AiDraftCard + ConfidenceBadge + AiExtractModal + ko-KR.json ai_extract namespace + 4 NEW vitest mount cases + 1 NEW TS mirror + parity sweep)
+- T2: 10-2 frontend debt 해소 (~7 files = insight cache UI + 3 NEW TS mirror parity cases + vitest mount + ko-KR.json insight_cache SSOT)
+- T3: 10-3 frontend debt 해소 (~7 files = 2 badge components AiReferenceBadge + AutoAnalysisBadge + 1 comment section + 2 vitest mount + 1 TS mirror + 1 ko-KR.json badge SSOT + 1 cross-language drift detector test)
+- T4: 10-4 frontend debt 해소 (~5 files = PromoteConfirmButton + PromoteResultToast + 2 vitest mount + 1 ko-KR.json promote SSOT)
+- T5: cross-language drift detector EXTENSION (V10/V11+V12+V13 Epic 10 patterns sweep + 9-5/9-7 patterns preserved)
+- T6: sprint-status + handoff memory doc wire (cj-style carry-over 14번째 epic 연속 정직 회복)
+- T7: 3중 게이트 FINAL CLEAN (backend ruff scoped 0 NEW + capability matrix v1.21 SSOT 보존 + AD-7/17/25 verbatim bind preserved + vitest 12 NEW cases PASS + frontend LCP shift PREVENTED + cross-language byte-identical determinism preserved)
+- T8: atomic commit (single mixed-discipline atomic sweep, 11-5 wire pattern 미러)
+
+wire 표 expected: ~28 NEW frontend files + 12 NEW vitest mount cases (105 NEW total similar Epic 9 9-7 wire pattern) + 3 NEW TS mirror parity cases + 4 NEW ko-KR.json SSOT extensions = ~47 files / ~22 NEW test cases.
+MAX SDR claim 갱신 (CR 11-2 lesson, separate line): pytest baseline ~1,801 + vitest baseline ~1,801 → A38 wire 후 +12 vitest = ~1,813 vitest PASS; Playwright baseline ~12 → +4 = ~16 scenarios.
+
+A34 4-category honestly DEFER ✅ RESOLVED on T1~T4 wire 진입 시점:
+- D-10-1-DEFER-3 (T5 frontend 8 files = AiDraftCard + ConfidenceBadge + AiExtractModal + ko-KR.json + 2 vitest mount + TS mirror + parity)
+- D-10-2-DEFER-4 (T6 frontend 7 files = insight cache UI + 3 TS mirror parity + vitest mount + ko-KR.json)
+- D-10-3-DEFER-4 (T8 frontend 7 files = 2 badge components + 1 comment section + 2 vitest mount + 1 TS mirror + 1 ko-KR.json + 1 cross-language drift detector test)
+- D-10-4-DEFER-4 (T5 frontend 5 files = PromoteConfirmButton + PromoteResultToast + 2 vitest mount + 1 ko-KR.json)
+
+CR lessons applied:
+- CR 11-4 (D-001 page.tsx mount MUST + D-002 ko-KR.json SSOT only + D-003 vitest RTL render + D-004 TS mirror parity mandatory + D-005 unknown state reject)
+- CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep + ruff scoped auto-fix sweep 일괄
+- CR 12-5 (D-13 cross-language drift + D-14 envelope {code, message_ko, details, trace_id})
+- CR 9-6 (commit message `git commit -F <file>` per D5 prevention)
+- A19 cohesion pattern 8 surface 보존 (frontend 4 stories frontend files = 8 surface no-change, capability matrix v1.21 industry-agnostic 4-industry grants 보존)
+- A36 SDR 검증 4-step 자동화 wire (commit prefix lint + sprint-status structure 정합 + vitest file count drift 0건 + commit consistency 정합)
+
+wire:
+- _bmad-output/implementation-artifacts/10-5-a38-frontend-test-debt-dedicated.md NEW (~640 lines, 10-4 template format EXTENSION with 6 ACs + 8 tasks + A34 honestly DEFER + A36 SDR 4-step + CR 11-4 frontend lessons)
+- _bmad-output/implementation-artifacts/sprint-status.yaml MODIFIED (last_updated 갱신 + 10-5-a38-frontend-test-debt-dedicated: backlog → ready-for-dev + updated_note cj-style 38번째 epic 연속 text + prior Sprint 11-6 spec entry note로 이동)
+
+partial wire 시도 0건 + docs only atomic wire (cj-style 38번째 epic 연속 정직 회복).
+3중 게이트 impact NONE (docs only 변경, no code change, no test change).
+ruff scoped 0 NEW / import-linter 2 KEPT 0 broken / pytest baseline 보존 / vitest baseline 보존 / tsc zero NEW.
+A36 SDR 4-step 자동화 wire PASS (commit prefix lint sprint-status structure vitest file count drift commit consistency 모두 정합).
+
+다음: bmad-dev-story 진입 → T1~T8 atomic sprint wire → 3중 게이트 FINAL CLEAN → atomic commit → done 진입 (cj-style Epic 10 carry-over 14번째, vitest ~1,813 + Playwright ~16 PASS + 28 NEW frontend files) OR 에필로그: cj-style 39번째 = A37 master PRD v2.0 edit 진입 OR Sprint 11-6 dev-story T1~T10 wire 진입.

@@ -1,0 +1,55 @@
+chore: 작업 트리 ruff 자동 수정 정리 + 부수 효과로 깨진 테스트 1건 수정 (Phase 3-0 baseline 확보)
+
+Phase 3-0 (auth 계약 수직 슬라이스) 진입 전 baseline을 깨끗하게 만들기 위해,
+커밋되지 않은 채 남아 있던 ruff 자동 수정 11건을 독립 커밋으로 분리한다.
+
+## 1. ruff 자동 수정 (11 files, 기능 변경 없음)
+
+- UP007  Union[X, Y] → X | Y
+         (m10_ai/schemas.py PromoteEnvelope, m3_calculate/handlers.py response_model,
+          cost_engine/cvp.py isinstance 튜플)
+- UP017  datetime.timezone.utc → datetime.UTC  (m10_ai/handlers.py)
+- I001   임포트 블록 정렬  (m10_ai/handlers.py, m10_ai/service.py,
+         m8_budget/services/__init__.py)
+- F401   미사용 임포트 제거
+         (m10_ai/handlers.py 의 InputPromotionDeniedError — 해당 파일에서는 주석
+          792행에만 등장하며, 테스트는 schemas.py 에서 직접 임포트하므로 안전.
+          monthly_extraction_kernel.py 의 Enum)
+- W292   파일 끝 개행 추가 (3 files)
+- ERA001 설명용 주석이 "주석 처리된 코드"로 오탐되어 noqa 부여 (3 지점)
+
+## 2. 부수 효과로 깨진 테스트 1건 수정 (실제 결함)
+
+`tests/api/m10_ai/test_promote_endpoint.py::test_promote_envelope_is_annotated_union`
+
+- 증상: UP007 적용 후 TypeError 로 실패.
+- 원인: `PromoteEnvelope` 내부 타입이 `typing._GenericAlias`(Union[...]) 에서
+  `types.UnionType`(X | Y) 로 바뀌었고, 테스트가 쓰던 `get_type_hints()` 는
+  모듈/클래스/함수만 받으므로 후자를 거부한다.
+- 범위: 검사 방법만 깨졌고 계약은 정상이다. Pydantic v2 discriminated union
+  런타임 동작과 FastAPI 앱 임포트는 영향 없음 (동일 실행에서 나머지 711건 통과).
+- 기존 테스트의 약점: `get_type_hints()` 결과인 `hints` 를 전혀 사용하지 않는
+  죽은 코드였고, 실제 단언은 `"Annotated" in str(...)` 문자열 검사뿐이라
+  독스트링이 주장하는 불변식을 검증하지 못했다.
+- 수정: `get_args()` 기반 introspection 으로 교체하여 불변식을 실제로 검증한다.
+  (1) Annotated[union, FieldInfo] 2-튜플 구조
+  (2) union variant 7개 = 1 success + 6 typed error (AD-7 strict invariant)
+  (3) FieldInfo.discriminator == "status"
+  `get_args()` 는 Union[...] 과 X | Y 양쪽 표기에 모두 동작하므로 표기법에
+  중립적이다.
+
+## 3. 검증
+
+- `ruff check apps/api packages` → All checks passed!
+  (CI lint-conventions 범위와 동일. tests/ 는 CI ruff 범위 밖이라 해당 파일의
+   기존 I001/W292 2건은 범위 외로 두었다.)
+- `pytest tests/api/m10_ai tests/architecture tests/cost_engine`
+  → 712 passed, 5 skipped (수정 전: 1 failed, 711 passed)
+
+## 4. 알려진 위생 이슈 (본 커밋 범위 밖)
+
+`apps/web/tsconfig.tsbuildinfo` 는 TypeScript 증분 빌드 캐시인데 추적되고 있어
+빌드마다 작업 트리가 더러워진다. baseline 을 깨끗이 하려고 이번엔 포함했으나,
+.gitignore 이전이 맞다. 별도 정리 대상.
+
+Co-Authored-By: Claude <noreply@anthropic.com>

@@ -71,6 +71,7 @@ class ActionClass(str, __import__("enum").Enum):
     AUTH = "auth"  # Epic 15 (NEW — magic_link + social_oauth + sso audit-first INSERT)
     INFRA = "infra"  # Phase 5 (NEW — cross-region backup + failover + DR drill audit-first INSERT)
     AUDIT = "audit"  # Epic 17 (NEW — audit log viewer export audit-first INSERT)
+    OBSERVABILITY = "observability"  # Phase 7 (NEW — observability stack alert + sampling audit-first INSERT)
 
 
 # ────────────────────────────────────────────────────────────
@@ -494,6 +495,33 @@ AuditAction = Literal[
 ]
 
 
+# Phase 7 (cj-style 91번째 wire) — OBSERVABILITY actions
+# (alert firing + trace sampling decision audit-first INSERT, AD-34 (e)
+# verbatim). PRD §F23.5 + AC #5.9 — alert firing emits audit log BEFORE
+# Slack/PagerDuty notification dispatch (CR 1-1 verbatim + ActionClass.
+# OBSERVABILITY). Routes to `audit_logs` (NOT to a separate ledger —
+# observability events are tenant-scoped platform-event trail only,
+# mirroring AUTH (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12)
+# / AUDIT (Epic 17 / Phase 6) pattern). 2 NEW values:
+# - `alert_fired` — Prometheus AlertManager webhook ingress + Slack
+#   notification dispatch + PagerDuty owner-only manual trigger audit
+#   trace (severity + alert_name + tenant_id + trace_id payload).
+# - `trace_sampled` — OpenTelemetry trace_id sampling decision audit
+#   trace (decision + tenant_id + sampling_ratio + trace_id payload).
+#   Per-request sampling audit ensures head_based sampler ratio (1.0 dev
+#   / 0.1 prod) is observable + Sentry `tracesSampleRate=0.1` carry-over
+#   alignment + tenant_id dimension observability (CR 0-2 RLS-preserved).
+# Drift detector: tests/api/core/test_phase_7_observability_audit_action.py
+# (Phase 7 cj-style 91번째 wire backend) enforces ActionClass registry ↔
+# DB CHECK (no-op for audit_logs per AD-2) ↔ call sites parity (3-way
+# gate). Phase 6 cj-style 87번째 wire `test_phase_6_retention_audit_action.py`
+# pattern verbatim applied.
+ObservabilityAction = Literal[
+    "alert_fired",  # §F23.5 + AC #5.9 — alert BEFORE Slack/PagerDuty dispatch
+    "trace_sampled",  # §F23.5 + AC #5.10 — sampling decision audit trace
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -523,6 +551,7 @@ AuditAction = (
     | TenantAction  # NEW — Phase 3-0 (Epic 1 carry-over = auth contract)
     | InfraAction  # NEW — Phase 5 (multi-region backup + failover + DR drill)
     | AuditAction  # NEW — Epic 17 (audit log viewer CSV export) + Phase 6 EXTENSION (5 NEW values)
+    | ObservabilityAction  # NEW — Phase 7 (observability alert + sampling audit-first INSERT)
 )
 
 
@@ -928,6 +957,25 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 7 (cj-style 91번째 wire) — OBSERVABILITY 2 values
+        # (alert + trace sampling audit-first INSERT, AD-34 (e) verbatim).
+        # Routes to audit_logs (NOT to a separate ledger — observability
+        # events are tenant-scoped platform-event trail only, mirroring
+        # AUTH (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) /
+        # AUDIT (Epic 17 / Phase 6) pattern). Drift detector enforces
+        # ActionClass registry ↔ DB CHECK (no-op for audit_logs per AD-2)
+        # ↔ call sites parity (3-way gate). target_table=`observability`
+        # aligns with ActionClass.OBSERVABILITY value (audit_log target_table
+        # column populated verbatim — RLS preserved).
+        ActionClass.OBSERVABILITY: (
+            "audit_logs",
+            frozenset(
+                {
+                    "alert_fired",  # §F23.5 + AC #5.9 — alert BEFORE Slack/PagerDuty dispatch
+                    "trace_sampled",  # §F23.5 + AC #5.10 — sampling decision audit trace
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1057,5 +1105,6 @@ __all__ = [
     "AIInsightCacheAction",  # NEW — Story 10.2 (Epic 10)
     "InfraAction",  # NEW — Phase 5 (multi-region backup + failover + DR drill)
     "AuditAction",  # NEW — Epic 17 (audit log viewer CSV export)
+    "ObservabilityAction",  # NEW — Phase 7 (observability alert + sampling audit-first INSERT)
     "emit_audit_typed",
 ]

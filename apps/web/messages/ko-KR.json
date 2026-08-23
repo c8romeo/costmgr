@@ -1059,6 +1059,26 @@
     "error_erasure_not_found": "삭제할 감사 로그 항목이 없습니다.",
     "empty_state": "등록된 보존 정책이 없습니다."
   },
+  "observability": {
+    "page_title": "관측성 대시보드",
+    "page_subtitle": "테넌트의 OpenTelemetry 트레이스, Prometheus 메트릭, 알림 상태를 확인합니다.",
+    "traces_heading": "분산 트레이스",
+    "metrics_heading": "비즈니스 메트릭",
+    "alerts_heading": "알림 상태",
+    "trace_id_label": "추적 ID",
+    "trace_id_placeholder": "추적 ID를 입력하세요 (32자 hex)",
+    "trace_lookup_button": "추적 조회",
+    "alert_name_label": "알림 이름",
+    "alert_ack_button": "알림 확인",
+    "pagerduty_trigger_button": "PagerDuty 수동 발동",
+    "pagerduty_forbidden_notice": "PagerDuty 수동 발동은 owner 권한이 필요합니다.",
+    "loading_traces": "트레이스 정보를 불러오는 중...",
+    "loading_metrics": "메트릭을 불러오는 중...",
+    "empty_alerts": "현재 발동 중인 알림이 없습니다.",
+    "error_invalid_trace_id": "추적 ID 형식이 올바르지 않습니다.",
+    "error_alert_ack_failed": "알림 확인에 실패했습니다.",
+    "error_pagerduty_forbidden": "PagerDuty 발동 권한이 없습니다. owner 역할이 필요합니다."
+  },
   "activity": {
     "page_title": "활동 스트림",
     "page_subtitle": "선택한 기간 동안 테넌트의 주요 활동을 시간순으로 확인합니다.",

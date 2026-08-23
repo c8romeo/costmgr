@@ -1,0 +1,70 @@
+# config/alert_rules.yaml
+#
+# Phase 7 (cj-style 91번째 wire) — Observability Stack 강화 territory.
+# PRD §F23.3 + AC #3 + AD-34 (c) sub-decision.
+#
+# 5 NEW alert rules (PRD §F23.3 verbatim):
+#   1. HighErrorRate — 5xx error rate exceeds 5% for 5 minutes
+#   2. SlowCalc — cost engine p99 > 5s for 10 minutes
+#   3. FailoverStuck — replication_lag_seconds > 30 for 5 minutes
+#      (Phase 5 wire `f093f8c` multi-region carry-over)
+#   4. RetentionPurgeFailed — audit_log_purge_last_success_timestamp > 26h
+#      (Phase 6 wire `24e1cd7` audit log retention carry-over)
+#   5. MultiRegionDown — primary + secondary all down for 1 minute
+#
+# Loaded by apps/api/core/alerting.py:load_alert_rules().
+# Validated by apps/api/core/alerting.py:validate_alert_webhook_payload().
+# Wired in apps/api/main.py EXTENSION (POST /api/v1/observability/alerts/webhook).
+
+- name: HighErrorRate
+  severity: critical
+  expression: |
+    sum(rate(http_requests_total{status=~"5.."}[5m]))
+      / sum(rate(http_requests_total[5m])) > 0.05
+  for: 5m
+  description: "5xx error rate exceeds 5% for 5 minutes (page on-call immediately)"
+  routing:
+    slack_channel: "#bizup-alerts"
+    pagerduty: true
+
+- name: SlowCalc
+  severity: warning
+  expression: |
+    histogram_quantile(0.99,
+      sum(rate(business_cost_engine_duration_seconds_bucket[10m])) by (le, engine)
+    ) > 5
+  for: 10m
+  description: "Cost engine p99 latency > 5s for 10 minutes (NFR11 P95 <= 30s SLO breach)"
+  routing:
+    slack_channel: "#bizup-alerts"
+    pagerduty: false
+
+- name: FailoverStuck
+  severity: critical
+  expression: |
+    max(phase_5_replication_lag_seconds) by (region) > 30
+  for: 5m
+  description: "Phase 5 wire f093f8c replication_lag_seconds > 30 for 5 minutes (DR carry-over)"
+  routing:
+    slack_channel: "#bizup-alerts"
+    pagerduty: true
+
+- name: RetentionPurgeFailed
+  severity: warning
+  expression: |
+    time() - phase_6_audit_purge_last_success_timestamp > 26 * 3600
+  for: 1m
+  description: "Phase 6 wire 24e1cd7 audit log purge last success > 26h ago (KST cron 02:00 daily)"
+  routing:
+    slack_channel: "#bizup-alerts"
+    pagerduty: false
+
+- name: MultiRegionDown
+  severity: critical
+  expression: |
+    (count(up{job="supabase-primary"} == 0) + count(up{job="supabase-secondary"} == 0)) == 2
+  for: 1m
+  description: "Phase 5 wire f093f8c primary Seoul + secondary Tokyo both down for 1 minute (DR critical)"
+  routing:
+    slack_channel: "#bizup-alerts"
+    pagerduty: true

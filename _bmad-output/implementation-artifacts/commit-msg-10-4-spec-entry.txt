@@ -1,0 +1,94 @@
+Story 10.4 (Epic 10 cj-style 5번째 진입점 = cj-style 33번째 epic 연속) bmad-create-story spec entry DONE — sprint-status 10-4-ai-promotion-port-idempotency: backlog → ready-for-dev.
+
+[AD-17 verbatim bind]
+- only M2 may call InputPromoter.promote(tenant_id, period_key, source_draft_id) -> MonthlyInput
+- idempotent on (tenant_id, period_key, source_draft_id) 3-tuple (DB-level UNIQUE constraint + state='promoted' 1회 전이)
+- audit-first INSERT 2행 append (CR 1.1 verbatim)
+  - Row 1: action_class=INPUT_DRAFT, action=input_draft_promoted (NEW 10-4), actor + draft hash + ts
+  - Row 2: action_class=AI_EXTRACTION_EXECUTED, action=monthly_extraction_promote_executed (NEW 10-4), actor + draft hash + ts
+- canonical 6-stream shape (master PRD §3.1: 직접재료비/직접노무비/제조간접비/판매관리비/매출/기말재고) from input_drafts.confirmed_value JSONB
+
+[AD-7 strict invariant preserved]
+- M10 NEVER writes confirmed_inputs/monthly_input_rows
+- monthly_extraction_promote_denied 카운터 wire (10-1 AIExtractionAction Literal forward-fill slot)
+- AD-7 strict invariant guard: M10 service → monthly_input_rows 직접 INSERT 시도 → 422 INPUT_PROMOTION_DENIED + audit_log INSERT
+
+[D-10-3-DEFER-6 PIPA gate carry-over 해소 wire 진입]
+- 4 endpoints 모두 PIPA gate Depends(require_pipa_review) 적용:
+  - POST /api/v1/ai/extract-monthly (10-1)
+  - GET /api/v1/ai/insights (10-2)
+  - GET /api/v1/ai/comments (10-3)
+  - NEW POST /api/v1/ai/promote (10-4)
+- AiPipaConsentMissingError 403 AI_PIPA_CONSENT_MISSING envelope CR 12-5 D-14 verbatim 보존
+- 10-1 wire envelope handler main.py 등록 그대로 보존
+
+[A19 cohesion pattern 8 surface PASS 목표]
+10-1 PASS + 10-2 PASS + 10-3 PASS 패턴 미러:
+1. Kernel — packages/services/m10_ai/promoter_port.py NEW (stdlib-only pure)
+   - PromotionRequest + PromotionResult frozen dataclasses
+   - PROMOTE_STATUS_VALUES frozenset SSOT (AD-15 cross-language parity)
+   - compute_promotion_idempotency_key (UUID v5 derivation, deterministic)
+   - validate_promotion_request (Pydantic v2 Literal 검증 reuse)
+   - InputPromoterPort Protocol
+2. Port — InputPromoterPort Protocol in kernel
+3. DB schema — alembic 0032 NEW
+   - input_drafts_state_check EXTENSION (DROP existing + ADD v2 with 'promoted')
+   - monthly_input_promotions table NEW (8 columns + UNIQUE 3-tuple + INSERT-only trigger)
+   - audit_logs action_class CHECK EXTENSION (input_draft_promoted + monthly_extraction_promote_executed 2 NEW values)
+4. Service — apps/api/modules/m10_ai/services/promoter_service.py NEW + db_promoter_adapter.py NEW
+   - PromoterService 11-step pipeline (validate → PIPA gate → M2-only auth → audit-first Row 1 → SELECT FOR UPDATE → idempotency check → INSERT monthly_input_rows → INSERT monthly_input_promotions → UPDATE input_drafts.state → audit-first Row 2 → return PromotionResult)
+5. Handler — apps/api/modules/m10_ai/handlers.py MODIFIED
+   - NEW POST /api/v1/ai/promote endpoint
+   - capability gate + PIPA gate + M2-only auth + audit-first
+   - D-10-3-DEFER-6 carry-over 해소: 4 endpoints PIPA gate 일괄 적용
+6. Envelope — apps/api/modules/m10_ai/schemas.py MODIFIED + apps/api/main.py MODIFIED
+   - PromoteResponse | PromoteDraftImmutableError | PromoteSourceDraftNotFoundError | PromoteIdempotencyMismatchError | PromoteM2OnlyError | AiPipaConsentMissingError Discriminated union
+   - 6 NEW envelope handlers main.py 등록
+7. Capability — tests/integration/test_capability_matrix_v1_21_drift.py 0 NEW (regex 이미 4-story 검증 PASS)
+   - docs/capability-matrix.md AI_INSIGHT row story_coverage append "10-4"
+8. Audit — apps/api/core/audit_action.py MODIFIED
+   - InputDraftAction Literal EXTENSION (1 NEW value → 3 values)
+   - AIExtractionAction Literal EXTENSION (1 NEW value → 4 values)
+   - _ActionRegistry._REGISTRY EXTENSION + AuditAction union EXTENSION + __all__ EXTENSION
+
+[A34 4-category honestly DEFER 5 categories 명시 preserved]
+- D-10-4-DEFER-1 (a) docs 정합 master PRD v2.0 본체 edit (Epic 10 close-out retro 진입)
+- D-10-4-DEFER-2 (b) retro input promote idempotency 실측 evidence (Epic 10 close-out retro 입력)
+- D-10-4-DEFER-3 (c) separate epic M2 public endpoint (M2 module 분리 epic 후속)
+- D-10-4-DEFER-4 (d) dedicated sprint frontend 5 files = A35 frontend test debt 후속 진입 cj-style carry-over 14번째 가능
+- D-10-4-DEFER-5 (a) docs 정합 carry-over 10-1/10-2/10-3 leftover
+
+[6 ACs wire 진입 시점 = ~82 cases planned]
+- ~12 promoter_port pure kernel (compute_promotion_idempotency_key 결정성 + validate_promotion_request + PROMOTE_STATUS_VALUES SSOT + frozen dataclass invariant)
+- ~22 promoter_service (happy path + idempotent replay + idempotency mismatch + draft superseded + draft not found + PIPA 미동의 + M2 외 caller + AD-7 strict invariant guard + ORM→kernel boundary + UNIQUE constraint verification)
+- ~18 promote_endpoint (happy path + capability gate + PIPA gate + M2-only auth + Discriminated union envelope + 6 error envelopes + audit-first INSERT + 2 audit_log_rows verification + D-10-3-DEFER-6 carry-over 해소 verification 4 endpoints)
+- ~12 alembic_0032 (up/down + column existence + UNIQUE constraint + CHECK boundary + audit_logs CHECK EXTENSION)
+- ~18 carry-over PIPA gate D-10-3-DEFER-6 해소 verification (4 endpoints × ~4-5 cases)
+
+[A36 SDR 검증 4-step PASS 목표]
+- commit prefix lint PASS (D5 fix DONE — git commit -F file 패턴 사용)
+- sprint-status structure 정합 (D4 fix DONE — 10-4 entry development_status 블록 line 274 후 위치)
+- vitest file count drift 0건 (D2 자동화 — frontend honestly DEFER (d) 5 files)
+- commit consistency 정합 (D1 자동화 — sprint-status entry ↔ commit message wire 표)
+
+[Spec file]
+- _bmad-output/implementation-artifacts/10-4-ai-promotion-port-idempotency.md NEW (~640 lines)
+  - Story Header (metadata + baseline_commit = ea025b1)
+  - User Story (epics.md Story 10.4 verbatim)
+  - 6 Acceptance Criteria (AD-17 verbatim + AD-7 strict invariant + D-10-3-DEFER-6 carry-over 해소 + Discriminated union envelope + A19 cohesion 8 surface)
+  - Developer Context (Architecture Compliance 9 ADs + Library/Framework + File Structure + Testing Requirements)
+  - Previous Story Intelligence (10-1 + 10-2 + 10-3 + 9-7 patterns)
+  - Git Intelligence Summary (HEAD = ea025b1)
+  - A34 4-Category Honestly DEFER (D-10-4-DEFER-1~5)
+  - A36 SDR 검증 4-step PASS
+  - Story Completion Status (Status: ready-for-dev)
+
+CR 11-3 honestly DEFER discipline 33번째 epic 연속. cj-style 5번째 진입점 진입.
+partial wire 시도 0건 + docs only atomic wire (cj-style 33번째 epic 연속 정직 회복).
+3중 게이트 impact NONE (docs only 변경, 2 files).
+
+wire:
+- _bmad-output/implementation-artifacts/10-4-ai-promotion-port-idempotency.md NEW (~640 lines, 6 ACs + 8 surface A19 cohesion + 5 honestly DEFER + A36 SDR 4-step + D-10-3-DEFER-6 carry-over 해소 wire 진입)
+- _bmad-output/implementation-artifacts/sprint-status.yaml MODIFIED (last_updated 갱신 + 10-4 backlog → ready-for-dev + updated_note cj-style 33번째 epic 연속 text + D4 placement 정합 0건)
+
+다음: bmad-dev-story 진입 → T1~T11 atomic sprint wire → bmad-code-review 3rd sweep → done 진입 (cj-style 34번째 epic 연속, AD-17 verbatim bind + D-10-3-DEFER-6 carry-over 해소 verification).

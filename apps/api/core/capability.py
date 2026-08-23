@@ -342,6 +342,37 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_31_drift.py
     # (capability matrix v1.31 EXTENSION 1 NEW row).
     AUDIT_LOG_RETENTION = "audit_log_retention"
+    # Phase 7 (cj-style 91번째 wire) — OBSERVABILITY_TRACES — Observability
+    # Stack 강화 territory (PRD §F23.1 + §F23.6 + AD-34 (f) sub-decisions).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors MULTI_REGION_BACKUP
+    # + MULTI_REGION_FAILOVER Phase 5 wire + AUDIT_LOG_VIEW Epic 17 wire +
+    # AUDIT_LOG_RETENTION Phase 6 wire + TENANT_IDP_MANAGEMENT Epic 16 wire
+    # + SSO_ENTERPRISE Epic 15 wire + LISTEN_NOTIFY 13/14 wire +
+    # AUTH_MIDDLEWARE Phase 3 wire + LAUNCH_* 1st release wire +
+    # DEPLOYMENT_* Phase 4 wire pattern verbatim). All 4 industries get
+    # OBSERVABILITY_TRACES capability (OpenTelemetry distributed tracing is
+    # operational observability baseline, not industry-specific). Gates the
+    # trace_id lookup + alert ack + PagerDuty manual trigger routes
+    # (apps/api/core/tracing.py + apps/api/modules/observability/alerting.py
+    # routes). Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_32_drift.py
+    # (capability matrix v1.32 EXTENSION 1 NEW row).
+    OBSERVABILITY_TRACES = "observability_traces"
+    # Phase 7 (cj-style 91번째 wire) — OBSERVABILITY_METRICS — Observability
+    # Stack 강화 territory (PRD §F23.2 + §F23.6 + AD-34 (f) sub-decisions).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors OBSERVABILITY_TRACES
+    # Phase 7 wire + MULTI_REGION_BACKUP + MULTI_REGION_FAILOVER Phase 5 wire
+    # + AUDIT_LOG_VIEW Epic 17 wire + AUDIT_LOG_RETENTION Phase 6 wire +
+    # TENANT_IDP_MANAGEMENT Epic 16 wire + SSO_ENTERPRISE Epic 15 wire +
+    # LISTEN_NOTIFY 13/14 wire + AUTH_MIDDLEWARE Phase 3 wire + LAUNCH_*
+    # 1st release wire + DEPLOYMENT_* Phase 4 wire pattern verbatim). All
+    # 4 industries get OBSERVABILITY_METRICS capability (Prometheus custom
+    # metrics + Grafana dashboards are operational observability baseline,
+    # not industry-specific). Gates the /metrics endpoint + Grafana dashboard
+    # embed routes (apps/api/core/metrics.py + alerting routes). Drift
+    # detector lives at tests/integration/test_capability_matrix_v1_32_drift.py
+    # (capability matrix v1.32 EXTENSION 1 NEW row).
+    OBSERVABILITY_METRICS = "observability_metrics"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -464,6 +495,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # baseline CR 12-1 L4 precedent + AUDIT_LOG_VIEW Epic 17 wire +
             # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
             Capability.AUDIT_LOG_RETENTION,
+            # Phase 7 (cj-style 91번째 wire) — tenants get
+            # OBSERVABILITY_TRACES + OBSERVABILITY_METRICS
+            # (industry-agnostic, observability baseline CR 12-1 L4 precedent
+            # + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW Epic 17
+            # wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern
+            # verbatim). All 4 industries get both observability
+            # capabilities (OpenTelemetry distributed tracing + Prometheus
+            # custom metrics + Grafana dashboards are operational baseline).
+            Capability.OBSERVABILITY_TRACES,
+            Capability.OBSERVABILITY_METRICS,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -564,6 +605,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # baseline CR 12-1 L4 precedent + AUDIT_LOG_VIEW Epic 17 wire +
             # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
             Capability.AUDIT_LOG_RETENTION,
+            # Phase 7 (cj-style 91번째 wire) — tenants get
+            # OBSERVABILITY_TRACES + OBSERVABILITY_METRICS
+            # (industry-agnostic, observability baseline CR 12-1 L4 precedent
+            # + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW Epic 17
+            # wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern
+            # verbatim). All 4 industries get both observability
+            # capabilities (OpenTelemetry distributed tracing + Prometheus
+            # custom metrics + Grafana dashboards are operational baseline).
+            Capability.OBSERVABILITY_TRACES,
+            Capability.OBSERVABILITY_METRICS,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -684,6 +735,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # baseline CR 12-1 L4 precedent + AUDIT_LOG_VIEW Epic 17 wire +
             # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
             Capability.AUDIT_LOG_RETENTION,
+            # Phase 7 (cj-style 91번째 wire) — tenants get
+            # OBSERVABILITY_TRACES + OBSERVABILITY_METRICS
+            # (industry-agnostic, observability baseline CR 12-1 L4 precedent
+            # + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW Epic 17
+            # wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern
+            # verbatim). All 4 industries get both observability
+            # capabilities (OpenTelemetry distributed tracing + Prometheus
+            # custom metrics + Grafana dashboards are operational baseline).
+            Capability.OBSERVABILITY_TRACES,
+            Capability.OBSERVABILITY_METRICS,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -801,6 +862,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # baseline CR 12-1 L4 precedent + AUDIT_LOG_VIEW Epic 17 wire +
             # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
             Capability.AUDIT_LOG_RETENTION,
+            # Phase 7 (cj-style 91번째 wire) — tenants get
+            # OBSERVABILITY_TRACES + OBSERVABILITY_METRICS
+            # (industry-agnostic, observability baseline CR 12-1 L4 precedent
+            # + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW Epic 17
+            # wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern
+            # verbatim). All 4 industries get both observability
+            # capabilities (OpenTelemetry distributed tracing + Prometheus
+            # custom metrics + Grafana dashboards are operational baseline).
+            Capability.OBSERVABILITY_TRACES,
+            Capability.OBSERVABILITY_METRICS,
         }
     ),
 }

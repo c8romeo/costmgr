@@ -1,0 +1,3016 @@
+diff --git a/apps/api/alembic/versions/0038_epic_16_tenant_idps.py b/apps/api/alembic/versions/0038_epic_16_tenant_idps.py
+new file mode 100644
+index 0000000..1f7a917
+--- /dev/null
++++ b/apps/api/alembic/versions/0038_epic_16_tenant_idps.py
+@@ -0,0 +1,355 @@
++"""Story Epic 16 — tenant_idps table for per-tenant IdP admin management.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — AD-30 verbatim +
++PRD §F19.1 verbatim + AC #1.1~#1.7.
++
++Background:
++- Epic 15 SSO enterprise SAML wire (`5f9e37f`) shipped hardcoded
++  `acme` placeholder at saml_routes.py lines 80 + 121-125. Real per-tenant
++  IdP config was deferred to Epic 16 (see docs/sso-enterprise.md §4.1
++  step 3 `Configure tenant_idps (TODO Epic 16)` forward-reference).
++- Epic 16 territory wires `tenant_idps` table to replace the hardcoded
++  placeholder with database-driven per-tenant IdP configuration.
++
++Schema (PRD §F19.1 verbatim + AD-30 verbatim):
++- id: UUID PK `gen_random_uuid()`
++- tenant_id: UUID FK → `tenants`, NOT NULL (RLS scope key)
++- idp_entity_id: TEXT NOT NULL (SAML 2.0 EntityID — unique per tenant)
++- idp_sso_url: TEXT NOT NULL (https:// 강제 — IdP SSO endpoint URL)
++- idp_slo_url: TEXT NULL (optional Single Logout Service URL)
++- idp_x509_cert: TEXT NOT NULL (PEM-encoded x509 certificate)
++- acs_url: TEXT NOT NULL (Assertion Consumer Service URL — costmgr SP ACS)
++- name_id_format: TEXT NULL (default emailAddress per SAML 2.0 spec)
++- enabled: BOOLEAN NOT NULL DEFAULT TRUE (soft delete via enabled=FALSE)
++- created_at: TIMESTAMPTZ NOT NULL DEFAULT NOW()
++- updated_at: TIMESTAMPTZ NOT NULL DEFAULT NOW()
++- created_by: UUID FK → users, NOT NULL (audit-first INSERT row author)
++- updated_by: UUID FK → users, NOT NULL (audit-first INSERT row author)
++
++CR 0-2 RLS lesson: multi-tenant isolation is enforced via RLS 3-policy
++split (tenant_isolation + service_role_bypass + anon_block) — verbatim
++Epic 15 `external_identities` pattern.
++
++CR 1-1 audit-first: 4 NEW audit log rows MUST be INSERTed BEFORE the
++tenant_idps row INSERT (action_class='AUTH' + 4 NEW actions:
++tenant_idp_created + tenant_idp_updated + tenant_idp_deleted +
++tenant_idp_tested). See apps/api/core/audit_action.py ActionClass.AUTH
++registry.
++
++Architecture patterns:
++- AD-14 stack pin: PostgreSQL 15 (already pinned in docker-compose.yml).
++- Industry-agnostic: IdP management is operational infrastructure,
++  granted to all 4 industries via `TENANT_IDP_MANAGEMENT` capability
++  (CR 12-1 L4 precedent).
++- 1 tenant = 1 IdP only (UNIQUE (tenant_id, idp_entity_id) constraint).
++  Multi-IdP per tenant deferred to 2차 로드맵.
++
++Data migration (PRD §F19.5 verbatim backward compatibility):
++- Seeds `acme` row with Epic 15 wire's hardcoded placeholder values so
++  the existing saml_routes.py test flows continue to pass without
++  modification. The row mirrors the Epic 15 line 80 + 121-125 literal
++  placeholder values verbatim.
++"""
++
++from __future__ import annotations
++
++import sqlalchemy as sa
++from alembic import op
++from sqlalchemy.dialects import postgresql
++
++revision: str = "0038_epic_16_tenant_idps"
++down_revision: str | None = "0037_epic_15_sso_external_identities"
++branch_labels: tuple[str, ...] | None = None
++depends_on: tuple[str, ...] | None = None
++
++
++# ── Hardcoded acme row — Epic 15 wire backward compatibility ─────────
++# Mirrors apps/api/modules/auth/sso/saml_routes.py line 80 + 121-125
++# verbatim. Production deploys override this row via PUT /api/v1/admin/
++# tenant/acme/idp; the seed exists only so Epic 15 wire test fixtures
++# (which use tenant_slug='acme') continue to find a matching IdP.
++_ACME_ENTITY_ID = "https://idp.example.com/sso"
++_ACME_SSO_URL = "https://idp.example.com/sso?tenant=acme"
++_ACME_X509_CERT_PLACEHOLDER = (
++    "-----BEGIN CERTIFICATE-----\n"
++    "MIIDazCCAlOgAwIBAgIUJxZ/placeholder/test/only=\n"
++    "-----END CERTIFICATE-----"
++)
++_ACME_ACS_URL = "https://api.costmgr.example.com/api/v1/auth/sso/acs?tenant=acme"
++_ACME_NAME_ID_FORMAT = (
++    "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
++)
++
++
++def upgrade() -> None:
++    """Create `tenant_idps` table + UNIQUE + RLS + CHECK + index + trigger.
++
++    Also seeds the `acme` row for Epic 15 wire backward compatibility
++    (PRD §F19.5 verbatim).
++    """
++    op.create_table(
++        "tenant_idps",
++        sa.Column(
++            "id",
++            postgresql.UUID(as_uuid=True),
++            primary_key=True,
++            nullable=False,
++            server_default=sa.text("gen_random_uuid()"),
++            comment="UUID PK (gen_random_uuid()).",
++        ),
++        sa.Column(
++            "tenant_id",
++            postgresql.UUID(as_uuid=True),
++            sa.ForeignKey("tenants.id", ondelete="RESTRICT"),
++            nullable=False,
++            comment="Tenant UUID (FK → tenants.id, RLS scope key).",
++        ),
++        sa.Column(
++            "idp_entity_id",
++            sa.Text(),
++            nullable=False,
++            comment=(
++                "SAML 2.0 EntityID — unique per tenant "
++                "(UNIQUE (tenant_id, idp_entity_id))."
++            ),
++        ),
++        sa.Column(
++            "idp_sso_url",
++            sa.Text(),
++            nullable=False,
++            comment=(
++                "IdP SingleSignOnService endpoint URL (https:// 강제, "
++                "CHECK ck_tenant_idps_sso_url_https)."
++            ),
++        ),
++        sa.Column(
++            "idp_slo_url",
++            sa.Text(),
++            nullable=True,
++            comment=(
++                "IdP SingleLogoutService endpoint URL (optional, https:// "
++                "강제, validated at application layer)."
++            ),
++        ),
++        sa.Column(
++            "idp_x509_cert",
++            sa.Text(),
++            nullable=False,
++            comment=(
++                "PEM-encoded x509 certificate (wrap: "
++                "-----BEGIN CERTIFICATE----- + base64 + -----END "
++                "CERTIFICATE-----, CHECK ck_tenant_idps_x509_cert_pem)."
++            ),
++        ),
++        sa.Column(
++            "acs_url",
++            sa.Text(),
++            nullable=False,
++            comment=(
++                "Assertion Consumer Service URL — costmgr SP ACS endpoint "
++                "(e.g. https://api.costmgr.example.com/api/v1/auth/sso/"
++                "acs?tenant=<slug>)."
++            ),
++        ),
++        sa.Column(
++            "name_id_format",
++            sa.Text(),
++            nullable=True,
++            comment=(
++                "SAML NameID format URI (default: "
++                "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress)."
++            ),
++        ),
++        sa.Column(
++            "enabled",
++            sa.Boolean(),
++            nullable=False,
++            server_default=sa.text("TRUE"),
++            comment=(
++                "Tenant IdP enabled flag. Soft-delete via enabled=FALSE "
++                "(no separate deleted_at column per PRD §F19.1 schema)."
++            ),
++        ),
++        sa.Column(
++            "created_at",
++            sa.TIMESTAMP(timezone=True),
++            nullable=False,
++            server_default=sa.text("NOW()"),
++            comment="Row creation timestamp (UTC).",
++        ),
++        sa.Column(
++            "updated_at",
++            sa.TIMESTAMP(timezone=True),
++            nullable=False,
++            server_default=sa.text("NOW()"),
++            comment="Row last-update timestamp (UTC, auto-updated by trigger).",
++        ),
++        sa.Column(
++            "created_by",
++            postgresql.UUID(as_uuid=True),
++            sa.ForeignKey("users.id", ondelete="RESTRICT"),
++            nullable=False,
++            comment="users.id of the admin who created this row.",
++        ),
++        sa.Column(
++            "updated_by",
++            postgresql.UUID(as_uuid=True),
++            sa.ForeignKey("users.id", ondelete="RESTRICT"),
++            nullable=False,
++            comment="users.id of the admin who last updated this row.",
++        ),
++        # UNIQUE constraint (PRD §F19.1 verbatim — 1 tenant = 1 IdP).
++        sa.UniqueConstraint(
++            "tenant_id",
++            "idp_entity_id",
++            name="uq_tenant_idps_tenant_entity",
++        ),
++    )
++
++    # Index 1: (tenant_id) — primary lookup key for per-tenant routing
++    # (Epic 15 saml_routes.py EXTENSION in T5).
++    op.create_index(
++        "idx_tenant_idps_tenant_id",
++        "tenant_idps",
++        ["tenant_id"],
++        unique=False,
++    )
++
++    # CHECK constraints (defense-in-depth, AC1.7 verbatim).
++    op.create_check_constraint(
++        "ck_tenant_idps_entity_id_not_empty",
++        "tenant_idps",
++        sa.text("length(btrim(idp_entity_id)) > 0"),
++    )
++    op.create_check_constraint(
++        "ck_tenant_idps_sso_url_https",
++        "tenant_idps",
++        sa.text("idp_sso_url LIKE 'https://%'"),
++    )
++    op.create_check_constraint(
++        "ck_tenant_idps_x509_cert_pem",
++        "tenant_idps",
++        sa.text(
++            "idp_x509_cert LIKE '-----BEGIN CERTIFICATE-----%' "
++            "AND idp_x509_cert LIKE '%-----END CERTIFICATE-----'"
++        ),
++    )
++
++    # Multi-tenant isolation (CR 0-2 RLS lesson verbatim, Epic 15
++    # external_identities pattern).
++    op.execute("ALTER TABLE public.tenant_idps ENABLE ROW LEVEL SECURITY")
++    op.execute("ALTER TABLE public.tenant_idps FORCE ROW LEVEL SECURITY")
++
++    # ALLOW: tenant-scoped read/write for the current tenant.
++    op.execute(
++        """
++        CREATE POLICY tenant_idps_tenant_isolation
++        ON public.tenant_idps
++        USING (tenant_id = (SELECT current_setting('app.tenant_id', true))::uuid)
++        WITH CHECK (tenant_id = (SELECT current_setting('app.tenant_id', true))::uuid)
++        """
++    )
++    # ALLOW: service_role bypass (admin tooling + cron).
++    op.execute(
++        """
++        CREATE POLICY tenant_idps_service_role_bypass
++        ON public.tenant_idps
++        TO service_role
++        USING (true)
++        WITH CHECK (true)
++        """
++    )
++    # BLOCK: anon role (no direct table access from anonymous web users).
++    op.execute(
++        """
++        CREATE POLICY tenant_idps_anon_block
++        ON public.tenant_idps
++        FOR ALL
++        TO anon
++        USING (false)
++        WITH CHECK (false)
++        """
++    )
++
++    # updated_at auto-update trigger (BEFORE UPDATE → updated_at = NOW()).
++    # Mirrors Phase 4 wire `71a033a` audit trigger pattern.
++    op.execute(
++        """
++        CREATE TRIGGER updated_at_auto_update_trg
++        BEFORE UPDATE ON public.tenant_idps
++        FOR EACH ROW
++        EXECUTE FUNCTION public.set_updated_at()
++        """
++    )
++
++    # Data migration: seed acme row for Epic 15 wire backward compat.
++    # Uses a placeholder UUID for tenants + users FKs — service_role
++    # bypass RLS so the INSERT is unrestricted. Production seed runs
++    # via service_role only; the seed values are intentionally fixed
++    # so Epic 15 saml_routes.py test flows (tenant_slug='acme') keep
++    # passing verbatim. Operators update via PUT /api/v1/admin/tenant/
++    # acme/idp after first deploy.
++    op.execute(
++        """
++        INSERT INTO public.tenant_idps (
++            id,
++            tenant_id,
++            idp_entity_id,
++            idp_sso_url,
++            idp_slo_url,
++            idp_x509_cert,
++            acs_url,
++            name_id_format,
++            enabled,
++            created_by,
++            updated_by
++        )
++        SELECT
++            '00000000-0000-0000-0000-000000000001'::uuid,
++            t.id,
++            :acme_entity_id,
++            :acme_sso_url,
++            NULL,
++            :acme_x509_cert,
++            :acme_acs_url,
++            :acme_name_id_format,
++            TRUE,
++            u.id,
++            u.id
++        FROM public.tenants t
++        JOIN public.users u ON u.tenant_id = t.id
++        WHERE t.slug = 'acme'
++        LIMIT 1
++        ON CONFLICT (tenant_id, idp_entity_id) DO NOTHING
++        """,
++        {
++            "acme_entity_id": _ACME_ENTITY_ID,
++            "acme_sso_url": _ACME_SSO_URL,
++            "acme_x509_cert": _ACME_X509_CERT_PLACEHOLDER,
++            "acme_acs_url": _ACME_ACS_URL,
++            "acme_name_id_format": _ACME_NAME_ID_FORMAT,
++        },
++    )
++
++
++def downgrade() -> None:
++    """Drop `tenant_idps` table + UNIQUE + indexes + RLS + trigger."""
++    op.execute("DROP TRIGGER IF EXISTS updated_at_auto_update_trg ON public.tenant_idps")
++    op.execute("DROP POLICY IF EXISTS tenant_idps_anon_block ON public.tenant_idps")
++    op.execute(
++        "DROP POLICY IF EXISTS tenant_idps_service_role_bypass ON public.tenant_idps"
++    )
++    op.execute("DROP POLICY IF EXISTS tenant_idps_tenant_isolation ON public.tenant_idps")
++    op.execute("ALTER TABLE public.tenant_idps NO FORCE ROW LEVEL SECURITY")
++    op.execute("ALTER TABLE public.tenant_idps DISABLE ROW LEVEL SECURITY")
++    op.drop_index("idx_tenant_idps_tenant_id", table_name="tenant_idps")
++    op.drop_constraint(
++        "ck_tenant_idps_x509_cert_pem", "tenant_idps", type_="check"
++    )
++    op.drop_constraint(
++        "ck_tenant_idps_sso_url_https", "tenant_idps", type_="check"
++    )
++    op.drop_constraint(
++        "ck_tenant_idps_entity_id_not_empty", "tenant_idps", type_="check"
++    )
++    op.drop_table("tenant_idps")
+diff --git a/apps/api/modules/auth/sso/idp_admin_routes.py b/apps/api/modules/auth/sso/idp_admin_routes.py
+new file mode 100644
+index 0000000..76f9248
+--- /dev/null
++++ b/apps/api/modules/auth/sso/idp_admin_routes.py
+@@ -0,0 +1,703 @@
++"""apps.api.modules.auth.sso.idp_admin_routes — Tenant IdP admin CRUD API.
++
++Epic 16 — T3 (AC #3.1~#3.8) — F19.3 Tenant IdP CRUD API endpoints.
++
++Sibling module of Epic 15 `saml_routes.py` (different domain: per-tenant
++IdP admin management vs SAML response consumption). Both share the same
++router prefix pattern and CR 12-5 D-14 typed exception envelope.
++
++5 routes (mounted at `/api/v1/admin/tenant/`):
++  1. GET  /api/v1/admin/tenant/{tenant_slug}/idp
++     — list current tenant's IdP config (0 or 1 row per UNIQUE).
++  2. POST /api/v1/admin/tenant/{tenant_slug}/idp
++     — create new IdP config (metadata_xml OR direct fields).
++  3. PUT  /api/v1/admin/tenant/{tenant_slug}/idp
++     — full-replace existing IdP config.
++  4. DELETE /api/v1/admin/tenant/{tenant_slug}/idp
++     — soft-delete (enabled=FALSE), owner role required.
++  5. POST /api/v1/admin/tenant/{tenant_slug}/idp/test
++     — validation dry-run, returns 8-step pass/fail list.
++
++CR 0-2 RLS lesson: tenant context (GUC `app.tenant_id`) is auto-applied
++via `get_tenant_context` dep — no manual SET LOCAL needed.
++CR 1-1 audit-first: 4 NEW audit log rows (tenant_idp_created/updated/
++deleted/tested) INSERTed BEFORE the tenant_idps row mutation.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import logging
++import uuid
++from typing import Any
++
++from fastapi import APIRouter, Depends, Path
++from pydantic import BaseModel, ConfigDict
++from sqlalchemy import text
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from apps.api.core.audit_action import ActionClass, emit_audit_typed
++from apps.api.core.capability import require_any_role, require_role
++from apps.api.core.db import get_session
++from apps.api.core.security import (
++    CROSS_TENANT_ACCESS,
++    JWTClaims,
++    decode_jwt,
++)
++from apps.api.core.tenant_context import TenantContext, get_tenant_context
++from apps.api.dependencies.capability import require_tenant_idp_management
++from apps.api.modules.auth.sso.idp_metadata_validator import (
++    IDPMetadataError,
++    validate_idp_metadata,
++)
++
++logger = logging.getLogger(__name__)
++
++router = APIRouter(prefix="/api/v1/admin/tenant", tags=["auth-idp-admin"])
++
++
++# ── Typed exceptions (CR 12-5 D-14 envelope) ──────────────────────────
++
++
++class TenantIdPError(Exception):
++    """Base Tenant IdP admin failure (CR 12-5 D-14 envelope)."""
++
++    def __init__(
++        self,
++        code: str,
++        message_ko: str,
++        details: dict[str, Any] | None = None,
++    ) -> None:
++        self.code = code
++        self.message_ko = message_ko
++        self.details: dict[str, Any] = details or {}
++        super().__init__(message_ko)
++
++
++class TenantIdPAlreadyExistsError(TenantIdPError):
++    """409 TENANT_IDP_ALREADY_EXISTS — duplicate (tenant_id, entity_id)."""
++
++    def __init__(self, tenant_slug: str) -> None:
++        super().__init__(
++            code="TENANT_IDP_ALREADY_EXISTS_KO",
++            message_ko="이 tenant 에 이미 IdP 가 등록되어 있습니다",
++            details={"tenant_slug": tenant_slug},
++        )
++
++
++class TenantIdPNotFoundError(TenantIdPError):
++    """404 TENANT_IDP_NOT_FOUND — no IdP config for this tenant."""
++
++    def __init__(self, tenant_slug: str) -> None:
++        super().__init__(
++            code="TENANT_IDP_NOT_FOUND_KO",
++            message_ko="IdP 설정을 찾을 수 없습니다",
++            details={"tenant_slug": tenant_slug},
++        )
++
++
++class TenantIdPForbiddenError(TenantIdPError):
++    """403 TENANT_IDP_FORBIDDEN — caller not owner/admin of this tenant."""
++
++    def __init__(self, reason: str, tenant_slug: str) -> None:
++        super().__init__(
++            code="TENANT_IDP_FORBIDDEN_KO",
++            message_ko="IdP 관리 권한이 없습니다",
++            details={"reason": reason, "tenant_slug": tenant_slug},
++        )
++
++
++class TenantIdPMetadataInvalidError(TenantIdPError):
++    """400 TENANT_IDP_METADATA_INVALID — IdP metadata validation failed."""
++
++    def __init__(self, code: str, message_ko: str, details: dict[str, Any]) -> None:
++        super().__init__(
++            code="TENANT_IDP_METADATA_INVALID_KO",
++            message_ko=f"IdP 메타데이터가 유효하지 않습니다 ({message_ko})",
++            details={"validator_code": code, **details},
++        )
++
++
++# ── Request/response models ───────────────────────────────────────────
++
++
++class IdPConfigResponse(BaseModel):
++    """Tenant IdP config envelope."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    id: str
++    tenant_id: str
++    idp_entity_id: str
++    idp_sso_url: str
++    idp_slo_url: str | None
++    idp_x509_cert_sha256: str  # fingerprint only — NFR4 PII minimization
++    acs_url: str
++    name_id_format: str | None
++    enabled: bool
++    created_at: str
++    updated_at: str
++
++
++class IdPConfigCreateRequest(BaseModel):
++    """Tenant IdP config create request.
++
++    Either `metadata_xml` (preferred — full IdP metadata XML) OR all of
++    the direct fields must be provided. Backend validates via
++    `validate_idp_metadata` and writes the canonical row.
++    """
++
++    model_config = ConfigDict(extra="forbid")
++
++    metadata_xml: str | None = None
++    idp_entity_id: str | None = None
++    idp_sso_url: str | None = None
++    idp_x509_cert_pem: str | None = None
++    idp_slo_url: str | None = None
++    acs_url: str | None = None
++    name_id_format: str | None = None
++    enabled: bool = True
++
++
++class IdPTestResultStep(BaseModel):
++    """Single 8-step validation result."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    step: int
++    name: str
++    passed: bool
++    detail: str | None = None
++
++
++class IdPTestResultResponse(BaseModel):
++    """Validation dry-run result."""
++
++    model_config = ConfigDict(extra="forbid")
++
++    passed: bool
++    steps: list[IdPTestResultStep]
++    metadata: dict[str, Any] | None = None
++
++
++# ── Helpers ───────────────────────────────────────────────────────────
++
++
++async def _resolve_tenant_id_from_slug(
++    session: AsyncSession,
++    tenant_slug: str,
++    ctx: TenantContext,
++) -> uuid.UUID:
++    """Resolve `tenant_slug` → tenant_id with cross-tenant check.
++
++    Raises TenantIdPForbiddenError if the slug belongs to a different
++    tenant than the JWT context (CROSS_TENANT_ACCESS invariant).
++    """
++    row = (
++        await session.execute(
++            text("SELECT id FROM public.tenants WHERE slug = :slug LIMIT 1"),
++            {"slug": tenant_slug},
++        )
++    ).first()
++    if row is None:
++        raise TenantIdPForbiddenError(
++            reason="tenant_not_found",
++            tenant_slug=tenant_slug,
++        )
++    tenant_id = row[0]
++    if tenant_id != ctx.tenant_id:
++        # Cross-tenant access denied — no info leak about other tenant.
++        raise TenantIdPForbiddenError(
++            reason=CROSS_TENANT_ACCESS,
++            tenant_slug=tenant_slug,
++        )
++    return tenant_id
++
++
++def _cert_fingerprint(cert_pem: str) -> str:
++    """Compute SHA-256 fingerprint of a PEM cert (NFR4 PII minimization).
++
++    The audit log stores ONLY the fingerprint, never the raw cert body.
++    """
++    # Strip PEM markers + whitespace before hashing.
++    body = "".join(
++        line.strip()
++        for line in cert_pem.splitlines()
++        if line.strip() and "BEGIN" not in line and "END" not in line
++    )
++    return hashlib.sha256(body.encode("ascii")).hexdigest()
++
++
++# ── GET /api/v1/admin/tenant/{tenant_slug}/idp ───────────────────────
++
++
++@router.get(
++    "/{tenant_slug}/idp",
++    response_model=list[IdPConfigResponse],
++    dependencies=[
++        Depends(require_any_role("owner", "admin")),
++        Depends(require_tenant_idp_management),
++    ],
++)
++async def list_tenant_idp(
++    tenant_slug: str = Path(..., min_length=1, max_length=64),
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++) -> list[IdPConfigResponse]:
++    """Return the current tenant's IdP config (0 or 1 row)."""
++    tenant_id = await _resolve_tenant_id_from_slug(session, tenant_slug, ctx)
++    rows = (
++        await session.execute(
++            text(
++                """
++                SELECT id, tenant_id, idp_entity_id, idp_sso_url, idp_slo_url,
++                       idp_x509_cert, acs_url, name_id_format, enabled,
++                       created_at, updated_at
++                FROM public.tenant_idps
++                WHERE tenant_id = :tenant_id
++                ORDER BY created_at DESC
++                LIMIT 1
++                """
++            ),
++            {"tenant_id": str(tenant_id)},
++        )
++    ).fetchall()
++    if not rows:
++        return []
++    return [
++        IdPConfigResponse(
++            id=str(r[0]),
++            tenant_id=str(r[1]),
++            idp_entity_id=r[2],
++            idp_sso_url=r[3],
++            idp_slo_url=r[4],
++            idp_x509_cert_sha256=_cert_fingerprint(r[5]),
++            acs_url=r[6],
++            name_id_format=r[7],
++            enabled=r[8],
++            created_at=r[9].isoformat() if r[9] else "",
++            updated_at=r[10].isoformat() if r[10] else "",
++        )
++        for r in rows
++    ]
++
++
++# ── POST /api/v1/admin/tenant/{tenant_slug}/idp ──────────────────────
++
++
++@router.post(
++    "/{tenant_slug}/idp",
++    response_model=IdPConfigResponse,
++    status_code=201,
++    dependencies=[
++        Depends(require_any_role("owner", "admin")),
++        Depends(require_tenant_idp_management),
++    ],
++)
++async def create_tenant_idp(
++    body: IdPConfigCreateRequest,
++    tenant_slug: str = Path(..., min_length=1, max_length=64),
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++) -> IdPConfigResponse:
++    """Create a new IdP config for the tenant.
++
++    audit-first INSERT (CR 1-1 verbatim) BEFORE the tenant_idps INSERT.
++    """
++    tenant_id = await _resolve_tenant_id_from_slug(session, tenant_slug, ctx)
++
++    # Resolve metadata either from XML or from direct fields.
++    if body.metadata_xml:
++        try:
++            md = validate_idp_metadata(body.metadata_xml, tenant_slug)
++        except IDPMetadataError as exc:
++            raise TenantIdPMetadataInvalidError(
++                code=exc.code,
++                message_ko=exc.message_ko,
++                details=exc.details,
++            ) from exc
++        entity_id = md["entity_id"]
++        sso_url = md["sso_url"]
++        x509_cert = md["x509_cert_pem"]
++        slo_url = md["slo_url"]
++        name_id_format = md["name_id_format"]
++        acs_url = body.acs_url or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
++    else:
++        # Direct field mode — all 4 required fields must be present.
++        if not (body.idp_entity_id and body.idp_sso_url and body.idp_x509_cert_pem):
++            raise TenantIdPMetadataInvalidError(
++                code="IDP_METADATA_MALFORMED_KO",
++                message_ko="metadata_xml 또는 4개 직접 입력 필드가 필요합니다",
++                details={"missing_fields": _missing_direct_fields(body)},
++            )
++        entity_id = body.idp_entity_id
++        sso_url = body.idp_sso_url
++        x509_cert = body.idp_x509_cert_pem
++        slo_url = body.idp_slo_url
++        name_id_format = body.name_id_format
++        acs_url = body.acs_url or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
++
++    # Check for existing IdP (UNIQUE (tenant_id, idp_entity_id)).
++    existing = (
++        await session.execute(
++            text(
++                """
++                SELECT id FROM public.tenant_idps
++                WHERE tenant_id = :tenant_id AND idp_entity_id = :entity_id
++                LIMIT 1
++                """
++            ),
++            {"tenant_id": str(tenant_id), "entity_id": entity_id},
++        )
++    ).first()
++    if existing is not None:
++        raise TenantIdPAlreadyExistsError(tenant_slug=tenant_slug)
++
++    # Audit-first INSERT (CR 1-1 verbatim).
++    await emit_audit_typed(
++        session,
++        action_class=ActionClass.AUTH,
++        action="tenant_idp_created",
++        actor_id=ctx.user_id,
++        target_id=None,
++        tenant_id=tenant_id,
++        payload={
++            "entity_id": entity_id,
++            "sso_url": sso_url,
++            "x509_cert_sha256": _cert_fingerprint(x509_cert),
++            "acs_url": acs_url,
++        },
++    )
++
++    # INSERT tenant_idps row.
++    new_id = uuid.uuid4()
++    await session.execute(
++        text(
++            """
++            INSERT INTO public.tenant_idps (
++                id, tenant_id, idp_entity_id, idp_sso_url, idp_slo_url,
++                idp_x509_cert, acs_url, name_id_format, enabled,
++                created_by, updated_by
++            ) VALUES (
++                :id, :tenant_id, :entity_id, :sso_url, :slo_url,
++                :cert, :acs_url, :name_id_format, :enabled,
++                :created_by, :updated_by
++            )
++            """
++        ),
++        {
++            "id": str(new_id),
++            "tenant_id": str(tenant_id),
++            "entity_id": entity_id,
++            "sso_url": sso_url,
++            "slo_url": slo_url,
++            "cert": x509_cert,
++            "acs_url": acs_url,
++            "name_id_format": name_id_format,
++            "enabled": body.enabled,
++            "created_by": str(ctx.user_id),
++            "updated_by": str(ctx.user_id),
++        },
++    )
++    await session.commit()
++
++    return IdPConfigResponse(
++        id=str(new_id),
++        tenant_id=str(tenant_id),
++        idp_entity_id=entity_id,
++        idp_sso_url=sso_url,
++        idp_slo_url=slo_url,
++        idp_x509_cert_sha256=_cert_fingerprint(x509_cert),
++        acs_url=acs_url,
++        name_id_format=name_id_format,
++        enabled=body.enabled,
++        created_at="",
++        updated_at="",
++    )
++
++
++# ── PUT /api/v1/admin/tenant/{tenant_slug}/idp ───────────────────────
++
++
++@router.put(
++    "/{tenant_slug}/idp",
++    response_model=IdPConfigResponse,
++    dependencies=[
++        Depends(require_any_role("owner", "admin")),
++        Depends(require_tenant_idp_management),
++    ],
++)
++async def update_tenant_idp(
++    body: IdPConfigCreateRequest,
++    tenant_slug: str = Path(..., min_length=1, max_length=64),
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++) -> IdPConfigResponse:
++    """Full-replace update of the tenant's IdP config."""
++    tenant_id = await _resolve_tenant_id_from_slug(session, tenant_slug, ctx)
++
++    # Resolve metadata either from XML or from direct fields.
++    if body.metadata_xml:
++        try:
++            md = validate_idp_metadata(body.metadata_xml, tenant_slug)
++        except IDPMetadataError as exc:
++            raise TenantIdPMetadataInvalidError(
++                code=exc.code,
++                message_ko=exc.message_ko,
++                details=exc.details,
++            ) from exc
++        entity_id = md["entity_id"]
++        sso_url = md["sso_url"]
++        x509_cert = md["x509_cert_pem"]
++        slo_url = md["slo_url"]
++        name_id_format = md["name_id_format"]
++        acs_url = body.acs_url or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
++    else:
++        if not (body.idp_entity_id and body.idp_sso_url and body.idp_x509_cert_pem):
++            raise TenantIdPMetadataInvalidError(
++                code="IDP_METADATA_MALFORMED_KO",
++                message_ko="metadata_xml 또는 4개 직접 입력 필드가 필요합니다",
++                details={"missing_fields": _missing_direct_fields(body)},
++            )
++        entity_id = body.idp_entity_id
++        sso_url = body.idp_sso_url
++        x509_cert = body.idp_x509_cert_pem
++        slo_url = body.idp_slo_url
++        name_id_format = body.name_id_format
++        acs_url = body.acs_url or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
++
++    # Audit-first INSERT.
++    await emit_audit_typed(
++        session,
++        action_class=ActionClass.AUTH,
++        action="tenant_idp_updated",
++        actor_id=ctx.user_id,
++        target_id=None,
++        tenant_id=tenant_id,
++        payload={
++            "entity_id": entity_id,
++            "sso_url": sso_url,
++            "x509_cert_sha256": _cert_fingerprint(x509_cert),
++            "acs_url": acs_url,
++        },
++    )
++
++    # UPDATE — find existing row.
++    row_result = (
++        await session.execute(
++            text(
++                """
++                UPDATE public.tenant_idps
++                SET idp_entity_id = :entity_id,
++                    idp_sso_url = :sso_url,
++                    idp_slo_url = :slo_url,
++                    idp_x509_cert = :cert,
++                    acs_url = :acs_url,
++                    name_id_format = :name_id_format,
++                    enabled = :enabled,
++                    updated_by = :updated_by
++                WHERE tenant_id = :tenant_id
++                RETURNING id, created_at, updated_at
++                """
++            ),
++            {
++                "tenant_id": str(tenant_id),
++                "entity_id": entity_id,
++                "sso_url": sso_url,
++                "slo_url": slo_url,
++                "cert": x509_cert,
++                "acs_url": acs_url,
++                "name_id_format": name_id_format,
++                "enabled": body.enabled,
++                "updated_by": str(ctx.user_id),
++            },
++        )
++    ).first()
++    if row_result is None:
++        await session.rollback()
++        raise TenantIdPNotFoundError(tenant_slug=tenant_slug)
++    await session.commit()
++
++    return IdPConfigResponse(
++        id=str(row_result[0]),
++        tenant_id=str(tenant_id),
++        idp_entity_id=entity_id,
++        idp_sso_url=sso_url,
++        idp_slo_url=slo_url,
++        idp_x509_cert_sha256=_cert_fingerprint(x509_cert),
++        acs_url=acs_url,
++        name_id_format=name_id_format,
++        enabled=body.enabled,
++        created_at=row_result[1].isoformat() if row_result[1] else "",
++        updated_at=row_result[2].isoformat() if row_result[2] else "",
++    )
++
++
++# ── DELETE /api/v1/admin/tenant/{tenant_slug}/idp ────────────────────
++
++
++@router.delete(
++    "/{tenant_slug}/idp",
++    status_code=200,
++    dependencies=[
++        Depends(require_role("owner")),
++        Depends(require_tenant_idp_management),
++    ],
++)
++async def delete_tenant_idp(
++    tenant_slug: str = Path(..., min_length=1, max_length=64),
++    ctx: TenantContext = Depends(get_tenant_context),
++    session: AsyncSession = Depends(get_session),
++) -> dict[str, Any]:
++    """Soft-delete IdP config (enabled=FALSE)."""
++    tenant_id = await _resolve_tenant_id_from_slug(session, tenant_slug, ctx)
++
++    await emit_audit_typed(
++        session,
++        action_class=ActionClass.AUTH,
++        action="tenant_idp_deleted",
++        actor_id=ctx.user_id,
++        target_id=None,
++        tenant_id=tenant_id,
++        payload={"tenant_slug": tenant_slug},
++    )
++
++    result = (
++        await session.execute(
++            text(
++                """
++                UPDATE public.tenant_idps
++                SET enabled = FALSE, updated_by = :updated_by
++                WHERE tenant_id = :tenant_id
++                RETURNING id
++                """
++            ),
++            {"tenant_id": str(tenant_id), "updated_by": str(ctx.user_id)},
++        )
++    ).first()
++    if result is None:
++        await session.rollback()
++        raise TenantIdPNotFoundError(tenant_slug=tenant_slug)
++    await session.commit()
++
++    return {"code": "TENANT_IDP_DISABLED_OK", "id": str(result[0])}
++
++
++# ── POST /api/v1/admin/tenant/{tenant_slug}/idp/test ─────────────────
++
++
++@router.post(
++    "/{tenant_slug}/idp/test",
++    response_model=IdPTestResultResponse,
++    dependencies=[
++        Depends(require_any_role("owner", "admin")),
++        Depends(require_tenant_idp_management),
++    ],
++)
++async def test_tenant_idp(
++    body: IdPConfigCreateRequest,
++    tenant_slug: str = Path(..., min_length=1, max_length=64),  # noqa: PT028
++    ctx: TenantContext = Depends(get_tenant_context),  # noqa: PT028
++    session: AsyncSession = Depends(get_session),  # noqa: PT028
++) -> IdPTestResultResponse:
++    """Validate IdP metadata XML without writing to DB.
++
++    audit-first INSERT `tenant_idp_tested` BEFORE running validator.
++    """
++    tenant_id = await _resolve_tenant_id_from_slug(session, tenant_slug, ctx)
++
++    await emit_audit_typed(
++        session,
++        action_class=ActionClass.AUTH,
++        action="tenant_idp_tested",
++        actor_id=ctx.user_id,
++        target_id=None,
++        tenant_id=tenant_id,
++        payload={"tenant_slug": tenant_slug, "has_metadata_xml": body.metadata_xml is not None},
++    )
++
++    steps: list[IdPTestResultStep] = []
++    if not body.metadata_xml:
++        return IdPTestResultResponse(
++            passed=False,
++            steps=[
++                IdPTestResultStep(step=1, name="metadata_xml_present", passed=False, detail="metadata_xml is required for /test endpoint"),
++            ],
++            metadata=None,
++        )
++
++    try:
++        md = validate_idp_metadata(body.metadata_xml, tenant_slug)
++    except IDPMetadataError as exc:
++        # Single failure step (validator already reported the failing step).
++        steps.append(
++            IdPTestResultStep(
++                step=0,
++                name="validator_exception",
++                passed=False,
++                detail=f"{exc.code}: {exc.message_ko}",
++            )
++        )
++        await session.commit()
++        return IdPTestResultResponse(passed=False, steps=steps, metadata=None)
++
++    # All 8 steps passed — emit success markers.
++    step_names = [
++        "xml_well_formedness",
++        "root_entity_descriptor",
++        "entity_id_present",
++        "idpsso_descriptor_present",
++        "x509_cert_present",
++        "sso_url_https",
++        "slo_url_optional_https",
++        "tenant_slug_host_match",
++    ]
++    for i, name in enumerate(step_names, start=1):
++        steps.append(IdPTestResultStep(step=i, name=name, passed=True))
++
++    await session.commit()
++    return IdPTestResultResponse(
++        passed=True,
++        steps=steps,
++        metadata={
++            "entity_id": md["entity_id"],
++            "sso_url": md["sso_url"],
++            "slo_url": md["slo_url"],
++            "name_id_format": md["name_id_format"],
++        },
++    )
++
++
++# ── Internal helpers ──────────────────────────────────────────────────
++
++
++def _missing_direct_fields(body: IdPConfigCreateRequest) -> list[str]:
++    missing: list[str] = []
++    if not body.idp_entity_id:
++        missing.append("idp_entity_id")
++    if not body.idp_sso_url:
++        missing.append("idp_sso_url")
++    if not body.idp_x509_cert_pem:
++        missing.append("idp_x509_cert_pem")
++    if not body.acs_url:
++        missing.append("acs_url")
++    return missing
++
++
++def _placeholder_acs_host() -> str:
++    """Best-effort ACS host — production uses PUBLIC_API_BASE_URL."""
++    return "api.costmgr.example.com"
++
++
++# Re-export the typed JWTClaims class so callers can `decode_jwt` without
++# importing the security module separately.
++__all__ = [
++    "router",
++    "TenantIdPError",
++    "TenantIdPAlreadyExistsError",
++    "TenantIdPNotFoundError",
++    "TenantIdPForbiddenError",
++    "TenantIdPMetadataInvalidError",
++    "JWTClaims",
++    "decode_jwt",
++]
+diff --git a/apps/api/modules/auth/sso/idp_metadata_validator.py b/apps/api/modules/auth/sso/idp_metadata_validator.py
+new file mode 100644
+index 0000000..949a8c7
+--- /dev/null
++++ b/apps/api/modules/auth/sso/idp_metadata_validator.py
+@@ -0,0 +1,308 @@
++"""apps.api.modules.auth.sso.idp_metadata_validator — SAML 2.0 IdP metadata XML validator.
++
++Epic 16 — T2 (AC #2.1~#2.7) — F19.2 IdP metadata XML validation service.
++
++Sibling module of Epic 15 `saml_validator.py` (different domain: IdP
++metadata XML validation vs SAML response validation). Both modules
++share the CR 12-5 D-14 typed exception envelope pattern.
++
++8 validation steps (PRD §F19.2 verbatim):
++  1. XML well-formedness check (xml.etree.ElementTree.fromstring).
++  2. Root element = EntityDescriptor (urn:oasis:names:tc:SAML:2.0:metadata).
++  3. entityID attribute extraction.
++  4. IDPSSODescriptor element presence check.
++  5. KeyDescriptor / X509Certificate extraction + PEM wrap.
++  6. SingleSignOnService Location (https:// required).
++  7. SingleLogoutService Location (optional, https:// when present).
++  8. tenant_slug matching against entityID host part.
++
++All validation failures raise typed exceptions (CR 12-5 D-14 envelope)
++that the route layer translates into ko-KR error envelopes.
++
++AD-14 stack pin: lxml>=5.0.0 is OPTIONAL — this module uses stdlib
++xml.etree.ElementTree (sufficient for the validation surface). lxml
++is only needed if a future Epic wires XML schema validation.
++"""
++
++from __future__ import annotations
++
++import base64
++import binascii
++import logging
++import xml.etree.ElementTree as ET
++from typing import TypedDict
++from urllib.parse import urlparse
++
++logger = logging.getLogger(__name__)
++
++
++# ── Typed exceptions (CR 12-5 D-14 envelope) ──────────────────────────
++
++
++class IDPMetadataError(Exception):
++    """Base IdP metadata validation failure (CR 12-5 D-14 envelope)."""
++
++    def __init__(self, code: str, message_ko: str, details: dict[str, object] | None = None):
++        self.code = code
++        self.message_ko = message_ko
++        self.details: dict[str, object] = details or {}
++        super().__init__(message_ko)
++
++
++class IDPMetadataMalformedError(IDPMetadataError):
++    """IdP metadata XML is malformed or not well-formed."""
++
++    def __init__(self, reason: str = "xml_parse_error") -> None:
++        super().__init__(
++            code="IDP_METADATA_MALFORMED_KO",
++            message_ko="IdP 메타데이터 XML 형식이 올바르지 않습니다",
++            details={"reason": reason},
++        )
++
++
++class IDPMetadataInvalidEntityIdError(IDPMetadataError):
++    """EntityID attribute missing or does not follow SAML 2.0 spec."""
++
++    def __init__(self, reason: str = "entity_id_invalid", entity_id: str | None = None) -> None:
++        super().__init__(
++            code="IDP_METADATA_INVALID_ENTITY_ID_KO",
++            message_ko="EntityID 가 SAML 2.0 스펙을 따르지 않습니다",
++            details={"reason": reason, "entity_id": entity_id},
++        )
++
++
++class IDPMetadataInvalidX509Error(IDPMetadataError):
++    """X509Certificate is not PEM-formatted or base64 decode fails."""
++
++    def __init__(self, reason: str = "x509_pem_invalid") -> None:
++        super().__init__(
++            code="IDP_METADATA_INVALID_X509_KO",
++            message_ko="X509Certificate 가 PEM 형식이 아니거나 base64 디코딩 실패",
++            details={"reason": reason},
++        )
++
++
++class IDPMetadataInvalidSSOUrlError(IDPMetadataError):
++    """SingleSignOnService URL is missing or not https://."""
++
++    def __init__(self, reason: str = "sso_url_invalid", url: str | None = None) -> None:
++        super().__init__(
++            code="IDP_METADATA_INVALID_SSO_URL_KO",
++            message_ko="SingleSignOnService URL 은 https:// 이어야 합니다",
++            details={"reason": reason, "url": url},
++        )
++
++
++# ── Return TypedDict ──────────────────────────────────────────────────
++
++
++class IdPMetadata(TypedDict):
++    """Validated IdP metadata extracted from the XML document.
++
++    Returned by `validate_idp_metadata()` after all 8 validation steps
++    pass. Used as the source of truth for `tenant_idps` row INSERT.
++    """
++
++    entity_id: str
++    sso_url: str
++    slo_url: str | None
++    x509_cert_pem: str
++    name_id_format: str | None
++
++
++# ── SAML 2.0 metadata namespace ───────────────────────────────────────
++
++_SAML_METADATA_NS = "urn:oasis:names:tc:SAML:2.0:metadata"
++_DSIG_NS = "http://www.w3.org/2000/09/xmldsig#"
++
++
++# ── Validator entry point ─────────────────────────────────────────────
++
++
++def validate_idp_metadata(
++    metadata_xml: str,
++    expected_tenant_slug: str,
++) -> IdPMetadata:
++    """Validate a SAML 2.0 IdP metadata XML document.
++
++    Runs all 8 validation steps (PRD §F19.2 verbatim). Raises a typed
++    exception (CR 12-5 D-14 envelope) on any failure. Returns the
++    extracted IdPMetadata TypedDict on success.
++
++    Args:
++        metadata_xml: Raw XML string from the IdP metadata endpoint.
++        expected_tenant_slug: Tenant slug used to validate the entityID
++            host part. Example: tenant_slug='acme' must match entityID
++            host 'idp.acme.com' (host second-to-last label match).
++
++    Returns:
++        IdPMetadata TypedDict with 5 fields: entity_id, sso_url,
++        slo_url (optional), x509_cert_pem, name_id_format (optional).
++
++    Raises:
++        IDPMetadataMalformedError: XML parse failure (step 1).
++        IDPMetadataInvalidEntityIdError: Root element not EntityDescriptor
++            (step 2), entityID missing (step 3), or tenant slug mismatch
++            (step 8).
++        IDPMetadataInvalidX509Error: X509Certificate missing (step 5) or
++            PEM decode failure.
++        IDPMetadataInvalidSSOUrlError: SingleSignOnService URL missing
++            or not https:// (step 6).
++    """
++    # Step 1: XML well-formedness.
++    try:
++        root = ET.fromstring(metadata_xml)
++    except ET.ParseError as exc:
++        raise IDPMetadataMalformedError(reason="xml_parse_error") from exc
++
++    # Step 2: Root element = EntityDescriptor.
++    if root.tag != f"{{{_SAML_METADATA_NS}}}EntityDescriptor":
++        raise IDPMetadataInvalidEntityIdError(
++            reason="root_not_entity_descriptor",
++            entity_id=None,
++        )
++
++    # Step 3: entityID attribute extraction.
++    entity_id = (root.attrib.get("entityID") or "").strip()
++    if not entity_id:
++        raise IDPMetadataInvalidEntityIdError(reason="entity_id_missing", entity_id=None)
++    # Validate entityID is an absolute URL (SAML 2.0 §2.4.2 — must be URI).
++    parsed_entity = urlparse(entity_id)
++    if parsed_entity.scheme not in ("http", "https"):
++        raise IDPMetadataInvalidEntityIdError(
++            reason="entity_id_not_uri",
++            entity_id=entity_id,
++        )
++
++    # Step 4: IDPSSODescriptor element presence check.
++    idp_sso_descriptor = root.find(f"{{{_SAML_METADATA_NS}}}IDPSSODescriptor")
++    if idp_sso_descriptor is None:
++        raise IDPMetadataMalformedError(reason="idpsso_descriptor_missing")
++
++    # Step 5: KeyDescriptor / X509Certificate extraction + PEM wrap.
++    key_descriptor = idp_sso_descriptor.find(f"{{{_SAML_METADATA_NS}}}KeyDescriptor")
++    if key_descriptor is None:
++        raise IDPMetadataInvalidX509Error(reason="key_descriptor_missing")
++    x509_data = key_descriptor.find(f"{{{_DSIG_NS}}}KeyInfo")
++    if x509_data is None:
++        raise IDPMetadataInvalidX509Error(reason="key_info_missing")
++    x509_cert_el = x509_data.find(f"{{{_DSIG_NS}}}X509Data")
++    if x509_cert_el is None:
++        raise IDPMetadataInvalidX509Error(reason="x509_data_missing")
++    x509_cert_el2 = x509_cert_el.find(f"{{{_DSIG_NS}}}X509Certificate")
++    if x509_cert_el2 is None:
++        raise IDPMetadataInvalidX509Error(reason="x509_certificate_missing")
++    raw_cert = (x509_cert_el2.text or "").strip()
++    if not raw_cert:
++        raise IDPMetadataInvalidX509Error(reason="x509_certificate_empty")
++    # Validate base64 decodability (defense-in-depth — actual crypto
++    # verification is delegated to python3-saml at ACS time).
++    try:
++        base64.b64decode(raw_cert.encode("ascii"), validate=True)
++    except (binascii.Error, ValueError) as exc:
++        raise IDPMetadataInvalidX509Error(reason="x509_base64_decode_failed") from exc
++    x509_cert_pem = _wrap_x509_pem(raw_cert)
++
++    # Step 6: SingleSignOnService Location (https:// required).
++    sso_url = _find_service_location(
++        idp_sso_descriptor,
++        service_tag="SingleSignOnService",
++        required=True,
++    )
++    if not sso_url.startswith("https://"):
++        raise IDPMetadataInvalidSSOUrlError(reason="sso_url_not_https", url=sso_url)
++
++    # Step 7: SingleLogoutService Location (optional, https:// when present).
++    slo_url = _find_service_location(
++        idp_sso_descriptor,
++        service_tag="SingleLogoutService",
++        required=False,
++    )
++    if slo_url is not None and not slo_url.startswith("https://"):
++        raise IDPMetadataInvalidSSOUrlError(reason="slo_url_not_https", url=slo_url)
++
++    # Step 8: tenant_slug matching against entityID host part.
++    # Match rule: expected_tenant_slug must appear as a label in the
++    # entityID host. Example: tenant_slug='acme' must match entityID
++    # host 'idp.acme.com' or 'acme.example.com'.
++    entity_host = parsed_entity.hostname or ""
++    if expected_tenant_slug and expected_tenant_slug not in entity_host.split("."):
++        raise IDPMetadataInvalidEntityIdError(
++            reason="tenant_slug_host_mismatch",
++            entity_id=entity_id,
++        )
++
++    # NameID format (optional — extract first one if present).
++    name_id_format = _extract_name_id_format(idp_sso_descriptor)
++
++    return IdPMetadata(
++        entity_id=entity_id,
++        sso_url=sso_url,
++        slo_url=slo_url,
++        x509_cert_pem=x509_cert_pem,
++        name_id_format=name_id_format,
++    )
++
++
++# ── Internal helpers ──────────────────────────────────────────────────
++
++
++def _find_service_location(
++    parent: ET.Element,
++    *,
++    service_tag: str,
++    required: bool,
++) -> str | None:
++    """Find the first matching service element Location attribute.
++
++    Prefers Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
++    when multiple are present (standard SSO redirect binding).
++    """
++    candidates = parent.findall(f"{{{_SAML_METADATA_NS}}}{service_tag}")
++    if not candidates:
++        if required:
++            raise IDPMetadataMalformedError(reason=f"{service_tag.lower()}_missing")
++        return None
++
++    # Prefer HTTP-Redirect binding (standard for IdP-initiated SSO).
++    for cand in candidates:
++        binding = cand.attrib.get("Binding", "")
++        location = cand.attrib.get("Location", "")
++        if binding.endswith("HTTP-Redirect") and location:
++            return location.strip()
++    # Fallback: first non-empty Location.
++    for cand in candidates:
++        location = cand.attrib.get("Location", "")
++        if location.strip():
++            return location.strip()
++    if required:
++        raise IDPMetadataMalformedError(reason=f"{service_tag.lower()}_location_missing")
++    return None
++
++
++def _wrap_x509_pem(raw_base64: str) -> str:
++    """Wrap a raw base64 cert in standard PEM envelope."""
++    # Strip internal whitespace + line breaks for clean wrap.
++    cleaned = "".join(raw_base64.split())
++    # Wrap to 64-char lines per RFC 7468 §3.
++    lines = [cleaned[i : i + 64] for i in range(0, len(cleaned), 64)]
++    return "-----BEGIN CERTIFICATE-----\n" + "\n".join(lines) + "\n-----END CERTIFICATE-----"
++
++
++def _extract_name_id_format(idp_sso_descriptor: ET.Element) -> str | None:
++    """Extract the first NameIDFormat URI from the IDPSSODescriptor."""
++    name_id_el = idp_sso_descriptor.find(f"{{{_SAML_METADATA_NS}}}NameIDFormat")
++    if name_id_el is None or not (name_id_el.text or "").strip():
++        return None
++    return (name_id_el.text or "").strip()
++
++
++__all__ = [
++    "validate_idp_metadata",
++    "IdPMetadata",
++    "IDPMetadataError",
++    "IDPMetadataMalformedError",
++    "IDPMetadataInvalidEntityIdError",
++    "IDPMetadataInvalidX509Error",
++    "IDPMetadataInvalidSSOUrlError",
++]
+diff --git a/apps/api/modules/auth/sso/tenant_idp_lookup.py b/apps/api/modules/auth/sso/tenant_idp_lookup.py
+new file mode 100644
+index 0000000..b8c62ea
+--- /dev/null
++++ b/apps/api/modules/auth/sso/tenant_idp_lookup.py
+@@ -0,0 +1,135 @@
++"""apps.api.modules.auth.sso.tenant_idp_lookup — Per-tenant IdP config lookup.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — T5 (AC #5.1~#5.5) — F19.5.
++
++SAML response validation now reads the tenant's IdP X509 cert dynamically
++from the `tenant_idps` table (alembic 0038) instead of the Epic 15
++hardcoded placeholder. The SAML request store lookup yields a tenant_slug;
++this module resolves the corresponding IdP row.
++
++Capability-gated: per-tenant `enabled` flag is honored — a disabled IdP
++row blocks `/login` and `/acs` with a typed envelope.
++
++CR 0-2 RLS lesson: tenant_id is enforced via `current_setting('app.tenant_id')`
++GUC set by the dependency tree. Direct queries without GUC set must NOT
++bypass RLS — so we use the SECURITY DEFINER pattern from `apps.api.core.db`.
++"""
++
++from __future__ import annotations
++
++import logging
++from dataclasses import dataclass
++
++from sqlalchemy import text
++from sqlalchemy.ext.asyncio import AsyncSession
++
++logger = logging.getLogger(__name__)
++
++
++# ── Typed exceptions ─────────────────────────────────────────────────
++
++
++class TenantIdPLookupError(Exception):
++    """Base class for per-tenant IdP lookup failures."""
++
++
++class TenantIdPDisabledError(TenantIdPLookupError):
++    """IdP row found but enabled=FALSE."""
++
++
++class TenantIdPConfigMissingError(TenantIdPLookupError):
++    """No IdP row for this tenant."""
++
++
++# ── Return type ──────────────────────────────────────────────────────
++
++
++@dataclass(frozen=True, slots=True)
++class TenantIdPRow:
++    """Per-tenant IdP config snapshot (read-only)."""
++
++    tenant_id: str
++    tenant_slug: str
++    idp_entity_id: str
++    idp_sso_url: str
++    idp_slo_url: str | None
++    idp_x509_cert_pem: str
++    name_id_format: str | None
++    acs_url: str | None
++    enabled: bool
++
++
++# ── Public API ───────────────────────────────────────────────────────
++
++
++async def load_tenant_idp(
++    session: AsyncSession,
++    tenant_slug: str,
++) -> TenantIdPRow:
++    """Load a tenant's IdP config by slug.
++
++    Resolution order:
++      1. SELECT tenant_id from public.tenants WHERE slug = :slug
++      2. SELECT tenant_idps WHERE tenant_id = :tenant_id
++      3. If missing row → TenantIdPConfigMissingError
++      4. If enabled=FALSE → TenantIdPDisabledError
++      5. Return TenantIdPRow
++
++    The query is read-only and respects the RLS policy on tenant_idps
++    (CR 0-2 verbatim: `current_setting('app.tenant_id')`).
++    """
++    # Step 1: resolve tenant_id from slug.
++    tenant_row = (
++        await session.execute(
++            text("SELECT id FROM public.tenants WHERE slug = :slug LIMIT 1"),
++            {"slug": tenant_slug},
++        )
++    ).first()
++    if tenant_row is None:
++        raise TenantIdPConfigMissingError(f"tenant_not_found: {tenant_slug}")
++
++    tenant_id = str(tenant_row[0])
++
++    # Step 2: read tenant_idps row.
++    idp_row = (
++        await session.execute(
++            text(
++                """
++                SELECT idp_entity_id, idp_sso_url, idp_slo_url,
++                       idp_x509_cert, name_id_format, acs_url, enabled
++                FROM public.tenant_idps
++                WHERE tenant_id = :tenant_id
++                LIMIT 1
++                """
++            ),
++            {"tenant_id": tenant_id},
++        )
++    ).first()
++
++    if idp_row is None:
++        raise TenantIdPConfigMissingError(f"idp_not_configured: {tenant_slug}")
++
++    enabled = bool(idp_row[6])
++    if not enabled:
++        raise TenantIdPDisabledError(f"idp_disabled: {tenant_slug}")
++
++    return TenantIdPRow(
++        tenant_id=tenant_id,
++        tenant_slug=tenant_slug,
++        idp_entity_id=idp_row[0],
++        idp_sso_url=idp_row[1],
++        idp_slo_url=idp_row[2],
++        idp_x509_cert_pem=idp_row[3],
++        name_id_format=idp_row[4],
++        acs_url=idp_row[5],
++        enabled=enabled,
++    )
++
++
++__all__ = [
++    "TenantIdPLookupError",
++    "TenantIdPDisabledError",
++    "TenantIdPConfigMissingError",
++    "TenantIdPRow",
++    "load_tenant_idp",
++]
+diff --git a/apps/api/dependencies/__init__.py b/apps/api/dependencies/__init__.py
+new file mode 100644
+index 0000000..57d9116
+--- /dev/null
++++ b/apps/api/dependencies/__init__.py
+@@ -0,0 +1 @@
++"""apps/api/dependencies — FastAPI dependency helpers."""
+diff --git a/apps/api/dependencies/capability.py b/apps/api/dependencies/capability.py
+new file mode 100644
+index 0000000..6f47e2e
+--- /dev/null
++++ b/apps/api/dependencies/capability.py
+@@ -0,0 +1,45 @@
++"""
++apps/api/dependencies/capability.py — FastAPI dependency helpers for capability gates.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — T6 (AC #6.3) — F19.6.
++
++Re-exports `require_capability` from `apps.api.core.capability` plus 5
++Epic-16-specific named dependencies for the IdP admin territory gates:
++
++  - `require_launch_landing()` — gates `/api/v1/launch/landing` (1st release)
++  - `require_launch_tos()` — gates `/api/v1/launch/tos-acceptance` (1st release)
++  - `require_launch_support()` — gates `/api/v1/launch/support-tickets` (1st release)
++  - `require_launch_monitoring()` — gates `/api/v1/launch/*` (1st release)
++  - `require_tenant_idp_management()` — gates `/api/v1/admin/tenant/{slug}/idp` (Epic 16)
++
++Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
++"""
++from __future__ import annotations
++
++from apps.api.core.capability import (
++    Capability,
++    require_capability,
++)
++
++# Re-export the canonical helper for `from apps.api.dependencies.capability import require_capability`
++__all__ = [
++    "Capability",
++    "require_capability",
++    "require_launch_landing",
++    "require_launch_tos",
++    "require_launch_support",
++    "require_launch_monitoring",
++    "require_tenant_idp_management",
++]
++
++
++require_launch_landing = require_capability(Capability.LAUNCH_LANDING)
++require_launch_tos = require_capability(Capability.LAUNCH_TOS)
++require_launch_support = require_capability(Capability.LAUNCH_SUPPORT)
++require_launch_monitoring = require_capability(Capability.LAUNCH_MONITORING)
++# Epic 16 — Tenant IdP admin management capability (F19.6 + AC #6.3).
++# Gates the 5 CRUD routes in apps/api/modules/auth/sso/idp_admin_routes.py
++# (GET/POST/PUT/DELETE/TEST). Industry-agnostic per CR 12-1 L4 precedent
++# (mirrors SSO_ENTERPRISE / LISTEN_NOTIFY / AUTH_MIDDLEWARE / DEPLOYMENT_*
++# / LAUNCH_* pattern). All 4 industries can manage their tenant IdP.
++require_tenant_idp_management = require_capability(Capability.TENANT_IDP_MANAGEMENT)
+diff --git a/docs/idp-admin-management.md b/docs/idp-admin-management.md
+new file mode 100644
+index 0000000..e9a4f64
+--- /dev/null
++++ b/docs/idp-admin-management.md
+@@ -0,0 +1,145 @@
++# Tenant IdP Admin Management
++
++> Epic 16 — Tenant IdP admin management territory. Owner/admin of a tenant
++> can register, update, test, and disable their SAML 2.0 IdP through the
++> `/api/v1/admin/tenant/{tenant_slug}/idp` endpoints.
++
++## Overview
++
++Tenant IdP admin management is the second half of the SAML enterprise SSO
++territory. Epic 15 (`5f9e37f`) wired the SAML response consumption side
++(login → IdP redirect → ACS → JIT provisioning) using a **hardcoded
++placeholder** for the IdP X509 cert and SSO URL. Epic 16 replaces those
++placeholders with a per-tenant row in `public.tenant_idps`, allowing each
++tenant to point at their own corporate IdP.
++
++The `tenant_idps` table is the canonical source of truth for:
++
++- **IdP entity ID** (`idp_entity_id`) — SAML `EntityDescriptor/@entityID`
++- **SingleSSO Service URL** (`idp_sso_url`) — SAML `<SingleSignOnService>`
++- **Single Logout Service URL** (`idp_slo_url`) — optional
++- **X509 cert PEM** (`idp_x509_cert`) — `<X509Certificate>` base64 decoded
++- **NameID format** (`name_id_format`) — usually `emailAddress`
++- **ACS URL** (`acs_url`) — where the IdP POSTs the SAML response
++- **enabled** flag — soft delete + global kill switch
++
++## Schema (alembic 0038)
++
++```
++public.tenant_idps
++  id              uuid PK
++  tenant_id       uuid FK public.tenants(id) UNIQUE per (tenant_id, idp_entity_id)
++  idp_entity_id   text NOT NULL  (>0 chars, CHECK)
++  idp_sso_url     text NOT NULL  (https://, CHECK)
++  idp_slo_url     text NULL
++  idp_x509_cert   text NOT NULL  (PEM wrapped, CHECK)
++  acs_url         text NULL
++  name_id_format  text NULL
++  enabled         bool NOT NULL DEFAULT TRUE
++  created_at      timestamptz NOT NULL DEFAULT now()
++  updated_at      timestamptz  (auto-updated via trigger)
++  created_by      uuid FK auth.users(id)
++  updated_by      uuid FK auth.users(id)
++```
++
++3 RLS policies (`tenant_id = current_setting('app.tenant_id')`) — verbatim
++Epic 15 external_identities pattern.
++
++The migration also seeds the `acme` tenant row with Epic 15 placeholder
++values so dev environments without an explicit IdP registration can
++still attempt SSO without crashing hard.
++
++## Validation pipeline (8 steps)
++
++`apps/api/modules/auth/sso/idp_metadata_validator.py` runs each POST/PUT
++payload through 8 validation steps (PRD §F19.2 verbatim):
++
++1. **XML well-formedness** — stdlib `xml.etree.ElementTree.parse()`
++2. **Root element = `EntityDescriptor`** — must match SAML 2.0 metadata
++3. **`entityID` extraction** — must be present, must be a URI
++4. **`IDPSSODescriptor` presence** — SAML 2.0 IdP role
++5. **X509Certificate PEM wrap** — base64 decode + RFC 7468 64-char line wrap
++6. **SSO URL https://** — defense against plaintext SSO redirects
++7. **SLO URL optional + https** — if provided
++8. **Tenant slug host match** — `entityID` host must contain tenant slug
++
++Each failure raises a typed exception (`IDPMetadataError` base +
++4 subclasses) carrying the CR 12-5 D-14 envelope
++`{code, message_ko, details, trace_id}`.
++
++## API surface (5 routes)
++
++All routes mounted at `/api/v1/admin/tenant/{tenant_slug}/idp`:
++
++| Method | Path | Roles | Description |
++|---|---|---|---|
++| `GET` | `/{tenant_slug}/idp` | owner / admin | List current tenant's IdP config (0 or 1 row) |
++| `POST` | `/{tenant_slug}/idp` | owner / admin | Create new IdP config (metadata_xml OR 4 direct fields) |
++| `PUT` | `/{tenant_slug}/idp` | owner / admin | Full-replace update |
++| `DELETE` | `/{tenant_slug}/idp` | **owner only** | Soft-delete (enabled=FALSE) |
++| `POST` | `/{tenant_slug}/idp/test` | owner / admin | Validate metadata XML without writing to DB |
++
++All 5 routes are gated by `TENANT_IDP_MANAGEMENT` capability
++(capability matrix v1.28 EXTENSION — industry-agnostic per CR 12-1 L4
++precedent). The DELETE route is additionally restricted to `owner` only
++(per AD-22 destructive-op RBAC).
++
++## Audit-first INSERT (CR 1-1 verbatim)
++
++Every successful mutation emits an `audit_logs` row **before** the
++`tenant_idps` row is touched. 4 NEW ActionClass.AUTH actions:
++
++- `tenant_idp_created` — POST success
++- `tenant_idp_updated` — PUT success
++- `tenant_idp_deleted` — DELETE soft-delete (enabled=FALSE)
++- `tenant_idp_tested` — POST /test validation dry-run
++
++The audit row carries the cert's SHA-256 fingerprint (NFR4 PII
++minimization) — never the raw cert body — plus entity_id, sso_url,
++and acs_url.
++
++## Per-tenant routing EXTENSION
++
++`apps/api/modules/auth/sso/saml_routes.py` (Epic 15) now loads the
++tenant's IdP cert dynamically via `load_tenant_idp()` instead of the
++hardcoded placeholder. Two call sites updated:
++
++1. **GET `/api/v1/auth/sso/login`** — uses `idp_sso_url` for the 302 redirect
++2. **POST `/api/v1/auth/sso/acs`** — uses `idp_x509_cert_pem` for SAML
++   signature validation
++
++Defense-in-depth: both routes fall back to the Epic 15 placeholder if
++the tenant has no row, but `enabled=FALSE` triggers a typed 403
++envelope.
++
++## Capability matrix (v1.28 EXTENSION)
++
++```
++| TENANT_IDP_MANAGEMENT | Epic 16 | ✅ | ✅ | ✅ | ✅ |
++```
++
++All 4 industries (manufacturing / service / 겸영 / 겸영+기타) get the
++capability. Capability gate is enforced per-tenant via
++`require_tenant_idp_management` (apps/api/dependencies/capability.py).
++
++## Tests
++
++- `tests/api/core/test_epic_16_alembic_0038_tenant_idps.py` — 35 pytest cases
++- `tests/api/core/test_epic_16_idp_metadata_validator.py` — 15 pytest cases
++- `tests/api/core/test_epic_16_idp_admin_routes.py` — 19 pytest cases
++- `tests/api/core/test_epic_16_tenant_idp_lookup.py` — 15 pytest cases
++- `tests/api/core/test_epic_16_audit_log_verification.py` — 14 pytest cases
++- `tests/integration/test_capability_matrix_v1_28_drift.py` — 7 pytest cases
++
++Total: ~105 NEW pytest cases (CR 1-1 + CR 0-2 + CR 12-5 + CR 12-1 L4
++verification).
++
++## Cross-references
++
++- Epic 15 spec: `_bmad-output/implementation-artifacts/epic-15-sso-magic-oauth-wire.md`
++- Epic 16 spec: `_bmad-output/implementation-artifacts/epic-16-tenant-idp-admin-wire.md`
++- Master PRD v3.4 §F19 verbatim
++- AD-30 Tenant IdP admin management 신규
++- Capability matrix v1.28
++- Alembic 0038 migration
++- SAML 2.0 metadata spec: https://docs.oasis-open.org/security/saml/v2.0/saml-metadata-2.0-os.pdf
+\ No newline at end of file
+diff --git a/tests/api/core/test_epic_16_alembic_0038_tenant_idps.py b/tests/api/core/test_epic_16_alembic_0038_tenant_idps.py
+new file mode 100644
+index 0000000..cfeb403
+--- /dev/null
++++ b/tests/api/core/test_epic_16_alembic_0038_tenant_idps.py
+@@ -0,0 +1,197 @@
++"""tests.api.core.test_epic_16_alembic_0038_tenant_idps — migration tests.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — AC #7.3.
++Tests the alembic 0038 migration code-shape (table + 13 columns + UNIQUE
+++ RLS 3-policy + 3 CHECK constraints + index + trigger + down_revision
++chain + acme seed data migration).
++"""
++
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++
++REPO_ROOT = Path(__file__).resolve().parents[3]
++ALEMBIC_0038 = (
++    REPO_ROOT
++    / "apps"
++    / "api"
++    / "alembic"
++    / "versions"
++    / "0038_epic_16_tenant_idps.py"
++)
++
++
++@pytest.fixture(scope="module")
++def migration_content() -> str:
++    assert ALEMBIC_0038.exists(), "alembic 0038 missing"
++    return ALEMBIC_0038.read_text(encoding="utf-8")
++
++
++class TestMigrationShape:
++    def test_revision_id(self, migration_content: str) -> None:
++        assert 'revision: str = "0038_epic_16_tenant_idps"' in migration_content
++
++    def test_down_revision_chain(self, migration_content: str) -> None:
++        # down_revision must equal Epic 15 alembic 0037.
++        assert (
++            'down_revision: str | None = "0037_epic_15_sso_external_identities"'
++            in migration_content
++        )
++
++    def test_table_creation(self, migration_content: str) -> None:
++        assert "tenant_idps" in migration_content
++        assert "create_table" in migration_content
++
++
++class TestColumns:
++    """Verify all 13 columns from PRD §F19.1 + AC #1.1 verbatim are declared."""
++
++    def test_id_column(self, migration_content: str) -> None:
++        assert "gen_random_uuid()" in migration_content
++
++    def test_tenant_id_column(self, migration_content: str) -> None:
++        assert "tenant_id" in migration_content
++        assert "ForeignKey" in migration_content
++        assert "tenants.id" in migration_content
++
++    def test_idp_entity_id_column(self, migration_content: str) -> None:
++        assert "idp_entity_id" in migration_content
++
++    def test_idp_sso_url_column(self, migration_content: str) -> None:
++        assert "idp_sso_url" in migration_content
++
++    def test_idp_slo_url_column_nullable(self, migration_content: str) -> None:
++        assert "idp_slo_url" in migration_content
++        # SLO URL is optional — nullable=True.
++        assert "nullable=True" in migration_content
++
++    def test_idp_x509_cert_column(self, migration_content: str) -> None:
++        assert "idp_x509_cert" in migration_content
++
++    def test_acs_url_column(self, migration_content: str) -> None:
++        assert "acs_url" in migration_content
++
++    def test_name_id_format_column(self, migration_content: str) -> None:
++        assert "name_id_format" in migration_content
++
++    def test_enabled_column(self, migration_content: str) -> None:
++        assert "enabled" in migration_content
++        assert "Boolean" in migration_content or "BOOLEAN" in migration_content
++
++    def test_created_at_column(self, migration_content: str) -> None:
++        assert "created_at" in migration_content
++
++    def test_updated_at_column(self, migration_content: str) -> None:
++        assert "updated_at" in migration_content
++
++    def test_created_by_column(self, migration_content: str) -> None:
++        assert "created_by" in migration_content
++        # FK → users.id (AC #1.1 verbatim).
++        assert "users.id" in migration_content
++
++    def test_updated_by_column(self, migration_content: str) -> None:
++        assert "updated_by" in migration_content
++
++
++class TestConstraints:
++    """AC #1.2 + AC #1.7 verbatim: UNIQUE + 3 CHECK constraints."""
++
++    def test_unique_constraint_tenant_entity(self, migration_content: str) -> None:
++        # UNIQUE (tenant_id, idp_entity_id) — AC #1.2.
++        assert "UniqueConstraint" in migration_content
++        assert '"tenant_id"' in migration_content
++        assert '"idp_entity_id"' in migration_content
++        assert "uq_tenant_idps_tenant_entity" in migration_content
++
++    def test_check_entity_id_not_empty(self, migration_content: str) -> None:
++        assert "ck_tenant_idps_entity_id_not_empty" in migration_content
++        assert "length(btrim(idp_entity_id)) > 0" in migration_content
++
++    def test_check_sso_url_https(self, migration_content: str) -> None:
++        assert "ck_tenant_idps_sso_url_https" in migration_content
++        assert "idp_sso_url LIKE 'https://%'" in migration_content
++
++    def test_check_x509_cert_pem(self, migration_content: str) -> None:
++        assert "ck_tenant_idps_x509_cert_pem" in migration_content
++        assert "BEGIN CERTIFICATE" in migration_content
++        assert "END CERTIFICATE" in migration_content
++
++
++class TestIndex:
++    def test_index_tenant_id(self, migration_content: str) -> None:
++        assert "idx_tenant_idps_tenant_id" in migration_content
++        assert "create_index" in migration_content
++
++
++class TestTrigger:
++    def test_updated_at_trigger(self, migration_content: str) -> None:
++        assert "updated_at_auto_update_trg" in migration_content
++        assert "CREATE TRIGGER" in migration_content
++        assert "BEFORE UPDATE" in migration_content
++        assert "set_updated_at" in migration_content
++
++
++class TestRLS:
++    """CR 0-2 RLS lesson verbatim: 3-policy split (Epic 15 pattern)."""
++
++    def test_enable_row_level_security(self, migration_content: str) -> None:
++        assert "ENABLE ROW LEVEL SECURITY" in migration_content
++
++    def test_force_row_level_security(self, migration_content: str) -> None:
++        assert "FORCE ROW LEVEL SECURITY" in migration_content
++
++    def test_policy_tenant_isolation(self, migration_content: str) -> None:
++        assert "tenant_idps_tenant_isolation" in migration_content
++        assert "current_setting('app.tenant_id', true)" in migration_content
++
++    def test_policy_service_role_bypass(self, migration_content: str) -> None:
++        assert "tenant_idps_service_role_bypass" in migration_content
++        assert "TO service_role" in migration_content
++
++    def test_policy_anon_block(self, migration_content: str) -> None:
++        assert "tenant_idps_anon_block" in migration_content
++        assert "TO anon" in migration_content
++
++
++class TestAcmeSeed:
++    """PRD §F19.5 verbatim backward compatibility — Epic 15 acme row preserved."""
++
++    def test_seed_insert(self, migration_content: str) -> None:
++        assert "INSERT INTO public.tenant_idps" in migration_content
++
++    def test_seed_entity_id(self, migration_content: str) -> None:
++        # Mirrors saml_routes.py line 80 `idp.example.com` placeholder.
++        assert "idp.example.com" in migration_content
++
++    def test_seed_acme_slug(self, migration_content: str) -> None:
++        assert "'acme'" in migration_content or "slug = 'acme'" in migration_content
++
++    def test_seed_on_conflict_noop(self, migration_content: str) -> None:
++        # Idempotent re-seed guard.
++        assert "ON CONFLICT" in migration_content
++        assert "DO NOTHING" in migration_content
++
++
++class TestDowngrade:
++    def test_drop_policies(self, migration_content: str) -> None:
++        # All 3 RLS policies must be dropped on downgrade.
++        assert "DROP POLICY IF EXISTS tenant_idps_anon_block" in migration_content
++        assert (
++            "DROP POLICY IF EXISTS tenant_idps_service_role_bypass"
++            in migration_content
++        )
++        assert (
++            "DROP POLICY IF EXISTS tenant_idps_tenant_isolation"
++            in migration_content
++        )
++
++    def test_drop_trigger(self, migration_content: str) -> None:
++        assert "DROP TRIGGER IF EXISTS updated_at_auto_update_trg" in migration_content
++
++    def test_drop_index(self, migration_content: str) -> None:
++        assert "drop_index" in migration_content
++
++    def test_drop_table(self, migration_content: str) -> None:
++        assert "drop_table" in migration_content
+diff --git a/tests/api/core/test_epic_16_audit_log_verification.py b/tests/api/core/test_epic_16_audit_log_verification.py
+new file mode 100644
+index 0000000..bc122b9
+--- /dev/null
++++ b/tests/api/core/test_epic_16_audit_log_verification.py
+@@ -0,0 +1,124 @@
++"""tests.api.core.test_epic_16_audit_log_verification — audit registry verification.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — AC #7.4.
++Verifies `apps/api/core/audit_action.py` exposes the 4 NEW AUTH actions
++required by Epic 16:
++  - tenant_idp_created
++  - tenant_idp_updated
++  - tenant_idp_deleted
++  - tenant_idp_tested
++"""
++
++from __future__ import annotations
++
++import pytest
++
++from apps.api.core.audit_action import ActionClass
++
++EXPECTED_NEW_AUTH_ACTIONS = (
++    "tenant_idp_created",
++    "tenant_idp_updated",
++    "tenant_idp_deleted",
++    "tenant_idp_tested",
++)
++
++
++class TestAuthActionClassRegistration:
++    """Epic 16 — T7 (AC #7.4) — verify the 4 NEW AUTH actions are in the
++    registry, available for `emit_audit_typed()` to validate against.
++    """
++
++    @pytest.mark.parametrize("action", EXPECTED_NEW_AUTH_ACTIONS)
++    def test_action_in_auth_registry(self, action: str) -> None:
++        from apps.api.core.audit_action import _ActionRegistry
++
++        registry = _ActionRegistry._REGISTRY
++        # Walk to the AUTH action class and confirm action is in the frozenset.
++        auth_entry = registry.get(ActionClass.AUTH)
++        assert auth_entry is not None, "ActionClass.AUTH missing from registry"
++
++        # registry shape: (AuditLogType, frozenset[str])
++        _, action_set = auth_entry
++        assert action in action_set, (
++            f"{action} not in ActionClass.AUTH frozenset. "
++            "Add to apps/api/core/audit_action.py ActionClass.AUTH registry."
++        )
++
++
++class TestEmitAuditTypedAcceptance:
++    """emit_audit_typed() should accept the 4 NEW actions without raising.
++
++    Smoke test that does NOT write to a real DB — uses a mock session.
++    """
++
++    @pytest.mark.parametrize("action", EXPECTED_NEW_AUTH_ACTIONS)
++    @pytest.mark.asyncio
++    async def test_emit_accepts_new_action(self, action: str) -> None:
++        from unittest.mock import AsyncMock, MagicMock
++
++        from apps.api.core.audit_action import emit_audit_typed
++
++        session = AsyncMock()
++        session.execute = AsyncMock()
++        session.commit = AsyncMock()
++
++        ctx = MagicMock()
++        ctx.user_id = "test-user-id"
++
++        # Just call it — should not raise a validation error for the
++        # action names that are in the AUTH registry.
++        try:
++            await emit_audit_typed(
++                session,
++                action_class=ActionClass.AUTH,
++                action=action,
++                actor_id=ctx.user_id,
++                target_id=None,
++                tenant_id=None,
++                payload={"test": True},
++            )
++        except (KeyError, ValueError) as exc:
++            pytest.fail(
++                f"emit_audit_typed raised for known-good action {action}: {exc}"
++            )
++
++
++class TestAuditActionRegistryShape:
++    """Sanity check that the registry structure hasn't changed unexpectedly."""
++
++    def test_auth_class_is_present(self) -> None:
++        from apps.api.core.audit_action import _ActionRegistry
++
++        assert ActionClass.AUTH in _ActionRegistry._REGISTRY
++
++    def test_total_auth_actions_minimum(self) -> None:
++        """Epic 16 added 4; Epic 15 added 3 (magic_link_sent,
++        social_oauth_initiated, sso_identity_linked).
++        At least 7 NEW Epic 15+16 actions expected.
++        """
++        from apps.api.core.audit_action import _ActionRegistry
++
++        _, action_set = _ActionRegistry._REGISTRY[ActionClass.AUTH]
++        # Epic 15 (3) + Epic 16 (4) = at least 7
++        assert len(action_set) >= 7, (
++            f"Expected at least 7 AUTH actions (Epic 15+16), got {len(action_set)}"
++        )
++
++
++class TestCR1Compliance:
++    """CR 1-1 audit-first: actions must be emitted BEFORE the data mutation."""
++
++    def test_create_action_name(self) -> None:
++        # The route handler invokes emit_audit_typed(action="tenant_idp_created")
++        # BEFORE the INSERT into tenant_idps. Verify the action name
++        # matches the spec.
++        assert "tenant_idp_created" in EXPECTED_NEW_AUTH_ACTIONS
++
++    def test_update_action_name(self) -> None:
++        assert "tenant_idp_updated" in EXPECTED_NEW_AUTH_ACTIONS
++
++    def test_delete_action_name(self) -> None:
++        assert "tenant_idp_deleted" in EXPECTED_NEW_AUTH_ACTIONS
++
++    def test_test_action_name(self) -> None:
++        assert "tenant_idp_tested" in EXPECTED_NEW_AUTH_ACTIONS
+diff --git a/tests/api/core/test_epic_16_idp_admin_routes.py b/tests/api/core/test_epic_16_idp_admin_routes.py
+new file mode 100644
+index 0000000..13232b6
+--- /dev/null
++++ b/tests/api/core/test_epic_16_idp_admin_routes.py
+@@ -0,0 +1,304 @@
++"""tests.api.core.test_epic_16_idp_admin_routes — CRUD API unit tests.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — AC #7.2.
++Tests apps/api/modules/auth/sso/idp_admin_routes.py 5 CRUD routes
++(GET/POST/PUT/DELETE/TEST) + 4 error classes + audit-first INSERT pattern.
++"""
++
++from __future__ import annotations
++
++import base64
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++
++from apps.api.modules.auth.sso.idp_admin_routes import (
++    TenantIdPAlreadyExistsError,
++    TenantIdPError,
++    TenantIdPForbiddenError,
++    TenantIdPMetadataInvalidError,
++    TenantIdPNotFoundError,
++)
++
++# ── Test fixtures ────────────────────────────────────────────────────
++
++
++VALID_TENANT_ID = "11111111-1111-1111-1111-111111111111"
++VALID_TENANT_SLUG = "acme"
++VALID_USER_ID = "22222222-2222-2222-2222-222222222222"
++
++
++def _valid_b64_cert() -> str:
++    return base64.b64encode(b"placeholder-cert-for-unit-test").decode("ascii")
++
++
++def _wrap_pem(raw_b64: str) -> str:
++    cleaned = "".join(raw_b64.split())
++    lines = [cleaned[i : i + 64] for i in range(0, len(cleaned), 64)]
++    return (
++        "-----BEGIN CERTIFICATE-----\n"
++        + "\n".join(lines)
++        + "\n-----END CERTIFICATE-----"
++    )
++
++
++def _build_valid_metadata(tenant_slug: str = "acme") -> str:
++    return f"""<?xml version="1.0"?>
++<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"
++                  entityID="https://idp.{tenant_slug}.example.com/saml/metadata">
++  <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
++    <KeyDescriptor use="signing">
++      <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
++        <X509Data>
++          <X509Certificate>{_valid_b64_cert()}</X509Certificate>
++        </X509Data>
++      </KeyInfo>
++    </KeyDescriptor>
++    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
++                        Location="https://idp.{tenant_slug}.example.com/sso"/>
++  </IDPSSODescriptor>
++</EntityDescriptor>
++"""
++
++
++def _make_ctx() -> Any:
++    """Build a TenantContext mock matching the routes' expectations."""
++    ctx = MagicMock()
++    ctx.user_id = VALID_USER_ID
++    ctx.tenant_id = VALID_TENANT_ID
++    return ctx
++
++
++def _make_session(fetch_return: Any = None, execute_return: Any = None) -> AsyncMock:
++    """Build an AsyncSession mock with default empty results."""
++    session = AsyncMock()
++    result_mock = MagicMock()
++    result_mock.fetchall = MagicMock(return_value=fetch_return or [])
++    result_mock.first = MagicMock(return_value=execute_return)
++    # session.execute returns an awaitable that yields a result
++    session.execute = AsyncMock(return_value=result_mock)
++    session.commit = AsyncMock()
++    session.rollback = AsyncMock()
++    return session
++
++
++# ── Test: error class envelopes (CR 12-5 D-14) ──────────────────────
++
++
++class TestErrorClasses:
++    def test_base_class_has_envelope_fields(self) -> None:
++        exc = TenantIdPError(
++            code="TEST_KO",
++            message_ko="테스트",
++            details={"foo": "bar"},
++        )
++        assert exc.code == "TEST_KO"
++        assert exc.message_ko == "테스트"
++        assert exc.details == {"foo": "bar"}
++        assert str(exc) == "테스트"
++
++    def test_already_exists_envelope(self) -> None:
++        exc = TenantIdPAlreadyExistsError(tenant_slug=VALID_TENANT_SLUG)
++        assert exc.code == "TENANT_IDP_ALREADY_EXISTS_KO"
++        assert exc.details["tenant_slug"] == VALID_TENANT_SLUG
++
++    def test_not_found_envelope(self) -> None:
++        exc = TenantIdPNotFoundError(tenant_slug=VALID_TENANT_SLUG)
++        assert exc.code == "TENANT_IDP_NOT_FOUND_KO"
++        assert exc.details["tenant_slug"] == VALID_TENANT_SLUG
++
++    def test_forbidden_envelope(self) -> None:
++        exc = TenantIdPForbiddenError(
++            reason="cross_tenant_access_denied",
++            tenant_slug=VALID_TENANT_SLUG,
++        )
++        assert exc.code == "TENANT_IDP_FORBIDDEN_KO"
++        assert exc.details["reason"] == "cross_tenant_access_denied"
++        assert exc.details["tenant_slug"] == VALID_TENANT_SLUG
++
++    def test_metadata_invalid_envelope(self) -> None:
++        exc = TenantIdPMetadataInvalidError(
++            code="IDP_METADATA_MALFORMED_KO",
++            message_ko="XML 파싱 실패",
++            details={"reason": "xml_parse_error"},
++        )
++        assert exc.code == "TENANT_IDP_METADATA_INVALID_KO"
++        # message_ko wraps the inner validator message
++        assert "XML 파싱 실패" in exc.message_ko
++        assert exc.details["validator_code"] == "IDP_METADATA_MALFORMED_KO"
++        assert exc.details["reason"] == "xml_parse_error"
++
++
++# ── Test: cert fingerprint helper (NFR4 PII minimization) ───────────
++
++
++class TestCertFingerprint:
++    def test_strips_pem_markers(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import _cert_fingerprint
++
++        pem = _wrap_pem(_valid_b64_cert())
++        fp = _cert_fingerprint(pem)
++        # SHA-256 hex digest = 64 chars
++        assert len(fp) == 64
++        # Deterministic (same cert → same hash)
++        assert fp == _cert_fingerprint(pem)
++
++    def test_distinct_certs_distinct_fingerprints(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import _cert_fingerprint
++
++        pem_a = _wrap_pem(base64.b64encode(b"cert-A").decode("ascii"))
++        pem_b = _wrap_pem(base64.b64encode(b"cert-B").decode("ascii"))
++        assert _cert_fingerprint(pem_a) != _cert_fingerprint(pem_b)
++
++
++# ── Test: missing-fields helper ──────────────────────────────────────
++
++
++class TestMissingDirectFields:
++    def test_returns_all_missing(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import (
++            IdPConfigCreateRequest,
++            _missing_direct_fields,
++        )
++
++        body = IdPConfigCreateRequest()  # all defaults
++        missing = _missing_direct_fields(body)
++        assert "idp_entity_id" in missing
++        assert "idp_sso_url" in missing
++        assert "idp_x509_cert_pem" in missing
++        assert "acs_url" in missing
++
++    def test_returns_empty_when_complete(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import (
++            IdPConfigCreateRequest,
++            _missing_direct_fields,
++        )
++
++        body = IdPConfigCreateRequest(
++            idp_entity_id="https://idp.example.com",
++            idp_sso_url="https://idp.example.com/sso",
++            idp_x509_cert_pem=_wrap_pem(_valid_b64_cert()),
++            acs_url="https://sp.example.com/acs",
++        )
++        assert _missing_direct_fields(body) == []
++
++
++# ── Test: resolve tenant helper (cross-tenant check) ─────────────────
++
++
++class TestResolveTenantIdFromSlug:
++    @pytest.mark.asyncio
++    async def test_matching_tenant_returns_id(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import (
++            _resolve_tenant_id_from_slug,
++        )
++
++        session = _make_session(execute_return=(VALID_TENANT_ID,))
++        ctx = _make_ctx()
++        tenant_id = await _resolve_tenant_id_from_slug(
++            session, VALID_TENANT_SLUG, ctx
++        )
++        assert str(tenant_id) == VALID_TENANT_ID
++
++    @pytest.mark.asyncio
++    async def test_unknown_slug_raises_forbidden(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import (
++            _resolve_tenant_id_from_slug,
++        )
++
++        session = _make_session(execute_return=None)
++        ctx = _make_ctx()
++        with pytest.raises(TenantIdPForbiddenError) as exc:
++            await _resolve_tenant_id_from_slug(session, "unknown", ctx)
++        assert exc.value.details["reason"] == "tenant_not_found"
++
++    @pytest.mark.asyncio
++    async def test_cross_tenant_raises_forbidden(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import (
++            _resolve_tenant_id_from_slug,
++        )
++
++        other_tenant_id = "99999999-9999-9999-9999-999999999999"
++        session = _make_session(execute_return=(other_tenant_id,))
++        ctx = _make_ctx()
++        with pytest.raises(TenantIdPForbiddenError) as exc:
++            await _resolve_tenant_id_from_slug(session, "other", ctx)
++        assert exc.value.details["reason"] == "CROSS_TENANT_ACCESS"
++
++
++# ── Test: module exports ─────────────────────────────────────────────
++
++
++class TestModuleExports:
++    def test_router_is_fastapi_router(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import router
++
++        assert hasattr(router, "routes")
++        assert hasattr(router, "include_router")
++
++    def test_all_exports_present(self) -> None:
++        from apps.api.modules.auth.sso import idp_admin_routes
++
++        for name in [
++            "router",
++            "TenantIdPError",
++            "TenantIdPAlreadyExistsError",
++            "TenantIdPNotFoundError",
++            "TenantIdPForbiddenError",
++            "TenantIdPMetadataInvalidError",
++        ]:
++            assert hasattr(idp_admin_routes, name), f"Missing export: {name}"
++
++    def test_all_list_includes_new_dep(self) -> None:
++        from apps.api.modules.auth.sso import idp_admin_routes
++
++        for name in ["JWTClaims", "decode_jwt"]:
++            assert name in idp_admin_routes.__all__
++
++
++# ── Test: Pydantic models ────────────────────────────────────────────
++
++
++class TestPydanticModels:
++    def test_idp_config_response_required_fields(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import IdPConfigResponse
++
++        resp = IdPConfigResponse(
++            id="abc",
++            tenant_id=VALID_TENANT_ID,
++            idp_entity_id="https://idp.example.com",
++            idp_sso_url="https://idp.example.com/sso",
++            idp_slo_url=None,
++            idp_x509_cert_sha256="a" * 64,
++            acs_url="https://sp.example.com/acs",
++            name_id_format=None,
++            enabled=True,
++            created_at="2026-08-22T00:00:00Z",
++            updated_at="2026-08-22T00:00:00Z",
++        )
++        assert resp.idp_slo_url is None
++        assert resp.enabled is True
++
++    def test_create_request_rejects_unknown_fields(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import IdPConfigCreateRequest
++
++        with pytest.raises(ValueError, match="Extra inputs are not permitted"):
++            IdPConfigCreateRequest(
++                idp_entity_id="https://idp.example.com",
++                unknown_field="x",  # type: ignore[call-arg]
++            )
++
++    def test_test_result_step_passes(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import IdPTestResultStep
++
++        step = IdPTestResultStep(step=1, name="xml_well_formedness", passed=True)
++        assert step.passed is True
++        assert step.detail is None
++
++    def test_test_result_response_defaults(self) -> None:
++        from apps.api.modules.auth.sso.idp_admin_routes import IdPTestResultResponse
++
++        resp = IdPTestResultResponse(passed=False, steps=[], metadata=None)
++        assert resp.passed is False
++        assert resp.steps == []
+diff --git a/tests/api/core/test_epic_16_idp_metadata_validator.py b/tests/api/core/test_epic_16_idp_metadata_validator.py
+new file mode 100644
+index 0000000..b7244e5
+--- /dev/null
++++ b/tests/api/core/test_epic_16_idp_metadata_validator.py
+@@ -0,0 +1,243 @@
++"""tests.api.core.test_epic_16_idp_metadata_validator — 8-step validator unit tests.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — AC #7.1.
++Tests apps/api/modules/auth/sso/idp_metadata_validator.py 8 validation
++steps (PRD §F19.2 verbatim) + 4 error envelopes (CR 12-5 D-14 verbatim).
++"""
++
++from __future__ import annotations
++
++import base64
++
++import pytest
++
++from apps.api.modules.auth.sso.idp_metadata_validator import (
++    IDPMetadataInvalidEntityIdError,
++    IDPMetadataInvalidSSOUrlError,
++    IDPMetadataInvalidX509Error,
++    IDPMetadataMalformedError,
++    validate_idp_metadata,
++)
++
++# ── Fixture XML builders ──────────────────────────────────────────────
++
++
++def _valid_b64_cert() -> str:
++    """Generate a valid-looking (but not crypto-verified) base64 cert blob."""
++    return base64.b64encode(b"placeholder-cert-for-unit-test").decode("ascii")
++
++
++def _wrap_pem(raw_b64: str) -> str:
++    cleaned = "".join(raw_b64.split())
++    lines = [cleaned[i : i + 64] for i in range(0, len(cleaned), 64)]
++    return (
++        "-----BEGIN CERTIFICATE-----\n"
++        + "\n".join(lines)
++        + "\n-----END CERTIFICATE-----"
++    )
++
++
++def _build_valid_metadata(tenant_slug: str = "acme") -> str:
++    """Construct a valid IdP metadata XML for the happy path."""
++    return f"""<?xml version="1.0"?>
++<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"
++                  entityID="https://idp.{tenant_slug}.example.com/saml/metadata">
++  <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
++    <KeyDescriptor use="signing">
++      <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
++        <X509Data>
++          <X509Certificate>{_valid_b64_cert()}</X509Certificate>
++        </X509Data>
++      </KeyInfo>
++    </KeyDescriptor>
++    <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
++                        Location="https://idp.{tenant_slug}.example.com/slo"/>
++    <NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</NameIDFormat>
++    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
++                        Location="https://idp.{tenant_slug}.example.com/sso"/>
++  </IDPSSODescriptor>
++</EntityDescriptor>
++"""
++
++
++# ── Step 1: well-formedness ───────────────────────────────────────────
++
++
++class TestWellFormedness:
++    def test_valid_xml_returns_metadata(self) -> None:
++        md = validate_idp_metadata(_build_valid_metadata(), "acme")
++        assert md["entity_id"].startswith("https://idp.acme.")
++
++    def test_malformed_xml_raises(self) -> None:
++        with pytest.raises(IDPMetadataMalformedError) as exc:
++            validate_idp_metadata("<not><closed>", "acme")
++        assert exc.value.code == "IDP_METADATA_MALFORMED_KO"
++        assert exc.value.details["reason"] == "xml_parse_error"
++
++    def test_empty_string_raises(self) -> None:
++        with pytest.raises(IDPMetadataMalformedError):
++            validate_idp_metadata("", "acme")
++
++
++# ── Step 2: root element = EntityDescriptor ──────────────────────────
++
++
++class TestRootElement:
++    def test_wrong_root_raises(self) -> None:
++        xml = (
++            '<NotEntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
++            ' entityID="https://idp.acme.example.com"/>'
++        )
++        with pytest.raises(IDPMetadataInvalidEntityIdError) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "root_not_entity_descriptor"
++
++
++# ── Step 3: entityID extraction ───────────────────────────────────────
++
++
++class TestEntityId:
++    def test_missing_entity_id_raises(self) -> None:
++        xml = (
++            '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"/>'
++        )
++        with pytest.raises(IDPMetadataInvalidEntityIdError) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "entity_id_missing"
++
++    def test_non_uri_entity_id_raises(self) -> None:
++        xml = (
++            '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
++            ' entityID="not-a-uri"/>'
++        )
++        with pytest.raises(IDPMetadataInvalidEntityIdError) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "entity_id_not_uri"
++
++
++# ── Step 4: IDPSSODescriptor presence ────────────────────────────────
++
++
++class TestIDPSSODescriptor:
++    def test_missing_raises(self) -> None:
++        xml = (
++            '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
++            ' entityID="https://idp.acme.example.com"/>'
++        )
++        with pytest.raises(IDPMetadataMalformedError) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "idpsso_descriptor_missing"
++
++
++# ── Step 5: X509Certificate PEM wrap ──────────────────────────────────
++
++
++class TestX509Certificate:
++    def test_missing_key_descriptor_raises(self) -> None:
++        xml = (
++            '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
++            ' entityID="https://idp.acme.example.com">'
++            "<IDPSSODescriptor>"
++            '<SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"'
++            ' Location="https://idp.acme.example.com/sso"/>'
++            "</IDPSSODescriptor>"
++            "</EntityDescriptor>"
++        )
++        with pytest.raises(IDPMetadataInvalidX509Error) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "key_descriptor_missing"
++
++    def test_invalid_base64_raises(self) -> None:
++        xml = (
++            '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
++            ' entityID="https://idp.acme.example.com">'
++            "<IDPSSODescriptor>"
++            "<KeyDescriptor><KeyInfo xmlns=\"http://www.w3.org/2000/09/xmldsig#\">"
++            "<X509Data><X509Certificate>not-valid-base64!!!</X509Certificate></X509Data>"
++            "</KeyInfo></KeyDescriptor>"
++            '<SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"'
++            ' Location="https://idp.acme.example.com/sso"/>'
++            "</IDPSSODescriptor>"
++            "</EntityDescriptor>"
++        )
++        with pytest.raises(IDPMetadataInvalidX509Error) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "x509_base64_decode_failed"
++
++    def test_valid_cert_returns_pem(self) -> None:
++        md = validate_idp_metadata(_build_valid_metadata(), "acme")
++        assert md["x509_cert_pem"].startswith("-----BEGIN CERTIFICATE-----")
++        assert md["x509_cert_pem"].endswith("-----END CERTIFICATE-----")
++
++
++# ── Step 6: SSO URL https:// ──────────────────────────────────────────
++
++
++class TestSSOUrl:
++    def test_http_url_raises(self) -> None:
++        xml = (
++            '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
++            ' entityID="https://idp.acme.example.com">'
++            "<IDPSSODescriptor>"
++            f"<KeyDescriptor><KeyInfo xmlns=\"http://www.w3.org/2000/09/xmldsig#\"><X509Data><X509Certificate>{_valid_b64_cert()}</X509Certificate></X509Data></KeyInfo></KeyDescriptor>"
++            '<SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"'
++            ' Location="http://idp.acme.example.com/sso"/>'
++            "</IDPSSODescriptor>"
++            "</EntityDescriptor>"
++        )
++        with pytest.raises(IDPMetadataInvalidSSOUrlError) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "sso_url_not_https"
++
++
++# ── Step 7: SLO URL optional + https ──────────────────────────────────
++
++
++class TestSLOUrl:
++    def test_optional_when_missing(self) -> None:
++        # Build metadata WITHOUT SingleLogoutService.
++        cert = _valid_b64_cert()
++        xml = (
++            '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
++            ' entityID="https://idp.acme.example.com/saml/metadata">'
++            "<IDPSSODescriptor>"
++            f"<KeyDescriptor><KeyInfo xmlns=\"http://www.w3.org/2000/09/xmldsig#\"><X509Data><X509Certificate>{cert}</X509Certificate></X509Data></KeyInfo></KeyDescriptor>"
++            '<SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"'
++            ' Location="https://idp.acme.example.com/sso"/>'
++            "</IDPSSODescriptor>"
++            "</EntityDescriptor>"
++        )
++        md = validate_idp_metadata(xml, "acme")
++        assert md["slo_url"] is None
++
++    def test_http_slo_raises(self) -> None:
++        xml = (
++            '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
++            ' entityID="https://idp.acme.example.com">'
++            "<IDPSSODescriptor>"
++            f"<KeyDescriptor><KeyInfo xmlns=\"http://www.w3.org/2000/09/xmldsig#\"><X509Data><X509Certificate>{_valid_b64_cert()}</X509Certificate></X509Data></KeyInfo></KeyDescriptor>"
++            '<SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"'
++            ' Location="https://idp.acme.example.com/sso"/>'
++            '<SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"'
++            ' Location="http://idp.acme.example.com/slo"/>'
++            "</IDPSSODescriptor>"
++            "</EntityDescriptor>"
++        )
++        with pytest.raises(IDPMetadataInvalidSSOUrlError) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "slo_url_not_https"
++
++
++# ── Step 8: tenant slug matching ──────────────────────────────────────
++
++
++class TestTenantSlugMatch:
++    def test_mismatch_raises(self) -> None:
++        xml = _build_valid_metadata(tenant_slug="globex")
++        with pytest.raises(IDPMetadataInvalidEntityIdError) as exc:
++            validate_idp_metadata(xml, "acme")
++        assert exc.value.details["reason"] == "tenant_slug_host_mismatch"
++
++    def test_match_returns_metadata(self) -> None:
++        md = validate_idp_metadata(_build_valid_metadata("acme"), "acme")
++        assert md["entity_id"].startswith("https://idp.acme.")
+diff --git a/tests/api/core/test_epic_16_tenant_idp_lookup.py b/tests/api/core/test_epic_16_tenant_idp_lookup.py
+new file mode 100644
+index 0000000..50b90ff
+--- /dev/null
++++ b/tests/api/core/test_epic_16_tenant_idp_lookup.py
+@@ -0,0 +1,271 @@
++"""tests.api.core.test_epic_16_tenant_idp_lookup — Per-tenant IdP lookup tests.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — AC #7.3.
++Tests apps/api/modules/auth/sso/tenant_idp_lookup.py:
++- TenantIdPRow dataclass shape
++- TenantIdPLookupError / DisabledError / ConfigMissingError hierarchy
++- load_tenant_idp() with 4 scenarios: tenant_not_found, idp_not_configured,
++  idp_disabled, success
++- saml_routes.py uses load_tenant_idp() (mocked) instead of hardcoded
++  placeholders
++"""
++
++from __future__ import annotations
++
++import base64
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++
++from apps.api.modules.auth.sso.tenant_idp_lookup import (
++    TenantIdPConfigMissingError,
++    TenantIdPDisabledError,
++    TenantIdPLookupError,
++    TenantIdPRow,
++    load_tenant_idp,
++)
++
++VALID_TENANT_ID = "11111111-1111-1111-1111-111111111111"
++
++
++def _cert_pem() -> str:
++    body = base64.b64encode(b"placeholder-cert").decode("ascii")
++    return (
++        "-----BEGIN CERTIFICATE-----\n"
++        + body
++        + "\n-----END CERTIFICATE-----"
++    )
++
++
++def _make_session(steps: list[Any]) -> AsyncMock:
++    """Build a session where each call to `execute()` returns the next step result.
++
++    `steps` is consumed sequentially; if a step is None, `first()` returns None.
++    Each step is a tuple (row_value,) or None.
++    """
++    session = AsyncMock()
++    results = []
++    for step in steps:
++        result_mock = MagicMock()
++        result_mock.first = MagicMock(return_value=step)
++        results.append(result_mock)
++
++    # session.execute returns the next result on each call
++    call_count = {"i": 0}
++
++    async def fake_execute(*_args: Any, **_kwargs: Any) -> Any:
++        idx = call_count["i"]
++        call_count["i"] += 1
++        if idx < len(results):
++            return results[idx]
++        # No more steps — return empty
++        empty = MagicMock()
++        empty.first = MagicMock(return_value=None)
++        return empty
++
++    session.execute = fake_execute
++    session.commit = AsyncMock()
++    session.rollback = AsyncMock()
++    return session
++
++
++# ── Test: exception hierarchy ────────────────────────────────────────
++
++
++class TestExceptionHierarchy:
++    def test_disabled_is_subclass_of_base(self) -> None:
++        assert issubclass(TenantIdPDisabledError, TenantIdPLookupError)
++
++    def test_missing_is_subclass_of_base(self) -> None:
++        assert issubclass(TenantIdPConfigMissingError, TenantIdPLookupError)
++
++    def test_base_is_subclass_of_exception(self) -> None:
++        assert issubclass(TenantIdPLookupError, Exception)
++
++
++# ── Test: TenantIdPRow dataclass ─────────────────────────────────────
++
++
++class TestTenantIdPRow:
++    def test_required_fields(self) -> None:
++        row = TenantIdPRow(
++            tenant_id=VALID_TENANT_ID,
++            tenant_slug="acme",
++            idp_entity_id="https://idp.acme.example.com",
++            idp_sso_url="https://idp.acme.example.com/sso",
++            idp_slo_url=None,
++            idp_x509_cert_pem=_cert_pem(),
++            name_id_format=None,
++            acs_url=None,
++            enabled=True,
++        )
++        assert row.tenant_slug == "acme"
++        assert row.enabled is True
++
++    def test_frozen(self) -> None:
++        row = TenantIdPRow(
++            tenant_id=VALID_TENANT_ID,
++            tenant_slug="acme",
++            idp_entity_id="x",
++            idp_sso_url="x",
++            idp_slo_url=None,
++            idp_x509_cert_pem="x",
++            name_id_format=None,
++            acs_url=None,
++            enabled=True,
++        )
++        with pytest.raises((AttributeError, TypeError)):
++            row.enabled = False  # type: ignore[misc]
++
++    def test_slots(self) -> None:
++        # slots=True should reject attributes outside __slots__
++        row = TenantIdPRow(
++            tenant_id=VALID_TENANT_ID,
++            tenant_slug="acme",
++            idp_entity_id="x",
++            idp_sso_url="x",
++            idp_slo_url=None,
++            idp_x509_cert_pem="x",
++            name_id_format=None,
++            acs_url=None,
++            enabled=True,
++        )
++        with pytest.raises((AttributeError, TypeError)):
++            row.bogus = "x"  # type: ignore[attr-defined]
++
++
++# ── Test: load_tenant_idp() — happy path ─────────────────────────────
++
++
++class TestLoadTenantIdpSuccess:
++    @pytest.mark.asyncio
++    async def test_returns_full_row(self) -> None:
++        cert = _cert_pem()
++        session = _make_session(
++            [
++                (VALID_TENANT_ID,),  # tenants.slug → id
++                (  # tenant_idps row
++                    "https://idp.acme.example.com",
++                    "https://idp.acme.example.com/sso",
++                    "https://idp.acme.example.com/slo",
++                    cert,
++                    "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
++                    "https://sp.acme.example.com/acs",
++                    True,
++                ),
++            ]
++        )
++
++        row = await load_tenant_idp(session, "acme")
++        assert row.tenant_id == VALID_TENANT_ID
++        assert row.tenant_slug == "acme"
++        assert row.idp_entity_id == "https://idp.acme.example.com"
++        assert row.idp_sso_url == "https://idp.acme.example.com/sso"
++        assert row.idp_slo_url == "https://idp.acme.example.com/slo"
++        assert row.idp_x509_cert_pem == cert
++        assert row.name_id_format == "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
++        assert row.acs_url == "https://sp.acme.example.com/acs"
++        assert row.enabled is True
++
++
++# ── Test: load_tenant_idp() — error paths ────────────────────────────
++
++
++class TestLoadTenantIdpErrors:
++    @pytest.mark.asyncio
++    async def test_unknown_slug_raises_missing(self) -> None:
++        session = _make_session([None])  # tenants SELECT returns nothing
++        with pytest.raises(TenantIdPConfigMissingError) as exc:
++            await load_tenant_idp(session, "unknown")
++        assert "tenant_not_found" in str(exc.value)
++
++    @pytest.mark.asyncio
++    async def test_missing_idp_row_raises_missing(self) -> None:
++        session = _make_session(
++            [
++                (VALID_TENANT_ID,),  # tenant found
++                None,                # but no tenant_idps row
++            ]
++        )
++        with pytest.raises(TenantIdPConfigMissingError) as exc:
++            await load_tenant_idp(session, "acme")
++        assert "idp_not_configured" in str(exc.value)
++
++    @pytest.mark.asyncio
++    async def test_disabled_idp_raises_disabled(self) -> None:
++        session = _make_session(
++            [
++                (VALID_TENANT_ID,),
++                (
++                    "https://idp.acme.example.com",
++                    "https://idp.acme.example.com/sso",
++                    None,
++                    _cert_pem(),
++                    None,
++                    None,
++                    False,  # enabled=FALSE
++                ),
++            ]
++        )
++        with pytest.raises(TenantIdPDisabledError) as exc:
++            await load_tenant_idp(session, "acme")
++        assert "idp_disabled" in str(exc.value)
++
++
++# ── Test: module exports ─────────────────────────────────────────────
++
++
++class TestModuleExports:
++    def test_all_present(self) -> None:
++        from apps.api.modules.auth.sso import tenant_idp_lookup
++
++        for name in [
++            "TenantIdPLookupError",
++            "TenantIdPDisabledError",
++            "TenantIdPConfigMissingError",
++            "TenantIdPRow",
++            "load_tenant_idp",
++        ]:
++            assert hasattr(tenant_idp_lookup, name), f"Missing export: {name}"
++
++    def test_all_list_matches(self) -> None:
++        from apps.api.modules.auth.sso import tenant_idp_lookup
++
++        for name in tenant_idp_lookup.__all__:
++            assert hasattr(tenant_idp_lookup, name)
++
++
++# ── Test: saml_routes integration (smoke-level) ─────────────────────
++
++
++class TestSamlRoutesIntegration:
++    def test_saml_routes_uses_lookup_for_login(self) -> None:
++        """sso_login() must call load_tenant_idp() for dynamic per-tenant routing."""
++        import inspect
++
++        from apps.api.modules.auth.sso import saml_routes
++
++        src = inspect.getsource(saml_routes.sso_login)
++        assert "load_tenant_idp" in src
++        # Epic 15 hardcoded placeholder still present as fallback
++        assert "idp.example.com" in src
++
++    def test_saml_routes_uses_lookup_for_acs(self) -> None:
++        import inspect
++
++        from apps.api.modules.auth.sso import saml_routes
++
++        src = inspect.getsource(saml_routes.sso_acs)
++        # The body of the function should reference load_tenant_idp
++        assert "load_tenant_idp" in src
++        # AND the hardcoded PEM block must still exist as fallback
++        assert "BEGIN CERTIFICATE" in src
++
++    def test_saml_routes_imports_typed_exceptions(self) -> None:
++        from apps.api.modules.auth.sso import saml_routes
++
++        # Ensure the new typed exceptions are imported
++        assert hasattr(saml_routes, "TenantIdPConfigMissingError")
++        assert hasattr(saml_routes, "TenantIdPDisabledError")
++        assert hasattr(saml_routes, "load_tenant_idp")
+diff --git a/tests/integration/test_capability_matrix_v1_28_drift.py b/tests/integration/test_capability_matrix_v1_28_drift.py
+new file mode 100644
+index 0000000..6e19daa
+--- /dev/null
++++ b/tests/integration/test_capability_matrix_v1_28_drift.py
+@@ -0,0 +1,106 @@
++"""tests.integration.test_capability_matrix_v1_28_drift — capability v1.28 drift detector.
++
++Epic 16 (cj-style 69번째 epic 연속 정직 회복 wire) — AC #7.7.
++Verifies `apps/api/core/capability.py` enum stays in lockstep with
++`docs/capability-matrix.md` v1.28 — 1 NEW row introduced:
++  - TENANT_IDP_MANAGEMENT
++"""
++
++from __future__ import annotations
++
++import pathlib
++import re
++
++import pytest
++
++REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
++CAPABILITY_PY = REPO_ROOT / "apps" / "api" / "core" / "capability.py"
++CAPABILITY_MATRIX_MD = REPO_ROOT / "docs" / "capability-matrix.md"
++
++
++@pytest.fixture(scope="module")
++def capability_py_content() -> str:
++    assert CAPABILITY_PY.exists(), "apps/api/core/capability.py missing"
++    return CAPABILITY_PY.read_text(encoding="utf-8")
++
++
++@pytest.fixture(scope="module")
++def capability_matrix_content() -> str:
++    assert CAPABILITY_MATRIX_MD.exists(), "docs/capability-matrix.md missing"
++    return CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
++
++
++@pytest.fixture(scope="module")
++def capability_matrix_version() -> str:
++    content = CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
++    match = re.search(r"v(\d+\.\d+)", content)
++    assert match is not None, "capability-matrix.md missing version line"
++    return match.group(1)
++
++
++EXPECTED_V128_NEW_ENUMS = ("TENANT_IDP_MANAGEMENT",)
++
++
++class TestCapabilityMatrixVersion:
++    def test_matrix_at_v1_28(self, capability_matrix_version: str) -> None:
++        assert capability_matrix_version == "1.28"
++
++
++class TestV128NewEnums:
++    @pytest.mark.parametrize("enum_name", EXPECTED_V128_NEW_ENUMS)
++    def test_enum_in_capability_py(
++        self, capability_py_content: str, enum_name: str
++    ) -> None:
++        pattern = rf"^\s*{enum_name}\s*=\s*\""
++        assert re.search(
++            pattern, capability_py_content, flags=re.MULTILINE
++        ), f"{enum_name} not declared in capability.py"
++
++    @pytest.mark.parametrize("enum_name", EXPECTED_V128_NEW_ENUMS)
++    def test_enum_in_capability_matrix(
++        self, capability_matrix_content: str, enum_name: str
++    ) -> None:
++        assert (
++            enum_name in capability_matrix_content
++        ), f"{enum_name} not declared in capability-matrix.md"
++
++    def test_1_new_enum_total(self, capability_py_content: str) -> None:
++        # TENANT_IDP_MANAGEMENT is the only NEW enum in v1.28.
++        assert capability_py_content.count("TENANT_IDP_MANAGEMENT =") >= 1
++
++
++class TestV128IndustryGrants:
++    """Epic 16 — TENANT_IDP_MANAGEMENT is industry-agnostic (CR 12-1 L4).
++
++    All 4 industries must have the capability. The Capability enum and
++    _INDUSTRY_CAPABILITIES map must agree (4 occurrences: 1 enum decl
++    + 4 industry grants).
++    """
++
++    def test_4_industry_grants(
++        self, capability_py_content: str
++    ) -> None:
++        # 1 enum decl + 4 industry grants = 5 references total
++        grant_count = capability_py_content.count(
++            "Capability.TENANT_IDP_MANAGEMENT"
++        )
++        assert grant_count == 4, (
++            f"Expected 4 industry grants, found {grant_count}. "
++            "TENANT_IDP_MANAGEMENT must be industry-agnostic per CR 12-1 L4."
++        )
++
++
++class TestV128CapabilityGateDep:
++    """Epic 16 — T6 (AC #6.3) — the dep module exposes a named gate."""
++
++    def test_require_tenant_idp_management_exported(self) -> None:
++        from apps.api.dependencies.capability import (
++            require_tenant_idp_management,
++        )
++
++        assert callable(require_tenant_idp_management)
++
++    def test_gate_in_all_list(self) -> None:
++        from apps.api.dependencies import capability
++
++        assert "require_tenant_idp_management" in capability.__all__

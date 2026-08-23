@@ -1,0 +1,24 @@
+Epic 10 close-out retro (cj-style 5번째 진입점 = cj-style 35번째 epic 연속) doc wire — sprint-status epic-10-retrospective: optional → done 보존.
+
+- baseline_commit = 4f510c2 (10-4 atomic wire tip = retro 진입 HEAD)
+- cj-style Epic 10 6번째 진입점 = Epic 10 PRD entry cj-style 25번째 → 10-1 cj-style 28번째 → 10-2 cj-style 29번째 → 10-3 cj-style 32번째 → 10-4 cj-style 34번째 → THIS retro cj-style 35번째
+- sprint-status epic-10-retrospective status: done (HEAD 1060360 mixed commit 보존; 본 commit = retro doc 신규 wire)
+- Epic 10 PRD entry + 10-1 + 10-2 + 10-3 + 10-4 + retro = 6 진입점 모두 done 진입
+
+A23 (cj-style 분할) + A24 (capability matrix v1.21) + A34 (mixed honestly DEFER 4-category framework) + A35 (frontend test debt) + A36 (SDR 검증 프로토콜) 모두 ✅ done + 적용.
+A37~A42 결정 wire (master PRD v2.0 본체 edit + A35 frontend dedicated sprint + D-10-2-DEFER-3 LISTEN/NOTIFY 별도 epic + A31/A32/A33 처리 = A40 옵션 (a) → Sprint 11-6 결정 wire / Epic 11 carry-over sprint 진입 결정 + A36 보존).
+
+SD-EPIC10-1~4 정직 반영:
+1. SD-EPIC10-1 = 10-1 first pass partial wire 명시 + second pass 즉시 wire = W14 자산 정형화
+2. SD-EPIC10-2 = 10-3 alembic enum mismatch PATCH (CR 12-1 L4 alembic trigger SQL 단계 적용)
+3. SD-EPIC10-3 = 10-3 derive_counter SQL wrong column PATCH (HIGH/MEDIUM)
+4. SD-EPIC10-4 = D-10-3-DEFER-6 PIPA gate carry-over → 10-4 ✅ RESOLVED (T4 B4 sweep, 4 endpoints 모두 PIPA gate 적용 VERIFIED)
+
+A19 cohesion pattern 8 surface 8/8 PASS (Epic 10 4 stories 모두 동일).
+A36 SDR 검증 4-step 자동화 wire (Epic 10 4 stories 모두 PASS — commit prefix lint + sprint-status structure + vitest file count drift + commit consistency 자동 검증 단계 모두 PASS).
+3중 게이트 FINAL CLEAN (backend ruff scoped 0 NEW + capability matrix v1.21 SSOT 보존 + AD-7/17/25 verbatim bind preserved).
+
+wire:
+- _bmad-output/implementation-artifacts/epic-10-retro-2026-08-19.md NEW (12-section, cj-style 5번째 진입점)
+
+다음: A38 frontend test debt dedicated sprint 진입 (cj-style carry-over 14번째, Epic 10 close-out retro §11.2 명시 "retro closed 후 즉시") OR Epic 11 PRD 진입 (cj-style Epic 11 1번째 진입점).

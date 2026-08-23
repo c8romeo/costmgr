@@ -1,6 +1,6 @@
 ---
 name: handoff-2026-08-22-phase-6-wire-done
-description: **Phase 6 bmad-dev-story atomic wire T1~T8 DONE** (cj-style Phase 6 3번째 진입점 = cj-style 87번째 epic 연속 정직 회복 atomic docs-and-source wire). wire_commit = (pending). Audit Log Retention Policy territory wire + tests + commit 진입 완료.
+description: **Phase 6 bmad-dev-story atomic wire T1~T8 DONE** (cj-style Phase 6 3번째 진입점 = cj-style 87번째 epic 연속 정직 회복 atomic docs-and-source wire). wire_commit = `24e1cd7`. Audit Log Retention Policy territory wire + tests + commit 진입 완료.
 metadata:
   type: project
 ---
@@ -10,7 +10,7 @@ metadata:
 ## Summary
 
 - **cj-style index**: 87번째 epic 연속 정직 회복 (Phase 6 3번째 진입점: PRD 85 + spec 86 + wire 87)
-- **wire_commit**: (pending — set by T8 `git commit -F` invocation)
+- **wire_commit**: `24e1cd7` (Phase 6 atomic wire T1~T8)
 - **wire scope**: 5 NEW backend + 4 NEW frontend + 5 NEW tests + 6 MODIFIED = 20 files atomic single sprint
 - **7 ACs PRD §F22.1~§F22.7 verbatim satisfied** (pre-flight 정합 sweep)
 - **3중 게이트**: ruff scoped PASS + pytest focused 60 passed + 2 skipped (APScheduler absent conditional) + vitest focused 22 NEW PASS + tsc scoped 0 NEW

@@ -1,0 +1,50 @@
+Sprint 11-6 (cj-style Epic 11 5번째 진입점 = cj-style 37번째 epic 연속) bmad-create-story spec entry DONE — sprint-status 11-6-report-15-wire-dedicated: backlog → ready-for-dev.
+
+- baseline_commit = 1060360 (Story 11.5 atomic wire tip = Epic 11 second carry-over sprint = A41 close-out part wire 진입 후 진입점)
+- cj-style Epic 11 5번째 진입점 = Epic 11 close-out retro cj-style 33번째 → 11-4 carry-over cj-style 34번째 → 11-5 second carry-over cj-style 36번째 → THIS spec entry cj-style 37번째
+- A40 결정 wire 진입 (Epic 10 close-out retro §7 A40 + 사용자 옵션 (a) wire 진입 결정) — A40 = A31/A32/A33 (Report #15 wire schedule) 처리 결정
+- 옵션 (a) 선택 근거: (1) A30 SHARED factory pattern 9-4 Report #21 wire 검증 완료 → Report #15 = reuse case = LOW RISK / (2) Sprint 11-5 scope 분할 결정 (Option B SPLIT) — 11-5 = A41 carry-over close-out part / 11-6 = A40 Report #15 wire dedicated sprint / (3) 옵션 (b) Epic 12 진입 시 wire = Epic 12 already done 진입 → 무한 지연 HIGH RISK 회피 / (4) 옵션 (c) 결정 보류 = 결정 회피 패턴 MEDIUM RISK 회피 / (5) 사용자 목표 MVP 완결 + carry-over 해소 + A30 forward-lock 정합
+
+A31/A32/A33 결정 wire:
+- A31 Report #15 wire schedule ✅ DONE wire 진입 (cj-style Epic 11 5번째 진입점)
+- A32 A30 SHARED factory pattern reuse 1st case (Report #15 wire) ✅ DONE wire 진입 (Surface 2 EXTENSION _compose_report15_pdf 본체 + _validate_report_pdf_request payload invariants)
+- A33 A19 cohesion pattern 9 surface 진입 시점 (Report #15 wire pdf_generator EXTENSION) ✅ DONE wire 진입 (Surface 2 wire = A19 cohesion 9 surface wire)
+
+9 A19 cohesion surfaces 본 스토리 scope:
+- Surface 1: kernel EXTENSION packages/cost_engine/abc_engine.py (compute_report15_hash + ActivityCostRow + Report15Summary + Report15InconsistentStateError, AD-5 stdlib-only, ~28 NEW pytest)
+- Surface 2: A30 SHARED factory EXTENSION packages/services/m5_reports/pdf_generator.py (_compose_report15_pdf 본체 + payload invariants + 5 REPORT15_* constants, ~16 NEW pytest)
+- Surface 3: A30 SHARED factory reuse 1st case = Surface 2 본체
+- Surface 4: M5 reports service layer NEW apps/api/modules/m5_reports/services/report15_service.py (Report15Service.build_report15 + _to_report15_state + 4 NEW typed exceptions + 4 NEW envelope handlers CR 12-5 D-14 verbatim, ~18 NEW pytest)
+- Surface 5: M5 reports HTTP handlers EXTENSION apps/api/modules/m5_reports/handlers.py (GET /api/v1/reports/15 + POST /api/v1/reports/15/pdf endpoints + capability gate 1-route + role gate, ~12 NEW pytest)
+- Surface 6: Frontend RSC NEW apps/web/app/[locale]/(dashboard)/reports/15/page.tsx + 3 NEW components + 2 NEW TS mirrors + ko-KR.json EXTENSION report15 namespace ~25 strings SSOT (~20 NEW vitest + 4 NEW Playwright)
+- Surface 7: cross-lang drift detector EXTENSION +8 NEW vectors + V8 byte-identical determinism 6 NEW cases
+- Surface 8: audit-first AD-22 wire EXTENSION apps/api/core/audit_action.py (ActionClass.REPORT_GENERATION 1 NEW + report15_generated 1 NEW + audit log INSERT)
+- Surface 9: capability matrix no-change (Capability.ABC_CALCULATION 9-1 wire 그대로 재사용)
+
+PRD ref verbatim: §9 #15 "활동원가 내역서 (활동별 원가·동인 단가)" + §7.1 ABC Step 0~3 + §9 공통 규격 + §A6 + §A9 + §V7 + §V8.
+Primary AD ref: AD-5 + AD-11 + AD-15 + AD-22 (CR 1.1 audit-first) + AD-23 (KRW/USD 환율).
+Auth scope: require_role("owner") for owners + service-only (MANUFACTURING 회색 비활성).
+
+D-9-4-DEFER-2 해소 wire 진입: 9-4 wire 시점에 pdf_generator._compose_report15_pdf placeholder + Discriminated union report_id=15 member wire만 done. 본 스토리 = Report #15 본체 wire.
+
+wire 표 expected: ~12 NEW + ~5 MODIFIED + 1 NEW spec = ~18 files, ~1,500 NEW LOC.
+Tests planned: ~89 NEW pytest + ~20 NEW vitest + 4 NEW Playwright = ~113 NEW test cases total.
+
+3 honestly DEFER to follow-up sweep: Report #16 wire (A30 reuse 2nd case) + Report #17/18/19/20 wire (A39 LISTEN/NOTIFY separate epic) + Report #21 PDF polish.
+
+CR 11-3/11-4/12-5/9-6 lessons applied: ALLOWED_SERVICE_SUBMODULES sweep 즉시 + ruff scoped auto-fix + SDR MAX claim separate line + abnormal-halt recovery + page.tsx mount + ko-KR.json SSOT + TS mirror unknown state reject + P-015 drift detector + D-GATE-01 inversion (1-route) + D-PARITY-01 inversion + TOTP chain + commit message `git commit -F <file>` (CR 9-6 D5 prevention).
+
+Open Questions:
+- OQ-11-6-1: A38 frontend test debt dedicated sprint 진입 시점 (본 스토리 close-out 직후 OR Epic 12 12-1 carry-over sprint 진입 후) — Epic 10 retro §11.2 명시 = retro closed 후 즉시 진입 결정
+- OQ-11-6-2: A37 master PRD v2.0 edit 진입 시점 (A38 done 후 또는 동시)
+- OQ-11-6-3: Report #16 wire 진입 시점 (cj-style Epic 11 7번째 진입점 또는 Epic 12 territory)
+
+wire:
+- _bmad-output/implementation-artifacts/11-6-report-15-wire-dedicated.md NEW (~302 lines, 11-4 template format EXTENSION with 9 A19 cohesion surfaces)
+- _bmad-output/implementation-artifacts/sprint-status.yaml MODIFIED (last_updated 갱신 + 11-6-report-15-wire-dedicated: backlog → ready-for-dev + updated_note cj-style 37번째 epic 연속 text + prior Epic 10 retro note로 이동)
+
+partial wire 시도 0건 + docs only atomic wire (cj-style 37번째 epic 연속 정직 회복).
+3중 게이트 impact NONE (docs only 변경, no code change, no test change).
+ruff scoped 0 NEW / import-linter 2 KEPT 0 broken / pytest baseline 보존 / vitest baseline 보존 / tsc zero NEW.
+
+다음: bmad-dev-story 진입 → T1~T10 atomic sprint wire → bmad-code-review 3rd sweep → done 진입 (cj-style Epic 11 5번째 진입점 = cj-style 38번째 epic 연속, A33 forward-lock A19 cohesion 9 surface 진입 + A32 forward-lock A30 SHARED factory reuse 1st case 진입 + A31 forward-lock Report #15 wire schedule 진입) OR A38 frontend test debt dedicated sprint 진입 (cj-style carry-over 14번째) OR A37 master PRD v2.0 edit 진입.

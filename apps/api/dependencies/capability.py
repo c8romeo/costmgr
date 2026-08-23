@@ -21,6 +21,10 @@ Epic 17:
 Phase 6:
   - `require_audit_log_retention()` — gates `/api/v1/audit-log/retention[/...]` + `/audit-log/erase`
 
+Phase 7:
+  - `require_observability_traces()` — gates `/api/v1/observability/traces/lookup` + `/observability/alerts/ack` + PagerDuty integration
+  - `require_observability_metrics()` — gates `/api/v1/metrics` Prometheus exposition + Grafana embed
+
 Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
 """
 from __future__ import annotations
@@ -41,6 +45,8 @@ __all__ = [
     "require_tenant_idp_management",
     "require_audit_log_view",
     "require_audit_log_retention",
+    "require_observability_traces",
+    "require_observability_metrics",
 ]
 
 
@@ -79,3 +85,19 @@ require_audit_log_view = require_capability(Capability.AUDIT_LOG_VIEW)
 # DEPLOYMENT_* Phase 4 wire pattern verbatim). All 4 industries get
 # audit log retention capability (compliance baseline).
 require_audit_log_retention = require_capability(Capability.AUDIT_LOG_RETENTION)
+# Phase 7 — Observability stack capability (F23.6 + AC #6.3 + AD-34 (f)
+# sub-decision). Gates the observability stack routes:
+# - `require_observability_traces` — gates trace_id lookup + alert ack +
+#   PagerDuty owner-only manual trigger routes (F23.1 + F23.3 + AD-22).
+# - `require_observability_metrics` — gates /api/v1/metrics Prometheus
+#   exposition format endpoint + Grafana dashboard embed routes (F23.2).
+# Industry-agnostic per CR 12-1 L4 precedent (mirrors AUDIT_LOG_RETENTION
+# Phase 6 wire + AUDIT_LOG_VIEW Epic 17 wire + MULTI_REGION_BACKUP/
+# FAILOVER Phase 5 wire + TENANT_IDP_MANAGEMENT Epic 16 wire +
+# SSO_ENTERPRISE Epic 15 wire + LISTEN_NOTIFY 13/14 wire +
+# AUTH_MIDDLEWARE Phase 3 wire + LAUNCH_* 1st release wire +
+# DEPLOYMENT_* Phase 4 wire pattern verbatim). All 4 industries get
+# observability traces + metrics capabilities (operational observability
+# baseline, not industry-specific).
+require_observability_traces = require_capability(Capability.OBSERVABILITY_TRACES)
+require_observability_metrics = require_capability(Capability.OBSERVABILITY_METRICS)

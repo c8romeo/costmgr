@@ -1,0 +1,33 @@
+Story 11.5 (cj-style Epic 11 second carry-over sprint): atomic wire T1~T8 DONE — A13 residual + A17 + A18 sprint-up
+
+- baseline_commit = dc85ab9 (smoke-fix sprint atomic wire tip)
+- cj-style Epic 11 4번째 진입점 = cj-style 36번째 epic 연속 정직 회복
+- A41 Epic 11 second carry-over sprint (Epic 10 retro §7 A41 결정 wire)
+- scope 분할 결정 (process design 위험 최소화): Sprint 11-5 = A41 carry-over CLOSE-OUT 부분 (~400 LOC atomic); Sprint 11-6 = A40 Report #15 wire dedicated (~1,500 LOC 9-surface)
+
+A13 residual (2 items RESOLVED):
+- D-001 page.tsx mount: verified pre-existing page.tsx already mounts all 4 m11_close components
+- P-011 dead code DELETE: REOPEN_CACHE_INVALIDATION_CHANNELS export + stale TS mirror cross-check comment
+
+A17 W2 reopen AD-25 4-channel verification (4 NEW pytest cases):
+- test_execute_reopen_calls_publish_multi_with_w2_subset
+- test_execute_reopen_publishes_receipts_with_correct_envelope
+- test_reopen_channels_all_is_superset_of_w2_subset
+- test_publish_multi_rejects_non_allowed_channel
+
+A18 audit_action drift detector 3-way extension (17 logical / 28 parametrize cases):
+- 5 REVERSAL_LOG + 4 MONTHLY_CLOSING + 4 SNAPSHOT_PERSISTENCE + 2 REOPEN_OPERATOR
+- 1 MONTHLY_INPUT_PERIOD.opening_unlocked extension (11-1 sweep missed)
+- 1 service-layer scan EXTENSION (3 NEW m11_close service files)
+- 1 cross-cutting routing sanity check
+
+3중 게이트 FINAL CLEAN (pre-commit):
+- ruff scoped: All checks passed
+- ruff full: 19 pre-existing errors preserved (NOT from Sprint 11-5 files)
+- import-linter: 2 KEPT 0 broken
+- pytest focused: 43/43 PASS (15 A17 + 28 A18)
+- tsc: 0 NEW errors from Sprint 11-5 touched files (16 pre-existing baseline preserved)
+- A36 SDR 4-step: PASS (per Sprint 11-5 commit message — uses git commit -F per CR 9-6 D5 prevention)
+
+A19 cohesion pattern 8 surface 보존 (0 NEW surface from Sprint 11-5 wire).
+AD-7/17/25 verbatim bind preserved. Capability matrix no-change.

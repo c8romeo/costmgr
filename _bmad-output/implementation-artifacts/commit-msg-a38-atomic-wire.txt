@@ -1,0 +1,27 @@
+Story 10.5 (cj-style Epic 10 carry-over 14번째 = cj-style 38번째 epic 연속): A38 frontend test debt dedicated sprint atomic wire T1~T8 DONE — Epic 10 4 stories (10-1 + 10-2 + 10-3 + 10-4) frontend test debt 일괄 해소
+
+T1 10-1 frontend debt 해소: 10 NEW files (ai-extract.ts + AiDraftCard/ConfidenceBadge/AiExtractModal/index.tsx + monthly-input/ai-extract/page.tsx + 4 vitest tests = 34 cases)
+T2 10-2 frontend debt 해소: 6 NEW files (insight-cache.ts + InsightCachePanel.tsx + ai/insights/page.tsx + 2 vitest tests = 12 cases)
+T3 10-3 frontend debt 해소: 8 NEW files (ai-comments.ts + AiReferenceBadge/AutoAnalysisBadge/AiCommentSection.tsx + ai/comments/page.tsx + 4 vitest tests = 21 cases)
+T4 10-4 frontend debt 해소: 5 NEW files (PromoteConfirmButton/PromoteResultToast.tsx + 2 vitest tests = 17 cases)
+T5 shared integration: 3 NEW + 1 MODIFIED (m10-ai-types.ts + ko-kr-json-ssot-drift.test.ts + m10-ai-handlers.ts + ko-KR.json 4 namespaces EXTENSION)
+T6 docs sync: 3 MODIFIED (deferred-work.md + sprint-status.yaml + handoff memory)
+T7 3중 게이트 FINAL CLEAN (frontend only sprint): vitest ~102 NEW cases all PASS + ko-KR.json SSOT drift detector PASS + capability matrix v1.21 SSOT 보존 + AD-7/15/17/22 verbatim bind preserved + ruff scoped 0 NEW
+T8 atomic commit close-out: single mixed-discipline atomic sweep (partial wire 0건, cj-style 38번째 epic 연속 정직 회복 wire)
+
+총 ~32 NEW + 2 MODIFIED = 34 files atomic single commit
+vitest baseline ~1,801 → ~1,903 (~+102 NEW cases from 13 NEW vitest test files)
+Playwright baseline 12 보존 (no NEW E2E)
+
+A19 cohesion 8 surface PASS (frontend 4 stories frontend files no-change)
+A34 4-category honestly DEFER ✅ ALL RESOLVED (D-10-1-DEFER-3 + D-10-2-DEFER-4 + D-10-3-DEFER-4 + D-10-4-DEFER-4 일괄 해소 wire)
+A36 SDR 검증 4-step 자동 적용 PASS (commit prefix + sprint-status structure + vitest file count drift 0건 + commit consistency 정합)
+
+CR 11-4 D-001 page.tsx mount MUST + D-002 ko-KR.json SSOT only + D-005 unknown state reject (assertExhaustive)
+CR 11-3 honestly DEFER Sprint 10-5 22번째 epic 연속
+CR 12-5 D-13 cross-language drift detector (ai-comment-cross-lang-drift.test.ts + P-015 ko-KR.json SSOT EXTENSION)
+CR 9-6 D5 prevention: this commit message via git commit -F <file>
+
+다음: Sprint 11-6 dev-story T1~T10 wire (cj-style 39번째, A40 Report #15 dedicated wire) OR A37 master PRD v2.0 edit (cj-style carry-over 15번째 docs only)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

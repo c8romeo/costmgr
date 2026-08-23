@@ -24,6 +24,16 @@ from apps.api.core.capability import (
 )
 from apps.api.core.health import router as health_router
 from apps.api.core.observability import init_sentry
+# Phase 7 (cj-style 91번째 wire) — OpenTelemetry + observability
+# imports. Three new core modules: tracing (OTEL SDK + W3C Trace Context
+# middleware), metrics (Prometheus custom collectors + /metrics endpoint),
+# alerting (AlertManager webhook ingress + Slack + PagerDuty owner-only).
+# Note: Sentry (Phase 4) + OTEL (Phase 7) coexist — Sentry is for error
+# tracking + performance traces via Sentry SDK; OTEL is for distributed
+# tracing via OTLP HTTP exporter + W3C Trace Context + Prometheus metrics.
+from apps.api.core.tracing import init_tracing, TraceContextMiddleware
+from apps.api.core.metrics import render_metrics
+from apps.api.core.alerting import AlertWebhookPayloadInvalidError
 from apps.api.core.pipa_gate import (
     PipaConsentMissingError,
     PipaReviewRequiredError,
@@ -294,6 +304,21 @@ app = FastAPI(
 # init_sentry() is a no-op if SENTRY_DSN is unset; never raises.
 init_sentry(app=app)
 
+# Phase 7 (cj-style 91번째 wire) — OpenTelemetry distributed tracing
+# initialization (PRD §F23.1 + AD-34 (a) sub-decision).
+# init_tracing() is a no-op when OTEL_SDK_DISABLED=true (Phase 4 Sentry
+# conditional init pattern verbatim mirror). W3C Trace Context propagation
+# is the OTEL API default; traceparent header is extracted on inbound +
+# injected on outbound (server → client via X-Trace-Id response header).
+init_tracing(app=app)
+
+# Phase 7 (cj-style 91번째 wire) — TraceContextMiddleware registered
+# AFTER init_tracing() (so the TracerProvider is set). Sets the
+# ContextVar for async trace_id propagation (CR 1-1 verbatim) +
+# enriches the active span with tenant.id / user.id / trace.id /
+# request.id / client.ip automatic attributes.
+app.add_middleware(TraceContextMiddleware)
+
 # Story 1.1 — M0 onboarding (industry selector + menu auto-toggle)
 app.include_router(m0_onboarding_router)
 # Phase 3-0 — atomic signup completion (pre-onboarding JWT → first tenant).
@@ -421,6 +446,124 @@ from apps.api.modules.audit.retention.retention_routes import (
 )
 
 app.include_router(audit_log_retention_router)
+
+
+# Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack
+# 강화 territory (PRD §F23 + AD-34 verbatim). 3 NEW routers mounted:
+# - /api/v1/metrics                  — Prometheus exposition format endpoint
+#                                      (F23.2, gated by require_observability_metrics)
+# - /api/v1/observability/alerts/webhook — AlertManager ingress (F23.3)
+# - /api/v1/observability/alerts/ack — Alert ack + PagerDuty owner-only
+#                                      manual trigger (F23.3, AD-22)
+# Capability gates OBSERVABILITY_TRACES + OBSERVABILITY_METRICS
+# (capability matrix v1.32 EXTENSION). audit-first INSERT 2 NEW
+# OBSERVABILITY actions (alert_fired / trace_sampled) — CR 1-1 verbatim
+# pattern mirror of Phase 6 wire `24e1cd7` 5 NEW AUDIT actions.
+from apps.api.core.metrics import (
+    REGISTRY as _PROM_REGISTRY,
+    render_metrics as _render_metrics,
+)
+from apps.api.dependencies.capability import (
+    require_observability_traces,
+    require_observability_metrics,
+)
+from fastapi import APIRouter, Depends
+from fastapi.responses import Response
+
+_observability_router = APIRouter(prefix="/api/v1", tags=["observability"])
+
+
+@_observability_router.get(
+    "/metrics",
+    response_class=Response,
+    dependencies=[Depends(require_observability_metrics)],
+    summary="Prometheus exposition format endpoint (Phase 7 / F23.2)",
+)
+async def metrics_endpoint() -> Response:
+    """Render Prometheus exposition format for /metrics scrape target.
+
+    Capability gate OBSERVABILITY_METRICS (CR 12-5 D-GATE-01 inversion
+    per-tenant on/off + industry-agnostic via capability matrix v1.32
+    EXTENSION). Returns `text/plain; version=0.0.4` Prometheus
+    exposition format bytes.
+    """
+    body, content_type = _render_metrics()
+    return Response(content=body, media_type=content_type)
+
+
+@_observability_router.post(
+    "/observability/alerts/webhook",
+    summary="AlertManager webhook ingress (Phase 7 / F23.3)",
+)
+async def alerts_webhook(payload: dict) -> dict:
+    """AlertManager webhook ingress — validates payload + fires alert.
+
+    Per CR 12-5 D-14 envelope: malformed payload returns 400 via
+    AlertWebhookPayloadInvalidError. On success, fires alert
+    (audit-first INSERT BEFORE Slack dispatch).
+    """
+    from apps.api.core.alerting import validate_alert_webhook_payload, fire_alert
+    from apps.api.core.db import get_session
+
+    rule = validate_alert_webhook_payload(payload)
+    async for db in get_session():
+        await fire_alert(
+            db_session=db,
+            rule=rule,
+            alert_payload=payload,
+            tenant_id=None,
+            trace_id=None,
+        )
+        await db.commit()
+    return {"status": "ok", "rule": rule["name"]}
+
+
+@_observability_router.post(
+    "/observability/alerts/ack",
+    summary="Alert ack + PagerDuty manual trigger (Phase 7 / F23.3 + AD-22)",
+    dependencies=[Depends(require_observability_traces)],
+)
+async def alerts_ack(
+    alert_name: str,
+    actor_role: str,
+    tenant_id: str,
+) -> dict:
+    """Acknowledge an alert + optional PagerDuty manual escalation.
+
+    Owner-only PagerDuty manual trigger per AD-22 RBAC + Epic 12 2FA 챌린지
+    보존. Returns 403 if actor_role != "owner".
+    """
+    from apps.api.core.alerting import trigger_pagerduty_manually
+    import uuid
+
+    await trigger_pagerduty_manually(
+        alert_name=alert_name,
+        tenant_id=uuid.UUID(tenant_id),
+        actor_role=actor_role,
+        trace_id=None,
+    )
+    return {"status": "acknowledged", "alert_name": alert_name}
+
+
+app.include_router(_observability_router)
+
+
+# Phase 7 (cj-style 91번째 wire) — AlertWebhookPayloadInvalidError exception
+# handler (CR 12-5 D-14 typed exception envelope). Returns HTTP 400 with the
+# canonical error envelope.
+@app.exception_handler(AlertWebhookPayloadInvalidError)
+async def _alert_webhook_invalid_handler(
+    request: Request, exc: AlertWebhookPayloadInvalidError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "ALERT_WEBHOOK_PAYLOAD_INVALID",
+            "message_ko": str(exc),
+            "details": {},
+            "trace_id": None,
+        },
+    )
 
 
 @app.exception_handler(AuthError)
