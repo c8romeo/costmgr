@@ -8,7 +8,7 @@ metadata:
 # Phase 8 Performance/Load Testing wire DONE (cj-style 95번째 wire 진입)
 
 **결정 wire 일자**: 2026-08-24 (KST)
-**wire_commit**: TBD (cj-style Phase 8 3번째 진입점 진입 시점)
+**wire_commit**: `60d4ea14f52559c2520ed3ae90603ec4fdbac5fe` (short: `60d4ea1`)
 **cj-style entry point**: 95 (Phase 8 wire 진입 = Phase 8 PRD entry 93 + spec 94 + wire 95 = 3-entry-point pattern)
 
 ## A263+A264+A265+A266+A267+A268+A269+A270+A271+A272 10/10 결정 wire
