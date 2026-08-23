@@ -332,6 +332,175 @@ class FinopsAnomalyCapabilityDeniedError(FinopsAnomalyError):
     http_status: int = 403
 
 
+# ── FinOps Forecasting & Capacity Planning typed exceptions ─────
+# Phase 13 (cj-style 115번째 wire) — CR 12-5 D-14 typed exception
+# envelope applied to 14 NEW exceptions shared across forecast_definition +
+# forecast_engine + capacity_headroom + budget_burnrate +
+# forecast_accuracy_tracker modules. Module identifier m21_finops_forecast.
+
+FINOPS_FORECAST_MODULE_ID: str = "m21_finops_forecast"
+
+
+class FinopsForecastError(FinopsError):
+    """Base for FinOps forecast + capacity planning typed exceptions.
+
+    Provides FINOPS_FORECAST_MODULE_ID class attribute + envelope shape
+    `{code, message_ko, details, trace_id, module_id}` shared by all
+    14 NEW exception subclasses below.
+    """
+
+    module_id: str = FINOPS_FORECAST_MODULE_ID
+
+
+class ForecastDefinitionInvalidError(FinopsForecastError):
+    """HTTP 400 typed error — forecast definition DSL validation failure.
+
+    Raised by parse_forecast_definition() when 6 validation rules
+    (PRD §F29.1.1 verbatim) detect invalid target_metric /
+    horizon_months / model_type / confidence_level / status / tenant_id.
+    """
+
+    http_status: int = 400
+
+
+class ForecastScopeInvalidError(FinopsForecastError):
+    """HTTP 400 typed error — forecast scope validation failure.
+
+    Raised by parse_forecast_definition() when target_metric is not in
+    ALL_TARGET_METRICS (department / cost_center / product_line /
+    service / tenant_total).
+    """
+
+    http_status: int = 400
+
+
+class ForecastHistoryUnavailableError(FinopsForecastError):
+    """HTTP 422 typed error — insufficient history data for forecast.
+
+    Raised by LSTM/Prophet/ARIMA when history has fewer than required
+    entries (3 minimum for any model, 12-month preferred for ensemble).
+    """
+
+    http_status: int = 422
+
+
+class ForecastEngineError(FinopsForecastError):
+    """HTTP 500 typed error — forecast engine failure.
+
+    Raised by generate_forecast() when 4-method parallel run fails or
+    ensemble voting consensus cannot be reached.
+    """
+
+    http_status: int = 500
+
+
+class ForecastModelTrainingError(FinopsForecastError):
+    """HTTP 500 typed error — forecast model training failure.
+
+    Raised by _arima_predict / _prophet_predict / _lstm_predict when
+    training data is insufficient or model hyperparameters are invalid
+    (AD-14 stack pin statsmodels==0.14.1 + prophet==1.1.5 +
+    tensorflow==2.15.0).
+    """
+
+    http_status: int = 500
+
+
+class ForecastSeasonalityDetectionError(FinopsForecastError):
+    """HTTP 500 typed error — seasonality detection failure.
+
+    Raised by _seasonality_detect / _stl_decompose when history length
+    is below the minimum threshold (4 entries) or STL decomposition
+    produces inconsistent results.
+    """
+
+    http_status: int = 500
+
+
+class CapacityHeadroomAnalysisError(FinopsForecastError):
+    """HTTP 500 typed error — capacity headroom analysis failure.
+
+    Raised by analyze_capacity_headroom() when resource_type is not in
+    ALL_RESOURCE_TYPES (compute / storage / network) or per-resource
+    primary model selection fails.
+    """
+
+    http_status: int = 500
+
+
+class CapacityThresholdBreachError(FinopsForecastError):
+    """HTTP 500 typed error — capacity threshold breach classification.
+
+    Raised by _classify_saturation() when saturation_pct is outside
+    0-100 range or warning/critical thresholds are misconfigured.
+    """
+
+    http_status: int = 500
+
+
+class CapacityMetricUnavailableError(FinopsForecastError):
+    """HTTP 404 typed error — capacity utilization metric unavailable.
+
+    Raised by analyze_capacity_headroom() when current_utilization_history
+    is empty for the requested resource_type (compute / storage / network).
+    """
+
+    http_status: int = 404
+
+
+class BudgetBurnRateProjectionError(FinopsForecastError):
+    """HTTP 500 typed error — budget burn-rate projection failure.
+
+    Raised by _compute_burn_rate() when elapsed_days / remaining_days /
+    total_budget / consumed_budget inputs are invalid (zero / negative).
+    """
+
+    http_status: int = 500
+
+
+class BudgetOverrunPredictionError(FinopsForecastError):
+    """HTTP 500 typed error — budget overrun prediction failure.
+
+    Raised by project_budget_consumption() when ARIMA projection of
+    end-of-period spend fails (insufficient history or statsmodels
+    convergence failure).
+    """
+
+    http_status: int = 500
+
+
+class ForecastAccuracyTrackingError(FinopsForecastError):
+    """HTTP 500 typed error — forecast accuracy tracking failure.
+
+    Raised by track_forecast_accuracy() when target_metric is not in
+    ALL_TARGET_METRICS or 3-tuple (tenant_id + target_metric +
+    model_type) granularity key construction fails.
+    """
+
+    http_status: int = 500
+
+
+class ModelRetrainingTriggerError(FinopsForecastError):
+    """HTTP 500 typed error — model retraining trigger failure.
+
+    Raised by _check_retraining_trigger() when retraining cron dispatch
+    fails or MAPE_CONSECUTIVE_PERIODS_THRESHOLD violation detected.
+    """
+
+    http_status: int = 500
+
+
+class ModelPerformanceDegradationError(FinopsForecastError):
+    """HTTP 500 typed error — model performance degradation detected.
+
+    Raised by _check_retraining_trigger() when MAPE > 20% detected but
+    consecutive_periods < 3 (degradation flagged but retraining not yet
+    triggered — informational warning per PRD §F29.5.2).
+    """
+
+    http_status: int = 500
+
+
 __all__ = [
     "BaseError",
     "BadRequestError",
@@ -366,4 +535,22 @@ __all__ = [
     "ForecastAccuracyInvalidError",
     "ForecastModelRetrainingError",
     "FinopsAnomalyCapabilityDeniedError",
+    # Phase 13 FinOps forecast + capacity planning typed exceptions (CR 12-5 D-14)
+    "FinopsForecastError",
+    "FINOPS_FORECAST_MODULE_ID",
+    "ForecastDefinitionInvalidError",
+    "ForecastScopeInvalidError",
+    "ForecastAccuracyInvalidError",
+    "ForecastHistoryUnavailableError",
+    "ForecastEngineError",
+    "ForecastModelTrainingError",
+    "ForecastSeasonalityDetectionError",
+    "CapacityHeadroomAnalysisError",
+    "CapacityThresholdBreachError",
+    "CapacityMetricUnavailableError",
+    "BudgetBurnRateProjectionError",
+    "BudgetOverrunPredictionError",
+    "ForecastAccuracyTrackingError",
+    "ModelRetrainingTriggerError",
+    "ModelPerformanceDegradationError",
 ]

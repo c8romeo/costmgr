@@ -37,23 +37,19 @@ FINOPS_BUDGET_ALERT capability.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Final, Literal, TypedDict
+from typing import Final, TypedDict
 
 from apps.api.core.errors import (
     BudgetAlertError,
     BudgetAlertRoutingError,
 )
 from apps.api.modules.finops.budget_definition import (
-    ALERT_LEVEL_CRITICAL,
-    ALERT_LEVEL_EXCEEDED,
-    ALERT_LEVEL_WARNING,
+    BUDGET_THRESHOLD_DEFAULTS,
     AlertThresholds,
     BudgetDefinition,
-    BUDGET_THRESHOLD_DEFAULTS,
 )
-
 
 # ── Alert level enum (PRD §F28.4.2 verbatim) ────────────────────
 ALERT_LEVEL_WARNING: Final[str] = "warning"
@@ -196,7 +192,7 @@ def _is_dedup_window_active(
     if last_alert_at is None or last_alert_at == "":
         return False
     last = datetime.fromisoformat(last_alert_at.replace("Z", "+00:00"))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return (now - last) < timedelta(hours=dedup_window_hours)
 
 
@@ -265,7 +261,7 @@ def route_budget_alert(
                 channels=[], recipients=[], retry_policy="none"
             ),
             status="below_threshold",
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             trace_id=trace_id,
         )
 
@@ -284,7 +280,7 @@ def route_budget_alert(
                 channels=[], recipients=[], retry_policy="none"
             ),
             status=ALERT_STATUS_DEDUPLICATED,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             trace_id=trace_id,
         )
 
@@ -306,7 +302,7 @@ def route_budget_alert(
         budget_amount=budget["amount"],
         routing=routing,
         status=ALERT_STATUS_PENDING,
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
         trace_id=trace_id,
     )
 

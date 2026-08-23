@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 import pytest
 
-from apps.api.core.errors import BudgetAlertError
+from apps.api.core.errors import BudgetAlertError, BudgetAmountInvalidError
 from apps.api.modules.finops.budget_alert import (
     ALERT_LEVEL_CRITICAL,
     ALERT_LEVEL_EXCEEDED,
@@ -103,9 +103,8 @@ def test_tenant_id_mismatch_raises():
 
 
 def test_invalid_amount_zero_raises():
-    budget = _make_budget(amount="0")
-    with pytest.raises(BudgetAlertError):
-        route_budget_alert(_TENANT_ID, budget, 100.00)
+    with pytest.raises(BudgetAmountInvalidError):
+        _make_budget(amount="0")
 
 
 def test_all_alert_levels_and_channels_defined():

@@ -472,6 +472,23 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_37_drift.py
     # (capability matrix v1.37 EXTENSION 2 NEW rows).
     FINOPS_BUDGET_ALERT = "finops_budget_alert"
+    # Phase 13 (cj-style 115번째 wire) — FINOPS_FORECASTING_CAPACITY_PLANNING
+    # — Cost Forecasting & Capacity Planning territory (PRD §F29.6 +
+    # AD-39 (a)~(g) sub-decisions). Industry-agnostic per CR 12-1 L4
+    # precedent (mirrors FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT
+    # Phase 12 wire + FINOPS_SHOWBACK + FINOPS_CHARGEBACK Phase 11 wire
+    # pattern verbatim). All 4 industries get
+    # FINOPS_FORECASTING_CAPACITY_PLANNING capability (financial
+    # forecasting baseline, not industry-specific). Gates the forecast
+    # definition + forecast generation + capacity headroom + budget
+    # burn-rate + forecast accuracy + model retraining routes
+    # (apps/api/modules/finops/forecast_definition.py +
+    # forecast_engine.py + forecast_model_registry.py +
+    # capacity_headroom.py + budget_burnrate.py +
+    # forecast_accuracy_tracker.py). Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_39_drift.py
+    # (capability matrix v1.39 EXTENSION 1 NEW row).
+    FINOPS_FORECASTING_CAPACITY_PLANNING = "finops_forecasting_capacity_planning"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -635,6 +652,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Phase 11 wire pattern verbatim).
             Capability.FINOPS_ANOMALY_DETECTION,
             Capability.FINOPS_BUDGET_ALERT,
+            # Phase 13 (cj-style 115번째 wire) — manufacturing tenants
+            # get FINOPS_FORECASTING_CAPACITY_PLANNING (industry-agnostic,
+            # FinOps financial forecasting baseline CR 12-1 L4 precedent +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS_SHOWBACK + FINOPS_CHARGEBACK Phase 11 wire pattern
+            # verbatim). 4-model parallel run (ARIMA + Prophet + LSTM +
+            # ensemble) + 90일 lookahead + capacity headroom +
+            # budget burn-rate + MAE/MAPE/RMSE banker's rounding CR 5-1
+            # + retraining trigger (MAPE > 20% for 3 consecutive periods).
+            Capability.FINOPS_FORECASTING_CAPACITY_PLANNING,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -772,6 +799,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, CR 12-1 L4 precedent).
             Capability.FINOPS_ANOMALY_DETECTION,
             Capability.FINOPS_BUDGET_ALERT,
+            # Phase 13 (cj-style 115번째 wire) — service tenants get
+            # FINOPS_FORECASTING_CAPACITY_PLANNING (industry-agnostic,
+            # CR 12-1 L4 precedent).
+            Capability.FINOPS_FORECASTING_CAPACITY_PLANNING,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -926,6 +957,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, CR 12-1 L4 precedent).
             Capability.FINOPS_ANOMALY_DETECTION,
             Capability.FINOPS_BUDGET_ALERT,
+            # Phase 13 (cj-style 115번째 wire) — 겸영 tenants get
+            # FINOPS_FORECASTING_CAPACITY_PLANNING (industry-agnostic,
+            # CR 12-1 L4 precedent).
+            Capability.FINOPS_FORECASTING_CAPACITY_PLANNING,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1077,6 +1112,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # (industry-agnostic, CR 12-1 L4 precedent).
             Capability.FINOPS_ANOMALY_DETECTION,
             Capability.FINOPS_BUDGET_ALERT,
+            # Phase 13 (cj-style 115번째 wire) — full matrix tenants get
+            # FINOPS_FORECASTING_CAPACITY_PLANNING (industry-agnostic,
+            # CR 12-1 L4 precedent).
+            Capability.FINOPS_FORECASTING_CAPACITY_PLANNING,
         }
     ),
 }

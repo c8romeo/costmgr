@@ -78,6 +78,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS = "finops"  # Phase 11 (NEW — FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
     FINOPS_ANOMALY = "finops_anomaly"  # Phase 12 (NEW — Cost anomaly detection + budget alerting audit-first INSERT, AD-39)
     FINOPS_BUDGET = "finops_budget"  # Phase 12 (NEW — Budget definition + budget alert routing audit-first INSERT, AD-39)
+    FINOPS_FORECAST = "finops_forecast"  # Phase 13 (NEW — Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT, AD-39)
 
 
 # ────────────────────────────────────────────────────────────
@@ -756,6 +757,67 @@ FinopsBudgetAction = Literal[
 ]
 
 
+# Phase 13 (cj-style 115번째 wire) — FINOPS_FORECAST actions
+# (forecast definition + forecast generation + capacity headroom +
+# budget burn-rate + forecast accuracy + model retraining + dry-run
+# audit-first INSERT, AD-39 verbatim). PRD §F29.1 + §F29.2 + §F29.3 +
+# §F29.4 + §F29.5 + AC §F29.1-12 + §F29.2-12 — audit-first INSERT for
+# each new forecast operation BEFORE/AFTER the actual operation (CR 1-1
+# verbatim + ActionClass.FINOPS_FORECAST). Routes to `audit_logs` (NOT
+# to a separate ledger — FinOps forecast events are tenant-scoped
+# platform-event trail only, mirroring FINOPS_BUDGET + FINOPS_ANOMALY
+# Phase 12 wire + FINOPS Phase 11 wire + AUTH (Epic 15) / INFRA
+# (Phase 5) / TWO_FACTOR_AUTH (Epic 12) / AUDIT (Epic 17 / Phase 6) /
+# OBSERVABILITY (Phase 7) / PERFORMANCE_TEST (Phase 8) /
+# CHAOS_ENGINEERING (Phase 9) / SLO_ENGINEERING (Phase 10) pattern).
+# 7 NEW values:
+# - `forecast_definition_updated` — forecast definition created/updated/
+#   paused/expired (forecast_id + target_metric + dimension_value +
+#   horizon_months + model_type + confidence_level + retraining_cron +
+#   status + tenant_id + trace_id payload; AD-22 owner-only RBAC + Epic
+#   12 2FA 챌린지 보존 when governance_required=True; CR 1-1 verbatim
+#   audit-first INSERT AFTER forecast definition row committed).
+# - `forecast_generated` — forecast prediction completed (4-method
+#   parallel run + ensemble voting consensus reached; forecast_id +
+#   horizon_months + model_type + predicted_values + confidence_lower +
+#   confidence_upper + tenant_id + trace_id payload; AD-22 owner-only
+#   RBAC; CR 1-1 verbatim audit-first INSERT AFTER forecast result
+#   committed).
+# - `capacity_headroom_analyzed` — capacity headroom analysis completed
+#   (compute / storage / network saturation + saturation_level +
+#   primary_model + lookahead_days + recommendation + tenant_id +
+#   trace_id payload; AD-22 owner-only RBAC; CR 1-1 verbatim
+#   audit-first INSERT AFTER capacity headroom report committed).
+# - `budget_burn_rate_projected` — budget burn-rate projection completed
+#   (4-input formula + 3-level severity routing + predicted_end_period_
+#   spend + ARIMA prediction + tenant_id + trace_id payload; AD-22
+#   owner-only RBAC; CR 1-1 verbatim audit-first INSERT AFTER projection
+#   committed).
+# - `forecast_accuracy_degraded` — MAPE > 20% detected for 3 consecutive
+#   periods (3-tuple tenant_id + target_metric + model_type + mape_value
+#   + consecutive_periods + industry + tenant_id + trace_id payload;
+#   AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT AFTER
+#   accuracy record committed).
+# - `model_retraining_triggered` — retraining dispatch triggered
+#   (MAPE_CONSECUTIVE_PERIODS_THRESHOLD = 3 reached; trigger_id +
+#   retraining_cron `'0 3 * * 0'` KST Sunday 03:00 UTC 18:00 + model_type
+#   + tenant_id + trace_id payload; AD-22 owner-only RBAC; CR 1-1
+#   verbatim audit-first INSERT AFTER retraining trigger committed).
+# - `forecast_dry_run_executed` — dry-run preview completed (no actual
+#   forecast generation; forecast_id + horizon + tenant_id + trace_id
+#   payload; AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT
+#   AFTER dry-run preview committed).
+FinopsForecastAction = Literal[
+    "forecast_definition_updated",  # §F29.1-12 — forecast definition row update
+    "forecast_generated",  # §F29.2-12 — forecast prediction completed
+    "capacity_headroom_analyzed",  # §F29.3-12 — capacity headroom analysis
+    "budget_burn_rate_projected",  # §F29.4-12 — burn-rate projection
+    "forecast_accuracy_degraded",  # §F29.5-12 — MAPE > 20% detected
+    "model_retraining_triggered",  # §F29.5-12 — retrain dispatch triggered
+    "forecast_dry_run_executed",  # §F29.1-5 — dry-run preview
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -792,6 +854,7 @@ AuditAction = (
     | FinopsAction  # NEW — Phase 11 (FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
     | FinopsAnomalyAction  # NEW — Phase 12 (Cost anomaly detection + forecast accuracy + model retraining + baseline window update audit-first INSERT)
     | FinopsBudgetAction  # NEW — Phase 12 (Budget definition + threshold exceeded + alert dispatched audit-first INSERT)
+    | FinopsForecastAction  # NEW — Phase 13 (Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT)
 )
 
 
@@ -1358,6 +1421,32 @@ class _ActionRegistry:
                     "budget_definition_updated",  # §F28.2-12 — budget row update
                     "budget_threshold_exceeded",  # §F28.4-12 — threshold crossed
                     "budget_alert_sent",  # §F28.4-12 — alert dispatched
+                }
+            ),
+        ),
+        # Phase 13 (cj-style 115번째 wire) — FINOPS_FORECAST 7 values
+        # (forecast definition + forecast generation + capacity headroom +
+        # budget burn-rate + forecast accuracy + model retraining + dry-run
+        # audit-first INSERT, AD-39 verbatim). Routes to audit_logs (NOT
+        # to a separate ledger — FinOps forecast events are tenant-scoped
+        # platform-event trail only, mirroring FINOPS_BUDGET +
+        # FINOPS_ANOMALY Phase 12 wire + FINOPS Phase 11 wire pattern).
+        # target_table=`finops_forecast` aligns with
+        # ActionClass.FINOPS_FORECAST value (audit_log target_table column
+        # populated verbatim — RLS preserved). Drift detector enforces
+        # ActionClass registry ↔ DB CHECK (no-op for audit_logs per AD-2)
+        # ↔ call sites parity (3-way gate).
+        ActionClass.FINOPS_FORECAST: (
+            "audit_logs",
+            frozenset(
+                {
+                    "forecast_definition_updated",  # §F29.1-12 — forecast definition row update
+                    "forecast_generated",  # §F29.2-12 — forecast prediction completed
+                    "capacity_headroom_analyzed",  # §F29.3-12 — capacity headroom analysis
+                    "budget_burn_rate_projected",  # §F29.4-12 — burn-rate projection
+                    "forecast_accuracy_degraded",  # §F29.5-12 — MAPE > 20% detected
+                    "model_retraining_triggered",  # §F29.5-12 — retrain dispatch triggered
+                    "forecast_dry_run_executed",  # §F29.1-5 — dry-run preview
                 }
             ),
         ),

@@ -51,7 +51,7 @@ def _make_definition(**overrides):
 
 def test_z_score_method_clear_anomaly():
     """Z-score detects clear anomaly when observed is far from mean."""
-    history = [100.0, 100.0, 100.0, 100.0, 100.0]
+    history = [90.0, 100.0, 110.0, 95.0, 105.0]
     assert _z_score_method(500.0, history, 3.0) is True
 
 

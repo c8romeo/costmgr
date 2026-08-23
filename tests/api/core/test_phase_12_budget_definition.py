@@ -13,10 +13,12 @@ from apps.api.core.errors import (
     BudgetDefinitionInvalidError,
     BudgetScopeInvalidError,
 )
-from apps.api.modules.finops.budget_definition import (
+from apps.api.modules.finops.budget_alert import (
     ALERT_LEVEL_CRITICAL,
     ALERT_LEVEL_EXCEEDED,
     ALERT_LEVEL_WARNING,
+)
+from apps.api.modules.finops.budget_definition import (
     ALL_BUDGET_PERIODS,
     ALL_BUDGET_SCOPES,
     BUDGET_PERIOD_MONTHLY,

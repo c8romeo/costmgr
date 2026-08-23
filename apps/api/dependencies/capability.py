@@ -61,6 +61,17 @@ __all__ = [
     "require_slo_engineering",
     "require_finops_showback",
     "require_finops_chargeback",
+    # Phase 12 (cj-style 111번째 wire) — BACKFILL Phase 12 capability
+    # gate dependencies (Phase 12 wire skipped dep helpers, this is
+    # honest recovery per cj-style 115번째 atomic commit).
+    "require_finops_anomaly_detection",
+    "require_finops_budget_alert",
+    # Phase 13 (cj-style 115번째 wire) — FinOps Forecasting & Capacity
+    # Planning capability (F29.6 + AC #6.3 + AD-39 (g) sub-decision).
+    # Gates the FinOps forecast routes in apps/api/modules/finops/
+    # (forecast definition + forecast generation + capacity headroom +
+    # budget burn-rate + forecast accuracy + model retraining + dry-run).
+    "require_finops_forecast",
 ]
 
 
@@ -184,3 +195,27 @@ require_slo_engineering = require_capability(Capability.SLO_ENGINEERING)
 # lives at tests/integration/test_capability_matrix_v1_36_drift.py.
 require_finops_showback = require_capability(Capability.FINOPS_SHOWBACK)
 require_finops_chargeback = require_capability(Capability.FINOPS_CHARGEBACK)
+# Phase 12 (cj-style 111번째 wire) — BACKFILL FinOps anomaly + budget
+# alert capability gate dependencies (Phase 12 wire added Capability
+# enum entries but skipped dep helpers; this is honest recovery per
+# cj-style 115번째 atomic commit). Industry-agnostic per CR 12-1 L4
+# precedent (mirrors FINOPS_SHOWBACK + FINOPS_CHARGEBACK Phase 11 wire +
+# OBSERVABILITY_* Phase 7 wire + SLO_ENGINEERING Phase 10 wire pattern
+# verbatim). Gates the FinOps anomaly + budget alert routes in
+# apps/api/modules/finops/ (anomaly detection + budget definition +
+# budget alert routing).
+require_finops_anomaly_detection = require_capability(Capability.FINOPS_ANOMALY_DETECTION)
+require_finops_budget_alert = require_capability(Capability.FINOPS_BUDGET_ALERT)
+# Phase 13 (cj-style 115번째 wire) — FinOps Forecasting & Capacity
+# Planning capability (F29.6 + AC #6.3 + AD-39 (g) sub-decision).
+# Gates the FinOps forecast routes in apps/api/modules/finops/
+# (forecast_definition + forecast_engine + capacity_headroom +
+# budget_burnrate + forecast_accuracy_tracker). Industry-agnostic per
+# CR 12-1 L4 precedent (mirrors FINOPS_ANOMALY_DETECTION +
+# FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS_SHOWBACK +
+# FINOPS_CHARGEBACK Phase 11 wire + SLO_ENGINEERING Phase 10 wire
+# pattern verbatim). All 4 industries get FINOPS_FORECASTING_CAPACITY_
+# PLANNING capability (financial forecasting baseline, not industry-
+# specific). Drift detector lives at
+# tests/integration/test_capability_matrix_v1_39_drift.py.
+require_finops_forecast = require_capability(Capability.FINOPS_FORECASTING_CAPACITY_PLANNING)
