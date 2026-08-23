@@ -1,0 +1,55 @@
+Phase 14 PRD entry DONE (cj-style 117번째 epic 연속 정직 회복 atomic docs-only wire): FinOps Optimization & Rightsizing territory 결정 wire + 6 files atomic single sprint (1 MODIFIED master PRD v4.4 → v4.5 EXTENSION §F30 8 ACs §F30.1~§F30.8 verbatim ~92 sub-ACs + 1 MODIFIED capability matrix v1.39 → v1.40 EXTENSION FINOPS_OPTIMIZATION 1 NEW row + 4-industry grants ✅/✅/✅/✅ + AD-41 FinOps Optimization & Rightsizing 신규 (a)~(g) 7 sub-decisions + 1 MODIFIED sprint-status v3.28 → v3.29 EXTENSION + phase-14-prd-entry 신규 entry + A414~A418 action_items 신규 block 5 entries + last_updated_note v3.29 + 1 NEW handoff memory `memory/handoff-2026-08-25-phase-14-prd-entry-done.md` + 1 MODIFIED MEMORY.md hook EXTENSION + 1 NEW commit-msg = 3 NEW + 3 MODIFIED + 1 commit-msg = 7 files atomic single sprint 결정 wire).
+
+3중 게이트 impact NONE (cj-style 117번째 wire 진입 표준 = docs only 변경):
+- ruff scoped: 0 NEW (apps/api backend unchanged — docs only)
+- pytest: 0 NEW (apps/api backend unchanged)
+- vitest: 0 NEW (apps/web frontend unchanged)
+- tsc: 0 NEW (apps/web frontend unchanged)
+
+CR lessons applied 14종 보존:
+- CR 0-2: RLS auto-application 5 tables EXTENSION
+- CR 1-1: audit-first INSERT 8 NEW + audit action EXTENSION
+- CR 4-3/4-4: Industry enum SSOT + A5 drift detector
+- CR 9-6 D5 prevention: commit message discipline `git commit -F <file>`
+- CR 11-3: honest-DEFER 22번째
+- CR 11-4 P-015: ko-KR.json EXTENSION ~30 keys finops_optimization.* namespace (verbatim SSOT)
+- CR 12-1 L4: industry-agnostic 4-industry grants ✅/✅/✅/✅
+- CR 12-5 D-14: typed exception envelope 14 NEW
+- CR 12-5 D-PARITY-01 inversion: TS mirror parity
+- CR 12-5 D-GATE-01 inversion: capability gate inversion
+- A19 cohesion: 9 surface EXTENSION PASS
+- A36 SDR 검증 4-step 자동 적용
+- AD-14 stack pin: statsmodels==0.14.1 + prophet==1.1.5 + tensorflow==2.15.0 + Recharts 2.12.7 + slack-sdk==3.23.0 + pdpyras==5.2.0 + sendgrid==6.11.0
+- AD-22 owner-only RBAC + NFR4 PII minimization ✅ PRESERVED
+
+D-DEFER-* honestly 결정 보존 (carry-over chain EXTENSION):
+- D-1-1-DEFER-1/2/3 ✅ RESOLVED (Epic 1)
+- D-EPIC-16-REVIEW-DEFER-1/2~6 ✅ RESOLVED (Epic 16)
+- D-PHASE-4-DR-DEFER-1/2 ✅ RESOLVED (Phase 4)
+- D-EPIC-17-WIRE-DEFER-T2-T3-UI ✅ RESOLVED (Epic 17)
+- D-RETENTION-1 ✅ RESOLVED (Phase 6)
+- D-OBSERVABILITY-1 ✅ RESOLVED (Phase 7)
+- D-PERFORMANCE-1 ✅ RESOLVED (Phase 8)
+- D-CHAOS-1 ✅ RESOLVED (Phase 9)
+- D-SLO-1 ✅ RESOLVED (Phase 10)
+- D-FINOPS-1 ✅ RESOLVED (Phase 11)
+- D-FINOPS-2 ✅ RESOLVED (Phase 12)
+- D-FINOPS-3 ✅ RESOLVED (Phase 13)
+- D-FINOPS-4 🔶 honestly DEFER 보존 진입 (Phase 14)
+
+territory 결정 wire (옵션 a Recommended):
+- F30.1 optimization definition DSL (12 sub-ACs)
+- F30.2 rightsizing engine (12 sub-ACs)
+- F30.3 idle resource detector (12 sub-ACs)
+- F30.4 RI/SP commitment recommender (12 sub-ACs)
+- F30.5 optimization accuracy tracker (12 sub-ACs)
+- F30.6 optimization dashboard UI (10 sub-ACs)
+- F30.7 Capability matrix v1.40 EXTENSION (12 sub-ACs)
+- F30.8 dry-run + Tests + wire scope T1~T8 (12 sub-ACs)
+= 12+12+12+12+12+10+12+12 = ~92 sub-ACs pre-flight 정합 sweep
+
+Epic 1 ~ Epic 17 + Phase 3 ~ Phase 13 + 1st release cycle 정합 보존 + Phase 14 1-entry-point (PRD entry) 진입 완료 정합 보존 + D-FINOPS-4 신규 honestly DEFER 보존 진입 완료 보존.
+
+결정 wire 일자: 2026-08-25 (KST).
+baseline_commit: 850b4f8
+next: 옵션 (a) Phase 14 spec entry 진입 (cj-style 118번째) / 옵션 (b) Phase 14 atomic wire T1~T8 진입 (cj-style 119번째) / 옵션 (c) Phase 14 close-out retro 진입 (cj-style 120번째) / 옵션 (d) Epic 18+ 진입 / 옵션 (e) D-DEFER-* follow-up 결정 wire 보류.
