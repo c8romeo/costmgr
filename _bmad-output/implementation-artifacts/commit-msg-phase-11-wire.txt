@@ -1,0 +1,1 @@
+Phase 11 bmad-dev-story atomic wire T1~T8 DONE (cj-style 107th epic 연속 정직 회복 atomic docs-and-source wire): FinOps Showback / Chargeback territory 결정 wire + ~30 files atomic single sprint (1 NEW spec file + 1 MODIFIED sprint-status + 1 NEW handoff memory + 1 MODIFIED MEMORY.md + 1 NEW commit-msg = 3 NEW + 2 MODIFIED + ~30 source files = ~35 files atomic single sprint 결정 wire).

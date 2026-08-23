@@ -426,6 +426,22 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # at tests/integration/test_capability_matrix_v1_35_drift.py
     # (capability matrix v1.35 EXTENSION 1 NEW row).
     SLO_ENGINEERING = "slo_engineering"
+    # Phase 11 (cj-style 107번째 wire) — FINOPS_SHOWBACK — FinOps Showback
+    # / Chargeback territory (PRD §F27 + AD-38 (a)~(g) sub-decisions).
+    # Industry-agnostic per CR 12-1 L4 precedent (mirrors SLO_ENGINEERING
+    # Phase 10 wire + CHAOS_ENGINEERING Phase 9 wire + PERFORMANCE_TESTING
+    # Phase 8 wire + OBSERVABILITY_* Phase 7 wire + AUDIT_LOG_RETENTION
+    # Phase 6 wire + AUDIT_LOG_VIEW Epic 17 wire +
+    # MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim). All 4
+    # industries get FINOPS_SHOWBACK + FINOPS_CHARGEBACK capabilities
+    # (FinOps is financial reporting baseline, not industry-specific).
+    # Gates the FinOps routes in apps/api/modules/finops/ (showback
+    # generation + department mapping update + chargeback calculation +
+    # CSV/PDF export + dry-run mode). Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_36_drift.py
+    # (capability matrix v1.36 EXTENSION 2 NEW rows).
+    FINOPS_SHOWBACK = "finops_showback"
+    FINOPS_CHARGEBACK = "finops_chargeback"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -574,6 +590,14 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
             # wire pattern verbatim).
             Capability.SLO_ENGINEERING,
+            # Phase 11 (cj-style 107번째 wire) — manufacturing tenants
+            # get FINOPS_SHOWBACK + FINOPS_CHARGEBACK (industry-agnostic,
+            # FinOps financial reporting baseline CR 12-1 L4 precedent +
+            # SLO_ENGINEERING Phase 10 wire + CHAOS_ENGINEERING Phase 9
+            # wire + PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_*
+            # Phase 7 wire pattern verbatim).
+            Capability.FINOPS_SHOWBACK,
+            Capability.FINOPS_CHARGEBACK,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -698,6 +722,14 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
             # wire pattern verbatim).
             Capability.SLO_ENGINEERING,
+            # Phase 11 (cj-style 107번째 wire) — service tenants get
+            # FINOPS_SHOWBACK + FINOPS_CHARGEBACK (industry-agnostic,
+            # FinOps financial reporting baseline CR 12-1 L4 precedent +
+            # SLO_ENGINEERING Phase 10 wire + CHAOS_ENGINEERING Phase 9
+            # wire + PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_*
+            # Phase 7 wire pattern verbatim).
+            Capability.FINOPS_SHOWBACK,
+            Capability.FINOPS_CHARGEBACK,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -842,6 +874,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
             # wire pattern verbatim).
             Capability.SLO_ENGINEERING,
+            # Phase 11 (cj-style 107번째 wire) — 겸영 tenants get
+            # FINOPS_SHOWBACK + FINOPS_CHARGEBACK (industry-agnostic,
+            # FinOps financial reporting baseline CR 12-1 L4 precedent).
+            Capability.FINOPS_SHOWBACK,
+            Capability.FINOPS_CHARGEBACK,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -983,6 +1020,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
             # wire pattern verbatim).
             Capability.SLO_ENGINEERING,
+            # Phase 11 (cj-style 107번째 wire) — full matrix tenants get
+            # FINOPS_SHOWBACK + FINOPS_CHARGEBACK (industry-agnostic,
+            # FinOps financial reporting baseline CR 12-1 L4 precedent).
+            Capability.FINOPS_SHOWBACK,
+            Capability.FINOPS_CHARGEBACK,
         }
     ),
 }

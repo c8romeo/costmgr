@@ -59,6 +59,8 @@ __all__ = [
     "require_performance_testing",
     "require_chaos_engineering",
     "require_slo_engineering",
+    "require_finops_showback",
+    "require_finops_chargeback",
 ]
 
 
@@ -168,3 +170,17 @@ require_chaos_engineering = require_capability(Capability.CHAOS_ENGINEERING)
 # Drift detector lives at
 # tests/integration/test_capability_matrix_v1_35_drift.py.
 require_slo_engineering = require_capability(Capability.SLO_ENGINEERING)
+# Phase 11 — FinOps Showback / Chargeback capability (F27.6 + AC #6.3
+# + AD-38 (g) sub-decision). Gates the FinOps routes in
+# apps/api/modules/finops/ (showback generation + department mapping
+# update + chargeback calculation + CSV/PDF export + dry-run mode).
+# Industry-agnostic per CR 12-1 L4 precedent (mirrors SLO_ENGINEERING
+# Phase 10 wire + CHAOS_ENGINEERING Phase 9 wire + PERFORMANCE_TESTING
+# Phase 8 wire + OBSERVABILITY_* Phase 7 wire + AUDIT_LOG_RETENTION
+# Phase 6 wire + AUDIT_LOG_VIEW Epic 17 wire +
+# MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim). All 4
+# industries get FINOPS_SHOWBACK + FINOPS_CHARGEBACK capability
+# (financial reporting baseline, not industry-specific). Drift detector
+# lives at tests/integration/test_capability_matrix_v1_36_drift.py.
+require_finops_showback = require_capability(Capability.FINOPS_SHOWBACK)
+require_finops_chargeback = require_capability(Capability.FINOPS_CHARGEBACK)

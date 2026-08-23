@@ -81,6 +81,89 @@ class GatewayTimeoutError(BaseError):
     http_status: int = 504
 
 
+# ── FinOps Showback / Chargeback typed exceptions ──────
+# Phase 11 (cj-style 107번째 wire) — CR 12-5 D-14 typed exception
+# envelope applied to 6 NEW exceptions shared across showback_dsl +
+# showback_query + chargeback_engine + chargeback_rule_evaluator +
+# department_mapping + chargeback_export modules.
+
+# Module identifier used by typed exception envelopes (mirrors
+# m17_chaos_engineering + m18_slo_engineering pattern).
+FINOPS_MODULE_ID: str = "m19_finops"
+
+
+class FinopsError(BaseError):
+    """Base for FinOps showback/chargeback typed exceptions.
+
+    Provides FINOPS_MODULE_ID class attribute + finops envelope shape
+    `{code, message_ko, details, trace_id, module_id}` shared by all
+    6 NEW exception subclasses below.
+    """
+
+    module_id: str = FINOPS_MODULE_ID
+
+
+class ShowbackDefinitionInvalidError(FinopsError):
+    """HTTP 400 typed error — showback DSL validation failure.
+
+    Raised by parse_showback_definition() when 6 validation rules
+    (PRD §F27.1.7 verbatim) detect invalid group_by / period_key /
+    currency_code / comparison_period / pagination / tenant_id.
+    """
+
+    http_status: int = 400
+
+
+class ShowbackExportError(FinopsError):
+    """HTTP 500 typed error — showback CSV export failure.
+
+    Raised by export_showback_csv() when StreamingResponse generator
+    fails (e.g. DB connection drop mid-stream, encoding error).
+    """
+
+    http_status: int = 500
+
+
+class ChargebackRuleInvalidError(FinopsError):
+    """HTTP 400 typed error — chargeback rule validation failure.
+
+    Raised by evaluate_chargeback_rule() when 4 validation rules
+    detect invalid rule_type / markup_pct / tax_pct / cost_allocation.
+    """
+
+    http_status: int = 400
+
+
+class ChargebackCalculationError(FinopsError):
+    """HTTP 500 typed error — chargeback calculation failure.
+
+    Raised by compute_chargeback() when banker's rounding fails or
+    Decimal precision overflows.
+    """
+
+    http_status: int = 500
+
+
+class ChargebackExportError(FinopsError):
+    """HTTP 500 typed error — chargeback CSV/PDF export failure.
+
+    Raised by export_chargeback_csv() + export_chargeback_pdf()
+    when StreamingResponse generator fails (e.g. reportlab rendering
+    error, PDF encryption failure).
+    """
+
+    http_status: int = 500
+
+
+class ChargebackExportRateLimitedError(FinopsError):
+    """HTTP 429 typed error — chargeback export rate limit exceeded.
+
+    Raised when owner > 1 export / minute default + Retry-After header.
+    """
+
+    http_status: int = 429
+
+
 __all__ = [
     "BaseError",
     "BadRequestError",
@@ -89,4 +172,13 @@ __all__ = [
     "UnprocessableEntityError",
     "LockedError",
     "GatewayTimeoutError",
+    # Phase 11 FinOps showback/chargeback typed exceptions (CR 12-5 D-14)
+    "FinopsError",
+    "FINOPS_MODULE_ID",
+    "ShowbackDefinitionInvalidError",
+    "ShowbackExportError",
+    "ChargebackRuleInvalidError",
+    "ChargebackCalculationError",
+    "ChargebackExportError",
+    "ChargebackExportRateLimitedError",
 ]

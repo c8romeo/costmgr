@@ -75,6 +75,7 @@ class ActionClass(str, __import__("enum").Enum):
     PERFORMANCE_TEST = "performance_test"  # Phase 8 (NEW — k6 load test + SLO/SLI + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
     CHAOS_ENGINEERING = "chaos_engineering"  # Phase 9 (NEW — chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
     SLO_ENGINEERING = "slo_engineering"  # Phase 10 (NEW — SLO definition + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
+    FINOPS = "finops"  # Phase 11 (NEW — FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
 
 
 # ────────────────────────────────────────────────────────────
@@ -636,6 +637,51 @@ SloEngineeringAction = Literal[
 ]
 
 
+# Phase 11 (cj-style 107번째 wire) — FINOPS actions
+# (showback generation + department mapping update + chargeback
+# calculation + chargeback export audit-first INSERT, AD-38 (b)(c)(e)
+# verbatim). PRD §F27.1~§F27.7 + AC §F27.1-7 + §F27.3-3 +
+# §F27.4-4 + §F27.5-8 — audit-first INSERT for each new destructive
+# / observation event BEFORE/AFTER the actual operation (CR 1-1
+# verbatim + ActionClass.FINOPS). Routes to `audit_logs` (NOT to a
+# separate ledger — FinOps events are tenant-scoped platform-event
+# trail only, mirroring AUTH (Epic 15) / INFRA (Phase 5) /
+# TWO_FACTOR_AUTH (Epic 12) / AUDIT (Epic 17 / Phase 6) /
+# OBSERVABILITY (Phase 7) / PERFORMANCE_TEST (Phase 8) /
+# CHAOS_ENGINEERING (Phase 9) / SLO_ENGINEERING (Phase 10) pattern).
+# 4 NEW values:
+# - `showback_generated` — showback report generation succeeded
+#   (group_by + period_mode + comparison_period + tenant_id + trace_id
+#   payload; AD-22 owner-only RBAC + Epic 12 2FA 챌린지 보존 when
+#   governance_required=True; CR 1-1 verbatim audit-first INSERT
+#   AFTER showback snapshot persisted).
+# - `department_mapping_updated` — department → cost_center mapping
+#   change (manual create/update or auto-create on first calculation;
+#   department_id + cost_center_id + auto_created + tenant_id + trace_id
+#   payload; AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT
+#   BEFORE/UPDATE mapping row).
+# - `chargeback_calculated` — chargeback calculation succeeded
+#   (chargeback_id + rule_type + total_amount + period_key + tenant_id
+#   + trace_id payload; AD-22 owner-only RBAC; CR 1-1 verbatim
+#   audit-first INSERT AFTER chargeback row computed).
+# - `chargeback_exported` — CSV/PDF export succeeded
+#   (chargeback_id + export_format + row_count + file_size_bytes +
+#   tenant_id + trace_id payload; AD-22 owner-only RBAC + owner-only
+#   export rate limit 1/minute; CR 1-1 verbatim audit-first INSERT
+#   BEFORE export byte stream flushed).
+# Drift detector: tests/api/core/test_phase_11_audit_action.py
+# (Phase 11 cj-style 107번째 wire backend) enforces ActionClass
+# registry ↔ DB CHECK (no-op for audit_logs per AD-2) ↔ call sites
+# parity (3-way gate). Phase 10 cj-style 103번째 wire
+# `test_phase_10_audit_action.py` pattern verbatim applied.
+FinopsAction = Literal[
+    "showback_generated",  # §F27.1-7 — showback report generation
+    "department_mapping_updated",  # §F27.3-3 + §F27.3-10 — mapping change + cache invalidation
+    "chargeback_calculated",  # §F27.4-4 — chargeback calculation
+    "chargeback_exported",  # §F27.5-8 — CSV/PDF export
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -669,6 +715,7 @@ AuditAction = (
     | PerformanceTestAction  # NEW — Phase 8 (k6 load test + SLO + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
     | ChaosEngineeringAction  # NEW — Phase 9 (chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
     | SloEngineeringAction  # NEW — Phase 10 (SLO target change + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
+    | FinopsAction  # NEW — Phase 11 (FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
 )
 
 
@@ -1164,6 +1211,32 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 11 (cj-style 107번째 wire) — FINOPS 4 values
+        # (showback generation + department mapping update + chargeback
+        # calculation + chargeback export audit-first INSERT, AD-38
+        # (b)(c)(e) verbatim). Routes to audit_logs (NOT to a separate
+        # ledger — FinOps events are tenant-scoped platform-event trail
+        # only, mirroring AUTH (Epic 15) / INFRA (Phase 5) /
+        # TWO_FACTOR_AUTH (Epic 12) / AUDIT (Epic 17 / Phase 6) /
+        # OBSERVABILITY (Phase 7) / PERFORMANCE_TEST (Phase 8) /
+        # CHAOS_ENGINEERING (Phase 9) / SLO_ENGINEERING (Phase 10)
+        # pattern). target_table=`finops` aligns with ActionClass.FINOPS
+        # value (audit_log target_table column populated verbatim — RLS
+        # preserved). Drift detector enforces ActionClass registry ↔ DB
+        # CHECK (no-op for audit_logs per AD-2) ↔ call sites parity
+        # (3-way gate). Phase 10 cj-style 103번째 wire `test_phase_10_audit_action.py`
+        # pattern verbatim applied.
+        ActionClass.FINOPS: (
+            "audit_logs",
+            frozenset(
+                {
+                    "showback_generated",  # §F27.1-7 — showback report generation
+                    "department_mapping_updated",  # §F27.3-3 — department mapping change
+                    "chargeback_calculated",  # §F27.4-4 — chargeback calculation
+                    "chargeback_exported",  # §F27.5-8 — CSV/PDF export
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1297,5 +1370,6 @@ __all__ = [
     "PerformanceTestAction",  # NEW — Phase 8 (k6 load test + SLO + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
     "ChaosEngineeringAction",  # NEW — Phase 9 (chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
     "SloEngineeringAction",  # NEW — Phase 10 (SLO target change + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
+    "FinopsAction",  # NEW — Phase 11 (FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
     "emit_audit_typed",
 ]
