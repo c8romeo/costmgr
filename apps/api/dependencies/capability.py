@@ -31,6 +31,9 @@ Phase 8:
 Phase 9:
   - `require_chaos_engineering()` — gates `/api/v1/admin/chaos[/...]` (chaos experiment trigger + manual abort + auto-rollback + continuous chaos toggle) + `/chaos/game-day[/...]` + `/chaos/rollbacks[/...]`
 
+Phase 10:
+  - `require_slo_engineering()` — gates `/api/v1/admin/slo[/...]` (SLO definition create/update/delete + multi-region aggregation + tenant-scoped override + error budget freeze/unfreeze + governance review + SLO breach auto-rollback trigger + dry-run mode)
+
 Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
 """
 from __future__ import annotations
@@ -55,6 +58,7 @@ __all__ = [
     "require_observability_metrics",
     "require_performance_testing",
     "require_chaos_engineering",
+    "require_slo_engineering",
 ]
 
 
@@ -150,3 +154,17 @@ require_performance_testing = require_capability(Capability.PERFORMANCE_TESTING)
 # (operational resilience baseline, not industry-specific). Drift
 # detector lives at tests/integration/test_capability_matrix_v1_34_drift.py.
 require_chaos_engineering = require_capability(Capability.CHAOS_ENGINEERING)
+# Phase 10 — SLO Engineering / Error Budget Management capability
+# (F26.6 + AC #6.3 + AD-37 (g) sub-decision). Gates the SLO routes in
+# apps/api/modules/slo/ routes (SLO definition create/update/delete +
+# multi-region aggregation + tenant-scoped override + error budget
+# freeze/unfreeze + governance review + SLO breach auto-rollback
+# trigger + dry-run mode). Industry-agnostic per CR 12-1 L4 precedent
+# (mirrors CHAOS_ENGINEERING Phase 9 wire + PERFORMANCE_TESTING Phase 8
+# wire + OBSERVABILITY_* Phase 7 wire + AUDIT_LOG_RETENTION Phase 6 wire
+# + AUDIT_LOG_VIEW Epic 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5
+# wire pattern verbatim). All 4 industries get SLO_ENGINEERING
+# capability (operational resilience baseline, not industry-specific).
+# Drift detector lives at
+# tests/integration/test_capability_matrix_v1_35_drift.py.
+require_slo_engineering = require_capability(Capability.SLO_ENGINEERING)

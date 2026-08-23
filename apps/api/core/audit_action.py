@@ -74,6 +74,7 @@ class ActionClass(str, __import__("enum").Enum):
     OBSERVABILITY = "observability"  # Phase 7 (NEW — observability stack alert + sampling audit-first INSERT)
     PERFORMANCE_TEST = "performance_test"  # Phase 8 (NEW — k6 load test + SLO/SLI + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
     CHAOS_ENGINEERING = "chaos_engineering"  # Phase 9 (NEW — chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
+    SLO_ENGINEERING = "slo_engineering"  # Phase 10 (NEW — SLO definition + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
 
 
 # ────────────────────────────────────────────────────────────
@@ -599,6 +600,42 @@ ChaosEngineeringAction = Literal[
 ]
 
 
+# Phase 10 (cj-style 103번째 wire) — SLO_ENGINEERING actions
+# (SLO target change + error budget exhaustion + SLO violation detection
+# audit-first INSERT, AD-37 (b)(d)(e) verbatim). PRD §F26.1~§F26.7 +
+# AC §F26.1-7 + §F26.3-6 + §F26.5-5 — audit-first INSERT for each new
+# destructive / observation event BEFORE/AFTER the actual operation
+# (CR 1-1 verbatim + ActionClass.SLO_ENGINEERING). Routes to
+# `audit_logs` (NOT to a separate ledger — SLO engineering events are
+# tenant-scoped platform-event trail only, mirroring AUTH (Epic 15) /
+# INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) / AUDIT (Epic 17 /
+# Phase 6) / OBSERVABILITY (Phase 7) / PERFORMANCE_TEST (Phase 8) /
+# CHAOS_ENGINEERING (Phase 9) pattern). 3 NEW values:
+# - `slo_target_updated` — SLO definition target / state changed
+#   (manual create/update/delete + lifecycle state transition; slo_id +
+#   new_state + tenant_id + trace_id payload; owner-only RBAC AD-22 +
+#   Epic 12 2FA 챌린지 보존 when governance_required=True; CR 1-1
+#   verbatim audit-first INSERT BEFORE target 변경).
+# - `slo_budget_exhausted` — error budget exhaustion event
+#   (budget_remaining_minutes < 0 + freeze_triggered + tenant_id +
+#   trace_id payload; AD-22 owner-only RBAC; CR 1-1 verbatim
+#   audit-first INSERT AFTER budget exhaustion 알람 + freeze trigger).
+# - `slo_violation_detected` — multi-window burn-rate composite alert
+#   fired (slo_id + window + burn_rate + threshold + composite_severity
+#   + tenant_id + trace_id payload; AD-22 owner-only RBAC; CR 1-1
+#   verbatim audit-first INSERT AFTER composite alert dispatch).
+# Drift detector: tests/api/core/test_phase_10_slo_audit_action.py
+# (Phase 10 cj-style 103번째 wire backend) enforces ActionClass
+# registry ↔ DB CHECK (no-op for audit_logs per AD-2) ↔ call sites
+# parity (3-way gate). Phase 9 cj-style 99번째 wire
+# `test_phase_9_audit_action.py` pattern verbatim applied.
+SloEngineeringAction = Literal[
+    "slo_target_updated",  # §F26.1-7 — SLO target change + state transition
+    "slo_budget_exhausted",  # §F26.3-6 — error budget exhaustion + freeze
+    "slo_violation_detected",  # §F26.5-5 — multi-window composite alert
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -631,6 +668,7 @@ AuditAction = (
     | ObservabilityAction  # NEW — Phase 7 (observability alert + sampling audit-first INSERT)
     | PerformanceTestAction  # NEW — Phase 8 (k6 load test + SLO + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
     | ChaosEngineeringAction  # NEW — Phase 9 (chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
+    | SloEngineeringAction  # NEW — Phase 10 (SLO target change + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
 )
 
 
@@ -1101,6 +1139,31 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 10 (cj-style 103번째 wire) — SLO_ENGINEERING 3 values
+        # (SLO target change + error budget exhaustion + multi-window
+        # burn-rate composite alert audit-first INSERT, AD-37 (b)(d)(e)
+        # verbatim). Routes to audit_logs (NOT to a separate ledger —
+        # SLO engineering events are tenant-scoped platform-event trail
+        # only, mirroring AUTH (Epic 15) / INFRA (Phase 5) /
+        # TWO_FACTOR_AUTH (Epic 12) / AUDIT (Epic 17 / Phase 6) /
+        # OBSERVABILITY (Phase 7) / PERFORMANCE_TEST (Phase 8) /
+        # CHAOS_ENGINEERING (Phase 9) pattern). target_table=
+        # `slo_engineering` aligns with ActionClass.SLO_ENGINEERING value
+        # (audit_log target_table column populated verbatim — RLS
+        # preserved). Drift detector enforces ActionClass registry ↔ DB
+        # CHECK (no-op for audit_logs per AD-2) ↔ call sites parity
+        # (3-way gate). Phase 9 cj-style 99번째 wire `test_phase_9_audit_action.py`
+        # pattern verbatim applied.
+        ActionClass.SLO_ENGINEERING: (
+            "audit_logs",
+            frozenset(
+                {
+                    "slo_target_updated",  # §F26.1-7 — SLO target / state change
+                    "slo_budget_exhausted",  # §F26.3-6 — error budget exhaustion + freeze
+                    "slo_violation_detected",  # §F26.5-5 — multi-window composite alert
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1233,5 +1296,6 @@ __all__ = [
     "ObservabilityAction",  # NEW — Phase 7 (observability alert + sampling audit-first INSERT)
     "PerformanceTestAction",  # NEW — Phase 8 (k6 load test + SLO + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
     "ChaosEngineeringAction",  # NEW — Phase 9 (chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
+    "SloEngineeringAction",  # NEW — Phase 10 (SLO target change + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
     "emit_audit_typed",
 ]

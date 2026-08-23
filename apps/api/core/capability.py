@@ -411,6 +411,21 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_34_drift.py
     # (capability matrix v1.34 EXTENSION 1 NEW row).
     CHAOS_ENGINEERING = "chaos_engineering"
+    # Phase 10 (cj-style 103번째 wire) — SLO_ENGINEERING — SLO Engineering /
+    # Error Budget Management territory (PRD §F26 + AD-37 (a)~(g)
+    # sub-decisions). Industry-agnostic per CR 12-1 L4 precedent (mirrors
+    # CHAOS_ENGINEERING Phase 9 wire + PERFORMANCE_TESTING Phase 8 wire +
+    # OBSERVABILITY_* Phase 7 wire + AUDIT_LOG_RETENTION Phase 6 wire +
+    # AUDIT_LOG_VIEW Epic 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5
+    # wire pattern verbatim). All 4 industries get SLO_ENGINEERING
+    # capability (SLO engineering is operational resilience / observability
+    # baseline, not industry-specific). Gates the SLO routes (manual SLO
+    # create/update/delete + multi-region aggregation + tenant-scoped
+    # override + error budget freeze/unfreeze + governance review + SLO
+    # breach auto-rollback trigger + dry-run mode). Drift detector lives
+    # at tests/integration/test_capability_matrix_v1_35_drift.py
+    # (capability matrix v1.35 EXTENSION 1 NEW row).
+    SLO_ENGINEERING = "slo_engineering"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -553,6 +568,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # baseline CR 12-1 L4 precedent + PERFORMANCE_TESTING Phase 8
             # wire + OBSERVABILITY_* Phase 7 wire pattern verbatim).
             Capability.CHAOS_ENGINEERING,
+            # Phase 10 (cj-style 103번째 wire) — all industries get
+            # SLO_ENGINEERING (industry-agnostic, SLO engineering baseline
+            # CR 12-1 L4 precedent + CHAOS_ENGINEERING Phase 9 wire +
+            # PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
+            # wire pattern verbatim).
+            Capability.SLO_ENGINEERING,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -671,6 +692,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # CHAOS_ENGINEERING (industry-agnostic, chaos engineering
             # baseline CR 12-1 L4 precedent).
             Capability.CHAOS_ENGINEERING,
+            # Phase 10 (cj-style 103번째 wire) — all industries get
+            # SLO_ENGINEERING (industry-agnostic, SLO engineering baseline
+            # CR 12-1 L4 precedent + CHAOS_ENGINEERING Phase 9 wire +
+            # PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
+            # wire pattern verbatim).
+            Capability.SLO_ENGINEERING,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -809,6 +836,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # CHAOS_ENGINEERING (industry-agnostic, chaos engineering
             # baseline CR 12-1 L4 precedent).
             Capability.CHAOS_ENGINEERING,
+            # Phase 10 (cj-style 103번째 wire) — all industries get
+            # SLO_ENGINEERING (industry-agnostic, SLO engineering baseline
+            # CR 12-1 L4 precedent + CHAOS_ENGINEERING Phase 9 wire +
+            # PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
+            # wire pattern verbatim).
+            Capability.SLO_ENGINEERING,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -944,6 +977,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # CHAOS_ENGINEERING (industry-agnostic, chaos engineering
             # baseline CR 12-1 L4 precedent).
             Capability.CHAOS_ENGINEERING,
+            # Phase 10 (cj-style 103번째 wire) — all industries get
+            # SLO_ENGINEERING (industry-agnostic, SLO engineering baseline
+            # CR 12-1 L4 precedent + CHAOS_ENGINEERING Phase 9 wire +
+            # PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
+            # wire pattern verbatim).
+            Capability.SLO_ENGINEERING,
         }
     ),
 }
