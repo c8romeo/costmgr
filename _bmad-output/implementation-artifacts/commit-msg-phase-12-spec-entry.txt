@@ -1,0 +1,88 @@
+Phase 12 spec entry DONE (cj-style 110번째 epic 연속 정직 회복 atomic docs-only wire): FinOps Cost Anomaly Detection & Budget Alerting territory 결정 wire + 5 files atomic single sprint (1 NEW spec file `phase-12-finops-anomaly-budget-alert-wire.md` + 1 MODIFIED sprint-status v3.21 → v3.22 EXTENSION A374~A378 + 1 NEW handoff memory `handoff-2026-08-24-phase-12-spec-entry-done.md` + 1 MODIFIED MEMORY.md hook index EXTENSION + 1 NEW commit-msg = 3 NEW + 2 MODIFIED = 5 files atomic single sprint 결정 wire).
+
+territory: Cost Anomaly Detection & Budget Alerting (anomaly detection DSL 4 methods z-score/IQR/EWMA/isolation forest + budget definition DSL + anomaly detection engine + alert routing Slack + PagerDuty + forecast accuracy tracking MAE/MAPE/RMSE + capability matrix v1.37 EXTENSION FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT 2 NEW rows)
+
+baseline_commit: 344c7eb (Phase 12 PRD entry tip = cj-style 109번째)
+AC count: 8 ACs §F28.1~§F28.8 verbatim → 96 detailed sub-ACs (12+12+12+12+10+10+12+12)
+Tasks: T1~T8 + 68 subtasks
+Files: ~32 files estimate (~20 NEW + ~12 MODIFIED) for wire sprint
+Tests: ~50 NEW pytest PASS + ~5 NEW vitest PASS + 0 NEW ruff + 0 NEW tsc + 0 regressions
+
+CR lessons applied 14종:
+- CR 0-2 RLS lesson (anomaly + budget tables RLS 자동 적용)
+- CR 1-1 audit-first INSERT (7 NEW audit actions)
+- CR 4-3/4-4 lessons carry (V8 골든 fixture + golden_diff pattern)
+- CR 1-1 ContextVar lesson (trace_id propagation)
+- CR 1-1 RSC boundary lesson (admin/finops/anomaly RSC + Client delegation)
+- CR 9-6 commit message discipline
+- CR 11-3 honest-DEFER discipline (110번째 epic 연속 정직 회복)
+- CR 11-4 D-001~D-005 + P-015 lessons
+- CR 12-1 L4 industry-agnostic capability (FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT 4-industry grants ✅/✅/✅/✅)
+- CR 12-5 D-14 typed exception envelope (14 NEW typed exceptions)
+- CR 12-5 D-PARITY-01 inversion (Python FastAPI TypedDict ↔ TypeScript Next.js interface parity)
+- CR 12-5 D-GATE-01 inversion (capability gate per-tenant on/off + owner-only RBAC)
+- A19 cohesion 9 surface EXTENSION PASS (FinOps anomaly + budget alert surface NEW)
+- A36 SDR 검증 4-step 자동 적용
+
+AD-14 stack pin: sklearn==1.4.0 + slack-sdk==3.23.0 + pdpyras==5.2.0 + sendgrid==6.11.0 + Recharts 2.12.7
+AD-22 owner-only RBAC: anomaly detection + budget definition + budget alert + forecast accuracy tracking 모두 owner-only
+AD-39 Cost Anomaly Detection & Budget Alerting 신규
+NFR4 PII minimization: PRESERVED
+NFR18 ko-KR: SSOT only invariant
+Epic 12 2FA 챌린지: mandatory
+
+D-DEFER-* honestly 결정 wire:
+- D-FINOPS-2 honestly preserved → Phase 12 PRD entry 진입 시점에 carry-over chain 정직 회복 결정 wire
+- D-FINOPS-1 ✅ RESOLVED
+- D-SLO-1 ✅ RESOLVED
+- D-CHAOS-1 ✅ RESOLVED
+- D-PERFORMANCE-1 ✅ RESOLVED
+- D-OBSERVABILITY-1 ✅ RESOLVED
+- D-RETENTION-1 ✅ RESOLVED
+- D-EPIC-17-WIRE-DEFER-T2-T3-UI ✅ RESOLVED
+- D-PHASE-4-DR-DEFER-1/2 ✅ RESOLVED
+- D-EPIC-16-REVIEW-DEFER-2~6 ✅ RESOLVED
+- D-1-1-DEFER-1/2/3 ✅ RESOLVED
+
+Epic 1 ~ Epic 17 + Phase 3 ~ Phase 11 + 1st release cycle 정합 보존 결정 wire 진입:
+- Phase 11 close-out retro `80df15b` (cj-style 108번째) ✅
+- Phase 11 atomic wire T1~T8 `e020ad0` (cj-style 107번째) ✅
+- Phase 11 spec entry `82c93a8` (cj-style 106번째) ✅
+- Phase 11 PRD entry `16d7698` (cj-style 105번째) ✅
+- Phase 10 close-out retro `733d428` (cj-style 104번째) ✅
+- Phase 10 atomic wire T1~T8 `ac5d6c5` (cj-style 103번째) ✅
+- Phase 9 close-out retro `634427d` (cj-style 100번째) ✅
+- Phase 9 atomic wire T1~T8 `e7670e1` (cj-style 99번째) ✅
+- Phase 8 close-out retro `ab495a8` (cj-style 96번째) ✅
+- Phase 8 atomic wire T1~T8 `60d4ea1` (cj-style 95번째) ✅
+- Phase 7 close-out retro `326fa9f` (cj-style 92번째) ✅
+- Phase 7 atomic wire T1~T8 `59b56cd` (cj-style 91번째) ✅
+- Phase 6 close-out retro `f9f006c` (cj-style 88번째) ✅
+- Phase 6 atomic wire T1~T8 `24e1cd7` (cj-style 87번째) ✅
+- Epic 17 close-out retro `be8f3bd` (cj-style 84번째) ✅
+- Epic 17 atomic wire `2ada2ec` (cj-style 82번째) ✅
+- Epic 16 cycle (cj-style 67~72번째) ✅
+- 1st release cycle (cj-style 62~66번째) ✅
+- Epic 15 cycle (cj-style 58~61번째) ✅
+- Phase 4 cycle (cj-style 53~57번째) ✅
+- Phase 3 cycle (cj-style 49~52번째) ✅
+- Epic 14 LISTEN/NOTIFY 2nd Batch `7835463` ✅
+- Epic 13 LISTEN/NOTIFY consume `f2ea2f6` ✅
+- Epic 12 2FA 게이트 `a63646c` ✅
+- Phase 2 close-out baseline 599 passed ✅
+- Epic 1 carry-over ✅
+
+3중 게이트 impact NONE (cj-style 110번째 standard docs-only):
+- ruff scoped 0 NEW
+- pytest 0 NEW
+- vitest 0 NEW
+- tsc 0 NEW
+- 0 regressions
+
+partial wire 시도 0건 + single sprint atomic docs-only wire 1 진입점 결정 wire 진입 완료.
+
+next: Phase 12 bmad-dev-story atomic wire T1~T8 진입 (cj-style 111번째 wire 진입 시점) 결정 wire 진입 / Phase 12 close-out retro 진입 (cj-style 112번째) / Phase 13+ 진입 / Epic 18+ 진입 / D-DEFER-* follow-up 진입 결정 wire 보류.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
