@@ -2,6 +2,8 @@
  * apps/web/lib/finops/finops-types.ts —
  * Phase 11 T7 (cj-style 107번째 wire) — FinOps Showback / Chargeback
  * TypedDict parity (CR 12-5 D-PARITY-01 inversion).
+ * Phase 12 T7 (cj-style 111번째 wire) — Cost Anomaly Detection &
+ * Budget Alerting TypedDict parity EXTENSION.
  *
  * Mirrors the backend Python TypedDicts in apps/api/modules/finops/:
  *   - ShowbackDefinition
@@ -10,7 +12,36 @@
  *   - ChargebackRule
  *   - ChargebackResult
  *   - DepartmentCostCenterMapping
+ *   - AnomalyDefinition (Phase 12 EXTENSION)
+ *   - DetectionResult (Phase 12 EXTENSION)
+ *   - BudgetDefinition (Phase 12 EXTENSION)
+ *   - AlertThresholds (Phase 12 EXTENSION)
+ *   - BudgetAlert (Phase 12 EXTENSION)
+ *   - AlertRouting (Phase 12 EXTENSION)
+ *   - ForecastAccuracyMetrics (Phase 12 EXTENSION)
  */
+
+export type {
+  AlertChannel,
+  AlertDispatchStatus,
+  AlertLevel,
+  AlertRouting,
+  AlertThresholds,
+  AccuracyStatus,
+  AnomalyDefinition,
+  BaselineWindow,
+  BudgetAlert,
+  BudgetDefinition,
+  BudgetPeriod,
+  BudgetScope,
+  BudgetStatus,
+  DetectionMethod,
+  DetectionResult,
+  DetectionStatus,
+  Dimension,
+  ForecastAccuracyMetrics,
+  Severity,
+} from "@/lib/finops/anomaly-types";
 export type GroupBy =
   | "department"
   | "cost_center"

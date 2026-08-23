@@ -164,6 +164,174 @@ class ChargebackExportRateLimitedError(FinopsError):
     http_status: int = 429
 
 
+# ── FinOps Cost Anomaly Detection & Budget Alerting typed exceptions ──
+# Phase 12 (cj-style 111번째 wire) — CR 12-5 D-14 typed exception
+# envelope applied to 14 NEW exceptions shared across anomaly_detection +
+# budget_definition + anomaly_detection_engine + budget_alert +
+# forecast_accuracy modules. Module identifier m20_finops_anomaly.
+
+# Module identifier used by typed exception envelopes (mirrors
+# m19_finops Phase 11 + m18_slo_engineering Phase 10 + m17_chaos_engineering
+# Phase 9 pattern).
+FINOPS_ANOMALY_MODULE_ID: str = "m20_finops_anomaly"
+
+
+class FinopsAnomalyError(FinopsError):
+    """Base for FinOps anomaly + budget alert typed exceptions.
+
+    Provides FINOPS_ANOMALY_MODULE_ID class attribute + envelope shape
+    `{code, message_ko, details, trace_id, module_id}` shared by all
+    14 NEW exception subclasses below.
+    """
+
+    module_id: str = FINOPS_ANOMALY_MODULE_ID
+
+
+class AnomalyDefinitionInvalidError(FinopsAnomalyError):
+    """HTTP 400 typed error — anomaly detection DSL validation failure.
+
+    Raised by parse_anomaly_definition() when 6 validation rules
+    (PRD §F28.1.5 verbatim) detect invalid dimension / threshold_method /
+    baseline_window / threshold_value / consecutive_periods_required /
+    tenant_id.
+    """
+
+    http_status: int = 400
+
+
+class AnomalyDetectionError(FinopsAnomalyError):
+    """HTTP 500 typed error — anomaly detection engine failure.
+
+    Raised by run_anomaly_detection() when 4-method voting consensus
+    fails or when the algorithm returns inconsistent results.
+    """
+
+    http_status: int = 500
+
+
+class AnomalyBaselineUnavailableError(FinopsAnomalyError):
+    """HTTP 422 typed error — insufficient baseline data for detection.
+
+    Raised by _z_score_method / _iqr_method / _isolation_forest_method
+    when baseline_history has fewer than required entries (z_score: ≥2,
+    IQR: ≥4, isolation_forest: ≥2).
+    """
+
+    http_status: int = 422
+
+
+class AnomalyBaselineUpdateError(FinopsAnomalyError):
+    """HTTP 500 typed error — baseline window update failure.
+
+    Raised by baseline_window updater (last_30d + last_90d + YTD) when
+    aggregation query fails or partition pruning is invalid.
+    """
+
+    http_status: int = 500
+
+
+class BudgetDefinitionInvalidError(FinopsAnomalyError):
+    """HTTP 400 typed error — budget definition DSL validation failure.
+
+    Raised by parse_budget_definition() when 6 validation rules
+    (PRD §F28.2.1 verbatim) detect invalid budget_period / scope / amount /
+    currency_code / status / tenant_id.
+    """
+
+    http_status: int = 400
+
+
+class BudgetScopeInvalidError(FinopsAnomalyError):
+    """HTTP 400 typed error — budget scope validation failure.
+
+    Raised by parse_budget_definition() when scope is not in
+    ALL_BUDGET_SCOPES (tenant / department / cost_center / product_line).
+    """
+
+    http_status: int = 400
+
+
+class BudgetAmountInvalidError(FinopsAnomalyError):
+    """HTTP 400 typed error — budget amount validation failure.
+
+    Raised by parse_budget_definition() when amount is not a valid
+    Decimal > 0 or fails banker's rounding precision.
+    """
+
+    http_status: int = 400
+
+
+class BudgetAlertError(FinopsAnomalyError):
+    """HTTP 500 typed error — budget alert routing failure.
+
+    Raised by route_budget_alert() when consumption calculation fails
+    or alert routing table is invalid.
+    """
+
+    http_status: int = 500
+
+
+class BudgetAlertRoutingError(FinopsAnomalyError):
+    """HTTP 400 typed error — budget alert routing validation failure.
+
+    Raised by _build_routing() when alert_level is not in ALL_ALERT_LEVELS
+    or routing table has invalid channel combination.
+    """
+
+    http_status: int = 400
+
+
+class BudgetAlertDedupWindowActiveError(FinopsAnomalyError):
+    """HTTP 409 typed error — budget alert dedup window active.
+
+    Raised by route_budget_alert() when last_alert_at is within 24h
+    dedup window for same budget + alert level.
+    """
+
+    http_status: int = 409
+
+
+class ForecastAccuracyDegradedError(FinopsAnomalyError):
+    """HTTP 422 typed error — forecast accuracy degraded (triggers retrain).
+
+    Raised by evaluate_forecast_accuracy() when MAPE > 20% (RETRAIN
+    threshold) — flagged for model retraining.
+    """
+
+    http_status: int = 422
+
+
+class ForecastAccuracyInvalidError(FinopsAnomalyError):
+    """HTTP 400 typed error — forecast accuracy input validation failure.
+
+    Raised by compute_mae / compute_mape / compute_rmse when input lists
+    have mismatched lengths, are empty, or contain zero values (MAPE
+    zero division guard).
+    """
+
+    http_status: int = 400
+
+
+class ForecastModelRetrainingError(FinopsAnomalyError):
+    """HTTP 500 typed error — forecast model retraining failure.
+
+    Raised by model retraining trigger when sklearn isolation_forest
+    fit fails (AD-14 pin sklearn==1.4.0) or training data is invalid.
+    """
+
+    http_status: int = 500
+
+
+class FinopsAnomalyCapabilityDeniedError(FinopsAnomalyError):
+    """HTTP 403 typed error — FinOps anomaly/budget capability denied.
+
+    Raised when tenant's industry does not unlock FINOPS_ANOMALY_DETECTION
+    or FINOPS_BUDGET_ALERT capability (CR 12-1 L4 industry-agnostic gate).
+    """
+
+    http_status: int = 403
+
+
 __all__ = [
     "BaseError",
     "BadRequestError",
@@ -181,4 +349,21 @@ __all__ = [
     "ChargebackCalculationError",
     "ChargebackExportError",
     "ChargebackExportRateLimitedError",
+    # Phase 12 FinOps anomaly + budget alert typed exceptions (CR 12-5 D-14)
+    "FinopsAnomalyError",
+    "FINOPS_ANOMALY_MODULE_ID",
+    "AnomalyDefinitionInvalidError",
+    "AnomalyDetectionError",
+    "AnomalyBaselineUnavailableError",
+    "AnomalyBaselineUpdateError",
+    "BudgetDefinitionInvalidError",
+    "BudgetScopeInvalidError",
+    "BudgetAmountInvalidError",
+    "BudgetAlertError",
+    "BudgetAlertRoutingError",
+    "BudgetAlertDedupWindowActiveError",
+    "ForecastAccuracyDegradedError",
+    "ForecastAccuracyInvalidError",
+    "ForecastModelRetrainingError",
+    "FinopsAnomalyCapabilityDeniedError",
 ]

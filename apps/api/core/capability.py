@@ -442,6 +442,36 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # (capability matrix v1.36 EXTENSION 2 NEW rows).
     FINOPS_SHOWBACK = "finops_showback"
     FINOPS_CHARGEBACK = "finops_chargeback"
+    # Phase 12 (cj-style 111번째 wire) — FINOPS_ANOMALY_DETECTION —
+    # Cost Anomaly Detection & Budget Alerting territory (PRD §F28 +
+    # AD-39 (a)~(g) sub-decisions). Industry-agnostic per CR 12-1 L4
+    # precedent (mirrors FINOPS_SHOWBACK + FINOPS_CHARGEBACK Phase 11
+    # wire + SLO_ENGINEERING Phase 10 wire + CHAOS_ENGINEERING Phase 9
+    # wire + PERFORMANCE_TESTING Phase 8 wire + OBSERVABILITY_* Phase 7
+    # wire + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW Epic 17
+    # wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
+    # All 4 industries get FINOPS_ANOMALY_DETECTION capability (anomaly
+    # detection is financial observability baseline, not
+    # industry-specific). Gates the anomaly detection routes
+    # (apps/api/modules/finops/anomaly_detection.py +
+    # anomaly_detection_engine.py + forecast_accuracy.py). Drift
+    # detector lives at
+    # tests/integration/test_capability_matrix_v1_37_drift.py
+    # (capability matrix v1.37 EXTENSION 2 NEW rows).
+    FINOPS_ANOMALY_DETECTION = "finops_anomaly_detection"
+    # Phase 12 (cj-style 111번째 wire) — FINOPS_BUDGET_ALERT — Cost
+    # Anomaly Detection & Budget Alerting territory (PRD §F28.4 +
+    # AD-39 (a)~(g) sub-decisions). Industry-agnostic per CR 12-1 L4
+    # precedent (mirrors FINOPS_ANOMALY_DETECTION Phase 12 wire +
+    # FINOPS_SHOWBACK + FINOPS_CHARGEBACK Phase 11 wire pattern verbatim).
+    # All 4 industries get FINOPS_BUDGET_ALERT capability (budget
+    # alerting is financial observability baseline, not industry-specific).
+    # Gates the budget definition + budget alert routing routes
+    # (apps/api/modules/finops/budget_definition.py + budget_alert.py).
+    # Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_37_drift.py
+    # (capability matrix v1.37 EXTENSION 2 NEW rows).
+    FINOPS_BUDGET_ALERT = "finops_budget_alert"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -598,6 +628,13 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Phase 7 wire pattern verbatim).
             Capability.FINOPS_SHOWBACK,
             Capability.FINOPS_CHARGEBACK,
+            # Phase 12 (cj-style 111번째 wire) — manufacturing tenants
+            # get FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT
+            # (industry-agnostic, FinOps financial observability baseline
+            # CR 12-1 L4 precedent + FINOPS_SHOWBACK + FINOPS_CHARGEBACK
+            # Phase 11 wire pattern verbatim).
+            Capability.FINOPS_ANOMALY_DETECTION,
+            Capability.FINOPS_BUDGET_ALERT,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -730,6 +767,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Phase 7 wire pattern verbatim).
             Capability.FINOPS_SHOWBACK,
             Capability.FINOPS_CHARGEBACK,
+            # Phase 12 (cj-style 111번째 wire) — service tenants get
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT
+            # (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.FINOPS_ANOMALY_DETECTION,
+            Capability.FINOPS_BUDGET_ALERT,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -879,6 +921,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FinOps financial reporting baseline CR 12-1 L4 precedent).
             Capability.FINOPS_SHOWBACK,
             Capability.FINOPS_CHARGEBACK,
+            # Phase 12 (cj-style 111번째 wire) — 겸영 tenants get
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT
+            # (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.FINOPS_ANOMALY_DETECTION,
+            Capability.FINOPS_BUDGET_ALERT,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1025,6 +1072,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FinOps financial reporting baseline CR 12-1 L4 precedent).
             Capability.FINOPS_SHOWBACK,
             Capability.FINOPS_CHARGEBACK,
+            # Phase 12 (cj-style 111번째 wire) — full matrix tenants get
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT
+            # (industry-agnostic, CR 12-1 L4 precedent).
+            Capability.FINOPS_ANOMALY_DETECTION,
+            Capability.FINOPS_BUDGET_ALERT,
         }
     ),
 }

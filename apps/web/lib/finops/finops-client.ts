@@ -28,6 +28,24 @@ export type {
   ShowbackDefinition,
 };
 
+export {
+  AnomalyApiError,
+  createBudget,
+  evaluateForecastAccuracy,
+  listAnomalyDetections,
+  listBudgetAlerts,
+  listBudgets,
+  runAnomalyDetection,
+} from "@/lib/finops/anomaly-client";
+
+export type {
+  AnomalyDefinition,
+  BudgetAlert,
+  BudgetDefinition,
+  DetectionResult,
+  ForecastAccuracyMetrics,
+} from "@/lib/finops/anomaly-client";
+
 export interface FinopsApiPage<T> {
   items: T[];
   total: number;

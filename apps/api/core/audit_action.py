@@ -76,6 +76,8 @@ class ActionClass(str, __import__("enum").Enum):
     CHAOS_ENGINEERING = "chaos_engineering"  # Phase 9 (NEW — chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
     SLO_ENGINEERING = "slo_engineering"  # Phase 10 (NEW — SLO definition + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
     FINOPS = "finops"  # Phase 11 (NEW — FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
+    FINOPS_ANOMALY = "finops_anomaly"  # Phase 12 (NEW — Cost anomaly detection + budget alerting audit-first INSERT, AD-39)
+    FINOPS_BUDGET = "finops_budget"  # Phase 12 (NEW — Budget definition + budget alert routing audit-first INSERT, AD-39)
 
 
 # ────────────────────────────────────────────────────────────
@@ -682,6 +684,78 @@ FinopsAction = Literal[
 ]
 
 
+# Phase 12 (cj-style 111번째 wire) — FINOPS_ANOMALY actions
+# (anomaly detection + forecast accuracy tracking audit-first INSERT,
+# AD-39 (b)(d)(e)(f) verbatim). PRD §F28.1 + §F28.5 + §F28.6 +
+# AC §F28.1-12 + §F28.5-7 + §F28.6-12 — audit-first INSERT for each new
+# detection / observation event BEFORE/AFTER the actual operation
+# (CR 1-1 verbatim + ActionClass.FINOPS_ANOMALY). Routes to
+# `audit_logs` (NOT to a separate ledger — FinOps anomaly events are
+# tenant-scoped platform-event trail only, mirroring FINOPS Phase 11
+# wire + AUTH (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) /
+# AUDIT (Epic 17 / Phase 6) / OBSERVABILITY (Phase 7) /
+# PERFORMANCE_TEST (Phase 8) / CHAOS_ENGINEERING (Phase 9) /
+# SLO_ENGINEERING (Phase 10) pattern). 4 NEW values:
+# - `anomaly_detected` — multi-method voting consensus confirmed
+#   anomaly (3 of 4 methods agree + severity assigned; result_id +
+#   dimension + dimension_value + observed_cost + baseline_cost +
+#   deviation_pct + severity + methods_voted + tenant_id + trace_id
+#   payload; AD-22 owner-only RBAC + Epic 12 2FA 챌린지 보존 when
+#   governance_required=True; CR 1-1 verbatim audit-first INSERT
+#   AFTER detection confirmed).
+# - `forecast_deviation` — forecast accuracy tracking observed
+#   deviation > threshold (forecast + actual + mae + mape + rmse +
+#   status + retraining_recommended + tenant_id + trace_id payload;
+#   AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT
+#   AFTER forecast evaluation completes).
+# - `model_retraining_triggered` — MAPE > 20% triggers model retrain
+#   (model_name + current_mape + retrain_reason + tenant_id + trace_id
+#   payload; AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT
+#   AFTER retrain flag set).
+# - `anomaly_baseline_updated` — baseline window update (last_30d /
+#   last_90d / YTD aggregation refreshed + tenant_id + trace_id
+#   payload; AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT
+#   AFTER baseline partition refresh).
+FinopsAnomalyAction = Literal[
+    "anomaly_detected",  # §F28.1-12 — multi-method voting consensus confirmed
+    "forecast_deviation",  # §F28.5-7 — forecast accuracy deviation observed
+    "model_retraining_triggered",  # §F28.5-7 — MAPE > 20% retrain trigger
+    "anomaly_baseline_updated",  # §F28.3-12 — baseline window update
+]
+
+
+# Phase 12 (cj-style 111번째 wire) — FINOPS_BUDGET actions
+# (budget definition + budget alert routing audit-first INSERT,
+# AD-39 (c)(e)(g) verbatim). PRD §F28.2 + §F28.4 + AC §F28.2-12 +
+# §F28.4-12 — audit-first INSERT for each new budget operation
+# BEFORE/AFTER the actual operation (CR 1-1 verbatim +
+# ActionClass.FINOPS_BUDGET). Routes to `audit_logs` (NOT to a separate
+# ledger — FinOps budget events are tenant-scoped platform-event trail
+# only, mirroring FINOPS_ANOMALY Phase 12 wire + FINOPS Phase 11 wire
+# + AUTH (Epic 15) / INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) /
+# AUDIT (Epic 17 / Phase 6) / OBSERVABILITY (Phase 7) /
+# PERFORMANCE_TEST (Phase 8) / CHAOS_ENGINEERING (Phase 9) /
+# SLO_ENGINEERING (Phase 10) pattern). 3 NEW values:
+# - `budget_definition_updated` — budget created/updated/paused/expired
+#   (budget_id + scope + scope_id + amount + alert_thresholds +
+#   tenant_id + trace_id payload; AD-22 owner-only RBAC + Epic 12 2FA
+#   챌린지 보존 when governance_required=True; CR 1-1 verbatim
+#   audit-first INSERT AFTER budget row committed).
+# - `budget_threshold_exceeded` — consumption crossed warning/critical/
+#   exceeded threshold (alert_level + consumption_pct + budget_amount +
+#   channels + tenant_id + trace_id payload; AD-22 owner-only RBAC;
+#   CR 1-1 verbatim audit-first INSERT AFTER threshold crossed).
+# - `budget_alert_sent` — alert successfully dispatched to channels
+#   (alert_id + alert_level + channels + recipients + status +
+#   tenant_id + trace_id payload; AD-22 owner-only RBAC; CR 1-1
+#   verbatim audit-first INSERT AFTER alert dispatched).
+FinopsBudgetAction = Literal[
+    "budget_definition_updated",  # §F28.2-12 — budget created/updated
+    "budget_threshold_exceeded",  # §F28.4-12 — threshold crossed
+    "budget_alert_sent",  # §F28.4-12 — alert dispatched to channels
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -716,6 +790,8 @@ AuditAction = (
     | ChaosEngineeringAction  # NEW — Phase 9 (chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
     | SloEngineeringAction  # NEW — Phase 10 (SLO target change + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
     | FinopsAction  # NEW — Phase 11 (FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
+    | FinopsAnomalyAction  # NEW — Phase 12 (Cost anomaly detection + forecast accuracy + model retraining + baseline window update audit-first INSERT)
+    | FinopsBudgetAction  # NEW — Phase 12 (Budget definition + threshold exceeded + alert dispatched audit-first INSERT)
 )
 
 
@@ -1237,6 +1313,54 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 12 (cj-style 111번째 wire) — FINOPS_ANOMALY 4 values
+        # (anomaly detection + forecast accuracy + model retraining +
+        # baseline window update audit-first INSERT, AD-39
+        # (b)(d)(e)(f) verbatim). Routes to audit_logs (NOT to a separate
+        # ledger — FinOps anomaly events are tenant-scoped platform-event
+        # trail only, mirroring FINOPS Phase 11 wire + AUTH (Epic 15) /
+        # INFRA (Phase 5) / TWO_FACTOR_AUTH (Epic 12) / AUDIT (Epic 17 /
+        # Phase 6) / OBSERVABILITY (Phase 7) / PERFORMANCE_TEST (Phase
+        # 8) / CHAOS_ENGINEERING (Phase 9) / SLO_ENGINEERING (Phase 10)
+        # pattern). target_table=`finops_anomaly` aligns with
+        # ActionClass.FINOPS_ANOMALY value (audit_log target_table
+        # column populated verbatim — RLS preserved). Drift detector
+        # enforces ActionClass registry ↔ DB CHECK (no-op for
+        # audit_logs per AD-2) ↔ call sites parity (3-way gate).
+        # Phase 11 cj-style 107번째 wire `test_phase_11_audit_action.py`
+        # pattern verbatim applied.
+        ActionClass.FINOPS_ANOMALY: (
+            "audit_logs",
+            frozenset(
+                {
+                    "anomaly_detected",  # §F28.1-12 — multi-method voting consensus
+                    "forecast_deviation",  # §F28.5-7 — forecast accuracy deviation
+                    "model_retraining_triggered",  # §F28.5-7 — MAPE > 20% retrain
+                    "anomaly_baseline_updated",  # §F28.3-12 — baseline window update
+                }
+            ),
+        ),
+        # Phase 12 (cj-style 111번째 wire) — FINOPS_BUDGET 3 values
+        # (budget definition + threshold exceeded + alert dispatched
+        # audit-first INSERT, AD-39 (c)(e)(g) verbatim). Routes to
+        # audit_logs (NOT to a separate ledger — FinOps budget events
+        # are tenant-scoped platform-event trail only, mirroring
+        # FINOPS_ANOMALY + FINOPS Phase 11 wire pattern). target_table=
+        # `finops_budget` aligns with ActionClass.FINOPS_BUDGET value
+        # (audit_log target_table column populated verbatim — RLS
+        # preserved). Drift detector enforces ActionClass registry ↔
+        # DB CHECK (no-op for audit_logs per AD-2) ↔ call sites parity
+        # (3-way gate).
+        ActionClass.FINOPS_BUDGET: (
+            "audit_logs",
+            frozenset(
+                {
+                    "budget_definition_updated",  # §F28.2-12 — budget row update
+                    "budget_threshold_exceeded",  # §F28.4-12 — threshold crossed
+                    "budget_alert_sent",  # §F28.4-12 — alert dispatched
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1371,5 +1495,7 @@ __all__ = [
     "ChaosEngineeringAction",  # NEW — Phase 9 (chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
     "SloEngineeringAction",  # NEW — Phase 10 (SLO target change + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
     "FinopsAction",  # NEW — Phase 11 (FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
+    "FinopsAnomalyAction",  # NEW — Phase 12 (Cost anomaly detection + forecast accuracy + model retraining + baseline window update audit-first INSERT)
+    "FinopsBudgetAction",  # NEW — Phase 12 (Budget definition + threshold exceeded + alert dispatched audit-first INSERT)
     "emit_audit_typed",
 ]
