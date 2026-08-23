@@ -1,0 +1,24 @@
+Phase 9 PRD entry: Chaos Engineering / Game Day territory 결정 (cj-style 97번째 epic 연속 정직 회복 atomic docs-only wire)
+
+master PRD v3.9 → v4.0 atomic edit:
+- _bmad-output/planning-artifacts/prd.md (front matter title v3.9 → v4.0 + changelog v4.0 entry + §F25 신규 Chaos Engineering / Game Day 7 sub-sections F25.1~F25.7 + §8.1 M0-(r) Phase 9 AC 신규 + §부록 A A283~A287 신규 결정 표 + AD-35 Performance / Load Testing + AD-36 Chaos Engineering / Game Day 신규 결정)
+- docs/capability-matrix.md (v1.33 → v1.34 EXTENSION CHAOS_ENGINEERING 1 NEW row industry-agnostic 4-industry grants ✅/✅/✅/✅ + v1.34 changelog entry)
+- _bmad-output/implementation-artifacts/sprint-status.yaml (A283~A287 phase-9-prd-entry action_items block 5 entries + last_updated_note v3.10 Phase 9 PRD entry prepend 결정)
+- memory/handoff-2026-08-24-phase-9-prd-entry-done.md (NEW handoff memory)
+- memory/MEMORY.md (Phase 9 hook index 신규 EXTENSION)
+
+Phase 9 territory = Chaos Engineering / Game Day (chaos_experiment + fault_injection 10 categories + game_day runbook + blast_radius_control 5 levels + continuous_chaos vs scheduled + tenant-scoped + multi-region chaos + auto-rollback + safety mechanisms 6 layers + dry-run mode + observability integration).
+
+A283 = 옵션 (a) Phase 9+ 진입 + 옵션 (a) Chaos Engineering / Game Day (Recommended) 결정 wire
+A284 = master PRD v3.9 → v4.0 atomic edit 결정 wire
+A285 = AD-36 Chaos Engineering / Game Day 신규 결정 (7 sub-decisions)
+A286 = Capability matrix v1.33 → v1.34 EXTENSION CHAOS_ENGINEERING 1 NEW row 결정 wire
+A287 = Phase 9 wire scope T1~T8 결정
+
+D-CHAOS-1 신규 honestly DEFER 보존 1 NEW 결정 wire (Phase 8 close-out retro §10 + Phase 7 close-out retro §10 verbatim 해소).
+
+CR 11-3 honest-DEFER discipline 97번째 epic 연속 정직 회복 검증.
+
+CR 9-6 D5 prevention: `git commit -F <file>` 사용 (PowerShell here-string 회피).
+
+Co-Authored-By: Claude <noreply@anthropic.com>
