@@ -1,0 +1,48 @@
+Phase 14 spec entry DONE (cj-style 118번째 epic 연속 정직 회복 atomic docs-only wire): FinOps Optimization & Rightsizing territory 결정 wire + 5 files atomic single sprint (1 NEW spec file phase-14-finops-optimization-rightsizing-wire.md ~+373 LOC + 1 MODIFIED sprint-status v3.29 → v3.30 EXTENSION + 1 NEW handoff memory `memory/handoff-2026-08-25-phase-14-spec-entry-done.md` + 1 NEW commit-msg + 1 MODIFIED MEMORY.md hook EXTENSION = 3 NEW + 2 MODIFIED = 5 files atomic single sprint 결정 wire).
+
+Wire scope detail:
+- 1 NEW `_bmad-output/implementation-artifacts/phase-14-finops-optimization-rightsizing-wire.md` (~+373 LOC): spec file with baseline_commit `0e3f8d9` (Phase 14 PRD entry commit = cj-style 117th tip) + status `ready-for-dev` + cj_style_entry_point 118 + Story: FinOps Optimization & Rightsizing territory implementation spec + 8 ACs §F30.1~§F30.8 verbatim → 92 detailed sub-ACs (12+12+12+12+12+10+12+12 = 92 sub-ACs pre-flight 정합 sweep) + T1~T8 + 68 subtasks (T1 10 + T2 10 + T3 10 + T4 10 + T5 8 + T6 8 + T7 8 + T8 4 = 68 subtasks 결정 wire) + Dev Notes 14종 (CR lessons + AD-22 + AD-14 + NFR4 + Epic 12 2FA + AD-41 (a)~(g) + 2 LEVEL GUARDS) + Architecture Alignment cj-style ALLOWED sweep (ALLOWED_SERVICE_SUBMODULES sweep) + Files Affected ~32 files estimate (~20 NEW + ~12 MODIFIED) + Test Coverage ~56 NEW pytest PASS + ~7 NEW vitest PASS + 0 NEW ruff + 0 NEW tsc.
+- 1 MODIFIED `_bmad-output/implementation-artifacts/sprint-status.yaml` v3.29 → v3.30 EXTENSION: `phase-14-spec-entry: done` 신규 entry + A419~A423 action_items 신규 block 5 entries + last_updated_note v3.30 Phase 14 spec entry prepend.
+- 1 NEW `memory/handoff-2026-08-25-phase-14-spec-entry-done.md`: handoff memory with 5 결정 wire 요약 + 5 files atomic single sprint inventory + CR lessons applied 14종 verbatim 보존 + 2 LEVEL GUARDS + D-DEFER-* honestly 결정 보존 + 3중 게이트 impact NONE + next 결정 wire 보류.
+- 1 NEW `_bmad-output/implementation-artifacts/commit-msg-phase-14-spec-entry.txt`: this file (atomic commit CR 9-6 D5 prevention).
+- 1 MODIFIED `memory/MEMORY.md`: Phase 14 section EXTENSION — PRD entry 117 DONE + spec entry 118 DONE + 6 + 5 = 11 files atomic single sprint docs-only + spec entry link EXTENSION 결정 wire 진입 완료 보존.
+
+CR lessons applied 14종 결정 wire 보존 (verbatim):
+- CR 0-2: RLS auto-application 5 tables (Phase 13 wire `8b98030` EXTENSION)
+- CR 1-1: audit-first INSERT 8 NEW + audit action EXTENSION
+- CR 4-3/4-4: Industry enum SSOT + A5 drift detector + golden_diff
+- CR 9-6 D5 prevention: commit message discipline `git commit -F <file>` (via this commit-msg file)
+- CR 11-3: honest-DEFER 22번째 + ALLOWED_SERVICE_SUBMODULES 즉시 sweep + ruff auto-fix
+- CR 11-4 P-015: ko-KR.json EXTENSION ~30 keys finops_optimization.* namespace (verbatim SSOT)
+- CR 11-4 D-001~D-005: TS mirror parity + cross-language drift detector
+- CR 12-1 L4: industry-agnostic 4-industry grants ✅/✅/✅/✅
+- CR 12-5 D-14: typed exception envelope 14 NEW
+- CR 12-5 D-PARITY-01 inversion: TS mirror parity
+- CR 12-5 D-GATE-01 inversion: capability gate inversion
+- A19 cohesion: 9 surface EXTENSION PASS
+- A36 SDR 검증 4-step 자동 적용
+- AD-14 stack pin: Recharts 2.12.7 + slack-sdk==3.23.0 + pdpyras==5.2.0 + sendgrid==6.11.0 + statsmodels==0.14.1 + prophet==1.1.5 + tensorflow==2.15.0
+- AD-22 owner-only RBAC + Epic 12 2FA 챌린지 보존 + NFR4 PII minimization ✅ PRESERVED
+
+2 LEVEL GUARDS 결정 wire 보존:
+- MINIMUM_UTILIZATION_PCT=20.0 (rightsizing engine guard)
+- estimated_savings_threshold_pct=5.0 (rightsizing engine guard)
+- break_even_utilization_pct default 70% (commitment recommender guard)
+- MINIMUM_SAVINGS_PCT=10.0 (commitment recommender guard)
+- 30 consecutive days idle 정의 (idle resource detector guard)
+- z-score < -2.0 기반 (idle resource detector statistical guard)
+
+D-DEFER-* honestly 결정 보존 (carry-over chain EXTENSION):
+- D-1-1-DEFER-1/2/3 + D-EPIC-16-REVIEW-DEFER-1/2~6 + D-PHASE-4-DR-DEFER-1/2 + D-EPIC-17-WIRE-DEFER-T2-T3-UI + D-RETENTION-1 + D-OBSERVABILITY-1 + D-PERFORMANCE-1 + D-CHAOS-1 + D-SLO-1 + D-FINOPS-1 + D-FINOPS-2 + D-FINOPS-3 모두 ✅ ALL RESOLVED 보존
+- **D-FINOPS-4 신규 honestly DEFER 보존 진입 결정 wire** (Phase 14 close-out retro 진입 시점)
+
+3중 게이트 impact NONE (cj-style 118번째 wire 진입 표준 = docs only 변경):
+- ruff scoped: 0 NEW (apps/api backend unchanged)
+- pytest: 0 NEW (apps/api backend unchanged)
+- vitest: 0 NEW (apps/web frontend unchanged)
+- tsc: 0 NEW (apps/web frontend unchanged)
+
+Epic 1 ~ Epic 17 + Phase 3 ~ Phase 13 + 1st release cycle 정합 보존 (cj-style 118th epic 연속 정직 회복 pre-flight 정합 sweep 결정 wire 보존).
+
+결정 wire 일자: 2026-08-25 (KST).
+next: (a) Phase 14 atomic wire T1~T8 진입 (cj-style 119번째) / (b) Phase 14 close-out retro 진입 (cj-style 120번째) / (c) Phase 15+ / (d) Epic 18+ / (e) D-DEFER-* follow-up 결정 wire 보류.
