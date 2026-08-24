@@ -81,6 +81,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_FORECAST = "finops_forecast"  # Phase 13 (NEW — Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT, AD-39)
     FINOPS_OPTIMIZATION = "finops_optimization"  # Phase 14 (NEW — Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
     FINOPS_TAG_GOVERNANCE = "finops_tag_governance"  # Phase 15 (cj-style 123번째 wire — NEW — Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation audit-first INSERT, AD-42)
+    FINOPS_REPORTING = "finops_reporting"  # Phase 16 (cj-style 127번째 wire — NEW — Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBOC + dry-run audit-first INSERT, AD-43)
 
 
 # ────────────────────────────────────────────────────────────
@@ -939,6 +940,29 @@ FinopsTagGovernanceAction = Literal[
 ]
 
 
+# finops_reporting actions (Phase 16 cj-style 127번째 wire — NEW).
+# PRD §F32 + AD-43 (a)~(g). Audit routes to `audit_logs`
+# (ActionClass.FINOPS_REPORTING). 8 values:
+# - `executive_report_generated` — §F32.3-11 — PDF/CSV/Excel generated
+# - `executive_dashboard_viewed` — §F32.1-10 — dashboard viewed (CR 1-1)
+# - `executive_kpi_refreshed` — §F32.2-10 — cross-module KPI refresh
+# - `executive_report_exported` — §F32.3-11 — report exported (PDF/CSV/Excel)
+# - `executive_report_dispatched` — §F32.4-9 — delivery to Slack/Email/S3
+# - `executive_scheduled_dispatch_evaluated` — §F32.4-9 — KST cron evaluated
+# - `finops_reporting_dry_run_executed` — §F32.8-1 — dry-run preview
+# - `cross_module_kpi_calculated` — §F32.2-10 — 8 KPI computed
+FinopsReportingAction = Literal[
+    "executive_report_generated",
+    "executive_dashboard_viewed",
+    "executive_kpi_refreshed",
+    "executive_report_exported",
+    "executive_report_dispatched",
+    "executive_scheduled_dispatch_evaluated",
+    "finops_reporting_dry_run_executed",
+    "cross_module_kpi_calculated",
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -978,6 +1002,7 @@ AuditAction = (
     | FinopsForecastAction  # NEW — Phase 13 (Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT)
     | FinopsOptimizationAction  # NEW — Phase 14 (Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
     | FinopsTagGovernanceAction  # NEW — Phase 15 (Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation + dry-run audit-first INSERT, AD-42)
+    | FinopsReportingAction  # NEW — Phase 16 (Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBAC + dry-run audit-first INSERT, AD-43)
 )
 
 
@@ -1634,6 +1659,32 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 16 (cj-style 127번째 wire) — FINOPS_REPORTING 8 values
+        # (executive dashboard aggregator + cross-module KPI selector +
+        # executive report generator + scheduled dispatch + executive role
+        # RBAC + dry-run audit-first INSERT, AD-43 verbatim). Routes to
+        # audit_logs (mirrors FINOPS_TAG_GOVERNANCE + FINOPS_OPTIMIZATION
+        # + FINOPS_FORECAST + FINOPS_BUDGET + FINOPS_ANOMALY + FINOPS
+        # Phase 11 wire pattern). target_table=`finops_reporting` aligns
+        # with ActionClass.FINOPS_REPORTING value. Drift detector enforces
+        # ActionClass registry ↔ DB CHECK ↔ call sites parity (3-way gate).
+        # Phase 15 cj-style 123번째 wire FINOPS_TAG_GOVERNANCE registry
+        # pattern verbatim applied.
+        ActionClass.FINOPS_REPORTING: (
+            "audit_logs",
+            frozenset(
+                {
+                    "executive_report_generated",  # §F32.3-11 — report generation
+                    "executive_dashboard_viewed",  # §F32.1-10 — dashboard view
+                    "executive_kpi_refreshed",  # §F32.2-10 — KPI refresh
+                    "executive_report_exported",  # §F32.3-11 — export dispatched
+                    "executive_report_dispatched",  # §F32.4-9 — delivery to Slack/Email/S3
+                    "executive_scheduled_dispatch_evaluated",  # §F32.4-9 — KST cron evaluated
+                    "finops_reporting_dry_run_executed",  # §F32.8-1 — dry-run preview
+                    "cross_module_kpi_calculated",  # §F32.2-10 — 8 KPI computed
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1773,5 +1824,6 @@ __all__ = [
     "FinopsForecastAction",  # NEW — Phase 13 (Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT)
     "FinopsOptimizationAction",  # NEW — Phase 14 (Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
     "FinopsTagGovernanceAction",  # NEW — Phase 15 (Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation + dry-run audit-first INSERT, AD-42)
+    "FinopsReportingAction",  # NEW — Phase 16 (Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBAC + dry-run audit-first INSERT, AD-43)
     "emit_audit_typed",
 ]

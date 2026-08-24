@@ -459,6 +459,39 @@ from apps.api.modules.audit.retention.retention_routes import (
 app.include_router(audit_log_retention_router)
 
 
+# Phase 16 (cj-style 127번째 epic 연속 정직 회복 wire) — FinOps Reporting &
+# Executive Dashboard territory (PRD §F32.1~§F32.8 verbatim + AD-43 (a)~(g)
+# decisions). 8 routes mounted at /api/v1/admin/finops/executive-dashboard/*:
+# - GET  /api/v1/admin/finops/executive-dashboard/rollup
+#   — aggregate_executive_dashboard 5-module cross-join (F32.1 + F32.7)
+# - GET  /api/v1/admin/finops/executive-dashboard/kpis
+#   — select_cross_module_kpis 8 NEW KPI calculations (F32.2)
+# - POST /api/v1/admin/finops/executive-dashboard/reports
+#   — generate_executive_report PDF/CSV/Excel + monthly/quarterly/annual (F32.3)
+# - POST /api/v1/admin/finops/executive-dashboard/dispatches
+#   — schedule_executive_dispatch 4 cron schedules (F32.4)
+# - POST /api/v1/admin/finops/executive-dashboard/dispatches/deliver
+#   — deliver_executive_report Slack + Email + S3 archive (F32.3-9)
+# - GET  /api/v1/admin/finops/executive-dashboard/compliance-trend
+#   — ComplianceTrendMiniChart 12-month tag_compliance_pct trend (F32.6)
+# - POST /api/v1/admin/finops/executive-dashboard/dry-run
+#   — finops_reporting_dry_run_executed preview tables (F32.8)
+# - POST /api/v1/admin/finops/executive-dashboard/recipients
+#   — recipient_strategy 4 strategies (F32.3-10)
+# Capability gate FINOPS_REPORTING (capability matrix v1.42 EXTENSION).
+# audit-first INSERT 8 NEW FINOPS_REPORTING actions
+# (executive_dashboard_viewed + cross_module_kpi_calculated +
+# executive_report_generated + executive_kpi_refreshed +
+# executive_report_exported + executive_report_dispatched +
+# executive_scheduled_dispatch_evaluated + finops_reporting_dry_run_executed).
+# AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
+from apps.api.modules.finops.executive_dashboard_routes import (
+    router as executive_dashboard_router,
+)
+
+app.include_router(executive_dashboard_router)
+
+
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack
 # 강화 territory (PRD §F23 + AD-34 verbatim). 3 NEW routers mounted:
 # - /api/v1/metrics                  — Prometheus exposition format endpoint

@@ -520,6 +520,22 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # matrix v1.41 EXTENSION 1 NEW row).
     FINOPS_TAG_GOVERNANCE = "finops_tag_governance"
 
+    # Phase 16 (cj-style 127번째 wire) — FINOPS_REPORTING
+    # (executive_dashboard_aggregator + cross_module_kpi_selector +
+    # executive_report_generator + scheduled_executive_dispatch +
+    # executive role RBAC). Industry-agnostic per CR 12-1 L4 precedent
+    # (mirrors FINOPS_TAG_GOVERNANCE Phase 15 + FINOPS_OPTIMIZATION
+    # Phase 14 + FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 +
+    # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 +
+    # FINOPS Phase 11 pattern verbatim). All 4 industries get
+    # FINOPS_REPORTING capability (executive reporting is a
+    # business-level concern, not industry-specific). Gates
+    # require_finops_reporting dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_42_drift.py (capability
+    # matrix v1.42 EXTENSION 1 NEW row).
+    FINOPS_REPORTING = "finops_reporting"
+
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
@@ -716,6 +732,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # approval workflow + 6 resource_types + 4 enforcement_levels
             # + 5 rule_types + 3 reconciliation strategy.
             Capability.FINOPS_TAG_GOVERNANCE,
+            # Phase 16 (cj-style 127번째 wire) — FINOPS_REPORTING
+            # (industry-agnostic, FinOps executive reporting layer CR 12-1
+            # L4 precedent + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 5-module
+            # cross-join (Phase 11~15) + 8 NEW KPI calculations +
+            # executive report generator PDF/CSV/Excel + scheduled
+            # dispatch KST cron + tenant-scoped executive role RBAC.
+            Capability.FINOPS_REPORTING,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -866,6 +892,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FINOPS_TAG_GOVERNANCE (industry-agnostic, FinOps cost
             # allocation baseline CR 12-1 L4 precedent).
             Capability.FINOPS_TAG_GOVERNANCE,
+            # Phase 16 (cj-style 127번째 wire) — FINOPS_REPORTING
+            # (industry-agnostic, FinOps executive reporting layer CR 12-1
+            # L4 precedent + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 5-module
+            # cross-join (Phase 11~15) + 8 NEW KPI calculations +
+            # executive report generator PDF/CSV/Excel + scheduled
+            # dispatch KST cron + tenant-scoped executive role RBAC.
+            Capability.FINOPS_REPORTING,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1033,6 +1069,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FINOPS_TAG_GOVERNANCE (industry-agnostic, FinOps cost
             # allocation baseline CR 12-1 L4 precedent).
             Capability.FINOPS_TAG_GOVERNANCE,
+            # Phase 16 (cj-style 127번째 wire) — FINOPS_REPORTING
+            # (industry-agnostic, FinOps executive reporting layer CR 12-1
+            # L4 precedent + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 5-module
+            # cross-join (Phase 11~15) + 8 NEW KPI calculations +
+            # executive report generator PDF/CSV/Excel + scheduled
+            # dispatch KST cron + tenant-scoped executive role RBAC.
+            Capability.FINOPS_REPORTING,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1197,6 +1243,16 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FINOPS_TAG_GOVERNANCE (industry-agnostic, FinOps cost
             # allocation baseline CR 12-1 L4 precedent).
             Capability.FINOPS_TAG_GOVERNANCE,
+            # Phase 16 (cj-style 127번째 wire) — FINOPS_REPORTING
+            # (industry-agnostic, FinOps executive reporting layer CR 12-1
+            # L4 precedent + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 5-module
+            # cross-join (Phase 11~15) + 8 NEW KPI calculations +
+            # executive report generator PDF/CSV/Excel + scheduled
+            # dispatch KST cron + tenant-scoped executive role RBAC.
+            Capability.FINOPS_REPORTING,
         }
     ),
 }

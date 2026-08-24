@@ -34,6 +34,24 @@ Phase 9:
 Phase 10:
   - `require_slo_engineering()` — gates `/api/v1/admin/slo[/...]` (SLO definition create/update/delete + multi-region aggregation + tenant-scoped override + error budget freeze/unfreeze + governance review + SLO breach auto-rollback trigger + dry-run mode)
 
+Phase 11:
+  - `require_finops_showback()` + `require_finops_chargeback()` — FinOps showback + chargeback capability gates
+
+Phase 12:
+  - `require_finops_anomaly_detection()` + `require_finops_budget_alert()` — FinOps anomaly + budget alert capability gates
+
+Phase 13:
+  - `require_finops_forecast()` — FinOps Forecasting & Capacity Planning capability gate
+
+Phase 14:
+  - `require_finops_optimization()` — FinOps Optimization & Rightsizing capability gate
+
+Phase 15:
+  - `require_finops_tag_governance()` — FinOps Tag Governance & Cost Allocation capability gate
+
+Phase 16:
+  - `require_finops_reporting()` — FinOps Reporting & Executive Dashboard capability gate
+
 Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
 """
 from __future__ import annotations
@@ -74,6 +92,7 @@ __all__ = [
     "require_finops_forecast",
     "require_finops_optimization",  # NEW — Phase 14 (FinOps Optimization & Rightsizing)
     "require_finops_tag_governance",  # NEW — Phase 15 (FinOps Tag Governance & Cost Allocation)
+    "require_finops_reporting",  # NEW — Phase 16 (FinOps Reporting & Executive Dashboard)
 ]
 
 
@@ -245,3 +264,17 @@ require_finops_optimization = require_capability(Capability.FINOPS_OPTIMIZATION)
 # FINOPS_TAG_GOVERNANCE capability (financial cost allocation baseline).
 # Drift detector lives at tests/integration/test_capability_matrix_v1_41_drift.py.
 require_finops_tag_governance = require_capability(Capability.FINOPS_TAG_GOVERNANCE)
+
+# Phase 16 (cj-style 127번째 wire) — FINOPS_REPORTING dependency
+# (executive_dashboard_aggregator + cross_module_kpi +
+# executive_report_generator + scheduled_executive_dispatch +
+# executive_report_delivery). Gates /admin/finops/executive-dashboard/*
+# endpoints (dashboard view + KPI selector + report generation panel +
+# scheduled dispatch config + compliance trend). Industry-agnostic
+# (CR 12-1 L4 precedent mirrors FINOPS_TAG_GOVERNANCE Phase 15 wire +
+# FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING_CAPACITY_PLANNING
+# Phase 13 wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12
+# wire + FINOPS Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_REPORTING capability (financial reporting baseline). Drift
+# detector lives at tests/integration/test_capability_matrix_v1_42_drift.py.
+require_finops_reporting = require_capability(Capability.FINOPS_REPORTING)

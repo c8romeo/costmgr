@@ -300,6 +300,24 @@ from apps.api.modules.finops.rightsizing_engine import (
     RightsizingRecommendation,
     recommend_rightsizing,
 )
+# Phase 16 wire — FinOps Reporting & Executive Dashboard territory
+from apps.api.modules.finops.executive_dashboard_aggregator import (
+    aggregate_executive_dashboard,
+    compute_showback_total,
+    compute_anomaly_count_30d,
+    compute_forecast_projection,
+    compute_optimization_savings,
+    compute_tag_compliance_pct,
+    compute_idle_cost_krw,
+    validate_executive_rollup,
+)
+from apps.api.modules.finops.cross_module_kpi import (
+    select_cross_module_kpis,
+    validate_kpi_accuracy,
+)
+from apps.api.modules.finops.executive_report_generator import (
+    generate_executive_report,
+)
 
 __all__ = [
     # Phase 11 wire
@@ -405,4 +423,16 @@ __all__ = [
     "compute_accuracy_score",
     "compute_precision",
     "compute_recall",
+    # Phase 16 wire — FinOps Reporting & Executive Dashboard
+    "aggregate_executive_dashboard",
+    "compute_showback_total",
+    "compute_anomaly_count_30d",
+    "compute_forecast_projection",
+    "compute_optimization_savings",
+    "compute_tag_compliance_pct",
+    "compute_idle_cost_krw",
+    "validate_executive_rollup",
+    "select_cross_module_kpis",
+    "validate_kpi_accuracy",
+    "generate_executive_report",
 ]

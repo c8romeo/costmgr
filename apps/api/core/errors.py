@@ -889,6 +889,206 @@ class ReconciliationApprovalError(FinopsTagGovernanceError):
 # classification).
 
 
+# ── FinOps Reporting & Executive Dashboard typed exceptions ──
+# Phase 16 (cj-style 127번째 wire) — CR 12-5 D-14 typed exception
+# envelope applied to 16 NEW exceptions shared across
+# executive_dashboard_aggregator + cross_module_kpi +
+# executive_report_generator + scheduled_executive_dispatch +
+# Phase 16 RBAC modules. Module identifier m24_finops_reporting.
+
+# Module identifier used by typed exception envelopes (mirrors
+# m23_finops_tag_governance Phase 15 + m22_finops_optimization
+# Phase 14 + m21_finops_forecast Phase 13 + m20_finops_anomaly
+# Phase 12 + m19_finops Phase 11 pattern).
+FINOPS_REPORTING_MODULE_ID: str = "m24_finops_reporting"
+
+
+class FinopsReportingError(FinopsError):
+    """Base for FinOps reporting & executive dashboard typed exceptions.
+
+    Provides FINOPS_REPORTING_MODULE_ID class attribute + envelope shape
+    `{code, message_ko, details, trace_id, module_id}` shared by all
+    16 NEW exception subclasses below.
+    """
+
+    module_id: str = FINOPS_REPORTING_MODULE_ID
+
+
+# §F32.1 executive_dashboard_aggregator (4 NEW)
+class ExecutiveRollupInvalidError(FinopsReportingError):
+    """HTTP 400 typed error — executive rollup invalid inputs.
+
+    Raised by aggregate_executive_dashboard() / validate_executive_rollup()
+    when tenant_id is empty, scope_type invalid, or rollup missing
+    required fields (PRD §F32.1-9 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class ExecutiveRollupScopeError(FinopsReportingError):
+    """HTTP 404 typed error — executive rollup scope validation failure.
+
+    Raised by aggregate_executive_dashboard() when scope_type is not in
+    ALL_SCOPE_TYPES (tenant / department / cost_center / product_line)
+    or scope_id is empty (PRD §F32.1-9 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class ExecutiveRollupPeriodError(FinopsReportingError):
+    """HTTP 422 typed error — executive rollup period_key validation failure.
+
+    Raised by aggregate_executive_dashboard() when period_key is not in
+    valid format (YYYY-MM / YYYY-QN / YYYY) (PRD §F32.1-9 verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ExecutiveRollupCrossModuleJoinError(FinopsReportingError):
+    """HTTP 500 typed error — 5-module cross-join failure.
+
+    Raised by aggregate_executive_dashboard() when the 5-module join
+    (Phase 11 showback + Phase 12 anomaly + Phase 13 forecast +
+    Phase 14 optimization + Phase 15 tag_governance) fails
+    (PRD §F32.1-11 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F32.3 executive report generator (4 NEW)
+class ExecutiveReportGenerationError(FinopsReportingError):
+    """HTTP 500 typed error — executive report generation failure.
+
+    Raised by generate_executive_report() when reportlab PDF render or
+    openpyxl Excel workbook fails (PRD §F32.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ExecutiveReportExportError(FinopsReportingError):
+    """HTTP 500 typed error — executive report export failure.
+
+    Raised by generate_executive_report() when StreamingResponse
+    generator fails for CSV/PDF/Excel (PRD §F32.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ExecutiveReportDeliveryError(FinopsReportingError):
+    """HTTP 500 typed error — executive report delivery failure.
+
+    Raised by executive_report_delivery cron when Slack/Email/S3
+    delivery target is unreachable (PRD §F32.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ExecutiveReportArchiveError(FinopsReportingError):
+    """HTTP 500 typed error — executive report S3 archive failure.
+
+    Raised by upload_executive_report() when boto3 put_object fails
+    or presigned URL generation fails (PRD §F32.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F32.4 scheduled_dispatch_kst_cron (4 NEW)
+class ScheduledDispatchError(FinopsReportingError):
+    """HTTP 500 typed error — scheduled dispatch cron failure.
+
+    Raised by schedule_executive_dispatch() when apscheduler job fails
+    or delivery target unreachable (PRD §F32.4-10 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class CronExpressionInvalidError(FinopsReportingError):
+    """HTTP 400 typed error — cron expression validation failure.
+
+    Raised by schedule_executive_dispatch() when cron_expression is
+    not parseable by apscheduler (PRD §F32.4-10 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class RecipientResolverError(FinopsReportingError):
+    """HTTP 404 typed error — recipient resolution failure.
+
+    Raised by recipient resolver when owner_only/executive_team/
+    board_observers/custom_recipients strategy cannot resolve
+    recipients (PRD §F32.4-10 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class DispatchIdempotencyViolationError(FinopsReportingError):
+    """HTTP 422 typed error — dispatch idempotency violation.
+
+    Raised by schedule_executive_dispatch() when duplicate dispatch
+    detected for (tenant_id + dispatch_schedule + period_key) tuple
+    (PRD §F32.4-10 verbatim).
+    """
+
+    http_status: int = 422
+
+
+# §F32.5 tenant_scoped_executive_role_rbac (3 NEW)
+class ExecutiveRolePermissionError(FinopsReportingError):
+    """HTTP 403 typed error — executive role permission denied.
+
+    Raised by require_executive_role() when role lacks executive access
+    (e.g. tenant MEMBER attempting executive dashboard view)
+    (PRD §F32.5-10 verbatim + AD-22 owner-only RBAC + Epic 12 2FA 챌린지).
+    """
+
+    http_status: int = 403
+
+
+class TenantScopeViolationError(FinopsReportingError):
+    """HTTP 403 typed error — cross-tenant access violation.
+
+    Raised by require_executive_role() when actor_tenant_id differs
+    from requested_tenant_id (PRD §F32.5-10 verbatim + CR 0-2 RLS).
+    """
+
+    http_status: int = 403
+
+
+class CapabilityGateViolationError(FinopsReportingError):
+    """HTTP 403 typed error — capability gate violation.
+
+    Raised by require_finops_reporting() when tenant lacks FINOPS_REPORTING
+    capability or any Phase 11~15 carry-over capability
+    (PRD §F32.7-6 verbatim + CR 12-5 D-GATE-01 inversion).
+    """
+
+    http_status: int = 403
+
+
+# §F32.7 reporting accuracy degradation (1 NEW)
+class ReportingAccuracyDegradationError(FinopsReportingError):
+    """HTTP 500 typed error — reporting accuracy degradation detected.
+
+    Raised by cross_module_kpi.validate_kpi_accuracy() when KPI
+    accuracy score drops below threshold (e.g. forecast_deviation_pct
+    exceeds 10% for 3 consecutive periods) (PRD §F32.7 verbatim +
+    Phase 14/15 accuracy tracker EXTENSION pattern).
+    """
+
+    http_status: int = 500
+
+
 __all__ = [
     "BaseError",
     "BadRequestError",
@@ -977,4 +1177,23 @@ __all__ = [
     "ChargebackReconciliationError",
     "ReconciliationDeltaBreachError",
     "ReconciliationApprovalError",
+    # Phase 16 FinOps reporting & executive dashboard typed exceptions (CR 12-5 D-14)
+    "FinopsReportingError",
+    "FINOPS_REPORTING_MODULE_ID",
+    "ExecutiveRollupInvalidError",
+    "ExecutiveRollupScopeError",
+    "ExecutiveRollupPeriodError",
+    "ExecutiveRollupCrossModuleJoinError",
+    "ExecutiveReportGenerationError",
+    "ExecutiveReportExportError",
+    "ExecutiveReportDeliveryError",
+    "ExecutiveReportArchiveError",
+    "ScheduledDispatchError",
+    "CronExpressionInvalidError",
+    "RecipientResolverError",
+    "DispatchIdempotencyViolationError",
+    "ExecutiveRolePermissionError",
+    "TenantScopeViolationError",
+    "CapabilityGateViolationError",
+    "ReportingAccuracyDegradationError",
 ]
