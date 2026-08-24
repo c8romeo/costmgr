@@ -505,6 +505,21 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # (capability matrix v1.40 EXTENSION 1 NEW row).
     FINOPS_OPTIMIZATION = "finops_optimization"
 
+    # Phase 15 (cj-style 123번째 wire) — FINOPS_TAG_GOVERNANCE
+    # (tag_policy_dsl + untagged_resource_detector +
+    # allocation_rules_engine + allocation_audit +
+    # chargeback_allocation_reconciliation + reconciliation approval
+    # workflow). Industry-agnostic (CR 12-1 L4 precedent mirrors
+    # FINOPS_OPTIMIZATION Phase 14 + FINOPS_FORECASTING_CAPACITY_PLANNING
+    # Phase 13 + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 +
+    # FINOPS Phase 11 pattern verbatim). All 4 industries get
+    # FINOPS_TAG_GOVERNANCE capability (financial cost allocation
+    # baseline, not industry-specific). Gates require_finops_tag_governance
+    # dep in apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_41_drift.py (capability
+    # matrix v1.41 EXTENSION 1 NEW row).
+    FINOPS_TAG_GOVERNANCE = "finops_tag_governance"
+
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
@@ -689,6 +704,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # 6 commitment_type + 1y/3y break-even + precision + recall
             # + realized_savings + accuracy_score retraining trigger.
             Capability.FINOPS_OPTIMIZATION,
+            # Phase 15 (cj-style 123번째 wire) — manufacturing tenants
+            # get FINOPS_TAG_GOVERNANCE (industry-agnostic, FinOps
+            # cost allocation baseline CR 12-1 L4 precedent +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+            # + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12
+            # wire + FINOPS Phase 11 wire pattern verbatim).
+            # tag_policy_dsl + untagged_resource_detector +
+            # allocation_rules_engine + allocation_audit +
+            # chargeback_allocation_reconciliation + reconciliation
+            # approval workflow + 6 resource_types + 4 enforcement_levels
+            # + 5 rule_types + 3 reconciliation strategy.
+            Capability.FINOPS_TAG_GOVERNANCE,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -835,6 +862,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # ACTIONABLE RECOMMENDATION LAYER EXTENSION of Phase 13
             # forecast baseline CR 12-1 L4 precedent).
             Capability.FINOPS_OPTIMIZATION,
+            # Phase 15 (cj-style 123번째 wire) — service tenants get
+            # FINOPS_TAG_GOVERNANCE (industry-agnostic, FinOps cost
+            # allocation baseline CR 12-1 L4 precedent).
+            Capability.FINOPS_TAG_GOVERNANCE,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -998,6 +1029,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # ACTIONABLE RECOMMENDATION LAYER EXTENSION of Phase 13
             # forecast baseline CR 12-1 L4 precedent).
             Capability.FINOPS_OPTIMIZATION,
+            # Phase 15 (cj-style 123번째 wire) — 겸영 tenants get
+            # FINOPS_TAG_GOVERNANCE (industry-agnostic, FinOps cost
+            # allocation baseline CR 12-1 L4 precedent).
+            Capability.FINOPS_TAG_GOVERNANCE,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1158,6 +1193,10 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # ACTIONABLE RECOMMENDATION LAYER EXTENSION of Phase 13
             # forecast baseline CR 12-1 L4 precedent).
             Capability.FINOPS_OPTIMIZATION,
+            # Phase 15 (cj-style 123번째 wire) — full matrix tenants get
+            # FINOPS_TAG_GOVERNANCE (industry-agnostic, FinOps cost
+            # allocation baseline CR 12-1 L4 precedent).
+            Capability.FINOPS_TAG_GOVERNANCE,
         }
     ),
 }

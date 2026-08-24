@@ -80,6 +80,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_BUDGET = "finops_budget"  # Phase 12 (NEW — Budget definition + budget alert routing audit-first INSERT, AD-39)
     FINOPS_FORECAST = "finops_forecast"  # Phase 13 (NEW — Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT, AD-39)
     FINOPS_OPTIMIZATION = "finops_optimization"  # Phase 14 (NEW — Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
+    FINOPS_TAG_GOVERNANCE = "finops_tag_governance"  # Phase 15 (cj-style 123번째 wire — NEW — Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation audit-first INSERT, AD-42)
 
 
 # ────────────────────────────────────────────────────────────
@@ -861,6 +862,83 @@ FinopsOptimizationAction = Literal[
 ]
 
 
+# Phase 15 (cj-style 123번째 wire) — AD-42 (a)~(g) verbatim + §F31.1
+# + §F31.2 + §F31.3 + §F31.4 + §F31.5. 12 NEW audit actions (10 NEW = 7 d
+# + 5 e EXTENSION + 1 dry_run tag_governance_dry_run_executed) (CR 1-1
+# verbatim applied + ActionClass.FINOPS_TAG_GOVERNANCE):
+# - `tag_policy_updated` — tag policy DSL create/update/paused/expired
+#   (PRD §F31.1-10 verbatim; 6 resource_types + 4 enforcement_levels + tag
+#   key validation; AD-22 owner-only RBAC + Epic 12 2FA 챌린지 보존 when
+#   governance_required=True; CR 1-1 verbatim audit-first INSERT BEFORE
+#   tag policy commit).
+# - `untagged_resource_detected` — untagged resource detected (PRD §F31.2-11
+#   verbatim; 6 resource_types (ec2/rds/s3/lambda/eks/vpc) + Phase 14
+#   idle_resource_detector EXTENSION; CR 1-1 verbatim audit-first INSERT
+#   AFTER untagged resource detection).
+# - `allocation_rule_evaluated` — allocation rule evaluated (PRD §F31.3-11
+#   verbatim; 5 rule_types parallel run (tag_match/percentage_split/
+#   weighted/conditional/fallback); CR 1-1 verbatim audit-first INSERT
+#   AFTER allocation rule evaluation).
+# - `allocation_rule_updated` — allocation rule create/update (PRD §F31.3-11
+#   verbatim; 5 rule_types + priority + tag_key + tag_value_pattern; CR 1-1
+#   verbatim audit-first INSERT BEFORE/AFTER allocation rule update).
+# - `compliance_report_generated` — compliance report generation (PRD
+#   §F31.4-11 verbatim; ComplianceReport TypedDict + report format PDF +
+#   CSV + JSON + monthly cadence; AD-22 owner-only RBAC + Epic 12 2FA
+#   챌린지 보존; CR 1-1 verbatim audit-first INSERT AFTER report generation).
+# - `compliance_alert_sent` — compliance alert dispatched (PRD §F31.4-11
+#   verbatim; Slack #bizup-compliance-alerts + PagerDuty pd_compliance_
+#   critical + Email owner-only; CR 1-1 verbatim audit-first INSERT AFTER
+#   alert dispatched).
+# - `compliance_remediation_initiated` — compliance remediation workflow
+#   initiated (PRD §F31.4-11 verbatim; 5 steps (1. owner notifier 발송
+#   + 2. tag_value 자동 추천 Phase 14 resource_pattern 기반 + 3. owner의
+#   7일 SLA 내 tag 추가 + 4. 만료 시 escalate to admin + 5. audit log
+#   기록); AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT
+#   BEFORE remediation workflow).
+# - `reconciliation_initiated` — reconciliation initiated (PRD §F31.5-11
+#   verbatim; 4 reconciliation steps (1. chargeback cost aggregate + 2.
+#   tag allocation cost aggregate + 3. variance 계산 + 4. investigation_
+#   trigger); AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT
+#   BEFORE reconciliation).
+# - `reconciliation_report_generated` — reconciliation report generation
+#   (PRD §F31.5-11 verbatim; ReconciliationReport TypedDict 13 fields +
+#   variance calculation + 3 reconciliation strategy; CR 1-1 verbatim
+#   audit-first INSERT AFTER reconciliation report generation).
+# - `reconciliation_investigation_triggered` — reconciliation investigation
+#   triggered (PRD §F31.5-11 verbatim; variance_pct > threshold →
+#   Slack + Email + Jira ticket auto-create optional + 14일 SLA 내
+#   resolution; CR 1-1 verbatim audit-first INSERT AFTER investigation).
+# - `reconciliation_approved` — reconciliation approved (PRD §F31.5-11
+#   verbatim; owner 승인 mandatory + approval pending 시 chargeback
+#   status = pending_reconciliation; AD-22 owner-only RBAC; CR 1-1
+#   verbatim audit-first INSERT BEFORE approval).
+# - `reconciliation_resolved` — reconciliation resolved (PRD §F31.5-11
+#   verbatim; reconciliation 완료 + chargeback 확정; CR 1-1 verbatim
+#   audit-first INSERT AFTER resolution).
+# - `tag_governance_dry_run_executed` — dry-run preview completed (PRD
+#   §F31.8-1 verbatim; 5 dry-run modes (--finops-tag-policy-dry-run +
+#   --finops-untagged-resource-dry-run + --finops-allocation-rule-dry-run
+#   + --finops-compliance-report-dry-run + --finops-chargeback-
+#   reconciliation-dry-run); AD-22 owner-only RBAC; CR 1-1 verbatim
+#   audit-first INSERT AFTER dry-run preview committed).
+FinopsTagGovernanceAction = Literal[
+    "tag_policy_updated",  # §F31.1-10 — tag policy row update
+    "untagged_resource_detected",  # §F31.2-11 — untagged resource detected
+    "allocation_rule_evaluated",  # §F31.3-11 — allocation rule evaluated
+    "allocation_rule_updated",  # §F31.3-11 — allocation rule row update
+    "compliance_report_generated",  # §F31.4-11 — compliance report generation
+    "compliance_alert_sent",  # §F31.4-11 — compliance alert dispatched
+    "compliance_remediation_initiated",  # §F31.4-11 — remediation workflow
+    "reconciliation_initiated",  # §F31.5-11 — reconciliation initiated
+    "reconciliation_report_generated",  # §F31.5-11 — reconciliation report generation
+    "reconciliation_investigation_triggered",  # §F31.5-11 — investigation triggered
+    "reconciliation_approved",  # §F31.5-11 — reconciliation approved
+    "reconciliation_resolved",  # §F31.5-11 — reconciliation resolved
+    "tag_governance_dry_run_executed",  # §F31.8-1 — dry-run preview
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -899,6 +977,7 @@ AuditAction = (
     | FinopsBudgetAction  # NEW — Phase 12 (Budget definition + threshold exceeded + alert dispatched audit-first INSERT)
     | FinopsForecastAction  # NEW — Phase 13 (Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT)
     | FinopsOptimizationAction  # NEW — Phase 14 (Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
+    | FinopsTagGovernanceAction  # NEW — Phase 15 (Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation + dry-run audit-first INSERT, AD-42)
 )
 
 
@@ -1521,6 +1600,40 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 15 (cj-style 123번째 wire) — FINOPS_TAG_GOVERNANCE 13
+        # values (tag policy + untagged resource detector + allocation
+        # rules engine + compliance + reconciliation + dry-run audit-
+        # first INSERT, AD-42 verbatim). Routes to audit_logs (NOT to a
+        # separate ledger — FinOps tag governance events are tenant-
+        # scoped platform-event trail only, mirroring FINOPS_OPTIMIZATION
+        # + FINOPS_FORECAST + FINOPS_BUDGET + FINOPS_ANOMALY Phase 12 wire
+        # + FINOPS Phase 11 wire pattern). target_table=
+        # `finops_tag_governance` aligns with ActionClass.FINOPS_TAG_GOVERNANCE
+        # value (audit_log target_table column populated verbatim — RLS
+        # preserved). Drift detector enforces ActionClass registry ↔ DB
+        # CHECK (no-op for audit_logs per AD-2) ↔ call sites parity
+        # (3-way gate). Phase 14 cj-style 119번째 wire FINOPS_OPTIMIZATION
+        # registry pattern verbatim applied.
+        ActionClass.FINOPS_TAG_GOVERNANCE: (
+            "audit_logs",
+            frozenset(
+                {
+                    "tag_policy_updated",  # §F31.1-10 — tag policy row update
+                    "untagged_resource_detected",  # §F31.2-11 — untagged resource detected
+                    "allocation_rule_evaluated",  # §F31.3-11 — allocation rule evaluated
+                    "allocation_rule_updated",  # §F31.3-11 — allocation rule row update
+                    "compliance_report_generated",  # §F31.4-11 — compliance report generation
+                    "compliance_alert_sent",  # §F31.4-11 — compliance alert dispatched
+                    "compliance_remediation_initiated",  # §F31.4-11 — remediation workflow
+                    "reconciliation_initiated",  # §F31.5-11 — reconciliation initiated
+                    "reconciliation_report_generated",  # §F31.5-11 — reconciliation report generation
+                    "reconciliation_investigation_triggered",  # §F31.5-11 — investigation triggered
+                    "reconciliation_approved",  # §F31.5-11 — reconciliation approved
+                    "reconciliation_resolved",  # §F31.5-11 — reconciliation resolved
+                    "tag_governance_dry_run_executed",  # §F31.8-1 — dry-run preview
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1659,5 +1772,6 @@ __all__ = [
     "FinopsBudgetAction",  # NEW — Phase 12 (Budget definition + threshold exceeded + alert dispatched audit-first INSERT)
     "FinopsForecastAction",  # NEW — Phase 13 (Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT)
     "FinopsOptimizationAction",  # NEW — Phase 14 (Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
+    "FinopsTagGovernanceAction",  # NEW — Phase 15 (Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation + dry-run audit-first INSERT, AD-42)
     "emit_audit_typed",
 ]

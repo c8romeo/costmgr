@@ -73,6 +73,7 @@ __all__ = [
     # budget burn-rate + forecast accuracy + model retraining + dry-run).
     "require_finops_forecast",
     "require_finops_optimization",  # NEW — Phase 14 (FinOps Optimization & Rightsizing)
+    "require_finops_tag_governance",  # NEW — Phase 15 (FinOps Tag Governance & Cost Allocation)
 ]
 
 
@@ -232,3 +233,15 @@ require_finops_forecast = require_capability(Capability.FINOPS_FORECASTING_CAPAC
 # EXTENSION of Phase 13 forecast baseline). Drift detector lives at
 # tests/integration/test_capability_matrix_v1_40_drift.py.
 require_finops_optimization = require_capability(Capability.FINOPS_OPTIMIZATION)
+
+# Phase 15 (cj-style 123번째 wire) — FINOPS_TAG_GOVERNANCE dependency
+# (tag_policy_dsl + untagged_resource_detector + allocation_rules_engine
+# + allocation_audit + chargeback_allocation_reconciliation). Gates
+# /admin/finops/tag-governance/* + /admin/finops/allocation/* endpoints.
+# Industry-agnostic (CR 12-1 L4 precedent mirrors FINOPS_OPTIMIZATION
+# Phase 14 wire + FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire +
+# FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS
+# Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_TAG_GOVERNANCE capability (financial cost allocation baseline).
+# Drift detector lives at tests/integration/test_capability_matrix_v1_41_drift.py.
+require_finops_tag_governance = require_capability(Capability.FINOPS_TAG_GOVERNANCE)
