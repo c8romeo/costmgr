@@ -1,4 +1,4 @@
-"""apps.api.modules.finops — FinOps Forecasting & Capacity Planning territory.
+"""apps.api.modules.finops — FinOps Optimization & Rightsizing territory.
 
 Phase 11 (cj-style 107번째 wire) — FinOps Showback / Chargeback
 territory (PRD §F27.1~§F27.7 + AD-38 (a)~(g) sub-decisions).
@@ -8,6 +8,9 @@ Alerting territory (PRD §F28.1~§F28.8 + AD-39 (a)~(g) sub-decisions).
 
 Phase 13 (cj-style 115번째 wire) — FinOps Forecasting & Capacity
 Planning territory (PRD §F29.1~§F29.8 + AD-39 (a)~(g) sub-decisions).
+
+Phase 14 (cj-style 119번째 wire) — FinOps Optimization & Rightsizing
+territory (PRD §F30.1~§F30.8 + AD-41 (a)~(g) 7 sub-decisions).
 
 This package provides:
 - `showback_dsl` — ShowbackDefinition TypedDict (13 fields) + 5 group_by
@@ -74,7 +77,38 @@ This package provides:
   (`model_retraining_triggered`).
 - `serializers` — m19_finops.finops_serializers module version SSOT
   + m21_finops_forecast.finops_forecast_serializers (Phase 13 wire
-  BACKFILL).
+  BACKFILL) + m22_finops_optimization.optimization_serializers
+  (Phase 14 wire EXTENSION).
+- `optimization_definition` — OptimizationDefinition TypedDict (11
+  fields) + 5 resource_types (compute + storage + database + network +
+  container) + 7 optimization_strategies (rightsize_down +
+  rightsize_up + idle_terminate + commit_1y + commit_3y +
+  storage_tier_down + composite) + 4 target_metrics +
+  5 baseline_periods + 3 statuses + audit-first INSERT
+  `optimization_definition_updated` + OPTIMIZATION_DEFAULTS constants
+  (idle_cpu_threshold_pct=5.0 + commit_break_even_1y=8mo +
+  commit_break_even_3y=18mo).
+- `rightsizing_engine` — RightsizingRecommendation TypedDict (14
+  fields) + StorageRecommendation TypedDict + 5 _recommend_*_rightsizing
+  functions (compute + storage + database + network + container) +
+  INSTANCE_TYPE_DOWNGRADE_MAP (80+ AWS EC2 types across 4 families) +
+  INSTANCE_TYPE_UPGRADE_MAP + STORAGE_TIER_DOWNGRADE_MAP +
+  RIGHTSIZING_ENGINE_MODEL_VERSION = "1.0.0".
+- `idle_resource_detector` — IdleResource TypedDict (13 fields) + 3
+  severities (low + medium + high) + 3 actions (review + downsize +
+  terminate) + 3 detection methods (z_score + threshold + heuristic) +
+  IDLE_Z_SCORE_THRESHOLD = -2.0 + IDLE_CPU_THRESHOLD_PCT = 5.0 +
+  5 _detect_idle_* functions.
+- `commitment_recommender` — CommitmentRecommendation TypedDict
+  (12 fields) + 6 commitment_types (ec2_ri + rds_ri + ec2_sp + s3_sp +
+  redshift_sp + dynamodb_sp) + 2 commitment_terms (1_year + 3_year) +
+  RI_SP_DISCOUNT_1Y=0.40 + RI_SP_DISCOUNT_3Y=0.60 +
+  compute_break_even_months + compute_roi_pct functions.
+- `optimization_accuracy_tracker` — OptimizationAccuracyReport TypedDict
+  (10 fields) + compute_precision + compute_recall +
+  compute_accuracy_score + check_accuracy_degradation +
+  ACCURACY_SCORE_RETRAINING_THRESHOLD_PCT = 70.0 +
+  RETRAINING_CRON_DEFAULT = "0 3 * * 0".
 
 CR lessons applied:
 - CR 0-2 RLS — every ShowbackDefinition + ChargebackRule +
@@ -129,6 +163,20 @@ mandatory.
 
 AD-39 Cost Anomaly Detection & Budget Alerting 신규 (Phase 12).
 
+AD-41 FinOps Optimization & Rightsizing 신규 (Phase 14) — 7
+sub-decisions (a)~(g):
+(a) OptimizationDefinition schema + audit-first INSERT
+    `optimization_definition_updated`.
+(b) RightsizingRecommendation engine — 5 resource types +
+    80+ AWS EC2 instance type mapping.
+(c) IdleResource detection — z-score < -2.0 (Phase 12 EXTENSION).
+(d) CommitmentRecommendation — 6 commitment_types + 1y/3y break-even.
+(e) OptimizationAccuracyReport — precision/recall/realized_savings
+    + retraining trigger when accuracy_score < 70%.
+(f) Owner-only RBAC AD-22 + Epic 12 2FA 챌린지 mandatory.
+(g) L4 industry-agnostic capability FINOPS_OPTIMIZATION with
+    4-industry grants ✅/✅/✅/✅ (CR 12-1 verbatim pattern).
+
 NFR4 PII minimization PRESERVED — showback/chargeback/anomaly/budget
 data contains only business metrics + cost amounts (no PII).
 
@@ -172,6 +220,14 @@ from apps.api.modules.finops.capacity_headroom import (
     CapacityHeadroomReport,
     analyze_capacity_headroom,
 )
+from apps.api.modules.finops.commitment_recommender import (
+    RI_SP_DISCOUNT_1Y,
+    RI_SP_DISCOUNT_3Y,
+    CommitmentRecommendation,
+    compute_break_even_months,
+    compute_roi_pct,
+    recommend_commitments,
+)
 from apps.api.modules.finops.forecast_accuracy import (
     ForecastAccuracyMetrics,
     compute_mae,
@@ -206,6 +262,43 @@ from apps.api.modules.finops.forecast_model_registry import (
     SEMVER_DEFAULT_VERSION,
     ForecastModelRegistry,
     ForecastModelVersion,
+)
+from apps.api.modules.finops.idle_resource_detector import (
+    IDLE_CPU_THRESHOLD_PCT,
+    IDLE_Z_SCORE_THRESHOLD,
+    IdleResource,
+    detect_idle_resources,
+)
+from apps.api.modules.finops.optimization_accuracy_tracker import (
+    ACCURACY_SCORE_RETRAINING_THRESHOLD_PCT,
+    RETRAINING_CRON_DEFAULT,
+    OptimizationAccuracyReport,
+    check_accuracy_degradation,
+    compute_accuracy_score,
+    compute_precision,
+    compute_recall,
+)
+from apps.api.modules.finops.optimization_definition import (
+    ALL_BASELINE_PERIODS,
+    ALL_OPTIMIZATION_STATUSES,
+    ALL_OPTIMIZATION_STRATEGIES,
+    OPTIMIZATION_DEFAULTS,
+    OptimizationDefinition,
+    define_optimization,
+    parse_optimization_definition,
+)
+from apps.api.modules.finops.optimization_definition import (
+    ALL_RESOURCE_TYPES as ALL_OPTIMIZATION_RESOURCE_TYPES,
+)
+from apps.api.modules.finops.optimization_definition import (
+    ALL_TARGET_METRICS as ALL_OPTIMIZATION_TARGET_METRICS,
+)
+from apps.api.modules.finops.rightsizing_engine import (
+    INSTANCE_TYPE_DOWNGRADE_MAP,
+    INSTANCE_TYPE_UPGRADE_MAP,
+    RIGHTSIZING_ENGINE_MODEL_VERSION,
+    RightsizingRecommendation,
+    recommend_rightsizing,
 )
 
 __all__ = [
@@ -276,4 +369,40 @@ __all__ = [
     "INDUSTRY_BASELINE_MAPE_4_INDUSTRIES",
     "ModelRetrainingTrigger",
     "track_forecast_accuracy",
+    # Phase 14 wire — optimization definition
+    "ALL_BASELINE_PERIODS",
+    "ALL_OPTIMIZATION_STATUSES",
+    "ALL_OPTIMIZATION_STRATEGIES",
+    "ALL_OPTIMIZATION_RESOURCE_TYPES",
+    "ALL_OPTIMIZATION_TARGET_METRICS",
+    "OPTIMIZATION_DEFAULTS",
+    "OptimizationDefinition",
+    "define_optimization",
+    "parse_optimization_definition",
+    # Phase 14 wire — rightsizing engine
+    "INSTANCE_TYPE_DOWNGRADE_MAP",
+    "INSTANCE_TYPE_UPGRADE_MAP",
+    "RIGHTSIZING_ENGINE_MODEL_VERSION",
+    "RightsizingRecommendation",
+    "recommend_rightsizing",
+    # Phase 14 wire — idle resource detector
+    "IDLE_CPU_THRESHOLD_PCT",
+    "IDLE_Z_SCORE_THRESHOLD",
+    "IdleResource",
+    "detect_idle_resources",
+    # Phase 14 wire — commitment recommender
+    "CommitmentRecommendation",
+    "RI_SP_DISCOUNT_1Y",
+    "RI_SP_DISCOUNT_3Y",
+    "compute_break_even_months",
+    "compute_roi_pct",
+    "recommend_commitments",
+    # Phase 14 wire — optimization accuracy tracker
+    "ACCURACY_SCORE_RETRAINING_THRESHOLD_PCT",
+    "OptimizationAccuracyReport",
+    "RETRAINING_CRON_DEFAULT",
+    "check_accuracy_degradation",
+    "compute_accuracy_score",
+    "compute_precision",
+    "compute_recall",
 ]

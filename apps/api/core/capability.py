@@ -490,6 +490,21 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # (capability matrix v1.39 EXTENSION 1 NEW row).
     FINOPS_FORECASTING_CAPACITY_PLANNING = "finops_forecasting_capacity_planning"
 
+    # Phase 14 (cj-style 119번째 wire) — FINOPS_OPTIMIZATION
+    # (optimization_definition + rightsizing_engine +
+    # idle_resource_detector + commitment_recommender +
+    # optimization_accuracy_tracker). Industry-agnostic (CR 12-1 L4
+    # precedent mirrors FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 +
+    # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 + FINOPS
+    # Phase 11 pattern verbatim). All 4 industries get
+    # FINOPS_OPTIMIZATION capability (manufacturing + service +
+    # manufacturing_service + manufacturing_service_other).
+    # Gates require_finops_optimization dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_40_drift.py
+    # (capability matrix v1.40 EXTENSION 1 NEW row).
+    FINOPS_OPTIMIZATION = "finops_optimization"
+
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
@@ -662,6 +677,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # budget burn-rate + MAE/MAPE/RMSE banker's rounding CR 5-1
             # + retraining trigger (MAPE > 20% for 3 consecutive periods).
             Capability.FINOPS_FORECASTING_CAPACITY_PLANNING,
+            # Phase 14 (cj-style 119번째 wire) — manufacturing tenants
+            # get FINOPS_OPTIMIZATION (industry-agnostic, FinOps
+            # ACTIONABLE RECOMMENDATION LAYER EXTENSION of Phase 13
+            # forecast baseline CR 12-1 L4 precedent + FINOPS_FORECASTING
+            # + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12
+            # wire + FINOPS_SHOWBACK + FINOPS_CHARGEBACK Phase 11 wire
+            # pattern verbatim). 5 resource types parallel run (compute +
+            # storage + database + network + container) + 80+ AWS EC2
+            # instance type mapping + z-score < -2.0 idle detection +
+            # 6 commitment_type + 1y/3y break-even + precision + recall
+            # + realized_savings + accuracy_score retraining trigger.
+            Capability.FINOPS_OPTIMIZATION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -803,6 +830,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FINOPS_FORECASTING_CAPACITY_PLANNING (industry-agnostic,
             # CR 12-1 L4 precedent).
             Capability.FINOPS_FORECASTING_CAPACITY_PLANNING,
+            # Phase 14 (cj-style 119번째 wire) — service tenants get
+            # FINOPS_OPTIMIZATION (industry-agnostic, FinOps
+            # ACTIONABLE RECOMMENDATION LAYER EXTENSION of Phase 13
+            # forecast baseline CR 12-1 L4 precedent).
+            Capability.FINOPS_OPTIMIZATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -961,6 +993,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FINOPS_FORECASTING_CAPACITY_PLANNING (industry-agnostic,
             # CR 12-1 L4 precedent).
             Capability.FINOPS_FORECASTING_CAPACITY_PLANNING,
+            # Phase 14 (cj-style 119번째 wire) — 겸영 tenants get
+            # FINOPS_OPTIMIZATION (industry-agnostic, FinOps
+            # ACTIONABLE RECOMMENDATION LAYER EXTENSION of Phase 13
+            # forecast baseline CR 12-1 L4 precedent).
+            Capability.FINOPS_OPTIMIZATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1116,6 +1153,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FINOPS_FORECASTING_CAPACITY_PLANNING (industry-agnostic,
             # CR 12-1 L4 precedent).
             Capability.FINOPS_FORECASTING_CAPACITY_PLANNING,
+            # Phase 14 (cj-style 119번째 wire) — full matrix tenants get
+            # FINOPS_OPTIMIZATION (industry-agnostic, FinOps
+            # ACTIONABLE RECOMMENDATION LAYER EXTENSION of Phase 13
+            # forecast baseline CR 12-1 L4 precedent).
+            Capability.FINOPS_OPTIMIZATION,
         }
     ),
 }

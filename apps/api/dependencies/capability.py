@@ -72,6 +72,7 @@ __all__ = [
     # (forecast definition + forecast generation + capacity headroom +
     # budget burn-rate + forecast accuracy + model retraining + dry-run).
     "require_finops_forecast",
+    "require_finops_optimization",  # NEW — Phase 14 (FinOps Optimization & Rightsizing)
 ]
 
 
@@ -219,3 +220,15 @@ require_finops_budget_alert = require_capability(Capability.FINOPS_BUDGET_ALERT)
 # specific). Drift detector lives at
 # tests/integration/test_capability_matrix_v1_39_drift.py.
 require_finops_forecast = require_capability(Capability.FINOPS_FORECASTING_CAPACITY_PLANNING)
+
+# Phase 14 (cj-style 119번째 wire) — FINOPS_OPTIMIZATION dependency
+# (optimization_definition + rightsizing_engine + idle_resource_detector
+# + commitment_recommender + optimization_accuracy_tracker). Gates
+# /admin/finops/optimization/* endpoints. Industry-agnostic (CR 12-1 L4
+# precedent mirrors FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire
+# + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+# FINOPS Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_OPTIMIZATION capability (ACTIONABLE RECOMMENDATION LAYER
+# EXTENSION of Phase 13 forecast baseline). Drift detector lives at
+# tests/integration/test_capability_matrix_v1_40_drift.py.
+require_finops_optimization = require_capability(Capability.FINOPS_OPTIMIZATION)

@@ -501,6 +501,194 @@ class ModelPerformanceDegradationError(FinopsForecastError):
     http_status: int = 500
 
 
+# ── Phase 14 FinOps Optimization & Rightsizing typed exceptions ──
+# Phase 14 (cj-style 119번째 wire) — CR 12-5 D-14 typed exception
+# envelope applied to 15 NEW exceptions (1 base + 14 subclasses)
+# shared across optimization_definition + rightsizing_engine +
+# idle_resource_detector + commitment_recommender +
+# optimization_accuracy_tracker modules.
+
+FINOPS_OPTIMIZATION_MODULE_ID: str = "m22_finops_optimization"
+
+
+class FinopsOptimizationError(FinopsError):
+    """Base for FinOps optimization & rightsizing typed exceptions.
+
+    Provides FINOPS_OPTIMIZATION_MODULE_ID class attribute + envelope
+    shape `{code, message_ko, details, trace_id, module_id}` shared
+    by all 14 NEW exception subclasses below.
+    """
+
+    module_id: str = FINOPS_OPTIMIZATION_MODULE_ID
+
+
+# §F30.1 optimization definition DSL (3 NEW)
+class OptimizationDefinitionInvalidError(FinopsOptimizationError):
+    """HTTP 400 typed error — optimization definition DSL validation failure.
+
+    Raised by parse_optimization_definition() when 6 validation rules
+    (PRD §F30.1 verbatim) detect invalid resource_type /
+    optimization_strategy / target_metric / baseline_period / status /
+    tenant_id.
+    """
+
+    http_status: int = 400
+
+
+class OptimizationScopeInvalidError(FinopsOptimizationError):
+    """HTTP 404 typed error — optimization scope validation failure.
+
+    Raised by parse_optimization_definition() when resource_type or
+    optimization_strategy is not in the 5 / 6 / 4 / 5 options.
+    """
+
+    http_status: int = 404
+
+
+class OptimizationInventoryUnavailableError(FinopsOptimizationError):
+    """HTTP 422 typed error — inventory data unavailable for optimization.
+
+    Raised by detect_idle_resources() or recommend_rightsizing() when
+    resource_inventory JSONB is empty or insufficient for the requested
+    resource_type.
+    """
+
+    http_status: int = 422
+
+
+# §F30.2 rightsizing engine (3 NEW)
+class RightsizingEngineError(FinopsOptimizationError):
+    """HTTP 500 typed error — rightsizing engine failure.
+
+    Raised by recommend_rightsizing() when 5-resource-type parallel run
+    fails or capacity_headroom_report lookup fails (Phase 13 EXTENSION).
+    """
+
+    http_status: int = 500
+
+
+class InstanceTypeMappingError(FinopsOptimizationError):
+    """HTTP 500 typed error — instance type mapping failure.
+
+    Raised by INSTANCE_TYPE_DOWNGRADE_MAP / INSTANCE_TYPE_UPGRADE_MAP
+    lookup when the instance type is unknown or no downsize/upsize
+    option found in the same family.
+    """
+
+    http_status: int = 500
+
+
+class RecommendationConfidenceLowError(FinopsOptimizationError):
+    """HTTP 422 typed error — recommendation confidence below threshold.
+
+    Raised by confidence_score calculation when Phase 13 forecast
+    accuracy MAPE-based confidence_score < 70% (low severity threshold).
+    """
+
+    http_status: int = 422
+
+
+# §F30.3 idle resource detection (3 NEW)
+class IdleResourceDetectionError(FinopsOptimizationError):
+    """HTTP 500 typed error — idle resource detection failure.
+
+    Raised by detect_idle_resources() when 5-idle-definition parallel
+    run fails or Phase 12 anomaly_detection z-score baseline lookup
+    fails.
+    """
+
+    http_status: int = 500
+
+
+class IdleSeverityClassificationError(FinopsOptimizationError):
+    """HTTP 500 typed error — idle severity classification failure.
+
+    Raised by _classify_idle_severity() when potential_savings_krw
+    thresholds are misconfigured or per-tenant override JSONB is
+    malformed.
+    """
+
+    http_status: int = 500
+
+
+class IdleMetricUnavailableError(FinopsOptimizationError):
+    """HTTP 404 typed error — idle resource metric unavailable.
+
+    Raised by detect_idle_resources() when utilization_p95 history
+    is empty for the requested resource_type (compute / storage /
+    database / network / container).
+    """
+
+    http_status: int = 404
+
+
+# §F30.4 commitment recommender (3 NEW)
+class CommitmentRecommendationError(FinopsOptimizationError):
+    """HTTP 500 typed error — commitment recommendation failure.
+
+    Raised by recommend_commitments() when 6 commitment_type parallel
+    run fails or Phase 13 forecast 12-month baseline lookup fails.
+    """
+
+    http_status: int = 500
+
+
+class PricingDataUnavailableError(FinopsOptimizationError):
+    """HTTP 404 typed error — pricing data unavailable for commitment.
+
+    Raised by recommend_commitments() when AWS Pricing API on-demand /
+    RI / SP discount rate data is missing for the requested resource
+    pattern.
+    """
+
+    http_status: int = 404
+
+
+class BreakEvenCalculationError(FinopsOptimizationError):
+    """HTTP 500 typed error — break-even calculation failure.
+
+    Raised by break-even calculation when upfront_cost / monthly_savings
+    inputs are zero or negative (1y break_even ≤ 8mo / 3y break_even
+    ≤ 18mo threshold logic).
+    """
+
+    http_status: int = 500
+
+
+# §F30.5 optimization accuracy tracker (3 NEW)
+class OptimizationAccuracyTrackingError(FinopsOptimizationError):
+    """HTTP 500 typed error — optimization accuracy tracking failure.
+
+    Raised by track_optimization_accuracy() when per-(tenant_id +
+    resource_type + optimization_strategy) granularity key construction
+    fails or precision / recall / realized_savings inputs invalid.
+    """
+
+    http_status: int = 500
+
+
+class OptimizationRetrainingTriggerError(FinopsOptimizationError):
+    """HTTP 500 typed error — optimization retraining trigger failure.
+
+    Raised by _check_accuracy_degradation() when accuracy_score < 70%
+    for 3 consecutive months triggers retraining but cron dispatch
+    fails.
+    """
+
+    http_status: int = 500
+
+
+class OptimizationPerformanceDegradationError(FinopsOptimizationError):
+    """HTTP 500 typed error — optimization performance degradation detected.
+
+    Raised by _check_accuracy_degradation() when accuracy_score < 70%
+    detected but consecutive_months < 3 (degradation flagged but
+    retraining not yet triggered — informational warning).
+    """
+
+    http_status: int = 500
+
+
 __all__ = [
     "BaseError",
     "BadRequestError",
@@ -553,4 +741,22 @@ __all__ = [
     "ForecastAccuracyTrackingError",
     "ModelRetrainingTriggerError",
     "ModelPerformanceDegradationError",
+    # Phase 14 FinOps optimization & rightsizing typed exceptions (CR 12-5 D-14)
+    "FinopsOptimizationError",
+    "FINOPS_OPTIMIZATION_MODULE_ID",
+    "OptimizationDefinitionInvalidError",
+    "OptimizationScopeInvalidError",
+    "OptimizationInventoryUnavailableError",
+    "RightsizingEngineError",
+    "InstanceTypeMappingError",
+    "RecommendationConfidenceLowError",
+    "IdleResourceDetectionError",
+    "IdleSeverityClassificationError",
+    "IdleMetricUnavailableError",
+    "CommitmentRecommendationError",
+    "PricingDataUnavailableError",
+    "BreakEvenCalculationError",
+    "OptimizationAccuracyTrackingError",
+    "OptimizationRetrainingTriggerError",
+    "OptimizationPerformanceDegradationError",
 ]

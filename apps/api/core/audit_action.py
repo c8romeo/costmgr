@@ -79,6 +79,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_ANOMALY = "finops_anomaly"  # Phase 12 (NEW — Cost anomaly detection + budget alerting audit-first INSERT, AD-39)
     FINOPS_BUDGET = "finops_budget"  # Phase 12 (NEW — Budget definition + budget alert routing audit-first INSERT, AD-39)
     FINOPS_FORECAST = "finops_forecast"  # Phase 13 (NEW — Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT, AD-39)
+    FINOPS_OPTIMIZATION = "finops_optimization"  # Phase 14 (NEW — Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
 
 
 # ────────────────────────────────────────────────────────────
@@ -818,6 +819,48 @@ FinopsForecastAction = Literal[
 ]
 
 
+# Phase 14 (cj-style 119번째 wire) — AD-41 (a)~(g) verbatim +
+# §F30.1 + §F30.2 + §F30.3 + §F30.4 + §F30.5. 8 NEW audit actions
+# (CR 1-1 verbatim applied + ActionClass.FINOPS_OPTIMIZATION):
+# - `optimization_definition_updated` — optimization definition row update
+#   (PRD §F30.1-10 verbatim; AD-22 owner-only RBAC; CR 1-1 verbatim
+#   audit-first INSERT BEFORE optimization definition commit).
+# - `recommendation_generated` — rightsizing recommendation generated
+#   (PRD §F30.2-11 verbatim; 5 resource types parallel run; CR 1-1
+#   verbatim audit-first INSERT BEFORE recommendation generation).
+# - `idle_resource_detected` — idle resource detected via z-score < -2.0
+#   (PRD §F30.3-11 verbatim; Phase 12 anomaly_detection EXTENSION; CR 1-1
+#   verbatim audit-first INSERT AFTER idle resource detection).
+# - `commitment_recommended` — RI/SP commitment recommendation
+#   (PRD §F30.4-11 verbatim; 6 commitment_type options + 1y/3y
+#   simulation; CR 1-1 verbatim audit-first INSERT AFTER commitment
+#   recommendation).
+# - `optimization_recommended_action` — optimization recommended action
+#   apply (PRD §F30.5-10 verbatim; 5.5 EXTENSION; CR 1-1 verbatim
+#   audit-first INSERT BEFORE recommended action apply).
+# - `optimization_dry_run_executed` — dry-run preview completed (no
+#   actual optimization; tenant_id + resource_type + trace_id payload;
+#   AD-22 owner-only RBAC; CR 1-1 verbatim audit-first INSERT AFTER
+#   dry-run preview committed).
+# - `optimization_accuracy_degraded` — accuracy_score < 70% for 3
+#   consecutive months detected (PRD §F30.5-9 verbatim; Phase 13
+#   forecast_accuracy EXTENSION; CR 1-1 verbatim audit-first INSERT
+#   BEFORE model retraining trigger).
+# - `optimization_retraining_triggered` — retrain dispatch triggered
+#   (PRD §F30.5-9 verbatim; `0 3 * * 0` KST Sunday 03:00; CR 1-1
+#   verbatim audit-first INSERT AFTER retraining trigger).
+FinopsOptimizationAction = Literal[
+    "optimization_definition_updated",  # §F30.1-10 — optimization definition row update
+    "recommendation_generated",  # §F30.2-11 — rightsizing recommendation generated
+    "idle_resource_detected",  # §F30.3-11 — idle resource detected (z-score < -2.0)
+    "commitment_recommended",  # §F30.4-11 — RI/SP commitment recommendation
+    "optimization_recommended_action",  # §F30.5-10 — recommended action apply
+    "optimization_dry_run_executed",  # §F30.8-1 — dry-run preview
+    "optimization_accuracy_degraded",  # §F30.5-9 — accuracy_score < 70% detected
+    "optimization_retraining_triggered",  # §F30.5-9 — retrain dispatch triggered
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -855,6 +898,7 @@ AuditAction = (
     | FinopsAnomalyAction  # NEW — Phase 12 (Cost anomaly detection + forecast accuracy + model retraining + baseline window update audit-first INSERT)
     | FinopsBudgetAction  # NEW — Phase 12 (Budget definition + threshold exceeded + alert dispatched audit-first INSERT)
     | FinopsForecastAction  # NEW — Phase 13 (Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT)
+    | FinopsOptimizationAction  # NEW — Phase 14 (Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
 )
 
 
@@ -1450,6 +1494,33 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 14 (cj-style 119번째 wire) — FINOPS_OPTIMIZATION 8 values
+        # (optimization definition + rightsizing + idle detection +
+        # commitment + accuracy tracking + dry-run audit-first INSERT,
+        # AD-41 verbatim). Routes to audit_logs (NOT to a separate
+        # ledger — FinOps optimization events are tenant-scoped
+        # platform-event trail only, mirroring FINOPS_FORECAST +
+        # FINOPS_BUDGET + FINOPS_ANOMALY Phase 12 wire + FINOPS Phase 11
+        # wire pattern). target_table=`finops_optimization` aligns with
+        # ActionClass.FINOPS_OPTIMIZATION value (audit_log target_table
+        # column populated verbatim — RLS preserved). Drift detector
+        # enforces ActionClass registry ↔ DB CHECK (no-op for
+        # audit_logs per AD-2) ↔ call sites parity (3-way gate).
+        ActionClass.FINOPS_OPTIMIZATION: (
+            "audit_logs",
+            frozenset(
+                {
+                    "optimization_definition_updated",  # §F30.1-10 — optimization definition row update
+                    "recommendation_generated",  # §F30.2-11 — rightsizing recommendation generated
+                    "idle_resource_detected",  # §F30.3-11 — idle resource detected (z-score < -2.0)
+                    "commitment_recommended",  # §F30.4-11 — RI/SP commitment recommendation
+                    "optimization_recommended_action",  # §F30.5-10 — recommended action apply
+                    "optimization_dry_run_executed",  # §F30.8-1 — dry-run preview
+                    "optimization_accuracy_degraded",  # §F30.5-9 — accuracy_score < 70% detected
+                    "optimization_retraining_triggered",  # §F30.5-9 — retrain dispatch triggered
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1586,5 +1657,7 @@ __all__ = [
     "FinopsAction",  # NEW — Phase 11 (FinOps showback generation + department mapping update + chargeback calculation + chargeback export audit-first INSERT)
     "FinopsAnomalyAction",  # NEW — Phase 12 (Cost anomaly detection + forecast accuracy + model retraining + baseline window update audit-first INSERT)
     "FinopsBudgetAction",  # NEW — Phase 12 (Budget definition + threshold exceeded + alert dispatched audit-first INSERT)
+    "FinopsForecastAction",  # NEW — Phase 13 (Forecast definition + forecast generation + capacity headroom + budget burn-rate + forecast accuracy + model retraining + dry-run audit-first INSERT)
+    "FinopsOptimizationAction",  # NEW — Phase 14 (Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
     "emit_audit_typed",
 ]
