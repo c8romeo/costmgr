@@ -20,7 +20,7 @@
     "test:all": "pnpm test:architecture && pnpm test:rls"
   },
   "devDependencies": {
-    "dependency-cruiser": "16.10.4",
+    "dependency-cruiser": "18.2.0",
     "js-yaml": "4.1.0"
   }
 }
