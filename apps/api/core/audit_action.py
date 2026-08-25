@@ -83,6 +83,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_TAG_GOVERNANCE = "finops_tag_governance"  # Phase 15 (cj-style 123번째 wire — NEW — Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation audit-first INSERT, AD-42)
     FINOPS_REPORTING = "finops_reporting"  # Phase 16 (cj-style 127번째 wire — NEW — Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBOC + dry-run audit-first INSERT, AD-43)
     FINOPS_SUSTAINABILITY = "finops_sustainability"  # Phase 17 (cj-style 131번째 wire — NEW — Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
+    FINOPS_COMMITMENT = "finops_commitment"  # Phase 18 (cj-style 135번째 wire — NEW — Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
 
 
 # ────────────────────────────────────────────────────────────
@@ -987,6 +988,30 @@ FinopsSustainabilityAction = Literal[
 ]
 
 
+# finops_commitment actions (Phase 18 cj-style 135번째 wire — NEW).
+# PRD §F34 + AD-45 (a)~(g). Audit routes to `audit_logs`
+# (ActionClass.FINOPS_COMMITMENT). 8 values:
+# - `commitment_inventory_aggregated` — §F34.1-11 — 7-module cross-rollup
+#   + 5-cloud-provider breakdown (AWS + Azure + GCP + Naver + KT)
+# - `commitment_kpi_calculated` — §F34.2-11 — 8 NEW KPI computed
+# - `commitment_report_generated` — §F34.3-12 — PDF/CSV/Excel generated
+# - `commitment_report_exported` — §F34.3-12 — report exported (PDF/CSV/Excel)
+# - `commitment_report_dispatched` — §F34.4-10 — delivery to Slack/Email/MS Teams/S3
+# - `commitment_scheduled_dispatch_evaluated` — §F34.4-10 — KST cron evaluated
+# - `commitment_dashboard_viewed` — §F34.6-10 — dashboard viewed (CR 1-1)
+# - `finops_commitment_dry_run_executed` — §F34.8-1 — dry-run preview
+FinopsCommitmentAction = Literal[
+    "commitment_inventory_aggregated",  # §F34.1-11 — 7-module cross-rollup + 5-cloud-provider
+    "commitment_kpi_calculated",  # §F34.2-11 — 8 NEW KPI computed
+    "commitment_report_generated",  # §F34.3-12 — PDF/CSV/Excel generated
+    "commitment_report_exported",  # §F34.3-12 — report exported
+    "commitment_report_dispatched",  # §F34.4-10 — delivery to Slack/Email/MS Teams/S3
+    "commitment_scheduled_dispatch_evaluated",  # §F34.4-10 — KST cron evaluated
+    "commitment_dashboard_viewed",  # §F34.6-10 — dashboard viewed
+    "finops_commitment_dry_run_executed",  # §F34.8-1 — dry-run preview
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1028,6 +1053,7 @@ AuditAction = (
     | FinopsTagGovernanceAction  # NEW — Phase 15 (Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation + dry-run audit-first INSERT, AD-42)
     | FinopsReportingAction  # NEW — Phase 16 (Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBAC + dry-run audit-first INSERT, AD-43)
     | FinopsSustainabilityAction  # NEW — Phase 17 (Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
+    | FinopsCommitmentAction  # NEW — Phase 18 (Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
 )
 
 
@@ -1737,6 +1763,21 @@ class _ActionRegistry:
                 }
             ),
         ),
+        ActionClass.FINOPS_COMMITMENT: (
+            "audit_logs",
+            frozenset(
+                {
+                    "commitment_inventory_aggregated",  # §F34.1-11 — 7-module cross-rollup + 5-cloud-provider
+                    "commitment_kpi_calculated",  # §F34.2-11 — 8 NEW KPI computed
+                    "commitment_report_generated",  # §F34.3-12 — PDF/CSV/Excel generated
+                    "commitment_report_exported",  # §F34.3-12 — report exported
+                    "commitment_report_dispatched",  # §F34.4-10 — delivery to Slack/Email/MS Teams/S3
+                    "commitment_scheduled_dispatch_evaluated",  # §F34.4-10 — KST cron evaluated
+                    "commitment_dashboard_viewed",  # §F34.6-10 — dashboard view
+                    "finops_commitment_dry_run_executed",  # §F34.8-1 — dry-run preview
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1878,5 +1919,6 @@ __all__ = [
     "FinopsTagGovernanceAction",  # NEW — Phase 15 (Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation + dry-run audit-first INSERT, AD-42)
     "FinopsReportingAction",  # NEW — Phase 16 (Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBAC + dry-run audit-first INSERT, AD-43)
     "FinopsSustainabilityAction",  # NEW — Phase 17 (Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
+    "FinopsCommitmentAction",  # NEW — Phase 18 (Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
     "emit_audit_typed",
 ]

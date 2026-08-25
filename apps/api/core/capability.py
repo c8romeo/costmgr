@@ -552,6 +552,24 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_43_drift.py (capability
     # matrix v1.43 EXTENSION 1 NEW row).
     FINOPS_SUSTAINABILITY = "finops_sustainability"
+    # Phase 18 (cj-style 135번째 wire) — FINOPS_COMMITMENT — Cloud
+    # commitment management (RIs/SPs/CUDs) for AWS + Azure + GCP +
+    # Naver Cloud + KT Cloud. Industry-agnostic per FinOps Foundation
+    # + AWS Cost Optimization Pillar + Azure Cost Optimization + GCP
+    # Cost Optimization + 한국 조달청 클라우드 commitment 가이드라인
+    # (CR 12-1 L4 precedent mirrors FINOPS_SUSTAINABILITY Phase 17 wire +
+    # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire
+    # + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING_CAPACITY_PLANNING
+    # Phase 13 wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+    # + FINOPS Phase 11 wire pattern verbatim). All 4 industries get
+    # FINOPS_COMMITMENT capability (cloud commitment management is a
+    # business-level financial concern per FinOps Foundation + cloud
+    # provider cost optimization pillars, not industry-specific).
+    # Gates require_finops_commitment dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_44_drift.py (capability
+    # matrix v1.44 EXTENSION 1 NEW row).
+    FINOPS_COMMITMENT = "finops_commitment"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -771,6 +789,21 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # carbon reporting applies industry-agnostically per EU CSRD +
             # SEC Climate Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB.
             Capability.FINOPS_SUSTAINABILITY,
+            # Phase 18 (cj-style 135번째 wire) — FINOPS_COMMITMENT
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_SUSTAINABILITY
+            # Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+            # FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+            # Phase 14 wire + FINOPS_FORECASTING + FINOPS_ANOMALY_DETECTION
+            # + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire
+            # pattern verbatim). 7-module cross-rollup (Phase 11~17) +
+            # 5-cloud-provider breakdown (AWS + Azure + GCP + Naver + KT) +
+            # 8 NEW KPI calculations + commitment report generator
+            # PDF/CSV/Excel + scheduled dispatch KST cron + tenant-scoped
+            # commitment role RBAC. Cloud commitment management applies
+            # industry-agnostically per FinOps Foundation + AWS Cost
+            # Optimization Pillar + Azure Cost Optimization + GCP Cost
+            # Optimization + 한국 조달청 클라우드 commitment 가이드라인.
+            Capability.FINOPS_COMMITMENT,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -943,6 +976,21 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # carbon reporting applies industry-agnostically per EU CSRD +
             # SEC Climate Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB.
             Capability.FINOPS_SUSTAINABILITY,
+            # Phase 18 (cj-style 135번째 wire) — FINOPS_COMMITMENT
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_SUSTAINABILITY
+            # Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+            # FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+            # Phase 14 wire + FINOPS_FORECASTING + FINOPS_ANOMALY_DETECTION
+            # + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire
+            # pattern verbatim). 7-module cross-rollup (Phase 11~17) +
+            # 5-cloud-provider breakdown (AWS + Azure + GCP + Naver + KT) +
+            # 8 NEW KPI calculations + commitment report generator
+            # PDF/CSV/Excel + scheduled dispatch KST cron + tenant-scoped
+            # commitment role RBAC. Cloud commitment management applies
+            # industry-agnostically per FinOps Foundation + AWS Cost
+            # Optimization Pillar + Azure Cost Optimization + GCP Cost
+            # Optimization + 한국 조달청 클라우드 commitment 가이드라인.
+            Capability.FINOPS_COMMITMENT,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1132,6 +1180,21 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # carbon reporting applies industry-agnostically per EU CSRD +
             # SEC Climate Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB.
             Capability.FINOPS_SUSTAINABILITY,
+            # Phase 18 (cj-style 135번째 wire) — FINOPS_COMMITMENT
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_SUSTAINABILITY
+            # Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+            # FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+            # Phase 14 wire + FINOPS_FORECASTING + FINOPS_ANOMALY_DETECTION
+            # + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire
+            # pattern verbatim). 7-module cross-rollup (Phase 11~17) +
+            # 5-cloud-provider breakdown (AWS + Azure + GCP + Naver + KT) +
+            # 8 NEW KPI calculations + commitment report generator
+            # PDF/CSV/Excel + scheduled dispatch KST cron + tenant-scoped
+            # commitment role RBAC. Cloud commitment management applies
+            # industry-agnostically per FinOps Foundation + AWS Cost
+            # Optimization Pillar + Azure Cost Optimization + GCP Cost
+            # Optimization + 한국 조달청 클라우드 commitment 가이드라인.
+            Capability.FINOPS_COMMITMENT,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1318,6 +1381,21 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # carbon reporting applies industry-agnostically per EU CSRD +
             # SEC Climate Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB.
             Capability.FINOPS_SUSTAINABILITY,
+            # Phase 18 (cj-style 135번째 wire) — FINOPS_COMMITMENT
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_SUSTAINABILITY
+            # Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+            # FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+            # Phase 14 wire + FINOPS_FORECASTING + FINOPS_ANOMALY_DETECTION
+            # + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire
+            # pattern verbatim). 7-module cross-rollup (Phase 11~17) +
+            # 5-cloud-provider breakdown (AWS + Azure + GCP + Naver + KT) +
+            # 8 NEW KPI calculations + commitment report generator
+            # PDF/CSV/Excel + scheduled dispatch KST cron + tenant-scoped
+            # commitment role RBAC. Cloud commitment management applies
+            # industry-agnostically per FinOps Foundation + AWS Cost
+            # Optimization Pillar + Azure Cost Optimization + GCP Cost
+            # Optimization + 한국 조달청 클라우드 commitment 가이드라인.
+            Capability.FINOPS_COMMITMENT,
         }
     ),
 }

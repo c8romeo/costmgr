@@ -94,6 +94,7 @@ __all__ = [
     "require_finops_tag_governance",  # NEW — Phase 15 (FinOps Tag Governance & Cost Allocation)
     "require_finops_reporting",  # NEW — Phase 16 (FinOps Reporting & Executive Dashboard)
     "require_finops_sustainability",  # NEW — Phase 17 (FinOps Sustainability & Carbon Reporting)
+    "require_finops_commitment",  # NEW — Phase 18 (FinOps Cloud Commitment Management RIs/SPs/CUDs)
 ]
 
 
@@ -297,3 +298,16 @@ require_finops_reporting = require_capability(Capability.FINOPS_REPORTING)
 # 한국 KSSB regulatory driver industry-agnostic). Drift detector lives
 # at tests/integration/test_capability_matrix_v1_43_drift.py.
 require_finops_sustainability = require_capability(Capability.FINOPS_SUSTAINABILITY)
+# Phase 18 (cj-style 135번째 wire) — require_finops_commitment
+# (industry-agnostic per CR 12-1 L4 precedent + FINOPS_SUSTAINABILITY
+# Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+# FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION Phase 14 wire
+# + FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire +
+# FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS
+# Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_COMMITMENT capability (cloud commitment management baseline —
+# FinOps Foundation + AWS Cost Optimization Pillar + Azure Cost
+# Optimization + GCP Cost Optimization + 한국 조달청 클라우드 commitment
+# 가이드라인 regulatory driver industry-agnostic). Drift detector lives
+# at tests/integration/test_capability_matrix_v1_44_drift.py.
+require_finops_commitment = require_capability(Capability.FINOPS_COMMITMENT)

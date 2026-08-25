@@ -1299,6 +1299,221 @@ class SustainabilityAccuracyDegradationError(FinopsSustainabilityError):
     http_status: int = 500
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 18 — FinOps Cloud Commitment Management typed exceptions
+# (CR 12-5 D-14 envelope verbatim).
+# m26_finops_commitment — natural extension of m25_finops_sustainability
+# (Phase 17 wire `97cfe4e`) + Phase 11~16 carry-over chain (PRD §F34 + AD-45).
+# Routes through `FinopsError` ancestor (m19_finops base) → `BaseError` root
+# so `error_handler` middleware envelope canonicalization (code / message_ko
+# / details / trace_id / http_status) holds across all 7-module join paths.
+# ─────────────────────────────────────────────────────────────────────────────
+FINOPS_COMMITMENT_MODULE_ID: str = "m26_finops_commitment"
+
+
+class FinopsCommitmentError(FinopsError):
+    """Base class for Phase 18 FinOps Cloud Commitment Management errors.
+
+    Inherits from FinopsError (Phase 11 wire `e020ad0` m19_finops base)
+    so all Phase 11~17 typed exceptions share the same envelope. Module
+    tag is `m26_finops_commitment` per Phase 18 AD-45 (a) decision
+    (Phase 17 m25 + Phase 16 m24 + Phase 15 m23 + Phase 14 m22 +
+    Phase 13 m21 + Phase 12 m20 + Phase 11 m19 verbatim chain).
+
+    All subclasses follow CR 12-5 D-14 typed exception envelope:
+    http_status ∈ {400, 403, 404, 422, 500} matching the canonical
+    REST/HTTP status code mapping (CR 11-4 P-015 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F34.1 commitment_inventory_aggregator (4 NEW)
+class CommitmentInventoryAggregationError(FinopsCommitmentError):
+    """HTTP 500 typed error — commitment inventory aggregation runtime failure.
+
+    Raised by aggregate_commitment_inventory() when any of the 7-module
+    cross-rollup compute_* helpers fails (Phase 11 showback × total_commitment
+    + Phase 12 anomaly + Phase 13 forecast + Phase 14 optimization +
+    Phase 15 tag_governance + Phase 16 executive + Phase 17 sustainability).
+    Note: http_status=500 (runtime compute error, not validation error
+    — Phase 17's RollupInvalidError uses 400 because rollup input
+    validation; Phase 18's Aggregation uses 500 because compute pipeline
+    runtime) (PRD §F34.1-9 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class CommitmentInventoryScopeError(FinopsCommitmentError):
+    """HTTP 404 typed error — commitment inventory scope validation failure.
+
+    Raised by aggregate_commitment_inventory() when scope_type is not in
+    ALL_COMMITMENT_SCOPE_TYPES (tenant / department / cost_center /
+    product_line) or scope_id is empty (PRD §F34.1-9 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class CommitmentInventoryPeriodError(FinopsCommitmentError):
+    """HTTP 422 typed error — commitment inventory period_key validation failure.
+
+    Raised by aggregate_commitment_inventory() when period_key is not in
+    valid format (YYYY-MM / YYYY-QN / YYYY) (PRD §F34.1-9 verbatim).
+    """
+
+    http_status: int = 422
+
+
+class CommitmentCrossModuleJoinError(FinopsCommitmentError):
+    """HTTP 500 typed error — 7-module cross-join failure.
+
+    Raised by aggregate_commitment_inventory() when the 7-module join
+    (Phase 11 showback + Phase 12 anomaly + Phase 13 forecast +
+    Phase 14 optimization + Phase 15 tag_governance + Phase 16 executive +
+    Phase 17 sustainability) fails, or when 5-cloud-provider
+    breakdown join fails (PRD §F34.1-11 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F34.2 commitment_kpi_selector (1 NEW)
+class CommitmentKPIError(FinopsCommitmentError):
+    """HTTP 500 typed error — commitment KPI calculation failure.
+
+    Raised by select_commitment_kpis() when any of the 8 NEW KPI
+    calculations fails (total_commitment_value_krw + coverage_pct +
+    utilization_pct + expiring_commitments_30d + recommended_purchase_krw
+    + savings_realized_krw + idle_commitment_krw + renewal_decision_score)
+    (PRD §F34.2-11 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F34.3 commitment_report_generation (3 NEW)
+class CommitmentReportGenerationError(FinopsCommitmentError):
+    """HTTP 500 typed error — commitment report generation failure.
+
+    Raised by generate_commitment_report() when PDF/CSV/Excel
+    generation fails (PRD §F34.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class CommitmentReportExportError(FinopsCommitmentError):
+    """HTTP 500 typed error — commitment report export failure.
+
+    Raised by export_commitment_report() when S3 archive upload or
+    external recipient delivery fails (PRD §F34.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class CommitmentReportArchiveError(FinopsCommitmentError):
+    """HTTP 500 typed error — commitment report archive failure.
+
+    Raised by archive_commitment_report() when long-term S3 archive
+    write fails (PRD §F34.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F34.4 scheduled_commitment_dispatch (4 NEW)
+class ScheduledCommitmentDispatchError(FinopsCommitmentError):
+    """HTTP 500 typed error — scheduled commitment dispatch failure.
+
+    Raised by schedule_commitment_dispatch() when apscheduler
+    registration or KST cron evaluation fails (PRD §F34.4-10 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class CommitmentCronExpressionInvalidError(FinopsCommitmentError):
+    """HTTP 400 typed error — commitment cron expression invalid.
+
+    Raised by resolve_cron_expression() or _validate_cron_expression()
+    when the cron expression cannot be parsed by apscheduler
+    (PRD §F34.4-9 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class CommitmentRecipientResolverError(FinopsCommitmentError):
+    """HTTP 404 typed error — commitment recipient resolver failure.
+
+    Raised by resolve_recipient_list() when recipient_strategy is
+    invalid or custom_recipients not configured (PRD §F34.4-9 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class CommitmentDispatchIdempotencyViolationError(FinopsCommitmentError):
+    """HTTP 422 typed error — commitment dispatch idempotency violation.
+
+    Raised by dispatch_commitment_report() when (tenant_id +
+    dispatch_schedule + period_key) tuple already exists (PRD §F34.4-10
+    verbatim).
+    """
+
+    http_status: int = 422
+
+
+# §F34.5 commitment role RBAC (3 NEW)
+class CommitmentRolePermissionError(FinopsCommitmentError):
+    """HTTP 403 typed error — commitment role permission denied.
+
+    Raised by require_commitment_role() when user_role is not in
+    {owner, commitment_viewer} (AD-22 owner-only RBAC + Epic 12 2FA
+    챌린지 mandatory) (PRD §F34.5 verbatim).
+    """
+
+    http_status: int = 403
+
+
+class CommitmentTenantScopeViolationError(FinopsCommitmentError):
+    """HTTP 403 typed error — commitment tenant scope violation.
+
+    Raised by require_commitment_role() when actor_tenant_id ≠
+    requested_tenant_id (CR 0-2 RLS) (PRD §F34.5 verbatim).
+    """
+
+    http_status: int = 403
+
+
+class CommitmentCapabilityGateViolationError(FinopsCommitmentError):
+    """HTTP 403 typed error — commitment capability gate violation.
+
+    Raised by require_finops_commitment dependency when tenant lacks
+    Capability.FINOPS_COMMITMENT grant (CR 12-5 D-GATE-01 inversion)
+    (PRD §F34.5 verbatim).
+    """
+
+    http_status: int = 403
+
+
+# §F34.6 commitment accuracy degradation (1 NEW)
+class CommitmentAccuracyDegradationError(FinopsCommitmentError):
+    """HTTP 500 typed error — commitment accuracy degradation detected.
+
+    Raised by commitment_kpi_selector.validate_kpi_accuracy() when
+    commitment KPI accuracy score drops below threshold
+    (e.g. utilization_pct exceeds industry baseline for
+    3 consecutive periods) (PRD §F34.6 verbatim + Phase 13/14/17
+    accuracy tracker EXTENSION pattern).
+    """
+
+    http_status: int = 500
+
+
 __all__ = [
     "BaseError",
     "BadRequestError",
@@ -1425,4 +1640,23 @@ __all__ = [
     "SustainabilityTenantScopeViolationError",
     "SustainabilityCapabilityGateViolationError",
     "SustainabilityAccuracyDegradationError",
+    # Phase 18 FinOps cloud commitment management typed exceptions (CR 12-5 D-14)
+    "FinopsCommitmentError",
+    "FINOPS_COMMITMENT_MODULE_ID",
+    "CommitmentInventoryAggregationError",
+    "CommitmentInventoryScopeError",
+    "CommitmentInventoryPeriodError",
+    "CommitmentCrossModuleJoinError",
+    "CommitmentKPIError",
+    "CommitmentReportGenerationError",
+    "CommitmentReportExportError",
+    "CommitmentReportArchiveError",
+    "ScheduledCommitmentDispatchError",
+    "CommitmentCronExpressionInvalidError",
+    "CommitmentRecipientResolverError",
+    "CommitmentDispatchIdempotencyViolationError",
+    "CommitmentRolePermissionError",
+    "CommitmentTenantScopeViolationError",
+    "CommitmentCapabilityGateViolationError",
+    "CommitmentAccuracyDegradationError",
 ]

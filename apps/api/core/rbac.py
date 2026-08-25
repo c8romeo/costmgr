@@ -60,6 +60,7 @@ class Role(str, enum.Enum):
     VIEWER = "viewer"
     EXECUTIVE_VIEWER = "executive_viewer"  # Phase 16 wire 신규
     SUSTAINABILITY_VIEWER = "sustainability_viewer"  # Phase 17 wire 신규
+    COMMITMENT_VIEWER = "commitment_viewer"  # Phase 18 wire 신규 (cj-style 135번째)
 
 
 class TenantScopeViolationError(PermissionError):
@@ -98,6 +99,22 @@ class SustainabilityRolePermissionError(PermissionError):
         self.required_role = required_role
         super().__init__(
             f"Sustainability role permission denied: has={role} required={required_role}"
+        )
+
+
+class CommitmentRolePermissionError(PermissionError):
+    """Commitment role permission denied (CR 12-5 D-14 envelope, 403).
+
+    Phase 18 wire (cj-style 135번째) — mirrors SustainabilityRolePermissionError
+    verbatim for commitment dashboard / report / scheduled dispatch
+    access. AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
+    """
+
+    def __init__(self, role: str, required_role: str) -> None:
+        self.role = role
+        self.required_role = required_role
+        super().__init__(
+            f"Commitment role permission denied: has={role} required={required_role}"
         )
 
 
@@ -249,12 +266,84 @@ def require_sustainability_role(
     )
 
 
+def require_commitment_role(
+    user_role: Optional[Role],
+    tenant_settings_commitment_viewers: Optional[list[str]] = None,
+    user_id: Optional[str] = None,
+    actor_tenant_id: Optional[str] = None,
+    requested_tenant_id: Optional[str] = None,
+) -> Role:
+    """Validate that the actor has commitment dashboard access.
+
+    Phase 18 wire (cj-style 135번째) — owner-only RBAC AD-22 verbatim +
+    Epic 12 2FA 챌린지 mandatory + tenant-scoped RBAC validation +
+    4-industry grants ✅/✅/✅/✅ industry-agnostic per CR 12-1 L4 precedent
+    (mirrors require_sustainability_role verbatim).
+
+    Returns the validated Role on success. Raises:
+    - TenantScopeViolationError if cross-tenant access attempted.
+    - CommitmentRolePermissionError if role lacks commitment access.
+    - CapabilityGateViolationError if tenant has no FINOPS_COMMITMENT capability.
+
+    CR lessons applied:
+    - CR 0-2 RLS — tenant-scoped result_hash + cross-tenant isolation.
+    - CR 12-5 D-14 typed exception envelope verbatim.
+    - AD-22 owner-only RBAC — OWNER + COMMITMENT_VIEWER with explicit grant.
+    """
+    if user_role is None:
+        raise CommitmentRolePermissionError(
+            role="<anonymous>", required_role="owner|commitment_viewer"
+        )
+
+    # OWNER bypasses tenant_settings check (AD-22 verbatim).
+    if user_role == Role.OWNER:
+        if (
+            actor_tenant_id is not None
+            and requested_tenant_id is not None
+            and actor_tenant_id != requested_tenant_id
+        ):
+            raise TenantScopeViolationError(
+                actor_tenant_id=actor_tenant_id,
+                requested_tenant_id=requested_tenant_id,
+            )
+        return user_role
+
+    # COMMITMENT_VIEWER needs explicit grant in tenant_settings.
+    if user_role == Role.COMMITMENT_VIEWER:
+        if (
+            tenant_settings_commitment_viewers is None
+            or user_id is None
+            or user_id not in tenant_settings_commitment_viewers
+        ):
+            raise CommitmentRolePermissionError(
+                role=user_role.value,
+                required_role="commitment_viewer_with_grant",
+            )
+        if (
+            actor_tenant_id is not None
+            and requested_tenant_id is not None
+            and actor_tenant_id != requested_tenant_id
+        ):
+            raise TenantScopeViolationError(
+                actor_tenant_id=actor_tenant_id,
+                requested_tenant_id=requested_tenant_id,
+            )
+        return user_role
+
+    raise CommitmentRolePermissionError(
+        role=user_role.value,
+        required_role="owner|commitment_viewer",
+    )
+
+
 __all__ = [
     "Role",
     "TenantScopeViolationError",
     "ExecutiveRolePermissionError",
     "SustainabilityRolePermissionError",
+    "CommitmentRolePermissionError",
     "CapabilityGateViolationError",
     "require_executive_role",
     "require_sustainability_role",
+    "require_commitment_role",
 ]
