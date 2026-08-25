@@ -82,6 +82,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_OPTIMIZATION = "finops_optimization"  # Phase 14 (NEW — Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
     FINOPS_TAG_GOVERNANCE = "finops_tag_governance"  # Phase 15 (cj-style 123번째 wire — NEW — Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation audit-first INSERT, AD-42)
     FINOPS_REPORTING = "finops_reporting"  # Phase 16 (cj-style 127번째 wire — NEW — Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBOC + dry-run audit-first INSERT, AD-43)
+    FINOPS_SUSTAINABILITY = "finops_sustainability"  # Phase 17 (cj-style 131번째 wire — NEW — Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
 
 
 # ────────────────────────────────────────────────────────────
@@ -963,6 +964,29 @@ FinopsReportingAction = Literal[
 ]
 
 
+# finops_sustainability actions (Phase 17 cj-style 131번째 wire — NEW).
+# PRD §F33 + AD-44 (a)~(g). Audit routes to `audit_logs`
+# (ActionClass.FINOPS_SUSTAINABILITY). 8 values:
+# - `carbon_emissions_aggregated` — §F33.1-11 — 6-module cross-rollup
+# - `sustainability_kpi_calculated` — §F33.2-11 — 8 NEW KPI computed
+# - `sustainability_report_generated` — §F33.3-12 — PDF/CSV/Excel generated
+# - `sustainability_report_exported` — §F33.3-12 — report exported (PDF/CSV/Excel)
+# - `sustainability_report_dispatched` — §F33.4-10 — delivery to Slack/Email/S3
+# - `sustainability_scheduled_dispatch_evaluated` — §F33.4-10 — KST cron evaluated
+# - `sustainability_dashboard_viewed` — §F33.6-10 — dashboard viewed (CR 1-1)
+# - `finops_sustainability_dry_run_executed` — §F33.8-1 — dry-run preview
+FinopsSustainabilityAction = Literal[
+    "carbon_emissions_aggregated",  # §F33.1-11 — 6-module cross-rollup
+    "sustainability_kpi_calculated",  # §F33.2-11 — 8 NEW KPI computed
+    "sustainability_report_generated",  # §F33.3-12 — PDF/CSV/Excel generated
+    "sustainability_report_exported",  # §F33.3-12 — report exported
+    "sustainability_report_dispatched",  # §F33.4-10 — delivery to Slack/Email/S3
+    "sustainability_scheduled_dispatch_evaluated",  # §F33.4-10 — KST cron evaluated
+    "sustainability_dashboard_viewed",  # §F33.6-10 — dashboard viewed
+    "finops_sustainability_dry_run_executed",  # §F33.8-1 — dry-run preview
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1003,6 +1027,7 @@ AuditAction = (
     | FinopsOptimizationAction  # NEW — Phase 14 (Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
     | FinopsTagGovernanceAction  # NEW — Phase 15 (Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation + dry-run audit-first INSERT, AD-42)
     | FinopsReportingAction  # NEW — Phase 16 (Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBAC + dry-run audit-first INSERT, AD-43)
+    | FinopsSustainabilityAction  # NEW — Phase 17 (Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
 )
 
 
@@ -1685,6 +1710,33 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 17 (cj-style 131번째 wire) — FINOPS_SUSTAINABILITY 8 values
+        # (carbon emissions aggregator + sustainability KPI selector +
+        # sustainability report generator + scheduled dispatch + sustainability
+        # role RBAC + dry-run audit-first INSERT, AD-44 verbatim). Routes to
+        # audit_logs (mirrors FINOPS_REPORTING Phase 16 wire +
+        # FINOPS_TAG_GOVERNANCE Phase 15 + FINOPS_OPTIMIZATION Phase 14 +
+        # FINOPS_FORECAST Phase 13 + FINOPS_BUDGET + FINOPS_ANOMALY Phase 12
+        # + FINOPS Phase 11 wire pattern). target_table=`finops_sustainability`
+        # aligns with ActionClass.FINOPS_SUSTAINABILITY value. Drift detector
+        # enforces ActionClass registry ↔ DB CHECK ↔ call sites parity
+        # (3-way gate). Phase 16 cj-style 127번째 wire FINOPS_REPORTING
+        # registry pattern verbatim applied.
+        ActionClass.FINOPS_SUSTAINABILITY: (
+            "audit_logs",
+            frozenset(
+                {
+                    "carbon_emissions_aggregated",  # §F33.1-11 — 6-module cross-rollup
+                    "sustainability_kpi_calculated",  # §F33.2-11 — 8 NEW KPI computed
+                    "sustainability_report_generated",  # §F33.3-12 — PDF/CSV/Excel generated
+                    "sustainability_report_exported",  # §F33.3-12 — report exported
+                    "sustainability_report_dispatched",  # §F33.4-10 — delivery to Slack/Email/S3
+                    "sustainability_scheduled_dispatch_evaluated",  # §F33.4-10 — KST cron evaluated
+                    "sustainability_dashboard_viewed",  # §F33.6-10 — dashboard view
+                    "finops_sustainability_dry_run_executed",  # §F33.8-1 — dry-run preview
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1825,5 +1877,6 @@ __all__ = [
     "FinopsOptimizationAction",  # NEW — Phase 14 (Optimization definition + rightsizing + idle detection + commitment + accuracy tracking + dry-run audit-first INSERT, AD-41)
     "FinopsTagGovernanceAction",  # NEW — Phase 15 (Tag policy + untagged resource detector + allocation rules engine + compliance + chargeback allocation reconciliation + dry-run audit-first INSERT, AD-42)
     "FinopsReportingAction",  # NEW — Phase 16 (Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBAC + dry-run audit-first INSERT, AD-43)
+    "FinopsSustainabilityAction",  # NEW — Phase 17 (Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
     "emit_audit_typed",
 ]

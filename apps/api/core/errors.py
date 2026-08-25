@@ -1089,6 +1089,216 @@ class ReportingAccuracyDegradationError(FinopsReportingError):
     http_status: int = 500
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 17 — FinOps Sustainability & Carbon Reporting typed exceptions
+# (CR 12-5 D-14 envelope verbatim).
+# m25_finops_sustainability — natural extension of m24_finops_reporting
+# (Phase 16 wire `81ae00a`) + Phase 11~15 carry-over chain (PRD §F33 + AD-44).
+# Routes through `FinopsError` ancestor (m19_finops base) → `BaseError` root
+# so `error_handler` middleware envelope canonicalization (code / message_ko
+# / details / trace_id / http_status) holds across all 6-module join
+# paths.
+# ─────────────────────────────────────────────────────────────────────────────
+FINOPS_SUSTAINABILITY_MODULE_ID: str = "m25_finops_sustainability"
+
+
+class FinopsSustainabilityError(FinopsError):
+    """Base class for Phase 17 FinOps Sustainability & Carbon Reporting errors.
+
+    Inherits from FinopsError (Phase 11 wire `e020ad0` m19_finops base)
+    so all Phase 11~16 typed exceptions share the same envelope. Module
+    tag is `m25_finops_sustainability` per Phase 17 AD-44 (a) decision
+    (Phase 16 m24 + Phase 15 m23 + Phase 14 m22 + Phase 13 m21 + Phase 12 m20
+    + Phase 11 m19 verbatim chain).
+
+    All subclasses follow CR 12-5 D-14 typed exception envelope:
+    http_status ∈ {400, 403, 404, 422, 500} matching the canonical
+    REST/HTTP status code mapping (CR 11-4 P-015 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F33.1 carbon_emissions_aggregator (4 NEW)
+class CarbonEmissionsRollupInvalidError(FinopsSustainabilityError):
+    """HTTP 400 typed error — carbon emissions rollup invalid inputs.
+
+    Raised by aggregate_carbon_emissions() when tenant_id is empty,
+    scope_type invalid, or rollup missing required fields
+    (PRD §F33.1-9 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class CarbonEmissionsRollupScopeError(FinopsSustainabilityError):
+    """HTTP 404 typed error — carbon emissions rollup scope validation failure.
+
+    Raised by aggregate_carbon_emissions() when scope_type is not in
+    ALL_SCOPE_TYPES (tenant / department / cost_center / product_line)
+    or scope_id is empty (PRD §F33.1-9 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class CarbonEmissionsRollupPeriodError(FinopsSustainabilityError):
+    """HTTP 422 typed error — carbon emissions rollup period_key validation failure.
+
+    Raised by aggregate_carbon_emissions() when period_key is not in
+    valid format (YYYY-MM / YYYY-QN / YYYY) (PRD §F33.1-9 verbatim).
+    """
+
+    http_status: int = 422
+
+
+class CarbonEmissionsCrossModuleJoinError(FinopsSustainabilityError):
+    """HTTP 500 typed error — 6-module cross-join failure.
+
+    Raised by aggregate_carbon_emissions() when the 6-module join
+    (Phase 11 showback × carbon_intensity + Phase 12 anomaly +
+    Phase 13 forecast + Phase 14 optimization + Phase 15 tag_governance +
+    Phase 16 executive) fails (PRD §F33.1-11 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F33.2 sustainability_kpi_selector (1 NEW)
+class SustainabilityKPIError(FinopsSustainabilityError):
+    """HTTP 500 typed error — sustainability KPI calculation failure.
+
+    Raised by select_sustainability_kpis() when any of the 8 NEW KPI
+    calculations fails (total_carbon_emissions_kgco2e + scope1/2/3 +
+    carbon_intensity_kgco2e_per_krw + data_center_pue +
+    renewable_energy_pct + carbon_offset_kgco2e)
+    (PRD §F33.2-11 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F33.3 sustainability_report_generation_engine (3 NEW)
+class SustainabilityReportGenerationError(FinopsSustainabilityError):
+    """HTTP 500 typed error — sustainability report generation failure.
+
+    Raised by generate_sustainability_report() when reportlab PDF render
+    or openpyxl Excel workbook fails (PRD §F33.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class SustainabilityReportExportError(FinopsSustainabilityError):
+    """HTTP 500 typed error — sustainability report export failure.
+
+    Raised by generate_sustainability_report() when CSV/Excel byte stream
+    serialization fails (PRD §F33.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class SustainabilityReportArchiveError(FinopsSustainabilityError):
+    """HTTP 500 typed error — sustainability report S3 archive failure.
+
+    Raised by generate_sustainability_report() when S3 archive upload
+    fails (PRD §F33.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F33.4 scheduled_sustainability_dispatch (4 NEW)
+class ScheduledSustainabilityDispatchError(FinopsSustainabilityError):
+    """HTTP 500 typed error — scheduled sustainability dispatch cron failure.
+
+    Raised by schedule_sustainability_dispatch() when apscheduler job fails
+    or delivery target unreachable (PRD §F33.4-10 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class SustainabilityCronExpressionInvalidError(FinopsSustainabilityError):
+    """HTTP 400 typed error — sustainability cron expression validation failure.
+
+    Raised by schedule_sustainability_dispatch() when cron_expression is
+    not parseable by apscheduler (PRD §F33.4-10 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class SustainabilityRecipientResolverError(FinopsSustainabilityError):
+    """HTTP 404 typed error — sustainability recipient resolution failure.
+
+    Raised by recipient resolver when owner_only/sustainability_team/
+    board_observers/custom_recipients strategy cannot resolve
+    recipients (PRD §F33.4-10 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class SustainabilityDispatchIdempotencyViolationError(FinopsSustainabilityError):
+    """HTTP 422 typed error — sustainability dispatch idempotency violation.
+
+    Raised by schedule_sustainability_dispatch() when duplicate dispatch
+    detected for (tenant_id + dispatch_schedule + period_key) tuple
+    (PRD §F33.4-10 verbatim).
+    """
+
+    http_status: int = 422
+
+
+# §F33.5 tenant-scoped sustainability role RBAC (3 NEW)
+class SustainabilityRolePermissionError(FinopsSustainabilityError):
+    """HTTP 403 typed error — sustainability role permission denied.
+
+    Raised by require_sustainability_role() when role lacks sustainability access
+    (e.g. tenant MEMBER attempting sustainability dashboard view)
+    (PRD §F33.5-10 verbatim + AD-22 owner-only RBAC + Epic 12 2FA 챌린지).
+    """
+
+    http_status: int = 403
+
+
+class SustainabilityTenantScopeViolationError(FinopsSustainabilityError):
+    """HTTP 403 typed error — sustainability cross-tenant access violation.
+
+    Raised by require_sustainability_role() when actor_tenant_id differs
+    from requested_tenant_id (PRD §F33.5-10 verbatim + CR 0-2 RLS).
+    """
+
+    http_status: int = 403
+
+
+class SustainabilityCapabilityGateViolationError(FinopsSustainabilityError):
+    """HTTP 403 typed error — sustainability capability gate violation.
+
+    Raised by require_finops_sustainability() when tenant lacks FINOPS_SUSTAINABILITY
+    capability or any Phase 11~16 carry-over capability
+    (PRD §F33.7-6 verbatim + CR 12-5 D-GATE-01 inversion).
+    """
+
+    http_status: int = 403
+
+
+# §F33.7 sustainability accuracy degradation (1 NEW)
+class SustainabilityAccuracyDegradationError(FinopsSustainabilityError):
+    """HTTP 500 typed error — sustainability accuracy degradation detected.
+
+    Raised by sustainability_kpi_selector.validate_kpi_accuracy() when
+    sustainability KPI accuracy score drops below threshold
+    (e.g. carbon_intensity_kgco2e_per_krw exceeds industry baseline for
+    3 consecutive periods) (PRD §F33.7 verbatim + Phase 13/14 accuracy
+    tracker EXTENSION pattern).
+    """
+
+    http_status: int = 500
+
+
 __all__ = [
     "BaseError",
     "BadRequestError",
@@ -1196,4 +1406,23 @@ __all__ = [
     "TenantScopeViolationError",
     "CapabilityGateViolationError",
     "ReportingAccuracyDegradationError",
+    # Phase 17 FinOps sustainability & carbon reporting typed exceptions (CR 12-5 D-14)
+    "FinopsSustainabilityError",
+    "FINOPS_SUSTAINABILITY_MODULE_ID",
+    "CarbonEmissionsRollupInvalidError",
+    "CarbonEmissionsRollupScopeError",
+    "CarbonEmissionsRollupPeriodError",
+    "CarbonEmissionsCrossModuleJoinError",
+    "SustainabilityKPIError",
+    "SustainabilityReportGenerationError",
+    "SustainabilityReportExportError",
+    "SustainabilityReportArchiveError",
+    "ScheduledSustainabilityDispatchError",
+    "SustainabilityCronExpressionInvalidError",
+    "SustainabilityRecipientResolverError",
+    "SustainabilityDispatchIdempotencyViolationError",
+    "SustainabilityRolePermissionError",
+    "SustainabilityTenantScopeViolationError",
+    "SustainabilityCapabilityGateViolationError",
+    "SustainabilityAccuracyDegradationError",
 ]

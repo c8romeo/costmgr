@@ -536,6 +536,23 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # matrix v1.42 EXTENSION 1 NEW row).
     FINOPS_REPORTING = "finops_reporting"
 
+    # Phase 17 (cj-style 131번째 wire) — FINOPS_SUSTAINABILITY
+    # (carbon_emissions_aggregator + sustainability_kpi_selector +
+    # sustainability_report_generator + scheduled_sustainability_dispatch +
+    # sustainability role RBAC). Industry-agnostic per CR 12-1 L4 precedent
+    # (mirrors FINOPS_REPORTING Phase 16 + FINOPS_TAG_GOVERNANCE Phase 15 +
+    # FINOPS_OPTIMIZATION Phase 14 + FINOPS_FORECASTING_CAPACITY_PLANNING
+    # Phase 13 + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 +
+    # FINOPS Phase 11 pattern verbatim). All 4 industries get
+    # FINOPS_SUSTAINABILITY capability (sustainability & carbon reporting
+    # is a business-level regulatory concern per EU CSRD + SEC Climate
+    # Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB, not industry-specific).
+    # Gates require_finops_sustainability dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_43_drift.py (capability
+    # matrix v1.43 EXTENSION 1 NEW row).
+    FINOPS_SUSTAINABILITY = "finops_sustainability"
+
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
@@ -742,6 +759,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # executive report generator PDF/CSV/Excel + scheduled
             # dispatch KST cron + tenant-scoped executive role RBAC.
             Capability.FINOPS_REPORTING,
+            # Phase 17 (cj-style 131번째 wire) — FINOPS_SUSTAINABILITY
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_REPORTING
+            # Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 6-module cross-rollup
+            # (Phase 11~16) + 8 NEW KPI calculations + sustainability report
+            # generator PDF/CSV/Excel + scheduled dispatch KST cron +
+            # tenant-scoped sustainability role RBAC. Sustainability &
+            # carbon reporting applies industry-agnostically per EU CSRD +
+            # SEC Climate Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB.
+            Capability.FINOPS_SUSTAINABILITY,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -902,6 +931,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # executive report generator PDF/CSV/Excel + scheduled
             # dispatch KST cron + tenant-scoped executive role RBAC.
             Capability.FINOPS_REPORTING,
+            # Phase 17 (cj-style 131번째 wire) — FINOPS_SUSTAINABILITY
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_REPORTING
+            # Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 6-module cross-rollup
+            # (Phase 11~16) + 8 NEW KPI calculations + sustainability report
+            # generator PDF/CSV/Excel + scheduled dispatch KST cron +
+            # tenant-scoped sustainability role RBAC. Sustainability &
+            # carbon reporting applies industry-agnostically per EU CSRD +
+            # SEC Climate Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB.
+            Capability.FINOPS_SUSTAINABILITY,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1079,6 +1120,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # executive report generator PDF/CSV/Excel + scheduled
             # dispatch KST cron + tenant-scoped executive role RBAC.
             Capability.FINOPS_REPORTING,
+            # Phase 17 (cj-style 131번째 wire) — FINOPS_SUSTAINABILITY
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_REPORTING
+            # Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 6-module cross-rollup
+            # (Phase 11~16) + 8 NEW KPI calculations + sustainability report
+            # generator PDF/CSV/Excel + scheduled dispatch KST cron +
+            # tenant-scoped sustainability role RBAC. Sustainability &
+            # carbon reporting applies industry-agnostically per EU CSRD +
+            # SEC Climate Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB.
+            Capability.FINOPS_SUSTAINABILITY,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1253,6 +1306,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # executive report generator PDF/CSV/Excel + scheduled
             # dispatch KST cron + tenant-scoped executive role RBAC.
             Capability.FINOPS_REPORTING,
+            # Phase 17 (cj-style 131번째 wire) — FINOPS_SUSTAINABILITY
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_REPORTING
+            # Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 6-module cross-rollup
+            # (Phase 11~16) + 8 NEW KPI calculations + sustainability report
+            # generator PDF/CSV/Excel + scheduled dispatch KST cron +
+            # tenant-scoped sustainability role RBAC. Sustainability &
+            # carbon reporting applies industry-agnostically per EU CSRD +
+            # SEC Climate Disclosure + EU Taxonomy + IFRS S2 + 한국 KSSB.
+            Capability.FINOPS_SUSTAINABILITY,
         }
     ),
 }

@@ -1,13 +1,18 @@
 """apps.api.core.rbac — Tenant-scoped Role-Based Access Control.
 
-Phase 16 wire (cj-style 127번째) — FinOps Reporting & Executive Dashboard
-territory (PRD §F32.5 verbatim + AD-43 (e) decision).
+Phase 17 wire (cj-style 131번째) — FinOps Sustainability & Carbon Reporting
+territory (PRD §F33.5 verbatim + AD-44 (e) decision) — extends Phase 16
+wire `81ae00a` rbac.py with SUSTAINABILITY_VIEWER role + require_sustainability_role()
+dependency following Phase 16 EXECUTIVE_VIEWER + require_executive_role()
+pattern verbatim.
 
 This module centralises RBAC roles + role-based dependencies that were
 previously scattered across `apps/api/dependencies/capability.py` and
 `apps/api/core/auth/*` modules. Phase 16 wire entry adds EXECUTIVE_VIEWER
 role per CR 12-5 D-14 typed exception envelope + AD-22 owner-only RBAC
 verbatim + Epic 12 2FA 챌린지 mandatory + NFR4 PII minimization PRESERVED.
+Phase 17 wire entry adds SUSTAINABILITY_VIEWER role mirroring the same
+pattern (CR 12-5 D-14 + AD-22 + Epic 12 2FA + NFR4).
 
 Roles:
 - OWNER — tenant admin (full control + Epic 12 2FA 챌린지 mandatory)
@@ -18,12 +23,21 @@ Roles:
   ExecutiveReport + ScheduledDispatch + cross-module KPI selector
   (Phase 16 wire 신규 — owner-only RBAC AD-22 verbatim 보존 + Epic 12
   2FA 챌린지 mandatory).
+- SUSTAINABILITY_VIEWER — read-only access to CarbonEmissionsRollup +
+  SustainabilityKPIMetric + SustainabilityReport +
+  ScheduledSustainabilityDispatch + sustainability cross-module KPI selector
+  (Phase 17 wire 신규 — owner-only RBAC AD-22 verbatim 보존 + Epic 12
+  2FA 챌린지 mandatory + 4-industry grants ✅/✅/✅/✅ industry-agnostic
+  per CR 12-1 L4 precedent).
 
 CR lessons applied:
 - CR 12-5 D-14 typed exception envelope — ExecutiveRolePermissionError
-  + TenantScopeViolationError + CapabilityGateViolationError.
+  + SustainabilityRolePermissionError + TenantScopeViolationError +
+  CapabilityGateViolationError.
 - AD-22 owner-only RBAC — executive dashboard view + executive report
-  generation + scheduled dispatch config all owner-only.
+  generation + scheduled dispatch config all owner-only; sustainability
+  dashboard view + sustainability report generation + sustainability
+  scheduled dispatch config also owner-only.
 - NFR4 PII minimization — RBAC metadata contains only user_id + tenant_id
   + role + 2fa_verified (no PII).
 """
@@ -37,13 +51,15 @@ class Role(str, enum.Enum):
     """Tenant-scoped RBAC roles.
 
     Phase 16 wire (cj-style 127번째) — EXECUTIVE_VIEWER role 신규 추가.
+    Phase 17 wire (cj-style 131번째) — SUSTAINABILITY_VIEWER role 신규 추가.
     """
 
     OWNER = "owner"
     ADMIN = "admin"
     MEMBER = "member"
     VIEWER = "viewer"
-    EXECUTIVE_VIEWER = "executive_viewer"
+    EXECUTIVE_VIEWER = "executive_viewer"  # Phase 16 wire 신규
+    SUSTAINABILITY_VIEWER = "sustainability_viewer"  # Phase 17 wire 신규
 
 
 class TenantScopeViolationError(PermissionError):
@@ -66,6 +82,22 @@ class ExecutiveRolePermissionError(PermissionError):
         self.required_role = required_role
         super().__init__(
             f"Executive role permission denied: has={role} required={required_role}"
+        )
+
+
+class SustainabilityRolePermissionError(PermissionError):
+    """Sustainability role permission denied (CR 12-5 D-14 envelope, 403).
+
+    Phase 17 wire (cj-style 131번째) — mirrors ExecutiveRolePermissionError
+    verbatim for sustainability dashboard / report / scheduled dispatch
+    access. AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
+    """
+
+    def __init__(self, role: str, required_role: str) -> None:
+        self.role = role
+        self.required_role = required_role
+        super().__init__(
+            f"Sustainability role permission denied: has={role} required={required_role}"
         )
 
 
@@ -148,10 +180,81 @@ def require_executive_role(
     )
 
 
+def require_sustainability_role(
+    user_role: Optional[Role],
+    tenant_settings_sustainability_viewers: Optional[list[str]] = None,
+    user_id: Optional[str] = None,
+    actor_tenant_id: Optional[str] = None,
+    requested_tenant_id: Optional[str] = None,
+) -> Role:
+    """Validate that the actor has sustainability dashboard access.
+
+    Phase 17 wire (cj-style 131번째) — owner-only RBAC AD-22 verbatim +
+    Epic 12 2FA 챌린지 mandatory + tenant-scoped RBAC validation +
+    4-industry grants ✅/✅/✅/✅ industry-agnostic per CR 12-1 L4 precedent.
+
+    Returns the validated Role on success. Raises:
+    - TenantScopeViolationError if cross-tenant access attempted.
+    - SustainabilityRolePermissionError if role lacks sustainability access.
+    - CapabilityGateViolationError if tenant has no FINOPS_SUSTAINABILITY capability.
+
+    CR lessons applied:
+    - CR 0-2 RLS — tenant-scoped result_hash + cross-tenant isolation.
+    - CR 12-5 D-14 typed exception envelope verbatim.
+    - AD-22 owner-only RBAC — OWNER + SUSTAINABILITY_VIEWER with explicit grant.
+    """
+    if user_role is None:
+        raise SustainabilityRolePermissionError(
+            role="<anonymous>", required_role="owner|sustainability_viewer"
+        )
+
+    # OWNER bypasses tenant_settings check (AD-22 verbatim).
+    if user_role == Role.OWNER:
+        if (
+            actor_tenant_id is not None
+            and requested_tenant_id is not None
+            and actor_tenant_id != requested_tenant_id
+        ):
+            raise TenantScopeViolationError(
+                actor_tenant_id=actor_tenant_id,
+                requested_tenant_id=requested_tenant_id,
+            )
+        return user_role
+
+    # SUSTAINABILITY_VIEWER needs explicit grant in tenant_settings.
+    if user_role == Role.SUSTAINABILITY_VIEWER:
+        if (
+            tenant_settings_sustainability_viewers is None
+            or user_id is None
+            or user_id not in tenant_settings_sustainability_viewers
+        ):
+            raise SustainabilityRolePermissionError(
+                role=user_role.value,
+                required_role="sustainability_viewer_with_grant",
+            )
+        if (
+            actor_tenant_id is not None
+            and requested_tenant_id is not None
+            and actor_tenant_id != requested_tenant_id
+        ):
+            raise TenantScopeViolationError(
+                actor_tenant_id=actor_tenant_id,
+                requested_tenant_id=requested_tenant_id,
+            )
+        return user_role
+
+    raise SustainabilityRolePermissionError(
+        role=user_role.value,
+        required_role="owner|sustainability_viewer",
+    )
+
+
 __all__ = [
     "Role",
     "TenantScopeViolationError",
     "ExecutiveRolePermissionError",
+    "SustainabilityRolePermissionError",
     "CapabilityGateViolationError",
     "require_executive_role",
+    "require_sustainability_role",
 ]

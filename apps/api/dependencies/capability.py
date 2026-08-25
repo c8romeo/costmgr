@@ -93,6 +93,7 @@ __all__ = [
     "require_finops_optimization",  # NEW — Phase 14 (FinOps Optimization & Rightsizing)
     "require_finops_tag_governance",  # NEW — Phase 15 (FinOps Tag Governance & Cost Allocation)
     "require_finops_reporting",  # NEW — Phase 16 (FinOps Reporting & Executive Dashboard)
+    "require_finops_sustainability",  # NEW — Phase 17 (FinOps Sustainability & Carbon Reporting)
 ]
 
 
@@ -278,3 +279,21 @@ require_finops_tag_governance = require_capability(Capability.FINOPS_TAG_GOVERNA
 # FINOPS_REPORTING capability (financial reporting baseline). Drift
 # detector lives at tests/integration/test_capability_matrix_v1_42_drift.py.
 require_finops_reporting = require_capability(Capability.FINOPS_REPORTING)
+
+
+# Phase 17 (cj-style 131번째 wire) — FINOPS_SUSTAINABILITY dependency
+# (carbon_emissions_aggregator + sustainability_kpi_selector +
+# sustainability_report_generator + scheduled_sustainability_dispatch +
+# sustainability_report_archive). Gates /admin/finops/sustainability/*
+# endpoints (dashboard view + KPI selector + report generation panel +
+# scheduled dispatch config + compliance trend). Industry-agnostic
+# (CR 12-1 L4 precedent mirrors FINOPS_REPORTING Phase 16 wire +
+# FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION Phase 14 wire
+# + FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire +
+# FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS
+# Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_SUSTAINABILITY capability (sustainability & carbon reporting
+# baseline — EU CSRD + SEC Climate Disclosure + EU Taxonomy + IFRS S2 +
+# 한국 KSSB regulatory driver industry-agnostic). Drift detector lives
+# at tests/integration/test_capability_matrix_v1_43_drift.py.
+require_finops_sustainability = require_capability(Capability.FINOPS_SUSTAINABILITY)
