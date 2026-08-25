@@ -14,7 +14,11 @@ This file is the **project-level** memory index, distinct from the **harness-lev
 - [handoff-2026-08-25-phase-18-spec-entry-done](handoff-2026-08-25-phase-18-spec-entry-done.md) — Phase 18 spec entry DONE (cj 134). 5 files atomic.
 - [handoff-2026-08-25-phase-18-prd-entry-done](handoff-2026-08-25-phase-18-prd-entry-done.md) — Phase 18 PRD entry DONE (cj 133). 6 files atomic.
 
-## Phase 19 (FinOps Pricing, Rate Card & TCO Modeling) — PRD entry DONE (Phase 19 1st entry-point)
+## Phase 19 (FinOps Pricing, Rate Card & TCO Modeling) — spec entry DONE (Phase 19 2-entry-point: PRD + spec)
+
+- [handoff-2026-08-25-phase-19-spec-entry-done](handoff-2026-08-25-phase-19-spec-entry-done.md) — Phase 19 spec entry DONE (cj 138). FinOps Pricing, Rate Card & TCO Modeling territory. spec file phase-19-finops-pricing-rate-card-tco-modeling-wire.md ~+440 LOC (baseline_commit ff8a797 + status ready-for-dev + cj_style_entry_point 138) + 8 ACs §F35.1~§F35.8 → 94 sub-ACs (12+12+12+12+12+12+12+10) + T1~T8 + 68 subtasks + Dev Notes 18종 + Architecture Alignment ALLOWED sweep + Files Affected ~33 files estimate (~21 NEW + ~12 MODIFIED) + ~62 NEW pytest + ~7 NEW vitest + 8 NEW audit actions (pricing_dashboard_viewed + cross_module_pricing_kpi_calculated + pricing_report_generated + pricing_report_exported + pricing_report_dispatched + pricing_scheduled_dispatch_evaluated + finops_pricing_dry_run_executed + pricing_kpi_refreshed) + 16 NEW typed exceptions CR 12-5 D-14 envelope + Role.PRICING_VIEWER + require_pricing_role() + require_finops_pricing + 3 NEW + 2 MODIFIED = 5 files atomic single sprint.
+
+### Earlier Phase 19 cycle entry point (preserved):
 
 - [handoff-2026-08-25-phase-19-prd-entry-done](handoff-2026-08-25-phase-19-prd-entry-done.md) — Phase 19 PRD entry DONE (cj 137). FinOps Pricing, Rate Card & TCO Modeling territory. master PRD v4.9→v5.0 EXTENSION §F35 (8 ACs §F35.1~§F35.8 ~96 sub-ACs) + AD-46 (a)~(g) + capability matrix v1.45 EXTENSION FINOPS_PRICING industry-agnostic 4-industry grants ✅/✅/✅/✅ + D-FINOPS-9 신규 honestly DEFER 보존 1 NEW 결정 wire + 5 cloud provider cross-rollup AWS EDP + Azure EA + GCP CUD Pricing + Naver Cloud Volume Tier + KT Cloud Volume Tier + 5-framework support + 2 NEW + 4 MODIFIED = 6 files atomic single sprint.
 
