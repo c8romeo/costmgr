@@ -180,7 +180,113 @@ __all__ = [
     "S3_KEY_PREFIX",
     "PRESIGNED_URL_EXPIRY_DAYS",
     "ExecutiveReportArchiveError",
+    "MultiCloudReportArchiveError",
     "build_s3_key",
+    "build_multi_cloud_s3_key",
     "upload_executive_report",
+    "upload_multi_cloud_report",
     "generate_presigned_url",
 ]
+
+
+class MultiCloudReportArchiveError(RuntimeError):
+    """Multi-cloud report archive failure (CR 12-5 D-14 envelope, 500).
+
+    Phase 20 wire (cj-style 144번째) — mirrors ExecutiveReportArchiveError
+    verbatim for multi-cloud cost unified reconciliation report archive.
+    """
+
+    def __init__(self, reason: str, tenant_id: Optional[str] = None) -> None:
+        self.reason = str(reason)
+        self.tenant_id = tenant_id
+        super().__init__(
+            f"Multi-cloud report archive failure: reason={self.reason} "
+            f"tenant_id={self.tenant_id}"
+        )
+
+
+MULTI_CLOUD_S3_KEY_PREFIX = "multi-cloud-reports"
+
+
+def build_multi_cloud_s3_key(
+    tenant_id: str, period_key: str, report_id: str, ext: str
+) -> str:
+    """Build S3 object key for a multi-cloud report.
+
+    Phase 20 wire (cj-style 144번째) — convention
+    `multi-cloud-reports/{tenant_id}/{period_key}/{report_id}.{ext}`.
+    """
+    return f"{MULTI_CLOUD_S3_KEY_PREFIX}/{tenant_id}/{period_key}/{report_id}.{ext}"
+
+
+def upload_multi_cloud_report(
+    tenant_id: str,
+    period_key: str,
+    report_id: str,
+    file_bytes: bytes,
+    export_format: str = "pdf",
+    dry_run: bool = False,
+    boto3_client: Optional[object] = None,
+) -> str:
+    """Upload multi-cloud cost unified reconciliation report to S3.
+
+    Phase 20 wire (cj-style 144번째) — mirrors upload_executive_report
+    verbatim for multi-cloud report archive. AD-14 stack pin boto3 S3 +
+    presigned URL.
+
+    Args:
+        tenant_id: Tenant UUID.
+        period_key: Period identifier (e.g. "2026-08", "2026-Q3", "2026").
+        report_id: Report UUID.
+        file_bytes: PDF/CSV/Excel bytes.
+        export_format: pdf/csv/excel.
+        dry_run: If True, skip actual upload.
+        boto3_client: Optional boto3 S3 client (None → dry-run).
+
+    Returns:
+        s3 URI string (s3://bucket/key).
+
+    Raises:
+        MultiCloudReportArchiveError on upload failure.
+    """
+    s3_key = build_multi_cloud_s3_key(
+        tenant_id=tenant_id,
+        period_key=period_key,
+        report_id=report_id,
+        ext=export_format,
+    )
+    s3_uri = f"s3://{S3_BUCKET}/{s3_key}"
+    content_type = _content_type_for(export_format)
+
+    if dry_run or boto3_client is None:
+        logger.info(
+            "s3_archive.upload_multi_cloud_report dry_run",
+            extra={
+                "tenant_id": tenant_id,
+                "s3_key": s3_key,
+                "size_bytes": len(file_bytes),
+            },
+        )
+        return s3_uri
+
+    try:
+        boto3_client.put_object(
+            Bucket=S3_BUCKET,
+            Key=s3_key,
+            Body=file_bytes,
+            ContentType=content_type,
+        )
+        logger.info(
+            "s3_archive.upload_multi_cloud_report",
+            extra={
+                "tenant_id": tenant_id,
+                "s3_key": s3_key,
+                "size_bytes": len(file_bytes),
+            },
+        )
+        return s3_uri
+    except Exception as exc:  # pragma: no cover — defensive
+        raise MultiCloudReportArchiveError(
+            reason=str(exc),
+            tenant_id=tenant_id,
+        ) from exc

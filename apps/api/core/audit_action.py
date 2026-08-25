@@ -85,6 +85,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_SUSTAINABILITY = "finops_sustainability"  # Phase 17 (cj-style 131번째 wire — NEW — Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
     FINOPS_COMMITMENT = "finops_commitment"  # Phase 18 (cj-style 135번째 wire — NEW — Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
     FINOPS_PRICING = "finops_pricing"  # Phase 19 (cj-style 139번째 wire — NEW — Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
+    FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION = "finops_multi_cloud_unified_reconciliation"  # Phase 20 (cj-style 144번째 wire — NEW — Multi-cloud rate card + cost + negotiation + blended/unblended + marketplace SaaS pricing 통합 + scheduled dispatch + multi-cloud viewer role RBAC + dry-run audit-first INSERT, AD-47)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1036,6 +1037,30 @@ FinopsPricingAction = Literal[
 ]
 
 
+# finops_multi_cloud_unified_reconciliation actions (Phase 20 cj-style 144번째
+# wire — NEW).
+# PRD §F36 + AD-47 (a)~(g). Audit routes to `audit_logs`
+# (ActionClass.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION). 8 values:
+# - `multi_cloud_dashboard_viewed` — §F36.1-7 — dashboard viewed (CR 1-1)
+# - `multi_cloud_rate_card_reconciled` — §F36.1-8 — rate card reconciliation
+# - `multi_cloud_cost_reconciled` — §F36.2-7 — cost reconciliation
+# - `negotiation_bot_triggered` — §F36.3-7 — negotiation auto-trigger
+# - `marketplace_saas_pricing_integrated` — §F36.5-7 — marketplace pricing 통합
+# - `multi_cloud_dry_run_executed` — §F36.8-1 — dry-run preview
+# - `multi_cloud_kpi_refreshed` — §F36.6-10 — multi-cloud KPI refreshed
+# - `blended_unblended_tracked` — §F36.4-7 — blended/unblended drift tracker
+FinopsMultiCloudUnifiedReconciliationAction = Literal[
+    "multi_cloud_dashboard_viewed",  # §F36.1-7 — dashboard viewed
+    "multi_cloud_rate_card_reconciled",  # §F36.1-8 — rate card reconciliation
+    "multi_cloud_cost_reconciled",  # §F36.2-7 — cost reconciliation
+    "negotiation_bot_triggered",  # §F36.3-7 — negotiation auto-trigger
+    "marketplace_saas_pricing_integrated",  # §F36.5-7 — marketplace 통합
+    "multi_cloud_dry_run_executed",  # §F36.8-1 — dry-run preview
+    "multi_cloud_kpi_refreshed",  # §F36.6-10 — multi-cloud KPI refreshed
+    "blended_unblended_tracked",  # §F36.4-7 — blended/unblended tracker
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1079,6 +1104,7 @@ AuditAction = (
     | FinopsSustainabilityAction  # NEW — Phase 17 (Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
     | FinopsCommitmentAction  # NEW — Phase 18 (Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
     | FinopsPricingAction  # NEW — Phase 19 (Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
+    | FinopsMultiCloudUnifiedReconciliationAction  # NEW — Phase 20 (Multi-cloud rate card + cost + negotiation + blended/unblended + marketplace SaaS pricing 통합 + scheduled dispatch + multi-cloud viewer role RBAC + dry-run audit-first INSERT, AD-47)
 )
 
 
@@ -1815,6 +1841,21 @@ class _ActionRegistry:
                     "pricing_scheduled_dispatch_evaluated",  # §F35.4-9 — KST cron evaluated
                     "pricing_kpi_refreshed",  # §F35.6-10 — pricing KPI refreshed
                     "finops_pricing_dry_run_executed",  # §F35.8-1 — dry-run preview
+                }
+            ),
+        ),
+        ActionClass.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION: (
+            "audit_logs",
+            frozenset(
+                {
+                    "multi_cloud_dashboard_viewed",  # §F36.1-7 — dashboard viewed
+                    "multi_cloud_rate_card_reconciled",  # §F36.1-8 — rate card reconciliation
+                    "multi_cloud_cost_reconciled",  # §F36.2-7 — cost reconciliation
+                    "negotiation_bot_triggered",  # §F36.3-7 — negotiation auto-trigger
+                    "marketplace_saas_pricing_integrated",  # §F36.5-7 — marketplace pricing 통합
+                    "multi_cloud_dry_run_executed",  # §F36.8-1 — dry-run preview
+                    "multi_cloud_kpi_refreshed",  # §F36.6-10 — multi-cloud KPI refreshed
+                    "blended_unblended_tracked",  # §F36.4-7 — blended/unblended tracker
                 }
             ),
         ),

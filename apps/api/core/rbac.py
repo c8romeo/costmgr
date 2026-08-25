@@ -62,6 +62,7 @@ class Role(str, enum.Enum):
     SUSTAINABILITY_VIEWER = "sustainability_viewer"  # Phase 17 wire 신규
     COMMITMENT_VIEWER = "commitment_viewer"  # Phase 18 wire 신규 (cj-style 135번째)
     PRICING_VIEWER = "pricing_viewer"  # Phase 19 wire 신규 (cj-style 139번째)
+    MULTI_CLOUD_VIEWER = "multi_cloud_viewer"  # Phase 20 wire 신규 (cj-style 144번째)
 
 
 class TenantScopeViolationError(PermissionError):
@@ -133,6 +134,23 @@ class PricingRolePermissionError(PermissionError):
         self.required_role = required_role
         super().__init__(
             f"Pricing role permission denied: has={role} required={required_role}"
+        )
+
+
+class MultiCloudRolePermissionError(PermissionError):
+    """Multi-cloud role permission denied (CR 12-5 D-14 envelope, 403).
+
+    Phase 20 wire (cj-style 144번째) — mirrors PricingRolePermissionError
+    verbatim for multi-cloud dashboard / report / scheduled dispatch access.
+    AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory +
+    4-industry grants ✅/✅/✅/✅ industry-agnostic per CR 12-1 L4 precedent.
+    """
+
+    def __init__(self, role: str, required_role: str) -> None:
+        self.role = role
+        self.required_role = required_role
+        super().__init__(
+            f"Multi-cloud role permission denied: has={role} required={required_role}"
         )
 
 
@@ -425,6 +443,78 @@ def require_pricing_role(
     )
 
 
+def require_multi_cloud_role(
+    user_role: Optional[Role],
+    tenant_settings_multi_cloud_viewers: Optional[list[str]] = None,
+    user_id: Optional[str] = None,
+    actor_tenant_id: Optional[str] = None,
+    requested_tenant_id: Optional[str] = None,
+) -> Role:
+    """Validate that the actor has multi-cloud dashboard access.
+
+    Phase 20 wire (cj-style 144번째) — owner-only RBAC AD-22 verbatim +
+    Epic 12 2FA 챌린지 mandatory + tenant-scoped RBAC validation +
+    4-industry grants ✅/✅/✅/✅ industry-agnostic per CR 12-1 L4 precedent
+    (mirrors require_pricing_role Phase 19 + require_commitment_role
+    Phase 18 + require_sustainability_role Phase 17 verbatim).
+
+    Returns the validated Role on success. Raises:
+    - TenantScopeViolationError if cross-tenant access attempted.
+    - MultiCloudRolePermissionError if role lacks multi-cloud access.
+    - CapabilityGateViolationError if tenant has no
+      FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION capability.
+
+    CR lessons applied:
+    - CR 0-2 RLS — tenant-scoped result_hash + cross-tenant isolation.
+    - CR 12-5 D-14 typed exception envelope verbatim.
+    - AD-22 owner-only RBAC — OWNER + MULTI_CLOUD_VIEWER with explicit grant.
+    """
+    if user_role is None:
+        raise MultiCloudRolePermissionError(
+            role="<anonymous>", required_role="owner|multi_cloud_viewer"
+        )
+
+    # OWNER bypasses tenant_settings check (AD-22 verbatim).
+    if user_role == Role.OWNER:
+        if (
+            actor_tenant_id is not None
+            and requested_tenant_id is not None
+            and actor_tenant_id != requested_tenant_id
+        ):
+            raise TenantScopeViolationError(
+                actor_tenant_id=actor_tenant_id,
+                requested_tenant_id=requested_tenant_id,
+            )
+        return user_role
+
+    # MULTI_CLOUD_VIEWER needs explicit grant in tenant_settings.
+    if user_role == Role.MULTI_CLOUD_VIEWER:
+        if (
+            tenant_settings_multi_cloud_viewers is None
+            or user_id is None
+            or user_id not in tenant_settings_multi_cloud_viewers
+        ):
+            raise MultiCloudRolePermissionError(
+                role=user_role.value,
+                required_role="multi_cloud_viewer_with_grant",
+            )
+        if (
+            actor_tenant_id is not None
+            and requested_tenant_id is not None
+            and actor_tenant_id != requested_tenant_id
+        ):
+            raise TenantScopeViolationError(
+                actor_tenant_id=actor_tenant_id,
+                requested_tenant_id=requested_tenant_id,
+            )
+        return user_role
+
+    raise MultiCloudRolePermissionError(
+        role=user_role.value,
+        required_role="owner|multi_cloud_viewer",
+    )
+
+
 __all__ = [
     "Role",
     "TenantScopeViolationError",
@@ -432,9 +522,11 @@ __all__ = [
     "SustainabilityRolePermissionError",
     "CommitmentRolePermissionError",
     "PricingRolePermissionError",
+    "MultiCloudRolePermissionError",
     "CapabilityGateViolationError",
     "require_executive_role",
     "require_sustainability_role",
     "require_commitment_role",
     "require_pricing_role",
+    "require_multi_cloud_role",
 ]

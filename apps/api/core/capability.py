@@ -589,6 +589,25 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_45_drift.py (capability
     # matrix v1.45 EXTENSION 1 NEW row).
     FINOPS_PRICING = "finops_pricing"
+    # Phase 20 (cj-style 144번째 wire) — FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION
+    # — FinOps Multi-Cloud Cost Unified Reconciliation for 5 cloud providers
+    # (AWS EDP + Azure EA + GCP CUD Pricing + Naver Cloud Volume Tier + KT
+    # Cloud Volume Tier) + 5 marketplace (AWS + Azure + GCP + Naver + KT).
+    # Industry-agnostic per FinOps Foundation Multi-Cloud Cost Management
+    # pillar (CR 12-1 L4 precedent mirrors FINOPS_PRICING Phase 19 wire +
+    # FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire
+    # + FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+    # wire + FINOPS_OPTIMIZATION Phase 14 wire +
+    # FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire + Phase 12 wire +
+    # Phase 11 wire pattern verbatim). All 4 industries get
+    # FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION capability (multi-cloud
+    # cost unified reconciliation is a business-level FinOps pillar per
+    # FinOps Foundation + 5 cloud provider cross-rollup pattern, not
+    # industry-specific). Gates require_finops_multi_cloud dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_46_drift.py (capability
+    # matrix v1.46 EXTENSION 1 NEW row).
+    FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION = "finops_multi_cloud_unified_reconciliation"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -838,6 +857,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Foundation + AWS Pricing Models EDP + Azure Pricing Calculator
             # EA + GCP Pricing Calculator CUD + 한국 공공 조달 가격 가이드라인.
             Capability.FINOPS_PRICING,
+            # Phase 20 (cj-style 144번째 wire) — FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_PRICING
+            # Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire + Phase 17 wire
+            # + Phase 16 wire + Phase 15 wire + Phase 14 wire + Phase 13 wire
+            # + Phase 12 wire + Phase 11 wire pattern verbatim). 9-module
+            # cross-rollup (Phase 11~19) + 5-cloud-provider breakdown +
+            # 5-marketplace source breakdown + 9 NEW cost KPI calculations +
+            # marketplace report generator + scheduled dispatch KST cron +
+            # multi-cloud viewer role RBAC. Multi-cloud cost unified
+            # reconciliation applies industry-agnostically per FinOps
+            # Foundation Multi-Cloud Cost Management pillar.
+            Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1040,6 +1071,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Foundation + AWS Pricing Models EDP + Azure Pricing Calculator
             # EA + GCP Pricing Calculator CUD + 한국 공공 조달 가격 가이드라인.
             Capability.FINOPS_PRICING,
+            # Phase 20 (cj-style 144번째 wire) — FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_PRICING
+            # Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire + Phase 17 wire
+            # + Phase 16 wire + Phase 15 wire + Phase 14 wire + Phase 13 wire
+            # + Phase 12 wire + Phase 11 wire pattern verbatim). 9-module
+            # cross-rollup (Phase 11~19) + 5-cloud-provider breakdown +
+            # 5-marketplace source breakdown + 9 NEW cost KPI calculations +
+            # marketplace report generator + scheduled dispatch KST cron +
+            # multi-cloud viewer role RBAC. Multi-cloud cost unified
+            # reconciliation applies industry-agnostically per FinOps
+            # Foundation Multi-Cloud Cost Management pillar.
+            Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1259,6 +1302,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Foundation + AWS Pricing Models EDP + Azure Pricing Calculator
             # EA + GCP Pricing Calculator CUD + 한국 공공 조달 가격 가이드라인.
             Capability.FINOPS_PRICING,
+            # Phase 20 (cj-style 144번째 wire) — FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_PRICING
+            # Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire + Phase 17 wire
+            # + Phase 16 wire + Phase 15 wire + Phase 14 wire + Phase 13 wire
+            # + Phase 12 wire + Phase 11 wire pattern verbatim). 9-module
+            # cross-rollup (Phase 11~19) + 5-cloud-provider breakdown +
+            # 5-marketplace source breakdown + 9 NEW cost KPI calculations +
+            # marketplace report generator + scheduled dispatch KST cron +
+            # multi-cloud viewer role RBAC. Multi-cloud cost unified
+            # reconciliation applies industry-agnostically per FinOps
+            # Foundation Multi-Cloud Cost Management pillar.
+            Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1475,6 +1530,18 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Foundation + AWS Pricing Models EDP + Azure Pricing Calculator
             # EA + GCP Pricing Calculator CUD + 한국 공공 조달 가격 가이드라인.
             Capability.FINOPS_PRICING,
+            # Phase 20 (cj-style 144번째 wire) — FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_PRICING
+            # Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire + Phase 17 wire
+            # + Phase 16 wire + Phase 15 wire + Phase 14 wire + Phase 13 wire
+            # + Phase 12 wire + Phase 11 wire pattern verbatim). 9-module
+            # cross-rollup (Phase 11~19) + 5-cloud-provider breakdown +
+            # 5-marketplace source breakdown + 9 NEW cost KPI calculations +
+            # marketplace report generator + scheduled dispatch KST cron +
+            # multi-cloud viewer role RBAC. Multi-cloud cost unified
+            # reconciliation applies industry-agnostically per FinOps
+            # Foundation Multi-Cloud Cost Management pillar.
+            Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION,
         }
     ),
 }

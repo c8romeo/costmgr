@@ -96,7 +96,9 @@ __all__ = [
     "require_finops_sustainability",  # NEW — Phase 17 (FinOps Sustainability & Carbon Reporting)
     "require_finops_commitment",  # NEW — Phase 18 (FinOps Cloud Commitment Management RIs/SPs/CUDs)
     "require_finops_pricing",  # NEW — Phase 19 (FinOps Pricing, Rate Card & TCO Modeling)
+    "require_finops_multi_cloud",  # NEW — Phase 20 (FinOps Multi-Cloud Cost Unified Reconciliation)
 ]
+
 
 
 require_launch_landing = require_capability(Capability.LAUNCH_LANDING)
@@ -326,3 +328,22 @@ require_finops_commitment = require_capability(Capability.FINOPS_COMMITMENT)
 # 가이드라인 regulatory driver industry-agnostic). Drift detector lives
 # at tests/integration/test_capability_matrix_v1_45_drift.py.
 require_finops_pricing = require_capability(Capability.FINOPS_PRICING)
+
+# Phase 20 (cj-style 144번째 wire) — require_finops_multi_cloud
+# (industry-agnostic per CR 12-1 L4 precedent + FINOPS_PRICING Phase 19
+# wire + FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17
+# wire + FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+# wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING Phase 13
+# wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+# FINOPS Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION capability (multi-cloud
+# cost unified reconciliation baseline — FinOps Foundation Multi-Cloud
+# Cost Management pillar + 5 cloud provider cross-rollup + 5 marketplace
+# source pattern + AWS EDP + Azure EA + GCP CUD Pricing + Naver Cloud
+# Volume Tier + KT Cloud Volume Tier regulatory driver industry-agnostic).
+# Drift detector lives at
+# tests/integration/test_capability_matrix_v1_46_drift.py.
+require_finops_multi_cloud = require_capability(
+    Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION
+)
+

@@ -1895,3 +1895,522 @@ class PricingAccuracyDegradationError(FinopsPricingError):
     """
 
     http_status: int = 500
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# §F36 Phase 20 FinOps Multi-Cloud Cost Unified Reconciliation
+# (16 NEW typed exceptions — CR 12-5 D-14 envelope verbatim pattern)
+# ════════════════════════════════════════════════════════════════════════════
+#
+# Phase 20 wire (cj-style 144번째) — 16 NEW typed exceptions per
+# AD-47 (a)~(g) 7 sub-decisions. Mirrors Phase 11~19 typed exception
+# envelope pattern verbatim.
+#
+# Hierarchy:
+#   FinopsError
+#     └── FinopsMultiCloudError
+#           ├── MultiCloudRateCardReconciliationError (500)
+#           ├── MultiCloudRateCardScopeError (404)
+#           ├── MultiCloudRateCardPeriodError (422)
+#           ├── MultiCloudRateCardProviderError (502)
+#           ├── MultiCloudCostReconciliationError (500)
+#           ├── MultiCloudCostScopeError (404)
+#           ├── MultiCloudCostPeriodError (422)
+#           ├── MultiCloudCostProviderError (502)
+#           ├── NegotiationBotError (500)
+#           ├── NegotiationBotGuardError (500)
+#           ├── NegotiationBotConfidenceError (500)
+#           ├── NegotiationBotAutoTriggerError (500)
+#           ├── BlendedUnblendedTrackerError (500)
+#           ├── BlendedUnblendedDriftError (500)
+#           ├── MarketplaceSaaSPricingIntegrationError (500)
+#           └── MarketplaceSaaSPricingFreshnessError (500)
+
+
+class FinopsMultiCloudError(FinopsError):
+    """Base class for all Phase 20 FinOps Multi-Cloud Cost Unified Reconciliation errors.
+
+    Phase 20 wire (cj-style 144번째) — mirrors FinopsPricingError
+    Phase 19 wire `8db3cfc`, FinopsCommitmentError Phase 18 wire
+    `67059cf`, FinopsSustainabilityError Phase 17 wire `97cfe4e`,
+    FinopsReportingError Phase 16 wire `81ae00a` hierarchy verbatim.
+
+    AD-47 FinOps Multi-Cloud Cost Unified Reconciliation (a)~(g) 7
+    sub-decisions + CR 12-5 D-14 typed exception envelope verbatim.
+    """
+
+
+# §F36.1 multi_cloud_rate_card_reconciliation (4 NEW)
+class MultiCloudRateCardReconciliationError(FinopsMultiCloudError):
+    """HTTP 500 typed error — multi-cloud rate card reconciliation failure.
+
+    Phase 20 wire (cj-style 144번째) — raised by
+    reconcile_multi_cloud_rate_cards() when primary_rate cannot be
+    computed (no_rate_card_sources_found) or when variance threshold
+    detection fires (PRD §F36.1-3 + §F36.1-7 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(self, reason: str, tenant_id: str | None = None, **kwargs: object) -> None:
+        self.reason = reason
+        self.tenant_id = tenant_id
+        super().__init__(
+            f"Multi-cloud rate card reconciliation failed: reason={reason} "
+            f"tenant_id={tenant_id}",
+            **kwargs,
+        )
+
+
+class MultiCloudRateCardScopeError(FinopsMultiCloudError):
+    """HTTP 404 typed error — multi-cloud rate card scope_type invalid.
+
+    Phase 20 wire (cj-style 144번째) — mirrors PricingScopeError
+    Phase 19 wire `8db3cfc` verbatim. Raised when scope_type not in
+    ALL_MULTI_CLOUD_SCOPE_TYPES (PRD §F36.1-4 verbatim).
+    """
+
+    http_status: int = 404
+
+    def __init__(
+        self,
+        scope_type: str,
+        allowed: list[str] | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.scope_type = scope_type
+        self.allowed = allowed or []
+        super().__init__(
+            f"Invalid multi-cloud rate card scope: {scope_type} "
+            f"(allowed: {self.allowed})",
+            **kwargs,
+        )
+
+
+class MultiCloudRateCardPeriodError(FinopsMultiCloudError):
+    """HTTP 422 typed error — multi-cloud rate card period_key invalid.
+
+    Phase 20 wire (cj-style 144번째) — mirrors PricingPeriodError
+    Phase 19 wire `8db3cfc` verbatim. Raised when period_key format
+    invalid (PRD §F36.1-10 verbatim + freshness tracking).
+    """
+
+    http_status: int = 422
+
+    def __init__(self, period_key: str, **kwargs: object) -> None:
+        self.period_key = period_key
+        super().__init__(
+            f"Invalid multi-cloud rate card period_key: {period_key}",
+            **kwargs,
+        )
+
+
+class MultiCloudRateCardProviderError(FinopsMultiCloudError):
+    """HTTP 502 typed error — multi-cloud rate card provider API failure.
+
+    Phase 20 wire (cj-style 144번째) — mirrors PricingAggregationError
+    Phase 19 wire `8db3cfc` provider subset verbatim. Raised when
+    cloud_provider not in ALL_MULTI_CLOUD_PROVIDERS or when 5 cloud
+    provider API call fails (AWS EDP / Azure EA / GCP CUD Pricing /
+    Naver Cloud / KT Cloud, PRD §F36.1-5 verbatim).
+    """
+
+    http_status: int = 502
+
+    def __init__(
+        self,
+        cloud_provider: str,
+        allowed: list[str] | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.cloud_provider = cloud_provider
+        self.allowed = allowed or []
+        super().__init__(
+            f"Multi-cloud rate card provider error: {cloud_provider} "
+            f"(allowed: {self.allowed})",
+            **kwargs,
+        )
+
+
+# §F36.2 multi_cloud_cost_reconciliation (4 NEW)
+class MultiCloudCostReconciliationError(FinopsMultiCloudError):
+    """HTTP 500 typed error — multi-cloud cost reconciliation failure.
+
+    Phase 20 wire (cj-style 144번째) — raised by
+    reconcile_multi_cloud_costs() when primary_cost cannot be computed
+    or when cost_variance_pct > 3.0% alert fires
+    (PRD §F36.2-4 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(self, reason: str, tenant_id: str | None = None, **kwargs: object) -> None:
+        self.reason = reason
+        self.tenant_id = tenant_id
+        super().__init__(
+            f"Multi-cloud cost reconciliation failed: reason={reason} "
+            f"tenant_id={tenant_id}",
+            **kwargs,
+        )
+
+
+class MultiCloudCostScopeError(FinopsMultiCloudError):
+    """HTTP 404 typed error — multi-cloud cost reconciliation scope invalid.
+
+    Phase 20 wire (cj-style 144번째) — mirrors MultiCloudRateCardScopeError
+    verbatim for cost reconciliation.
+    """
+
+    http_status: int = 404
+
+    def __init__(
+        self,
+        scope_type: str,
+        allowed: list[str] | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.scope_type = scope_type
+        self.allowed = allowed or []
+        super().__init__(
+            f"Invalid multi-cloud cost scope: {scope_type} "
+            f"(allowed: {self.allowed})",
+            **kwargs,
+        )
+
+
+class MultiCloudCostPeriodError(FinopsMultiCloudError):
+    """HTTP 422 typed error — multi-cloud cost reconciliation period invalid."""
+
+    http_status: int = 422
+
+    def __init__(self, period_key: str, **kwargs: object) -> None:
+        self.period_key = period_key
+        super().__init__(
+            f"Invalid multi-cloud cost period_key: {period_key}",
+            **kwargs,
+        )
+
+
+class MultiCloudCostProviderError(FinopsMultiCloudError):
+    """HTTP 502 typed error — multi-cloud cost provider API failure.
+
+    Phase 20 wire (cj-style 144번째) — raised when AWS Cost Explorer /
+    Azure Cost Management / GCP Billing / Naver Cloud Billing /
+    KT Cloud Billing API call fails (PRD §F36.2-3 verbatim).
+    """
+
+    http_status: int = 502
+
+    def __init__(
+        self,
+        cloud_provider: str,
+        allowed: list[str] | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.cloud_provider = cloud_provider
+        self.allowed = allowed or []
+        super().__init__(
+            f"Multi-cloud cost provider error: {cloud_provider} "
+            f"(allowed: {self.allowed})",
+            **kwargs,
+        )
+
+
+# §F36.3 negotiation_bot (4 NEW)
+class NegotiationBotError(FinopsMultiCloudError):
+    """HTTP 500 typed error — negotiation bot failure.
+
+    Phase 20 wire (cj-style 144번째) — 3 cloud provider support
+    (AWS EDP + Azure EA + GCP CUD). Raised by run_negotiation_bot()
+    when recommendation cannot be generated (PRD §F36.3 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(
+        self,
+        reason: str,
+        tenant_id: str | None = None,
+        cloud_provider: str | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.reason = reason
+        self.tenant_id = tenant_id
+        self.cloud_provider = cloud_provider
+        super().__init__(
+            f"Negotiation bot failed: reason={reason} tenant_id={tenant_id} "
+            f"cloud_provider={cloud_provider}",
+            **kwargs,
+        )
+
+
+class NegotiationBotGuardError(FinopsMultiCloudError):
+    """HTTP 500 typed error — negotiation bot guard violation.
+
+    Phase 20 wire (cj-style 144번째) — MINIMUM_SAVINGS_PCT=5.0 +
+    MINIMUM_SAVINGS_KRW=1M + MAX_NEGOTIATIONS_PER_MONTH=3 +
+    MAX_AUTO_TRIGGER_PER_DAY=1 (PRD §F36.3-5 verbatim). Raised when
+    savings_below_threshold or monthly_quota_exceeded.
+    """
+
+    http_status: int = 500
+
+    def __init__(
+        self,
+        guard: str,
+        threshold: float,
+        actual: float,
+        **kwargs: object,
+    ) -> None:
+        self.guard = guard
+        self.threshold = threshold
+        self.actual = actual
+        super().__init__(
+            f"Negotiation bot guard violation: {guard} "
+            f"threshold={threshold} actual={actual}",
+            **kwargs,
+        )
+
+
+class NegotiationBotConfidenceError(FinopsMultiCloudError):
+    """HTTP 500 typed error — negotiation bot confidence below threshold.
+
+    Phase 20 wire (cj-style 144번째) — confidence_score < 60 →
+    recommendation_status=low_confidence (PRD §F36.3-7 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(
+        self,
+        confidence_score: float,
+        threshold: float,
+        **kwargs: object,
+    ) -> None:
+        self.confidence_score = confidence_score
+        self.threshold = threshold
+        super().__init__(
+            f"Negotiation bot confidence too low: score={confidence_score} "
+            f"threshold={threshold}",
+            **kwargs,
+        )
+
+
+class NegotiationBotAutoTriggerError(FinopsMultiCloudError):
+    """HTTP 500 typed error — negotiation bot auto-trigger violation.
+
+    Phase 20 wire (cj-style 144번째) — MAX_AUTO_TRIGGER_PER_DAY=1 +
+    MAX_NEGOTIATIONS_PER_MONTH=3 + idempotency_key duplicate (PRD
+    §F36.3-5 + §F36.3-11 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(
+        self,
+        reason: str,
+        idempotency_key: str | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.reason = reason
+        self.idempotency_key = idempotency_key
+        super().__init__(
+            f"Negotiation bot auto-trigger violation: reason={reason} "
+            f"idempotency_key={idempotency_key}",
+            **kwargs,
+        )
+
+
+# §F36.4 blended_unblended_tracker (2 NEW)
+class BlendedUnblendedTrackerError(FinopsMultiCloudError):
+    """HTTP 500 typed error — blended/unblended tracker failure.
+
+    Phase 20 wire (cj-style 144번째) — 3 cloud provider support
+    (AWS + Azure + GCP). Raised by track_blended_unblended_diff() when
+    tracking cannot complete (PRD §F36.4-2 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(
+        self,
+        reason: str,
+        cloud_provider: str | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.reason = reason
+        self.cloud_provider = cloud_provider
+        super().__init__(
+            f"Blended/unblended tracker failed: reason={reason} "
+            f"cloud_provider={cloud_provider}",
+            **kwargs,
+        )
+
+
+class BlendedUnblendedDriftError(FinopsMultiCloudError):
+    """HTTP 500 typed error — blended/unblended drift detected.
+
+    Phase 20 wire (cj-style 144번째) — rate_diff_pct > 5% → alert
+    (PRD §F36.4-10 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(
+        self,
+        rate_diff_pct: float,
+        threshold: float,
+        cloud_provider: str | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.rate_diff_pct = rate_diff_pct
+        self.threshold = threshold
+        self.cloud_provider = cloud_provider
+        super().__init__(
+            f"Blended/unblended drift detected: rate_diff_pct={rate_diff_pct} "
+            f"threshold={threshold} cloud_provider={cloud_provider}",
+            **kwargs,
+        )
+
+
+# §F36.5 marketplace_saas_pricing_integrator (2 NEW)
+class MarketplaceSaaSPricingIntegrationError(FinopsMultiCloudError):
+    """HTTP 500 typed error — marketplace SaaS pricing integration failure.
+
+    Phase 20 wire (cj-style 144번째) — 5 marketplace source support
+    (AWS + Azure + GCP + Naver + KT Marketplace). Raised by
+    integrate_marketplace_saas_pricing() when adapter parse fails
+    (PRD §F36.5-3 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(
+        self,
+        reason: str,
+        marketplace_source: str | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.reason = reason
+        self.marketplace_source = marketplace_source
+        super().__init__(
+            f"Marketplace SaaS pricing integration failed: reason={reason} "
+            f"marketplace_source={marketplace_source}",
+            **kwargs,
+        )
+
+
+class MarketplaceSaaSPricingFreshnessError(FinopsMultiCloudError):
+    """HTTP 500 typed error — marketplace SaaS pricing freshness stale.
+
+    Phase 20 wire (cj-style 144번째) — now - last_synced_at > 24h →
+    alert (PRD §F36.5-4 verbatim).
+    """
+
+    http_status: int = 500
+
+    def __init__(
+        self,
+        marketplace_source: str,
+        staleness_hours: float,
+        threshold: float,
+        **kwargs: object,
+    ) -> None:
+        self.marketplace_source = marketplace_source
+        self.staleness_hours = staleness_hours
+        self.threshold = threshold
+        super().__init__(
+            f"Marketplace SaaS pricing stale: source={marketplace_source} "
+            f"staleness_hours={staleness_hours} threshold={threshold}",
+            **kwargs,
+        )
+
+
+class ScheduledMultiCloudDispatchError(FinopsMultiCloudError):
+    """HTTP 500 typed error — scheduled multi-cloud dispatch failure.
+
+    Phase 20 wire (cj-style 144번째) — generic scheduled multi-cloud
+    dispatch failure (PRD §F36.6-5 verbatim). Mirrors
+    ScheduledCommitmentDispatchError (Phase 18).
+    """
+
+    http_status: int = 500
+
+    def __init__(self, reason: str, tenant_id: str = "", **kwargs: object) -> None:
+        self.reason = reason
+        self.tenant_id = tenant_id
+        super().__init__(
+            f"Scheduled multi-cloud dispatch failure: reason={reason} "
+            f"tenant_id={tenant_id}",
+            **kwargs,
+        )
+
+
+class MultiCloudCronExpressionInvalidError(FinopsMultiCloudError):
+    """HTTP 400 typed error — invalid multi-cloud cron expression.
+
+    Phase 20 wire (cj-style 144번째) — cron_trigger.from_crontab() raises
+    ValueError for invalid cron (PRD §F36.6-5 verbatim). Mirrors
+    PricingCronExpressionInvalidError (Phase 19).
+    """
+
+    http_status: int = 400
+
+    def __init__(
+        self,
+        reason: str,
+        allowed: list[str] | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.reason = reason
+        self.allowed = allowed or []
+        super().__init__(
+            f"Invalid multi-cloud cron expression: reason={reason} "
+            f"allowed={allowed}",
+            **kwargs,
+        )
+
+
+class MultiCloudDispatchIdempotencyViolationError(FinopsMultiCloudError):
+    """HTTP 422 typed error — multi-cloud dispatch idempotency violation.
+
+    Phase 20 wire (cj-style 144번째) — same (tenant_id + dispatch_schedule
+    + period_key) tuple already dispatched → flag (PRD §F36.6-7 verbatim).
+    Mirrors PricingDispatchIdempotencyViolationError (Phase 19).
+    """
+
+    http_status: int = 422
+
+    def __init__(self, reason: str, tenant_id: str = "", **kwargs: object) -> None:
+        self.reason = reason
+        self.tenant_id = tenant_id
+        super().__init__(
+            f"Multi-cloud dispatch idempotency violation: reason={reason} "
+            f"tenant_id={tenant_id}",
+            **kwargs,
+        )
+
+
+class MultiCloudRecipientResolverError(FinopsMultiCloudError):
+    """HTTP 404 typed error — multi-cloud recipient resolver failure.
+
+    Phase 20 wire (cj-style 144번째) — recipient_strategy unknown or no
+    recipients match (PRD §F36.6-4 verbatim). Mirrors
+    PricingRecipientResolverError (Phase 19).
+    """
+
+    http_status: int = 404
+
+    def __init__(
+        self,
+        reason: str,
+        allowed: list[str] | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.reason = reason
+        self.allowed = allowed or []
+        super().__init__(
+            f"Multi-cloud recipient resolver failure: reason={reason} "
+            f"allowed={allowed}",
+            **kwargs,
+        )

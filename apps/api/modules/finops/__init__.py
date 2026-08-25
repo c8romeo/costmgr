@@ -318,6 +318,61 @@ from apps.api.modules.finops.cross_module_kpi import (
 from apps.api.modules.finops.executive_report_generator import (
     generate_executive_report,
 )
+# Phase 20 wire (cj-style 144번째) — FinOps Multi-Cloud Cost Unified
+# Reconciliation territory. 9-module cross-rollup (Phase 11~19
+# carry-over chain) + 5 cloud provider cross-rollup (AWS EDP +
+# Azure EA + GCP CUD Pricing + Naver Cloud Volume Tier + KT Cloud
+# Volume Tier) + 5 marketplace source support + 3 negotiation bot
+# cloud providers + 4 cron schedules KST.
+from apps.api.modules.finops.multi_cloud import (
+    ALL_BLENDED_UNBLENDED_TRACKING_STATUSES,
+    ALL_MARKETPLACE_INTEGRATION_STATUSES,
+    ALL_MARKETPLACE_PRICING_MODELS,
+    ALL_MARKETPLACE_SAAS_CATEGORIES,
+    ALL_MARKETPLACE_SOURCES,
+    ALL_MARKETPLACE_UNITS,
+    ALL_MULTI_CLOUD_COST_SOURCES,
+    ALL_MULTI_CLOUD_PROVIDERS,
+    ALL_MULTI_CLOUD_RATE_CARD_SOURCES,
+    ALL_MULTI_CLOUD_SCOPE_TYPES,
+    ALL_NEGOTIATION_COMMITMENT_TERMS,
+    ALL_NEGOTIATION_RISK_LEVELS,
+    ALL_NEGOTIATION_STATUSES,
+    ALL_NEGOTIATION_STRATEGIES,
+    MULTI_CLOUD_DEFAULTS,
+    MULTI_CLOUD_ENGINE_MODEL_VERSION,
+    BlendedUnblendedDiff,
+    BlendedUnblendedTrackingStatus,
+    MarketplaceIntegrationStatus,
+    MarketplacePricingModel,
+    MarketplaceSaaSCategory,
+    MarketplaceSaaSPricingRollup,
+    MarketplaceSource,
+    MarketplaceUnit,
+    MultiCloudCostReconciliation,
+    MultiCloudCostSource,
+    MultiCloudProvider,
+    MultiCloudRateCardReconciliation,
+    MultiCloudRateCardSource,
+    MultiCloudScopeType,
+    NegotiationCommitmentTerm,
+    NegotiationRecommendation,
+    NegotiationRiskLevel,
+    NegotiationStatus,
+    NegotiationStrategy,
+    integrate_marketplace_saas_pricing,
+    monitor_naver_kt_api_health,
+    reconcile_multi_cloud_costs,
+    reconcile_multi_cloud_rate_cards,
+    run_negotiation_bot,
+    track_blended_unblended_diff,
+    validate_blended_unblended_diff,
+    validate_marketplace_saas_pricing_rollup,
+    validate_multi_cloud_cost_reconciliation,
+    validate_multi_cloud_rate_card_reconciliation,
+    validate_naver_kt_api_data_accuracy,
+    validate_negotiation_recommendation,
+)
 
 __all__ = [
     # Phase 11 wire
@@ -435,4 +490,44 @@ __all__ = [
     "select_cross_module_kpis",
     "validate_kpi_accuracy",
     "generate_executive_report",
+    # Phase 20 wire (cj-style 144번째) — FinOps Multi-Cloud Cost Unified
+    # Reconciliation territory. 9-module cross-rollup (Phase 11~19
+    # carry-over chain) + 5 cloud provider cross-rollup (AWS EDP +
+    # Azure EA + GCP CUD Pricing + Naver Cloud Volume Tier + KT Cloud
+    # Volume Tier) + 5 marketplace source support + 3 negotiation bot
+    # cloud providers + 4 cron schedules KST.
+    "reconcile_multi_cloud_rate_cards",
+    "reconcile_multi_cloud_costs",
+    "run_negotiation_bot",
+    "track_blended_unblended_diff",
+    "integrate_marketplace_saas_pricing",
+    "MULTI_CLOUD_ENGINE_MODEL_VERSION",
+    "MULTI_CLOUD_DEFAULTS",
+    "validate_multi_cloud_rate_card_reconciliation",
+    "validate_multi_cloud_cost_reconciliation",
+    "validate_negotiation_recommendation",
+    "validate_blended_unblended_diff",
+    "validate_marketplace_saas_pricing_rollup",
+    "monitor_naver_kt_api_health",
+    "validate_naver_kt_api_data_accuracy",
+    # Phase 20 wire — multi_cloud subpackage exports
+    "MultiCloudRateCardReconciliation",
+    "MultiCloudCostReconciliation",
+    "NegotiationRecommendation",
+    "BlendedUnblendedDiff",
+    "MarketplaceSaaSPricingRollup",
+    "MultiCloudScopeType",
+    "MultiCloudProvider",
+    "MultiCloudRateCardSource",
+    "MultiCloudCostSource",
+    "NegotiationStatus",
+    "NegotiationRiskLevel",
+    "NegotiationCommitmentTerm",
+    "NegotiationStrategy",
+    "BlendedUnblendedTrackingStatus",
+    "MarketplaceSource",
+    "MarketplaceSaaSCategory",
+    "MarketplaceUnit",
+    "MarketplacePricingModel",
+    "MarketplaceIntegrationStatus",
 ]
