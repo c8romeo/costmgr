@@ -14,6 +14,10 @@ This file is the **project-level** memory index, distinct from the **harness-lev
 - [handoff-2026-08-25-phase-18-spec-entry-done](handoff-2026-08-25-phase-18-spec-entry-done.md) — Phase 18 spec entry DONE (cj 134). 5 files atomic.
 - [handoff-2026-08-25-phase-18-prd-entry-done](handoff-2026-08-25-phase-18-prd-entry-done.md) — Phase 18 PRD entry DONE (cj 133). 6 files atomic.
 
+## Phase 19 (FinOps Pricing, Rate Card & TCO Modeling) — PRD entry DONE (Phase 19 1st entry-point)
+
+- [handoff-2026-08-25-phase-19-prd-entry-done](handoff-2026-08-25-phase-19-prd-entry-done.md) — Phase 19 PRD entry DONE (cj 137). FinOps Pricing, Rate Card & TCO Modeling territory. master PRD v4.9→v5.0 EXTENSION §F35 (8 ACs §F35.1~§F35.8 ~96 sub-ACs) + AD-46 (a)~(g) + capability matrix v1.45 EXTENSION FINOPS_PRICING industry-agnostic 4-industry grants ✅/✅/✅/✅ + D-FINOPS-9 신규 honestly DEFER 보존 1 NEW 결정 wire + 5 cloud provider cross-rollup AWS EDP + Azure EA + GCP CUD Pricing + Naver Cloud Volume Tier + KT Cloud Volume Tier + 5-framework support + 2 NEW + 4 MODIFIED = 6 files atomic single sprint.
+
 ## Why this file exists now (Honest recovery note)
 
 Per cj-style discipline (continuous honesty recovery):
