@@ -570,6 +570,25 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_44_drift.py (capability
     # matrix v1.44 EXTENSION 1 NEW row).
     FINOPS_COMMITMENT = "finops_commitment"
+    # Phase 19 (cj-style 139번째 wire) — FINOPS_PRICING — Pricing, Rate
+    # Card & TCO Modeling for AWS + Azure + GCP + Naver Cloud + KT Cloud.
+    # Industry-agnostic per FinOps Foundation + AWS Pricing Models EDP +
+    # Azure Pricing Calculator EA + GCP Pricing Calculator CUD + 한국
+    # 공공 조달 가격 가이드라인 (CR 12-1 L4 precedent mirrors
+    # FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17
+    # wire + FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE
+    # Phase 15 wire + FINOPS_OPTIMIZATION Phase 14 wire +
+    # FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire +
+    # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+    # FINOPS Phase 11 wire pattern verbatim). All 4 industries get
+    # FINOPS_PRICING capability (pricing & TCO modeling is a
+    # business-level financial concern per FinOps Foundation + cloud
+    # provider pricing models + 한국 공공 조달 가격 가이드라인, not
+    # industry-specific). Gates require_finops_pricing dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_45_drift.py (capability
+    # matrix v1.45 EXTENSION 1 NEW row).
+    FINOPS_PRICING = "finops_pricing"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -804,6 +823,21 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Optimization Pillar + Azure Cost Optimization + GCP Cost
             # Optimization + 한국 조달청 클라우드 commitment 가이드라인.
             Capability.FINOPS_COMMITMENT,
+            # Phase 19 (cj-style 139번째 wire) — FINOPS_PRICING
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_COMMITMENT
+            # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+            # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+            # wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+            # FINOPS Phase 11 wire pattern verbatim). 8-module cross-rollup
+            # (Phase 11~18) + 5-cloud-provider breakdown (AWS + Azure + GCP +
+            # Naver + KT) + 6-pricing-model × 4-unit-metric matrix + 8 NEW
+            # KPI calculations + pricing report generator PDF/CSV/Excel +
+            # scheduled dispatch KST cron + tenant-scoped pricing role RBAC.
+            # Pricing & TCO modeling applies industry-agnostically per FinOps
+            # Foundation + AWS Pricing Models EDP + Azure Pricing Calculator
+            # EA + GCP Pricing Calculator CUD + 한국 공공 조달 가격 가이드라인.
+            Capability.FINOPS_PRICING,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -991,6 +1025,21 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Optimization Pillar + Azure Cost Optimization + GCP Cost
             # Optimization + 한국 조달청 클라우드 commitment 가이드라인.
             Capability.FINOPS_COMMITMENT,
+            # Phase 19 (cj-style 139번째 wire) — FINOPS_PRICING
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_COMMITMENT
+            # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+            # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+            # wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+            # FINOPS Phase 11 wire pattern verbatim). 8-module cross-rollup
+            # (Phase 11~18) + 5-cloud-provider breakdown (AWS + Azure + GCP +
+            # Naver + KT) + 6-pricing-model × 4-unit-metric matrix + 8 NEW
+            # KPI calculations + pricing report generator PDF/CSV/Excel +
+            # scheduled dispatch KST cron + tenant-scoped pricing role RBAC.
+            # Pricing & TCO modeling applies industry-agnostically per FinOps
+            # Foundation + AWS Pricing Models EDP + Azure Pricing Calculator
+            # EA + GCP Pricing Calculator CUD + 한국 공공 조달 가격 가이드라인.
+            Capability.FINOPS_PRICING,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1195,6 +1244,21 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Optimization Pillar + Azure Cost Optimization + GCP Cost
             # Optimization + 한국 조달청 클라우드 commitment 가이드라인.
             Capability.FINOPS_COMMITMENT,
+            # Phase 19 (cj-style 139번째 wire) — FINOPS_PRICING
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_COMMITMENT
+            # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+            # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+            # wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+            # FINOPS Phase 11 wire pattern verbatim). 8-module cross-rollup
+            # (Phase 11~18) + 5-cloud-provider breakdown (AWS + Azure + GCP +
+            # Naver + KT) + 6-pricing-model × 4-unit-metric matrix + 8 NEW
+            # KPI calculations + pricing report generator PDF/CSV/Excel +
+            # scheduled dispatch KST cron + tenant-scoped pricing role RBAC.
+            # Pricing & TCO modeling applies industry-agnostically per FinOps
+            # Foundation + AWS Pricing Models EDP + Azure Pricing Calculator
+            # EA + GCP Pricing Calculator CUD + 한국 공공 조달 가격 가이드라인.
+            Capability.FINOPS_PRICING,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1396,6 +1460,21 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Optimization Pillar + Azure Cost Optimization + GCP Cost
             # Optimization + 한국 조달청 클라우드 commitment 가이드라인.
             Capability.FINOPS_COMMITMENT,
+            # Phase 19 (cj-style 139번째 wire) — FINOPS_PRICING
+            # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_COMMITMENT
+            # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+            # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+            # wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+            # FINOPS Phase 11 wire pattern verbatim). 8-module cross-rollup
+            # (Phase 11~18) + 5-cloud-provider breakdown (AWS + Azure + GCP +
+            # Naver + KT) + 6-pricing-model × 4-unit-metric matrix + 8 NEW
+            # KPI calculations + pricing report generator PDF/CSV/Excel +
+            # scheduled dispatch KST cron + tenant-scoped pricing role RBAC.
+            # Pricing & TCO modeling applies industry-agnostically per FinOps
+            # Foundation + AWS Pricing Models EDP + Azure Pricing Calculator
+            # EA + GCP Pricing Calculator CUD + 한국 공공 조달 가격 가이드라인.
+            Capability.FINOPS_PRICING,
         }
     ),
 }

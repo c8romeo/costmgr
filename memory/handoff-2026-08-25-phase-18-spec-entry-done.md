@@ -8,7 +8,7 @@ metadata:
 # Phase 18 spec entry handoff (cj-style 134번째 wire)
 
 **Date**: 2026-08-25 (KST)
-**Commit**: TBD (cj-style Phase 18 spec entry atomic docs-only wire = cj-style 134번째 docs only)
+**Commit**: `bdc79979dd602d22da1617cf6e5094a40bf37f1c` (cj-style Phase 18 spec entry atomic docs-only wire = cj-style 134번째 docs only)
 **Branch**: `9-3-dev-2026-08-17`
 **baseline_commit**: `5eded22` (Phase 18 PRD entry commit = cj-style 133번째 tip)
 
@@ -87,4 +87,4 @@ Phase 18 PRD entry (cj-style 133번째) 의 FinOps Cloud Commitment Management (
 
 **Why:** Phase 18 spec entry completion marks the entry into the cj-style 4-entry-point cycle's 2nd entry point (spec entry) for FinOps Cloud Commitment Management (RIs/SPs/CUDs) territory. Phase 18 PRD entry (cj-style 133번째) 진입 완료 + Phase 18 spec entry (cj-style 134번째) 진입 완료. The cj-style 4-entry-point (PRD 133 + spec 134 + wire 135 + retro 136) cycle continues the pattern verbatim.
 
-**How to apply:** When resuming, the working tree is at the Phase 18 spec entry commit (TBD) on branch 9-3-dev-2026-08-17. Next action depends on chosen option from (a)~(d) above. The cj-style 4-entry-point cycle continues the pattern verbatim with wire step (cj-style 135번째) next.
+**How to apply:** When resuming, the working tree is at the Phase 18 spec entry commit `bdc79979dd602d22da1617cf6e5094a40bf37f1c` on branch 9-3-dev-2026-08-17. Next action depends on chosen option from (a)~(d) above. The cj-style 4-entry-point cycle continues the pattern verbatim with wire step (cj-style 135번째) next.

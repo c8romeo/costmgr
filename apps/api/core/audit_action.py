@@ -84,6 +84,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_REPORTING = "finops_reporting"  # Phase 16 (cj-style 127번째 wire — NEW — Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBOC + dry-run audit-first INSERT, AD-43)
     FINOPS_SUSTAINABILITY = "finops_sustainability"  # Phase 17 (cj-style 131번째 wire — NEW — Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
     FINOPS_COMMITMENT = "finops_commitment"  # Phase 18 (cj-style 135번째 wire — NEW — Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
+    FINOPS_PRICING = "finops_pricing"  # Phase 19 (cj-style 139번째 wire — NEW — Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1012,6 +1013,29 @@ FinopsCommitmentAction = Literal[
 ]
 
 
+# finops_pricing actions (Phase 19 cj-style 139번째 wire — NEW).
+# PRD §F35 + AD-46 (a)~(g). Audit routes to `audit_logs`
+# (ActionClass.FINOPS_PRICING). 8 values:
+# - `pricing_dashboard_viewed` — §F35.1-10 — dashboard viewed (CR 1-1)
+# - `cross_module_pricing_kpi_calculated` — §F35.2-10 — 8 NEW KPI computed
+# - `pricing_report_generated` — §F35.3-11 — PDF/CSV/Excel generated
+# - `pricing_report_exported` — §F35.3-11 — report exported
+# - `pricing_report_dispatched` — §F35.4-9 — delivery to Slack/Email/MS Teams/S3
+# - `pricing_scheduled_dispatch_evaluated` — §F35.4-9 — KST cron evaluated
+# - `pricing_kpi_refreshed` — §F35.6-10 — pricing KPI refreshed
+# - `finops_pricing_dry_run_executed` — §F35.8-1 — dry-run preview
+FinopsPricingAction = Literal[
+    "pricing_dashboard_viewed",  # §F35.1-10 — dashboard viewed
+    "cross_module_pricing_kpi_calculated",  # §F35.2-10 — 8 NEW KPI computed
+    "pricing_report_generated",  # §F35.3-11 — PDF/CSV/Excel generated
+    "pricing_report_exported",  # §F35.3-11 — report exported
+    "pricing_report_dispatched",  # §F35.4-9 — delivery to Slack/Email/MS Teams/S3
+    "pricing_scheduled_dispatch_evaluated",  # §F35.4-9 — KST cron evaluated
+    "pricing_kpi_refreshed",  # §F35.6-10 — pricing KPI refreshed
+    "finops_pricing_dry_run_executed",  # §F35.8-1 — dry-run preview
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1054,6 +1078,7 @@ AuditAction = (
     | FinopsReportingAction  # NEW — Phase 16 (Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBAC + dry-run audit-first INSERT, AD-43)
     | FinopsSustainabilityAction  # NEW — Phase 17 (Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
     | FinopsCommitmentAction  # NEW — Phase 18 (Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
+    | FinopsPricingAction  # NEW — Phase 19 (Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
 )
 
 
@@ -1778,6 +1803,21 @@ class _ActionRegistry:
                 }
             ),
         ),
+        ActionClass.FINOPS_PRICING: (
+            "audit_logs",
+            frozenset(
+                {
+                    "pricing_dashboard_viewed",  # §F35.1-10 — dashboard viewed
+                    "cross_module_pricing_kpi_calculated",  # §F35.2-10 — 8 NEW KPI computed
+                    "pricing_report_generated",  # §F35.3-11 — PDF/CSV/Excel generated
+                    "pricing_report_exported",  # §F35.3-11 — report exported
+                    "pricing_report_dispatched",  # §F35.4-9 — delivery to Slack/Email/MS Teams/S3
+                    "pricing_scheduled_dispatch_evaluated",  # §F35.4-9 — KST cron evaluated
+                    "pricing_kpi_refreshed",  # §F35.6-10 — pricing KPI refreshed
+                    "finops_pricing_dry_run_executed",  # §F35.8-1 — dry-run preview
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -1920,5 +1960,6 @@ __all__ = [
     "FinopsReportingAction",  # NEW — Phase 16 (Executive dashboard aggregator + cross-module KPI selector + executive report generator + scheduled dispatch + executive role RBAC + dry-run audit-first INSERT, AD-43)
     "FinopsSustainabilityAction",  # NEW — Phase 17 (Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
     "FinopsCommitmentAction",  # NEW — Phase 18 (Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
+    "FinopsPricingAction",  # NEW — Phase 19 (Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
     "emit_audit_typed",
 ]

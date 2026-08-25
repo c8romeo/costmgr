@@ -14,7 +14,7 @@ Phase 18 wire (cj-style 135번째) — FinOps Cloud Commitment Management
 
 - **Baseline commit**: `bdc79979dd602d22da1617cf6e5094a40bf37f1c` (Phase 18 spec entry commit = cj-style 134th tip)
 - **Territory**: FinOps Cloud Commitment Management (RIs/SPs/CUDs) (옵션 (a) Recommended)
-- **Cycle position**: cj-style 4-entry-point cycle 진입점 3번째 (PRD `5eded22` + spec `bdc79979dd602d22da1617cf6e5094a40bf37f1c` + wire `TBD`)
+- **Cycle position**: cj-style 4-entry-point cycle 진입점 3번째 (PRD `5eded22` + spec `bdc79979dd602d22da1617cf6e5094a40bf37f1c` + wire `67059cf`)
 - **File scope**: ~28 files atomic single sprint (~21 NEW + ~12 MODIFIED)
 - **3중 게이트 impact NONE**: ruff 0 NEW + pytest 0 NEW failures + vitest 0 NEW failures + tsc 0 NEW errors
 

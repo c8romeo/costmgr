@@ -1659,4 +1659,239 @@ __all__ = [
     "CommitmentTenantScopeViolationError",
     "CommitmentCapabilityGateViolationError",
     "CommitmentAccuracyDegradationError",
+    # Phase 19 FinOps pricing, rate card & TCO modeling typed exceptions (CR 12-5 D-14)
+    "FinopsPricingError",
+    "FINOPS_PRICING_MODULE_ID",
+    "PricingAggregationError",
+    "PricingScopeError",
+    "PricingPeriodError",
+    "PricingCrossModuleJoinError",
+    "PricingKPIError",
+    "PricingReportGenerationError",
+    "PricingReportExportError",
+    "PricingReportArchiveError",
+    "ScheduledPricingDispatchError",
+    "PricingCronExpressionInvalidError",
+    "PricingRecipientResolverError",
+    "PricingDispatchIdempotencyViolationError",
+    "PricingRolePermissionError",
+    "PricingTenantScopeViolationError",
+    "PricingCapabilityGateViolationError",
+    "PricingAccuracyDegradationError",
 ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 19 — FinOps Pricing, Rate Card & TCO Modeling typed exceptions
+# (CR 12-5 D-14 envelope verbatim).
+# m27_finops_pricing — natural extension of m26_finops_commitment
+# (Phase 18 wire `67059cf`) + Phase 11~17 carry-over chain (PRD §F35 + AD-46).
+# Routes through `FinopsError` ancestor (m19_finops base) → `BaseError` root
+# so `error_handler` middleware envelope canonicalization (code / message_ko
+# / details / trace_id / http_status) holds across all 8-module join paths.
+# ─────────────────────────────────────────────────────────────────────────────
+FINOPS_PRICING_MODULE_ID: str = "m27_finops_pricing"
+
+
+class FinopsPricingError(FinopsError):
+    """Base class for Phase 19 FinOps Pricing, Rate Card & TCO Modeling errors.
+
+    Inherits from FinopsError (Phase 11 wire `e020ad0` m19_finops base)
+    so all Phase 11~18 typed exceptions share the same envelope. Module
+    tag is `m27_finops_pricing` per Phase 19 AD-46 (a) decision
+    (Phase 18 m26 + Phase 17 m25 + Phase 16 m24 + Phase 15 m23 +
+    Phase 14 m22 + Phase 13 m21 + Phase 12 m20 + Phase 11 m19 verbatim chain).
+
+    All subclasses follow CR 12-5 D-14 typed exception envelope:
+    http_status ∈ {400, 403, 404, 422, 500} matching the canonical
+    REST/HTTP status code mapping (CR 11-4 P-015 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F35.1 rate_card_aggregator (4 NEW)
+class PricingAggregationError(FinopsPricingError):
+    """HTTP 500 typed error — pricing rate card aggregation runtime failure.
+
+    Raised by aggregate_rate_card_inventory() when any of the 8-module
+    cross-rollup compute_* helpers fails (Phase 11 showback × blended_rate
+    + Phase 12 anomaly + Phase 13 forecast + Phase 14 optimization +
+    Phase 15 tag_governance + Phase 16 executive + Phase 17 sustainability +
+    Phase 18 commitment). Note: http_status=500 (runtime compute error,
+    not validation error — same pattern as Phase 18 CommitmentInventory
+    AggregationError) (PRD §F35.1-9 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class PricingScopeError(FinopsPricingError):
+    """HTTP 404 typed error — pricing scope validation failure.
+
+    Raised by aggregate_rate_card_inventory() when scope_type is not in
+    ALL_PRICING_SCOPE_TYPES (tenant / department / cost_center /
+    product_line) or scope_id is empty (PRD §F35.1-9 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class PricingPeriodError(FinopsPricingError):
+    """HTTP 422 typed error — pricing period_key validation failure.
+
+    Raised by aggregate_rate_card_inventory() when period_key is not in
+    valid format (YYYY-MM / YYYY-QN / YYYY) (PRD §F35.1-9 verbatim).
+    """
+
+    http_status: int = 422
+
+
+class PricingCrossModuleJoinError(FinopsPricingError):
+    """HTTP 500 typed error — 8-module cross-join failure.
+
+    Raised by aggregate_rate_card_inventory() when the 8-module join
+    (Phase 11 showback + Phase 12 anomaly + Phase 13 forecast +
+    Phase 14 optimization + Phase 15 tag_governance + Phase 16 executive +
+    Phase 17 sustainability + Phase 18 commitment) fails, or when
+    5-cloud-provider breakdown join fails, or when 6-pricing-model
+    breakdown join fails (PRD §F35.1-11 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F35.2 tco_modeling_selector (1 NEW)
+class PricingKPIError(FinopsPricingError):
+    """HTTP 500 typed error — pricing KPI calculation failure.
+
+    Raised by compute_tco_kpi_bundle() when any of the 8 NEW KPI
+    calculations fails (total_blended_rate_krw_per_hour +
+    effective_discount_pct + tco_1year_commitment_krw +
+    tco_3year_commitment_krw + tco_on_demand_krw + cost_per_user_krw +
+    cost_per_transaction_krw + unit_economics_score)
+    (PRD §F35.2-11 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F35.3 pricing_report_generation_engine (3 NEW)
+class PricingReportGenerationError(FinopsPricingError):
+    """HTTP 500 typed error — pricing report generation failure.
+
+    Raised by generate_pricing_report() when PDF/CSV/Excel
+    generation fails (PRD §F35.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class PricingReportExportError(FinopsPricingError):
+    """HTTP 500 typed error — pricing report export failure.
+
+    Raised by export_pricing_report() when S3 archive upload or
+    external recipient delivery fails (PRD §F35.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class PricingReportArchiveError(FinopsPricingError):
+    """HTTP 500 typed error — pricing report archive failure.
+
+    Raised by archive_pricing_report() when long-term S3 archive
+    write fails (PRD §F35.3-12 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F35.4 scheduled_pricing_dispatch (4 NEW)
+class ScheduledPricingDispatchError(FinopsPricingError):
+    """HTTP 500 typed error — scheduled pricing dispatch failure.
+
+    Raised by schedule_pricing_dispatch() when apscheduler
+    registration or KST cron evaluation fails (PRD §F35.4-10 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class PricingCronExpressionInvalidError(FinopsPricingError):
+    """HTTP 400 typed error — pricing cron expression invalid.
+
+    Raised by resolve_cron_expression() or _validate_cron_expression()
+    when the cron expression cannot be parsed by apscheduler
+    (PRD §F35.4-9 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class PricingRecipientResolverError(FinopsPricingError):
+    """HTTP 404 typed error — pricing recipient resolver failure.
+
+    Raised by resolve_recipient_list() when recipient_strategy is
+    invalid or custom_recipients not configured (PRD §F35.4-9 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class PricingDispatchIdempotencyViolationError(FinopsPricingError):
+    """HTTP 422 typed error — pricing dispatch idempotency violation.
+
+    Raised by dispatch_pricing_report() when (tenant_id +
+    dispatch_schedule + period_key) tuple already exists (PRD §F35.4-10
+    verbatim).
+    """
+
+    http_status: int = 422
+
+
+# §F35.5 tenant_scoped_pricing_role_rbac (3 NEW)
+class PricingRolePermissionError(FinopsPricingError):
+    """HTTP 403 typed error — pricing role permission denied.
+
+    Raised by require_pricing_role() when user_role is not in
+    {owner, pricing_viewer} (AD-22 owner-only RBAC + Epic 12 2FA
+    챌린지 mandatory) (PRD §F35.5 verbatim).
+    """
+
+    http_status: int = 403
+
+
+class PricingTenantScopeViolationError(FinopsPricingError):
+    """HTTP 403 typed error — pricing tenant scope violation.
+
+    Raised by require_pricing_role() when actor_tenant_id ≠
+    requested_tenant_id (CR 0-2 RLS) (PRD §F35.5 verbatim).
+    """
+
+    http_status: int = 403
+
+
+class PricingCapabilityGateViolationError(FinopsPricingError):
+    """HTTP 403 typed error — pricing capability gate violation.
+
+    Raised by require_finops_pricing dependency when tenant lacks
+    Capability.FINOPS_PRICING grant (CR 12-5 D-GATE-01 inversion)
+    (PRD §F35.5 verbatim).
+    """
+
+    http_status: int = 403
+
+
+# §F35.7 pricing accuracy degradation (1 NEW)
+class PricingAccuracyDegradationError(FinopsPricingError):
+    """HTTP 500 typed error — pricing accuracy degradation detected.
+
+    Raised by tco_modeling_selector.validate_kpi_accuracy() when
+    pricing KPI accuracy score drops below threshold
+    (e.g. unit_economics_score below industry baseline for
+    3 consecutive periods) (PRD §F35.7 verbatim + Phase 13/14/17/18
+    accuracy tracker EXTENSION pattern).
+    """
+
+    http_status: int = 500
