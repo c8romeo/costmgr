@@ -495,21 +495,27 @@ def select_cross_module_kpis(
     validate_kpi_accuracy(result)
 
     # Audit-first INSERT `cross_module_kpi_calculated` AFTER compute.
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
                 action="cross_module_kpi_calculated",
-                tenant_id=tenant_id,
                 actor_id=None,
-                trace_id=trace_id,
-                resource_id=f"{tenant_id}:{scope_type}:{scope_id}:{period_key}",
-                metadata={
+                target_id=None,
+                reason=trace_id,
+                payload={
                     "kpi_set": requested_kpis,
                     "scope_type": scope_type,
+                    "scope_id": scope_id,
                     "period_key": period_key,
                     "kpi_count": len(result),
+                    "trace_id": trace_id,
+                    "tenant_id": tenant_id,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             pass

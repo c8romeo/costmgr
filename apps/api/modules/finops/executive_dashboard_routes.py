@@ -40,12 +40,15 @@ from __future__ import annotations
 
 import logging
 import uuid
+from contextlib import suppress
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.core.audit_action import emit_audit_typed
+from apps.api.core.audit_action import ActionClass, emit_audit_typed
+from apps.api.core.db import get_session
 from apps.api.core.tenant_context import TenantContext, get_tenant_context
 from apps.api.dependencies.capability import require_finops_reporting
 
@@ -101,6 +104,7 @@ async def get_executive_rollup(
     trace_id: str = Query(default=""),
     tenant_ctx: TenantContext = Depends(get_tenant_context),
     _capability: None = Depends(require_finops_reporting),
+    db_session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """GET /rollup — aggregate_executive_dashboard 5-module cross-join.
 
@@ -121,27 +125,28 @@ async def get_executive_rollup(
         period_key=period_key,
         trace_id=trace_id,
         actor_id=actor_id,
+        db_session=db_session,
     )
 
     # audit-first INSERT `executive_dashboard_viewed` (CR 1-1).
-    try:
-        emit_audit_typed(
-            action="executive_dashboard_viewed",
-            tenant_id=tenant_id,
-            actor_id=actor_id,
-            trace_id=trace_id,
-            resource_id=str(rollup.get("rollup_id", uuid.uuid4())),
-            metadata={
-                "scope_type": scope_type,
-                "scope_id": scope_id,
-                "period_key": period_key,
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "executive_dashboard_routes.audit_failed",
-            extra={"tenant_id": tenant_id, "error": str(exc)},
-        )
+    if db_session is not None:
+        with suppress(ImportError):
+            emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
+                action="executive_dashboard_viewed",
+                actor_id=None,  # owner-only RBAC AD-22 + 2FA
+                target_id=None,
+                reason=trace_id,
+                payload={
+                    "scope_type": scope_type,
+                    "scope_id": scope_id,
+                    "period_key": period_key,
+                    "rollup_id": str(rollup.get("rollup_id", uuid.uuid4())),
+                    "trace_id": trace_id,
+                },
+                tenant_id=tenant_id,
+            )
 
     return rollup
 
@@ -155,6 +160,7 @@ async def get_cross_module_kpis(
     trace_id: str = Query(default=""),
     tenant_ctx: TenantContext = Depends(get_tenant_context),
     _capability: None = Depends(require_finops_reporting),
+    db_session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """GET /kpis — select_cross_module_kpis (8 NEW KPI calculations).
 
@@ -182,28 +188,28 @@ async def get_cross_module_kpis(
         kpi_set=kpi_names,
         trace_id=trace_id,
         actor_id=actor_id,
+        db_session=db_session,
     )
 
     # audit-first INSERT `cross_module_kpi_calculated` (CR 1-1).
-    try:
-        emit_audit_typed(
-            action="cross_module_kpi_calculated",
-            tenant_id=tenant_id,
-            actor_id=actor_id,
-            trace_id=trace_id,
-            resource_id=str(uuid.uuid4()),
-            metadata={
-                "scope_type": scope_type,
-                "scope_id": scope_id,
-                "period_key": period_key,
-                "kpi_count": len(kpis.get("kpis", [])),
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "executive_dashboard_routes.kpi_audit_failed",
-            extra={"tenant_id": tenant_id, "error": str(exc)},
-        )
+    if db_session is not None:
+        with suppress(ImportError):
+            emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
+                action="cross_module_kpi_calculated",
+                actor_id=None,  # owner-only RBAC AD-22 + 2FA
+                target_id=None,
+                reason=trace_id,
+                payload={
+                    "scope_type": scope_type,
+                    "scope_id": scope_id,
+                    "period_key": period_key,
+                    "kpi_count": len(kpis.get("kpis", [])),
+                    "trace_id": trace_id,
+                },
+                tenant_id=tenant_id,
+            )
 
     return kpis
 
@@ -215,6 +221,7 @@ async def generate_executive_report_route(
     dry_run: bool = Query(default=False),
     tenant_ctx: TenantContext = Depends(get_tenant_context),
     _capability: None = Depends(require_finops_reporting),
+    db_session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """POST /reports — generate_executive_report (3 export_format + 3 cadence).
 
@@ -239,28 +246,29 @@ async def generate_executive_report_route(
         trace_id=trace_id,
         actor_id=actor_id,
         dry_run=dry_run,
+        db_session=db_session,
     )
 
     # audit-first INSERT `executive_report_generated` (CR 1-1).
-    try:
-        emit_audit_typed(
-            action="executive_report_generated",
-            tenant_id=tenant_id,
-            actor_id=actor_id,
-            trace_id=trace_id,
-            resource_id=str(report.get("report_id", uuid.uuid4())),
-            metadata={
-                "cadence": request.cadence,
-                "export_format": request.export_format,
-                "scope_type": request.scope_type,
-                "dry_run": dry_run,
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "executive_dashboard_routes.report_audit_failed",
-            extra={"tenant_id": tenant_id, "error": str(exc)},
-        )
+    if db_session is not None and not dry_run:
+        with suppress(ImportError):
+            emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
+                action="executive_report_generated",
+                actor_id=None,  # owner-only RBAC AD-22 + 2FA
+                target_id=None,
+                reason=trace_id,
+                payload={
+                    "cadence": request.cadence,
+                    "export_format": request.export_format,
+                    "scope_type": request.scope_type,
+                    "dry_run": dry_run,
+                    "report_id": str(report.get("report_id", uuid.uuid4())),
+                    "trace_id": trace_id,
+                },
+                tenant_id=tenant_id,
+            )
 
     return report
 
@@ -272,6 +280,7 @@ async def schedule_executive_dispatch_route(
     dry_run: bool = Query(default=False),
     tenant_ctx: TenantContext = Depends(get_tenant_context),
     _capability: None = Depends(require_finops_reporting),
+    db_session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """POST /dispatches — schedule_executive_dispatch (4 cron schedules).
 
@@ -293,27 +302,28 @@ async def schedule_executive_dispatch_route(
         trace_id=trace_id,
         actor_id=actor_id,
         dry_run=dry_run,
+        db_session=db_session,
     )
 
     # audit-first INSERT `executive_scheduled_dispatch_evaluated` (CR 1-1).
-    try:
-        emit_audit_typed(
-            action="executive_scheduled_dispatch_evaluated",
-            tenant_id=tenant_id,
-            actor_id=actor_id,
-            trace_id=trace_id,
-            resource_id=str(dispatch.get("dispatch_id", uuid.uuid4())),
-            metadata={
-                "dispatch_schedule": request.dispatch_schedule,
-                "recipient_strategy": request.recipient_strategy,
-                "dry_run": dry_run,
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "executive_dashboard_routes.dispatch_audit_failed",
-            extra={"tenant_id": tenant_id, "error": str(exc)},
-        )
+    if db_session is not None and not dry_run:
+        with suppress(ImportError):
+            emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
+                action="executive_scheduled_dispatch_evaluated",
+                actor_id=None,  # owner-only RBAC AD-22 + 2FA
+                target_id=None,
+                reason=trace_id,
+                payload={
+                    "dispatch_schedule": request.dispatch_schedule,
+                    "recipient_strategy": request.recipient_strategy,
+                    "dry_run": dry_run,
+                    "dispatch_id": str(dispatch.get("dispatch_id", uuid.uuid4())),
+                    "trace_id": trace_id,
+                },
+                tenant_id=tenant_id,
+            )
 
     return dispatch
 
@@ -326,6 +336,7 @@ async def deliver_executive_report_route(
     dry_run: bool = Query(default=False),
     tenant_ctx: TenantContext = Depends(get_tenant_context),
     _capability: None = Depends(require_finops_reporting),
+    db_session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """POST /dispatches/deliver — deliver_executive_report (Slack + Email + S3).
 
@@ -346,28 +357,29 @@ async def deliver_executive_report_route(
         actor_id=actor_id,
         trace_id=trace_id,
         dry_run=dry_run,
+        db_session=db_session,
     )
 
     # audit-first INSERT `executive_report_dispatched` (CR 1-1).
-    try:
-        emit_audit_typed(
-            action="executive_report_dispatched",
-            tenant_id=tenant_id,
-            actor_id=actor_id,
-            trace_id=trace_id,
-            resource_id=str(result.get("delivery_id", uuid.uuid4())),
-            metadata={
-                "report_id": report_id,
-                "cadence": cadence,
-                "dry_run": dry_run,
-                "results": result.get("results", {}),
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "executive_dashboard_routes.delivery_audit_failed",
-            extra={"tenant_id": tenant_id, "error": str(exc)},
-        )
+    if db_session is not None and not dry_run:
+        with suppress(ImportError):
+            emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
+                action="executive_report_dispatched",
+                actor_id=None,  # owner-only RBAC AD-22 + 2FA
+                target_id=None,
+                reason=trace_id,
+                payload={
+                    "report_id": report_id,
+                    "cadence": cadence,
+                    "dry_run": dry_run,
+                    "results": result.get("results", {}),
+                    "delivery_id": str(result.get("delivery_id", uuid.uuid4())),
+                    "trace_id": trace_id,
+                },
+                tenant_id=tenant_id,
+            )
 
     return result
 
@@ -406,6 +418,7 @@ async def finops_reporting_dry_run(
     trace_id: str = Query(default=""),
     tenant_ctx: TenantContext = Depends(get_tenant_context),
     _capability: None = Depends(require_finops_reporting),
+    db_session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """POST /dry-run — finops_reporting_dry_run_executed (preview tables).
 
@@ -413,29 +426,27 @@ async def finops_reporting_dry_run(
     Capability gate FINOPS_REPORTING.
     """
     tenant_id = str(tenant_ctx.tenant_id) if tenant_ctx else ""
-    actor_id = str(tenant_ctx.user_id) if tenant_ctx and tenant_ctx.user_id else None
 
     # audit-first INSERT `finops_reporting_dry_run_executed` (CR 1-1).
-    try:
-        emit_audit_typed(
-            action="finops_reporting_dry_run_executed",
-            tenant_id=tenant_id,
-            actor_id=actor_id,
-            trace_id=trace_id,
-            resource_id=str(uuid.uuid4()),
-            metadata={
-                "operation": operation,
-                "scope_type": scope_type,
-                "scope_id": scope_id,
-                "period_key": period_key,
-                "dry_run": True,
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "executive_dashboard_routes.dry_run_audit_failed",
-            extra={"tenant_id": tenant_id, "error": str(exc)},
-        )
+    if db_session is not None:
+        with suppress(ImportError):
+            emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
+                action="finops_reporting_dry_run_executed",
+                actor_id=None,  # owner-only RBAC AD-22 + 2FA
+                target_id=None,
+                reason=trace_id,
+                payload={
+                    "operation": operation,
+                    "scope_type": scope_type,
+                    "scope_id": scope_id,
+                    "period_key": period_key,
+                    "dry_run": True,
+                    "trace_id": trace_id,
+                },
+                tenant_id=tenant_id,
+            )
 
     return {
         "tenant_id": tenant_id,
@@ -454,6 +465,7 @@ async def upsert_recipient_strategy(
     trace_id: str = Query(default=""),
     tenant_ctx: TenantContext = Depends(get_tenant_context),
     _capability: None = Depends(require_finops_reporting),
+    db_session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """POST /recipients — recipient strategy config (4 strategies).
 
@@ -461,30 +473,28 @@ async def upsert_recipient_strategy(
     Capability gate FINOPS_REPORTING.
     """
     tenant_id = str(tenant_ctx.tenant_id) if tenant_ctx else ""
-    actor_id = str(tenant_ctx.user_id) if tenant_ctx and tenant_ctx.user_id else None
 
     # audit-first INSERT `executive_report_exported` (CR 1-1) — recipient
     # strategy config changes are tracked under export metadata since the
     # 8 FinOpsReportingAction Literal values do not include a dedicated
     # recipient_config action.
-    try:
-        emit_audit_typed(
-            action="executive_report_exported",
-            tenant_id=tenant_id,
-            actor_id=actor_id,
-            trace_id=trace_id,
-            resource_id=str(uuid.uuid4()),
-            metadata={
-                "operation": "recipient_strategy_config",
-                "strategy_name": request.strategy_name,
-                "enabled": request.enabled,
-            },
-        )
-    except Exception as exc:
-        logger.warning(
-            "executive_dashboard_routes.recipient_audit_failed",
-            extra={"tenant_id": tenant_id, "error": str(exc)},
-        )
+    if db_session is not None:
+        with suppress(ImportError):
+            emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
+                action="executive_report_exported",
+                actor_id=None,  # owner-only RBAC AD-22 + 2FA
+                target_id=None,
+                reason=trace_id,
+                payload={
+                    "operation": "recipient_strategy_config",
+                    "strategy_name": request.strategy_name,
+                    "enabled": request.enabled,
+                    "trace_id": trace_id,
+                },
+                tenant_id=tenant_id,
+            )
 
     return {
         "tenant_id": tenant_id,

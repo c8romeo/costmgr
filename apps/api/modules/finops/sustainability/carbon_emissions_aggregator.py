@@ -464,22 +464,27 @@ def aggregate_carbon_emissions(
     }
 
     # Audit-first INSERT `carbon_emissions_aggregated` BEFORE view (CR 1-1).
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_SUSTAINABILITY,
                 action="carbon_emissions_aggregated",
-                tenant_id=tenant_id,
                 actor_id=None,  # owner-only RBAC AD-22 + 2FA
-                trace_id=trace_id,
-                resource_id=cache_key,
-                metadata={
+                target_id=None,
+                reason=trace_id,
+                payload={
                     "scope_type": scope_type,
                     "scope_id": scope_id,
                     "period_key": period_key,
                     "industry": industry,
                     "model_version": SUSTAINABILITY_ENGINE_MODEL_VERSION,
+                    "trace_id": trace_id,
+                    "cache_key": cache_key,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             # Audit module not yet wired in tests.

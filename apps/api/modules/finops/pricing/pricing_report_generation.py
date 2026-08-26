@@ -542,35 +542,43 @@ def generate_pricing_report(
     }
 
     # Audit-first INSERT `pricing_report_generated` AFTER render (CR 1-1).
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
 
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_PRICING,
                 action="pricing_report_generated",
-                tenant_id=tenant_id,
                 actor_id=None,  # owner-only RBAC AD-22 + 2FA
-                trace_id=trace_id,
-                resource_id=report_id,
-                metadata={
+                target_id=None,
+                reason=trace_id,
+                payload={
                     "cadence": cadence,
                     "export_format": export_format,
                     "framework": framework,
                     "report_size_bytes": report_size_bytes,
                     "model_version": PRICING_ENGINE_MODEL_VERSION,
+                    "trace_id": trace_id,
+                    "report_id": report_id,
                 },
+                tenant_id=tenant_id,
             )
             # Also emit pricing_report_exported AFTER S3 archive.
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_PRICING,
                 action="pricing_report_exported",
-                tenant_id=tenant_id,
                 actor_id=None,
-                trace_id=trace_id,
-                resource_id=report_id,
-                metadata={
+                target_id=None,
+                reason=trace_id,
+                payload={
                     "export_format": export_format,
                     "report_file_url": report_file_url,
+                    "trace_id": trace_id,
+                    "report_id": report_id,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             pass

@@ -610,21 +610,26 @@ def select_sustainability_kpis(
         ) from exc
 
     # Audit-first INSERT `sustainability_kpi_calculated` AFTER compute (CR 1-1).
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_SUSTAINABILITY,
                 action="sustainability_kpi_calculated",
-                tenant_id=tenant_id,
                 actor_id=None,  # owner-only RBAC AD-22 + 2FA
-                trace_id=trace_id,
-                resource_id=tenant_id,
-                metadata={
+                target_id=None,
+                reason=trace_id,
+                payload={
                     "period_key": period_key,
                     "industry": industry,
                     "kpi_count": len(kpis),
                     "model_version": SUSTAINABILITY_ENGINE_MODEL_VERSION,
+                    "trace_id": trace_id,
+                    "tenant_id": tenant_id,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             pass

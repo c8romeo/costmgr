@@ -340,16 +340,18 @@ def generate_executive_report(
             )
 
     # Audit-first INSERT `executive_report_generated` (CR 1-1 verbatim).
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
                 action="executive_report_generated",
-                tenant_id=tenant_id,
-                actor_id=actor_id,
-                trace_id=trace_id,
-                resource_id=report_id,
-                metadata={
+                actor_id=None,
+                target_id=None,
+                reason=trace_id,
+                payload={
                     "scope_type": scope_type,
                     "scope_id": scope_id,
                     "period_key": period_key,
@@ -357,18 +359,25 @@ def generate_executive_report(
                     "export_format": export_format,
                     "size_bytes": len(file_bytes),
                     "s3_uri": s3_uri,
+                    "trace_id": trace_id,
+                    "report_id": report_id,
                 },
+                tenant_id=tenant_id,
             )
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_REPORTING,
                 action="executive_report_exported",
-                tenant_id=tenant_id,
-                actor_id=actor_id,
-                trace_id=trace_id,
-                resource_id=report_id,
-                metadata={
+                actor_id=None,
+                target_id=None,
+                reason=trace_id,
+                payload={
                     "export_format": export_format,
                     "recipients": recipients,
+                    "trace_id": trace_id,
+                    "report_id": report_id,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             pass

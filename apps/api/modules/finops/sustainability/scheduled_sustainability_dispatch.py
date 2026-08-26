@@ -308,23 +308,29 @@ def dispatch_sustainability_report(
 
     # Audit-first INSERT — `sustainability_scheduled_dispatch_evaluated`
     # (CR 1-1 verbatim).
-    try:
-        from apps.api.core.audit_action import emit_audit_typed
-        emit_audit_typed(
-            action="sustainability_scheduled_dispatch_evaluated",
-            tenant_id=tenant_id,
-            actor_id=None,  # owner-only RBAC AD-22 + 2FA
-            trace_id=trace_id,
-            resource_id=cache_key,
-            metadata={
-                "dispatch_schedule": dispatch_schedule,
-                "cron_expression": cron_expression,
-                "recipient_strategy": recipient_strategy,
-                "model_version": SUSTAINABILITY_ENGINE_MODEL_VERSION,
-            },
-        )
-    except ImportError:
-        pass
+    if db_session is not None:
+        try:
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
+            emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_SUSTAINABILITY,
+                action="sustainability_scheduled_dispatch_evaluated",
+                actor_id=None,  # owner-only RBAC AD-22 + 2FA
+                target_id=None,
+                reason=trace_id,
+                payload={
+                    "dispatch_schedule": dispatch_schedule,
+                    "cron_expression": cron_expression,
+                    "recipient_strategy": recipient_strategy,
+                    "model_version": SUSTAINABILITY_ENGINE_MODEL_VERSION,
+                    "trace_id": trace_id,
+                    "cache_key": cache_key,
+                },
+                tenant_id=tenant_id,
+            )
+        except ImportError:
+            pass
 
     logger.info(
         "scheduled_sustainability_dispatch.dispatch_sustainability_report",

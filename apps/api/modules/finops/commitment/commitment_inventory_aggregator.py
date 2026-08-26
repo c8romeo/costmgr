@@ -582,16 +582,18 @@ def aggregate_commitment_inventory(
     }
 
     # Audit-first INSERT `commitment_inventory_aggregated` BEFORE view (CR 1-1).
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_COMMITMENT,
                 action="commitment_inventory_aggregated",
-                tenant_id=tenant_id,
                 actor_id=None,  # owner-only RBAC AD-22 + 2FA
-                trace_id=trace_id,
-                resource_id=cache_key,
-                metadata={
+                target_id=None,
+                reason=trace_id,
+                payload={
                     "scope_type": scope_type,
                     "scope_id": scope_id,
                     "period_key": period_key,
@@ -599,7 +601,10 @@ def aggregate_commitment_inventory(
                     "model_version": COMMITMENT_ENGINE_MODEL_VERSION,
                     "total_commitment_value_krw": total_commitment_value_krw,
                     "cloud_provider_count": len(cloud_provider_breakdown),
+                    "trace_id": trace_id,
+                    "cache_key": cache_key,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             # Audit module not yet wired in tests.
