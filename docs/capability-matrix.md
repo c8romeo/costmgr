@@ -542,6 +542,7 @@ class CalcResponse(BaseModel):
 | `FINOPS_PRICING` | Phase 19 | ✅ | ✅ | ✅ | ✅ |
 | `FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION` | Phase 20 | ✅ | ✅ | ✅ | ✅ |
 | `FINOPS_RESERVED_CAPACITY_PLANNING` | Phase 21 | ✅ | ✅ | ✅ | ✅ |
+| `FINOPS_CHARGEBACK_SETTLEMENT` | Phase 22 | ✅ | ✅ | ✅ | ✅ |
 
 ## Notes
 
