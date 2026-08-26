@@ -1499,6 +1499,50 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 5 (cj-style 75번째 wire) — INFRA 4 values (multi-region
+        # backup + failover + DR drill audit-first INSERT, AD-31 (a)~(f)
+        # verbatim). Routes to `audit_logs` (NOT to a separate ledger —
+        # infrastructure events are tenant-scoped platform-event trail
+        # only, mirroring AUTH (Epic 15) / TWO_FACTOR_AUTH (Epic 12)
+        # pattern). Drift detector enforces ActionClass registry ↔ DB
+        # CHECK (no-op for audit_logs per AD-2) ↔ call sites parity
+        # (3-way gate). target_table=`infra` aligns with ActionClass.INFRA
+        # value (audit_log target_table column populated verbatim — RLS
+        # preserved). 4 NEW values:
+        # - `replica_status_changed` — §F20.1 replication_lag row INSERT
+        #   (every 5-second health probe captures status transition).
+        # - `failover_initiated` — §F20.2 failover Row 1 audit-first INSERT
+        #   (BEFORE secondary promotion, call site
+        #   apps/api/jobs/failover_orchestrator.py:307-308).
+        # - `failover_completed` — §F20.2 failover Row 2 audit-first INSERT
+        #   (AFTER secondary promotion + DNS update, call site
+        #   apps/api/jobs/failover_orchestrator.py:346-347).
+        # - `dr_drill_completed` — §F20.3 quarterly DR drill result
+        #   audit-first INSERT (call site
+        #   apps/api/jobs/dr_drill.py:369-370).
+        # audit-fixes-infrastructure sprint (cj-style 157번째 wire —
+        # 2026-08-27 KST) 정직 회복: ActionClass.INFRA enum value는
+        # Phase 5 wire `2c8e7a4` 진입 시점에 정의되었으나 _REGISTRY
+        # entry가 누락되어 test_audit_action_consistency.
+        # test_all_action_classes_have_registry_entry 가 pre-existing
+        # baseline 으로 FAILED 보존. cj-style 153번째 Phase 21 wire
+        # 의 honest deviation ③ verbatim 해소 (ActionClass.INFRA 미등록
+        # 정직 회복 결정 wire 진입). test failure mode 정직 보존:
+        # failover_orchestrator.trigger_failover() 호출 시
+        # emit_audit_typed(action_class=ActionClass.INFRA, ...) 가
+        # ValueError: unknown ActionClass raise → 500 INTERNAL_SERVER_ERROR
+        # 회귀 정직 회복 (CR 11-3 honest-DEFER 48번째 epic 연속 정직 회복).
+        ActionClass.INFRA: (
+            "audit_logs",
+            frozenset(
+                {
+                    "replica_status_changed",  # §F20.1 replication_lag row audit-first
+                    "failover_initiated",  # §F20.2 failover Row 1 audit-first
+                    "failover_completed",  # §F20.2 failover Row 2 audit-first
+                    "dr_drill_completed",  # §F20.3 quarterly DR drill result audit-first
+                }
+            ),
+        ),
         # Epic 17 (cj-style 82번째 wire) — AUDIT 1 value (audit log
         # viewer CSV export audit-first INSERT, AD-32 (f) verbatim).
         # Routes to audit_logs (NOT to a separate ledger — audit log
