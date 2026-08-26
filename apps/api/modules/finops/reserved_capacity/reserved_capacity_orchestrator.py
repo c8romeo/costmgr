@@ -480,6 +480,7 @@ def orchestrate_reserved_capacity(
     dry_run: bool = False,
     trace_id: str | None = None,
     previous_orchestration: dict[str, Any] | None = None,
+    db_session: Any | None = None,
 ) -> ReservedCapacityOrchestration:
     """Orchestrate reserved capacity composition_step_chain (PRD §F37.4-1 verbatim).
 
@@ -587,15 +588,16 @@ def orchestrate_reserved_capacity(
     )
 
     # Audit-first INSERT (CR 1-1 verbatim, Phase 20 ImportError try/except guard).
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING,
                 action="reserved_capacity_orchestrator_triggered",
-                tenant_id=tenant_id,
                 actor_id=None,  # owner-only RBAC AD-22 + 2FA
-                trace_id=trace_id,
-                resource_id=orchestration_id,
+                target_id=None,
+                reason=trace_id,
                 payload={
                     "industry": industry,
                     "period_key": period_key,
@@ -612,7 +614,10 @@ def orchestrate_reserved_capacity(
                     "orchestration_status": orchestration_status,
                     "model_version": RESERVED_CAPACITY_ENGINE_MODEL_VERSION,
                     "persistence": persistence,
+                    "trace_id": trace_id,
+                    "orchestration_id": orchestration_id,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             # Audit module not yet wired in tests.

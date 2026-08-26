@@ -431,6 +431,7 @@ def generate_commitment_recommendation(
     demand_forecast_confidence_pct: float,
     dry_run: bool = False,
     trace_id: str | None = None,
+    db_session: Any | None = None,
 ) -> CommitmentRecommendation:
     """Generate commitment recommendation (PRD §F37.3-1 verbatim).
 
@@ -533,15 +534,16 @@ def generate_commitment_recommendation(
     )
 
     # Audit-first INSERT (CR 1-1 verbatim, Phase 20 ImportError try/except guard).
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING,
                 action="commitment_recommendation_generated",
-                tenant_id=tenant_id,
                 actor_id=None,  # owner-only RBAC AD-22 + 2FA
-                trace_id=trace_id,
-                resource_id=commitment_recommendation_id,
+                target_id=None,
+                reason=trace_id,
                 payload={
                     "industry": industry,
                     "period_key": period_key,
@@ -556,7 +558,10 @@ def generate_commitment_recommendation(
                     "estimated_annual_savings_pct": estimated_annual_savings_pct,
                     "model_version": RESERVED_CAPACITY_ENGINE_MODEL_VERSION,
                     "persistence": persistence,
+                    "trace_id": trace_id,
+                    "commitment_recommendation_id": commitment_recommendation_id,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             # Audit module not yet wired in tests.

@@ -86,6 +86,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_COMMITMENT = "finops_commitment"  # Phase 18 (cj-style 135번째 wire — NEW — Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
     FINOPS_PRICING = "finops_pricing"  # Phase 19 (cj-style 139번째 wire — NEW — Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
     FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION = "finops_multi_cloud_unified_reconciliation"  # Phase 20 (cj-style 144번째 wire — NEW — Multi-cloud rate card + cost + negotiation + blended/unblended + marketplace SaaS pricing 통합 + scheduled dispatch + multi-cloud viewer role RBAC + dry-run audit-first INSERT, AD-47)
+    FINOPS_RESERVED_CAPACITY_PLANNING = "finops_reserved_capacity_planning"  # Phase 21 (cj-style 151번째 wire — NEW — Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1060,6 +1061,20 @@ FinopsMultiCloudUnifiedReconciliationAction = Literal[
     "blended_unblended_tracked",  # §F36.4-7 — blended/unblended tracker
 ]
 
+# Phase 21 (cj-style 151번째 wire — NEW — Reserved capacity dashboard +
+# demand forecast + capacity planning + commitment recommendation +
+# orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49).
+FinopsReservedCapacityAction = Literal[
+    "reserved_capacity_dashboard_viewed",  # §F37.1-2 — dashboard viewed
+    "demand_forecast_calculated",  # §F37.1-1 — demand forecast aggregator
+    "capacity_planning_recommended",  # §F37.2-1 — capacity plan + tier + savings
+    "commitment_recommendation_generated",  # §F37.3-1 — commitment recommendation
+    "reserved_capacity_dry_run_executed",  # §F37.6-1 — dry-run preview
+    "reserved_capacity_kpi_refreshed",  # §F37.5-1 — KPI refresh + scheduled dispatch
+    "reserved_capacity_commitment_executed",  # §F37.3-2 — commitment execution
+    "reserved_capacity_orchestrator_triggered",  # §F37.4-1 — orchestrator composition_step_chain
+]
+
 
 # Union type for type checking
 AuditAction = (
@@ -1105,6 +1120,7 @@ AuditAction = (
     | FinopsCommitmentAction  # NEW — Phase 18 (Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
     | FinopsPricingAction  # NEW — Phase 19 (Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
     | FinopsMultiCloudUnifiedReconciliationAction  # NEW — Phase 20 (Multi-cloud rate card + cost + negotiation + blended/unblended + marketplace SaaS pricing 통합 + scheduled dispatch + multi-cloud viewer role RBAC + dry-run audit-first INSERT, AD-47)
+    | FinopsReservedCapacityAction  # NEW — Phase 21 (Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
 )
 
 
@@ -1859,6 +1875,21 @@ class _ActionRegistry:
                 }
             ),
         ),
+        ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING: (
+            "audit_logs",
+            frozenset(
+                {
+                    "reserved_capacity_dashboard_viewed",  # §F37.1-2 — dashboard viewed
+                    "demand_forecast_calculated",  # §F37.1-1 — demand forecast aggregator
+                    "capacity_planning_recommended",  # §F37.2-1 — capacity plan + tier + savings
+                    "commitment_recommendation_generated",  # §F37.3-1 — commitment recommendation
+                    "reserved_capacity_dry_run_executed",  # §F37.6-1 — dry-run preview
+                    "reserved_capacity_kpi_refreshed",  # §F37.5-1 — KPI refresh + scheduled dispatch
+                    "reserved_capacity_commitment_executed",  # §F37.3-2 — commitment execution
+                    "reserved_capacity_orchestrator_triggered",  # §F37.4-1 — orchestrator composition_step_chain
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -2002,5 +2033,6 @@ __all__ = [
     "FinopsSustainabilityAction",  # NEW — Phase 17 (Carbon emissions aggregator + sustainability KPI selector + sustainability report generator + scheduled dispatch + sustainability role RBAC + dry-run audit-first INSERT, AD-44)
     "FinopsCommitmentAction",  # NEW — Phase 18 (Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
     "FinopsPricingAction",  # NEW — Phase 19 (Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
+    "FinopsReservedCapacityAction",  # NEW — Phase 21 (Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
     "emit_audit_typed",
 ]

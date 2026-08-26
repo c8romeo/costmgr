@@ -455,6 +455,7 @@ def plan_reserved_capacity(
     dry_run: bool = False,
     trace_id: str | None = None,
     previous_capacity_plan: dict[str, Any] | None = None,
+    db_session: Any | None = None,
 ) -> ReservedCapacityPlan:
     """Plan reserved capacity tier + savings (PRD §F37.2-1 verbatim).
 
@@ -601,15 +602,16 @@ def plan_reserved_capacity(
         )
 
     # Audit-first INSERT (CR 1-1 verbatim, Phase 20 ImportError try/except guard).
-    if not dry_run:
+    if db_session is not None and not dry_run:
         try:
-            from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import ActionClass, emit_audit_typed
             emit_audit_typed(
+                db_session,
+                action_class=ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING,
                 action="capacity_planning_recommended",
-                tenant_id=tenant_id,
                 actor_id=None,  # owner-only RBAC AD-22 + 2FA
-                trace_id=trace_id,
-                resource_id=capacity_plan_id,
+                target_id=None,
+                reason=trace_id,
                 payload={
                     "industry": industry,
                     "period_key": period_key,
@@ -625,7 +627,10 @@ def plan_reserved_capacity(
                     "capacity_plan_status": capacity_plan_status,
                     "high_value_flag": high_value_flag,
                     "model_version": RESERVED_CAPACITY_ENGINE_MODEL_VERSION,
+                    "trace_id": trace_id,
+                    "capacity_plan_id": capacity_plan_id,
                 },
+                tenant_id=tenant_id,
             )
         except ImportError:
             # Audit module not yet wired in tests.
