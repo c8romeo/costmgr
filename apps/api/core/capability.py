@@ -608,6 +608,28 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_46_drift.py (capability
     # matrix v1.46 EXTENSION 1 NEW row).
     FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION = "finops_multi_cloud_unified_reconciliation"
+    # Phase 21 (cj-style 151번째 wire) — FINOPS_RESERVED_CAPACITY_PLANNING
+    # — FinOps Reserved Capacity Planning for 5-module composition layer
+    # (Phase 13 forecast + Phase 14 optimization + Phase 18 commitment +
+    # Phase 19 pricing + Phase 20 multi_cloud weighted average → single
+    # demand_forecast_id + capacity_plan_id + commitment_recommendation_id
+    # + orchestration_id + 4 cadence schedule KST pytz + 6 reserved_capacity_tier
+    # + 4 execution_strategy). Industry-agnostic per FinOps Foundation
+    # Reserved Capacity Planning pillar (CR 12-1 L4 precedent mirrors
+    # FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION Phase 20 wire +
+    # FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire +
+    # FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase 16 wire
+    # + FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION Phase 14
+    # wire + FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire + Phase 12
+    # wire + Phase 11 wire pattern verbatim). All 4 industries get
+    # FINOPS_RESERVED_CAPACITY_PLANNING capability (reserved capacity
+    # planning is a business-level FinOps pillar per FinOps Foundation +
+    # 5-module composition layer pattern, not industry-specific). Gates
+    # require_finops_reserved_capacity dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_47_drift.py (capability
+    # matrix v1.47 EXTENSION 1 NEW row).
+    FINOPS_RESERVED_CAPACITY_PLANNING = "finops_reserved_capacity_planning"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -869,6 +891,29 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # reconciliation applies industry-agnostically per FinOps
             # Foundation Multi-Cloud Cost Management pillar.
             Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION,
+            # Phase 21 (cj-style 151번째 wire) — FINOPS_RESERVED_CAPACITY_PLANNING
+            # (industry-agnostic per CR 12-1 L4 precedent +
+            # FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION Phase 20 wire +
+            # FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire
+            # + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase
+            # 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+            # Phase 13 wire + FINOPS_ANOMALY_DETECTION +
+            # FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire
+            # pattern verbatim). 5-module composition layer (Phase 13
+            # forecast + Phase 14 optimization + Phase 18 commitment +
+            # Phase 19 pricing + Phase 20 multi_cloud weighted average →
+            # single demand_forecast_id + capacity_plan_id +
+            # commitment_recommendation_id + orchestration_id) + 6
+            # reserved_capacity_tier (1y/3y × no/partial/all upfront) +
+            # 4 execution_strategy + 4 cadence schedule (daily 02:00 +
+            # weekly Mon 03:00 + monthly 1st-day 04:00 + quarterly 1st-day
+            # 05:00 KST pytz) + dry-run mode + Epic 12 2FA 챌린지
+            # mandatory (high-value threshold 10M KRW/year). Reserved
+            # capacity planning applies industry-agnostically per FinOps
+            # Foundation Reserved Capacity Planning pillar + 5-module
+            # composition layer pattern.
+            Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1083,6 +1128,20 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # reconciliation applies industry-agnostically per FinOps
             # Foundation Multi-Cloud Cost Management pillar.
             Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION,
+            # Phase 21 (cj-style 151번째 wire) — FINOPS_RESERVED_CAPACITY_PLANNING
+            # (industry-agnostic per CR 12-1 L4 precedent +
+            # FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION Phase 20 wire +
+            # FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire
+            # + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase
+            # 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+            # Phase 13 wire + FINOPS_ANOMALY_DETECTION +
+            # FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire
+            # pattern verbatim). 5-module composition layer + 6
+            # reserved_capacity_tier + 4 execution_strategy + 4 cadence
+            # schedule KST pytz + dry-run mode + Epic 12 2FA 챌린지
+            # mandatory (high-value threshold 10M KRW/year).
+            Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1314,6 +1373,20 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # reconciliation applies industry-agnostically per FinOps
             # Foundation Multi-Cloud Cost Management pillar.
             Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION,
+            # Phase 21 (cj-style 151번째 wire) — FINOPS_RESERVED_CAPACITY_PLANNING
+            # (industry-agnostic per CR 12-1 L4 precedent +
+            # FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION Phase 20 wire +
+            # FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire
+            # + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase
+            # 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+            # Phase 13 wire + FINOPS_ANOMALY_DETECTION +
+            # FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire
+            # pattern verbatim). 5-module composition layer + 6
+            # reserved_capacity_tier + 4 execution_strategy + 4 cadence
+            # schedule KST pytz + dry-run mode + Epic 12 2FA 챌린지
+            # mandatory (high-value threshold 10M KRW/year).
+            Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1542,6 +1615,20 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # reconciliation applies industry-agnostically per FinOps
             # Foundation Multi-Cloud Cost Management pillar.
             Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION,
+            # Phase 21 (cj-style 151번째 wire) — FINOPS_RESERVED_CAPACITY_PLANNING
+            # (industry-agnostic per CR 12-1 L4 precedent +
+            # FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION Phase 20 wire +
+            # FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire
+            # + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase
+            # 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+            # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+            # Phase 13 wire + FINOPS_ANOMALY_DETECTION +
+            # FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire
+            # pattern verbatim). 5-module composition layer + 6
+            # reserved_capacity_tier + 4 execution_strategy + 4 cadence
+            # schedule KST pytz + dry-run mode + Epic 12 2FA 챌린지
+            # mandatory (high-value threshold 10M KRW/year).
+            Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
         }
     ),
 }

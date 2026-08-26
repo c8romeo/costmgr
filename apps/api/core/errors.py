@@ -1678,6 +1678,25 @@ __all__ = [
     "PricingTenantScopeViolationError",
     "PricingCapabilityGateViolationError",
     "PricingAccuracyDegradationError",
+    # Phase 21 FinOps reserved capacity planning typed exceptions (CR 12-5 D-14)
+    "FinopsReservedCapacityError",
+    "FINOPS_RESERVED_CAPACITY_MODULE_ID",
+    "ReservedCapacityDemandForecastError",
+    "ReservedCapacityDemandForecastScopeError",
+    "ReservedCapacityDemandForecastPeriodError",
+    "ReservedCapacityDemandForecastModuleError",
+    "ReservedCapacityPlanningError",
+    "ReservedCapacityPlanningScopeError",
+    "ReservedCapacityPlanningTierError",
+    "ReservedCapacityPlanningGuardError",
+    "ReservedCapacityRecommendationError",
+    "ReservedCapacityRecommendationConfidenceError",
+    "ReservedCapacityRecommendationApprovalError",
+    "ReservedCapacityRecommendationExecutionError",
+    "ReservedCapacityOrchestratorError",
+    "ReservedCapacityOrchestratorStepError",
+    "ReservedCapacityDryRunError",
+    "ReservedCapacityIdempotencyError",
 ]
 
 
@@ -2414,3 +2433,235 @@ class MultiCloudRecipientResolverError(FinopsMultiCloudError):
             f"allowed={allowed}",
             **kwargs,
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 21 — FinOps Reserved Capacity Planning typed exceptions
+# (CR 12-5 D-14 envelope verbatim).
+# m29_finops_reserved_capacity — natural extension of m28_finops_multi_cloud
+# (Phase 20 wire `52dad7f`) + Phase 11~19 carry-over chain (PRD §F37 + AD-49).
+# Routes through `FinopsError` ancestor (m19_finops base) → `BaseError` root
+# so `error_handler` middleware envelope canonicalization (code / message_ko
+# / details / trace_id / http_status) holds across all 5-module join paths
+# (Phase 13 forecast + Phase 14 optimization + Phase 18 commitment +
+# Phase 19 pricing + Phase 20 multi_cloud).
+# ─────────────────────────────────────────────────────────────────────────────
+FINOPS_RESERVED_CAPACITY_MODULE_ID: str = "m29_finops_reserved_capacity"
+
+
+class FinopsReservedCapacityError(FinopsError):
+    """Base class for Phase 21 FinOps Reserved Capacity Planning errors.
+
+    Inherits from FinopsError (Phase 11 wire `e020ad0` m19_finops base)
+    so all Phase 11~20 typed exceptions share the same envelope. Module
+    tag is `m29_finops_reserved_capacity` per Phase 21 AD-49 (a) decision
+    (Phase 20 m28 + Phase 19 m27 + Phase 18 m26 + Phase 17 m25 +
+    Phase 16 m24 + Phase 15 m23 + Phase 14 m22 + Phase 13 m21 +
+    Phase 12 m20 + Phase 11 m19 verbatim chain).
+
+    All subclasses follow CR 12-5 D-14 typed exception envelope:
+    http_status ∈ {400, 403, 404, 409, 422, 500, 502} matching the canonical
+    REST/HTTP status code mapping (CR 11-4 P-015 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F37.1 demand_forecast_aggregator (4 NEW)
+class ReservedCapacityDemandForecastError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — demand forecast 5-module cross-join runtime failure.
+
+    Raised by aggregate_demand_forecast() when 5-module weighted average
+    fails (Phase 13 forecast + Phase 14 optimization + Phase 18 commitment +
+    Phase 19 pricing + Phase 20 multi_cloud), or when seasonal_factor /
+    growth_rate_pct / confidence_interval computation fails (PRD §F37.1-9
+    verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ReservedCapacityDemandForecastScopeError(FinopsReservedCapacityError):
+    """HTTP 404 typed error — demand forecast industry/scope validation failure.
+
+    Raised by aggregate_demand_forecast() when industry is not in
+    ALL_ORCHESTRATION_SCOPES (manufacturing / service /
+    manufacturing_service / manufacturing_service_other) (PRD §F37.1-9
+    verbatim).
+    """
+
+    http_status: int = 404
+
+
+class ReservedCapacityDemandForecastPeriodError(FinopsReservedCapacityError):
+    """HTTP 422 typed error — demand forecast period_key validation failure.
+
+    Raised by aggregate_demand_forecast() when period_key is not in valid
+    format (YYYY-MM / YY-MM / YYYY) (PRD §F37.1-9 verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ReservedCapacityDemandForecastModuleError(FinopsReservedCapacityError):
+    """HTTP 502 typed error — demand forecast 5-module upstream join failure.
+
+    Raised by aggregate_demand_forecast() when 5-module inputs (phase_13 +
+    phase_14 + phase_18 + phase_19 + phase_20) are missing or any module
+    returns invalid value (PRD §F37.1-9 verbatim). 502 (Bad Gateway)
+    semantics: upstream module dependency not reachable / invalid.
+    """
+
+    http_status: int = 502
+
+
+# §F37.2 capacity_planning_aggregator (4 NEW)
+class ReservedCapacityPlanningError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — capacity planning 6-tier selection runtime failure.
+
+    Raised by plan_reserved_capacity() when 6-tier selection algorithm
+    (AD-49 (b)) fails or break-even / headroom / target_units / savings
+    computation fails (PRD §F37.2-9 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ReservedCapacityPlanningScopeError(FinopsReservedCapacityError):
+    """HTTP 404 typed error — capacity planning industry/scope validation failure.
+
+    Raised by plan_reserved_capacity() when industry is not in
+    ALL_ORCHESTRATION_SCOPES (PRD §F37.2-9 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class ReservedCapacityPlanningTierError(FinopsReservedCapacityError):
+    """HTTP 422 typed error — capacity planning tier selection validation failure.
+
+    Raised by plan_reserved_capacity() or helper functions when selected
+    tier is not in ALL_RESERVED_CAPACITY_TIERS (6 tier enum: 1y_no_upfront
+    + 1y_partial_upfront + 1y_all_upfront + 3y_no_upfront +
+    3y_partial_upfront + 3y_all_upfront) (PRD §F37.2-9 verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ReservedCapacityPlanningGuardError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — capacity planning minimum savings threshold guard.
+
+    Raised by plan_reserved_capacity() when estimated_savings_pct <
+    MINIMUM_SAVINGS_PCT=5.0 OR estimated_savings_krw < MINIMUM_SAVINGS_KRW=1M
+    OR break_even_utilization_pct < MINIMUM_BREAK_EVEN_UTILIZATION_PCT=70.0
+    (PRD §F37.2-9 + AD-49 (b) verbatim). Surface in strict-mode orchestrator
+    path; non-strict path returns rejected plan with capacity_plan_status
+    field set to 'rejected'.
+    """
+
+    http_status: int = 500
+
+
+# §F37.3 commitment_recommendation_engine (4 NEW)
+class ReservedCapacityRecommendationError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — commitment recommendation engine runtime failure.
+
+    Raised by generate_commitment_recommendation() when confidence_score
+    (utilization_stability × 0.4 + historical_accuracy × 0.3 +
+    demand_forecast_confidence_pct × 0.3) or risk_score (savings_pct × 0.4
+    + commitment_term × 0.3 + commitment_flexibility × 0.3) computation
+    fails (PRD §F37.3-9 + AD-49 (c) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ReservedCapacityRecommendationConfidenceError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — confidence score below LOW_CONFIDENCE threshold.
+
+    Raised by generate_commitment_recommendation() when confidence_score
+    falls below LOW_CONFIDENCE execution_strategy threshold. Strict-mode
+    caller (orchestrator) uses this to flag low-confidence recommendations
+    for manual review (PRD §F37.3-9 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ReservedCapacityRecommendationApprovalError(FinopsReservedCapacityError):
+    """HTTP 403 typed error — owner approval flow required for high-value plan.
+
+    Raised by generate_commitment_recommendation() or downstream executor
+    when high_value_flag (estimated_annual_savings_krw >=
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR=10M) AND
+    execution_strategy == OWNER_APPROVAL_REQUIRED — owner-only RBAC + Epic 12
+    2FA 챌린지 mandatory path. 403 (Forbidden) semantics: caller lacks
+    owner role approval (PRD §F37.3-9 + AD-49 (g) verbatim).
+    """
+
+    http_status: int = 403
+
+
+class ReservedCapacityRecommendationExecutionError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — execution_strategy runtime failure.
+
+    Raised by generate_commitment_recommendation() when execution_strategy
+    (auto_execute_ready / manual_review_required / owner_approval_required /
+    low_confidence) cannot be determined or downstream execution pipeline
+    (auto_execute + manual_review + owner_approval + low_confidence paths)
+    fails (PRD §F37.3-9 verbatim).
+    """
+
+    http_status: int = 500
+
+
+# §F37.4 reserved_capacity_orchestrator (4 NEW)
+class ReservedCapacityOrchestratorError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — orchestrator runtime failure.
+
+    Raised by orchestrate_reserved_capacity() when composition_step_chain
+    5 step (demand_forecast → capacity_planning → commitment_recommendation
+    → approval → execute) orchestration fails, or cadence schedule (4 KST
+    pytz) initialization fails (PRD §F37.4-9 + AD-49 (d) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ReservedCapacityOrchestratorStepError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — composition_step_chain step failure.
+
+    Raised by orchestrate_reserved_capacity() when any of the 5 composition
+    steps (demand_forecast / capacity_planning / commitment_recommendation /
+    approval / execute) fails. Carries step_index + step_name for downstream
+    observability (PRD §F37.4-9 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ReservedCapacityDryRunError(FinopsReservedCapacityError):
+    """HTTP 500 typed error — dry-run mode violation.
+
+    Raised by orchestrate_reserved_capacity() when dry_run=True but caller
+    attempts to mutate persistent state (e.g., commitment execution) outside
+    the preview-only path. dry-run mode is enforced via
+    reserved_capacity_dry_run_executed audit action + phase_21_orchestration_preview
+    preview table (PRD §F37.4-9 + AD-49 (f) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ReservedCapacityIdempotencyError(FinopsReservedCapacityError):
+    """HTTP 409 typed error — orchestration idempotency violation.
+
+    Raised by orchestrate_reserved_capacity() when the same
+    (tenant_id + period_key + cadence) tuple has already been orchestrated
+    within the same period. 409 (Conflict) semantics: caller must wait for
+    next cadence window or explicitly override via owner_approval flow
+    (PRD §F37.4-9 verbatim).
+    """
+
+    http_status: int = 409

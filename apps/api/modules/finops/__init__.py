@@ -228,6 +228,25 @@ from apps.api.modules.finops.commitment_recommender import (
     compute_roi_pct,
     recommend_commitments,
 )
+from apps.api.modules.finops.cross_module_kpi import (
+    select_cross_module_kpis,
+    validate_kpi_accuracy,
+)
+
+# Phase 16 wire — FinOps Reporting & Executive Dashboard territory
+from apps.api.modules.finops.executive_dashboard_aggregator import (
+    aggregate_executive_dashboard,
+    compute_anomaly_count_30d,
+    compute_forecast_projection,
+    compute_idle_cost_krw,
+    compute_optimization_savings,
+    compute_showback_total,
+    compute_tag_compliance_pct,
+    validate_executive_rollup,
+)
+from apps.api.modules.finops.executive_report_generator import (
+    generate_executive_report,
+)
 from apps.api.modules.finops.forecast_accuracy import (
     ForecastAccuracyMetrics,
     compute_mae,
@@ -269,55 +288,7 @@ from apps.api.modules.finops.idle_resource_detector import (
     IdleResource,
     detect_idle_resources,
 )
-from apps.api.modules.finops.optimization_accuracy_tracker import (
-    ACCURACY_SCORE_RETRAINING_THRESHOLD_PCT,
-    RETRAINING_CRON_DEFAULT,
-    OptimizationAccuracyReport,
-    check_accuracy_degradation,
-    compute_accuracy_score,
-    compute_precision,
-    compute_recall,
-)
-from apps.api.modules.finops.optimization_definition import (
-    ALL_BASELINE_PERIODS,
-    ALL_OPTIMIZATION_STATUSES,
-    ALL_OPTIMIZATION_STRATEGIES,
-    OPTIMIZATION_DEFAULTS,
-    OptimizationDefinition,
-    define_optimization,
-    parse_optimization_definition,
-)
-from apps.api.modules.finops.optimization_definition import (
-    ALL_RESOURCE_TYPES as ALL_OPTIMIZATION_RESOURCE_TYPES,
-)
-from apps.api.modules.finops.optimization_definition import (
-    ALL_TARGET_METRICS as ALL_OPTIMIZATION_TARGET_METRICS,
-)
-from apps.api.modules.finops.rightsizing_engine import (
-    INSTANCE_TYPE_DOWNGRADE_MAP,
-    INSTANCE_TYPE_UPGRADE_MAP,
-    RIGHTSIZING_ENGINE_MODEL_VERSION,
-    RightsizingRecommendation,
-    recommend_rightsizing,
-)
-# Phase 16 wire — FinOps Reporting & Executive Dashboard territory
-from apps.api.modules.finops.executive_dashboard_aggregator import (
-    aggregate_executive_dashboard,
-    compute_showback_total,
-    compute_anomaly_count_30d,
-    compute_forecast_projection,
-    compute_optimization_savings,
-    compute_tag_compliance_pct,
-    compute_idle_cost_krw,
-    validate_executive_rollup,
-)
-from apps.api.modules.finops.cross_module_kpi import (
-    select_cross_module_kpis,
-    validate_kpi_accuracy,
-)
-from apps.api.modules.finops.executive_report_generator import (
-    generate_executive_report,
-)
+
 # Phase 20 wire (cj-style 144번째) — FinOps Multi-Cloud Cost Unified
 # Reconciliation territory. 9-module cross-rollup (Phase 11~19
 # carry-over chain) + 5 cloud provider cross-rollup (AWS EDP +
@@ -372,6 +343,76 @@ from apps.api.modules.finops.multi_cloud import (
     validate_multi_cloud_rate_card_reconciliation,
     validate_naver_kt_api_data_accuracy,
     validate_negotiation_recommendation,
+)
+from apps.api.modules.finops.optimization_accuracy_tracker import (
+    ACCURACY_SCORE_RETRAINING_THRESHOLD_PCT,
+    RETRAINING_CRON_DEFAULT,
+    OptimizationAccuracyReport,
+    check_accuracy_degradation,
+    compute_accuracy_score,
+    compute_precision,
+    compute_recall,
+)
+from apps.api.modules.finops.optimization_definition import (
+    ALL_BASELINE_PERIODS,
+    ALL_OPTIMIZATION_STATUSES,
+    ALL_OPTIMIZATION_STRATEGIES,
+    OPTIMIZATION_DEFAULTS,
+    OptimizationDefinition,
+    define_optimization,
+    parse_optimization_definition,
+)
+from apps.api.modules.finops.optimization_definition import (
+    ALL_RESOURCE_TYPES as ALL_OPTIMIZATION_RESOURCE_TYPES,
+)
+from apps.api.modules.finops.optimization_definition import (
+    ALL_TARGET_METRICS as ALL_OPTIMIZATION_TARGET_METRICS,
+)
+
+# Phase 21 wire (cj-style 151번째) — FinOps Reserved Capacity Planning
+# territory. 5-module composition layer (Phase 13 forecast + Phase 14
+# optimization + Phase 18 commitment + Phase 19 pricing + Phase 20
+# multi_cloud weighted average → single demand_forecast_id +
+# capacity_plan_id + commitment_recommendation_id + orchestration_id).
+# 6 reserved_capacity_tier (1y/3y × no/partial/all upfront) + 4
+# execution_strategy + 4 cadence schedule (daily 02:00 + weekly Mon
+# 03:00 + monthly 1st-day 04:00 + quarterly 1st-day 05:00 KST pytz) +
+# dry-run mode + Epic 12 2FA 챌린지 mandatory (high-value threshold
+# 10M KRW/year).
+from apps.api.modules.finops.reserved_capacity import (
+    ALL_EXECUTION_STRATEGIES,
+    ALL_ORCHESTRATION_SCOPES,
+    ALL_RESERVED_CAPACITY_CADENCES,
+    ALL_RESERVED_CAPACITY_TIERS,
+    RESERVED_CAPACITY_DEFAULTS,
+    RESERVED_CAPACITY_ENGINE_MODEL_VERSION,
+    ExecutionStrategy,
+    OrchestrationScope,
+    ReservedCapacityCadence,
+    ReservedCapacityDemandForecast,
+    ReservedCapacityOrchestration,
+    ReservedCapacityPlan,
+    ReservedCapacityTier,
+    aggregate_demand_forecast,
+    dispatch_reserved_capacity_orchestration,
+    generate_commitment_recommendation,
+    orchestrate_reserved_capacity,
+    plan_reserved_capacity,
+    validate_capacity_plan,
+    validate_commitment_recommendation,
+    validate_demand_forecast,
+    validate_orchestration,
+    validate_reserved_capacity_dispatch,
+)
+from apps.api.modules.finops.reserved_capacity import (
+    CommitmentRecommendation as ReservedCapacityCommitmentRecommendation,
+)
+from apps.api.modules.finops.rightsizing_engine import (
+    INSTANCE_TYPE_DOWNGRADE_MAP,
+    INSTANCE_TYPE_UPGRADE_MAP,
+    RIGHTSIZING_ENGINE_MODEL_VERSION,
+    RightsizingRecommendation,
+    recommend_rightsizing,
 )
 
 __all__ = [
@@ -530,4 +571,33 @@ __all__ = [
     "MarketplaceUnit",
     "MarketplacePricingModel",
     "MarketplaceIntegrationStatus",
+    # Phase 21 wire (cj-style 151번째) — FinOps Reserved Capacity Planning
+    # territory. 5-module composition layer + 6 reserved_capacity_tier +
+    # 4 execution_strategy + 4 cadence schedule KST pytz + dry-run
+    # mode + Epic 12 2FA 챌린지 mandatory (high-value threshold 10M
+    # KRW/year).
+    "RESERVED_CAPACITY_ENGINE_MODEL_VERSION",
+    "RESERVED_CAPACITY_DEFAULTS",
+    "ReservedCapacityDemandForecast",
+    "ReservedCapacityPlan",
+    "ReservedCapacityCommitmentRecommendation",
+    "ReservedCapacityOrchestration",
+    "ReservedCapacityTier",
+    "ALL_RESERVED_CAPACITY_TIERS",
+    "ExecutionStrategy",
+    "ALL_EXECUTION_STRATEGIES",
+    "ReservedCapacityCadence",
+    "ALL_RESERVED_CAPACITY_CADENCES",
+    "OrchestrationScope",
+    "ALL_ORCHESTRATION_SCOPES",
+    "aggregate_demand_forecast",
+    "validate_demand_forecast",
+    "plan_reserved_capacity",
+    "validate_capacity_plan",
+    "generate_commitment_recommendation",
+    "validate_commitment_recommendation",
+    "orchestrate_reserved_capacity",
+    "validate_orchestration",
+    "dispatch_reserved_capacity_orchestration",
+    "validate_reserved_capacity_dispatch",
 ]

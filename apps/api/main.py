@@ -513,11 +513,20 @@ from apps.api.modules.finops.pricing.pricing_routes import (
 from apps.api.modules.finops.multi_cloud.multi_cloud_routes import (
     router as multi_cloud_router,
 )
+# Phase 21 wire (cj-style 151번째) — FinOps Reserved Capacity Planning
+# territory. CRITICAL: registered BEFORE main.py close to avoid
+# Phase 20.5 router omission pattern. Capability gates
+# FINOPS_RESERVED_CAPACITY_PLANNING (capability matrix v1.47 EXTENSION
+# preserve). AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
+from apps.api.modules.finops.reserved_capacity.reserved_capacity_routes import (
+    router as reserved_capacity_router,
+)
 
 app.include_router(sustainability_router)
 app.include_router(commitment_router)
 app.include_router(pricing_router)
 app.include_router(multi_cloud_router)
+app.include_router(reserved_capacity_router)
 
 
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack

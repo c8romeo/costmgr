@@ -97,6 +97,7 @@ __all__ = [
     "require_finops_commitment",  # NEW — Phase 18 (FinOps Cloud Commitment Management RIs/SPs/CUDs)
     "require_finops_pricing",  # NEW — Phase 19 (FinOps Pricing, Rate Card & TCO Modeling)
     "require_finops_multi_cloud",  # NEW — Phase 20 (FinOps Multi-Cloud Cost Unified Reconciliation)
+    "require_finops_reserved_capacity",  # NEW — Phase 21 (FinOps Reserved Capacity Planning)
 ]
 
 
@@ -345,5 +346,26 @@ require_finops_pricing = require_capability(Capability.FINOPS_PRICING)
 # tests/integration/test_capability_matrix_v1_46_drift.py.
 require_finops_multi_cloud = require_capability(
     Capability.FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION
+)
+
+# Phase 21 (cj-style 151번째 wire) — require_finops_reserved_capacity
+# (industry-agnostic per CR 12-1 L4 precedent + FINOPS_MULTI_CLOUD
+# Phase 20 wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT
+# Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+# FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+# FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING Phase 13 wire +
+# FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+# FINOPS Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_RESERVED_CAPACITY_PLANNING capability (reserved capacity
+# planning baseline — FinOps Foundation Reserved Capacity Planning
+# pillar + 5-module composition layer pattern industry-agnostic).
+# Gates the FinOps reserved capacity routes in
+# apps/api/modules/finops/reserved_capacity/reserved_capacity_routes.py
+# (healthcheck + demand-forecast + capacity-plan +
+# commitment-recommendation + orchestrate + dispatches +
+# cadence-preview + dry-run). Drift detector lives at
+# tests/integration/test_capability_matrix_v1_47_drift.py.
+require_finops_reserved_capacity = require_capability(
+    Capability.FINOPS_RESERVED_CAPACITY_PLANNING
 )
 
