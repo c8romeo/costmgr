@@ -2665,3 +2665,260 @@ class ReservedCapacityIdempotencyError(FinopsReservedCapacityError):
     """
 
     http_status: int = 409
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 22 wire (cj-style 160번째, 2026-08-27 KST) — FinOps Chargeback
+# Settlement territory — 16 NEW typed exceptions (CR 12-5 D-14 envelope).
+# m30_finops_chargeback_settlement — natural extension of m29_finops_reserved_capacity
+# (Phase 21 wire `1b101bf`) + Phase 11~20 carry-over chain (PRD §F38 + AD-50).
+# Routes through `FinopsError` ancestor (Phase 11 wire `e020ad0` m19_finops base)
+# → `BaseError` root so `error_handler` middleware envelope canonicalization
+# (code / message_ko / details / trace_id / http_status) holds across all
+# 4 sub-functions (settlement_rules + allocation_engine + invoice_generation +
+# reconciliation). Mirrors Phase 21 FinopsReservedCapacityError verbatim with
+# 4 NEW exception classes per sub-§ section (§F38.1~§F38.4 mapped 1:1 to
+# settlement_rules / allocation_engine / invoice_generation / reconciliation).
+# ─────────────────────────────────────────────────────────────────────────────
+FINOPS_CHARGEBACK_SETTLEMENT_MODULE_ID: str = "m30_finops_chargeback_settlement"
+
+
+class FinopsChargebackSettlementError(FinopsError):
+    """Base class for Phase 22 FinOps Chargeback Settlement errors.
+
+    Inherits from FinopsError (Phase 11 wire `e020ad0` m19_finops base) so
+    all Phase 11~21 typed exceptions share the same envelope. Module tag
+    is `m30_finops_chargeback_settlement` per Phase 22 AD-50 (a) decision
+    (Phase 21 m29 + Phase 20 m28 + Phase 19 m27 + Phase 18 m26 + Phase 17
+    m25 + Phase 16 m24 + Phase 15 m23 + Phase 14 m22 + Phase 13 m21 +
+    Phase 12 m20 + Phase 11 m19 verbatim chain).
+
+    All subclasses follow CR 12-5 D-14 typed exception envelope verbatim
+    (Phase 21 reserved_capacity chain pattern):
+    http_status ∈ {400, 403, 404, 409, 422, 500, 502} matching the canonical
+    REST/HTTP status code mapping (CR 11-4 P-015 verbatim).
+
+    Settlement layer wiring:
+    - §F38.1 settlement_rules engine (4 NEW):
+      ChargebackSettlementRuleError + ChargebackSettlementRuleScopeError +
+      ChargebackSettlementRuleTypeError + ChargebackSettlementRuleModuleError
+    - §F38.2 allocation_engine (4 NEW):
+      ChargebackAllocationEngineError +
+      ChargebackAllocationDimensionError +
+      ChargebackAllocationWeightError +
+      ChargebackAllocationUnbalancedError
+    - §F38.3 invoice_generation (4 NEW):
+      ChargebackInvoiceGenerationError +
+      ChargebackInvoiceFormatError +
+      ChargebackInvoiceTenantError +
+      ChargebackInvoiceSizeError
+    - §F38.4 reconciliation (4 NEW):
+      ChargebackReconciliationError +
+      ChargebackReconciliationToleranceError +
+      ChargebackReconciliationRetryError +
+      ChargebackReconciliationApprovalError
+    """
+
+    http_status: int = 500
+
+
+# §F38.1 settlement_rules engine (4 NEW)
+class ChargebackSettlementRuleError(FinopsChargebackSettlementError):
+    """HTTP 500 typed error — settlement rule runtime failure.
+
+    Raised by settlement_rules.create_settlement_rule() /
+    update_settlement_rule() / list_settlement_rules() when 5-module
+    weighted join (Phase 11 chargeback + Phase 18 commitment + Phase 19
+    pricing + Phase 20 multi_cloud + Phase 21 reserved_capacity weighted
+    average via FIVE_MODULE_WEIGHTS) fails, or when rule_id resolution /
+    audit-first INSERT persistence / dry-run preview writes fail
+    (PRD §F38.1-10 verbatim + AD-50 (a) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ChargebackSettlementRuleScopeError(FinopsChargebackSettlementError):
+    """HTTP 404 typed error — settlement rule tenant/scope validation failure.
+
+    Raised by settlement_rules.* when tenant_id is missing or when target
+    period_key is not in valid format (YYYY-MM / YY-MM / YYYY) (PRD §F38.1-10
+    verbatim).
+    """
+
+    http_status: int = 404
+
+
+class ChargebackSettlementRuleTypeError(FinopsChargebackSettlementError):
+    """HTTP 422 typed error — settlement rule_type validation failure.
+
+    Raised by settlement_rules.* when rule_type is not in
+    ALL_SETTLEMENT_RULE_TYPES (4 enum: flat_fee + proportional_allocation +
+    metered_volume + tag_weighted) (PRD §F38.1-10 verbatim + AD-50 (a)
+    verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ChargebackSettlementRuleModuleError(FinopsChargebackSettlementError):
+    """HTTP 502 typed error — settlement 5-module upstream join failure.
+
+    Raised by settlement_rules.* when 5-module inputs (Phase 11 chargeback +
+    Phase 18 commitment + Phase 19 pricing + Phase 20 multi_cloud + Phase 21
+    reserved_capacity) are missing or any module returns invalid value
+    (PRD §F38.1-10 verbatim + AD-50 (a) verbatim). 502 (Bad Gateway)
+    semantics: upstream module dependency not reachable / invalid.
+    """
+
+    http_status: int = 502
+
+
+# §F38.2 allocation_engine (4 NEW)
+class ChargebackAllocationEngineError(FinopsChargebackSettlementError):
+    """HTTP 500 typed error — allocation engine runtime failure.
+
+    Raised by allocation_engine.compute_allocation() when 5-dimension
+    weighted allocation (cost_center × 0.30 + department × 0.25 +
+    business_unit × 0.20 + tag × 0.15 + tenant × 0.10) fails
+    (PRD §F38.2-6 verbatim + AD-50 (b) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ChargebackAllocationDimensionError(FinopsChargebackSettlementError):
+    """HTTP 422 typed error — allocation dimension validation failure.
+
+    Raised by allocation_engine.* when allocation dimension is not in
+    ALL_ALLOCATION_DIMENSIONS (5 enum: cost_center + department +
+    business_unit + tag + tenant) (PRD §F38.2-6 verbatim + AD-50 (b)
+    verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ChargebackAllocationWeightError(FinopsChargebackSettlementError):
+    """HTTP 422 typed error — allocation weight validation failure.
+
+    Raised by allocation_engine.* when ALLOCATION_DIMENSION_WEIGHTS sum
+    != 1.0 (i.e., {cost_center: 0.30, department: 0.25, business_unit:
+    0.20, tag: 0.15, tenant: 0.10} = 1.0 invariant) or when any weight
+    is negative (PRD §F38.2-6 verbatim + AD-50 (b) verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ChargebackAllocationUnbalancedError(FinopsChargebackSettlementError):
+    """HTTP 422 typed error — allocation line imbalance invariant.
+
+    Raised by allocation_engine.compute_allocation() when sum of
+    allocated amounts across all dimensions differs from total settlement
+    amount by > 0.01 KRW round-off tolerance (banker's rounding CR 5-1
+    preserved) (PRD §F38.2-6 verbatim + AD-50 (b) verbatim).
+    """
+
+    http_status: int = 422
+
+
+# §F38.3 invoice_generation (4 NEW)
+class ChargebackInvoiceGenerationError(FinopsChargebackSettlementError):
+    """HTTP 500 typed error — invoice generation runtime failure.
+
+    Raised by invoice_generator.generate_invoice() when PDF/XLSX/CSV
+    template rendering (reportlab 4.0.7 + xlsxwriter 3.1.9 + csv stdlib)
+    fails, or when noto-sans-cjk-kr font embedding / A4 landscape layout
+    fails (PRD §F38.3-8 verbatim + AD-50 (c) verbatim + AD-14 stack pin).
+    """
+
+    http_status: int = 500
+
+
+class ChargebackInvoiceFormatError(FinopsChargebackSettlementError):
+    """HTTP 422 typed error — invoice format validation failure.
+
+    Raised by invoice_generator.generate_invoice() when format is not in
+    ALL_INVOICE_FORMATS (3 enum: pdf + xlsx + csv) (PRD §F38.3-8 verbatim +
+    AD-50 (c) verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ChargebackInvoiceTenantError(FinopsChargebackSettlementError):
+    """HTTP 404 typed error — invoice tenant validation failure.
+
+    Raised by invoice_generator.* when tenant_id is missing or tenant has
+    no settlement rules defined for the target period_key (PRD §F38.3-8
+    verbatim + AD-50 (c) verbatim).
+    """
+
+    http_status: int = 404
+
+
+class ChargebackInvoiceSizeError(FinopsChargebackSettlementError):
+    """HTTP 409 typed error — invoice size exceedance guard.
+
+    Raised by invoice_generator.generate_invoice() when rendered byte
+    stream exceeds MAX_INVOICE_BYTES (10MB) or number of allocation lines
+    exceeds MAX_ALLOCATION_LINES (10,000) (PRD §F38.3-8 verbatim +
+    AD-50 (c) verbatim). 409 (Conflict) semantics: caller must split
+    period or contact admin.
+    """
+
+    http_status: int = 409
+
+
+# §F38.4 reconciliation (4 NEW)
+class ChargebackReconciliationError(FinopsChargebackSettlementError):
+    """HTTP 500 typed error — reconciliation 3-way match runtime failure.
+
+    Raised by reconciliation.reconcile_settlement() when 3-way match
+    computation (allocation_amount vs invoice_amount vs ledger_amount)
+    fails (PRD §F38.4-7 verbatim + AD-50 (d) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ChargebackReconciliationToleranceError(FinopsChargebackSettlementError):
+    """HTTP 422 typed error — reconciliation tolerance exceedance.
+
+    Raised by reconciliation.reconcile_settlement() when
+    variance_pct > RECONCILIATION_TOLERANCE_PCT (1.0%) — strict-mode caller
+    raises this; non-strict path returns reconciliation_status='variance_detected'
+    (PRD §F38.4-7 verbatim + AD-50 (d) verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ChargebackReconciliationRetryError(FinopsChargebackSettlementError):
+    """HTTP 502 typed error — reconciliation auto-retry exhausted.
+
+    Raised by reconciliation.reconcile_settlement() after 3 auto-retries
+    (RECONCILIATION_MAX_RETRIES=3) all fail with tolerance exceeded.
+    Routes reconciliation_status='retry_exhausted' + admin email alert
+    + Epic 12 2FA 챌린지 mandatory path for human intervention
+    (PRD §F38.4-7 verbatim + AD-50 (d) verbatim + AD-50 (g) verbatim).
+    502 (Bad Gateway) semantics: upstream ledger/chargeback/invoice source
+    not resolvable after retries.
+    """
+
+    http_status: int = 502
+
+
+class ChargebackReconciliationApprovalError(FinopsChargebackSettlementError):
+    """HTTP 403 typed error — reconciliation owner approval required.
+
+    Raised by reconciliation.reconcile_settlement() when
+    estimated_annual_settlement_krw >=
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR (10M) AND pending approval —
+    owner-only RBAC AD-22 + Epic 12 2FA 챌린지 mandatory (PRD §F38.4-7
+    verbatim + AD-50 (d) verbatim + AD-50 (g) verbatim). 403 (Forbidden)
+    semantics: caller lacks owner role 2FA challenge clearance.
+    """
+
+    http_status: int = 403

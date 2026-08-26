@@ -631,6 +631,34 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # matrix v1.47 EXTENSION 1 NEW row).
     FINOPS_RESERVED_CAPACITY_PLANNING = "finops_reserved_capacity_planning"
 
+    # Phase 22 (cj-style 160번째 wire) — FINOPS_CHARGEBACK_SETTLEMENT
+    # — FinOps Chargeback Settlement territory (PRD §F38 + AD-50 (a)~(g)
+    # 7 sub-decisions). Industry-agnostic per CR 12-1 L4 precedent +
+    # FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire + FINOPS_MULTI_CLOUD
+    # Phase 20 wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT
+    # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+    # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+    # wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+    # Phase 13 wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT
+    # Phase 12 wire + FINOPS Phase 11 wire pattern verbatim). All 4
+    # industries get FINOPS_CHARGEBACK_SETTLEMENT capability (settlement
+    # layer wiring is a business-level FinOps pillar per FinOps Foundation
+    # + 5-module cross-join composition layer (Phase 11 chargeback + Phase
+    # 18 commitment + Phase 19 pricing + Phase 20 multi_cloud + Phase 21
+    # reserved_capacity weighted average → single settlement_id +
+    # allocation_lines + invoice_id + reconciliation_id) + 5-dim weighted
+    # allocation (cost_center × 0.30 + department × 0.25 + business_unit ×
+    # 0.20 + tag × 0.15 + tenant × 0.10) + PDF/XLSX/CSV invoice generation
+    # (reportlab 4.0.7 + xlsxwriter 3.1.9 + noto-sans-cjk-kr + A4 landscape
+    # AD-14 stack pin) + 3-way match reconciliation (1.0% tolerance + 3
+    # auto-retries + admin email alert) + scheduled dispatch KST pytz +
+    # dry-run mode + Epic 12 2FA 챌린지 mandatory (high-value threshold
+    # 10M KRW/year AD-50 (g)). Gates require_finops_chargeback_settlement
+    # dep in apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_48_drift.py (capability
+    # matrix v1.48 EXTENSION 1 NEW row).
+    FINOPS_CHARGEBACK_SETTLEMENT = "finops_chargeback_settlement"
+
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
@@ -914,6 +942,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Foundation Reserved Capacity Planning pillar + 5-module
             # composition layer pattern.
             Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
+            # Phase 22 — FINOPS_CHARGEBACK_SETTLEMENT (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_CHARGEBACK_SETTLEMENT,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1142,6 +1172,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # schedule KST pytz + dry-run mode + Epic 12 2FA 챌린지
             # mandatory (high-value threshold 10M KRW/year).
             Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
+            # Phase 22 — FINOPS_CHARGEBACK_SETTLEMENT (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_CHARGEBACK_SETTLEMENT,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1387,6 +1419,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # schedule KST pytz + dry-run mode + Epic 12 2FA 챌린지
             # mandatory (high-value threshold 10M KRW/year).
             Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
+            # Phase 22 — FINOPS_CHARGEBACK_SETTLEMENT (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_CHARGEBACK_SETTLEMENT,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1629,6 +1663,33 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # schedule KST pytz + dry-run mode + Epic 12 2FA 챌린지
             # mandatory (high-value threshold 10M KRW/year).
             Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
+            # Phase 22 (cj-style 160번째 wire) — FINOPS_CHARGEBACK_SETTLEMENT
+            # (industry-agnostic per CR 12-1 L4 precedent +
+            # FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire +
+            # FINOPS_MULTI_CLOUD Phase 20 wire + FINOPS_PRICING Phase 19
+            # wire + FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY
+            # Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+            # FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+            # Phase 14 wire + FINOPS_FORECASTING Phase 13 wire +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+            # + FINOPS Phase 11 wire pattern verbatim). 5-module cross-join
+            # composition layer (Phase 11 chargeback + Phase 18 commitment +
+            # Phase 19 pricing + Phase 20 multi_cloud + Phase 21 reserved_capacity
+            # weighted average via FIVE_MODULE_WEIGHTS = {chargeback: 0.30,
+            # commitment: 0.20, pricing: 0.20, multi_cloud: 0.15,
+            # reserved_capacity: 0.15}) + 5-dim weighted allocation via
+            # ALLOCATION_DIMENSION_WEIGHTS = {cost_center: 0.30, department:
+            # 0.25, business_unit: 0.20, tag: 0.15, tenant: 0.10} + PDF/XLSX/CSV
+            # invoice generation (reportlab 4.0.7 + xlsxwriter 3.1.9 AD-14
+            # stack pin + noto-sans-cjk-kr Korean font + A4 landscape) +
+            # 3-way match reconciliation (1.0% tolerance +
+            # RECONCILIATION_MAX_RETRIES=3 + admin email alert) + 4 cadence
+            # schedule KST pytz + dry-run mode + Epic 12 2FA 챌린지
+            # mandatory (high-value threshold 10M KRW/year AD-50 (g)).
+            # Chargeback settlement applies industry-agnostically per
+            # FinOps Foundation + Phase 11~21 11-module FinOps territory
+            # chain carry-over.
+            Capability.FINOPS_CHARGEBACK_SETTLEMENT,
         }
     ),
 }

@@ -600,4 +600,113 @@ __all__ = [
     "validate_orchestration",
     "dispatch_reserved_capacity_orchestration",
     "validate_reserved_capacity_dispatch",
+    # Phase 22 wire (cj-style 160번째) — FinOps Chargeback Settlement
+    # territory. 5-module cross-join + 5-dim allocation + PDF/XLSX/CSV
+    # invoice + 3-way match reconciliation + 4 cadence KST + dry-run +
+    # Epic 12 2FA 챌린지 mandatory.
+    "CHARGEBACK_SETTLEMENT_ENGINE_MODEL_VERSION",
+    "CHARGEBACK_SETTLEMENT_DEFAULTS",
+    "ALLOCATION_DIMENSION_WEIGHTS",
+    "ALLOCATION_DIMENSION_WEIGHT_SUM",
+    "FIVE_MODULE_WEIGHTS",
+    "FIVE_MODULE_WEIGHT_SUM",
+    "HIGH_VALUE_THRESHOLD_KRW_PER_YEAR",
+    "MAX_ALLOCATION_LINES",
+    "MAX_INVOICE_BYTES",
+    "RECONCILIATION_TOLERANCE_PCT",
+    "RECONCILIATION_MAX_RETRIES",
+    "RECONCILIATION_AMOUNT_TOLERANCE_KRW",
+    "SETTLEMENT_CADENCE_HOURS_KST",
+    "SETTLEMENT_RECIPIENT_TEMPLATES",
+    "ALL_RECONCILIATION_STATUSES",
+    "ALL_SETTLEMENT_CADENCES",
+    "ALL_SETTLEMENT_RULE_TYPES",
+    "ALL_SETTLEMENT_STATUSES",
+    "ALL_ALLOCATION_DIMENSIONS",
+    "ALL_INVOICE_FORMATS",
+    "SettlementRule",
+    "SettlementResult",
+    "AllocationLine",
+    "ReconciliationResult",
+    "SettlementRuleType",
+    "SettlementStatus",
+    "AllocationDimension",
+    "InvoiceFormat",
+    "create_settlement_rule",
+    "update_settlement_rule",
+    "list_settlement_rules",
+    "validate_settlement_rule",
+    "compute_allocation",
+    "validate_allocation_lines",
+    "aggregate_allocation_breakdown",
+    "generate_invoice",
+    "validate_invoice_format",
+    "reconcile_settlement",
+    "validate_reconciliation_result",
+    "compute_settlement_result",
+    "schedule_cadence_dispatch",
+    "execute_dispatch",
+    "validate_cadence",
+    "chargeback_settlement_router",
 ]
+
+
+# Phase 22 wire (cj-style 160번째) — FinOps Chargeback Settlement
+# territory. 5-module cross-join composition layer (Phase 11 chargeback
+# + Phase 18 commitment + Phase 19 pricing + Phase 20 multi_cloud +
+# Phase 21 reserved_capacity weighted average → single settlement_id +
+# allocation_id + invoice_id + reconciliation_id). 5-dim allocation
+# (cost_center + department + business_unit + tag + tenant) +
+# PDF/XLSX/CSV invoice generation (reportlab 4.0.7 + xlsxwriter 3.1.9
+# + noto-sans-cjk-kr) + 3-way match reconciliation (1.0% tolerance +
+# 3 auto-retries) + 4 cadence schedule KST pytz (monthly 04:00 +
+# quarterly 05:00 + semi_annual 06:00 + annual 07:00) + dry-run mode +
+# Epic 12 2FA 챌린지 mandatory (high-value threshold 10M KRW/year) +
+# 8 NEW audit actions + 16 NEW typed exceptions + 9 NEW endpoints +
+# AD-50 (a)~(g) 7 sub-decisions.
+from apps.api.modules.finops.chargeback_settlement import (
+    ALL_ALLOCATION_DIMENSIONS,
+    ALL_INVOICE_FORMATS,
+    ALL_RECONCILIATION_STATUSES,
+    ALL_SETTLEMENT_CADENCES,
+    ALL_SETTLEMENT_RULE_TYPES,
+    ALL_SETTLEMENT_STATUSES,
+    ALLOCATION_DIMENSION_WEIGHT_SUM,
+    ALLOCATION_DIMENSION_WEIGHTS,
+    CHARGEBACK_SETTLEMENT_DEFAULTS,
+    CHARGEBACK_SETTLEMENT_ENGINE_MODEL_VERSION,
+    FIVE_MODULE_WEIGHT_SUM,
+    FIVE_MODULE_WEIGHTS,
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
+    MAX_ALLOCATION_LINES,
+    MAX_INVOICE_BYTES,
+    RECONCILIATION_AMOUNT_TOLERANCE_KRW,
+    RECONCILIATION_MAX_RETRIES,
+    RECONCILIATION_TOLERANCE_PCT,
+    SETTLEMENT_CADENCE_HOURS_KST,
+    SETTLEMENT_RECIPIENT_TEMPLATES,
+    AllocationDimension,
+    AllocationLine,
+    InvoiceFormat,
+    ReconciliationResult,
+    SettlementResult,
+    SettlementRule,
+    SettlementRuleType,
+    SettlementStatus,
+    aggregate_allocation_breakdown,
+    chargeback_settlement_router,
+    compute_allocation,
+    compute_settlement_result,
+    create_settlement_rule,
+    execute_dispatch,
+    generate_invoice,
+    list_settlement_rules,
+    reconcile_settlement,
+    schedule_cadence_dispatch,
+    update_settlement_rule,
+    validate_allocation_lines,
+    validate_cadence,
+    validate_invoice_format,
+    validate_reconciliation_result,
+    validate_settlement_rule,
+)

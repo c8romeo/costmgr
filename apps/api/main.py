@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from apps.api.core.alerting import AlertWebhookPayloadInvalidError
 from apps.api.core.cache_invalidation_publisher import (
     CacheInvalidationChannelInvalidError,
 )
@@ -23,7 +24,14 @@ from apps.api.core.capability import (
     IndustryCapabilityError,
 )
 from apps.api.core.health import router as health_router
+from apps.api.core.latency_budget import LatencyRegressionThresholdExceededError
 from apps.api.core.observability import init_sentry
+from apps.api.core.pipa_gate import (
+    PipaConsentMissingError,
+    PipaReviewRequiredError,
+)
+from apps.api.core.security import AuthError
+
 # Phase 7 (cj-style 91번째 wire) — OpenTelemetry + observability
 # imports. Three new core modules: tracing (OTEL SDK + W3C Trace Context
 # middleware), metrics (Prometheus custom collectors + /metrics endpoint),
@@ -31,15 +39,7 @@ from apps.api.core.observability import init_sentry
 # Note: Sentry (Phase 4) + OTEL (Phase 7) coexist — Sentry is for error
 # tracking + performance traces via Sentry SDK; OTEL is for distributed
 # tracing via OTLP HTTP exporter + W3C Trace Context + Prometheus metrics.
-from apps.api.core.tracing import init_tracing, TraceContextMiddleware
-from apps.api.core.metrics import render_metrics
-from apps.api.core.alerting import AlertWebhookPayloadInvalidError
-from apps.api.core.latency_budget import LatencyRegressionThresholdExceededError
-from apps.api.core.pipa_gate import (
-    PipaConsentMissingError,
-    PipaReviewRequiredError,
-)
-from apps.api.core.security import AuthError
+from apps.api.core.tracing import TraceContextMiddleware, init_tracing
 from apps.api.modules.audit.audit_log_routes import (
     AuditLogEntryNotFoundError,
     AuditLogExportForbiddenError,
@@ -501,18 +501,26 @@ app.include_router(executive_dashboard_router)
 # Capability gates FINOPS_SUSTAINABILITY + FINOPS_COMMITMENT + FINOPS_PRICING
 # + FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION (capability matrix v1.46
 # EXTENSION preserve). AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
-from apps.api.modules.finops.sustainability.sustainability_routes import (
-    router as sustainability_router,
+# Phase 22 wire (cj-style 160번째) — FinOps Chargeback Settlement
+# territory. Capability gates FINOPS_CHARGEBACK_SETTLEMENT
+# (capability matrix v1.48 EXTENSION preserve). AD-22 owner-only RBAC
+# + Epic 12 2FA 챌린지 mandatory. 9 endpoints covering settlement-rules
+# CRUD + allocation + invoice generation + reconciliation + cadence
+# dispatch + cadence-preview + healthcheck. ALLOWED_SERVICE_SUBMODULES
+# EXTENSION m30_finops_chargeback_settlement 신규 submodule 등록.
+from apps.api.modules.finops.chargeback_settlement.chargeback_settlement_routes import (
+    router as chargeback_settlement_router,
 )
 from apps.api.modules.finops.commitment.commitment_routes import (
     router as commitment_router,
 )
-from apps.api.modules.finops.pricing.pricing_routes import (
-    router as pricing_router,
-)
 from apps.api.modules.finops.multi_cloud.multi_cloud_routes import (
     router as multi_cloud_router,
 )
+from apps.api.modules.finops.pricing.pricing_routes import (
+    router as pricing_router,
+)
+
 # Phase 21 wire (cj-style 151번째) — FinOps Reserved Capacity Planning
 # territory. CRITICAL: registered BEFORE main.py close to avoid
 # Phase 20.5 router omission pattern. Capability gates
@@ -521,12 +529,16 @@ from apps.api.modules.finops.multi_cloud.multi_cloud_routes import (
 from apps.api.modules.finops.reserved_capacity.reserved_capacity_routes import (
     router as reserved_capacity_router,
 )
+from apps.api.modules.finops.sustainability.sustainability_routes import (
+    router as sustainability_router,
+)
 
 app.include_router(sustainability_router)
 app.include_router(commitment_router)
 app.include_router(pricing_router)
 app.include_router(multi_cloud_router)
 app.include_router(reserved_capacity_router)
+app.include_router(chargeback_settlement_router)
 
 
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack
@@ -540,16 +552,16 @@ app.include_router(reserved_capacity_router)
 # (capability matrix v1.32 EXTENSION). audit-first INSERT 2 NEW
 # OBSERVABILITY actions (alert_fired / trace_sampled) — CR 1-1 verbatim
 # pattern mirror of Phase 6 wire `24e1cd7` 5 NEW AUDIT actions.
+from fastapi import APIRouter, Depends
+from fastapi.responses import Response
+
 from apps.api.core.metrics import (
-    REGISTRY as _PROM_REGISTRY,
     render_metrics as _render_metrics,
 )
 from apps.api.dependencies.capability import (
-    require_observability_traces,
     require_observability_metrics,
+    require_observability_traces,
 )
-from fastapi import APIRouter, Depends
-from fastapi.responses import Response
 
 _observability_router = APIRouter(prefix="/api/v1", tags=["observability"])
 
@@ -583,7 +595,7 @@ async def alerts_webhook(payload: dict) -> dict:
     AlertWebhookPayloadInvalidError. On success, fires alert
     (audit-first INSERT BEFORE Slack dispatch).
     """
-    from apps.api.core.alerting import validate_alert_webhook_payload, fire_alert
+    from apps.api.core.alerting import fire_alert, validate_alert_webhook_payload
     from apps.api.core.db import get_session
 
     rule = validate_alert_webhook_payload(payload)
@@ -614,8 +626,9 @@ async def alerts_ack(
     Owner-only PagerDuty manual trigger per AD-22 RBAC + Epic 12 2FA 챌린지
     보존. Returns 403 if actor_role != "owner".
     """
-    from apps.api.core.alerting import trigger_pagerduty_manually
     import uuid
+
+    from apps.api.core.alerting import trigger_pagerduty_manually
 
     await trigger_pagerduty_manually(
         alert_name=alert_name,

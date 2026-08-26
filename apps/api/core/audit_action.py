@@ -87,6 +87,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_PRICING = "finops_pricing"  # Phase 19 (cj-style 139번째 wire — NEW — Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
     FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION = "finops_multi_cloud_unified_reconciliation"  # Phase 20 (cj-style 144번째 wire — NEW — Multi-cloud rate card + cost + negotiation + blended/unblended + marketplace SaaS pricing 통합 + scheduled dispatch + multi-cloud viewer role RBAC + dry-run audit-first INSERT, AD-47)
     FINOPS_RESERVED_CAPACITY_PLANNING = "finops_reserved_capacity_planning"  # Phase 21 (cj-style 151번째 wire — NEW — Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
+    FINOPS_CHARGEBACK_SETTLEMENT = "finops_chargeback_settlement"  # Phase 22 (cj-style 160번째 wire — NEW — Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1076,6 +1077,21 @@ FinopsReservedCapacityAction = Literal[
 ]
 
 
+# Phase 22 (cj-style 160번째 wire — NEW — Settlement rules + allocation
+# engine + invoice generation + reconciliation 3-way match + approval +
+# dispatch + dry-run audit-first INSERT, AD-50).
+FinopsChargebackSettlementAction = Literal[
+    "settlement_rule_created",  # §F38.1-10 — settlement rule row created
+    "settlement_rule_updated",  # §F38.1-10 — settlement rule row updated
+    "settlement_calculated",  # §F38.1+2 — 5-module cross-join + 5-dim weighted allocation
+    "allocation_verified",  # §F38.2-6 — 5-dim allocation imbalance validation
+    "settlement_invoice_generated",  # §F38.3-8 — PDF/XLSX/CSV invoice generated
+    "settlement_reconciled",  # §F38.4-7 — 3-way match reconciliation
+    "settlement_dry_run_executed",  # §F38.8-1 — dry-run preview
+    "settlement_approval_required",  # §F38.4-7 — owner approval + 2FA challenge
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1121,6 +1137,7 @@ AuditAction = (
     | FinopsPricingAction  # NEW — Phase 19 (Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
     | FinopsMultiCloudUnifiedReconciliationAction  # NEW — Phase 20 (Multi-cloud rate card + cost + negotiation + blended/unblended + marketplace SaaS pricing 통합 + scheduled dispatch + multi-cloud viewer role RBAC + dry-run audit-first INSERT, AD-47)
     | FinopsReservedCapacityAction  # NEW — Phase 21 (Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
+    | FinopsChargebackSettlementAction  # NEW — Phase 22 (Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
 )
 
 
@@ -1934,6 +1951,42 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 22 (cj-style 160번째 wire) — FINOPS_CHARGEBACK_SETTLEMENT 8
+        # NEW values (settlement rules + allocation engine + invoice
+        # generation + reconciliation 3-way match + approval + dispatch +
+        # dry-run audit-first INSERT, AD-50 verbatim). Routes to
+        # `audit_logs` (NOT to a separate ledger — FinOps chargeback
+        # settlement events are tenant-scoped platform-event trail only,
+        # mirroring FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire +
+        # FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION Phase 20 wire +
+        # FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire
+        # + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase
+        # 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+        # Phase 14 wire + FINOPS_FORECASTING Phase 13 wire +
+        # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+        # FINOPS Phase 11 wire pattern verbatim). target_table=
+        # `finops_chargeback_settlement` aligns with
+        # ActionClass.FINOPS_CHARGEBACK_SETTLEMENT value (audit_log
+        # target_table column populated verbatim — RLS preserved). Drift
+        # detector enforces ActionClass registry ↔ DB CHECK (no-op for
+        # audit_logs per AD-2) ↔ call sites parity (3-way gate). Phase
+        # 21 cj-style 151번째 wire FINOPS_RESERVED_CAPACITY_PLANNING
+        # registry pattern verbatim applied.
+        ActionClass.FINOPS_CHARGEBACK_SETTLEMENT: (
+            "audit_logs",
+            frozenset(
+                {
+                    "settlement_rule_created",  # §F38.1-10 — settlement rule row created
+                    "settlement_rule_updated",  # §F38.1-10 — settlement rule row updated
+                    "settlement_calculated",  # §F38.1+2 — 5-module cross-join + 5-dim weighted allocation
+                    "allocation_verified",  # §F38.2-6 — 5-dim allocation imbalance validation
+                    "settlement_invoice_generated",  # §F38.3-8 — PDF/XLSX/CSV invoice generated
+                    "settlement_reconciled",  # §F38.4-7 — 3-way match reconciliation
+                    "settlement_dry_run_executed",  # §F38.8-1 — dry-run preview
+                    "settlement_approval_required",  # §F38.4-7 — owner approval + 2FA challenge
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -2078,5 +2131,6 @@ __all__ = [
     "FinopsCommitmentAction",  # NEW — Phase 18 (Commitment inventory aggregator + commitment KPI selector + commitment report generator + scheduled dispatch + commitment role RBAC + dry-run audit-first INSERT, AD-45)
     "FinopsPricingAction",  # NEW — Phase 19 (Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
     "FinopsReservedCapacityAction",  # NEW — Phase 21 (Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
+    "FinopsChargebackSettlementAction",  # NEW — Phase 22 (Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
     "emit_audit_typed",
 ]
