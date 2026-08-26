@@ -72,6 +72,7 @@ from apps.api.modules.finops.multi_cloud.serializers import (
     ALL_MULTI_CLOUD_RATE_CARD_KPI_NAMES,
     ALL_MULTI_CLOUD_RATE_CARD_SOURCES,
     ALL_MULTI_CLOUD_SCOPE_TYPES,
+    ALL_NEGOTIATION_COMMITMENT_TERMS,
     ALL_NEGOTIATION_RISK_LEVELS,
     ALL_NEGOTIATION_STATUSES,
     ALL_NEGOTIATION_STRATEGIES,
@@ -103,6 +104,33 @@ from apps.api.modules.finops.multi_cloud.serializers import (
     NegotiationStrategy,
     ScheduledMultiCloudDispatch,
 )
+# Phase 20.5 wire (cj-style 147번째) — Re-export aggregator functions from
+# multi_cloud submodules. Phase 20 wire `52dad7f` defined these functions
+# but `multi_cloud/__init__.py` did NOT re-export them, breaking the
+# `from apps.api.modules.finops.multi_cloud import integrate_marketplace_*`
+# call sites in `apps/api/modules/finops/__init__.py` and elsewhere.
+from apps.api.modules.finops.multi_cloud.rate_card_reconciliation_aggregator import (
+    reconcile_multi_cloud_rate_cards,
+    validate_multi_cloud_rate_card_reconciliation,
+)
+from apps.api.modules.finops.multi_cloud.cost_reconciliation_aggregator import (
+    reconcile_multi_cloud_costs,
+    validate_multi_cloud_cost_reconciliation,
+)
+from apps.api.modules.finops.multi_cloud.negotiation_bot import (
+    run_negotiation_bot,
+    validate_negotiation_recommendation,
+)
+from apps.api.modules.finops.multi_cloud.blended_unblended_tracker import (
+    monitor_naver_kt_api_health,
+    track_blended_unblended_diff,
+    validate_blended_unblended_diff,
+    validate_naver_kt_api_data_accuracy,
+)
+from apps.api.modules.finops.multi_cloud.marketplace_saas_pricing_integrator import (
+    integrate_marketplace_saas_pricing,
+    validate_marketplace_saas_pricing_rollup,
+)
 
 __all__ = [
     "MULTI_CLOUD_ENGINE_MODEL_VERSION",
@@ -127,6 +155,7 @@ __all__ = [
     "ALL_NEGOTIATION_RISK_LEVELS",
     "NegotiationCommitmentTerm",
     "NegotiationStrategy",
+    "ALL_NEGOTIATION_COMMITMENT_TERMS",
     "ALL_NEGOTIATION_STRATEGIES",
     "BlendedUnblendedTrackingStatus",
     "ALL_BLENDED_UNBLENDED_TRACKING_STATUSES",
@@ -151,4 +180,17 @@ __all__ = [
     "ALL_MULTI_CLOUD_COST_KPI_NAMES",
     "ALL_MULTI_CLOUD_RATE_CARD_KPI_NAMES",
     "ALL_BLENDED_UNBLENDED_KPI_NAMES",
+    # Phase 20.5 wire (cj-style 147번째) — aggregator function re-exports.
+    "reconcile_multi_cloud_rate_cards",
+    "validate_multi_cloud_rate_card_reconciliation",
+    "reconcile_multi_cloud_costs",
+    "validate_multi_cloud_cost_reconciliation",
+    "run_negotiation_bot",
+    "validate_negotiation_recommendation",
+    "monitor_naver_kt_api_health",
+    "track_blended_unblended_diff",
+    "validate_blended_unblended_diff",
+    "validate_naver_kt_api_data_accuracy",
+    "integrate_marketplace_saas_pricing",
+    "validate_marketplace_saas_pricing_rollup",
 ]

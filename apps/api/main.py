@@ -492,6 +492,34 @@ from apps.api.modules.finops.executive_dashboard_routes import (
 app.include_router(executive_dashboard_router)
 
 
+# Phase 20.5 (cj-style 147번째 epic 연속 정직 회복 wire) — Critical Gap
+# Resolution carry-over territory 결정 wire. Layer 1 P0: 4 finops routers
+# 신규 mounted (Phase 17 sustainability + Phase 18 commitment + Phase 19
+# pricing + Phase 20 multi-cloud). Phase 17-20 wire cycles created
+# aggregator modules but DID NOT create router files — this is the P0
+# critical functional gap that this wire cycle fixes.
+# Capability gates FINOPS_SUSTAINABILITY + FINOPS_COMMITMENT + FINOPS_PRICING
+# + FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION (capability matrix v1.46
+# EXTENSION preserve). AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
+from apps.api.modules.finops.sustainability.sustainability_routes import (
+    router as sustainability_router,
+)
+from apps.api.modules.finops.commitment.commitment_routes import (
+    router as commitment_router,
+)
+from apps.api.modules.finops.pricing.pricing_routes import (
+    router as pricing_router,
+)
+from apps.api.modules.finops.multi_cloud.multi_cloud_routes import (
+    router as multi_cloud_router,
+)
+
+app.include_router(sustainability_router)
+app.include_router(commitment_router)
+app.include_router(pricing_router)
+app.include_router(multi_cloud_router)
+
+
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack
 # 강화 territory (PRD §F23 + AD-34 verbatim). 3 NEW routers mounted:
 # - /api/v1/metrics                  — Prometheus exposition format endpoint

@@ -239,6 +239,13 @@ class NegotiationStrategy(str, enum.Enum):
 
 ALL_NEGOTIATION_STRATEGIES: list[str] = [s.value for s in NegotiationStrategy]
 
+# Phase 20.5 wire (cj-style 147번째) — ADD ALL_NEGOTIATION_COMMITMENT_TERMS
+# (Phase 20 wire `52dad7f` cj-style 144번째 의 honest deviation: NegotiationCommitmentTerm
+# enum 은 정의됐으나 ALL_* list constant 누락. Layer 1 P0 critical fix.)
+ALL_NEGOTIATION_COMMITMENT_TERMS: list[str] = [
+    t.value for t in NegotiationCommitmentTerm
+]
+
 
 class BlendedUnblendedTrackingStatus(str, enum.Enum):
     """Blended/Unblended tracker status (4종)."""
@@ -603,6 +610,7 @@ __all__ = [
     "NegotiationCommitmentTerm",
     "NegotiationStrategy",
     "ALL_NEGOTIATION_STRATEGIES",
+    "ALL_NEGOTIATION_COMMITMENT_TERMS",
     "BlendedUnblendedTrackingStatus",
     "ALL_BLENDED_UNBLENDED_TRACKING_STATUSES",
     "NaverKTApiHealthStatus",
