@@ -1,0 +1,130 @@
+---
+name: handoff-2026-08-27-phase-23-prd-entry-done
+description: Phase 23 PRD entry DONE (cj-style 162번째 epic 연속 정직 회복 atomic docs-only wire) — FinOps Unit Economics territory 결정 wire + 7 files = 3 NEW + 4 MODIFIED atomic single sprint
+metadata:
+  type: project
+---
+
+# handoff-2026-08-27-phase-23-prd-entry-done
+
+Phase 23 PRD entry DONE (cj-style 162번째 epic 연속 정직 회복 atomic docs-only wire):
+FinOps Unit Economics territory 결정 wire + 7 files = 3 NEW + 4 MODIFIED atomic single
+sprint (1 MODIFIED `_bmad-output/planning-artifacts/prd.md` §F39 EXTENSION ~+800 LOC:
+8 ACs §F39.1~§F39.8 verbatim → ~88 detailed sub-ACs pre-flight 정합 sweep 만족 +
+unit_economics engine + 5-dim cross-join EXTENSION + cost_per_business_unit + 5-dim
+rollup + cost_per_transaction + tag propagation + margin_analysis + revenue attribution
++ dashboard UI 5 sub-components + Capability matrix v1.49 EXTENSION reference +
+audit action EXTENSION 7 NEW Literal + 16 NEW typed exceptions CR 12-5 D-14 envelope +
+dry-run + wire scope T1~T8 reference + AD-51 (a)~(g) 7 sub-decisions cross-reference
+결정 wire + 1 MODIFIED `docs/capability-matrix.md` v1.48 → v1.49 EXTENSION
+FINOPS_UNIT_ECONOMICS row 1 NEW (Phase 23 4-industry grants ✅/✅/✅/✅ industry-agnostic
+CR 12-1 L4 verbatim) + 1 NEW `docs/architecture-decisions/AD-51-phase-23-finops-unit-economics.md`
+~+260 LOC verbatim mirroring AD-50 pattern (a)~(g) 7 sub-decisions 결정 wire + 1 NEW
+memory/handoff-2026-08-27-phase-23-prd-entry-done.md + 1 NEW
+`_bmad-output/implementation-artifacts/commit-msg-cj-162.txt` + 1 MODIFIED
+`_bmad-output/implementation-artifacts/sprint-status.yaml` v3.71 → v3.72 EXTENSION
+(last_updated_note_v3_72 신규 + phase-23-prd-entry: done entry EXTENSION with
+cross-reference + A639~A643 action_items 신규) + 1 MODIFIED memory/MEMORY.md hook
+EXTENSION = 3 NEW + 4 MODIFIED = 7 files atomic single sprint 결정 wire 진입 완료 보존).
+
+**Phase 11~22 14-capability FinOps territory chain ✅ ALL WIRED 진입 정합 보존**
+(Phase 11 FINOPS_SHOWBACK + Phase 11 FINOPS_CHARGEBACK + Phase 12 FINOPS_ANOMALY_DETECTION
++ Phase 12 FINOPS_BUDGET_ALERT + Phase 13 FINOPS_FORECASTING_CAPACITY_PLANNING +
+Phase 14 FINOPS_OPTIMIZATION + Phase 15 FINOPS_TAG_GOVERNANCE + Phase 16 FINOPS_REPORTING
++ Phase 17 FINOPS_SUSTAINABILITY + Phase 18 FINOPS_COMMITMENT + Phase 19 FINOPS_PRICING
++ Phase 20 FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION + Phase 21 FINOPS_RESERVED_CAPACITY_PLANNING
++ Phase 22 FINOPS_CHARGEBACK_SETTLEMENT = 14 capabilities). Capability matrix v1.49 EXTENSION
+FINOPS_UNIT_ECONOMICS 4-industry grants ✅/✅/✅/✅ 결정 wire 보존 + AD-51 (a)~(g) 7
+sub-decisions 보존 + Phase 22 close-out retro `c5726ff` §11 의 honest deviation 정직
+회복 결정 wire 진입 완료 (Phase 22 close-out 의 4-entry-point ALL DONE + D-FINOPS-11
+honestly DEFER 보존 + Phase 22 wire retroactive correction 보존 + Phase 23 PRD entry
+의 unit economics derived metric layer 신규 결정 wire).
+
+**A19 cohesion 9 surface EXTENSION PASS preserved** (Phase 11~22 14-capability FinOps
+territory chain ✅ ALL WIRED + Phase 23 PRD entry 진입 후에도 보존 결정 wire).
+
+**8 ACs §F39.1~§F39.8 verbatim satisfied** (8 ACs + ~88 sub-ACs pre-flight 정합 sweep
+만족) + unit_economics engine + 5-dim cross-join + cost_per_business_unit + 5-dim
+rollup + cost_per_transaction + tag propagation + margin_analysis + revenue
+attribution + dashboard UI 5 sub-components + Capability matrix v1.49 EXTENSION +
+audit action EXTENSION 7 NEW Literal + 16 NEW typed exceptions + dry-run + wire scope
+T1~T8 + A19 cohesion 9 surface EXTENSION PASS preserved + CR lessons applied 결정
+wire 보존 + AD-50 (a)~(g) 7 sub-decisions 결정 wire 보존 + AD-51 (a)~(g) 7 sub-decisions
+신규 결정 wire 진입.
+
+**Honest deviations 2건 보존 진입 완료** (① NO NEW source code changes — sprint scope
+strictly docs only per CR 11-3 honest-DEFER discipline (cj-style 162 PRD entry =
+cj-style 4-entry-point cycle 1번째 단계 = docs-only convention). Phase 23 wire cycle
+진입 시점에 source/test/docs implementation 모두 결정 wire 진입 (cj-style 163 spec
+entry → cj-style 164 wire → cj-style 165 retro) ② NO NEW router endpoints or modules —
+docs files 만 EXTENSION, no actual backend modules + alembic + RSC pages + Client
+component + TypeScript mirrors + ko-KR.json 변경 (Phase 11~22 wire cycles 의 docs-only
+sprint pattern verbatim 미러).
+
+**3중 게이트 impact NONE** (Layer 3 docs-only 변경): ruff scoped 0 NEW (docs files pass
+`All checks passed!`) / pytest 0 NEW (apps/api backend pytest unchanged) / vitest 0 NEW
+(apps/web frontend unchanged) / tsc 0 NEW (apps/web frontend tsc unchanged) = 3중 게이트
+FINAL CLEAN 결정 wire + A19 cohesion 9 surface EXTENSION PASS preserved + 1-day atomic
+sprint.
+
+**A639~A643 신규 결정 wire** (cj-style 162번째):
+- A639 = 옵션 (a) Phase 23 PRD entry 진입 결정 wire (rationale 5종: cj-style 161번째
+  Phase 22 close-out retro DONE 직후 자연스러운 Phase 23 territory 진입 + Phase 11~22
+  14-capability FinOps territory chain ✅ ALL WIRED 후 derived metric layer 진입
+  결정 wire (Phase 22 5-dim allocation ledger data 활용 → cost_per_business_unit +
+  cost_per_transaction + margin analysis = executive KPI surface 직접적 ROI) +
+  Phase 22 close-out retro 의 next-옵션 ① verbatim 보류 결정 wire 진입 완료 +
+  Epic 1~17 + Phase 3~22 + Phase 19.5 + Phase 20.5 + 1st release cycle 정합)
+- A640 = master PRD §F39 EXTENSION 결정 wire (~+800 LOC, 8 ACs §F39.1~§F39.8 verbatim +
+  unit_economics engine + 5-dim cross-join + cost_per_business_unit + 5-dim rollup +
+  cost_per_transaction + tag propagation + margin_analysis + revenue attribution +
+  dashboard 5 sub-components + Capability matrix v1.49 EXTENSION + audit action
+  EXTENSION 7 NEW Literal + 16 NEW typed exceptions + dry-run + wire scope T1~T8 +
+  AD-51 (a)~(g) 7 sub-decisions cross-reference)
+- A641 = capability matrix v1.49 EXTENSION + AD-51 7 sub-decisions 결정 wire (Phase 23
+  4-industry grants ✅/✅/✅/✅ industry-agnostic CR 12-1 L4 verbatim + AD-51 (a)
+  unit_economics engine + 5-dim cross-join decision + (b) cost_per_business_unit + 5-dim
+  rollup decision + (c) cost_per_transaction + tag propagation decision + (d)
+  margin_analysis + revenue attribution decision + (e) NFR4 PII minimization preserved
+  decision + (f) NFR18 ko-KR SSOT decision + (g) Epic 12 2FA 챌린지 mandatory +
+  owner-only decision)
+- A642 = Honest deviations 2건 보존 진입 완료 (① NO NEW source code changes ② NO NEW
+  router endpoints or modules)
+- A643 = sprint-status v3.71 → v3.72 EXTENSION + atomic commit via `git commit -F <file>`
+  CR 9-6 D5 prevention + commit-msg-cj-162.txt 신규 + handoff memory 신규 + MEMORY.md
+  hook EXTENSION + **7 files = 3 NEW + 4 MODIFIED atomic single sprint** 결정 wire
+  진입 완료 보존
+
+**CR lessons applied + AD-51 신규 (a)~(g)** 결정 wire 보존 (cj-style 161 의 19종 +
+**CR 11-3 honest-DEFER 52번째 Phase 23 PRD entry 진입** + AD-51 (a)~(g) 7 sub-decisions).
+
+Atomic commit via `git commit -F <file>` CR 9-6 verbatim D5 prevention + PowerShell
+here-string 회피 + **7 files = 3 NEW + 4 MODIFIED atomic single sprint** (verified via
+git status --short pre-commit) 결정 wire 진입 완료 보존. 결정 wire 일자: 2026-08-27 (KST).
+
+**next**: 옵션 (a) Phase 23 spec entry 진입 결정 wire (cj 163) — Phase 23 spec file ~+440
+LOC 결정 wire + 8 ACs §F39.1~§F39.8 detail 명세 + T1~T8 + atomic single sprint /
+옵션 (b) Phase 23 atomic wire T1~T8 진입 결정 wire (cj 164) — 5 NEW backend modules +
+alembic 0055 phase_23_unit_economics 1 preview table + RSC pages + Client components +
+TypeScript mirrors + ko-KR.json + main.py include 결정 wire / 옵션 (c) Phase 23 close-out
+retro 진입 결정 wire (cj 165) — retro_document ~+660 LOC 14-section §1~§14 verbatim
+mirroring phase-22-close-out-2026-08-27.md pattern + honest deviations + decision ledger
+결정 wire / 옵션 (d) Layer 2 P1 + Layer 3 P2 carry-over sprint 진입 / 옵션 (e) audit-fixes
+sprint 진입 결정 wire / 옵션 (f) Epic 23+ 진입 결정 wire / 옵션 (g) D-DEFER-* follow-up
+결정 wire 보류.
+
+## Why
+
+Phase 22 close-out retro (cj 161) 의 4-entry-point ALL DONE 후 자연스러운 다음 단계
+진입. Phase 22 의 5-dim allocation data 가 이미 executive KPI 도출을 위한 충분한
+source-of-truth 으로 작용 가능 → 새 ledger ingestion 없이 derived metric layer
+구축 가능.
+
+## How to apply
+
+Phase 23 spec entry 진입 시 (cj 163): §F39 의 8 ACs §F39.1~§F39.8 verbatim → ~88 sub-ACs
+전개 + T1~T8 + ~42 subtasks 결정 wire. Phase 23 atomic wire 진입 시 (cj 164): 5 NEW
+backend modules (unit_economics_engine + cost_per_business_unit + cost_per_transaction
++ margin_analysis + scheduled_unit_economics_calculation) + alembic 0055 phase_23
+preview table 1 + dashboard UI 5 sub-components + TypeScript mirrors + ko-KR.json +
+main.py include 결정 wire.
