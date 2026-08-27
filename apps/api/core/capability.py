@@ -659,6 +659,41 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # matrix v1.48 EXTENSION 1 NEW row).
     FINOPS_CHARGEBACK_SETTLEMENT = "finops_chargeback_settlement"
 
+    # Phase 23 (cj-style 164번째 wire) — FINOPS_UNIT_ECONOMICS — FinOps
+    # Unit Economics territory (PRD §F39 + AD-51 (a)~(g) 7 sub-decisions).
+    # Industry-agnostic per CR 12-1 L4 precedent + FINOPS_CHARGEBACK_
+    # SETTLEMENT Phase 22 wire + FINOPS_RESERVED_CAPACITY_PLANNING Phase
+    # 21 wire + FINOPS_MULTI_CLOUD Phase 20 wire + FINOPS_PRICING Phase
+    # 19 wire + FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY
+    # Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+    # FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION Phase 14
+    # wire + FINOPS_FORECASTING Phase 13 wire + FINOPS_ANOMALY_DETECTION +
+    # FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire pattern
+    # verbatim). All 4 industries get FINOPS_UNIT_ECONOMICS capability
+    # (unit economics derived metric layer is a business-level FinOps
+    # pillar per FinOps Foundation + 4-NEW-module composition layer:
+    # unit_economics_engine + cost_per_business_unit +
+    # cost_per_transaction + margin_analysis — derived from Phase 22
+    # allocation_lines ledger data via 5-dim cross-join + ledger-key
+    # dedup + cost_per_X = settlement.total_settlement_amount /
+    # count_distinct(X) rule). Includes 5-dim rollup (CostPerCostCenter +
+    # CostPerDepartment + CostPerBusinessUnit + CostPerTag + CostPerTenant)
+    # with per-tenant override chain (tenant_settings.unit_economics_
+    # overrides.dimension_weights) + transaction_id 기반 derived metric +
+    # 3 NEW filter dimensions (transaction_tag + environment_tag +
+    # application_tag) + OPTIONAL margin analysis (revenue tag 부재 시
+    # skip honest DEFER discipline) + high-value margin positive ≥ 10M
+    # KRW/year alert (Epic 12 2FA 챌린지 mandatory + tenant_owner
+    # approval chain) + negative margin Slack DM + scheduled
+    # calculation KST pytz (4 cadence: daily 03:30 + weekly 04:00 +
+    # monthly 04:30 + quarterly 05:00) + dry-run mode + 1 NEW CLI flag
+    # `--finops-unit-economics-dry-run`. Gates
+    # require_finops_unit_economics dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_49_drift.py
+    # (capability matrix v1.49 EXTENSION 1 NEW row).
+    FINOPS_UNIT_ECONOMICS = "finops_unit_economics"
+
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
@@ -944,6 +979,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
             # Phase 22 — FINOPS_CHARGEBACK_SETTLEMENT (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_CHARGEBACK_SETTLEMENT,
+            # Phase 23 — FINOPS_UNIT_ECONOMICS (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_UNIT_ECONOMICS,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1174,6 +1211,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
             # Phase 22 — FINOPS_CHARGEBACK_SETTLEMENT (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_CHARGEBACK_SETTLEMENT,
+            # Phase 23 — FINOPS_UNIT_ECONOMICS (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_UNIT_ECONOMICS,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1421,6 +1460,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_RESERVED_CAPACITY_PLANNING,
             # Phase 22 — FINOPS_CHARGEBACK_SETTLEMENT (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_CHARGEBACK_SETTLEMENT,
+            # Phase 23 — FINOPS_UNIT_ECONOMICS (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_UNIT_ECONOMICS,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1690,6 +1731,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # FinOps Foundation + Phase 11~21 11-module FinOps territory
             # chain carry-over.
             Capability.FINOPS_CHARGEBACK_SETTLEMENT,
+            # Phase 23 — FINOPS_UNIT_ECONOMICS (industry-agnostic per CR 12-1 L4).
+            # Unit economics derived metric layer applies
+            # industry-agnostically per FinOps Foundation + Phase 11~22
+            # 14-capability FinOps territory chain carry-over.
+            Capability.FINOPS_UNIT_ECONOMICS,
         }
     ),
 }

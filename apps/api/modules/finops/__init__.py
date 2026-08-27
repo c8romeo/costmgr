@@ -648,6 +648,63 @@ __all__ = [
     "execute_dispatch",
     "validate_cadence",
     "chargeback_settlement_router",
+    # Phase 23 wire (cj-style 164번째) — FinOps Unit Economics
+    # territory. Derived metric layer from Phase 22 settlement_id →
+    # allocation_lines ledger via 5-dim cross-join + ledger-key dedup
+    # + 5-dim rollup + OPTIONAL revenue attribution margin analysis
+    # + 4 cadence KST pytz (daily 03:30 + weekly 04:00 + monthly 04:30
+    # + quarterly 05:00) + dry-run mode + Epic 12 2FA 챌린지 mandatory
+    # (high-value threshold 10M KRW/year) + D-FINOPS-12 honestly DEFER
+    # (cost_per_customer CRM + multi-currency FX + real-time stream).
+    "MODULE_TAG",  # m31_finops_unit_economics
+    "UNIT_ECONOMICS_ENGINE_MODEL_VERSION",
+    "UNIT_ECONOMICS_DEFAULTS",
+    "DERIVATION_DIMENSION_WEIGHTS",
+    "COST_PER_X_METRIC_WEIGHTS",
+    "HIGH_VALUE_THRESHOLD_KRW_PER_YEAR",
+    "MARGIN_HEALTHY_THRESHOLD_PCT",
+    "MARGIN_WARNING_THRESHOLD_PCT",
+    "MARGIN_CRITICAL_THRESHOLD_PCT",
+    "MARGIN_NEGATIVE_PCT",
+    "MAX_BUSINESS_UNITS_PER_TENANT",
+    "MAX_TRANSACTIONS_PER_PERIOD",
+    "MAX_COST_PER_X_OVERRIDE_KRW",
+    "UNIT_ECONOMICS_CADENCE_HOURS_KST",
+    "UNIT_ECONOMICS_RECIPIENT_TEMPLATES",
+    "ALL_UNIT_ECONOMICS_CALCULATION_STATUSES",
+    "ALL_UNIT_ECONOMICS_DIMENSIONS",
+    "ALL_COST_PER_X_METRICS",
+    "ALL_MARGIN_ANALYSIS_STATUSES",
+    "ALL_UNIT_ECONOMICS_ALERT_SEVERITIES",
+    "ALL_UNIT_ECONOMICS_CADENCES",
+    "ALLOWED_TAG_KEYS",
+    "UnitEconomicsCalculationStatus",
+    "UnitEconomicsDimension",
+    "CostPerXMetric",
+    "MarginAnalysisStatus",
+    "UnitEconomicsAlertSeverity",
+    "UnitEconomicsResult",
+    "CostPerBusinessUnitBreakdown",
+    "CostPerTransactionBreakdown",
+    "MarginAnalysisResult",
+    "UnitEconomicsAlert",
+    "compute_unit_economics",
+    "list_unit_economics_results",
+    "validate_unit_economics_result",
+    "compute_cost_per_business_unit",
+    "validate_cost_per_business_unit",
+    "aggregate_cost_per_business_unit",
+    "compute_cost_per_transaction",
+    "validate_cost_per_transaction",
+    "aggregate_cost_per_transaction",
+    "execute_margin_analysis",
+    "validate_margin_analysis",
+    "aggregate_margin_analysis",
+    "compute_unit_economics_period",
+    "schedule_cadence_calculation",
+    "execute_calculation",
+    "validate_cadence",
+    "unit_economics_router",
 ]
 
 
@@ -709,4 +766,69 @@ from apps.api.modules.finops.chargeback_settlement import (
     validate_invoice_format,
     validate_reconciliation_result,
     validate_settlement_rule,
+)
+
+# Phase 23 wire (cj-style 164번째) — FinOps Unit Economics derived
+# metric layer territory. 4-NEW-module composition layer:
+# unit_economics_engine (5-dim cross-join from Phase 22
+# settlement_id → allocation_lines ledger) + cost_per_business_unit
+# (5-dim rollup + ledger-key dedup) + cost_per_transaction (tag
+# propagation + ledger-key dedup) + margin_analysis (OPTIONAL
+# revenue attribution + 3-tier status thresholds + alert generation).
+# 4 cadence schedule KST pytz (daily 03:30 + weekly 04:00 + monthly
+# 04:30 + quarterly 05:00) + dry-run mode + Epic 12 2FA 챌린지
+# mandatory (high-value threshold 10M KRW/year) + 7 NEW audit
+# actions + 15 NEW typed exceptions + 9 NEW endpoints +
+# AD-51 (a)~(g) 7 sub-decisions + D-FINOPS-12 honestly DEFER
+# (cost_per_customer CRM + multi-currency FX + real-time stream).
+from apps.api.modules.finops.unit_economics import (
+    ALLOWED_TAG_KEYS,
+    ALL_COST_PER_X_METRICS,
+    ALL_MARGIN_ANALYSIS_STATUSES,
+    ALL_UNIT_ECONOMICS_ALERT_SEVERITIES,
+    ALL_UNIT_ECONOMICS_CADENCES,
+    ALL_UNIT_ECONOMICS_CALCULATION_STATUSES,
+    ALL_UNIT_ECONOMICS_DIMENSIONS,
+    COST_PER_X_METRIC_WEIGHTS,
+    DERIVATION_DIMENSION_WEIGHTS,
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
+    MARGIN_CRITICAL_THRESHOLD_PCT,
+    MARGIN_HEALTHY_THRESHOLD_PCT,
+    MARGIN_NEGATIVE_PCT,
+    MARGIN_WARNING_THRESHOLD_PCT,
+    MAX_BUSINESS_UNITS_PER_TENANT,
+    MAX_COST_PER_X_OVERRIDE_KRW,
+    MAX_TRANSACTIONS_PER_PERIOD,
+    MODULE_TAG,  # m31_finops_unit_economics
+    UNIT_ECONOMICS_CADENCE_HOURS_KST,
+    UNIT_ECONOMICS_DEFAULTS,
+    UNIT_ECONOMICS_ENGINE_MODEL_VERSION,
+    UNIT_ECONOMICS_RECIPIENT_TEMPLATES,
+    CostPerBusinessUnitBreakdown,
+    CostPerTransactionBreakdown,
+    CostPerXMetric,
+    MarginAnalysisResult,
+    MarginAnalysisStatus,
+    UnitEconomicsAlert,
+    UnitEconomicsAlertSeverity,
+    UnitEconomicsCalculationStatus,
+    UnitEconomicsDimension,
+    UnitEconomicsResult,
+    aggregate_cost_per_business_unit,
+    aggregate_cost_per_transaction,
+    aggregate_margin_analysis,
+    compute_cost_per_business_unit,
+    compute_cost_per_transaction,
+    compute_unit_economics,
+    compute_unit_economics_period,
+    execute_calculation,
+    execute_margin_analysis,
+    list_unit_economics_results,
+    schedule_cadence_calculation,
+    unit_economics_router,
+    validate_cadence,
+    validate_cost_per_business_unit,
+    validate_cost_per_transaction,
+    validate_margin_analysis,
+    validate_unit_economics_result,
 )

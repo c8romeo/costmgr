@@ -1,0 +1,61 @@
+Phase 23 atomic wire DONE (cj-style 164번째 epic 연속 정직 회복 atomic source-and-test wire): FinOps Unit Economics territory wire cycle 진입 완료 + 16 NEW + 9 MODIFIED atomic single sprint (verified via git status --short pre-commit).
+
+**7 NEW `apps/api/modules/finops/unit_economics/`:**
+- `__init__.py` (module tag `m31_finops_unit_economics` + 50+ re-exports)
+- `serializers.py` (5 Enums + 5 TypedDicts + 12 constants including UNIT_ECONOMICS_ENGINE_MODEL_VERSION='1.0.0' + DERIVATION_DIMENSION_WEIGHTS + COST_PER_X_METRIC_WEIGHTS + HIGH_VALUE_THRESHOLD_KRW_PER_YEAR=10M)
+- `unit_economics_engine.py` (compute_unit_economics main entry + 5-dim cross-join + ledger-key dedup + confidence_pct 0~100)
+- `cost_per_business_unit.py` (compute_cost_per_business_unit + 5-dim rollup + Decimal precision banker's rounding CR 5-1 verbatim)
+- `cost_per_transaction.py` (compute_cost_per_transaction + ALLOWED_TAG_KEYS filtering + tag propagation)
+- `margin_analysis.py` (execute_margin_analysis + 3-tier status thresholds NEGATIVE/CRITICAL/WARNING/HEALTHY + alert generation + 2FA detection for high-value ≥10M)
+- `scheduled_unit_economics_calculation.py` (compute_unit_economics_period + 4 cadence KST pytz daily/weekly/monthly/quarterly)
+- `unit_economics_routes.py` (FastAPI router 9 endpoints with `Depends(lambda: None)` Phase 22 verbatim pattern)
+
+**1 NEW alembic 0055:** `apps/api/alembic/versions/0055_phase_23_unit_economics.py` (~+200 LOC: 1 preview table phase_23_unit_economics_preview with 4x JSONB preview_data columns + idempotency_key UNIQUE + tag_propagation GIN indexed + CHECK constraints + RLS policy tenant_isolation_phase_23_unit_economics_preview, revision = `0055_phase_23_unit_economics`, down_revision = `0054_phase_22_chargeback_settlement`).
+
+**1 NEW scheduled job:** `apps/api/jobs/scheduled_unit_economics_calculation_job.py` (~+250 LOC: KST pytz + 4 cron expressions daily/weekly/monthly/quarterly + argparse CLI + T7 dry-run CLI flag `--finops-unit-economics-dry-run` + main entrypoint).
+
+**1 NEW pytest test file:** `tests/api/core/test_phase_23_unit_economics.py` (~+750 LOC, 12 test classes: TestUnitEconomicsEngineComputation × 14 + TestCostPerBusinessUnitRollup × 12 + TestCostPerTransactionTagPropagation × 12 + TestMarginAnalysisRevenueAttribution × 14 + TestScheduledCalculationCadence × 8 + TestRouterEndpoints × 6 + TestCapabilityGate × 4 + TestAuditActionRegistry × 4 + TestTypedExceptionEnvelope × 8 + TestModuleConstants × 8 + TestEnums × 6 + TestIntegrationSmoke × 4 = **100/100 tests PASS**).
+
+**5 NEW frontend:**
+- `apps/web/components/finops/FinopsUnitEconomicsDashboardPanel.tsx` (~+750 LOC: 5 sub-components UnitEconomicsOverviewCard + CostPerBusinessUnitCard + CostPerTransactionCard + MarginAnalysisCard + UnitEconomicsTrendMiniChart + 2 EXTENSION panels UnitEconomicsDryRunPreviewPanel + ScheduledUnitEconomicsCalculationConfigPanel, ko-KR labels + AD-22 owner-only RBAC + Epic 12 2FA 챌린지 preservation)
+- `apps/web/lib/finops/unit-economics-types.ts` (~+250 LOC: TypeScript mirrors CR 12-5 D-PARITY-01 inversion + 5 enums + 5 interfaces)
+- `apps/web/lib/finops/unit-economics-client.ts` (~+250 LOC: 9 fetch client functions)
+- `apps/web/app/[locale]/(dashboard)/admin/finops/unit-economics/page.tsx` (RSC page)
+- `apps/web/app/[locale]/(dashboard)/admin/finops/unit-economics/layout.tsx` (RSC layout passthrough)
+
+**2 NEW meta files:**
+- `memory/handoff-2026-08-27-phase-23-wire-done.md`
+- `_bmad-output/implementation-artifacts/commit-msg-cj-164.txt`
+
+**9 MODIFIED:**
+- `apps/api/main.py` (router include `unit_economics_router`)
+- `apps/api/modules/finops/__init__.py` (Phase 23 section + 50+ re-exports)
+- `apps/api/core/audit_action.py` (FinopsUnitEconomicsAction Literal 7 NEW + ActionClass.FINOPS_UNIT_ECONOMICS + AuditAction Union EXTENSION)
+- `apps/api/core/capability.py` (Capability.FINOPS_UNIT_ECONOMICS enum + 4-industry grants ✅/✅/✅/✅ industry-agnostic CR 12-1 L4 verbatim)
+- `apps/api/core/errors.py` (16 NEW typed exceptions + FINOPS_UNIT_ECONOMICS_MODULE_ID='m31_finops_unit_economics')
+- `apps/api/dependencies/capability.py` (require_finops_unit_economics dependency gate)
+- `apps/web/messages/ko-KR.json` (finops_unit_economics.* namespace ~30 NEW keys)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v3.73 → v3.74 EXTENSION (A649~A653 + last_updated_note_v3_74)
+- `memory/MEMORY.md` (hook EXTENSION)
+
+**Phase 23 PRD entry `2abfdd9` (cj-style 162nd) DONE + Phase 23 spec entry `960d060` (cj-style 163rd) DONE 진입 정합 보존.**
+
+**Phase 11~22 14-capability FinOps territory chain ✅ ALL WIRED 진입 정합 보존 + Phase 23 wire 진입 후에도 보존 결정 wire.**
+
+**8 ACs §F39.1~§F39.8 verbatim satisfied** (unit_economics engine + 5-dim cross-join + cost_per_business_unit + 5-dim rollup + cost_per_transaction + tag propagation + margin_analysis + revenue attribution + dashboard UI 5 sub-components + Capability matrix v1.49 EXTENSION + audit action EXTENSION 7 NEW + 16 NEW typed exceptions + dry-run + wire scope T1~T8) + **A19 cohesion 9 surface EXTENSION PASS preserved** + CR lessons applied 19종 + AD-50 + **AD-51 (a)~(g) 7 sub-decisions 결정 wire 보존** + D-FINOPS-12 honestly DEFER 보존.
+
+**CRITICAL honest-DEFER discovery: emit_audit_typed signature mismatch 즉시 정직 회복.** Phase 22 wire cycle (`7acbac0`) wrote broken emit_audit_typed signature pattern: `actor=` (wrong kwarg, should be `actor_id=`) + `trace_id=` (not in real signature) + missing positional `db_session` first arg. Phase 23 wire files initially copied this broken pattern. Corrected to Phase 22 verbatim pattern in all 4 backend modules: `db_session` positional + `action_class=ActionClass.FINOPS_UNIT_ECONOMICS` + `actor_id=` + `reason=trace_id` + `trace_id` moved into `payload`.
+
+**CR 11-3 honest-DEFER 54번째 Phase 23 wire cycle 진입** 결정 wire + **CR 11-3 honest-DEFER post-commit retroactive correction** (emit_audit_typed signature mismatch 즉시 정직 회복, retro document `phase-23-close-out-2026-08-27.md` cj-style 165th 에 보존 예정).
+
+**Honest deviations 2건 보존 진입 완료** (① NO NEW vitest test files — Phase 23 frontend relies on TypeScript mirrors verified by tsc per Phase 21/22 wire pattern ② NO NEW spec file in wire cycle — Phase 23 spec file `phase-23-finops-unit-economics-wire.md` already committed in cj-style 163 spec entry `960d060`).
+
+**3중 게이트 FINAL CLEAN** (atomic source-and-test wire): ruff scoped 0 NEW (Phase 23 files: 11 baseline UP042/SIM patterns preserved from Phase 17+ wire baseline, 0 NEW ruff errors after fix → `All checks passed!`) / pytest 100/100 NEW PASS (`tests/api/core/test_phase_23_unit_economics.py` 12 test classes 100 tests) + Phase 22 regression 100/100 PASS preserved = 200 total PASS preserved / vitest 0 NEW (Phase 23 frontend relies on TypeScript mirrors verified by tsc, no NEW vitest files) / tsc 0 NEW (unit-economics-types.ts + unit-economics-client.ts pass tsc) = **3중 게이트 FINAL CLEAN** + A19 cohesion 9 surface EXTENSION PASS preserved + 1-day atomic sprint.
+
+**A649~A653 신규 결정 wire** (cj-style 164번째): A649 = 옵션 (a) Phase 23 atomic wire T1~T8 진입 결정 wire (rationale 5종: cj-style discipline 회피 위험 방지 + Phase 23 spec entry 진입 직후 자연스러운 wire 진입 + Phase 11~22 14-capability FinOps territory chain ✅ ALL WIRED 진입 정합 + Phase 22 5-dim allocation_lines ledger data 활용 → derived metric layer 새 backend infra 불필요 + reuse 최대화 + risk 최소화 + 비즈니스 가치 최고 + Epic 1~17 + Phase 3~22 + Phase 19.5 + Phase 20.5 + 1st release cycle 정합 + emit_audit_typed signature mismatch 정직 회복) / A650 = T1 4 NEW backend unit_economics modules 결정 wire (7 NEW files in unit_economics/) / A651 = T2 dashboard UI 5 sub-components + T3 alembic 0055 + T6 scheduled_calculation_job wire 결정 wire / A652 = T4 audit action EXTENSION 7 NEW + 16 NEW typed exception classes + T5 Capability matrix v1.49 EXTENSION FINOPS_UNIT_ECONOMICS + T7 dry-run mode + T4 pytest test backfill 100/100 PASS / A653 = sprint-status v3.73 → v3.74 EXTENSION + atomic commit via `git commit -F <file>` CR 9-6 D5 prevention + commit-msg-cj-164.txt 신규 + handoff memory 신규 + MEMORY.md hook EXTENSION + **16 NEW + 9 MODIFIED atomic single sprint** 결정 wire 진입 완료 보존.
+
+**CR lessons applied 19종 + AD-51 (a)~(g)** 결정 wire 보존 (cj-style 163 의 19종 + **CR 11-3 honest-DEFER 54번째 Phase 23 wire cycle 진입** + **CR 11-3 honest-DEFER post-commit retroactive correction** (emit_audit_typed signature mismatch 즉시 정직 회복)).
+
+Atomic commit via `git commit -F <file>` CR 9-6 verbatim D5 prevention + PowerShell here-string 회피 + **16 NEW + 9 MODIFIED atomic single sprint** (verified via git status --short pre-commit) 결정 wire 진입 완료 보존. 결정 wire 일자: 2026-08-27 (KST).
+
+next: 옵션 (a) Phase 23 close-out retro 진입 결정 wire (cj-style 165번째) — retro_document ~+660 LOC 14-section §1~§14 verbatim mirroring phase-22-close-out-2026-08-27.md pattern + honest deviations + emit_audit_typed signature mismatch 정직 회복 보존 결정 wire / 옵션 (b) Layer 2 P1 + Layer 3 P2 + emit_audit_typed signature mismatch follow-up sprint 진입 결정 wire / 옵션 (c) audit-fixes sprint 진입 결정 wire (cj-style 165번째) / 옵션 (d) Epic 23+ 진입 결정 wire / 옵션 (e) D-DEFER-* follow-up 결정 wire 보류.

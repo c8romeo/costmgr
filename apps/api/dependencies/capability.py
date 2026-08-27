@@ -99,6 +99,7 @@ __all__ = [
     "require_finops_multi_cloud",  # NEW — Phase 20 (FinOps Multi-Cloud Cost Unified Reconciliation)
     "require_finops_reserved_capacity",  # NEW — Phase 21 (FinOps Reserved Capacity Planning)
     "require_finops_chargeback_settlement",  # NEW — Phase 22 (FinOps Chargeback Settlement)
+    "require_finops_unit_economics",  # NEW — Phase 23 (FinOps Unit Economics)
 ]
 
 
@@ -390,5 +391,33 @@ require_finops_reserved_capacity = require_capability(
 # lives at tests/integration/test_capability_matrix_v1_48_drift.py.
 require_finops_chargeback_settlement = require_capability(
     Capability.FINOPS_CHARGEBACK_SETTLEMENT
+)
+
+# Phase 23 (cj-style 164번째 wire) — require_finops_unit_economics
+# (industry-agnostic per CR 12-1 L4 precedent + FINOPS_CHARGEBACK_SETTLEMENT
+# Phase 22 wire + FINOPS_RESERVED_CAPACITY Phase 21 wire + FINOPS_MULTI_CLOUD
+# Phase 20 wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18
+# wire + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase 16
+# wire + FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION Phase 14
+# wire + FINOPS_FORECASTING Phase 13 wire + FINOPS_ANOMALY_DETECTION +
+# FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire pattern verbatim).
+# All 4 industries get FINOPS_UNIT_ECONOMICS capability (unit economics
+# derived metric layer is a business-level FinOps pillar per FinOps Foundation
+# + 4-NEW-module composition layer: unit_economics_engine +
+# cost_per_business_unit + cost_per_transaction + margin_analysis +
+# scheduled_unit_economics_calculation_job — derived from Phase 22
+# allocation_lines ledger data via 5-dim cross-join + ledger-key dedup +
+# 5-dim rollup + 3 NEW tag filter dimensions + OPTIONAL margin analysis
+# + dry-run mode + 1 NEW CLI flag `--finops-unit-economics-dry-run` +
+# Epic 12 2FA 챌린지 mandatory for high-value margin positive ≥ 10M
+# KRW/year + cost_per_transaction override ≥ 10M KRW/year). Gates the
+# FinOps unit economics routes in
+# apps/api/modules/finops/unit_economics/unit_economics_routes.py
+# (compute-unit-economics + refresh-cost-per-business-unit +
+# compute-cost-per-transaction + execute-margin-analysis + dry-run +
+# trend + healthcheck + cadence-preview). Drift detector lives at
+# tests/integration/test_capability_matrix_v1_49_drift.py.
+require_finops_unit_economics = require_capability(
+    Capability.FINOPS_UNIT_ECONOMICS
 )
 

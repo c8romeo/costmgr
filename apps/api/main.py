@@ -533,12 +533,27 @@ from apps.api.modules.finops.sustainability.sustainability_routes import (
     router as sustainability_router,
 )
 
+# Phase 23 wire (cj-style 164번째) — FinOps Unit Economics derived
+# metric layer territory. CRITICAL: registered AFTER
+# chargeback_settlement_router (Phase 22) because Phase 23 derives
+# unit_economics from Phase 22 settlement_id → allocation_lines
+# ledger data. Capability gates FINOPS_UNIT_ECONOMICS (capability
+# matrix v1.49 EXTENSION). AD-22 owner-only RBAC + Epic 12 2FA 챌린지
+# mandatory. 9 endpoints covering compute + cost-per-business-unit +
+# cost-per-transaction + margin-analysis + dry-run + trend + calculation
+# + cadence-preview + healthcheck. ALLOWED_SERVICE_SUBMODULES EXTENSION
+# m31_finops_unit_economics 신규 submodule 등록.
+from apps.api.modules.finops.unit_economics.unit_economics_routes import (
+    router as unit_economics_router,
+)
+
 app.include_router(sustainability_router)
 app.include_router(commitment_router)
 app.include_router(pricing_router)
 app.include_router(multi_cloud_router)
 app.include_router(reserved_capacity_router)
 app.include_router(chargeback_settlement_router)
+app.include_router(unit_economics_router)
 
 
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack

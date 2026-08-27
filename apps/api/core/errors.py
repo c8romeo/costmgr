@@ -2922,3 +2922,202 @@ class ChargebackReconciliationApprovalError(FinopsChargebackSettlementError):
     """
 
     http_status: int = 403
+
+
+# ── FinOps Unit Economics typed exceptions ──────
+# Phase 23 (cj-style 164번째 wire) — CR 12-5 D-14 typed exception
+# envelope applied to 16 NEW exceptions shared across unit_economics_engine
+# + cost_per_business_unit + cost_per_transaction + margin_analysis +
+# scheduled_unit_economics_calculation modules. Module identifier
+# m31_finops_unit_economics (mirrors m30_finops_chargeback_settlement +
+# m29_finops_reserved_capacity + m28_finops_multi_cloud pattern).
+
+# Module identifier used by typed exception envelopes (mirrors
+# m30_finops_chargeback_settlement Phase 22 wire + m29_finops_reserved_
+# capacity Phase 21 wire + m28_finops_multi_cloud Phase 20 wire pattern).
+FINOPS_UNIT_ECONOMICS_MODULE_ID: str = "m31_finops_unit_economics"
+
+
+class FinopsUnitEconomicsError(FinopsError):
+    """Base for FinOps unit economics typed exceptions.
+
+    Provides FINOPS_UNIT_ECONOMICS_MODULE_ID class attribute + envelope
+    shape `{code, message_ko, details, trace_id, module_id}` shared by
+    all 15 NEW exception subclasses below (Phase 23 wire cj-style 164).
+    """
+
+    module_id: str = FINOPS_UNIT_ECONOMICS_MODULE_ID
+
+
+class UnitEconomicsDimensionError(FinopsUnitEconomicsError):
+    """HTTP 400 typed error — unit_economics dimension validation failure.
+
+    Raised by unit_economics_engine.compute_unit_economics() when
+    dimension is not in ALL_UNIT_ECONOMICS_DIMENSIONS (cost_center /
+    department / business_unit / tag / tenant — 5-dim cross-join derived
+    from Phase 22 allocation_lines ledger data).
+    """
+
+    http_status: int = 400
+
+
+class UnitEconomicsAggregationError(FinopsUnitEconomicsError):
+    """HTTP 400 typed error — unit_economics aggregation level validation failure.
+
+    Raised by unit_economics_engine.compute_unit_economics() when
+    aggregation_level is not in ALL_UNIT_ECONOMICS_AGGREGATION_LEVELS
+    (daily / weekly / monthly).
+    """
+
+    http_status: int = 400
+
+
+class UnitEconomicsVerificationError(FinopsUnitEconomicsError):
+    """HTTP 500 typed error — unit_economics 5-dim cross-join verification failure.
+
+    Raised by unit_economics_engine._compute_5_dim_cross_join() when
+    ledger-key dedup detects duplicate ledger keys OR total verification
+    ±0.01 KRW tolerance fails after 3 auto-retries.
+    """
+
+    http_status: int = 500
+
+
+class UnitEconomicsTagError(FinopsUnitEconomicsError):
+    """HTTP 400 typed error — unit_economics tag filter validation failure.
+
+    Raised by cost_per_business_unit.refresh_cost_per_business_unit()
+    when tag_key / tag_value_pattern fails 5-layer defense OR when
+    per-tenant override chain (tenant_settings.unit_economics_overrides.
+    dimension_weights) fails validation.
+    """
+
+    http_status: int = 400
+
+
+class UnitEconomicsTransactionError(FinopsUnitEconomicsError):
+    """HTTP 400 typed error — cost_per_transaction validation failure.
+
+    Raised by cost_per_transaction.compute_cost_per_transaction() when
+    transaction_id 부재 시 `None` 반환 honest DEFER (3 NEW filter dimensions
+    transaction_tag + environment_tag + application_tag validation
+    failure).
+    """
+
+    http_status: int = 400
+
+
+class UnitEconomicsRevenueError(FinopsUnitEconomicsError):
+    """HTTP 400 typed error — margin_analysis revenue tag validation failure.
+
+    Raised by margin_analysis.execute_margin_analysis() when revenue tag
+    is missing or fails 6-layer defense (OPTIONAL margin analysis skip
+    when revenue tag 부재 시 honest DEFER discipline preserved).
+    """
+
+    http_status: int = 400
+
+
+class UnitEconomicsMarginError(FinopsUnitEconomicsError):
+    """HTTP 500 typed error — margin_analysis computation failure.
+
+    Raised by margin_analysis.execute_margin_analysis() when margin =
+    revenue_amount - allocated_amount fails Decimal precision OR when
+    margin_pct = margin / revenue division overflows.
+    """
+
+    http_status: int = 500
+
+
+class UnitEconomicsOverrideError(FinopsUnitEconomicsError):
+    """HTTP 409 typed error — unit_economics per-tenant override conflict.
+
+    Raised by cost_per_business_unit.refresh_cost_per_business_unit()
+    when per-tenant override (tenant_settings.unit_economics_overrides.
+    dimension_weights) conflicts with system default weights. 409
+    (Conflict) semantics: caller must resolve override chain manually.
+    """
+
+    http_status: int = 409
+
+
+class UnitEconomicsApprovalRequiredError(FinopsUnitEconomicsError):
+    """HTTP 403 typed error — unit_economics owner approval + 2FA 챌린지 required.
+
+    Raised by margin_analysis.execute_margin_analysis() when high-value
+    margin positive ≥ 10M KRW/year AND adjustment pending — owner-only
+    RBAC AD-22 + Epic 12 2FA 챌린지 mandatory (PRD §F39.4-5 verbatim +
+    AD-51 (g) verbatim). 403 (Forbidden) semantics: caller lacks owner
+    role 2FA challenge clearance.
+    """
+
+    http_status: int = 403
+
+
+class UnitEconomicsIndustryError(FinopsUnitEconomicsError):
+    """HTTP 403 typed error — industry-agnostic capability gate fail.
+
+    Raised by capability.require_finops_unit_economics when industry
+    grant is missing (should not occur — 4-industry grants ✅/✅/✅/✅
+    industry-agnostic CR 12-1 L4 verbatim — but defensive guard
+    preserves typed envelope).
+    """
+
+    http_status: int = 403
+
+
+class UnitEconomicsCadenceError(FinopsUnitEconomicsError):
+    """HTTP 400 typed error — scheduled_unit_economics_calculation cadence validation failure.
+
+    Raised by scheduled_unit_economics_calculation.
+    schedule_cadence_calculation() when cadence is not in
+    ALL_UNIT_ECONOMICS_CADENCES (daily / weekly / monthly / quarterly).
+    """
+
+    http_status: int = 400
+
+
+class UnitEconomicsDrillDownError(FinopsUnitEconomicsError):
+    """HTTP 404 typed error — unit_economics drill-down target not found.
+
+    Raised by unit_economics_engine._compute_drill_down() when
+    drill-down target dimension_value is not found in the 5-dim
+    cross-join result (404 Not Found semantics).
+    """
+
+    http_status: int = 404
+
+
+class UnitEconomicsAlertError(FinopsUnitEconomicsError):
+    """HTTP 500 typed error — unit_economics margin alert dispatch failure.
+
+    Raised by margin_analysis._dispatch_margin_alert() when Slack DM
+    or alert dispatch fails (negative margin → tenant_owner Slack DM
+    or high-value margin positive → 2FA 챌린지 approval chain).
+    """
+
+    http_status: int = 500
+
+
+class UnitEconomicsTagFilterError(FinopsUnitEconomicsError):
+    """HTTP 400 typed error — cost_per_transaction tag_filter validation failure.
+
+    Raised by cost_per_transaction.compute_cost_per_transaction() when
+    tag_filter (transaction_tag / environment_tag / application_tag
+    3 NEW filter dimensions) format invalid OR regex pattern fails
+    safe-regex validator.
+    """
+
+    http_status: int = 400
+
+
+class UnitEconomicsPermissionError(FinopsUnitEconomicsError):
+    """HTTP 403 typed error — unit_economics role-based access denied.
+
+    Raised by routes when caller role is neither
+    Role.UNIT_ECONOMICS_OPERATOR nor Role.UNIT_ECONOMICS_VIEWER
+    (AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory). 403
+    (Forbidden) semantics: caller lacks required role.
+    """
+
+    http_status: int = 403

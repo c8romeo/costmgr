@@ -88,6 +88,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION = "finops_multi_cloud_unified_reconciliation"  # Phase 20 (cj-style 144번째 wire — NEW — Multi-cloud rate card + cost + negotiation + blended/unblended + marketplace SaaS pricing 통합 + scheduled dispatch + multi-cloud viewer role RBAC + dry-run audit-first INSERT, AD-47)
     FINOPS_RESERVED_CAPACITY_PLANNING = "finops_reserved_capacity_planning"  # Phase 21 (cj-style 151번째 wire — NEW — Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
     FINOPS_CHARGEBACK_SETTLEMENT = "finops_chargeback_settlement"  # Phase 22 (cj-style 160번째 wire — NEW — Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
+    FINOPS_UNIT_ECONOMICS = "finops_unit_economics"  # Phase 23 (cj-style 164번째 wire — NEW — unit_economics_engine + cost_per_business_unit + cost_per_transaction + margin_analysis + scheduled_unit_economics_calculation_job + dry-run audit-first INSERT, AD-51)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1092,6 +1093,42 @@ FinopsChargebackSettlementAction = Literal[
 ]
 
 
+# Phase 23 (cj-style 164번째 wire — NEW — unit_economics_engine +
+# cost_per_business_unit 5-dim rollup + cost_per_transaction +
+# margin_analysis revenue attribution + scheduled calculation KST
+# pytz + dry-run audit-first INSERT, AD-51). 7 NEW values:
+# - `unit_economics_calculated` — 5-dim cross-join + ledger-key dedup
+#   completed (unit_economics_engine.py compute_unit_economics main
+#   entry; derived from Phase 22 allocation_lines ledger data).
+# - `cost_per_business_unit_refreshed` — 5-dim rollup refreshed
+#   (CostPerCostCenter + CostPerDepartment + CostPerBusinessUnit +
+#   CostPerTag + CostPerTenant per
+#   cost_per_business_unit.py refresh_cost_per_business_unit).
+# - `cost_per_transaction_computed` — cost_per_transaction derived
+#   metric computed (transaction_id 기반 derived metric + 3 NEW filter
+#   dimensions transaction_tag + environment_tag + application_tag).
+# - `margin_analysis_executed` — OPTIONAL margin analysis executed
+#   (margin = revenue_amount - allocated_amount + margin_pct =
+#   margin / revenue).
+# - `unit_economics_dry_run_executed` — dry-run preview completed (no
+#   actual unit_economics commit; tenant_id + period_key + trace_id
+#   payload; AD-22 owner-only RBAC).
+# - `unit_economics_margin_alert` — high-value margin positive ≥
+#   10M KRW/year alert (Epic 12 2FA 챌린지 mandatory + tenant_owner
+#   approval chain).
+# - `unit_economics_margin_negative_alert` — negative margin alert
+#   (margin < 0 → tenant_owner Slack DM).
+FinopsUnitEconomicsAction = Literal[
+    "unit_economics_calculated",  # §F39.1-5 — 5-dim cross-join + ledger-key dedup
+    "cost_per_business_unit_refreshed",  # §F39.2-5 — 5-dim rollup refreshed
+    "cost_per_transaction_computed",  # §F39.3-5 — transaction_id derived metric
+    "margin_analysis_executed",  # §F39.4-5 — OPTIONAL margin analysis
+    "unit_economics_dry_run_executed",  # §F39.8-1 — dry-run preview
+    "unit_economics_margin_alert",  # §F39.4-5 — high-value margin positive alert
+    "unit_economics_margin_negative_alert",  # §F39.4-5 — negative margin alert
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1138,6 +1175,7 @@ AuditAction = (
     | FinopsMultiCloudUnifiedReconciliationAction  # NEW — Phase 20 (Multi-cloud rate card + cost + negotiation + blended/unblended + marketplace SaaS pricing 통합 + scheduled dispatch + multi-cloud viewer role RBAC + dry-run audit-first INSERT, AD-47)
     | FinopsReservedCapacityAction  # NEW — Phase 21 (Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
     | FinopsChargebackSettlementAction  # NEW — Phase 22 (Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
+    | FinopsUnitEconomicsAction  # NEW — Phase 23 (unit_economics_engine + cost_per_business_unit + cost_per_transaction + margin_analysis + scheduled_unit_economics_calculation_job + dry-run audit-first INSERT, AD-51)
 )
 
 
@@ -1984,6 +2022,41 @@ class _ActionRegistry:
                     "settlement_reconciled",  # §F38.4-7 — 3-way match reconciliation
                     "settlement_dry_run_executed",  # §F38.8-1 — dry-run preview
                     "settlement_approval_required",  # §F38.4-7 — owner approval + 2FA challenge
+                }
+            ),
+        ),
+        # Phase 23 (cj-style 164번째 wire) — FINOPS_UNIT_ECONOMICS 7 NEW
+        # values (unit_economics_engine + cost_per_business_unit +
+        # cost_per_transaction + margin_analysis + scheduled calculation
+        # + dry-run audit-first INSERT, AD-51 verbatim). Routes to
+        # `audit_logs` (NOT to a separate ledger — FinOps unit economics
+        # events are tenant-scoped platform-event trail only, mirroring
+        # FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire + FINOPS_RESERVED_
+        # CAPACITY_PLANNING Phase 21 wire + FINOPS_MULTI_CLOUD Phase 20
+        # wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase
+        # 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+        # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+        # wire + FINOPS_OPTIMIZATION Phase 14 wire +
+        # FINOPS_FORECASTING Phase 13 wire + FINOPS_ANOMALY_DETECTION +
+        # FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire pattern
+        # verbatim). target_table= `finops_unit_economics` aligns with
+        # ActionClass.FINOPS_UNIT_ECONOMICS value (audit_log target_table
+        # column populated verbatim — RLS preserved). Drift detector
+        # enforces ActionClass registry ↔ DB CHECK (no-op for audit_logs
+        # per AD-2) ↔ call sites parity (3-way gate). Phase 22 cj-style
+        # 160번째 wire FINOPS_CHARGEBACK_SETTLEMENT registry pattern
+        # verbatim applied.
+        ActionClass.FINOPS_UNIT_ECONOMICS: (
+            "audit_logs",
+            frozenset(
+                {
+                    "unit_economics_calculated",  # §F39.1-5 — 5-dim cross-join + ledger-key dedup
+                    "cost_per_business_unit_refreshed",  # §F39.2-5 — 5-dim rollup
+                    "cost_per_transaction_computed",  # §F39.3-5 — transaction_id derived metric
+                    "margin_analysis_executed",  # §F39.4-5 — OPTIONAL margin analysis
+                    "unit_economics_dry_run_executed",  # §F39.8-1 — dry-run preview
+                    "unit_economics_margin_alert",  # §F39.4-5 — high-value margin positive
+                    "unit_economics_margin_negative_alert",  # §F39.4-5 — negative margin
                 }
             ),
         ),
