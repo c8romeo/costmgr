@@ -694,6 +694,34 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # (capability matrix v1.49 EXTENSION 1 NEW row).
     FINOPS_UNIT_ECONOMICS = "finops_unit_economics"
 
+    # Phase 24 (cj-style 169번째 wire) — FINOPS_BUDGET_PLANNING — FinOps
+    # Budget Planning pre-allocation layer territory (industry-agnostic
+    # per CR 12-1 L4 precedence). All 4 industries get
+    # FINOPS_BUDGET_PLANNING capability (PRD §F40.1~§F40.8 + AD-52
+    # (a)~(g) 7 sub-decisions). Built on top of Phase 22
+    # allocation_lines ledger + Phase 23 unit_economics_results ledger
+    # data via 5-dim cross-join (cost_center 0.30 + department 0.25 +
+    # business_unit 0.20 + tag 0.15 + tenant 0.10). Provides 9 endpoints
+    # (plan CRUD + allocate + submit-approval + approve-step + vs-actual
+    # + alert-trigger + dry-run + healthcheck) + 5 NEW backend modules
+    # (budget_plan_engine + budget_allocation + budget_approval_workflow +
+    # budget_vs_actual + budget_alert) + 5 dashboard UI sub-components
+    # (BudgetPlanOverviewCard + BudgetAllocationBreakdownPanel +
+    # BudgetVsActualTrendChart + OverBudgetAlertPanel +
+    # ApprovalChainStatusPanel) + sequential approval chain +
+    # Epic 12 2FA 챌린지 mandatory high-value ≥ 10M KRW/year + over-budget
+    # alert + auto-escalation chain (warning 10% / critical 25%) +
+    # 4 cadence KST pytz (daily_lifecycle 04:00 + weekly_variance 04:30 +
+    # monthly_rollover 05:00 + quarterly_review 05:30) + 4 LISTEN/NOTIFY
+    # channels + dry-run mode + 2 NEW CLI flags
+    # (`--finops-budget-planning-dry-run` +
+    # `--finops-budget-planning-over-budget-alert-dry-run`). Gates
+    # require_finops_budget_planning dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_50_drift.py
+    # (capability matrix v1.50 EXTENSION 1 NEW row).
+    FINOPS_BUDGET_PLANNING = "finops_budget_planning"
+
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
@@ -981,6 +1009,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_CHARGEBACK_SETTLEMENT,
             # Phase 23 — FINOPS_UNIT_ECONOMICS (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_UNIT_ECONOMICS,
+            # Phase 24 — FINOPS_BUDGET_PLANNING (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_BUDGET_PLANNING,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1213,6 +1243,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_CHARGEBACK_SETTLEMENT,
             # Phase 23 — FINOPS_UNIT_ECONOMICS (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_UNIT_ECONOMICS,
+            # Phase 24 — FINOPS_BUDGET_PLANNING (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_BUDGET_PLANNING,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1462,6 +1494,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_CHARGEBACK_SETTLEMENT,
             # Phase 23 — FINOPS_UNIT_ECONOMICS (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_UNIT_ECONOMICS,
+            # Phase 24 — FINOPS_BUDGET_PLANNING (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_BUDGET_PLANNING,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1736,6 +1770,11 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # industry-agnostically per FinOps Foundation + Phase 11~22
             # 14-capability FinOps territory chain carry-over.
             Capability.FINOPS_UNIT_ECONOMICS,
+            # Phase 24 — FINOPS_BUDGET_PLANNING (industry-agnostic per CR 12-1 L4).
+            # Budget planning pre-allocation layer applies
+            # industry-agnostically per FinOps Foundation + Phase 11~23
+            # 15-capability FinOps territory chain carry-over.
+            Capability.FINOPS_BUDGET_PLANNING,
         }
     ),
 }

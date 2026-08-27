@@ -100,6 +100,7 @@ __all__ = [
     "require_finops_reserved_capacity",  # NEW — Phase 21 (FinOps Reserved Capacity Planning)
     "require_finops_chargeback_settlement",  # NEW — Phase 22 (FinOps Chargeback Settlement)
     "require_finops_unit_economics",  # NEW — Phase 23 (FinOps Unit Economics)
+    "require_finops_budget_planning",  # NEW — Phase 24 (FinOps Budget Planning)
 ]
 
 
@@ -419,5 +420,37 @@ require_finops_chargeback_settlement = require_capability(
 # tests/integration/test_capability_matrix_v1_49_drift.py.
 require_finops_unit_economics = require_capability(
     Capability.FINOPS_UNIT_ECONOMICS
+)
+
+# Phase 24 (cj-style 169번째 wire) — require_finops_budget_planning
+# (industry-agnostic per CR 12-1 L4 precedent + FINOPS_UNIT_ECONOMICS
+# Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire +
+# FINOPS_RESERVED_CAPACITY Phase 21 wire + FINOPS_MULTI_CLOUD Phase 20
+# wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18
+# wire + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase 16
+# wire + FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+# Phase 14 wire + FINOPS_FORECASTING Phase 13 wire +
+# FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+# FINOPS Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_BUDGET_PLANNING capability (budget planning pre-allocation
+# layer is a business-level FinOps pillar per FinOps Foundation +
+# 5-NEW-module composition layer: budget_plan_engine +
+# budget_allocation + budget_approval_workflow + budget_vs_actual +
+# budget_alert + scheduled_budget_planning_job — derived from Phase 22
+# allocation_lines ledger + Phase 23 unit_economics_results ledger
+# data via 5-dim cross-join + 5-dim weighted allocation + sequential
+# approval chain + Epic 12 2FA 챌린지 mandatory for high-value ≥ 10M
+# KRW/year + over-budget detection warning 10% + critical 25% +
+# auto-escalation chain + dry-run mode + 2 NEW CLI flags
+# `--finops-budget-planning-dry-run` +
+# `--finops-budget-planning-over-budget-alert-dry-run`). Gates the
+# FinOps budget planning routes in
+# apps/api/modules/finops/budget_planning/budget_planning_routes.py
+# (create-plan + list-plans + get-plan + update-plan + allocate +
+# submit-approval + approve-step + vs-actual + alert-trigger). Drift
+# detector lives at
+# tests/integration/test_capability_matrix_v1_50_drift.py.
+require_finops_budget_planning = require_capability(
+    Capability.FINOPS_BUDGET_PLANNING
 )
 

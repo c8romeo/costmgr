@@ -1888,6 +1888,69 @@
       "schedule_monthly": "월간 (1일 04:30 KST)",
       "schedule_quarterly": "분기 (1일 05:00 KST)",
       "d_finops_12_notice": "D-FINOPS-12 honestly DEFER: cost_per_customer CRM + multi-currency FX + real-time stream"
+    },
+    "finops_budget_planning": {
+      "title": "FinOps 예산 계획",
+      "subtitle": "Phase 24 사전 할당 계층 — 예산 계획 + 할당 + 승인 + 차이 + 알림",
+      "tabs": {
+        "overview": "개요",
+        "allocation": "할당",
+        "variance": "차이",
+        "alerts": "알림",
+        "approval": "승인"
+      },
+      "overview_card": {
+        "title": "예산 계획 개요",
+        "new_plan_button": "새 계획",
+        "high_value_badge": "고가치",
+        "two_fa_required_badge": "2FA 필요",
+        "dry_run_badge": "드라이런",
+        "no_plans": "예산 계획이 없습니다. '새 계획' 버튼을 클릭하여 시작하세요.",
+        "loading": "예산 계획 로딩 중..."
+      },
+      "allocation_panel": {
+        "title": "할당 분석 (5-차원)",
+        "cost_center": "코스트 센터",
+        "department": "부서",
+        "business_unit": "사업부",
+        "tag": "태그",
+        "tenant": "테넌트"
+      },
+      "variance_chart": {
+        "title": "예산 대비 실제 추세 (12개월)",
+        "budget_label": "예산 (KRW)",
+        "actual_label": "실제 (KRW)"
+      },
+      "alerts_panel": {
+        "title": "예산 초과 알림",
+        "test_warning_button": "경고 테스트 (12%)",
+        "test_critical_button": "심각 테스트 (28%)",
+        "no_alerts": "알림 없음. 테스트 버튼을 클릭하여 경고 또는 심각 알림을 발생시키세요.",
+        "severity_warning": "경고",
+        "severity_critical": "심각",
+        "severity_escalated": "에스컬레이션"
+      },
+      "approval_panel": {
+        "title": "승인 체인 상태",
+        "submit_button": "승인 제출 (고가치)",
+        "step_label": "단계",
+        "status_pending": "대기",
+        "status_approved": "승인됨",
+        "status_rejected": "거부됨",
+        "status_skipped": "건너뜀",
+        "no_steps": "승인 체인이 시작되지 않았습니다. '승인 제출' 버튼을 클릭하여 시작하세요."
+      },
+      "dry_run_toggle": "드라이런",
+      "health_indicator": "상태",
+      "high_value_threshold_label": "고가치 임계값",
+      "approval_required_2fa_notice": "고가치 계획은 Epic 12 2FA 챌린지가 필수입니다 (≥10M KRW/year)",
+      "over_budget_warning_notice": "예산 10% 초과 시 경고, 25% 초과 시 심각 + 에스컬레이션",
+      "schedule_button": "Cadence 미리보기",
+      "schedule_daily_lifecycle": "일간 (04:00 KST)",
+      "schedule_weekly_variance": "주간 (월요일 04:30 KST)",
+      "schedule_monthly_rollover": "월간 (1일 05:00 KST)",
+      "schedule_quarterly_review": "분기 (1일 05:30 KST)",
+      "d_finops_13_notice": "D-FINOPS-13 honestly DEFER: 다중 통화 FX + 영점 예산(ZBB) + 증분 예산 + 봉투 예산 + 시나리오 A/B 테스트 + 예산별 승인 오버라이드"
     }
   }
 }

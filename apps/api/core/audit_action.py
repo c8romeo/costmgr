@@ -89,6 +89,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_RESERVED_CAPACITY_PLANNING = "finops_reserved_capacity_planning"  # Phase 21 (cj-style 151번째 wire — NEW — Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
     FINOPS_CHARGEBACK_SETTLEMENT = "finops_chargeback_settlement"  # Phase 22 (cj-style 160번째 wire — NEW — Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
     FINOPS_UNIT_ECONOMICS = "finops_unit_economics"  # Phase 23 (cj-style 164번째 wire — NEW — unit_economics_engine + cost_per_business_unit + cost_per_transaction + margin_analysis + scheduled_unit_economics_calculation_job + dry-run audit-first INSERT, AD-51)
+    FINOPS_BUDGET_PLANNING = "finops_budget_planning"  # Phase 24 (cj-style 169번째 wire — NEW — budget_plan_engine + budget_allocation + budget_approval_workflow + budget_vs_actual + budget_alert + scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags + dry-run audit-first INSERT, AD-52)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1129,6 +1130,33 @@ FinopsUnitEconomicsAction = Literal[
 ]
 
 
+# Phase 24 (cj-style 169번째 wire) — FINOPS_BUDGET_PLANNING literal.
+# 8 NEW audit actions for the FinOps Budget Planning pre-allocation
+# layer (PRD §F40.1~§F40.8 + AD-52 (a)~(g) 7 sub-decisions):
+# - `budget_plan_created` — 5-dim cross-join plan registered.
+# - `budget_plan_updated` — plan totals / lifecycle amended.
+# - `budget_plan_submitted_for_approval` — sequential approval chain
+#   initiated; Epic 12 2FA 챌린지 triggered for ≥10M KRW/year.
+# - `budget_plan_approved` — final approval step recorded.
+# - `budget_plan_rejected` — rejection rolls plan back to draft.
+# - `budget_allocation_verified` — 5-dim weighted allocation passed
+#   ±0.01 KRW total verification.
+# - `budget_alert_triggered` — over-budget detection
+#   (warning 10% / critical 25%) + auto-escalation chain.
+# - `budget_planning_dry_run_executed` — dry-run preview
+#   (BudgetPlanOverviewCard 진입 시 default dry-run).
+FinopsBudgetPlanningAction = Literal[
+    "budget_plan_created",  # §F40.1-1 — 5-dim cross-join plan registered
+    "budget_plan_updated",  # §F40.1-1 — plan totals / lifecycle amended
+    "budget_plan_submitted_for_approval",  # §F40.3-1 — sequential approval chain
+    "budget_plan_approved",  # §F40.3-5 — final approval step recorded
+    "budget_plan_rejected",  # §F40.3-5 — rejection rolls plan back to draft
+    "budget_allocation_verified",  # §F40.2-5 — 5-dim weighted allocation verified
+    "budget_alert_triggered",  # §F40.5-1 — over-budget + auto-escalation
+    "budget_planning_dry_run_executed",  # §F40.8-1 — dry-run preview
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1176,6 +1204,7 @@ AuditAction = (
     | FinopsReservedCapacityAction  # NEW — Phase 21 (Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
     | FinopsChargebackSettlementAction  # NEW — Phase 22 (Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
     | FinopsUnitEconomicsAction  # NEW — Phase 23 (unit_economics_engine + cost_per_business_unit + cost_per_transaction + margin_analysis + scheduled_unit_economics_calculation_job + dry-run audit-first INSERT, AD-51)
+    | FinopsBudgetPlanningAction  # NEW — Phase 24 (budget_plan_engine + budget_allocation + budget_approval_workflow + budget_vs_actual + budget_alert + scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags + dry-run audit-first INSERT, AD-52)
 )
 
 
@@ -2057,6 +2086,42 @@ class _ActionRegistry:
                     "unit_economics_dry_run_executed",  # §F39.8-1 — dry-run preview
                     "unit_economics_margin_alert",  # §F39.4-5 — high-value margin positive
                     "unit_economics_margin_negative_alert",  # §F39.4-5 — negative margin
+                }
+            ),
+        ),
+        # Phase 24 (cj-style 169번째 wire) — FINOPS_BUDGET_PLANNING 8 NEW
+        # values (budget_plan_engine + budget_allocation +
+        # budget_approval_workflow + budget_vs_actual + budget_alert +
+        # scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags +
+        # dry-run audit-first INSERT, AD-52 verbatim). Routes to
+        # `audit_logs` (NOT to a separate ledger — FinOps budget planning
+        # events are tenant-scoped platform-event trail only, mirroring
+        # FINOPS_UNIT_ECONOMICS Phase 23 wire + FINOPS_CHARGEBACK_
+        # SETTLEMENT Phase 22 wire + FINOPS_RESERVED_CAPACITY_PLANNING
+        # Phase 21 wire + FINOPS_MULTI_CLOUD Phase 20 wire +
+        # FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire +
+        # FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase 16
+        # wire + FINOPS_TAG_GOVERNANCE Phase 15 wire +
+        # FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING Phase 13
+        # wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12
+        # wire + FINOPS Phase 11 wire pattern verbatim).
+        # target_table=`finops_budget_planning` aligns with
+        # ActionClass.FINOPS_BUDGET_PLANNING value (audit_log target_table
+        # column populated verbatim — RLS preserved). Drift detector
+        # enforces ActionClass registry ↔ DB CHECK (no-op for audit_logs
+        # per AD-2) ↔ call sites parity (3-way gate).
+        ActionClass.FINOPS_BUDGET_PLANNING: (
+            "audit_logs",
+            frozenset(
+                {
+                    "budget_plan_created",  # §F40.1-1 — 5-dim cross-join plan
+                    "budget_plan_updated",  # §F40.1-1 — plan totals / lifecycle
+                    "budget_plan_submitted_for_approval",  # §F40.3-1 — sequential approval
+                    "budget_plan_approved",  # §F40.3-5 — final approval
+                    "budget_plan_rejected",  # §F40.3-5 — rejection rolls back to draft
+                    "budget_allocation_verified",  # §F40.2-5 — 5-dim weighted allocation
+                    "budget_alert_triggered",  # §F40.5-1 — over-budget + auto-escalation
+                    "budget_planning_dry_run_executed",  # §F40.8-1 — dry-run preview
                 }
             ),
         ),

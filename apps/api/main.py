@@ -547,6 +547,21 @@ from apps.api.modules.finops.unit_economics.unit_economics_routes import (
     router as unit_economics_router,
 )
 
+# Phase 24 wire (cj-style 169번째) — FinOps Budget Planning
+# pre-allocation layer territory. CRITICAL: registered AFTER
+# unit_economics_router (Phase 23) because Phase 24 derives
+# budget_plan from Phase 22 allocation_lines + Phase 23
+# unit_economics_results ledger data. Capability gates
+# FINOPS_BUDGET_PLANNING (capability matrix v1.50 EXTENSION).
+# AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
+# 9 endpoints covering plan CRUD + allocate + submit-approval +
+# approve-step + vs-actual + alert-trigger + dry-run + healthcheck.
+# ALLOWED_SERVICE_SUBMODULES EXTENSION m24_finops_budget_planning
+# 신규 submodule 등록.
+from apps.api.modules.finops.budget_planning.budget_planning_routes import (
+    router as budget_planning_router,
+)
+
 app.include_router(sustainability_router)
 app.include_router(commitment_router)
 app.include_router(pricing_router)
@@ -554,6 +569,7 @@ app.include_router(multi_cloud_router)
 app.include_router(reserved_capacity_router)
 app.include_router(chargeback_settlement_router)
 app.include_router(unit_economics_router)
+app.include_router(budget_planning_router)
 
 
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack

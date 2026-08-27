@@ -3121,3 +3121,191 @@ class UnitEconomicsPermissionError(FinopsUnitEconomicsError):
     """
 
     http_status: int = 403
+
+
+# Phase 24 (cj-style 169번째 wire) — FinOps Budget Planning pre-allocation
+# layer typed exception envelope (PRD §F40.1~§F40.8 verbatim + AD-52
+# (a)~(g) 7 sub-decisions). Module identifier m24_finops_budget_planning
+# (mirrors m31_finops_unit_economics + m30_finops_chargeback_settlement +
+# m29_finops_reserved_capacity + m28_finops_multi_cloud pattern).
+
+# Module identifier used by typed exception envelopes (mirrors
+# m31_finops_unit_economics Phase 23 wire + m30_finops_chargeback_
+# settlement Phase 22 wire + m29_finops_reserved_capacity Phase 21 wire
+# pattern).
+FINOPS_BUDGET_PLANNING_MODULE_ID: str = "m24_finops_budget_planning"
+
+
+class FinopsBudgetPlanningError(FinopsError):
+    """Base for FinOps Budget Planning typed exceptions.
+
+    Provides FINOPS_BUDGET_PLANNING_MODULE_ID class attribute + envelope
+    shape `{code, message_ko, details, trace_id, module_id}` shared by
+    all 16 NEW exception subclasses below (Phase 24 wire cj-style 169).
+    """
+
+    module_id: str = FINOPS_BUDGET_PLANNING_MODULE_ID
+
+
+class BudgetPlanNotFoundError(FinopsBudgetPlanningError):
+    """HTTP 404 typed error — budget plan not found.
+
+    Raised by budget_planning_routes.get_budget_plan_endpoint() when
+    plan_id lookup returns no rows.
+    """
+
+    http_status: int = 404
+
+
+class BudgetPlanPeriodError(FinopsBudgetPlanningError):
+    """HTTP 400 typed error — budget plan period_key format validation failure.
+
+    Raised by budget_plan_engine.validate_budget_plan() when period_key
+    does not match period_type regex (annual YYYY / quarterly YYYY-Qn /
+    monthly YYYY-MM).
+    """
+
+    http_status: int = 400
+
+
+class BudgetPlanOverlapError(FinopsBudgetPlanningError):
+    """HTTP 409 typed error — budget plan period overlap detected.
+
+    Raised by budget_plan_engine._detect_period_overlap() when a new plan
+    overlaps with an existing plan for the same tenant+period.
+    """
+
+    http_status: int = 409
+
+
+class BudgetPlanLifecycleError(FinopsBudgetPlanningError):
+    """HTTP 400 typed error — budget plan lifecycle transition invalid.
+
+    Raised by budget_plan_engine.update_budget_plan() when the
+    requested lifecycle value is not in
+    ALL_BUDGET_PLAN_LIFECYCLE_VALUES (draft / pending_approval /
+    approved / closed).
+    """
+
+    http_status: int = 400
+
+
+class BudgetAllocationError(FinopsBudgetPlanningError):
+    """HTTP 500 typed error — budget allocation computation failure.
+
+    Raised by budget_allocation.allocate_budget() when allocation
+    produces invalid output (e.g. dimension resolution failure).
+    """
+
+    http_status: int = 500
+
+
+class BudgetAllocationVerificationError(FinopsBudgetPlanningError):
+    """HTTP 500 typed error — budget allocation total verification failure.
+
+    Raised by budget_allocation._verify_total() after 3 auto-retries
+    still fail the ±0.01 KRW total tolerance check (CR 5-1 Decimal
+    precision banker's rounding verbatim).
+    """
+
+    http_status: int = 500
+
+
+class BudgetAllocationDimensionError(FinopsBudgetPlanningError):
+    """HTTP 400 typed error — budget allocation dimension validation failure.
+
+    Raised by budget_allocation.validate_budget_allocation() when the
+    requested dimension is not in ALL_BUDGET_PLAN_DIMENSION_VALUES
+    (cost_center / department / business_unit / tag / tenant — 5-dim
+    cross-join derived from Phase 22 allocation_lines + Phase 23
+    unit_economics_results ledger data).
+    """
+
+    http_status: int = 400
+
+
+class BudgetAllocationZeroAmountError(FinopsBudgetPlanningError):
+    """HTTP 400 typed error — budget allocation zero/negative amount guard.
+
+    Raised by budget_allocation.validate_budget_allocation() when
+    allocated_amount is negative (zero is allowed for preserved-amount
+    lines but negative is forbidden).
+    """
+
+    http_status: int = 400
+
+
+class BudgetApprovalStepError(FinopsBudgetPlanningError):
+    """HTTP 400 typed error — budget approval step validation failure.
+
+    Raised by budget_approval_workflow.validate_approval_chain() when
+    the sequential step_index ordering is invalid or step count exceeds
+    APPROVAL_CHAIN_MAX_STEPS=10.
+    """
+
+    http_status: int = 400
+
+
+class BudgetApproval2FARequiredError(FinopsBudgetPlanningError):
+    """HTTP 403 typed error — Epic 12 2FA 챌린지 mandatory for high-value.
+
+    Raised by budget_approval_workflow.record_approval_decision() when
+    a high-value plan (≥10M KRW/year) is approved without a verified
+    RFC 6238 TOTP. Redirects to /account/security?reason=2fa_required
+    (CR 12-1 L4 precedent + AD-52 (g) verbatim).
+    """
+
+    http_status: int = 403
+
+
+class BudgetApprovalTimeoutError(FinopsBudgetPlanningError):
+    """HTTP 500 typed error — budget approval Slack DM timeout.
+
+    Raised by budget_approval_workflow._send_slack_dm() when the Slack
+    DM to the approver times out (SLACK_DM_TIMEOUT_SECONDS=30).
+    """
+
+    http_status: int = 500
+
+
+class BudgetVsActualError(FinopsBudgetPlanningError):
+    """HTTP 500 typed error — budget vs actual variance computation failure.
+
+    Raised by budget_vs_actual.compute_budget_vs_actual() when the
+    JOIN between Phase 22 settlement_results and Phase 24 BudgetPlan
+    fails (tenant_id / period_key / dimension mismatch).
+    """
+
+    http_status: int = 500
+
+
+class BudgetAlertError(FinopsBudgetPlanningError):
+    """HTTP 500 typed error — budget alert generation failure.
+
+    Raised by budget_alert.trigger_over_budget_alert() when the
+    notification channels (Slack / email / Teams) all fail to send.
+    """
+
+    http_status: int = 500
+
+
+class BudgetAlertThresholdError(FinopsBudgetPlanningError):
+    """HTTP 400 typed error — budget alert threshold validation failure.
+
+    Raised by budget_alert._severity_from_pct() when the input
+    variance_pct is malformed (non-numeric / negative).
+    """
+
+    http_status: int = 400
+
+
+class BudgetPlanningPermissionError(FinopsBudgetPlanningError):
+    """HTTP 403 typed error — budget_planning role-based access denied.
+
+    Raised by routes when caller role is neither
+    Role.BUDGET_PLANNING_OPERATOR nor Role.BUDGET_PLANNING_VIEWER
+    (AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory). 403
+    (Forbidden) semantics: caller lacks required role.
+    """
+
+    http_status: int = 403
