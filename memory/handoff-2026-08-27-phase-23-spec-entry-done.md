@@ -1,0 +1,160 @@
+---
+name: handoff-2026-08-27-phase-23-spec-entry-done
+description: Phase 23 spec entry DONE (cj-style 163번째 epic 연속 정직 회복 atomic docs-only wire) — FinOps Unit Economics territory 결정 wire + 5 files = 3 NEW + 2 MODIFIED atomic single sprint
+metadata:
+  type: project
+---
+
+# handoff-2026-08-27-phase-23-spec-entry-done
+
+Phase 23 spec entry DONE (cj-style 163번째 epic 연속 정직 회복 atomic docs-only wire):
+FinOps Unit Economics territory 결정 wire + 5 files = 3 NEW + 2 MODIFIED atomic single
+sprint (1 NEW `_bmad-output/implementation-artifacts/phase-23-finops-unit-economics-wire.md`
+~+440 LOC, 270 lines: frontmatter baseline_commit `2abfdd9` + status `ready-for-dev` +
+cj_style_entry_point 163 + story_key `phase-23-finops-unit-economics-wire` + Story +
+Context (cj-style Phase 23 1st entry point + ~22 prior cj-style chains DONE) + 8 ACs
+§F39.1~§F39.8 verbatim → 48 explicit sub-ACs + nested bullet points → ~88 detailed
+sub-ACs (5+5+5+5+8+6+4+10) pre-flight 정합 sweep 만족 (§F39.1 unit_economics engine
++ 5-dim cross-join 5 sub-ACs + §F39.2 cost_per_business_unit + 5-dim rollup 5 sub-ACs +
+§F39.3 cost_per_transaction + tag propagation 5 sub-ACs + §F39.4 margin_analysis +
+revenue attribution 5 sub-ACs + §F39.5 unit_economics dashboard UI 5 sub-components
+8 sub-ACs + §F39.6 Capability matrix v1.49 EXTENSION FINOPS_UNIT_ECONOMICS 6 sub-ACs +
+§F39.7 audit action EXTENSION 7 NEW + 16 NEW typed exception classes 4 sub-ACs +
+§F39.8 dry-run + Tests + wire scope T1~T8 10 sub-ACs = ~88 sub-ACs) + AD-51 (a)~(g) 7
+sub-decisions verbatim cross-reference + D-FINOPS-12 honestly DEFER 보존 + T1~T8 + ~40
+subtasks 결정 wire (T1 4 NEW backend unit_economics modules 8 subtasks + T2 dashboard
+UI 5 sub-components 8 subtasks + T3 alembic 0055 1 preview table 6 subtasks + T4 audit
+action EXTENSION 7 NEW + 16 NEW typed exception classes 4 subtasks + T5 capability
+v1.49 EXTENSION 4 subtasks + T6 scheduled_unit_economics_calculation_job wire 2
+subtasks + T7 dry-run mode + 1 NEW CLI flag 4 subtasks + T8 3중 게이트 FINAL CLEAN
+atomic commit 4 subtasks = ~40 subtasks) + Dev Notes 19종 (CR 0-2 RLS + CR 1-1
+audit-first INSERT 7 NEW + CR 1-1 FastAPI ContextVar + CR 1-1 RSC boundary + CR 4-3/4-4
++ CR 5-1 Decimal precision banker's rounding + CR 9-6 commit message `git commit -F
+<file>` + CR 11-3 honest-DEFER 53번째 + ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION
+m23_finops_unit_economics + CR 11-4 D-001~D-005 + P-015 SSOT + CR 12-1 L4
+industry-agnostic capability matrix v1.49 4-industry grants ✅/✅/✅/✅ + CR 12-5 D-14
+typed exception envelope 16 NEW + CR 12-5 D-PARITY-01 inversion TypeScript mirror
+parity + CR 12-5 D-GATE-01 inversion capability gate inversion + A19 cohesion 9 surface
+EXTENSION PASS preserved + A36 SDR 검증 4-step + AD-14 stack pin Recharts 2.12.7 +
+noto-sans-cjk-kr + apscheduler 3.10.4 + pytz 2024.1 + AD-22 owner-only RBAC + Epic 12
+2FA 챌린지 mandatory + NFR4 PII minimization ✅ PRESERVED + NFR18 ko-KR SSOT + AD-50 +
+AD-51 (a)~(g)) + Architecture Alignment ALLOWED sweep + Files Affected ~22 files
+estimate (~18 NEW + ~4 MODIFIED) wire sprint scope + 3중 게이트 impact cj 163 0 NEW /
+cj 164 ~+78 NEW pytest + ~+24 NEW vitest / cj 165 0 NEW + A644~A648 5 NEW 결정 wire +
+CR lessons applied 19종 + D-DEFER-* honestly 결정 wire 보존 (D-FINOPS-1~10 ✅ RESOLVED
++ D-FINOPS-11 honestly DEFER + **D-FINOPS-12 신규 honestly DEFER**) + Epic 1~17 +
+Phase 3~22 + Phase 19.5 + Phase 20.5 + 1st release cycle 정합 보존 + 결정 wire 일자
+2026-08-27 KST + next 옵션 (a)/(b)/(c)/(d)/(e) 결정 wire + 1 NEW
+memory/handoff-2026-08-27-phase-23-spec-entry-done.md + 1 NEW
+`_bmad-output/implementation-artifacts/commit-msg-cj-163.txt` + 1 MODIFIED
+`_bmad-output/implementation-artifacts/sprint-status.yaml` v3.72 → v3.73 EXTENSION
+(last_updated_note_v3_73 신규 + phase-23-spec-entry: done entry EXTENSION with
+cross-reference + phase-23-prd-entry cross-reference preserved + phase-23-wire-cycle
+ready-for-dev entry + A644~A648 action_items 신규) + 1 MODIFIED memory/MEMORY.md hook
+EXTENSION = 3 NEW + 2 MODIFIED = 5 files atomic single sprint 결정 wire 진입 완료 보존).
+
+**Phase 23 PRD entry `2abfdd9` (cj-style 162번째) 의 PRD §F39 EXTENSION → Phase 23 spec
+entry (cj-style 163번째) 의 spec file 결정 wire = cj-style 4-entry-point cycle PRD entry
+→ spec entry → wire → close-out retro 의 2번째 단계 진입 완료**. **Phase 11~22
+14-capability FinOps territory chain ✅ ALL WIRED 진입 정합 보존** (Phase 11
+FINOPS_SHOWBACK + Phase 11 FINOPS_CHARGEBACK + Phase 12 FINOPS_ANOMALY_DETECTION +
+Phase 12 FINOPS_BUDGET_ALERT + Phase 13 FINOPS_FORECASTING_CAPACITY_PLANNING + Phase
+14 FINOPS_OPTIMIZATION + Phase 15 FINOPS_TAG_GOVERNANCE + Phase 16 FINOPS_REPORTING +
+Phase 17 FINOPS_SUSTAINABILITY + Phase 18 FINOPS_COMMITMENT + Phase 19 FINOPS_PRICING
++ Phase 20 FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION + Phase 21
+FINOPS_RESERVED_CAPACITY_PLANNING + Phase 22 FINOPS_CHARGEBACK_SETTLEMENT = 14
+capabilities). Capability matrix v1.49 EXTENSION FINOPS_UNIT_ECONOMICS 4-industry
+grants ✅/✅/✅/✅ 결정 wire 보존 + AD-51 (a)~(g) 7 sub-decisions 보존 + Phase 23 PRD
+entry `2abfdd9` (cj 162) 의 honest deviation 정직 회복 결정 wire 진입 완료 + Phase 23
+spec entry (cj 163) 의 D-FINOPS-12 honestly DEFER 보존 + Phase 11~22 wire cycles 의
+docs-only sprint pattern verbatim 미러 결정 wire. **A19 cohesion 9 surface EXTENSION
+PASS preserved** (Phase 11~22 14-module FinOps territory chain ✅ ALL WIRED + Phase 23
+PRD entry cj 162 + Phase 23 spec entry cj 163 진입 후에도 보존 결정 wire).
+
+**8 ACs §F39.1~§F39.8 verbatim satisfied** (8 ACs + 48 explicit sub-ACs + nested bullet
+points → ~88 detailed sub-ACs pre-flight 정합 sweep 만족) + unit_economics engine +
+5-dim cross-join + cost_per_business_unit + 5-dim rollup + cost_per_transaction + tag
+propagation + margin_analysis + revenue attribution + dashboard UI 5 sub-components +
+Capability matrix v1.49 EXTENSION + audit action EXTENSION 7 NEW Literal + 16 NEW typed
+exceptions + dry-run + wire scope T1~T8 + A19 cohesion 9 surface EXTENSION PASS
+preserved + CR lessons applied 19종 (cj-style 162 의 19종 + **CR 11-3 honest-DEFER 53번째
+Phase 23 spec entry 진입** 결정 wire 보존) + AD-50 (a)~(g) 7 sub-decisions 결정 wire
+보존 + AD-51 (a)~(g) 7 sub-decisions 결정 wire 보존.
+
+**Honest deviations 2건 보존 진입 완료** (① NO NEW source code changes — sprint scope
+strictly docs only per CR 11-3 honest-DEFER discipline (cj-style 163 spec entry =
+cj-style 4-entry-point cycle 2번째 단계 = docs-only convention). Phase 23 wire cycle
+진입 시점에 source/test/docs implementation 모두 결정 wire 진입 (cj-style 164 wire →
+cj-style 165 retro) ② NO NEW router endpoints or modules — docs files 만 EXTENSION, no
+actual backend modules + alembic + RSC pages + Client component + TypeScript mirrors +
+ko-KR.json 변경 (Phase 11~22 wire cycles 의 docs-only sprint pattern verbatim 미러).
+
+**3중 게이트 impact NONE** (Layer 3 docs-only 변경): ruff scoped 0 NEW (docs files pass
+`All checks passed!`) / pytest 0 NEW (apps/api backend pytest unchanged) / vitest 0 NEW
+(apps/web frontend unchanged) / tsc 0 NEW (apps/web frontend tsc unchanged) = 3중 게이트
+FINAL CLEAN 결정 wire + A19 cohesion 9 surface EXTENSION PASS preserved + 1-day atomic
+sprint.
+
+**A644~A648 신규 결정 wire** (cj-style 163번째):
+- A644 = 옵션 (a) Phase 23 spec entry 진입 결정 wire (rationale 5종: cj-style discipline
+  회피 위험 방지 + Phase 23 PRD entry cj 162 진입 직후 자연스러운 Phase 23 spec entry
+  진입 + Phase 11~22 14-capability FinOps territory chain ✅ ALL WIRED 후 derived
+  metric layer 의 4-NEW-module backend detail 결정 wire 진입 + Phase 22
+  5-dim allocation_lines ledger data 활용 → 새 backend infra 불필요 + reuse 최대화 +
+  risk 최소화 + 비즈니스 가치 최고 (executive KPI surface 직접적 ROI) + Epic 1~17 +
+  Phase 3~22 + Phase 19.5 + Phase 20.5 + 1st release cycle 정합)
+- A645 = spec 파일 생성 결정 wire (`_bmad-output/implementation-artifacts/phase-23-finops-unit-economics-wire.md`
+  ~+440 LOC + baseline_commit `2abfdd9` + cj_style_entry_point 163 + status
+  `ready-for-dev` + Story + 8 ACs §F39.1~§F39.8 verbatim → ~88 detailed sub-ACs
+  (5+5+5+5+8+6+4+10) pre-flight 정합 sweep 만족 + T1~T8 + ~40 subtasks + Dev Notes
+  19종 + Architecture Alignment ALLOWED sweep + Files Affected ~22 files estimate
+  (~18 NEW + ~4 MODIFIED))
+- A646 = 8 ACs §F39.1~§F39.8 verbatim → ~88 sub-ACs 전개 결정 wire (§F39.1
+  unit_economics engine + 5-dim cross-join 5 sub-ACs + §F39.2 cost_per_business_unit +
+  5-dim rollup 5 sub-ACs + §F39.3 cost_per_transaction + tag propagation 5 sub-ACs +
+  §F39.4 margin_analysis + revenue attribution 5 sub-ACs + §F39.5 unit_economics
+  dashboard UI 5 sub-components 8 sub-ACs + §F39.6 Capability matrix v1.49 EXTENSION
+  6 sub-ACs + §F39.7 audit action EXTENSION 7 NEW + 16 NEW typed exception classes
+  4 sub-ACs + §F39.8 dry-run + Tests + wire scope T1~T8 10 sub-ACs = ~88 sub-ACs
+  pre-flight 정합 sweep 만족)
+- A647 = Tasks T1~T8 + ~40 subtasks 결정 wire (T1 4 NEW backend unit_economics modules
+  8 subtasks + T2 dashboard UI 5 sub-components 8 subtasks + T3 alembic 0055 1 preview
+  table 6 subtasks + T4 audit action EXTENSION 7 NEW + 16 NEW typed exception classes
+  4 subtasks + T5 capability v1.49 EXTENSION 4 subtasks + T6
+  scheduled_unit_economics_calculation_job wire 2 subtasks + T7 dry-run mode + 1 NEW
+  CLI flag 4 subtasks + T8 3중 게이트 FINAL CLEAN atomic commit 4 subtasks = ~40 subtasks)
+- A648 = sprint-status v3.72 → v3.73 EXTENSION + atomic commit via `git commit -F <file>`
+  CR 9-6 D5 prevention + commit-msg-cj-163.txt 신규 + handoff memory 신규 + MEMORY.md
+  hook EXTENSION + **5 files = 3 NEW + 2 MODIFIED atomic single sprint** 결정 wire
+  진입 완료 보존
+
+**CR lessons applied 19종 + AD-51 (a)~(g)** 결정 wire 보존 (cj-style 162 의 19종 + CR 11-3
+honest-DEFER 53번째 Phase 23 spec entry 진입 결정 wire + cj-style 163 의 19종 CR lessons
+verbatim mirror of cj-style 159 Phase 22 spec entry). Atomic commit via `git commit -F
+<file>` CR 9-6 verbatim D5 prevention + PowerShell here-string 회피 + **5 files = 3 NEW
++ 2 MODIFIED atomic single sprint** (verified via git status --short pre-commit) 결정
+wire 진입 완료 보존. 결정 wire 일자: 2026-08-27 (KST).
+
+**next**: 옵션 (a) Phase 23 atomic wire T1~T8 진입 결정 wire (cj 164) — 4 NEW backend
+unit_economics modules + alembic 0055 phase_23_unit_economics 1 preview table + RSC
+pages + Client components + TypeScript mirrors + ko-KR.json + main.py include 결정 wire
+/ 옵션 (b) Phase 23 close-out retro 진입 결정 wire (cj 165) — retro_document ~+660 LOC
+14-section §1~§14 verbatim mirroring phase-22-close-out-2026-08-27.md pattern + honest
+deviations + decision ledger 결정 wire / 옵션 (c) Layer 2 P1 + Layer 3 P2 carry-over
+sprint 진입 / 옵션 (d) Epic 23+ 진입 결정 wire / 옵션 (e) D-DEFER-* follow-up 결정
+wire 보류.
+
+## Why
+
+Phase 23 PRD entry (cj 162) 의 4-entry-point cycle 진입 직후 자연스러운 spec entry 진입.
+Phase 22 의 5-dim allocation_lines 가 이미 executive KPI 도출을 위한 충분한 source-of-truth
+으로 작용 가능 → 새 ledger ingestion 없이 derived metric layer 구축 가능.
+
+## How to apply
+
+Phase 23 atomic wire 진입 시 (cj 164): 4 NEW backend modules
+(unit_economics_engine + cost_per_business_unit + cost_per_transaction +
+margin_analysis) + alembic 0055 phase_23 preview table 1 + dashboard UI 5 sub-components
++ TypeScript mirrors + ko-KR.json + main.py include 결정 wire. Phase 23 close-out retro
+진입 시 (cj 165): 14-section §1~§14 verbatim retro document mirroring phase-22-close-out
+pattern.
