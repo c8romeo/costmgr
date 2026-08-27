@@ -562,6 +562,20 @@ from apps.api.modules.finops.budget_planning.budget_planning_routes import (
     router as budget_planning_router,
 )
 
+# Phase 25 wire (cj-style 174th follow-up) — FinOps Vendor Management
+# post-budget-allocation close-loop layer territory. CRITICAL: registered
+# AFTER budget_planning_router (Phase 24) because Phase 25 derives
+# vendor_spend_attribution from Phase 22 settlement_results + Phase 24
+# BudgetPlan ledger data. Capability gates FINOPS_VENDOR_MANAGEMENT
+# (capability matrix v1.51 EXTENSION). AD-22 owner-only RBAC + Epic 12
+# 2FA 챌린지 mandatory for high-value ≥ 10M KRW/year contracts. 9
+# endpoints covering vendor CRUD + selection + blacklist + contract +
+# advance + dry-run. ALLOWED_SERVICE_SUBMODULES EXTENSION
+# m25_finops_vendor_management 신규 submodule 등록.
+from apps.api.modules.finops.vendor_management.vendor_management_routes import (
+    router as vendor_management_router,
+)
+
 app.include_router(sustainability_router)
 app.include_router(commitment_router)
 app.include_router(pricing_router)
@@ -570,6 +584,7 @@ app.include_router(reserved_capacity_router)
 app.include_router(chargeback_settlement_router)
 app.include_router(unit_economics_router)
 app.include_router(budget_planning_router)
+app.include_router(vendor_management_router)
 
 
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack

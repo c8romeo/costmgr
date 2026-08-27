@@ -101,6 +101,7 @@ __all__ = [
     "require_finops_chargeback_settlement",  # NEW — Phase 22 (FinOps Chargeback Settlement)
     "require_finops_unit_economics",  # NEW — Phase 23 (FinOps Unit Economics)
     "require_finops_budget_planning",  # NEW — Phase 24 (FinOps Budget Planning)
+    "require_finops_vendor_management",  # NEW — Phase 25 (FinOps Vendor Management)
 ]
 
 
@@ -452,5 +453,43 @@ require_finops_unit_economics = require_capability(
 # tests/integration/test_capability_matrix_v1_50_drift.py.
 require_finops_budget_planning = require_capability(
     Capability.FINOPS_BUDGET_PLANNING
+)
+
+# Phase 25 (cj-style 174th follow-up wire) — require_finops_vendor_management
+# (industry-agnostic per CR 12-1 L4 precedent + FINOPS_BUDGET_PLANNING
+# Phase 24 wire + FINOPS_UNIT_ECONOMICS Phase 23 wire +
+# FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire + FINOPS_RESERVED_CAPACITY
+# Phase 21 wire + FINOPS_MULTI_CLOUD Phase 20 wire + FINOPS_PRICING Phase
+# 19 wire + FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY Phase
+# 17 wire + FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase
+# 15 wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING Phase
+# 13 wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+# + FINOPS Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_VENDOR_MANAGEMENT capability (vendor management post-budget-
+# allocation close-loop layer is a business-level FinOps pillar per
+# FinOps Foundation + 5-NEW-module composition layer:
+# vendor_catalog_engine + vendor_selection_engine +
+# vendor_contract_lifecycle_engine + vendor_performance_evaluation +
+# vendor_spend_attribution + scheduled_vendor_management_jobs — derived
+# from Phase 14 optimization + Phase 18 commitment + Phase 19 pricing +
+# Phase 22 settlement + Phase 23 unit_economics + Phase 24 budget_plan
+# ledger data via 5-dim weighted vendor selection scoring (cost 0.30 +
+# performance 0.25 + reliability 0.20 + compliance 0.15 + strategic_fit
+# 0.10) + 4-dim vendor performance scoring (sla_compliance 0.30 +
+# cost_efficiency 0.25 + support_quality 0.25 + innovation 0.20) +
+# sequential contract lifecycle (draft → pending_approval → approved →
+# active → expiring_soon → renewed/expired/terminated) + Epic 12 2FA
+# 챌린지 mandatory for high-value ≥ 10M KRW/year + vendor_blacklist
+# compliance gate + cross-budget reconciliation + 4 cadence KST pytz +
+# dry-run mode + 1 NEW CLI flag `--finops-vendor-management-dry-run` +
+# 12 NEW audit actions + 16 NEW typed exceptions + 9 NEW endpoints).
+# Gates the FinOps vendor management routes in
+# apps/api/modules/finops/vendor_management/vendor_management_routes.py
+# (create-vendor + list-vendors + get-vendor + update-vendor + blacklist
+# + run-selection + create-contract + advance-contract + dry-run).
+# Drift detector lives at
+# tests/integration/test_capability_matrix_v1_51_drift.py.
+require_finops_vendor_management = require_capability(
+    Capability.FINOPS_VENDOR_MANAGEMENT
 )
 

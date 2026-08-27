@@ -771,6 +771,99 @@ __all__ = [
     "validate_cadence",
     "consume_notify",
     "budget_planning_router",
+    # Phase 25 wire (cj-style 174th follow-up) — FinOps Vendor Management
+    # post-budget-allocation close-loop layer (AD-53 (a)~(g) 7
+    # sub-decisions verbatim). 5-NEW-module composition layer
+    # (vendor_catalog_engine + vendor_selection_engine +
+    # vendor_contract_lifecycle_engine + vendor_performance_evaluation +
+    # vendor_spend_attribution) + 9 NEW endpoints + 12 NEW audit actions +
+    # 16 NEW typed exceptions + dry-run mode + 1 NEW CLI flag +
+    # D-FINOPS-14 honestly DEFER (vendor marketplace + auto-procurement +
+    # vendor consolidation + vendor ESG + AI-driven RFP + SLA
+    # auto-inforcement + multi-currency FX + invoice OCR + KYC + risk
+    # scoring ML — all honestly DEFER to future Phase 25.x).
+    "MODULE_TAG",  # m25_finops_vendor_management
+    "VENDOR_MANAGEMENT_ENGINE_MODEL_VERSION",
+    "VENDOR_SELECTION_DIMENSION_WEIGHTS",
+    "VENDOR_PERFORMANCE_DIMENSION_WEIGHTS",
+    "VENDOR_CADENCE_HOURS_KST",
+    "VENDOR_RECIPIENT_TEMPLATES",
+    "VENDOR_DEFAULTS",
+    "VENDOR_BLACKLIST_GATE_FLAGS",
+    "SELECTION_THRESHOLD_DEFAULT",
+    "SELECTION_CANDIDATE_LIMIT_DEFAULT",
+    "SELECTION_SCORE_VERSION_MAX",
+    "VENDOR_RISK_LOW_THRESHOLD",
+    "VENDOR_RISK_MEDIUM_THRESHOLD",
+    "VENDOR_RISK_HIGH_THRESHOLD",
+    "MAX_VENDORS_PER_TENANT",
+    "MAX_CONTRACTS_PER_VENDOR",
+    "MAX_CONTRACT_OVERRIDE_KRW",
+    "TOTAL_VERIFICATION_TOLERANCE_KRW",
+    "AUTO_RENEWAL_WINDOW_DAYS",
+    "LISTEN_NOTIFY_CHANNELS",
+    "HIGH_VALUE_THRESHOLD_KRW_PER_YEAR",
+    "ALL_VENDOR_STATUSES",
+    "ALL_VENDOR_CATEGORIES",
+    "ALL_VENDOR_CONTRACT_LIFECYCLES",
+    "ALL_VENDOR_PERFORMANCE_SEVERITIES",
+    "ALL_VENDOR_SELECTION_MODES",
+    "ALL_VENDOR_APPROVAL_STEP_STATUSES",
+    "ALL_VENDOR_STATUS_VALUES",
+    "ALL_VENDOR_CATEGORY_VALUES",
+    "ALL_VENDOR_CONTRACT_LIFECYCLE_VALUES",
+    "ALL_VENDOR_PERFORMANCE_SEVERITY_VALUES",
+    "ALL_VENDOR_SELECTION_MODE_VALUES",
+    "ALL_VENDOR_APPROVAL_STEP_STATUS_VALUES",
+    "VendorStatus",
+    "VendorCategory",
+    "VendorContractLifecycle",
+    "VendorPerformanceSeverity",
+    "VendorSelectionMode",
+    "VendorApprovalStepStatus",
+    "Vendor",
+    "VendorSelectionScore",
+    "VendorContract",
+    "VendorPerformanceScorecard",
+    "VendorSpendAttribution",
+    "VendorBlacklistEntry",
+    "aggregate_vendor_catalog",
+    "create_vendor",
+    "update_vendor",
+    "change_vendor_status",
+    "blacklist_vendor",
+    "compute_vendor_risk_score",
+    "validate_vendor_scores",
+    "aggregate_vendor_selection",
+    "score_vendor",
+    "apply_vendor_selection_threshold",
+    "override_selection_score_per_tenant",
+    "aggregate_vendor_contract_lifecycle",
+    "create_vendor_contract",
+    "advance_contract_lifecycle",
+    "request_contract_approval",
+    "approve_contract_step",
+    "reject_contract_step",
+    "request_contract_renewal",
+    "terminate_contract",
+    "check_auto_renewal_window",
+    "check_over_budget",
+    "check_vendor_blacklist_gate",
+    "aggregate_vendor_performance",
+    "evaluate_vendor_performance",
+    "compute_monthly_score",
+    "compute_quarterly_score",
+    "classify_performance_severity",
+    "aggregate_vendor_spend_attribution",
+    "compute_vendor_spend_attribution",
+    "reconcile_cross_budget",
+    "daily_vendor_lifecycle_job",
+    "monthly_vendor_performance_job",
+    "monthly_vendor_spend_attribution_job",
+    "quarterly_vendor_review_job",
+    "schedule_vendor_management_jobs",
+    "notify_listen_channels",
+    "vendor_management_router",
 ]
 
 
@@ -984,4 +1077,119 @@ from apps.api.modules.finops.budget_planning import (  # noqa: E402
     validate_budget_plan,
     validate_budget_vs_actual,
     validate_cadence,
+)
+
+# Phase 25 (cj-style 174th follow-up wire) — FinOps Vendor Management
+# post-budget-allocation close-loop layer territory. 5-NEW-module
+# composition layer: vendor_catalog_engine (5-dim scoring baseline +
+# 6 vendor_category taxonomy: cloud / saas / outsourcing / consulting /
+# hardware / other + 4-state lifecycle: active / inactive / under_review
+# / blacklisted) + vendor_selection_engine (5-dim weighted scoring:
+# cost 0.30 + performance 0.25 + reliability 0.20 + compliance 0.15 +
+# strategic_fit 0.10 + per-tenant override > industry baseline >
+# system default precedence + SELECTION_THRESHOLD_DEFAULT=60.00 +
+# SELECTION_SCORE_VERSION_MAX=100.00 strict range) +
+# vendor_contract_lifecycle_engine (sequential state machine: draft →
+# pending_approval → approved → active → expiring_soon → renewed /
+# expired / terminated + Epic 12 2FA 챌린지 mandatory high-value ≥ 10M
+# KRW/year + tenant_owner approval chain Slack DM + 2FA +
+# AUTO_RENEWAL_WINDOW_DAYS=90 + OVER_BUDGET cross-check + vendor_blacklist
+# compliance gate AD-53 (g)) + vendor_performance_evaluation
+# (4-dim scoring: sla_compliance 0.30 + cost_efficiency 0.25 +
+# support_quality 0.25 + innovation 0.20 + monthly 1st-day 03:00 KST +
+# quarterly 1st-day 03:30 KST cadence) + vendor_spend_attribution
+# (cross-budget reconciliation: Phase 22 settlement_results JOIN
+# Phase 24 BudgetPlan + 5-dim ledger-key dedup). 9 endpoints (vendor
+# CRUD + selection + blacklist + contract + advance + dry-run) +
+# 4 cadence KST pytz (daily_lifecycle 04:00 + monthly_performance 03:00
+# + monthly_spend_attribution 03:30 + quarterly_review 03:30) +
+# dry-run mode + 1 NEW CLI flag `--finops-vendor-management-dry-run` +
+# 12 NEW audit actions + 16 NEW typed exceptions + AD-53 (a)~(g) 7
+# sub-decisions + D-FINOPS-14 honestly DEFER (vendor marketplace +
+# auto-procurement + vendor consolidation + vendor ESG + AI-driven RFP
+# + SLA auto-inforcement + multi-currency FX + invoice OCR + KYC +
+# risk scoring ML — all honestly DEFER to future Phase 25.x).
+from apps.api.modules.finops.vendor_management import (  # noqa: E402
+    ALL_VENDOR_APPROVAL_STEP_STATUS_VALUES,
+    ALL_VENDOR_APPROVAL_STEP_STATUSES,
+    ALL_VENDOR_CATEGORIES,
+    ALL_VENDOR_CATEGORY_VALUES,
+    ALL_VENDOR_CONTRACT_LIFECYCLE_VALUES,
+    ALL_VENDOR_CONTRACT_LIFECYCLES,
+    ALL_VENDOR_PERFORMANCE_SEVERITIES,
+    ALL_VENDOR_PERFORMANCE_SEVERITY_VALUES,
+    ALL_VENDOR_SELECTION_MODE_VALUES,
+    ALL_VENDOR_SELECTION_MODES,
+    ALL_VENDOR_STATUS_VALUES,
+    ALL_VENDOR_STATUSES,
+    AUTO_RENEWAL_WINDOW_DAYS,
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
+    LISTEN_NOTIFY_CHANNELS,
+    MAX_CONTRACT_OVERRIDE_KRW,
+    MAX_CONTRACTS_PER_VENDOR,
+    MAX_VENDORS_PER_TENANT,
+    MODULE_TAG,  # m25_finops_vendor_management
+    SELECTION_CANDIDATE_LIMIT_DEFAULT,
+    SELECTION_SCORE_VERSION_MAX,
+    SELECTION_THRESHOLD_DEFAULT,
+    TOTAL_VERIFICATION_TOLERANCE_KRW,
+    VENDOR_BLACKLIST_GATE_FLAGS,
+    VENDOR_CADENCE_HOURS_KST,
+    VENDOR_DEFAULTS,
+    VENDOR_MANAGEMENT_ENGINE_MODEL_VERSION,
+    VENDOR_PERFORMANCE_DIMENSION_WEIGHTS,
+    VENDOR_RECIPIENT_TEMPLATES,
+    VENDOR_RISK_HIGH_THRESHOLD,
+    VENDOR_RISK_LOW_THRESHOLD,
+    VENDOR_RISK_MEDIUM_THRESHOLD,
+    VENDOR_SELECTION_DIMENSION_WEIGHTS,
+    Vendor,
+    VendorApprovalStepStatus,
+    VendorBlacklistEntry,
+    VendorCategory,
+    VendorContract,
+    VendorContractLifecycle,
+    VendorPerformanceScorecard,
+    VendorPerformanceSeverity,
+    VendorSelectionMode,
+    VendorSelectionScore,
+    VendorSpendAttribution,
+    VendorStatus,
+    advance_contract_lifecycle,
+    aggregate_vendor_catalog,
+    aggregate_vendor_contract_lifecycle,
+    aggregate_vendor_performance,
+    aggregate_vendor_selection,
+    aggregate_vendor_spend_attribution,
+    apply_vendor_selection_threshold,
+    approve_contract_step,
+    blacklist_vendor,
+    change_vendor_status,
+    check_auto_renewal_window,
+    check_over_budget,
+    check_vendor_blacklist_gate,
+    classify_performance_severity,
+    compute_monthly_score,
+    compute_quarterly_score,
+    compute_vendor_risk_score,
+    compute_vendor_spend_attribution,
+    create_vendor,
+    create_vendor_contract,
+    daily_vendor_lifecycle_job,
+    evaluate_vendor_performance,
+    monthly_vendor_performance_job,
+    monthly_vendor_spend_attribution_job,
+    notify_listen_channels,
+    override_selection_score_per_tenant,
+    quarterly_vendor_review_job,
+    reconcile_cross_budget,
+    reject_contract_step,
+    request_contract_approval,
+    request_contract_renewal,
+    score_vendor,
+    schedule_vendor_management_jobs,
+    terminate_contract,
+    update_vendor,
+    validate_vendor_scores,
+    vendor_management_router,
 )

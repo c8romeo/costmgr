@@ -3309,3 +3309,211 @@ class BudgetPlanningPermissionError(FinopsBudgetPlanningError):
     """
 
     http_status: int = 403
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 25 (cj-style 174th follow-up wire) — FINOPS_VENDOR_MANAGEMENT
+# typed exceptions. 16 NEW classes (CR 12-5 D-14 envelope verbatim
+# mirroring Phase 24 wire + Phase 23 wire + Phase 22 wire + Phase 21
+# wire + Phase 20 wire + Phase 19 wire + Phase 18 wire + Phase 17 wire
+# + Phase 16 wire + Phase 15 wire + Phase 14 wire + Phase 13 wire +
+# Phase 12 wire + Phase 11 wire pattern verbatim). All inherit from
+# FinopsVendorManagementError (which inherits from FinopsError).
+# ─────────────────────────────────────────────────────────────────
+
+# Module identifier used by typed exception envelopes (mirrors
+# m25_finops_vendor_management Phase 25 wire + m24_finops_budget_planning
+# Phase 24 wire + m31_finops_unit_economics Phase 23 wire +
+# m30_finops_chargeback_settlement Phase 22 wire + m29_finops_reserved_
+# capacity Phase 21 wire + m28_finops_multi_cloud Phase 20 wire pattern).
+FINOPS_VENDOR_MANAGEMENT_MODULE_ID: str = "m25_finops_vendor_management"
+
+
+class FinopsVendorManagementError(FinopsError):
+    """Base for FinOps Vendor Management typed exceptions.
+
+    Provides FINOPS_VENDOR_MANAGEMENT_MODULE_ID class attribute + envelope
+    shape `{code, message_ko, details, trace_id, module_id}` shared by
+    all 16 NEW exception subclasses below (Phase 25 wire cj-style 174th
+    follow-up).
+    """
+
+    module_id: str = FINOPS_VENDOR_MANAGEMENT_MODULE_ID
+
+
+class VendorCatalogError(FinopsVendorManagementError):
+    """HTTP 500 typed error — vendor catalog engine failure.
+
+    Raised by vendor_catalog_engine.create_vendor() / update_vendor() /
+    change_vendor_status() / blacklist_vendor() when the catalog
+    write path fails (DB integrity error, RLS rejection, etc.).
+    """
+
+    http_status: int = 500
+
+
+class VendorCatalogNotFoundError(FinopsVendorManagementError):
+    """HTTP 404 typed error — vendor catalog row not found.
+
+    Raised by vendor_management_routes.get_vendor_endpoint() when
+    vendor_id lookup returns no rows.
+    """
+
+    http_status: int = 404
+
+
+class VendorCatalogCategoryError(FinopsVendorManagementError):
+    """HTTP 400 typed error — vendor category taxonomy validation failure.
+
+    Raised by vendor_catalog_engine.validate_vendor_scores() when the
+    requested vendor_category is not in ALL_VENDOR_CATEGORY_VALUES
+    (cloud / saas / outsourcing / consulting / hardware / other —
+    6-category taxonomy per AD-53 (a) verbatim).
+    """
+
+    http_status: int = 400
+
+
+class VendorCatalogLifecycleError(FinopsVendorManagementError):
+    """HTTP 400 typed error — vendor 4-state lifecycle transition invalid.
+
+    Raised by vendor_catalog_engine.change_vendor_status() when the
+    requested status value is not in ALL_VENDOR_STATUS_VALUES
+    (active / inactive / under_review / blacklisted).
+    """
+
+    http_status: int = 400
+
+
+class VendorCatalogBlacklistError(FinopsVendorManagementError):
+    """HTTP 400 typed error — vendor blacklist compliance gate failure.
+
+    Raised by vendor_catalog_engine.blacklist_vendor() when the
+    blacklist reason or severity is malformed (AD-53 (g) verbatim).
+    """
+
+    http_status: int = 400
+
+
+class VendorSelectionError(FinopsVendorManagementError):
+    """HTTP 500 typed error — vendor 5-dim weighted selection failure.
+
+    Raised by vendor_selection_engine.score_vendor() when the
+    dimension score validation fails or the weighted total exceeds
+    SELECTION_SCORE_VERSION_MAX=100.00 strict range.
+    """
+
+    http_status: int = 500
+
+
+class VendorSelectionThresholdError(FinopsVendorManagementError):
+    """HTTP 400 typed error — vendor selection threshold validation failure.
+
+    Raised by vendor_selection_engine.apply_vendor_selection_threshold()
+    when the threshold value is outside [0.0, 100.0] range or
+    SELECTION_THRESHOLD_DEFAULT=60.00 default is overridden incorrectly.
+    """
+
+    http_status: int = 400
+
+
+class VendorSelectionWeightError(FinopsVendorManagementError):
+    """HTTP 400 typed error — vendor selection dimension weight validation failure.
+
+    Raised by vendor_selection_engine.override_selection_score_per_tenant()
+    when the per-tenant override weights do not sum to 1.00 (cost +
+    performance + reliability + compliance + strategic_fit).
+    """
+
+    http_status: int = 400
+
+
+class VendorContractLifecycleError(FinopsVendorManagementError):
+    """HTTP 400 typed error — vendor contract sequential lifecycle transition invalid.
+
+    Raised by vendor_contract_lifecycle_engine.advance_contract_lifecycle()
+    when the requested transition violates the sequential state machine
+    (draft → pending_approval → approved → active → expiring_soon →
+    renewed/expired/terminated).
+    """
+
+    http_status: int = 400
+
+
+class VendorContractApproval2FARequiredError(FinopsVendorManagementError):
+    """HTTP 403 typed error — Epic 12 2FA 챌린지 mandatory for high-value.
+
+    Raised by vendor_contract_lifecycle_engine.record_approval_step()
+    when a high-value contract (≥10M KRW/year) is approved without a
+    verified RFC 6238 TOTP. Redirects to /account/security?reason=
+    2fa_required (CR 12-1 L4 precedent + AD-53 (g) verbatim).
+    """
+
+    http_status: int = 403
+
+
+class VendorContractApprovalTimeoutError(FinopsVendorManagementError):
+    """HTTP 500 typed error — vendor contract approval Slack DM timeout.
+
+    Raised by vendor_contract_lifecycle_engine._send_slack_dm() when
+    the Slack DM to the approver times out (SLACK_DM_TIMEOUT_SECONDS=30).
+    """
+
+    http_status: int = 500
+
+
+class VendorPerformanceEvaluationError(FinopsVendorManagementError):
+    """HTTP 500 typed error — vendor performance evaluation failure.
+
+    Raised by vendor_performance_evaluation.evaluate_vendor_performance()
+    when the 4-dim scoring computation fails (sla_compliance 0.30 +
+    cost_efficiency 0.25 + support_quality 0.25 + innovation 0.20).
+    """
+
+    http_status: int = 500
+
+
+class VendorPerformanceSeverityError(FinopsVendorManagementError):
+    """HTTP 400 typed error — vendor performance severity classification failure.
+
+    Raised by vendor_performance_evaluation.classify_performance_severity()
+    when the score falls outside the 4 severity bands
+    (low / medium / high / critical).
+    """
+
+    http_status: int = 400
+
+
+class VendorSpendAttributionError(FinopsVendorManagementError):
+    """HTTP 500 typed error — vendor spend attribution cross-budget reconciliation failure.
+
+    Raised by vendor_spend_attribution.reconcile_cross_budget() when
+    the JOIN between Phase 22 settlement_results + Phase 24
+    BudgetPlan fails (tenant_id / period_key / vendor_id mismatch).
+    """
+
+    http_status: int = 500
+
+
+class VendorRiskError(FinopsVendorManagementError):
+    """HTTP 400 typed error — vendor risk score threshold validation failure.
+
+    Raised by vendor_catalog_engine.compute_vendor_risk_score() when
+    the score falls outside the 3-tier risk bands
+    (low < VENDOR_RISK_LOW_THRESHOLD + medium + high > VENDOR_RISK_HIGH_THRESHOLD).
+    """
+
+    http_status: int = 400
+
+
+class VendorPermissionError(FinopsVendorManagementError):
+    """HTTP 403 typed error — vendor_management role-based access denied.
+
+    Raised by routes when caller role is neither
+    Role.VENDOR_MANAGEMENT_OPERATOR nor Role.VENDOR_MANAGEMENT_VIEWER
+    (AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory for
+    high-value ≥ 10M KRW/year contracts). 403 (Forbidden) semantics:
+    caller lacks required role.
+    """
+
+    http_status: int = 403

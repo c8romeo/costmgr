@@ -1951,6 +1951,77 @@
       "schedule_monthly_rollover": "월간 (1일 05:00 KST)",
       "schedule_quarterly_review": "분기 (1일 05:30 KST)",
       "d_finops_13_notice": "D-FINOPS-13 honestly DEFER: 다중 통화 FX + 영점 예산(ZBB) + 증분 예산 + 봉투 예산 + 시나리오 A/B 테스트 + 예산별 승인 오버라이드"
+    },
+    "finops_vendor_management": {
+      "title": "FinOps 벤더 관리",
+      "subtitle": "Phase 25 예산 사후 통제 계층 — 벤더 카탈로그 + 선정 + 계약 + 성과평가 + 지출 귀속",
+      "tabs": {
+        "catalog": "카탈로그",
+        "selection": "선정",
+        "contracts": "계약",
+        "performance": "성과",
+        "spend": "지출"
+      },
+      "catalog_card": {
+        "title": "벤더 카탈로그 개요",
+        "new_vendor_button": "새 벤더",
+        "category_cloud": "클라우드",
+        "category_saas": "SaaS",
+        "category_outsourcing": "외주",
+        "category_consulting": "컨설팅",
+        "category_hardware": "하드웨어",
+        "category_other": "기타",
+        "status_active": "활성",
+        "status_inactive": "비활성",
+        "status_under_review": "검토 중",
+        "status_blacklisted": "블랙리스트",
+        "risk_low": "저위험",
+        "risk_medium": "중위험",
+        "risk_high": "고위험",
+        "no_vendors": "등록된 벤더가 없습니다. '새 벤더' 버튼을 클릭하여 시작하세요.",
+        "loading": "벤더 카탈로그 로딩 중..."
+      },
+      "selection_panel": {
+        "title": "5-차원 가중 선정 (Cost 0.30 + Performance 0.25 + Reliability 0.20 + Compliance 0.15 + Strategic_fit 0.10)",
+        "run_selection_button": "선정 실행",
+        "threshold_label": "선정 임계값",
+        "score_version_label": "점수 버전",
+        "per_tenant_override_notice": "테넌트별 오버라이드 > 산업 베이스라인 > 시스템 기본값"
+      },
+      "contract_timeline": {
+        "title": "계약 라이프사이클 타임라인",
+        "lifecycle_draft": "초안",
+        "lifecycle_pending_approval": "승인 대기",
+        "lifecycle_approved": "승인됨",
+        "lifecycle_active": "활성",
+        "lifecycle_expiring_soon": "만료 임박",
+        "lifecycle_renewed": "�신됨",
+        "lifecycle_expired": "만료됨",
+        "lifecycle_terminated": "해지됨",
+        "high_value_badge": "고가치 (≥10M KRW/year)",
+        "two_fa_required_notice": "고가치 계약은 Epic 12 2FA 챌린지가 필수입니다",
+        "approval_chain_label": "승인 체인",
+        "auto_renewal_window_label": "자동 갱신 윈도우 (90일)"
+      },
+      "performance_table": {
+        "title": "성과평가 점수표",
+        "severity_low": "저",
+        "severity_medium": "중",
+        "severity_high": "고",
+        "severity_critical": "심각",
+        "monthly_cadence_label": "월간 (1일 03:00 KST)",
+        "quarterly_cadence_label": "분기 (1일 03:30 KST)"
+      },
+      "spend_chart": {
+        "title": "벤더 지출 귀속 (Phase 22 settlement + Phase 24 BudgetPlan 크로스 예산 조정)",
+        "reconciliation_tolerance_label": "조정 허용오차",
+        "reconciliation_status_label": "조정 상태"
+      },
+      "dry_run_toggle": "드라이런",
+      "blacklist_button": "블랙리스트 등록",
+      "selection_threshold_default_notice": "기본 선정 임계값: 60.00 / 점수 버전 한도: ≤ 100.00",
+      "over_budget_check_notice": "계약 진행 시 예산 초과 자동 검사",
+      "d_finops_14_notice": "D-FINOPS-14 honestly DEFER: 벤더 마켓플레이스 + 자동 조달 + 벤더 통합 + 벤더 ESG + AI 기반 RFP + SLA 자동 강화 + 다중 통화 FX + 인보이스 OCR + KYC + 위험 점수 ML"
     }
   }
 }

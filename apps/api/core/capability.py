@@ -721,6 +721,29 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_50_drift.py
     # (capability matrix v1.50 EXTENSION 1 NEW row).
     FINOPS_BUDGET_PLANNING = "finops_budget_planning"
+    # Phase 25 (cj-style 174th follow-up wire — FinOps Vendor Management
+    # post-budget-allocation layer territory (industry-agnostic per CR
+    # 12-1 L4 precedence). All 4 industries get FINOPS_VENDOR_MANAGEMENT
+    # capability (PRD §F41.1~§F41.8 + AD-53 (a)~(g) 7 sub-decisions).
+    # Built on top of Phase 22 allocation_lines ledger + Phase 23
+    # unit_economics_results ledger + Phase 24 BudgetPlan ledger data via
+    # 5-dim weighted vendor selection scoring (cost 0.30 + performance
+    # 0.25 + reliability 0.20 + compliance 0.15 + strategic_fit 0.10) +
+    # 4-dim vendor performance scoring (sla_compliance 0.30 +
+    # cost_efficiency 0.25 + support_quality 0.25 + innovation 0.20) +
+    # sequential contract lifecycle (draft → pending_approval → approved
+    # → active → expiring_soon → renewed/expired/terminated) + Epic 12
+    # 2FA 챌린지 mandatory high-value ≥ 10M KRW/year + vendor_blacklist
+    # compliance gate + cross-budget reconciliation (Phase 22 settlement
+    # JOIN Phase 24 budget_plan) + 4 cadence KST pytz (daily_lifecycle
+    # 04:00 + monthly_performance 03:00 + quarterly_review 03:30) + dry-run
+    # mode + 1 NEW CLI flag `--finops-vendor-management-dry-run` + 12 NEW
+    # audit actions + 16 NEW typed exceptions + 9 NEW endpoints.
+    # Gates require_finops_vendor_management dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_51_drift.py
+    # (capability matrix v1.51 EXTENSION 1 NEW row).
+    FINOPS_VENDOR_MANAGEMENT = "finops_vendor_management"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -1011,6 +1034,15 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_UNIT_ECONOMICS,
             # Phase 24 — FINOPS_BUDGET_PLANNING (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_BUDGET_PLANNING,
+            # Phase 25 (cj-style 174th follow-up) — FINOPS_VENDOR_MANAGEMENT
+            # (industry-agnostic per CR 12-1 L4 + Phase 24 wire +
+            # FINOPS Unit Economics Phase 23 wire + FINOPS Chargeback
+            # Settlement Phase 22 wire + 16-capability FinOps territory
+            # chain pattern verbatim). Vendor management post-budget-
+            # allocation close-loop layer is a business-level FinOps
+            # pillar per FinOps Foundation + vendor cost direct control +
+            # SLA compliance + risk mitigation industry-agnostic.
+            Capability.FINOPS_VENDOR_MANAGEMENT,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1245,6 +1277,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_UNIT_ECONOMICS,
             # Phase 24 — FINOPS_BUDGET_PLANNING (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_BUDGET_PLANNING,
+            # Phase 25 — FINOPS_VENDOR_MANAGEMENT (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_VENDOR_MANAGEMENT,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1496,6 +1530,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_UNIT_ECONOMICS,
             # Phase 24 — FINOPS_BUDGET_PLANNING (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_BUDGET_PLANNING,
+            # Phase 25 — FINOPS_VENDOR_MANAGEMENT (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_VENDOR_MANAGEMENT,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1775,6 +1811,12 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # industry-agnostically per FinOps Foundation + Phase 11~23
             # 15-capability FinOps territory chain carry-over.
             Capability.FINOPS_BUDGET_PLANNING,
+            # Phase 25 — FINOPS_VENDOR_MANAGEMENT (industry-agnostic per CR 12-1 L4).
+            # Vendor management post-budget-allocation close-loop layer
+            # applies industry-agnostically per FinOps Foundation +
+            # Phase 11~24 16-capability FinOps territory chain
+            # carry-over.
+            Capability.FINOPS_VENDOR_MANAGEMENT,
         }
     ),
 }

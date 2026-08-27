@@ -90,6 +90,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_CHARGEBACK_SETTLEMENT = "finops_chargeback_settlement"  # Phase 22 (cj-style 160번째 wire — NEW — Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
     FINOPS_UNIT_ECONOMICS = "finops_unit_economics"  # Phase 23 (cj-style 164번째 wire — NEW — unit_economics_engine + cost_per_business_unit + cost_per_transaction + margin_analysis + scheduled_unit_economics_calculation_job + dry-run audit-first INSERT, AD-51)
     FINOPS_BUDGET_PLANNING = "finops_budget_planning"  # Phase 24 (cj-style 169번째 wire — NEW — budget_plan_engine + budget_allocation + budget_approval_workflow + budget_vs_actual + budget_alert + scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags + dry-run audit-first INSERT, AD-52)
+    FINOPS_VENDOR_MANAGEMENT = "finops_vendor_management"  # Phase 25 (cj-style 174th follow-up wire — NEW — vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1157,6 +1158,51 @@ FinopsBudgetPlanningAction = Literal[
 ]
 
 
+# Phase 25 (cj-style 174th follow-up wire) — FINOPS_VENDOR_MANAGEMENT literal.
+# 12 NEW audit actions for the FinOps Vendor Management post-budget-
+# allocation close-loop layer (PRD §F41.1~§F41.8 + AD-53 (a)~(g) 7
+# sub-decisions):
+# - `vendor_created` — vendor catalog row registered (5-dim scoring
+#   baseline + 6 vendor_category taxonomy: cloud/saas/outsourcing/
+#   consulting/hardware/other).
+# - `vendor_updated` — vendor scores / lifecycle amended.
+# - `vendor_status_changed` — 4-state lifecycle transition
+#   (active/inactive/under_review/blacklisted).
+# - `vendor_blacklisted` — compliance gate trigger (AD-53 (g)).
+# - `vendor_selection_executed` — 5-dim weighted scoring (cost 0.30 +
+#   performance 0.25 + reliability 0.20 + compliance 0.15 +
+#   strategic_fit 0.10) + per-tenant override > industry baseline >
+#   system default precedence.
+# - `vendor_contract_approved` — sequential lifecycle advance to
+#   `approved` (Epic 12 2FA 챌린지 triggered for ≥10M KRW/year).
+# - `vendor_contract_renewed` — auto-renewal 90-day window triggered.
+# - `vendor_contract_terminated` — termination with over-budget cross-
+#   check + vendor_blacklist compliance gate.
+# - `vendor_performance_evaluated` — 4-dim monthly/quarterly scoring
+#   (sla_compliance 0.30 + cost_efficiency 0.25 + support_quality 0.25 +
+#   innovation 0.20).
+# - `vendor_spend_attributed` — cross-budget reconciliation
+#   (Phase 22 settlement_results JOIN Phase 24 BudgetPlan).
+# - `vendor_risk_flagged` — vendor risk score > VENDOR_RISK_HIGH_THRESHOLD
+#   alert.
+# - `vendor_dry_run_executed` — dry-run preview (VendorCatalogOverviewCard
+#   진입 시 default dry-run).
+FinopsVendorManagementAction = Literal[
+    "vendor_created",  # §F41.1-1 — vendor catalog row registered
+    "vendor_updated",  # §F41.1-1 — vendor scores / lifecycle amended
+    "vendor_status_changed",  # §F41.1-1 — 4-state lifecycle transition
+    "vendor_blacklisted",  # §F41.1-1 — compliance gate trigger
+    "vendor_selection_executed",  # §F41.2-5 — 5-dim weighted scoring
+    "vendor_contract_approved",  # §F41.3-5 — sequential lifecycle advance
+    "vendor_contract_renewed",  # §F41.3-5 — auto-renewal 90-day window
+    "vendor_contract_terminated",  # §F41.3-5 — termination + cross-check
+    "vendor_performance_evaluated",  # §F41.4-1 — monthly/quarterly scoring
+    "vendor_spend_attributed",  # §F41.7-1 — cross-budget reconciliation
+    "vendor_risk_flagged",  # §F41.1-1 — risk score threshold alert
+    "vendor_dry_run_executed",  # §F41.8-1 — dry-run preview
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1205,6 +1251,7 @@ AuditAction = (
     | FinopsChargebackSettlementAction  # NEW — Phase 22 (Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
     | FinopsUnitEconomicsAction  # NEW — Phase 23 (unit_economics_engine + cost_per_business_unit + cost_per_transaction + margin_analysis + scheduled_unit_economics_calculation_job + dry-run audit-first INSERT, AD-51)
     | FinopsBudgetPlanningAction  # NEW — Phase 24 (budget_plan_engine + budget_allocation + budget_approval_workflow + budget_vs_actual + budget_alert + scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags + dry-run audit-first INSERT, AD-52)
+    | FinopsVendorManagementAction  # NEW — Phase 25 (vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
 )
 
 
@@ -2122,6 +2169,47 @@ class _ActionRegistry:
                     "budget_allocation_verified",  # §F40.2-5 — 5-dim weighted allocation
                     "budget_alert_triggered",  # §F40.5-1 — over-budget + auto-escalation
                     "budget_planning_dry_run_executed",  # §F40.8-1 — dry-run preview
+                }
+            ),
+        ),
+        # Phase 25 (cj-style 174th follow-up wire) — FINOPS_VENDOR_MANAGEMENT
+        # 12 NEW values (vendor_catalog_engine + vendor_selection_engine +
+        # vendor_contract_lifecycle_engine + vendor_performance_evaluation +
+        # vendor_spend_attribution + scheduled_vendor_management_jobs +
+        # 1 NEW CLI flag + dry-run audit-first INSERT, AD-53 verbatim).
+        # Routes to `audit_logs` (NOT to a separate ledger — FinOps vendor
+        # management events are tenant-scoped platform-event trail only,
+        # mirroring FINOPS_BUDGET_PLANNING Phase 24 wire +
+        # FINOPS_UNIT_ECONOMICS Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT
+        # Phase 22 wire + FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire +
+        # FINOPS_MULTI_CLOUD Phase 20 wire + FINOPS_PRICING Phase 19 wire +
+        # FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17
+        # wire + FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE
+        # Phase 15 wire + FINOPS_OPTIMIZATION Phase 14 wire +
+        # FINOPS_FORECASTING Phase 13 wire + FINOPS_ANOMALY_DETECTION +
+        # FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS Phase 11 wire pattern
+        # verbatim).
+        # target_table=`finops_vendor_management` aligns with
+        # ActionClass.FINOPS_VENDOR_MANAGEMENT value (audit_log target_table
+        # column populated verbatim — RLS preserved). Drift detector
+        # enforces ActionClass registry ↔ DB CHECK (no-op for audit_logs
+        # per AD-2) ↔ call sites parity (3-way gate).
+        ActionClass.FINOPS_VENDOR_MANAGEMENT: (
+            "audit_logs",
+            frozenset(
+                {
+                    "vendor_created",  # §F41.1-1 — vendor catalog row registered
+                    "vendor_updated",  # §F41.1-1 — vendor scores / lifecycle amended
+                    "vendor_status_changed",  # §F41.1-1 — 4-state lifecycle transition
+                    "vendor_blacklisted",  # §F41.1-1 — compliance gate trigger
+                    "vendor_selection_executed",  # §F41.2-5 — 5-dim weighted scoring
+                    "vendor_contract_approved",  # §F41.3-5 — sequential lifecycle
+                    "vendor_contract_renewed",  # §F41.3-5 — auto-renewal 90-day window
+                    "vendor_contract_terminated",  # §F41.3-5 — termination + cross-check
+                    "vendor_performance_evaluated",  # §F41.4-1 — monthly/quarterly
+                    "vendor_spend_attributed",  # §F41.7-1 — cross-budget reconciliation
+                    "vendor_risk_flagged",  # §F41.1-1 — risk score threshold alert
+                    "vendor_dry_run_executed",  # §F41.8-1 — dry-run preview
                 }
             ),
         ),
