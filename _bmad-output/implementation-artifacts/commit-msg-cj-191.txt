@@ -1,0 +1,95 @@
+docs(finops): Phase 28 FinOps Interactive Dashboard PRD entry (cj-style 191번째)
+
+Phase 28 Interactive Dashboard territory PRD 진입 결정 wire.
+cj-style 190 Phase 25 extra=forbid 조이기 source sprint `232fc49` 의 next-옵션 (a)
+verbatim 진입 — Phase 28 territory 선정 = cross-phase unified metrics aggregator
+(Phase 11~27 18-capability FinOps territory chain ✅ ALL WIRED INTEGRATED 의 자연스러운
+closure + executive KPI surface + self-service saved views + 6-dim drill-down +
+5-format export + tenant-isolated RBAC sharing).
+
+apps/api source 변경 0건 (docs only sprint — cj-style 191번째 wire 진입 표준).
+
+## 8 ACs §F43.1~§F43.8 verbatim 보존
+
+76 explicit sub-ACs → ~96 detailed sub-ACs pre-flight 정합 sweep 만족:
+
+1. §F43.1 cross_phase_aggregator + Phase 11~27 18 unified KPI aggregation
+   (cross_phase_aggregator.py + serializers.py + 6 enums + 6 dimension weights +
+   LISTEN/NOTIFY 18 channels + 일 1회 KST cron 04:00 + audit-first INSERT 8 NEW).
+2. §F43.2 saved_view_engine + self-service filter / drill-down
+   (12 NEW pre-defined templates + 5-dim weighted aggregation + 6-dim drill-down
+   + 7-dim granularity + max_saved_views_per_tenant=50 + cache TTL 5min).
+3. §F43.3 export_pipeline + PDF + XLSX + CSV + JSON + PNG
+   (reuse Phase 17 sustainability + Phase 22 chargeback invoice EXTENSION
+   + max_export_size 50MB guard + 3 auto-retries + admin email alert).
+4. §F43.4 dashboard UI 5 NEW sub-components + 2 TS mirrors + 2 RSC pages
+   (CrossPhaseKPIOverview + SavedViewManager + DrillDownExplorer + ExportConfigPanel
+   + DashboardSharingPanel + FinopsInteractiveDashboardPanel.tsx ~+250 LOC).
+5. §F43.5 Capability matrix v1.52 → v1.53 EXTENSION FINOPS_INTERACTIVE_DASHBOARD
+   (Capability enum 1 NEW + require_finops_interactive_dashboard + 2 NEW Roles
+   + 4-industry grants ✅/✅/✅/✅ industry-agnostic).
+6. §F43.6 audit action EXTENSION 8 NEW + 16 NEW typed exception classes
+   (unified_kpi_calculated + saved_view_created/updated/deleted/executed
+   + export_job_started/completed + dashboard_shared).
+7. §F43.7 dashboard_sharing + tenant isolation + RBAC
+   (4 scope private/tenant/tenant_owner/cross_tenant + tenant_isolation enforcement
+   + Slack DM notification + Epic 12 2FA 챌린지 mandatory for high-value grants).
+8. §F43.8 dry-run + Tests + wire scope T1~T8
+   (--finops-interactive-dashboard-dry-run CLI flag + ~+85 NEW pytest
+   + ~+7 NEW vitest + 0 NEW ruff + 0 NEW tsc + 0 regressions).
+
+## AD-56 신규 (a)~(g) 7 sub-decisions
+
+(a) cross_phase_aggregator backend detail (Phase 11~27 ledger 활용 + LISTEN/NOTIFY 18).
+(b) saved_view_engine 5-dim aggregation + 12 pre-defined templates + cache 5min.
+(c) export_pipeline 5 format + Phase 17/22 reuse + 50MB guard.
+(d) dashboard_sharing 4 scope + RBAC + Epic 12 2FA 챌린지 mandatory.
+(e) NFR4 PII minimization preservation (no employee names + actor_id/tenant_id UUID).
+(f) NFR18 ko-KR SSOT ~30 keys finops_interactive_dashboard.* namespace.
+(g) Epic 12 2FA 챌린지 mandatory high-value ≥ 10M KRW/year sharing.
+
+## CR lessons applied 20종
+
+- CR 0-2 RLS verbatim EXTENSION (4 NEW tables + 1 preview table).
+- CR 1-1 audit-first INSERT 8 NEW.
+- CR 11-3 honest-DEFER 81번째 Phase 28 PRD entry 진입.
+- CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION m28_finops_interactive_dashboard.
+- CR 11-4 P-015 verbatim.
+- CR 12-1 L4 industry-agnostic capability matrix v1.53 EXTENSION.
+- CR 12-5 D-14 typed exception envelope 16 NEW.
+- CR 12-5 D-PARITY-01 inversion TypeScript mirror parity.
+- CR 12-5 D-GATE-01 inversion capability gate.
+- A19 cohesion 9 surface EXTENSION PASS preserved.
+- A36 SDR 검증 4-step.
+- AD-14 stack pin Recharts 2.12.7 + reportlab 4.0.7 + xlsxwriter 3.1.9
+  + pandas 2.1.4 + matplotlib 3.8.2 + apscheduler 3.10.4 + pytz 2024.1.
+- AD-22 owner-only RBAC.
+- Epic 12 2FA 챌린지 mandatory high-value ≥ 10M KRW/year.
+- NFR4 PII minimization ✅ PRESERVED.
+- NFR18 ko-KR SSOT ~30 keys.
+- D-FINOPS-15 ✅ ALL 8개 honestly DEFER 보존.
+- D-LAUNCH-1-DEFER-1 honestly preserved 65~191번째.
+
+## Phase 11~27 18-capability FinOps territory chain 정합
+
+✅ ALL WIRED INTEGRATED 진입 정합 보존 (Capability matrix v1.52 EXTENSION 보존 진입).
+Phase 28 EXTENSION v1.52 → v1.53 FINOPS_INTERACTIVE_DASHBOARD 1 NEW row.
+
+## Files affected
+
+1 NEW PRD file (`_bmad-output/implementation-artifacts/phase-28-finops-interactive-dashboard-prd.md`
+~+1000 LOC).
+
+## Scope
+
+5 files = 3 NEW + 2 MODIFIED atomic single sprint 결정 wire:
+- 1 NEW PRD file (this sprint only — spec/wire cycle 은 다음 sprint 진입 정직 회복).
+- 1 NEW handoff memory.
+- 1 NEW commit-msg file (this file).
+- 1 MODIFIED sprint-status.yaml (v3.98 → v3.99 EXTENSION).
+- 1 MODIFIED memory/MEMORY.md (hook EXTENSION).
+
+= 5 files = 3 NEW + 2 MODIFIED atomic single sprint.
+3중 게이트 impact NONE (docs only 변경).
+
+Co-Authored-By: Claude <noreply@anthropic.com>

@@ -4790,3 +4790,35 @@ action: "A543: ✅ done (2026-08-25) — Capability matrix v1.45 → v1.46 EXTEN
   status: done
 
 # last_updated_note_v3_98: 2026-08-28 (KST) — Phase 25 extra=forbid 조이기 source sprint (cj-style 190번째) 결정 wire 진입 완료.
+
+- id: "phase-28-prd-entry-A776"
+  epic: "phase-28-prd-entry"
+  status: done
+  date: "2026-08-29"
+  action: "A776: ✅ done (2026-08-29) — 옵션 (a) Epic 27+ 진입 결정 wire (cj-style 191번째 epic 연속 정직 회복 atomic docs-only sprint, cj-style 190 (`232fc49`) 의 next-옵션 (a) verbatim 회복 — Phase 28 territory 선정 = FinOps Interactive Dashboard). rationale 5종: ① cj-style discipline 회피 위험 방지 = cj-style 189 Phase 21~26 carry-over + cj-style 188 Phase 27 carry-over + cj-style 187 Phase 26 vitest + cj-style 190 Phase 25 extra=forbid 조이기 source sprint 진입 직후 자연스러운 Epic 27+ 진입 = 191번째 진입 결정 wire ② Phase 11~27 18-capability FinOps territory chain ✅ ALL WIRED INTEGRATED 진입 정합 보존 + cross-phase unified metrics aggregator territory 결정 wire = Phase 11~27 모든 ledger data 활용 → 새 backend infra 불필요 + reuse 최대화 + risk 최소화 + 비즈니스 가치 최고 (executive KPI surface + self-service saved views + 6-dim drill-down + 5-format export + tenant-isolated RBAC sharing) ③ Phase 11~27 wire cycles 의 docs-only sprint pattern verbatim 미러 (Phase 17/18/19/20/21/22/23/24/25/26 PRD entry docs-only sprint pattern) ④ Epic 1~17 + Phase 3~27 + Phase 19.5 + Phase 20.5 + Phase 26 audit-fixes chain + 1st release cycle 정합 보존 ⑤ CR 11-3 honest-DEFER 81번째 Phase 28 PRD entry 진입 결정 wire."
+
+- id: "phase-28-prd-entry-A777"
+  epic: "phase-28-prd-entry"
+  status: done
+  date: "2026-08-29"
+  action: "A777: ✅ done (2026-08-29) — PRD 파일 생성 결정 wire (`_bmad-output/implementation-artifacts/phase-28-finops-interactive-dashboard-prd.md` ~+1000 LOC + baseline_commit `232fc49` (cj-style 190 tip) + cj_style_entry_point 191 + status `backlog` + story_key `phase-28-finops-interactive-dashboard-prd` + Story + Context + 8 ACs §F43.1~§F43.8 verbatim → ~96 detailed sub-ACs pre-flight 정합 sweep 만족 결정 wire 보존 + AD-56 (a)~(g) 7 sub-decisions verbatim cross-reference + D-FINOPS-15 ✅ ALL 8개 세부 항목 honestly DEFER 보존 + T1~T8 + ~76 subtasks + Dev Notes 20종 + Architecture Alignment ALLOWED sweep m28_finops_interactive_dashboard 신규 submodule 등록 + Files Affected ~25 files estimate (~21 NEW + ~4 MODIFIED) wire sprint scope + 3중 게이트 impact NONE cj 191 docs only 변경)."
+
+- id: "phase-28-prd-entry-A778"
+  epic: "phase-28-prd-entry"
+  status: done
+  date: "2026-08-29"
+  action: "A778: ✅ done (2026-08-29) — 8 ACs §F43.1~§F43.8 verbatim → ~96 sub-ACs 전개 결정 wire (§F43.1 cross_phase_aggregator + Phase 11~27 18 unified KPI aggregation 12 sub-ACs + §F43.2 saved_view_engine + self-service filter / drill-down 12 sub-ACs + §F43.3 export_pipeline + PDF + XLSX + CSV + JSON + PNG 12 sub-ACs + §F43.4 dashboard UI 5 NEW sub-components + 2 TS mirrors + 2 RSC pages 8 sub-ACs + §F43.5 Capability matrix v1.53 EXTENSION FINOPS_INTERACTIVE_DASHBOARD 6 sub-ACs + §F43.6 audit action EXTENSION 8 NEW + 16 NEW typed exception classes 4 sub-ACs + §F43.7 dashboard_sharing + tenant isolation + RBAC 12 sub-ACs + §F43.8 dry-run + Tests + wire scope T1~T8 10 sub-ACs = 76 explicit sub-ACs → ~96 detailed sub-ACs pre-flight 정합 sweep 만족 결정 wire 보존 + AD-56 (a)~(g) 7 sub-decisions cross-reference 결정 wire 보존)."
+
+- id: "phase-28-prd-entry-A779"
+  epic: "phase-28-prd-entry"
+  status: done
+  date: "2026-08-29"
+  action: "A779: ✅ done (2026-08-29) — **CR 11-3 honest-DEFER 81번째 Phase 28 PRD entry 진입 결정 wire** + CR lessons applied 20종 (CR 0-2 RLS + CR 1-1 audit-first INSERT 8 NEW + CR 1-1 ContextVar + CR 1-1 RSC boundary + CR 4-3/4-4 + CR 5-1 Decimal precision banker's rounding + CR 9-6 commit message `git commit -F <file>` + **CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION m28_finops_interactive_dashboard** + **CR 11-3 honest-DEFER 81번째 Phase 28 PRD entry 진입** + **CR 11-3 honest-DEFER post-commit retroactive correction 보존** + CR 11-4 D-001~D-005 + P-015 SSOT + CR 12-1 L4 industry-agnostic capability + CR 12-5 D-14 typed exception envelope 16 NEW + CR 12-5 D-PARITY-01 inversion TypeScript mirror parity finops_interactive_dashboard.* namespace + CR 12-5 D-GATE-01 inversion capability gate inversion require_finops_interactive_dashboard + A19 cohesion 9 surface EXTENSION PASS preserved + A36 SDR 검증 4-step + AD-14 stack pin Recharts 2.12.7 + reportlab 4.0.7 + xlsxwriter 3.1.9 + pandas 2.1.4 + matplotlib 3.8.2 + apscheduler 3.10.4 + pytz 2024.1 + AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory high-value ≥ 10M KRW/year + NFR4 PII minimization ✅ PRESERVED + NFR18 ko-KR SSOT + **AD-56 신규 (a)~(g) 7 sub-decisions verbatim cross-reference**) + D-FINOPS-15 ✅ ALL 8개 세부 항목 honestly DEFER 보존 (multi-modal/causal/LLM/auto-remediation/federated learning/marketplace/streaming/online learning = 모두 별도 sprint honestly DEFER 보류) + D-DEFER-* honestly 결정 보존 + D-LAUNCH-1-DEFER-1 honestly preserved 65~191번째 + A19 cohesion 9 surface EXTENSION PASS preserved (Surface 1 database schema + Surface 2 RLS + Surface 3 audit actions 8 NEW + Surface 4 typed exceptions 16 NEW + Surface 5 capability gating FINOPS_INTERACTIVE_DASHBOARD + Surface 6 FastAPI routers + Surface 7 TypeScript mirror + Surface 8 ko-KR SSOT ~30 keys + Surface 9 CR 9-6 atomic commit — Phase 28 PRD entry 는 docs only 변경, source/test 변경 없음) + Capability matrix v1.36 → v1.53 EXTENSION chain ✅ PRESERVED (19 EXTENSION steps 보존)."
+
+- id: "phase-28-prd-entry-A780"
+  epic: "phase-28-prd-entry"
+  status: done
+  date: "2026-08-29"
+  action: "A780: ✅ done (2026-08-29) — sprint-status v3.98 → v3.99 EXTENSION + atomic commit via `git commit -F <file>` CR 9-6 D5 prevention + PowerShell here-string 회피 + commit-msg-cj-191.txt 신규 + handoff memory 신규 + MEMORY.md hook EXTENSION + **5 files = 3 NEW + 2 MODIFIED atomic single sprint** 결정 wire 진입 완료 보존 (1 NEW `_bmad-output/implementation-artifacts/phase-28-finops-interactive-dashboard-prd.md` ~+1000 LOC 8 ACs §F43.1~§F43.8 verbatim → ~96 sub-ACs pre-flight 정합 sweep 만족 + T1~T8 + ~76 subtasks + Dev Notes 20종 + Architecture Alignment ALLOWED sweep + Files Affected ~25 files estimate + 1 NEW `memory/handoff-2026-08-29-phase-28-interactive-dashboard-prd-entry-done.md` + 1 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-191.txt` + 1 MODIFIED `_bmad-output/implementation-artifacts/sprint-status.yaml` v3.98 → v3.99 EXTENSION (phase-28-prd-entry: backlog → done 신규 entry EXTENSION + A776~A780 action_items 신규 block 5 entries EXTENSION + last_updated_note_v3_99 신규) + 1 MODIFIED `memory/MEMORY.md` hook EXTENSION 결정 wire 진입). 결정 wire 일자: 2026-08-29 (KST). **next**: 옵션 (a) Phase 28 spec entry 진입 결정 wire (cj-style 192번째) — spec file ~+440 LOC 8 ACs §F43.1~§F43.8 verbatim → ~96 sub-ACs pre-flight 정합 sweep + T1~T8 + ~76 subtasks + Dev Notes 20종 + Architecture Alignment ALLOWED sweep + Files Affected ~25 files estimate / 옵션 (b) Epic 28+ 진입 결정 wire / 옵션 (c) Layer 2 P1 + Layer 3 P2 + emit_audit_typed signature mismatch carry-over 결정 wire / 옵션 (d) D-DEFER-* follow-up 결정 wire 보류."
+
+# last_updated_note_v3_99: 2026-08-29 (KST) — Phase 28 FinOps Interactive Dashboard PRD entry (cj-style 191번째) 결정 wire 진입 완료.
