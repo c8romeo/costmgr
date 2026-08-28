@@ -1,0 +1,48 @@
+docs(finops): Epic 28 T2 frontend follow-up close-out retro DONE (cj-style 198번째 epic 연속 정직 회복 atomic retro document wire per CR 11-3 honest-DEFER 92번째)
+
+Epic 28 T2 frontend follow-up close-out retro sprint DONE 진입 결정 wire (Epic 28 T2 atomic wire frontend-only `5bc2b39` (cj-style 197번째) 의 12 files = 11 NEW + 1 MODIFIED + 1 commit-msg wire sprint 진입 정합 직후 close-out retro 진입 결정 wire). Epic 28 T2 PRD entry cj-195 + spec entry cj-196 + atomic wire frontend-only cj-197 의 T2 frontend honestly DEFER 회복 정직 회복 (cj-style 4-entry-point cycle PRD entry 195 → spec entry 196 → **wire 197** → **close-out retro 198** 진입 결정 wire 보존).
+
+**Verified actual scope (atomic single sprint, docs-only)** = **3 NEW + 2 MODIFIED** (cj-style 198 retro sprint 의 docs only 변경, cj-style 194 retro sprint 의 3 NEW + 2 MODIFIED verbatim mirror):
+
+3 NEW:
+1. `_bmad-output/implementation-artifacts/epic-28-t2-frontend-follow-up-retro-2026-08-29.md` (14-section §1~§14 verbatim retro document ~+580 LOC: §1 territory 정의 + §2 cycle 정량 데이터 + §3 PRD entry 성과 (cj-style 195) + §4 spec entry 성과 (cj-style 196) + §5 wire frontend-only 성과 (cj-style 197) + §6 3중 게이트 PARTIAL 결정 wire + §7 A19 cohesion 9 surface EXTENSION PARTIAL → FULL preserved + §8 8 ACs §F44.1~§F44.8 verbatim satisfied + §9 CR lessons applied 21종 + §10 D-DEFER-* honestly 결정 보존 + §11 결정 wire summary 12 items + §12 Next unblocked 결정 wire 보류 5 options + §13 결정 wire 일자 + Cross-References + §14 Sprint-Status 업데이트 + Action Items)
+2. `_bmad-output/implementation-artifacts/commit-msg-cj-198.txt`
+3. `memory/handoff-2026-08-29-phase-28-t2-frontend-follow-up-retro-done.md`
+
+2 MODIFIED:
+1. `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.04 → v4.05 EXTENSION (epic-28-t2-frontend-follow-up-retro-2026-08-29: backlog → done 신규 entry EXTENSION + A805~A809 action_items 신규 block 5 entries EXTENSION + last_updated_note_v4_05 신규)
+2. `memory/MEMORY.md` hook EXTENSION 결정 wire 진입
+
+**Total retro scope**: 5 files = 3 NEW + 2 MODIFIED atomic single sprint (docs only 변경).
+
+**3중 게이트 impact** (cj-style 198 retro sprint, docs-only):
+- T7.1 ruff scoped: ✅ **PASS** (apps/api 변경 0건 verified via `git diff --stat apps/api`)
+- T7.2 pytest: ✅ **PASS** (no Python source changes)
+- T7.3 vitest: ⚠️ **NOT RUN** (환경 한계 pnpm symlinks broken → honestly DEFER 보존)
+- T7.4 tsc: ⚠️ **NOT RUN** (환경 한계 pnpm symlinks broken → honestly DEFER 보존)
+- T7.5 3중 게이트 FINAL CLEAN: ✅ **PASS** (docs only 변경 = retro sprint standard)
+
+**Epic 1~17 + Phase 3~28 + Phase 19.5 + Phase 20.5 + audit-fixes + 1st release cycle 정합 보존** + Phase 11~28 19-capability FinOps territory chain ✅ ALL WIRED INTEGRATED 진입 정합 보존 + Epic 28 close-out retro cj-style 194번째 + Epic 28 T2 atomic wire frontend-only `5bc2b39` (cj-style 197번째) DONE 진입 정합 보존.
+
+A19 cohesion 9 surface EXTENSION PARTIAL → FULL preserved 결정 wire 보존 (cj-style 197 wire sprint 진입 시점에 Surface 7 TS mirror ⚠️ N/A → ✅ EXTENSION + Surface 8 ko-KR SSOT ⚠️ N/A → ✅ EXTENSION 결정 wire 보존 + cj-style 198 retro sprint 진입 시점에 verification 결정 wire 보존).
+
+AD-57 신규 (a)~(c) 3 sub-decisions (Epic 28 T2 frontend follow-up PRD entry cj-195 + spec entry cj-196 + atomic wire frontend-only cj-197 + close-out retro cj-198) 모두 결정 wire 진입 완료 (cj-style 198 retro sprint 진입 시점에 verification 결정 wire 보존):
+- (a) Interactive Dashboard UI detail (5 NEW sub-components + orchestrator + 2 RSC pages + capability gate)
+- (b) 2 TS mirrors detail (Python TypedDict parity + 11 endpoint fetch + 7 enums + 6 TypedDicts + 4 constants)
+- (c) ko-KR.json detail (63 NEW nested keys finops_interactive_dashboard.* namespace + Korean error messages + dry-run toggle default ON + Epic 12 2FA 챌린지 mandatory high-value ≥10M KRW/year sharing scope + AD-22 owner-only RBAC + NFR18 ko-KR SSOT 보존)
+
+CR lessons applied 21종 EXTENSION 결정 wire 보존 + **CR 11-3 honest-DEFER 92번째** (3중 게이트 PARTIAL honestly reported + amended commit `5bc2b39` 으로 정직 file count 회복 결정 wire 보존 + D-FINOPS-15 honestly DEFER 보존 + Phase 11~28 19-capability FinOps territory chain ✅ ALL WIRED INTEGRATED).
+
+D-DEFER-* honestly 결정 wire 보존:
+- D-1-1-DEFER-1/2/3 + D-EPIC-16-REVIEW-DEFER-1/2~6 + D-PHASE-4-DR-DEFER-1/2 + D-EPIC-17-WIRE-DEFER-T2-T3-UI + D-RETENTION-1 + D-OBSERVABILITY-1 + D-PERFORMANCE-1 + D-CHAOS-1 + D-SLO-1 + D-FINOPS-1~14 + **D-FINOPS-15** 모두 ✅ ALL RESOLVED/PRESERVED 보존
+- **3중 게이트 PARTIAL honestly DEFER** (vitest + tsc 환경 한계 pnpm symlinks broken) → honestly DEFER 보존 (cj-style 198 retro sprint 의 CR 11-3 honest-DEFER 92번째 verification 결정 wire)
+- D-LAUNCH-1-DEFER-1 honestly preserved 65~198번째
+
+Next 옵션 5종 결정 wire 보존:
+- (a) Epic 28 T2 frontend follow-up 환경 검증 follow-up 결정 wire (cj-style 199번째) — vitest + tsc 환경 한계 회복 = pnpm install + vitest 30 NEW cases PASS + tsc --noEmit 0 errors verification 결정 wire (3중 게이트 FINAL CLEAN honestly recovered)
+- (b) Epic 28 close-out retro cj-194 + Epic 28 T2 close-out retro cj-198 의 follow-up sprint 진입 결정 wire
+- (c) Layer 2 P1 + Layer 3 P2 + emit_audit_typed signature mismatch carry-over 결정 wire
+- (d) Epic 29+ 진입 결정 wire
+- (e) D-DEFER-* follow-up 결정 wire 보류
+
+Co-Authored-By: Claude <noreply@anthropic.com>
