@@ -4,10 +4,11 @@ Phase 25 wire — FinOps Vendor Management territory.
 Layer 2 P1 carry-over (cj-style 189번째): pytest test backfill for vendor
 management router endpoints, mirroring the Phase 17~20 router drift pattern.
 
-Honest note: unlike Phase 21's request models, the Phase 25 request models do
-NOT declare `ConfigDict(extra="forbid")`. Test 6 asserts the ACTUAL state
-(pydantic default `ignore`) so the drift detector stays truthful; tightening to
-`forbid` is a separate source-change sprint, not a test-only edit.
+Phase 25 extra=forbid tightening (cj-style 190th): all 7 Pydantic request
+BaseModels now declare `ConfigDict(extra="forbid")` (verbatim mirror of
+Phase 21 reserved_capacity_routes posture). Test 6 is flipped from the prior
+honest-default pin to the tightened post-change pin so the drift detector
+reflects the new contract.
 
 CR 11-4 P-015 verbatim — NO pytest fixtures, pure sync, constants at module top.
 """
@@ -119,15 +120,16 @@ def test_vendor_management_vendors_collection_and_detail_methods() -> None:
     assert {"GET", "PATCH"} <= detail_methods
 
 
-def test_vendor_management_request_models_use_pydantic_default_extra() -> None:
-    """Test 6 — Request models do NOT set extra=forbid (ACTUAL state, honest drift).
+def test_vendor_management_request_models_use_extra_forbid() -> None:
+    """Test 6 — Request models declare ConfigDict(extra="forbid") (Phase 25 tightening).
 
-    Phase 21 sets `ConfigDict(extra="forbid")` on all request models; Phase 25
-    does not. This test pins the current behaviour so a future tightening sprint
-    shows up as an intentional, reviewed change rather than silent drift.
+    Phase 25 extra=forbid 조이기 source sprint (cj-style 190th) tightened all 7
+    request BaseModels to reject extra fields. Mirrors Phase 21 reserved_capacity
+    posture (CR 12-5 D-14 typed exception envelope posture + AD-22 owner-only RBAC
+    request-surface hardening + NFR4 PII minimization PRESERVED).
     """
     for model_cls in EXPECTED_REQUEST_MODELS:
-        assert model_cls.model_config.get("extra") is None
+        assert model_cls.model_config.get("extra") == "forbid"
 
 
 def test_vendor_management_create_vendor_request_enforces_score_bounds() -> None:
@@ -140,6 +142,18 @@ def test_vendor_management_create_vendor_request_enforces_score_bounds() -> None
 
     with pytest.raises(ValidationError):
         CreateVendorRequest(**{**VALID_VENDOR_PAYLOAD, "performance_score": -1.0})
+
+
+def test_vendor_management_request_models_reject_extra_fields() -> None:
+    """Test 7b — All 7 request models reject unknown fields (extra=forbid contract).
+
+    Phase 25 extra=forbid 조이기 source sprint (cj-style 190th) — exercises the
+    tightened contract via ValidationError on rogue key for every request model.
+    Mirrors Phase 21 reserved_capacity posture verbatim.
+    """
+    for model_cls in EXPECTED_REQUEST_MODELS:
+        with pytest.raises(ValidationError):
+            model_cls(**{"__rogue_extra_field__": "should_be_rejected"})
 
 
 def test_vendor_management_serializer_thresholds_are_stable() -> None:

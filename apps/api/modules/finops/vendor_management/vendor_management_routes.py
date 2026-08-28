@@ -31,7 +31,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from apps.api.dependencies.capability import (
     require_finops_vendor_management,  # type: ignore[import-not-found]
@@ -66,6 +66,8 @@ router = APIRouter(
 class CreateVendorRequest(BaseModel):
     """POST /api/finops/vendor-management/vendors request body."""
 
+    model_config = ConfigDict(extra="forbid")
+
     vendor_name: str = Field(..., min_length=1, max_length=200)
     vendor_category: str = Field(...)
     cost_score: float = Field(..., ge=0.0, le=100.0)
@@ -79,6 +81,8 @@ class CreateVendorRequest(BaseModel):
 class UpdateVendorRequest(BaseModel):
     """PATCH /api/finops/vendor-management/vendors/{vendor_id} request body."""
 
+    model_config = ConfigDict(extra="forbid")
+
     cost_score: float | None = Field(default=None, ge=0.0, le=100.0)
     performance_score: float | None = Field(default=None, ge=0.0, le=100.0)
     reliability_score: float | None = Field(default=None, ge=0.0, le=100.0)
@@ -89,12 +93,16 @@ class UpdateVendorRequest(BaseModel):
 class BlacklistVendorRequest(BaseModel):
     """POST /api/finops/vendor-management/vendors/{vendor_id}/blacklist body."""
 
+    model_config = ConfigDict(extra="forbid")
+
     reason: str = Field(..., min_length=1, max_length=500)
     severity: str = Field(default="high")
 
 
 class VendorSelectionRequest(BaseModel):
     """POST /api/finops/vendor-management/selection request body."""
+
+    model_config = ConfigDict(extra="forbid")
 
     vendor_ids: list[str] = Field(default_factory=list)
     threshold: float = Field(default=SELECTION_THRESHOLD_DEFAULT, ge=0.0, le=100.0)
@@ -105,6 +113,8 @@ class VendorSelectionRequest(BaseModel):
 
 class CreateContractRequest(BaseModel):
     """POST /api/finops/vendor-management/contracts request body."""
+
+    model_config = ConfigDict(extra="forbid")
 
     vendor_id: str = Field(...)
     contract_name: str = Field(..., min_length=1, max_length=200)
@@ -117,11 +127,15 @@ class CreateContractRequest(BaseModel):
 class AdvanceContractRequest(BaseModel):
     """POST /api/finops/vendor-management/contracts/{contract_id}/advance body."""
 
+    model_config = ConfigDict(extra="forbid")
+
     target_lifecycle: str = Field(...)
 
 
 class DryRunRequest(BaseModel):
     """POST /api/finops/vendor-management/dry-run body."""
+
+    model_config = ConfigDict(extra="forbid")
 
     vendor_name: str = Field(..., min_length=1)
     vendor_category: str = Field(...)

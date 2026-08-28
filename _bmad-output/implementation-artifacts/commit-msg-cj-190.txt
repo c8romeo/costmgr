@@ -1,0 +1,97 @@
+feat(finops): Phase 25 extra=forbid 조이기 source sprint (cj-style 190번째)
+
+Phase 25 FinOps Vendor Management territory 의 Pydantic request BaseModel 7 종을
+Phase 21 reserved_capacity_routes 의 ConfigDict(extra="forbid") posture 와
+verbatim 정합시키는 source sprint.
+
+cj-style 189 `d38f388` 의 next-옵션 (b) verbatim 진입 — cj-style 189 A761~A765
+honestly DEFER 로 남긴 Phase 25 extra=forbid 조이기 의 정직 회복.
+
+## 변경 요약
+
+`apps/api/modules/finops/vendor_management/vendor_management_routes.py`
+Phase 25 Pydantic request BaseModel 7 종 모두에 `model_config =
+ConfigDict(extra="forbid")` EXTENSION:
+
+1. `CreateVendorRequest` (POST /vendors)
+2. `UpdateVendorRequest` (PATCH /vendors/{vendor_id})
+3. `BlacklistVendorRequest` (POST /vendors/{vendor_id}/blacklist)
+4. `VendorSelectionRequest` (POST /selection)
+5. `CreateContractRequest` (POST /contracts)
+6. `AdvanceContractRequest` (POST /contracts/{contract_id}/advance)
+7. `DryRunRequest` (POST /dry-run)
+
+pydantic import EXTENSION: `from pydantic import BaseModel, ConfigDict, Field`.
+
+## 테스트 변경
+
+`tests/api/modules/finops/test_phase_25_vendor_management_router.py`
+- Test 6 flip: `test_vendor_management_request_models_use_extra_forbid`
+  - prior honest-default pin (`extra is None`) → tightened post-change pin
+    (`extra == "forbid"`).
+- Test 7b NEW: `test_vendor_management_request_models_reject_extra_fields`
+  - 각 7 종 request 모델에 rogue extra field 를 던져 ValidationError 가
+    발생하는지 검증 (extra=forbid contract 의 runtime behavior pin).
+
+## CR lessons applied
+
+- CR 11-3 honest-DEFER 80번째 — Phase 25 extra=forbid 조이기 source sprint 진입
+  정직 회복 결정 wire (cj-style 189 A761~A765 honestly DEFER 항목 회복).
+- CR 11-4 P-015 verbatim — NO pytest fixtures, pure sync, constants at module top.
+- CR 12-5 D-14 typed exception envelope posture + AD-22 owner-only RBAC
+  request-surface hardening + NFR4 PII minimization PRESERVED.
+- AD-53 (a)~(g) 7 sub-decisions PRESERVED.
+
+## A19 cohesion 9 surface
+
+Surface 6 (FastAPI routers) tightening EXTENSION + Surface 2 (testing) partial
+EXTENSION (Test 6 flip + Test 7b NEW). 나머지 8 surface NO 변경.
+Capability matrix v1.36 → v1.52 EXTENSION chain ✅ PRESERVED (18 steps,
+orthogonal — 본 sprint 는 Surface 6 tightening 만).
+
+## 3중 게이트
+
+- ruff scoped: `All checks passed!` (신규 import + 7 line `model_config`
+  EXTENSION — 신규 lint violation 0건).
+- pytest: 9/9 PASS (기존 8 + Test 6 flip + Test 7b NEW).
+  - Phase 25 vendor_management 라우터 9/9 PASS verified
+    via `.venv/Scripts/python.exe -m pytest
+    tests/api/modules/finops/test_phase_25_vendor_management_router.py -v`.
+- vitest: N/A (backend source + test only sprint).
+- tsc: N/A (backend source + test only sprint).
+
+## Honest deviations 0건
+
+모든 결정 wire 진입 시 honest-DEFER 없이 Phase 25 Pydantic request 7 종 모두
+extra=forbid tightening 결정 wire. CR 11-3 honest-DEFER discipline 80번째
+PRESERVED 진입 정직 회복 완료.
+
+## Scope
+
+**6 files = 2 NEW + 4 MODIFIED atomic single sprint** (verified via
+`git status --short` pre-commit).
+
+2 MODIFIED:
+1. `apps/api/modules/finops/vendor_management/vendor_management_routes.py`
+   (ConfigDict import + 7 line `model_config = ConfigDict(extra="forbid")`).
+2. `tests/api/modules/finops/test_phase_25_vendor_management_router.py`
+   (Test 6 flip + Test 7b NEW).
+3. `_bmad-output/implementation-artifacts/sprint-status.yaml`
+   (v3.97 → v3.98 EXTENSION: action_items A771~A775 +
+   last_updated_note_v3_98).
+4. `memory/MEMORY.md` (hook EXTENSION).
+
+2 NEW:
+1. `_bmad-output/implementation-artifacts/commit-msg-cj-190.txt` (this file).
+2. `memory/handoff-2026-08-28-phase-25-extra-forbid-tightening-done.md`
+   (handoff memory).
+
+## Next (cj-style 190 의 next-옵션)
+
+- 옵션 (a) Epic 27+ 진입 — Phase 28 territory 선정.
+- 옵션 (b) FinOps router prefix 정규화 source sprint (cj-style 189 honest
+  finding 3 — Phase 21/22/23/24/25 prefix 불일치 해소).
+- 옵션 (c) Phase 21~26 Layer 2 P1 + Layer 3 P2 follow-up 결정 wire.
+- 옵션 (d) D-DEFER-* follow-up 결정 wire 보류.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
