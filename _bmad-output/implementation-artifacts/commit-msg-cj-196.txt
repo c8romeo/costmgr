@@ -1,0 +1,70 @@
+docs(finops): Phase 28 T2 frontend follow-up spec entry (cj-style 196번째)
+
+Phase 28 T2 frontend follow-up territory spec 진입 결정 wire.
+cj-style 195 Epic 28 T2 frontend follow-up PRD entry 의 8 ACs §F44.1~§F44.8
+verbatim → ~78 sub-ACs pre-flight 정합 sweep 만족 직후 spec entry 진입 =
+cj-style 4-entry-point cycle (PRD entry → spec entry → wire → close-out
+retro) 의 2번째 단계 진입 결정 wire. Phase 28 atomic wire Q2 backend-only
+sprint `db005e8` (cj-style 193번째) 의 T2 frontend honestly DEFER 보존 결정
+wire 회복 = CR 11-3 honest-DEFER 91번째 epic 연속 정직 회복 verification.
+
+apps/api source 변경 0건 + apps/web source 변경 0건 (docs only sprint —
+cj-style 196번째 wire 진입 표준).
+
+## 8 ACs §F44.1~§F44.8 verbatim expansion
+
+~78 detailed sub-ACs → pre-flight 정합 sweep 만족 결정 wire:
+(12+10+10+10+10+8+8+10 = 78 explicit sub-ACs).
+
+## AD-57 (a)~(c) 3 sub-decisions cross-reference
+
+(a) Interactive Dashboard UI = 5 NEW sub-components + orchestrator +
+    2 RSC pages + capability gate fail-closed 403.
+(b) 2 TS mirrors = CR 12-5 D-PARITY-01 inversion EXTENSION.
+(c) ko-KR.json finops_interactive_dashboard.* namespace EXTENSION ~30 keys
+    + NFR18 SSOT + dry-run UI + Epic 12 2FA 챌린지 mandatory.
+
+## CR lessons applied 21종 (cj-195 verbatim EXTENSION)
+
+CR 0-2 RLS verbatim EXTENSION + CR 1-1 audit-first INSERT 8 NEW + CR 1-1
+FastAPI ContextVar + CR 1-1 RSC boundary + CR 5-1 Decimal precision +
+CR 9-6 commit message `git commit -F <file>` + CR 11-3 honest-DEFER 91번째
+verification + ALLOWED_SERVICE_SUBMODULES 보존 + CR 11-4 D-001~D-005 +
+NFR18 ko-KR SSOT + CR 12-1 L4 industry-agnostic + CR 12-5 D-14 typed
+exception envelope 16 NEW + CR 12-5 D-PARITY-01 inversion + CR 12-5
+D-GATE-01 inversion + A19 cohesion 9 surface EXTENSION PARTIAL → FULL
+preserved (Surface 7 TS mirror + Surface 8 ko-KR SSOT ✅ EXTENSION) +
+A36 SDR 검증 4-step + AD-14 stack pin (Recharts 2.12.7 + reportlab +
+xlsxwriter + pandas + matplotlib + apscheduler + pytz + noto-sans-cjk-kr) +
+AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory ≥ 10M KRW/year +
+NFR4 PII minimization ✅ PRESERVED + NFR18 ko-KR SSOT.
+
+## Phase 11~28 19-capability FinOps territory chain 정합
+
+✅ ALL WIRED INTEGRATED 진입 정합 보존.
+
+## D-FINOPS-15 honestly DEFER 보존
+
+8 items 모두 ✅ ALL RESOLVED + carry-over chain 정직 회복 verification
+(cj-style 195 의 PRD entry 의 honestly DEFER 회복 결정 wire 보존).
+
+## Files affected
+
+1 NEW spec file
+(`_bmad-output/implementation-artifacts/phase-28-t2-frontend-follow-up-spec.md`
+~+440 LOC).
+
+## Scope
+
+5 files = 3 NEW + 2 MODIFIED atomic single sprint 결정 wire
+(cj-style 192 spec entry 의 5 files = 3 NEW + 2 MODIFIED verbatim mirror):
+- 1 NEW spec file (this sprint only — wire cycle 은 다음 sprint 진입 정직 회복).
+- 1 NEW handoff memory.
+- 1 NEW commit-msg file (this file).
+- 1 MODIFIED sprint-status.yaml (v4.03 → v4.04 EXTENSION).
+- 1 MODIFIED memory/MEMORY.md (hook EXTENSION).
+
+= 5 files = 3 NEW + 2 MODIFIED atomic single sprint.
+3중 게이트 impact NONE (docs only 변경).
+
+Co-Authored-By: Claude <noreply@anthropic.com>
