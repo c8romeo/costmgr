@@ -91,6 +91,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_UNIT_ECONOMICS = "finops_unit_economics"  # Phase 23 (cj-style 164번째 wire — NEW — unit_economics_engine + cost_per_business_unit + cost_per_transaction + margin_analysis + scheduled_unit_economics_calculation_job + dry-run audit-first INSERT, AD-51)
     FINOPS_BUDGET_PLANNING = "finops_budget_planning"  # Phase 24 (cj-style 169번째 wire — NEW — budget_plan_engine + budget_allocation + budget_approval_workflow + budget_vs_actual + budget_alert + scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags + dry-run audit-first INSERT, AD-52)
     FINOPS_VENDOR_MANAGEMENT = "finops_vendor_management"  # Phase 25 (cj-style 174th follow-up wire — NEW — vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
+    FINOPS_COST_ANOMALY_ML_PREDICTION = "finops_cost_anomaly_ml_prediction"  # Phase 26 (cj-style 183번째 wire — NEW — anomaly_ml_prediction_engine + anomaly_ml_model_registry + anomaly_ml_training_pipeline + anomaly_ml_scoring + anomaly_ml_ensemble_consensus + scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-55)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1203,6 +1204,86 @@ FinopsVendorManagementAction = Literal[
 ]
 
 
+# Phase 26 (cj-style 183번째 wire) — FINOPS_COST_ANOMALY_ML_PREDICTION literal.
+# 12 NEW audit actions for the FinOps Cost Anomaly ML Prediction ML-driven
+# pre-detection layer (PRD §F42.1~§F42.8 + AD-55 (a)~(g) 7 sub-decisions).
+# ML-driven prediction layer is complementary to Phase 12 rule-based 사후
+# detection (FINOPS_ANOMALY_DETECTION); reduces forecast horizon from 30-day
+# post-hoc to 7-day pre-detection.
+# - `anomaly_ml_prediction_created` — 5-dim input feature row registered
+#   (PRD §F42.1-1; 8 features extracted from Phase 11 cost_total_krw +
+#   Phase 23 cost_per_unit + Phase 24 variance_pct + Phase 24
+#   budget_consumption_pct + Phase 22 settlement_3way_match_score +
+#   Phase 14 optimization_savings_amount + month_seasonality +
+#   holiday_flag ledger data; AD-22 owner-only RBAC + Epic 12 2FA 챌린지
+#   mandatory for high-value (≥ 10M KRW impact forecast); CR 1-1 verbatim
+#   audit-first INSERT BEFORE prediction row committed).
+# - `anomaly_ml_prediction_updated` — prediction row amended (status
+#   transitions draft → active → superseded; PRD §F42.1-1; AD-22
+#   owner-only RBAC + audit-first INSERT BEFORE UPDATE).
+# - `anomaly_ml_prediction_retired` — prediction row lifecycle retire
+#   transition (PRD §F42.1-1; AD-22 append-only preserved via retired_at
+#   timestamp; audit-first INSERT BEFORE retire marker flip).
+# - `anomaly_ml_model_registered` — model registry row registered
+#   (PRD §F42.2-1; semver MAJOR.MINOR.PATCH versioning + traffic_split
+#   50/50 A/B champion/challenger + JSONB metadata + is_active production
+#   flag; AD-22 owner-only RBAC + audit-first INSERT BEFORE registry row
+#   committed).
+# - `anomaly_ml_model_status_changed` — model lifecycle state transition
+#   (PRD §F42.2-1; 5-state machine training → deploying → active →
+#   deprecated → retired; CR 12-5 D-PARITY-01 transition guard; AD-22
+#   owner-only RBAC + audit-first INSERT BEFORE state UPDATE).
+# - `anomaly_ml_drift_detected` — 3 drift types PSI threshold 0.25
+#   exceeded (PRD §F42.2-1; 3 drift types: data drift + concept drift +
+#   prediction drift; AD-55 (b) verbatim PSI threshold 0.25; retraining
+#   trigger; AD-22 owner-only RBAC + audit-first INSERT AFTER drift
+#   detection).
+# - `anomaly_ml_model_training_triggered` — drift-triggered retraining
+#   dispatch (PRD §F42.2-1; MAPE_CONSECUTIVE_PERIODS_THRESHOLD = 3
+#   reached OR PSI > 0.25; KST Sunday 03:00 UTC 18:00 cron OR drift-
+#   triggered; AD-22 owner-only RBAC + audit-first INSERT AFTER training
+#   trigger dispatched).
+# - `anomaly_ml_model_trained` — model training job completed (PRD
+#   §F42.2-1; training_pipeline.train_model() completed + 4-dim model
+#   scoring (precision 0.30 + recall 0.30 + F1 0.25 + AUC-ROC 0.15) +
+#   SHAP feature importance JSONB; AD-22 owner-only RBAC + audit-first
+#   INSERT AFTER training committed).
+# - `anomaly_ml_prediction_scored` — real-time inference completed
+#   (PRD §F42.1-1; predict_anomaly_score() returned AnomalyMLScoreResult
+#   12 fields; P95 latency < 200ms; AD-22 owner-only RBAC + audit-first
+#   INSERT AFTER inference result committed).
+# - `anomaly_ml_batch_scoring_completed` — batch inference completed
+#   (PRD §F42.1-1; batch_predict_anomaly_scores() returned list of
+#   AnomalyMLScoreResult + bootstrap sampling B=1000 + 5th/95th
+#   percentile confidence interval; KST nightly batch cadence; AD-22
+#   owner-only RBAC + audit-first INSERT AFTER batch result committed).
+# - `anomaly_ml_ensemble_consensus_reached` — 5-model weighted consensus
+#   reached (PRD §F42.1-1; ensemble_consensus_score() returned consensus
+#   score ≥ 0.85 threshold; 5-model weighted ensemble (prophet 0.30 +
+#   lstm 0.30 + arima 0.15 + isolation_forest 0.15 + autoencoder 0.10);
+#   AD-22 owner-only RBAC + audit-first INSERT AFTER consensus
+#   committed).
+# - `cost_anomaly_ml_prediction_dry_run_executed` — dry-run preview
+#   (PRD §F42.8-1; AnomalyMLPredictionOverviewCard 진입 시 default
+#   dry-run; `--finops-cost-anomaly-ml-prediction-dry-run` CLI flag
+#   신규; AD-22 owner-only RBAC + audit-first INSERT AFTER dry-run
+#   preview committed).
+FinopsCostAnomalyMLPredictionAction = Literal[
+    "anomaly_ml_prediction_created",  # §F42.1-1 — 5-dim input feature row registered
+    "anomaly_ml_prediction_updated",  # §F42.1-1 — prediction row status transition
+    "anomaly_ml_prediction_retired",  # §F42.1-1 — lifecycle retire transition
+    "anomaly_ml_model_registered",  # §F42.2-1 — model registry row registered
+    "anomaly_ml_model_status_changed",  # §F42.2-1 — 5-state lifecycle transition
+    "anomaly_ml_drift_detected",  # §F42.2-1 — 3 drift types PSI > 0.25
+    "anomaly_ml_model_training_triggered",  # §F42.2-1 — drift-triggered retrain
+    "anomaly_ml_model_trained",  # §F42.2-1 — training job completed + 4-dim scoring
+    "anomaly_ml_prediction_scored",  # §F42.1-1 — real-time inference < 200ms P95
+    "anomaly_ml_batch_scoring_completed",  # §F42.1-1 — batch inference + bootstrap
+    "anomaly_ml_ensemble_consensus_reached",  # §F42.1-1 — 5-model consensus ≥ 0.85
+    "cost_anomaly_ml_prediction_dry_run_executed",  # §F42.8-1 — dry-run preview
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1252,6 +1333,7 @@ AuditAction = (
     | FinopsUnitEconomicsAction  # NEW — Phase 23 (unit_economics_engine + cost_per_business_unit + cost_per_transaction + margin_analysis + scheduled_unit_economics_calculation_job + dry-run audit-first INSERT, AD-51)
     | FinopsBudgetPlanningAction  # NEW — Phase 24 (budget_plan_engine + budget_allocation + budget_approval_workflow + budget_vs_actual + budget_alert + scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags + dry-run audit-first INSERT, AD-52)
     | FinopsVendorManagementAction  # NEW — Phase 25 (vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
+    | FinopsCostAnomalyMLPredictionAction  # NEW — Phase 26 (anomaly_ml_prediction_engine + anomaly_ml_model_registry + anomaly_ml_training_pipeline + anomaly_ml_scoring + anomaly_ml_ensemble_consensus + scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-55)
 )
 
 
@@ -2213,6 +2295,55 @@ class _ActionRegistry:
                 }
             ),
         ),
+        # Phase 26 (cj-style 183번째 wire) — FINOPS_COST_ANOMALY_ML_PREDICTION
+        # 12 NEW values (anomaly_ml_prediction_engine +
+        # anomaly_ml_model_registry + anomaly_ml_training_pipeline +
+        # anomaly_ml_scoring + anomaly_ml_ensemble_consensus +
+        # scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag +
+        # dry-run audit-first INSERT, AD-55 verbatim). Routes to
+        # `audit_logs` (NOT to a separate ledger — FinOps cost anomaly
+        # ML prediction events are tenant-scoped platform-event trail
+        # only, mirroring FINOPS_VENDOR_MANAGEMENT Phase 25 wire +
+        # FINOPS_BUDGET_PLANNING Phase 24 wire + FINOPS_UNIT_ECONOMICS
+        # Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire +
+        # FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire +
+        # FINOPS_MULTI_CLOUD Phase 20 wire + FINOPS_PRICING Phase 19
+        # wire + FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY
+        # Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+        # FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+        # Phase 14 wire + FINOPS_FORECASTING Phase 13 wire +
+        # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire
+        # + FINOPS Phase 11 wire pattern verbatim). ML-driven pre-
+        # detection layer (Phase 26) is complementary to Phase 12
+        # FINOPS_ANOMALY_DETECTION rule-based 사후 detection — Phase 26
+        # reduces forecast horizon from 30-day post-hoc to 7-day pre-
+        # detection.
+        # target_table=`finops_cost_anomaly_ml_prediction` aligns with
+        # ActionClass.FINOPS_COST_ANOMALY_ML_PREDICTION value (audit_log
+        # target_table column populated verbatim — RLS preserved). Drift
+        # detector enforces ActionClass registry ↔ DB CHECK (no-op for
+        # audit_logs per AD-2) ↔ call sites parity (3-way gate). Phase
+        # 25 cj-style 174th follow-up wire FINOPS_VENDOR_MANAGEMENT
+        # registry pattern verbatim applied.
+        ActionClass.FINOPS_COST_ANOMALY_ML_PREDICTION: (
+            "audit_logs",
+            frozenset(
+                {
+                    "anomaly_ml_prediction_created",  # §F42.1-1 — 5-dim input feature row registered
+                    "anomaly_ml_prediction_updated",  # §F42.1-1 — prediction row status transition
+                    "anomaly_ml_prediction_retired",  # §F42.1-1 — lifecycle retire transition
+                    "anomaly_ml_model_registered",  # §F42.2-1 — model registry row registered
+                    "anomaly_ml_model_status_changed",  # §F42.2-1 — 5-state lifecycle transition
+                    "anomaly_ml_drift_detected",  # §F42.2-1 — 3 drift types PSI > 0.25
+                    "anomaly_ml_model_training_triggered",  # §F42.2-1 — drift-triggered retrain
+                    "anomaly_ml_model_trained",  # §F42.2-1 — training job completed + 4-dim scoring
+                    "anomaly_ml_prediction_scored",  # §F42.1-1 — real-time inference < 200ms P95
+                    "anomaly_ml_batch_scoring_completed",  # §F42.1-1 — batch inference + bootstrap
+                    "anomaly_ml_ensemble_consensus_reached",  # §F42.1-1 — 5-model consensus ≥ 0.85
+                    "cost_anomaly_ml_prediction_dry_run_executed",  # §F42.8-1 — dry-run preview
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -2358,5 +2489,7 @@ __all__ = [
     "FinopsPricingAction",  # NEW — Phase 19 (Pricing rate card aggregator + TCO modeling KPI selector + pricing report generator + scheduled dispatch + pricing role RBAC + dry-run audit-first INSERT, AD-46)
     "FinopsReservedCapacityAction",  # NEW — Phase 21 (Reserved capacity dashboard + demand forecast + capacity planning + commitment recommendation + orchestrator + scheduled dispatch + dry-run audit-first INSERT, AD-49)
     "FinopsChargebackSettlementAction",  # NEW — Phase 22 (Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
+    "FinopsVendorManagementAction",  # NEW — Phase 25 (vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
+    "FinopsCostAnomalyMLPredictionAction",  # NEW — Phase 26 (anomaly_ml_prediction_engine + anomaly_ml_model_registry + anomaly_ml_training_pipeline + anomaly_ml_scoring + anomaly_ml_ensemble_consensus + scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-55)
     "emit_audit_typed",
 ]
