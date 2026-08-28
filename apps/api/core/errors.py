@@ -3517,3 +3517,227 @@ class VendorPermissionError(FinopsVendorManagementError):
     """
 
     http_status: int = 403
+
+
+# ── FinOps Cost Anomaly ML Prediction typed exceptions ─────
+# Phase 26 (cj-style 184번째 wire follow-up) — CR 12-5 D-14 typed exception
+# envelope applied to 16 NEW exceptions shared across
+# cost_anomaly_ml_prediction modules (serializers + engine +
+# model_registry + training_pipeline + scoring + ensemble_consensus +
+# scheduled_jobs). Module identifier m34_finops_cost_anomaly_ml_prediction.
+
+# Module identifier used by typed exception envelopes (mirrors
+# m22_finops_optimization + m23_finops_vendor_management + Phase 12
+# m20_finops_anomaly pattern).
+FINOPS_COST_ANOMALY_ML_PREDICTION_MODULE_ID: str = "m34_finops_cost_anomaly_ml_prediction"
+
+
+class FinopsCostAnomalyMLPredictionError(FinopsError):
+    """Base for FinOps Cost Anomaly ML Prediction typed exceptions.
+
+    Provides FINOPS_COST_ANOMALY_ML_PREDICTION_MODULE_ID class attribute +
+    envelope shape `{code, message_ko, details, trace_id, module_id}` shared
+    by all 16 NEW exception subclasses below (Phase 26 wire cj-style 181st
+    follow-up sprint — ML-driven pre-detection layer complementary to
+    Phase 12 rule-based 사후 detection).
+    """
+
+    module_id: str = FINOPS_COST_ANOMALY_ML_PREDICTION_MODULE_ID
+
+
+# ── Cost Anomaly ML Prediction core (3 NEW) ─────
+class AnomalyMLPredictionNotFoundError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 404 typed error — anomaly_ml_prediction row not found.
+
+    Raised by anomaly_ml_prediction_engine.read_prediction() /
+    update_prediction() / retire_prediction() when
+    anomaly_ml_prediction_id lookup returns no rows
+    (PRD §F42.4 verbatim — prediction lifecycle: created → updated → retired).
+    """
+
+    http_status: int = 404
+
+
+class AnomalyMLPredictionStatusTransitionError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 400 typed error — anomaly_ml_prediction lifecycle state transition failure.
+
+    Raised by anomaly_ml_prediction_engine.update_prediction() /
+    retire_prediction() when the requested status transition is not in
+    ALL_ANOMALY_ML_PREDICTION_STATUS_VALUES (active / deprecated / retired)
+    or violates lifecycle invariants (PRD §F42.4 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class AnomalyMLPredictionComplianceViolationError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 403 typed error — anomaly_ml_prediction compliance gate failure.
+
+    Raised by anomaly_ml_prediction_engine.retire_prediction() when
+    Epic 12 2FA 챌린지 mandatory gate (AD-22 owner-only RBAC) is
+    bypassed for high-value ≥ 10M KRW impact forecast (AD-55 (g) verbatim).
+    """
+
+    http_status: int = 403
+
+
+# ── Model Registry (4 NEW) ─────
+class ModelRegistryEntryNotFoundError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 404 typed error — model_registry row not found.
+
+    Raised by anomaly_ml_model_registry.update_model_status() /
+    list_active_models() / deprecate_model() when model_id lookup
+    returns no rows (semver versioning 0.1.0, AD-55 (b) verbatim).
+    """
+
+    http_status: int = 404
+
+
+class ModelArtifactChecksumMismatchError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 422 typed error — model artifact checksum mismatch.
+
+    Raised by anomaly_ml_model_registry.register_model() when the
+    computed SHA-256 checksum of the model artifact does not match
+    the registered checksum (artifact integrity, AD-55 (b) verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ModelStatusTransitionError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 400 typed error — model lifecycle state transition failure.
+
+    Raised by anomaly_ml_model_registry.change_model_status() when
+    the requested status value is not in ALL_MODEL_STATUS_VALUES
+    (training / deploying / active / deprecated / retired) or violates
+    the lifecycle invariants (AD-55 (b) verbatim).
+    """
+
+    http_status: int = 400
+
+
+class ModelArtifactSizeError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 413 typed error — model artifact size exceeds limit.
+
+    Raised by anomaly_ml_model_registry.register_model() when the
+    uploaded artifact exceeds MODEL_ARTIFACT_MAX_SIZE_BYTES (100 MB)
+    enforced by storage quota guard (AD-55 (b) verbatim).
+    """
+
+    http_status: int = 413
+
+
+# ── Model Training Pipeline (4 NEW) ─────
+class ModelTrainingJobNotFoundError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 404 typed error — model training job not found.
+
+    Raised by anomaly_ml_training_pipeline.get_training_job_status() /
+    cancel_training_job() when training_job_id lookup returns no rows
+    (AD-55 (c) verbatim).
+    """
+
+    http_status: int = 404
+
+
+class ModelTrainingFailedError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 500 typed error — model training job failed.
+
+    Raised by anomaly_ml_training_pipeline.train_model() when the
+    training loop exits with non-zero status (5 model types: prophet /
+    lstm / arima / isolation_forest / autoencoder ensemble), SHAP feature
+    importance extraction fails, or per-model_type default hyperparameters
+    validation fails (AD-55 (c) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ModelTrainingDataInsufficientError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 422 typed error — insufficient training data.
+
+    Raised by anomaly_ml_training_pipeline.train_model() when the
+    Phase 11 + Phase 12 + Phase 13 + Phase 14 + Phase 22 + Phase 23 +
+    Phase 24 ledger dataset has fewer than MODEL_TRAINING_MIN_SAMPLES
+    entries (300 days × 8 features = 2400 sample-points minimum,
+    AD-55 (c) verbatim).
+    """
+
+    http_status: int = 422
+
+
+class ModelTrainingTimeoutError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 504 typed error — model training job timeout.
+
+    Raised by anomaly_ml_training_pipeline.train_model() when the
+    training loop exceeds MODEL_TRAINING_TIMEOUT_SECONDS (3600s = 1h)
+    with exponential backoff retry (max 3 attempts, base 60s, max 600s,
+    AD-55 (c) verbatim).
+    """
+
+    http_status: int = 504
+
+
+# ── Anomaly ML Scoring (5 NEW) ─────
+class AnomalyMLScoringError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 500 typed error — anomaly_ml_scoring failure.
+
+    Raised by anomaly_ml_scoring.predict_anomaly_score() /
+    batch_predict_anomaly_scores() when the model inference call
+    raises an unexpected runtime error after the 3-attempt retry
+    loop is exhausted (real-time < 200ms P95 target, AD-55 (d) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class AnomalyMLInferenceTimeoutError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 504 typed error — anomaly_ml_scoring inference timeout.
+
+    Raised by anomaly_ml_scoring.predict_anomaly_score() when the
+    real-time inference latency exceeds ANOMALY_ML_INFERENCE_TIMEOUT_MS
+    (200ms P95, AD-55 (d) verbatim) or batch inference exceeds
+    ANOMALY_ML_BATCH_INFERENCE_TIMEOUT_MS (30000ms = 30s).
+    """
+
+    http_status: int = 504
+
+
+class AnomalyMLFeatureExtractionError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 422 typed error — anomaly_ml_feature_extraction failure.
+
+    Raised by anomaly_ml_scoring._extract_features() when one or more
+    of the 8 features extracted from the multi-phase ledger has a
+    NaN / null / out-of-range value (Phase 11 cost_total_krw +
+    Phase 23 cost_per_unit + Phase 24 variance_pct +
+    Phase 24 budget_consumption_pct + Phase 22 settlement_3way_match_score +
+    Phase 14 optimization_savings_amount + Phase 13 month_seasonality +
+    holiday_flag, AD-55 (c) verbatim).
+    """
+
+    http_status: int = 422
+
+
+class AnomalyMLComparisonError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 500 typed error — anomaly_ml_scoring comparison failure.
+
+    Raised by anomaly_ml_scoring.score_threshold_anomaly() when the
+    AnomalyScoreComparison TypedDict construction fails (12 fields
+    comparing ML-driven pre-detection vs Phase 12 rule-based
+    사후 detection, bootstrap sampling B=1000, AD-55 (d) verbatim).
+    """
+
+    http_status: int = 500
+
+
+class AnomalyMLEnsembleConsensusError(FinopsCostAnomalyMLPredictionError):
+    """HTTP 500 typed error — anomaly_ml_ensemble_consensus failure.
+
+    Raised by anomaly_ml_ensemble_consensus.ensemble_consensus_score()
+    when the 5 model types weighted ensemble (DEFAULT_ENSEMBLE_WEIGHTS =
+    prophet 0.30 + lstm 0.30 + arima 0.15 + isolation_forest 0.15 +
+    autoencoder 0.10, sum=1.0) fails or consensus_detected() returns
+    a confidence value outside [0.0, 1.0] range (Decimal banker's
+    rounding CR 5-1, AD-55 (a) verbatim).
+    """
+
+    http_status: int = 500
