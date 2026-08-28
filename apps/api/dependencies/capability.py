@@ -536,3 +536,45 @@ require_finops_cost_anomaly_ml_prediction = require_capability(
     Capability.FINOPS_COST_ANOMALY_ML_PREDICTION
 )
 
+# ── Phase 28 (cj-style 193번째 wire) — FINOPS_INTERACTIVE_DASHBOARD ──────
+# Industry-agnostic per CR 12-1 L4 precedent + FINOPS_COST_ANOMALY_ML_PREDICTION
+# Phase 26 wire + FINOPS_VENDOR_MANAGEMENT Phase 25 wire +
+# FINOPS_BUDGET_PLANNING Phase 24 wire + FINOPS_UNIT_ECONOMICS Phase 23
+# wire + FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire +
+# FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire +
+# FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION Phase 20 wire +
+# FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire +
+# FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+# FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION Phase 14 wire
+# + FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire +
+# FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS
+# Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_INTERACTIVE_DASHBOARD capability (cross-phase unified KPI
+# aggregator + saved view + sharing + export pipeline layer is a
+# business-level FinOps pillar per FinOps Foundation + Phase 11 showback
+# + Phase 12 anomaly + Phase 13 forecasting + Phase 14 optimization +
+# Phase 22 settlement + Phase 23 unit_economics + Phase 24 budget_vs_actual
+# + Phase 25 vendor spend attribution ledger + Phase 26 anomaly ML
+# prediction ledger data reuse 최대화 → 새 backend infra 불필요).
+# 3-NEW-module composition layer (cross_phase_aggregator + saved_view_engine
+# + export_pipeline) + dashboard_sharing layer + 4 cadences (daily 04:00
+# KST unified KPI refresh + weekly Mon 05:00 KST export cleanup + monthly
+# 1st-day 06:00 KST sharing expiry + on-demand LISTEN/NOTIFY incremental
+# update) + LISTEN/NOTIFY 18 channels + 6-dim cross-rollup
+# (tenant + cost_center + department + business_unit + tag + cloud_provider)
+# + 7-dim drill-down (6 + service) + 12 NEW pre-defined view templates +
+# 5 export formats (pdf + xlsx + csv + json + png) + 50MB guard + 3-retry
+# cap + 5-state status (pending + in_progress + completed + failed +
+# cancelled) + 4 sharing scopes (private + tenant + tenant_owner +
+# cross_tenant) + audit-first INSERT 8 NEW Literal + 16 NEW typed
+# exceptions CR 12-5 D-14 envelope + dry-run mode + 1 NEW CLI flag
+# `--finops-interactive-dashboard-dry-run` + Epic 12 2FA 챌린지
+# mandatory (high-value threshold 10M KRW/year sharing scope AD-56 (g)).
+# Gates the FinOps Interactive Dashboard routes in
+# apps/api/modules/finops/interactive_dashboard/ (healthcheck + 4
+# saved_views + execute + unified-kpi + exports + sharing + templates).
+# Drift detector lives at tests/integration/test_capability_matrix_v1_53_drift.py.
+require_finops_interactive_dashboard = require_capability(
+    Capability.FINOPS_INTERACTIVE_DASHBOARD
+)
+

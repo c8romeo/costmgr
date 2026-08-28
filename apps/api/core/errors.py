@@ -3741,3 +3741,197 @@ class AnomalyMLEnsembleConsensusError(FinopsCostAnomalyMLPredictionError):
     """
 
     http_status: int = 500
+
+
+# ────────────────────────────────────────────────────────────
+# Phase 28 FinOps Interactive Dashboard typed exceptions (16 NEW)
+# (cj-style 193번째 wire — cross_phase_aggregator + saved_view_engine +
+# export_pipeline + dashboard_sharing layer, AD-56 (a)~(g))
+# ────────────────────────────────────────────────────────────
+FINOPS_INTERACTIVE_DASHBOARD_MODULE_ID: str = "m28_finops_interactive_dashboard"
+
+
+class FinopsInteractiveDashboardError(FinopsError):
+    """Base for FinOps Interactive Dashboard typed exceptions.
+
+    Provides FINOPS_INTERACTIVE_DASHBOARD_MODULE_ID class attribute +
+    envelope shape `{code, message_ko, details, trace_id, module_id}` shared
+    by all 16 NEW exception subclasses below (Phase 28 wire cj-style
+    193rd — cross-phase unified KPI aggregator + saved_view_engine +
+    export_pipeline + dashboard_sharing layer).
+    """
+
+    module_id: str = FINOPS_INTERACTIVE_DASHBOARD_MODULE_ID
+
+
+# ── Cross-phase aggregator core (4 NEW) ─────
+class InteractiveDashboardAggregationError(FinopsInteractiveDashboardError):
+    """HTTP 500 typed error — cross_phase_aggregator aggregation failed.
+
+    Raised by compute_unified_kpi() / aggregate_cross_phase_breakdown()
+    when Phase 11~27 ledger data aggregation fails (PRD §F43.1 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class InteractiveDashboardKPIScopeError(FinopsInteractiveDashboardError):
+    """HTTP 404 typed error — drill-down dimension scope not found.
+
+    Raised by compute_unified_kpi() when dimension is not in the 6-dim
+    cross-rollup set (tenant/cost_center/department/business_unit/tag/
+    cloud_provider, PRD §F43.1 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class InteractiveDashboardKPIPeriodError(FinopsInteractiveDashboardError):
+    """HTTP 422 typed error — period_key invalid format.
+
+    Raised by compute_unified_kpi() / aggregate_cross_phase_breakdown()
+    when period_key is non-empty string but doesn't match YYYY-MM /
+    YYYY-Qn format (PRD §F43.1 verbatim).
+    """
+
+    http_status: int = 422
+
+
+class InteractiveDashboardKPIModuleError(FinopsInteractiveDashboardError):
+    """HTTP 502 typed error — Phase 11~27 ledger module unavailable.
+
+    Raised by compute_unified_kpi() when one or more phase modules
+    [11, 27] returns 502 Bad Gateway (PRD §F43.1 verbatim — 18 ledger
+    integration).
+    """
+
+    http_status: int = 502
+
+
+# ── Saved view engine core (4 NEW) ─────
+class SavedViewError(FinopsInteractiveDashboardError):
+    """HTTP 500 typed error — saved view operation failed.
+
+    Raised by create_saved_view() / read_saved_view() /
+    update_saved_view() / delete_saved_view() / execute_saved_view() on
+    unexpected engine failure (PRD §F43.2 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class SavedViewFilterError(FinopsInteractiveDashboardError):
+    """HTTP 400 typed error — saved view filter_by invalid.
+
+    Raised by create_saved_view() / update_saved_view() when filter_by
+    dict is malformed (PRD §F43.2 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class SavedViewTemplateError(FinopsInteractiveDashboardError):
+    """HTTP 404 typed error — saved view template_id not found.
+
+    Raised by create_saved_view() when template_id is not in the 12
+    NEW pre-defined view templates (PRD §F43.2 verbatim).
+    """
+
+    http_status: int = 404
+
+
+class SavedViewLimitError(FinopsInteractiveDashboardError):
+    """HTTP 429 typed error — saved view limit per tenant reached.
+
+    Raised by create_saved_view() when MAX_SAVED_VIEWS_PER_TENANT
+    (default 50) limit is exceeded (PRD §F43.2 verbatim).
+    """
+
+    http_status: int = 429
+
+
+# ── Export pipeline core (4 NEW) ─────
+class ExportJobError(FinopsInteractiveDashboardError):
+    """HTTP 500 typed error — export job operation failed.
+
+    Raised by start_export_job() / get_export_job_status() /
+    list_export_jobs() / cancel_export_job() on unexpected engine
+    failure (PRD §F43.3 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class ExportJobFormatError(FinopsInteractiveDashboardError):
+    """HTTP 400 typed error — export format invalid.
+
+    Raised by start_export_job() / list_export_jobs() when format is not
+    one of the 5 export formats (pdf/xlsx/csv/json/png, PRD §F43.3
+    verbatim).
+    """
+
+    http_status: int = 400
+
+
+class ExportJobSizeError(FinopsInteractiveDashboardError):
+    """HTTP 413 typed error — export file size exceeds 50MB limit.
+
+    Raised by update_export_job_progress() when file_size_bytes
+    exceeds MAX_EXPORT_SIZE_BYTES (default 52428800 = 50MB, PRD §F43.3
+    verbatim).
+    """
+
+    http_status: int = 413
+
+
+class ExportJobTenantError(FinopsInteractiveDashboardError):
+    """HTTP 403 typed error — export job tenant isolation breach.
+
+    Raised by start_export_job() / get_export_job_status() when tenant
+    ownership check fails (PRD §F43.3 verbatim, CR 0-2 RLS).
+    """
+
+    http_status: int = 403
+
+
+# ── Dashboard sharing + drill-down core (4 NEW) ─────
+class DashboardSharingError(FinopsInteractiveDashboardError):
+    """HTTP 500 typed error — dashboard sharing operation failed.
+
+    Raised by share_dashboard_endpoint() / scheduled_sharing_expiry_job()
+    on unexpected engine failure (PRD §F43.7 verbatim).
+    """
+
+    http_status: int = 500
+
+
+class DashboardSharingScopeError(FinopsInteractiveDashboardError):
+    """HTTP 403 typed error — dashboard sharing scope not authorized.
+
+    Raised by share_dashboard_endpoint() when scope is 'cross_tenant'
+    but grantor is not tenant_owner (PRD §F43.7 verbatim, AD-22
+    owner-only RBAC).
+    """
+
+    http_status: int = 403
+
+
+class DashboardSharingExpirationError(FinopsInteractiveDashboardError):
+    """HTTP 400 typed error — dashboard sharing expiry invalid.
+
+    Raised by share_dashboard_endpoint() when expires_at is in the
+    past or SHARING_EXPIRES_DEFAULT_DAYS (30) limit is exceeded
+    (PRD §F43.7 verbatim).
+    """
+
+    http_status: int = 400
+
+
+class DrillDownError(FinopsInteractiveDashboardError):
+    """HTTP 500 typed error — drill-down navigation failed.
+
+    Raised by execute_saved_view() / drill-down endpoint layer when
+    group_by dimension resolution fails (PRD §F43.2 verbatim).
+    """
+
+    http_status: int = 500

@@ -788,6 +788,28 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # tests/integration/test_capability_matrix_v1_52_drift.py
     # (capability matrix v1.52 EXTENSION 1 NEW row).
     FINOPS_COST_ANOMALY_ML_PREDICTION = "finops_cost_anomaly_ml_prediction"
+    # Phase 28 (cj-style 193번째 wire) — FINOPS_INTERACTIVE_DASHBOARD
+    # — FinOps Interactive Dashboard territory (PRD §F43.1~§F43.8 +
+    # AD-56 (a)~(g) 7 sub-decisions verbatim). Industry-agnostic per
+    # CR 12-1 L4 precedent + FINOPS_COST_ANOMALY_ML_PREDICTION
+    # Phase 26 wire + FINOPS_VENDOR_MANAGEMENT Phase 25 wire +
+    # FINOPS_BUDGET_PLANNING Phase 24 wire + FINOPS_UNIT_ECONOMICS
+    # Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire +
+    # FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire + FINOPS_MULTI_CLOUD
+    # Phase 20 wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT
+    # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+    # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+    # wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+    # Phase 13 wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase
+    # 12 wire + FINOPS Phase 11 wire pattern verbatim). Cross-phase
+    # unified KPI aggregator + saved view + sharing + export pipeline is
+    # a business-level FinOps pillar per FinOps Foundation + Phase 11
+    # showback + Phase 12 anomaly + Phase 13 forecasting + Phase 14
+    # optimization + Phase 22 settlement + Phase 23 unit_economics +
+    # Phase 24 budget_vs_actual + Phase 25 vendor spend attribution +
+    # Phase 26 anomaly ML prediction ledger data reuse 최대화 →
+    # 새 backend infra 불필요.
+    FINOPS_INTERACTIVE_DASHBOARD = "finops_interactive_dashboard"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -1105,6 +1127,27 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # vendor spend attribution ledger data reuse 최대화 → 새 backend
             # infra 불필요.
             Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
+            # Phase 28 (cj-style 193번째 wire) — FINOPS_INTERACTIVE_DASHBOARD
+            # (industry-agnostic per CR 12-1 L4 + FINOPS_COST_ANOMALY_ML_PREDICTION
+            # Phase 26 wire + FINOPS_VENDOR_MANAGEMENT Phase 25 wire +
+            # FINOPS_BUDGET_PLANNING Phase 24 wire + FINOPS_UNIT_ECONOMICS
+            # Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire
+            # + FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire + FINOPS_MULTI_CLOUD
+            # Phase 20 wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT
+            # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING
+            # Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+            # Phase 14 wire + FINOPS_FORECASTING Phase 13 wire +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+            # FINOPS Phase 11 wire pattern verbatim). Cross-phase unified
+            # KPI aggregator + saved view + sharing + export pipeline
+            # layer is a business-level FinOps pillar per FinOps
+            # Foundation + Phase 11 showback + Phase 12 anomaly + Phase
+            # 13 forecasting + Phase 14 optimization + Phase 22
+            # settlement + Phase 23 unit_economics + Phase 24
+            # budget_vs_actual + Phase 25 vendor spend attribution
+            # ledger + Phase 26 anomaly ML prediction ledger data reuse
+            # 최대화 → 새 backend infra 불필요.
+            Capability.FINOPS_INTERACTIVE_DASHBOARD,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1343,6 +1386,27 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_VENDOR_MANAGEMENT,
             # Phase 26 — FINOPS_COST_ANOMALY_ML_PREDICTION (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
+            # Phase 28 (cj-style 193번째 wire) — FINOPS_INTERACTIVE_DASHBOARD
+            # (industry-agnostic per CR 12-1 L4 + FINOPS_COST_ANOMALY_ML_PREDICTION
+            # Phase 26 wire + FINOPS_VENDOR_MANAGEMENT Phase 25 wire +
+            # FINOPS_BUDGET_PLANNING Phase 24 wire + FINOPS_UNIT_ECONOMICS
+            # Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire
+            # + FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire + FINOPS_MULTI_CLOUD
+            # Phase 20 wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT
+            # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING
+            # Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION
+            # Phase 14 wire + FINOPS_FORECASTING Phase 13 wire +
+            # FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire +
+            # FINOPS Phase 11 wire pattern verbatim). Cross-phase unified
+            # KPI aggregator + saved view + sharing + export pipeline
+            # layer is a business-level FinOps pillar per FinOps
+            # Foundation + Phase 11 showback + Phase 12 anomaly + Phase
+            # 13 forecasting + Phase 14 optimization + Phase 22
+            # settlement + Phase 23 unit_economics + Phase 24
+            # budget_vs_actual + Phase 25 vendor spend attribution
+            # ledger + Phase 26 anomaly ML prediction ledger data reuse
+            # 최대화 → 새 backend infra 불필요.
+            Capability.FINOPS_INTERACTIVE_DASHBOARD,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1598,6 +1662,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_VENDOR_MANAGEMENT,
             # Phase 26 — FINOPS_COST_ANOMALY_ML_PREDICTION (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
+            # Phase 28 — FINOPS_INTERACTIVE_DASHBOARD (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_INTERACTIVE_DASHBOARD,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1885,6 +1951,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_VENDOR_MANAGEMENT,
             # Phase 26 — FINOPS_COST_ANOMALY_ML_PREDICTION (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
+            # Phase 28 — FINOPS_INTERACTIVE_DASHBOARD (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_INTERACTIVE_DASHBOARD,
         }
     ),
 }

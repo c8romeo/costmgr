@@ -92,6 +92,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_BUDGET_PLANNING = "finops_budget_planning"  # Phase 24 (cj-style 169번째 wire — NEW — budget_plan_engine + budget_allocation + budget_approval_workflow + budget_vs_actual + budget_alert + scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags + dry-run audit-first INSERT, AD-52)
     FINOPS_VENDOR_MANAGEMENT = "finops_vendor_management"  # Phase 25 (cj-style 174th follow-up wire — NEW — vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
     FINOPS_COST_ANOMALY_ML_PREDICTION = "finops_cost_anomaly_ml_prediction"  # Phase 26 (cj-style 183번째 wire — NEW — anomaly_ml_prediction_engine + anomaly_ml_model_registry + anomaly_ml_training_pipeline + anomaly_ml_scoring + anomaly_ml_ensemble_consensus + scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-55)
+    FINOPS_INTERACTIVE_DASHBOARD = "finops_interactive_dashboard"  # Phase 28 (cj-style 193번째 wire — NEW — cross_phase_aggregator + saved_view_engine + export_pipeline + dashboard_sharing + scheduled_interactive_dashboard_dispatch + 1 NEW CLI flag + dry-run audit-first INSERT, AD-56)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1284,6 +1285,49 @@ FinopsCostAnomalyMLPredictionAction = Literal[
 ]
 
 
+# Phase 28 (cj-style 193번째 wire — NEW — cross_phase_aggregator + saved_view_engine +
+# export_pipeline + dashboard_sharing + scheduled_interactive_dashboard_dispatch +
+# 1 NEW CLI flag + dry-run audit-first INSERT, AD-56)
+#
+# Doc-stamp notes for each action (PRD §F43.1-1 / §F43.2-1 / §F43.3-1 / §F43.7-1):
+# - `unified_kpi_calculated` — Phase 11~27 cross-phase unified KPI rollup
+#   computed (PRD §F43.1-1; 18 unified KPI metrics aggregation; 6-dim
+#   cross-rollup; AD-22 owner-only RBAC + audit-first INSERT AFTER
+#   unified_kpi persisted).
+# - `saved_view_created` — Per-tenant saved dashboard view registered
+#   (PRD §F43.2-1; 12 NEW pre-defined view templates + view_config JSONB;
+#   AD-22 owner-only RBAC + audit-first INSERT AFTER saved_view persisted).
+# - `saved_view_updated` — Per-tenant saved dashboard view updated
+#   (PRD §F43.2-1; view_config JSONB mutation; AD-22 owner-only RBAC +
+#   audit-first INSERT AFTER saved_view persisted).
+# - `saved_view_deleted` — Per-tenant saved dashboard view deleted
+#   (PRD §F43.2-1; cache invalidation + store eviction; AD-22 owner-only
+#   RBAC + audit-first INSERT AFTER saved_view evicted).
+# - `saved_view_executed` — Saved dashboard view executed (PRD §F43.2-1;
+#   group_by dimensions through compute_unified_kpi; AD-22 owner-only
+#   RBAC + audit-first INSERT AFTER view execution committed).
+# - `export_job_started` — Export job lifecycle started (PRD §F43.3-1;
+#   5 export formats pdf/xlsx/csv/json/png; AD-22 owner-only RBAC +
+#   audit-first INSERT AFTER export_job persisted).
+# - `export_job_completed` — Export job lifecycle completed (PRD §F43.3-1;
+#   checksum_sha256 + file_size_bytes + expires_at; AD-22 owner-only
+#   RBAC + audit-first INSERT AFTER export_job completed).
+# - `dashboard_shared` — Dashboard sharing grant created (PRD §F43.7-1;
+#   4 sharing scopes private/tenant/tenant_owner/cross_tenant +
+#   tenant_isolation + 2FA 챌린지 mandatory high-value; AD-22 owner-only
+#   RBAC + audit-first INSERT AFTER sharing_grant persisted).
+InteractiveDashboardAction = Literal[
+    "unified_kpi_calculated",  # §F43.1-1 — Phase 11~27 cross-phase rollup
+    "saved_view_created",  # §F43.2-1 — saved view registered
+    "saved_view_updated",  # §F43.2-1 — saved view updated
+    "saved_view_deleted",  # §F43.2-1 — saved view deleted
+    "saved_view_executed",  # §F43.2-1 — saved view executed
+    "export_job_started",  # §F43.3-1 — export job started
+    "export_job_completed",  # §F43.3-1 — export job completed
+    "dashboard_shared",  # §F43.7-1 — dashboard sharing grant created
+]
+
+
 # Union type for type checking
 AuditAction = (
     TenantSettingsAction
@@ -1334,6 +1378,7 @@ AuditAction = (
     | FinopsBudgetPlanningAction  # NEW — Phase 24 (budget_plan_engine + budget_allocation + budget_approval_workflow + budget_vs_actual + budget_alert + scheduled_budget_planning_lifecycle_job + 2 NEW CLI flags + dry-run audit-first INSERT, AD-52)
     | FinopsVendorManagementAction  # NEW — Phase 25 (vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
     | FinopsCostAnomalyMLPredictionAction  # NEW — Phase 26 (anomaly_ml_prediction_engine + anomaly_ml_model_registry + anomaly_ml_training_pipeline + anomaly_ml_scoring + anomaly_ml_ensemble_consensus + scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-55)
+    | InteractiveDashboardAction  # NEW — Phase 28 (cross_phase_aggregator + saved_view_engine + export_pipeline + dashboard_sharing + scheduled_interactive_dashboard_dispatch + 1 NEW CLI flag + dry-run audit-first INSERT, AD-56)
 )
 
 
@@ -2341,6 +2386,21 @@ class _ActionRegistry:
                     "anomaly_ml_batch_scoring_completed",  # §F42.1-1 — batch inference + bootstrap
                     "anomaly_ml_ensemble_consensus_reached",  # §F42.1-1 — 5-model consensus ≥ 0.85
                     "cost_anomaly_ml_prediction_dry_run_executed",  # §F42.8-1 — dry-run preview
+                }
+            ),
+        ),
+        ActionClass.FINOPS_INTERACTIVE_DASHBOARD: (
+            "audit_logs",
+            frozenset(
+                {
+                    "unified_kpi_calculated",  # §F43.1-1 — Phase 11~27 cross-phase rollup
+                    "saved_view_created",  # §F43.2-1 — saved view registered
+                    "saved_view_updated",  # §F43.2-1 — saved view updated
+                    "saved_view_deleted",  # §F43.2-1 — saved view deleted
+                    "saved_view_executed",  # §F43.2-1 — saved view executed
+                    "export_job_started",  # §F43.3-1 — export job started
+                    "export_job_completed",  # §F43.3-1 — export job completed
+                    "dashboard_shared",  # §F43.7-1 — dashboard sharing grant created
                 }
             ),
         ),
