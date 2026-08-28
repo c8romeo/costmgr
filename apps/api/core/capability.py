@@ -745,6 +745,50 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # (capability matrix v1.51 EXTENSION 1 NEW row).
     FINOPS_VENDOR_MANAGEMENT = "finops_vendor_management"
 
+    # Phase 26 (cj-style 185번째 wire) — FINOPS_COST_ANOMALY_ML_PREDICTION
+    # — FinOps Cost Anomaly ML Prediction territory (PRD §F42.1~§F42.8 +
+    # AD-55 (a)~(g) 7 sub-decisions verbatim). Industry-agnostic per
+    # CR 12-1 L4 precedent + FINOPS_VENDOR_MANAGEMENT Phase 25 wire +
+    # FINOPS_BUDGET_PLANNING Phase 24 wire + FINOPS_UNIT_ECONOMICS
+    # Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT Phase 22 wire +
+    # FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire + FINOPS_MULTI_CLOUD
+    # Phase 20 wire + FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT
+    # Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17 wire +
+    # FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase 15
+    # wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+    # Phase 13 wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT
+    # Phase 12 wire + FINOPS Phase 11 wire pattern verbatim). All 4
+    # industries get FINOPS_COST_ANOMALY_ML_PREDICTION capability
+    # (ML-driven pre-detection layer is a business-level FinOps pillar
+    # per FinOps Foundation + Phase 11 showback + Phase 12 anomaly +
+    # Phase 13 forecasting + Phase 14 optimization + Phase 22 settlement
+    # + Phase 23 unit_economics + Phase 24 budget_vs_actual + Phase 25
+    # vendor spend attribution ledger data reuse 최대화). 4-NEW-module
+    # composition layer (anomaly_ml_prediction_engine +
+    # anomaly_ml_model_registry + anomaly_ml_training_pipeline +
+    # anomaly_ml_scoring + anomaly_ml_ensemble_consensus) + 5 model
+    # types ensemble (prophet 0.30 + lstm 0.30 + arima 0.15 +
+    # isolation_forest 0.15 + autoencoder 0.10) + model_registry
+    # semver MAJOR.MINOR.PATCH + A/B testing champion/challenger
+    # traffic_split default 50/50 + 3 drift detection types (data +
+    # concept + prediction PSI threshold 0.25) + training_pipeline
+    # 8 features (cost_total_krw + cost_per_unit + variance_pct +
+    # budget_consumption_pct + settlement_3way_match_score +
+    # optimization_savings_amount + month_seasonality dummy +
+    # holiday_flag) + scheduled retraining KST 매주 일요일 03:00 +
+    # drift-triggered auto-retraining + real-time inference P95 < 200ms
+    # + batch inference nightly KST 02:00 + ML vs Phase 12 threshold
+    # detection comparison view + cost_anomaly_ml_prediction dashboard
+    # UI 5 NEW sub-components + audit-first INSERT 12 NEW Literal + 16
+    # NEW typed exceptions CR 12-5 D-14 envelope + dry-run mode + 1 NEW
+    # CLI flag `--finops-cost-anomaly-ml-prediction-dry-run` + Epic 12
+    # 2FA 챌린지 mandatory (high-value threshold 10M KRW/year AD-55 (g)).
+    # Gates require_finops_cost_anomaly_ml_prediction dep in
+    # apps/api/dependencies/capability.py. Drift detector lives at
+    # tests/integration/test_capability_matrix_v1_52_drift.py
+    # (capability matrix v1.52 EXTENSION 1 NEW row).
+    FINOPS_COST_ANOMALY_ML_PREDICTION = "finops_cost_anomaly_ml_prediction"
+
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
 # Mirrors the visibility rules in `packages/services/m0_onboarding/industry_menu.py`.
@@ -1043,6 +1087,24 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # pillar per FinOps Foundation + vendor cost direct control +
             # SLA compliance + risk mitigation industry-agnostic.
             Capability.FINOPS_VENDOR_MANAGEMENT,
+            # Phase 26 (cj-style 185번째 wire) — FINOPS_COST_ANOMALY_ML_PREDICTION
+            # (industry-agnostic per CR 12-1 L4 + FINOPS_VENDOR_MANAGEMENT
+            # Phase 25 wire + FINOPS_BUDGET_PLANNING Phase 24 wire +
+            # FINOPS_UNIT_ECONOMICS Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT
+            # Phase 22 wire + FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire
+            # + FINOPS_MULTI_CLOUD Phase 20 wire + FINOPS_PRICING Phase 19 wire
+            # + FINOPS_COMMITMENT Phase 18 wire + FINOPS_SUSTAINABILITY Phase 17
+            # wire + FINOPS_REPORTING Phase 16 wire + FINOPS_TAG_GOVERNANCE Phase
+            # 15 wire + FINOPS_OPTIMIZATION Phase 14 wire + FINOPS_FORECASTING
+            # Phase 13 wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase
+            # 12 wire + FINOPS Phase 11 wire pattern verbatim). ML-driven
+            # pre-detection layer is a business-level FinOps pillar per FinOps
+            # Foundation + Phase 11 showback + Phase 12 anomaly + Phase 13
+            # forecasting + Phase 14 optimization + Phase 22 settlement +
+            # Phase 23 unit_economics + Phase 24 budget_vs_actual + Phase 25
+            # vendor spend attribution ledger data reuse 최대화 → 새 backend
+            # infra 불필요.
+            Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1279,6 +1341,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_BUDGET_PLANNING,
             # Phase 25 — FINOPS_VENDOR_MANAGEMENT (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_VENDOR_MANAGEMENT,
+            # Phase 26 — FINOPS_COST_ANOMALY_ML_PREDICTION (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1532,6 +1596,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_BUDGET_PLANNING,
             # Phase 25 — FINOPS_VENDOR_MANAGEMENT (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_VENDOR_MANAGEMENT,
+            # Phase 26 — FINOPS_COST_ANOMALY_ML_PREDICTION (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1817,6 +1883,8 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # Phase 11~24 16-capability FinOps territory chain
             # carry-over.
             Capability.FINOPS_VENDOR_MANAGEMENT,
+            # Phase 26 — FINOPS_COST_ANOMALY_ML_PREDICTION (industry-agnostic per CR 12-1 L4).
+            Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
         }
     ),
 }

@@ -102,6 +102,7 @@ __all__ = [
     "require_finops_unit_economics",  # NEW — Phase 23 (FinOps Unit Economics)
     "require_finops_budget_planning",  # NEW — Phase 24 (FinOps Budget Planning)
     "require_finops_vendor_management",  # NEW — Phase 25 (FinOps Vendor Management)
+    "require_finops_cost_anomaly_ml_prediction",  # NEW — Phase 26 (FinOps Cost Anomaly ML Prediction)
 ]
 
 
@@ -491,5 +492,47 @@ require_finops_budget_planning = require_capability(
 # tests/integration/test_capability_matrix_v1_51_drift.py.
 require_finops_vendor_management = require_capability(
     Capability.FINOPS_VENDOR_MANAGEMENT
+)
+
+# Phase 26 (cj-style 185번째 wire) — require_finops_cost_anomaly_ml_prediction
+# (industry-agnostic per CR 12-1 L4 precedent + FINOPS_VENDOR_MANAGEMENT
+# Phase 25 wire + FINOPS_BUDGET_PLANNING Phase 24 wire +
+# FINOPS_UNIT_ECONOMICS Phase 23 wire + FINOPS_CHARGEBACK_SETTLEMENT Phase
+# 22 wire + FINOPS_RESERVED_CAPACITY_PLANNING Phase 21 wire +
+# FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION Phase 20 wire +
+# FINOPS_PRICING Phase 19 wire + FINOPS_COMMITMENT Phase 18 wire +
+# FINOPS_SUSTAINABILITY Phase 17 wire + FINOPS_REPORTING Phase 16 wire +
+# FINOPS_TAG_GOVERNANCE Phase 15 wire + FINOPS_OPTIMIZATION Phase 14 wire
+# + FINOPS_FORECASTING_CAPACITY_PLANNING Phase 13 wire +
+# FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12 wire + FINOPS
+# Phase 11 wire pattern verbatim). All 4 industries get
+# FINOPS_COST_ANOMALY_ML_PREDICTION capability (ML-driven pre-detection
+# layer is a business-level FinOps pillar per FinOps Foundation + Phase 11
+# showback + Phase 12 anomaly + Phase 13 forecasting + Phase 14
+# optimization + Phase 22 settlement + Phase 23 unit_economics + Phase 24
+# budget_vs_actual + Phase 25 vendor spend attribution ledger data reuse
+# 최대화 → 새 backend infra 불필요). 4-NEW-module composition layer
+# (anomaly_ml_prediction_engine + anomaly_ml_model_registry +
+# anomaly_ml_training_pipeline + anomaly_ml_scoring +
+# anomaly_ml_ensemble_consensus) + 5 model types ensemble (prophet 0.30 +
+# lstm 0.30 + arima 0.15 + isolation_forest 0.15 + autoencoder 0.10) +
+# model_registry semver + A/B testing champion/challenger traffic_split
+# default 50/50 + 3 drift detection types (data + concept + prediction
+# PSI threshold 0.25) + training_pipeline 8 features +
+# scheduled retraining KST 매주 일요일 03:00 + drift-triggered
+# auto-retraining + real-time inference P95 < 200ms + batch inference
+# nightly KST 02:00 + ML vs Phase 12 threshold detection comparison view
+# + audit-first INSERT 12 NEW Literal + 16 NEW typed exceptions CR 12-5
+# D-14 envelope + dry-run mode + 1 NEW CLI flag
+# `--finops-cost-anomaly-ml-prediction-dry-run` + Epic 12 2FA 챌린지
+# mandatory (high-value threshold 10M KRW/year AD-55 (g)). Gates the
+# FinOps cost anomaly ML prediction routes in
+# apps/api/modules/finops/cost_anomaly_ml_prediction/ (healthcheck +
+# predict-anomaly-score + batch-predict + register-model +
+# update-model-status + train-model + drift-detection + ab-test +
+# dry-run + cadence-preview + ensemble-consensus). Drift detector lives
+# at tests/integration/test_capability_matrix_v1_52_drift.py.
+require_finops_cost_anomaly_ml_prediction = require_capability(
+    Capability.FINOPS_COST_ANOMALY_ML_PREDICTION
 )
 
