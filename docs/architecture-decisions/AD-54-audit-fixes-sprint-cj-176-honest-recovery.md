@@ -1,9 +1,9 @@
 ---
-name: AD-54-audit-fixes-sprint-cj-167-honest-recovery
-description: audit-fixes sprint (cj-style 167번째 wire) honest recovery decision wire. Documents the verified state that 0 broken emit_audit_typed call sites exist across the codebase (66/66 canonical), and that all 16 ActionClass + 15 _REGISTRY + 16 Literal unions were already EXTENSION-완료 from Phase 11-25 cumulative wires.
+name: AD-54-audit-fixes-sprint-cj-176-honest-recovery
+description: audit-fixes sprint (cj-style 176번째 wire) honest recovery decision wire. Documents the verified state that 0 broken emit_audit_typed call sites exist across the codebase (66/66 canonical), and that all 16 ActionClass + 15 _REGISTRY + 16 Literal unions were already EXTENSION-완료 from Phase 11-25 cumulative wires.
 metadata:
   type: reference
-  cj_style_entry_point: 167
+  cj_style_entry_point: 176
   status: done
   sprint: audit-fixes
   predecessor_cycle: phase-25-close-out-retro (cj-style 175)
@@ -14,7 +14,7 @@ metadata:
     - tests/api/core/test_audit_fixes_canonical_signature_universal.py
 ---
 
-# AD-54: audit-fixes sprint (cj-style 167) — Honest Recovery 결정 wire
+# AD-54: audit-fixes sprint (cj-style 176) — Honest Recovery 결정 wire
 
 > audit-fixes sprint 진입 시점 (2026-08-28) 의 honest recovery 결정 wire.
 > Phase 25 close-out retro (cj-style 175) 의 next-옵션 ② verbatim 보존 진입 = emit_audit_typed signature mismatch 잔여 정직 회복.
@@ -31,7 +31,7 @@ Phase 23 wire `f850d0e` 의 4 NEW backend unit_economics modules 는 처음에 P
 
 ## §2. 진입 결정 wire 시점의 honest verification
 
-audit-fixes sprint wire (cj-style 167) 진입 시점에 다음 검증을 실행:
+audit-fixes sprint wire (cj-style 176) 진입 시점에 다음 검증을 실행:
 
 ### §2.1 Broken pattern sweep (apps/api 전체)
 
@@ -127,7 +127,7 @@ TOTAL:                        65 sites
 - **Phase 23 retroactive correction**: `948ff35` commit
 - **Phase 24 wire**: `615d478` commit
 - **Phase 25 close-out retro**: `6119791` commit (cj-style 175)
-- **Predecessor sprint entry**: `_bmad-output/implementation-artifacts/audit-fixes-sprint-entry-2026-08-27.md` (cj-style 166)
+- **Predecessor sprint entry**: `_bmad-output/implementation-artifacts/audit-fixes-sprint-entry-2026-08-27.md` (cj-style 176)
 
 ## §6. 검증 방법론
 

@@ -1,17 +1,17 @@
 ---
-name: handoff-2026-08-28-audit-fixes-cj-167-wire-done
-description: audit-fixes sprint wire (cj-style 167th) DONE. Honest recovery 결정 wire 진입 완료. 65 emit_audit_typed call sites 모두 canonical signature verified via AST-walk. 2 files = 2 NEW atomic single sprint committed. 3중 게이트 FINAL CLEAN.
+name: handoff-2026-08-28-audit-fixes-cj-176-wire-done
+description: audit-fixes sprint wire (cj-style 176th) DONE. Honest recovery 결정 wire 진입 완료. 65 emit_audit_typed call sites 모두 canonical signature verified via AST-walk. 2 files = 2 NEW atomic single sprint committed. 3중 게이트 FINAL CLEAN.
 metadata:
   type: project
-  cj_style_entry_point: 167
+  cj_style_entry_point: 176
   status: commit_saved
   session_end: 2026-08-28 (KST)
 ---
 
-# audit-fixes sprint wire (cj-style 167th) DONE
+# audit-fixes sprint wire (cj-style 176th) DONE
 
 ## Session outcome
-- **Sprint**: audit-fixes sprint wire (cj-style 167th) — emit_audit_typed signature mismatch 잔여 정직 회복
+- **Sprint**: audit-fixes sprint wire (cj-style 176th) — emit_audit_typed signature mismatch 잔여 정직 회복
 - **Status**: DONE — atomic commit pending
 - **Sprint scope**: 2 NEW files (1 docs/AD + 1 pytest test)
 
@@ -51,7 +51,7 @@ metadata:
 
 **2 NEW files**:
 1. `tests/api/core/test_audit_fixes_canonical_signature_universal.py` (~340 LOC, 12 NEW pytest cases)
-2. `docs/architecture-decisions/AD-54-audit-fixes-sprint-cj-167-honest-recovery.md` (~+250 LOC)
+2. `docs/architecture-decisions/AD-54-audit-fixes-sprint-cj-176-honest-recovery.md` (~+250 LOC)
 
 ## 3중 게이트 FINAL CLEAN verified
 
@@ -71,9 +71,9 @@ metadata:
 - **Canonical signature SSOT**: `docs/audit-fixes-canonical-signature.md` (AD-49)
 - **Phase 11-20 audit-fixes AD**: `docs/architecture-decisions/AD-49-phase-11-20-audit-fixes.md`
 
-## Next: cj-style 168 follow-up (recommended)
+## Next: cj-style 177 follow-up (recommended)
 
-옵션 (a) audit-fixes sprint close-out retro 진입 결정 wire (cj-style 168th) — 14-section §1~§14 verbatim retro document + sprint-status v3.85 → v3.86 EXTENSION + handoff memory 신규 + MEMORY.md hook EXTENSION
+옵션 (a) audit-fixes sprint close-out retro 진입 결정 wire (cj-style 177th) — 14-section §1~§14 verbatim retro document + sprint-status v3.85 → v3.86 EXTENSION + handoff memory 신규 + MEMORY.md hook EXTENSION
 
 ---
 

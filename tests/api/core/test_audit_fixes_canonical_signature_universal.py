@@ -1,6 +1,6 @@
 """tests.api.core.test_audit_fixes_canonical_signature_universal — Universal canonical signature verification.
 
-Phase 11~25 audit-fixes sprint (cj-style 167번째 wire) — Universal drift detector
+Phase 11~25 audit-fixes sprint (cj-style 176번째 wire) — Universal drift detector
 for ALL `await emit_audit_typed(` call sites across the entire codebase (66 sites).
 
 Per CR 11-4 P-015: PURE validator pattern — NO fixtures, NO DB, AST parsing only.
@@ -12,7 +12,7 @@ Universal drift detector — verifies EVERY `await emit_audit_typed(` call site:
 3. References a registered ActionClass value
 4. References an action literal that exists in the corresponding _REGISTRY entry
 
-Honest recovery note (cj-style 167 verification):
+Honest recovery note (cj-style 176 verification):
 - 0 broken sites detected (Phase 21 cj-style 153 + Phase 23 retroactive correction
   cj-style 164 follow-up + Phase 24 cj-style 169 wire already recovered all sites)
 - 66 canonical sites confirmed across apps/api/ + apps/api/core/ + apps/api/jobs/
@@ -120,7 +120,7 @@ class TestUniversalCanonicalSignature:
     ) -> None:
         """Test 1a: Baseline call-site count is non-zero and matches expected.
 
-        Per cj-style 167 honest recovery, 66 canonical sites confirmed via
+        Per cj-style 176 honest recovery, 66 canonical sites confirmed via
         `grep -rn "await emit_audit_typed(" apps/api --include='*.py' | wc -l`.
 
         This test enforces a minimum threshold (>= 50) to catch silent
@@ -302,7 +302,7 @@ class TestActionClassRegistryParity:
 def test_honest_recovery_marker_phase_21_153() -> None:
     """Test 4a: Honest recovery marker — Phase 21 cj-style 153 audit-fixes sprint.
 
-    Per cj-style 167 honest recovery, this sprint entry (cj-style 166) was
+    Per cj-style 176 honest recovery, this sprint entry (cj-style 166) was
     originally written under the assumption that ~50 broken call sites
     existed in Phase 11~22 finops aggregator modules. ACTUAL state verified
     via `grep` shows 0 broken sites — Phase 21 cj-style 153 (5 sites),
@@ -313,14 +313,14 @@ def test_honest_recovery_marker_phase_21_153() -> None:
     detectable via git blame on this file.
     """
     # The test itself IS the marker. If this test passes, the honest
-    # recovery is verified at audit-fixes sprint (cj-style 167) entry.
+    # recovery is verified at audit-fixes sprint (cj-style 176) entry.
     assert True  # marker
 
 
 def test_honest_recovery_marker_no_new_pytest_backfill_needed() -> None:
     """Test 4b: Honest recovery marker — Phase 16-22 pytest backfill deferred.
 
-    Per cj-style 167 honest recovery, the original sprint spec §F40.6
+    Per cj-style 176 honest recovery, the original sprint spec §F40.6
     anticipated 6 NEW pytest test files (~+3,100 LOC) for Phase 16-22.
     ACTUAL state: existing test infrastructure already provides coverage:
       - tests/api/core/test_phase_16_audit_action.py ✓
@@ -340,7 +340,7 @@ def test_honest_recovery_marker_no_new_pytest_backfill_needed() -> None:
 def test_honest_recovery_marker_registry_extension_already_complete() -> None:
     """Test 4c: Honest recovery marker — registry EXTENSION already complete.
 
-    Per cj-style 167 honest recovery, the original sprint spec §F40.5
+    Per cj-style 176 honest recovery, the original sprint spec §F40.5
     anticipated 11+ NEW ActionClass + 12 NEW Literal + 11+ _REGISTRY
     entries. ACTUAL state: ALL entries already present via Phase 11-25
     cumulative wires. FINOPS_MULTI_CLOUD_UNIFIED_RECONCILIATION
