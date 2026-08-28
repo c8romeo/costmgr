@@ -1,0 +1,111 @@
+docs(finops): Epic 28 T2 frontend follow-up PRD entry (cj-style 195번째)
+
+Epic 28 T2 frontend follow-up territory PRD 진입 결정 wire.
+cj-style 194 Epic 28 close-out retro 의 §12 옵션 (a) / §14 Action Items #1
+verbatim 진입 — Epic 28 T2 frontend follow-up sprint 결정 wire (Phase 28
+atomic wire Q2 backend-only sprint `db005e8` (cj-style 193번째) 의
+honestly DEFER 보존 결정 wire 회복 = CR 11-3 honest-DEFER 90번째 epic
+연속 정직 회복).
+
+apps/api source 변경 0건 + apps/web source 변경 0건 (docs only sprint —
+cj-style 195번째 wire 진입 표준).
+
+## 8 ACs §F44.1~§F44.8 verbatim 보존
+
+78 explicit sub-ACs → ~78 detailed sub-ACs pre-flight 정합 sweep 만족:
+
+1. §F44.1 CrossPhaseKPIOverview sub-component
+   (CrossPhaseKPIOverview.tsx + 18 KPI tile grid + 5-dim weighted
+   aggregation gauge cost 0.30+usage 0.20+performance 0.20+compliance 0.15+
+   sla 0.15 + DASHBOARD_KPI_DIMENSION_WEIGHTS + PHASE_KPI_SOURCE_MODULES
+   18-entry + INTERACTIVE_DASHBOARD_ENGINE_VERSION + Recharts 2.12.7).
+2. §F44.2 SavedViewManager sub-component
+   (5 CRUD UI + 12 pre-defined templates + 7-dim granularity + max 50 +
+   cache TTL 5min + audit-first INSERT 4 NEW).
+3. §F44.3 DrillDownExplorer sub-component
+   (6-dim drill-down + 7-dim granularity + breadcrumb + DrillDownContext
+   TypedDict parity + DrillDownError 500).
+4. §F44.4 ExportConfigPanel sub-component
+   (5 format radio + 50MB guard + 3 auto-retries + 5-state status +
+   admin email alert + reuse Phase 17/22 EXTENSION).
+5. §F44.5 DashboardSharingPanel sub-component
+   (4 scope radio + tenant isolation + RBAC + Slack DM + Epic 12 2FA
+   챌린지 mandatory high-value + DashboardSharingError 500).
+6. §F44.6 2 RSC pages + capability gate
+   (page.tsx + layout.tsx + require_finops_interactive_dashboard fail-closed
+   403 + CR 1-1 RSC boundary + ARIA labels WCAG 2.1 AA + (dashboard) 보호).
+7. §F44.7 2 TS mirrors + Python TypedDict parity
+   (interactive-dashboard-types.ts + interactive-dashboard-client.ts +
+   7 enum exports + 6 TypedDict exports + 4 constants + 11 fetch functions
+   + CR 12-5 D-PARITY-01 inversion).
+8. §F44.8 vitest + ko-KR.json + dry-run + wire scope T1~T7
+   (interactive-dashboard-dashboard.test.tsx ~25-28 NEW vitest cases
+   + ko-KR.json EXTENSION ~30 keys finops_interactive_dashboard.*
+   namespace + dry-run UI default ON + wire scope T1~T7 verified + tsc
+   0 NEW + ruff scoped 0 NEW).
+
+## AD-57 신규 (a)~(c) 3 sub-decisions
+
+(a) Interactive Dashboard UI = 5 NEW sub-components + FinopsInteractiveDashboardPanel
+    orchestrator + 2 RSC pages + capability gate fail-closed 403.
+(b) 2 TS mirrors = CR 12-5 D-PARITY-01 inversion EXTENSION (Python TypedDict parity
+    + 11 endpoint fetch functions mirroring dashboard_router.py).
+(c) ko-KR.json finops_interactive_dashboard.* namespace EXTENSION ~30 keys
+    + NFR18 SSOT + dry-run UI + Epic 12 2FA 챌린지 mandatory.
+
+## CR lessons applied 21종
+
+- CR 0-2 RLS verbatim EXTENSION (4 tables + 1 preview table tenant-scoped RLS).
+- CR 1-1 audit-first INSERT 8 NEW.
+- CR 1-1 FastAPI ContextVar + CR 1-1 RSC boundary Next.js 15.x.
+- CR 4-3/4-4 (async-test + Industry enum SSOT + A5 drift detector + golden_diff + SDR overclaim 방지).
+- CR 5-1 Decimal precision banker's rounding NUMERIC(18,2) KRW + NUMERIC(5,4) pct.
+- CR 9-6 commit message `git commit -F <file>` (D5 prevention + PowerShell here-string 회피).
+- CR 11-3 honest-DEFER 90번째 Epic 28 T2 frontend follow-up 진입.
+- ALLOWED_SERVICE_SUBMODULES 보존 (Epic 28 wire 의 m28_finops_interactive_dashboard).
+- CR 11-4 D-001~D-005 ko-KR.json finops_interactive_dashboard.* namespace EXTENSION ~30 keys SSOT.
+- NFR18 ko-KR SSOT + P-015 SSOT.
+- CR 12-1 L4 industry-agnostic capability matrix v1.53 FINOPS_INTERACTIVE_DASHBOARD 4-industry ✅/✅/✅/✅.
+- CR 12-5 D-14 typed exception envelope 16 NEW.
+- CR 12-5 D-PARITY-01 inversion TypeScript mirror parity.
+- CR 12-5 D-GATE-01 inversion capability gate inversion.
+- A19 cohesion 9 surface EXTENSION PARTIAL → FULL preserved (Surface 7 TS mirror + Surface 8 ko-KR SSOT).
+- A36 SDR 검증 4-step 자동 적용.
+- AD-14 stack pin Recharts 2.12.7 + reportlab 4.0.7 + xlsxwriter 3.1.9 + pandas 2.1.4 + matplotlib 3.8.2 + apscheduler 3.10.4 + pytz 2024.1 + noto-sans-cjk-kr.
+- AD-22 owner-only RBAC.
+- Epic 12 2FA 챌린지 mandatory ≥ 10M KRW/year sharing scope.
+- NFR4 PII minimization ✅ PRESERVED.
+- NFR18 ko-KR SSOT.
+- AD-50 + AD-51 + AD-52 + AD-53 + AD-54 + AD-55 + AD-56 + AD-57 신규 결정 wire 진입 완료.
+
+## Phase 11~28 19-capability FinOps territory chain 정합
+
+✅ ALL WIRED INTEGRATED 진입 정합 보존 (Phase 11~27 18-capability +
+Phase 28 1-capability EXTENSION FINOPS_INTERACTIVE_DASHBOARD).
+T2 frontend follow-up sprint = Surface 7 (TS mirror) ⚠️ N/A →
+✅ EXTENSION + Surface 8 (ko-KR SSOT) ⚠️ N/A → ✅ EXTENSION 결정 wire 보존.
+
+## D-FINOPS-15 honestly DEFER 보존
+
+8 items 모두 ✅ ALL RESOLVED 보존 + Phase 28 T2 frontend honestly DEFER →
+follow-up sprint 결정 wire 회복 정직 회복 결정 wire 진입 완료.
+
+## Files affected
+
+1 NEW PRD file
+(`_bmad-output/implementation-artifacts/phase-28-t2-frontend-follow-up-prd.md`
+~+220 LOC).
+
+## Scope
+
+5 files = 3 NEW + 2 MODIFIED atomic single sprint 결정 wire:
+- 1 NEW PRD file (this sprint only — spec/wire cycle 은 다음 sprint 진입 정직 회복).
+- 1 NEW handoff memory.
+- 1 NEW commit-msg file (this file).
+- 1 MODIFIED sprint-status.yaml (v4.02 → v4.03 EXTENSION).
+- 1 MODIFIED memory/MEMORY.md (hook EXTENSION).
+
+= 5 files = 3 NEW + 2 MODIFIED atomic single sprint.
+3중 게이트 impact NONE (docs only 변경).
+
+Co-Authored-By: Claude <noreply@anthropic.com>
