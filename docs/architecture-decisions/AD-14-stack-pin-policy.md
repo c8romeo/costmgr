@@ -213,8 +213,9 @@ retired candidate: 0건, 모든 exceptions 가 active deviation 상태).
 
 ## Detection Surface — install/runtime 검증 surface
 
-cj-style 208 sprint 의 install state honestly reported (cj-205 최초
-report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED 반영):
+cj-style 209 sprint 의 install state honestly reported (cj-205 최초
+report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
+**cj-209 install stage parity + tsc drift detector EXTENSION**):
 
 | Surface | State | Notes |
 |---|---|---|
@@ -232,6 +233,11 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED 반영):
 | `docs/STACK_PIN.md` + `docs/STACK_PIN.yaml` | ✅ installed + SSOT | hand-edit YAML only; MD is mirror |
 | `docs/architecture-decisions/AD-14-stack-pin-policy.md` | ✅ **cj-205 신규 install** | THIS document (cj-206 Detection Surface + Open Items EXTENSION) |
 | `uv.lock` ↔ `apps/api/pyproject.toml` declared/resolved parity | ✅ **cj-206 회복** | cj-205 시점 lock 은 k6 뿐 아니라 lxml / opentelemetry 7종 / prometheus-client / pyyaml / python3-saml / jsonschema 도 미해결 상태 (`costmgr-api` requires-dist: lock 13 vs pyproject 25 — dev extra 포함). cj-206 `uv lock` 으로 +518 lines 추가 resolution — 기존 pin 은 1건도 변경되지 않음 (0 deletions). `uv lock --check` exit 0. |
+| `scripts/check_install_stage.py` (install stage parity detector — cj-209 NEW) | ✅ **installed + functional (cj-209)** | `uv run python scripts/check_install_stage.py` → STACK_PIN.yaml 의 pinned packages 가 실제로 `node_modules/.pnpm/<pkg>@<version>/` (Node) + `uv.lock` resolution (Python) 에 install 되어 있는지 verify. cj-197/202 commit 의 "Recharts 2.12.7 AD-14 stack pin" install 단계 누락 → cj-204 cleanup sprint 에서 정직 회복, 그러나 재발 방지 자동화는 부재. cj-209 에서 신규. `scripts/check_stack_pin.py` 의 declaration parity 검증 + 본 script 의 install parity 검증 = 2-layer detection. |
+| `scripts/check_tsc_drift.py` (TypeScript drift detector — cj-209 NEW) | ✅ **installed + functional (cj-209)** | `uv run python scripts/check_tsc_drift.py` → `tsc --noEmit -p apps/web/tsconfig.json` 결과의 error code 별 count 를 `docs/architecture-decisions/AD-14-tsc-baseline.json` (committed snapshot) 와 비교 → drift (신규 code 도입 or count 증가) 시 exit 1. cj-204 cleanup 시점 pre-existing 21 tsc errors 가 silent 누적된 사실의 proactive detection 부재 → cj-209 에서 신규. baseline 자체는 first run 에서 자동 작성 (`schema_version: 1` + `captured_at` + `tsc_version` + `targets`). `UPDATE_TSC_BASELINE=1` 환경변수로 의도적 cleanup 후 baseline 갱신 가능. |
+| `docs/architecture-decisions/AD-14-tsc-baseline.json` (tsc drift baseline — cj-209 NEW) | ✅ **cj-209 신규 install** | First run 에서 자동 작성된 tsc error count snapshot. cj-209 시점 baseline: `{apps/web: {total: 0, by_code: {}}}` (cj-204 cleanup 후 clean state). cj-209 검증 시점 `apps/web/tsconfig.json` tsc --noEmit → 0 errors (verbatim 일치). |
+| `tests/integration/test_install_stage_check.py` (install stage test — cj-209 NEW) | ✅ **installed + functional (cj-209)** | 3-case integration test (clean repo exit + VERBOSE=1 no-crash + missing node_modules MISS line) all PASS. CR 11-3 honest boundary: exit 1 또는 2 모두 acceptable (실제 install state 반영). |
+| `tests/integration/test_tsc_drift_check.py` (tsc drift test — cj-209 NEW) | ✅ **installed + functional (cj-209)** | 4-case integration test (cold-checkout NOT INVOKABLE exit 2 + baseline format + no-drift exit 0 + drift detection exit 1 / 0) all PASS. CR 11-3 honest boundary: exit 0 또는 1 모두 acceptable (현재 repo state 반영). |
 
 ## Cross-references
 
@@ -253,7 +259,13 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED 반영):
   `D-AD-14-2` (retention `response_model` FastAPIError) 신규
   honestly DEFER → **cj-208 source sprint 에서 RESOLVED**
   (kernel `RetentionPolicy(dict)` 보존 + API surface
-  `RetentionPolicyResponse(BaseModel)` 도입)
+  `RetentionPolicyResponse(BaseModel)` 도입) +
+  cj-204 cleanup 의 pre-existing 21 tsc errors silent 누적 / cj-197/202
+  의 "Recharts 2.12.7 AD-14 stack pin" install 단계 누락 의 proactive
+  detection 부재 → **cj-209 source sprint 에서 EXTENSION**
+  (`scripts/check_install_stage.py` + `scripts/check_tsc_drift.py`
+  + 2 NEW integration test + 1 NEW baseline JSON commit, **CR 11-3
+  honest-DEFER 102번째** epic 연속 정직 회복)
 
 ## Open Items
 
@@ -324,6 +336,24 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED 반영):
   D-PARITY-01) 손상 없음. **CR 11-3 honest-DEFER 101번째** epic 연속
   정직 회복. 본 sprint 는 pin 을 1건도 bump 하지 않았으므로
   `[STACK BUMP]` tag 불필요.
+- 본 AD-14 문서의 cj-style 209 sprint EXTENSION 은 **source+docs
+  atomic single sprint** — AD-14 Detection Surface 의 proactive 영역
+  보강 (install surface 12 → **16**): 2 NEW detector + 2 NEW integration
+  test + 1 NEW baseline JSON commit. fix wire: (1) `scripts/check_install_stage.py`
+  신규 — STACK_PIN.yaml 의 pinned packages 가 실제로 `node_modules/.pnpm/`
+  + `uv.lock` 에 install 되어 있는지 verify (cj-197/202 "Recharts 2.12.7
+  AD-14 stack pin" install 단계 누락의 proactive detection). (2)
+  `scripts/check_tsc_drift.py` 신규 — `tsc --noEmit` error code 별
+  count 를 `docs/architecture-decisions/AD-14-tsc-baseline.json` (committed
+  snapshot) 와 비교 → drift 시 exit 1 (cj-204 cleanup 의 pre-existing
+  21 tsc errors silent 누적의 proactive detection). (3) 2 NEW
+  integration tests (3-case + 4-case). (4) AD-14-tsc-baseline.json
+  자동 작성 (cj-209 검증 시점 `{apps/web: {total: 0, by_code: {}}}` =
+  cj-204 cleanup 후 clean state). **CR 11-3 honest-DEFER 102번째** epic
+  연속 정직 회복. 본 sprint 는 pin 을 1건도 bump 하지 않았으므로
+  `[STACK BUMP]` tag 불필요 (35 pins 전부 unchanged). cj-209 install state:
+  ✅ 14 + ⚠️ 1 partial (Dependabot auto-label, 보존) + ⚠️ 1 honest-DEFER
+  external infra (D-LAUNCH-1-DEFER-2/3/4, 보존).
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의

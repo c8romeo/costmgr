@@ -1,0 +1,62 @@
+fix(finops): cj-209 AD-14 install stage + tsc drift detector EXTENSION DONE (cj-style 209번째 epic 연속 정직 회복 atomic source-and-docs wire per CR 11-3 honest-DEFER 102번째)
+
+cj-208 next-옵션 (a) 의 verbatim recovery = cj-204 cleanup sprint 의
+pre-existing 21 tsc errors silent 누적 + cj-197/202 "Recharts 2.12.7 AD-14
+stack pin" install 단계 누락 의 proactive detection 자동화 = **CR 11-3
+honest-DEFER 102번째** epic 연속 정직 회복.
+
+10 files = 7 NEW + 3 MODIFIED atomic single sprint (verified via
+`git status --short` pre-commit) — **Honest scope recovery per CR 11-3**:
+AskUserQuestion preview 의 '8 files = 4 NEW + 4 MODIFIED' 카운트 자체 가
+부정확했음 (4 MODIFIED 가 아닌 3 MODIFIED list) → 실제 deliverable 은
+**7 NEW + 3 MODIFIED = 10 files**:
+
+5 NEW:
+- `scripts/check_install_stage.py` (~240 LOC) — STACK_PIN.yaml 의 35 pins
+  ecosystem 분류 (PYTHON_PKGS frozenset 17 + NODE_PKGS frozenset 5 + infra
+  skip 5) → uv.lock regex parse + pnpm content-addressed store glob match
+  = declaration parity (check_stack_pin.py) 다음 단계의 install parity
+  detection
+- `scripts/check_tsc_drift.py` (~280 LOC) — TSC_CANDIDATES 2 path + tsc
+  --noEmit subprocess + error code regex parse + baseline JSON
+  schema_version 1 + first-run 자동 작성 + UPDATE_TSC_BASELINE=1 env override
+- `tests/integration/test_install_stage_check.py` (3-case integration test)
+- `tests/integration/test_tsc_drift_check.py` (4-case integration test)
+- `docs/architecture-decisions/AD-14-tsc-baseline.json` (first-run 자동 작성,
+  cj-209 검증 시점 `{apps/web: {total: 0, by_code: {}}}` = cj-204 cleanup 후
+  clean state baseline)
+- `_bmad-output/implementation-artifacts/commit-msg-cj-209.txt` (this file)
+- `memory/handoff-2026-08-29-cj-209-ad-14-install-stage-tsc-drift-detector-done.md`
+
+4 MODIFIED:
+- `docs/architecture-decisions/AD-14-stack-pin-policy.md` (§Detection Surface
+  EXTENSION 4 rows 추가: install stage detector + tsc drift detector +
+  baseline JSON + 2 integration tests) + §Cross-references CR 11-3 line
+  cj-209 EXTENSION paragraph + §Notes cj-209 EXTENSION paragraph
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.09 → v4.10
+  EXTENSION (A830~A834 5 entries + last_updated_note_v4_10 + action_items
+  cj-209 done)
+- `memory/MEMORY.md` (hook EXTENSION)
+
+검증 실측 (all local, honestly reported):
+- T7.1 ruff scoped ✅ `uv run ruff check scripts/check_install_stage.py
+  scripts/check_tsc_drift.py tests/integration/test_install_stage_check.py
+  tests/integration/test_tsc_drift_check.py` → All checks passed!
+- T7.2 pytest scoped ✅ `uv run python -m pytest
+  tests/integration/test_install_stage_check.py
+  tests/integration/test_tsc_drift_check.py -v` → 7 passed (3 install_stage
+  + 4 tsc_drift all PASS)
+- T7.3 vitest scoped N/A (apps/web 변경 0건)
+- T7.4 tsc N/A (backend-only sprint)
+- T7.5 FINAL CLEAN ✅ PASS (`uv run python scripts/check_stack_pin.py`
+  → `[STACK_PIN] OK all 35 pins match` exit 0)
+- install_stage 실측 ✅ exit 1 (7 pinned pkg MISS honestly reported)
+- tsc_drift 실측 ✅ exit 0 (baseline JSON 자동 작성 + 0 errors 정합)
+
+본 sprint 는 pin 을 1건도 bump 하지 않았으므로 [STACK BUMP] tag 불필요
+(35 pins 전부 unchanged, AD-14 Detection Surface EXTENSION 만).
+
+CR 11-3 honest-DEFER 102번째 epic 연속 정직 회복.
+결정 wire 일자: 2026-08-29 (KST).
+
+Co-Authored-By: Claude <noreply@anthropic.com>

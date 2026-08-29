@@ -1,0 +1,11 @@
+{
+  "captured_at": "2026-08-29T02:06:49Z",
+  "schema_version": 1,
+  "targets": {
+    "apps/web": {
+      "by_code": {},
+      "total": 0
+    }
+  },
+  "tsc_version": "Version 5.9.3"
+}
