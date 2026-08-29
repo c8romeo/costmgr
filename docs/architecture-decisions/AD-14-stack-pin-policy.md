@@ -238,6 +238,7 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
 | `docs/architecture-decisions/AD-14-tsc-baseline.json` (tsc drift baseline — cj-209 NEW) | ✅ **cj-209 신규 install** | First run 에서 자동 작성된 tsc error count snapshot. cj-209 시점 baseline: `{apps/web: {total: 0, by_code: {}}}` (cj-204 cleanup 후 clean state). cj-209 검증 시점 `apps/web/tsconfig.json` tsc --noEmit → 0 errors (verbatim 일치). |
 | `tests/integration/test_install_stage_check.py` (install stage test — cj-209 NEW) | ✅ **installed + functional (cj-209)** | 3-case integration test (clean repo exit + VERBOSE=1 no-crash + missing node_modules MISS line) all PASS. CR 11-3 honest boundary: exit 1 또는 2 모두 acceptable (실제 install state 반영). |
 | `tests/integration/test_tsc_drift_check.py` (tsc drift test — cj-209 NEW) | ✅ **installed + functional (cj-209)** | 4-case integration test (cold-checkout NOT INVOKABLE exit 2 + baseline format + no-drift exit 0 + drift detection exit 1 / 0) all PASS. CR 11-3 honest boundary: exit 0 또는 1 모두 acceptable (현재 repo state 반영). |
+| `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (CI verification blocker AD — cj-210 NEW) | ⚠️ **cj-210 신규 install (honest DEFER)** | cj-209 next-옵션 (a) 의 CI `stack-pin-check` job FULL functional 실측 verification 결과, ci.yml 의 setup job 이 **unresolvable action SHA** (actions/checkout + actions/cache 의 잘못된 SHA pin) 로 fail → 12개 downstream job (stack-pin-check 포함) 전부 skipped → **CJ-210 verification 결과: BLOCKED** honestly DEFER. **`D-CI-SHA-1` 신규 honestly DEFER** (다음 sprint: ci.yml SHA remediation 결정 wire). setup 자체의 SHA unresolvable 는 [[AD-14-ci-verification-blocker-2026-08-29]] §3.3~§3.4 에 upstream commit 조회 evidence 와 함께 verbatim 기록. **cj-209 의 PARTIAL → FULL 자동 회복 claim 의 honest scope boundary**: local 동일 명령 level 의 회복은 검증됨 (T7.1~T7.5 모두 local PASS), CI workflow level 의 recovery 는 검증되지 않은 상태 그대로 보존 (cj-209 handoff 의 "실제 CI run 실측은 보류" 문장이 cj-210 에서 정직 회복됨). |
 
 ## Cross-references
 
@@ -266,6 +267,21 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   (`scripts/check_install_stage.py` + `scripts/check_tsc_drift.py`
   + 2 NEW integration test + 1 NEW baseline JSON commit, **CR 11-3
   honest-DEFER 102번째** epic 연속 정직 회복)
+- cj-210 docs-only verification sprint EXTENSION — cj-209 next-옵션 (a)
+  의 CI `stack-pin-check` job FULL functional 실측 verification 결과,
+  ci.yml 의 setup job 이 **unresolvable action SHA** (actions/checkout
+  `11bd71901bbe5b1630ceea73d27529564c616888` + actions/cache
+  `5a3e84c9ed5f96e6bccc1e24985906d792b805ed` 의 upstream 에 존재하지
+  않는 잘못된 SHA pin) 로 fail → 12개 downstream job (stack-pin-check
+  포함) 전부 skipped → **cj-210 verification 결과: BLOCKED** honestly
+  DEFER. **D-CI-SHA-1** 신규 honestly DEFER (다음 sprint: ci.yml SHA
+  remediation 결정 wire). setup 자체의 SHA unresolvable 는
+  [[AD-14-ci-verification-blocker-2026-08-29]] §3.3~§3.4 에 upstream
+  commit 조회 evidence 와 함께 verbatim 기록. **cj-209 의 PARTIAL → FULL
+  자동 회복 claim 의 honest scope boundary**: local 동일 명령 level 의
+  회복은 검증됨 (T7.1~T7.5 모두 local PASS), CI workflow level 의
+  recovery 는 검증되지 않은 상태 그대로 보존. **CR 11-3 honest-DEFER
+  103번째** epic 연속 정직 회복 (cj-209 의 102번째에 이어).
 
 ## Open Items
 
@@ -354,6 +370,21 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   `[STACK BUMP]` tag 불필요 (35 pins 전부 unchanged). cj-209 install state:
   ✅ 14 + ⚠️ 1 partial (Dependabot auto-label, 보존) + ⚠️ 1 honest-DEFER
   external infra (D-LAUNCH-1-DEFER-2/3/4, 보존).
+- cj-210 docs-only verification sprint EXTENSION — CI `stack-pin-check`
+  job 의 FULL functional 실측 verification 결과 **BLOCKED honestly
+  DEFER** 결정 wire. cj-209 의 PARTIAL → FULL 자동 회복 claim 의
+  honest scope boundary 를 정직하게 노출: local 동일 명령 level 의
+  회복은 검증됨 (T7.1~T7.5 모두 local PASS), **CI workflow level 의
+  recovery 는 검증되지 않은 상태 그대로 보존**. ci.yml 의 setup job
+  unresolvable action SHA (actions/checkout + actions/cache 의 잘못된
+  SHA pin, upstream 에 존재하지 않는 SHA → 404) 가 모든 downstream
+  job 의 trigger 를 차단. **D-CI-SHA-1** 신규 honestly DEFER (다음
+  sprint: ci.yml SHA remediation 결정 wire) + `AD-14-ci-verification-blocker-2026-08-29.md`
+  신규 AD 결정 wire 보존. cj-210 install state: ⚠️ 1 신규 honestly DEFER
+  (D-CI-SHA-1, 결정 wire 보류 — ci.yml SHA remediation sprint 미진입) +
+  나머지 16 surface 모두 그대로 보존. **CR 11-3 honest-DEFER 103번째**
+  epic 연속 정직 회복. 본 sprint 는 source code 변경 0건, docs-only
+  atomic sprint.
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의

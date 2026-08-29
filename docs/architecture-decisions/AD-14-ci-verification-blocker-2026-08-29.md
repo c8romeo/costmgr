@@ -1,0 +1,220 @@
+# AD-14-ci-verification-blocker-2026-08-29 — CI `stack-pin-check` job FULL functional verification BLOCKED by setup SHA unresolvable
+
+**Date**: 2026-08-29 (KST)
+**Cycle**: cj-style 210th (cj-210 docs-only verification sprint)
+**Baseline commit**: 9d59712 (cj-209 AD-14 install stage + tsc drift detector EXTENSION)
+**Status**: ⚠️ **PARTIAL honest DEFER** — verification BLOCKED at setup, scripts themselves are functional
+**Cross-references**:
+- [[AD-14-stack-pin-policy]] §Detection Surface — cj-210 row EXTENSION
+- `handoff-2026-08-29-cj-210-ci-stack-pin-check-verification-blocked.md`
+- cj-209 handoff `handoff-2026-08-29-cj-209-ad-14-install-stage-tsc-drift-detector-done.md` (next-옵션 (a))
+
+## 1. Background
+
+cj-209 (`9d59712`) 의 next-옵션 (a) 는 "CI `stack-pin-check` job FULL functional 실측
+verification" 으로, cj-209 의 PARTIAL → FULL 근거가 local 동일 명령 회복까지 검증된
+상태이므로 **실제 CI run 을 trigger 한 뒤 stack-pin-check job 의 FULL functional 을
+실측** 하려는 의도.
+
+cj-210 verification sprint scope:
+- push commit `9d59712` to remote ✅ (done: `d02d9a5..9d59712 9-3-dev-2026-08-17`)
+- observe GitHub Actions CI run triggered by push
+- verify `stack-pin-check` job actually runs and passes (FULL functional)
+
+## 2. Verification method
+
+- GitHub REST API (public, no auth) 를 사용한 CI run 실측
+  - `GET /repos/{owner}/{repo}/actions/runs?per_page=30`
+  - `GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs`
+- 업스트림 actions 레포의 commit SHA 직접 검증
+  - `GET /repos/actions/checkout/commits/{sha}`
+  - `GET /repos/actions/cache/commits/{sha}`
+
+## 3. Verification findings (honestly reported)
+
+### 3.1 CI workflow trigger surface
+
+`/.github/workflows/ci.yml` 의 `on:` 정의:
+
+```yaml
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+```
+
+→ CI 는 **`main` branch 의 push 또는 PR** 에서만 trigger.
+
+오늘 push 한 branch 는 `9-3-dev-2026-08-17` (default branch = `story-11-3-dev-2026-08-09`
+이지만 `main` 도 별도로 존재) → **CI 가 trigger 되지 않음**.
+
+→ push 후 24시간 경과 (2026-08-29 02:15:08Z push 기준), `9-3-dev-2026-08-17` branch 에서
+triggered 된 CI run **0건**.
+
+### 3.2 Historical CI run 실측
+
+`GET /repos/c8romeo/costmgr/actions/runs?per_page=30` 응답 분석:
+
+- **총 25 run** (최근 30건, Dependabot dynamic 포함)
+- **`ci.yml` workflow run**: 1건 (`run_id=32368789371`, `head_branch=main`, `head_sha=2a161a35`,
+  `created_at=2026-08-20T12:25:45Z`, `conclusion=failure`)
+- **2026-08-20 시점 외 `ci.yml` workflow run**: 0건 — **2026-08-20 부터 오늘까지 9일간
+  successful 한 CI run 0건**
+
+→ 즉, cj-style sprint chain (cj-205 ~ cj-209, 모두 2026-08-29 동일 일자) 동안
+triggered 된 CI run 은 **0건**.
+
+### 3.3 2026-08-20 CI run failure root cause 분석
+
+`run_id=32368789371` 의 job 분석:
+
+| Job | status | conclusion |
+|---|---|---|
+| setup | completed | **failure** |
+| stack-pin-check | completed | **skipped** |
+| commit-prefix-lint | completed | skipped |
+| lint-conventions | completed | skipped |
+| test-architecture | completed | skipped |
+| lint-imports | completed | skipped |
+| lint-deps | completed | skipped |
+| web-e2e | completed | skipped |
+| web-test | completed | skipped |
+| test-service-role-guard | completed | skipped |
+| rls-tests | completed | skipped |
+| smoke-e2e | completed | skipped |
+| service-role-guard-lint | completed | skipped |
+
+→ **setup job 의 failure 때문에 12개 downstream job 전부 skipped**. stack-pin-check 포함.
+
+WebFetch 로 확인한 setup failure root cause:
+
+> Unable to resolve action `actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed`,
+> unable to find version `5a3e84c9ed5f96e6bccc1e24985906d792b805ed`. Unable to resolve
+> action `actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888`, unable to find
+> version `11bd71901bbe5b1630ceea73d27529564c616888`.
+
+### 3.4 SHA 직접 검증 (upstream 조회)
+
+| ci.yml 의 SHA | claim | 실제 upstream 상태 |
+|---|---|---|
+| `actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888` | # v4.2.2 | **NOT FOUND** (HTTP 404) |
+| `actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed` | # v4.2.1 | **NOT FOUND** (HTTP 404) |
+
+업스트림 실제 v4.2.x SHA 와 비교:
+
+| Repo | Tag | 실제 SHA | ci.yml 의 SHA 와 일치? |
+|---|---|---|---|
+| `actions/checkout` | v4.2.2 | `11bd71901bbe5b1630ceea73d27597364c9af683` | ❌ (1 문자 차이: `295` vs `973`, `616888` vs `c9af683`) |
+| `actions/cache` | v4.2.1 | `0c907a75c2c80ebcb7f088228285e798b750cf8f` | ❌ (완전히 다른 SHA) |
+
+→ ci.yml 의 두 SHA pin 은 **typo / 잘못된 SHA pinning**. GitHub Actions runner 가
+SHA 를 resolve 하지 못해 setup failure → 모든 downstream job skipped.
+
+## 4. cj-210 verification result: BLOCKED
+
+cj-210 의 명시적 goal 인 "CI `stack-pin-check` job FULL functional 실측 verification"
+은 다음 두 가지 architectural blocker 때문에 **honestly DEFER**:
+
+### Blocker A — CI workflow trigger
+
+- CI workflow 가 `branches: [main]` 으로 trigger 정의됨
+- 본 repo 의 default branch 는 `story-11-3-dev-2026-08-09` (cj-style sprint 의 working branch)
+- `main` branch 는 별도로 존재하지만 cj-style sprint 들은 `9-3-dev-2026-08-17` 등
+  non-main branch 에 push
+- → cj-style sprint 의 push 는 CI 를 trigger 하지 않음
+
+### Blocker B — setup job 의 unresolvable action SHAs
+
+- ci.yml 의 2개 SHA pin (checkout, cache) 이 upstream 에 존재하지 않는 잘못된 SHA
+- → setup job failure → 12개 downstream job (stack-pin-check 포함) 전부 skipped
+- → 어떤 branch 에서 trigger 되더라도 setup failure 가 발생하여 동일한 blocker 재현
+
+## 5. cj-209 의 PARTIAL → FULL 자동 회복 claim 의 honestly 한계
+
+cj-209 의 검증 실측은 **모두 local 환경**:
+
+- T7.1 ruff scoped ✅
+- T7.2 pytest scoped ✅ 7 passed
+- T7.5 FINAL CLEAN ✅ `uv run python scripts/check_stack_pin.py` → exit 0
+
+→ **script 자체의 local functional 은 검증됨**.
+
+그러나 cj-209 의 handoff 의 다음 문장이 honest scope recovery 의 핵심:
+
+> cj-209 시점 baseline = 0 errors 이므로 PARTIAL → FULL 도 자동 회복, **그러나 실제 CI
+> run 실측은 다음 push 후 결정 wire 보류**
+
+cj-210 의 push 후 실측 결과: **CI run 자체가 trigger 되지 않아 PARTIAL → FULL 도
+검증 불가**. cj-209 의 PARTIAL → FULL 회복은 local 동일 명령 level 의 회복일 뿐,
+CI workflow 의 recovery 자체는 **검증되지 않은 상태 그대로 보존**.
+
+## 6. remediation path (다음 sprint 후보, cj-210 scope 외)
+
+### Option A — ci.yml SHA remediation sprint (cj-style 211th 후보)
+
+`/.github/workflows/ci.yml` 의 2개 SHA 를 실제 upstream v4.2.x SHA 로 swap:
+
+```yaml
+# Before
+actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed # v4.2.1
+
+# After (실제 upstream v4.2.x SHA)
+actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
+```
+
+또는 **latest stable** 로 bump:
+```yaml
+actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+```
+
+(Dependabot PR #6 가 setup-node + setup-python 만 bump 했고, **checkout + cache 는
+이 PR 의 범위 밖**. 별도 sprint 에서 fix 필요.)
+
+### Option B — CI workflow trigger surface EXTENSION
+
+`on:` 정의에 `workflow_dispatch:` 또는 `branches: [main, story-11-3-dev-2026-08-09,
+9-3-dev-2026-08-17, ...]` 추가하여 working branch 의 push 에서도 CI trigger 되도록.
+
+### Option C — 현재 trigger surface 보존 + verification 결정 wire 보류
+
+cj-style sprint 가 branch protection / merge-to-main 후에만 CI 도는 정책을 유지한다면,
+verification 은 별도 PR-to-main 사이클에서 결정 wire.
+
+### Recommended next step
+
+Option A 가 minimal-scope fix. SHA 만 swap 하면 setup recovery → downstream jobs
+trigger. Option B 는 surface 자체의 design 변경이라 별도 ADR 필요. Option C 는
+verification 의 의도 자체를 본 sprint 에서 만족 못하므로 추가 sprint 가 필요.
+
+→ **cj-210 의 next-옵션 (a)**: "ci.yml SHA remediation sprint 결정 wire" (Option A).
+
+## 7. Honestly DEFER 보존
+
+| Defer ID | Status | Owner | Resolution Sprint |
+|---|---|---|---|
+| **D-CI-SHA-1** (NEW, cj-210 관찰) | ⚠️ **honestly DEFER** | kjw | cj-style 211th SHA remediation sprint |
+| CI workflow 의 `branches: [main]` trigger surface | honestly preserved | kjw | 별도 follow-up 결정 wire |
+| stack-pin-check FULL functional 실측 verification (cj-209→cj-210) | honestly preserved | kjw | D-CI-SHA-1 해결 후 |
+
+## 8. 결정 wire 일자
+
+2026-08-29 (KST) — cj-style 210th docs-only verification sprint.
+
+## 9. Cross-references
+
+- [[AD-14-stack-pin-policy]] §Detection Surface — cj-210 row EXTENSION 결정 wire
+- `handoff-2026-08-29-cj-210-ci-stack-pin-check-verification-blocked.md`
+- cj-209 handoff (`9d59712`) 의 next-옵션 (a) 의 honestly DEFER 보존
+- GitHub Actions API evidence:
+  - `GET /repos/c8romeo/costmgr/actions/runs?per_page=30` → 25 runs, ci.yml 1건
+  - `GET /repos/c8romeo/costmgr/actions/runs/32368789371/jobs` → 13 jobs, setup failure + 12 skipped
+  - `GET /repos/actions/checkout/commits/11bd71901bbe5b1630ceea73d27529564c616888` → 404 NOT FOUND
+  - `GET /repos/actions/cache/commits/5a3e84c9ed5f96e6bccc1e24985906d792b805ed` → 404 NOT FOUND
+  - `GET /repos/actions/checkout/tags?per_page=20` → v4.2.2 actual SHA `11bd71901bbe5b1630ceea73d27597364c9af683`
+  - `GET /repos/actions/cache/tags?per_page=20` → v4.2.1 actual SHA `0c907a75c2c80ebcb7f088228285e798b750cf8f`
+
+Co-Authored-By: Claude <noreply@anthropic.com>
