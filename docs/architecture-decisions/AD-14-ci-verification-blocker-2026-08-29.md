@@ -1,13 +1,16 @@
 # AD-14-ci-verification-blocker-2026-08-29 — CI `stack-pin-check` job FULL functional verification BLOCKED by setup SHA unresolvable
 
-**Date**: 2026-08-29 (KST)
-**Cycle**: cj-style 210th (cj-210 docs-only verification sprint)
+**Date**: 2026-08-29 (KST, cj-210 install + cj-211 RESOLVED 갱신)
+**Cycle**: cj-style 210th install + cj-style 211th RESOLVED (sha remediation source sprint)
 **Baseline commit**: 9d59712 (cj-209 AD-14 install stage + tsc drift detector EXTENSION)
-**Status**: ⚠️ **PARTIAL honest DEFER** — verification BLOCKED at setup, scripts themselves are functional
+**cj-211 RESOLVED commit**: b32e2ab 의 다음 sprint (atomic source-and-docs wire)
+**Status**: ✅ **cj-211 RESOLVED** — D-CI-SHA-1 verbatim SHA swap source fix 결정 wire 완료 (verification cycle 의 setup blocker 해소). Actual CI run trigger → downstream jobs trigger 의 live verification 은 다음 push 후 결정 wire 보존 (trigger surface `branches: [main]` EXTENSION 은 cj-211 scope 외, 별도 follow-up).
 **Cross-references**:
-- [[AD-14-stack-pin-policy]] §Detection Surface — cj-210 row EXTENSION
-- `handoff-2026-08-29-cj-210-ci-stack-pin-check-verification-blocked.md`
+- [[AD-14-stack-pin-policy]] §Detection Surface — cj-210 row + cj-211 RESOLVED row EXTENSION
+- `handoff-2026-08-29-cj-210-ci-stack-pin-check-verification-blocked.md` (cj-210 handoff)
+- `handoff-2026-08-29-cj-211-ci-sha-remediation-done.md` (cj-211 handoff)
 - cj-209 handoff `handoff-2026-08-29-cj-209-ad-14-install-stage-tsc-drift-detector-done.md` (next-옵션 (a))
+- [[AD-14-stack-pin-policy]] §Open Items — **D-CI-SHA-1 RESOLVED (cj-style 211)** 결정 wire
 
 ## 1. Background
 
@@ -196,19 +199,20 @@ verification 의 의도 자체를 본 sprint 에서 만족 못하므로 추가 s
 
 | Defer ID | Status | Owner | Resolution Sprint |
 |---|---|---|---|
-| **D-CI-SHA-1** (NEW, cj-210 관찰) | ⚠️ **honestly DEFER** | kjw | cj-style 211th SHA remediation sprint |
-| CI workflow 의 `branches: [main]` trigger surface | honestly preserved | kjw | 별도 follow-up 결정 wire |
-| stack-pin-check FULL functional 실측 verification (cj-209→cj-210) | honestly preserved | kjw | D-CI-SHA-1 해결 후 |
+| **D-CI-SHA-1** (NEW, cj-210 관찰) | ✅ **RESOLVED (cj-style 211th)** | kjw | cj-211 source sprint — verbatim v4.2.x SHA swap 결정 wire |
+| CI workflow 의 `branches: [main]` trigger surface | honestly preserved | kjw | 별도 follow-up 결정 wire (cj-211 scope 외) |
+| stack-pin-check FULL functional 실측 verification (cj-209→cj-210→cj-211) | honestly preserved → 결정 wire 보존 | kjw | D-CI-SHA-1 RESOLVED + trigger surface follow-up 후 live CI run trigger |
 
 ## 8. 결정 wire 일자
 
-2026-08-29 (KST) — cj-style 210th docs-only verification sprint.
+2026-08-29 (KST) — cj-style 210th docs-only verification sprint install + cj-style 211th source sprint RESOLVED 결정 wire 갱신.
 
 ## 9. Cross-references
 
-- [[AD-14-stack-pin-policy]] §Detection Surface — cj-210 row EXTENSION 결정 wire
+- [[AD-14-stack-pin-policy]] §Detection Surface — cj-210 row + cj-211 RESOLVED row EXTENSION 결정 wire
 - `handoff-2026-08-29-cj-210-ci-stack-pin-check-verification-blocked.md`
-- cj-209 handoff (`9d59712`) 의 next-옵션 (a) 의 honestly DEFER 보존
+- `handoff-2026-08-29-cj-211-ci-sha-remediation-done.md`
+- cj-209 handoff (`9d59712`) 의 next-옵션 (a) 의 honestly DEFER 보존 → cj-211 RESOLVED
 - GitHub Actions API evidence:
   - `GET /repos/c8romeo/costmgr/actions/runs?per_page=30` → 25 runs, ci.yml 1건
   - `GET /repos/c8romeo/costmgr/actions/runs/32368789371/jobs` → 13 jobs, setup failure + 12 skipped
@@ -216,5 +220,75 @@ verification 의 의도 자체를 본 sprint 에서 만족 못하므로 추가 s
   - `GET /repos/actions/cache/commits/5a3e84c9ed5f96e6bccc1e24985906d792b805ed` → 404 NOT FOUND
   - `GET /repos/actions/checkout/tags?per_page=20` → v4.2.2 actual SHA `11bd71901bbe5b1630ceea73d27597364c9af683`
   - `GET /repos/actions/cache/tags?per_page=20` → v4.2.1 actual SHA `0c907a75c2c80ebcb7f088228285e798b750cf8f`
+
+## 10. cj-211 RESOLVED — verbatim SHA swap source fix 결정 wire
+
+cj-211 SHA remediation source sprint 결정 wire 보존 (cj-210 의
+`D-CI-SHA-1` honestly DEFER 해소). 본 AD 의 Option A (verbatim
+upstream v4.2.x SHA swap) 결정 적용 — minimal-scope fix, version
+bump 없음, AD-14 §Decision (1) "Pin the version" intent verbatim
+보존.
+
+### 10.1 fix wire (cj-211 source edit)
+
+`.github/workflows/ci.yml` 의 15 occurrences verbatim swap:
+
+| Action | Before (broken) | After (resolved) | occurrences |
+|---|---|---|---|
+| `actions/checkout` | `11bd71901bbe5b1630ceea73d27529564c616888` (claim v4.2.2, upstream 404) | `11bd71901bbe5b1630ceea73d27597364c9af683` (실제 v4.2.2, upstream 200) | 13 |
+| `actions/cache` | `5a3e84c9ed5f96e6bccc1e24985906d792b805ed` (claim v4.2.1, upstream 404) | `0c907a75c2c80ebcb7f088228285e798b750cf8f` (실제 v4.2.1, upstream 200) | 2 |
+| **합계** | | | **15** |
+
+### 10.2 cj-211 re-verification (upstream query, 2026-08-29)
+
+cj-211 시점 직접 upstream re-verification 결정 wire (honest 보고):
+
+| Endpoint | HTTP status | 의미 |
+|---|---|---|
+| `GET /repos/actions/checkout/commits/11bd71901bbe5b1630ceea73d27529564c616888` | 422 Unprocessable Entity | broken (cj-210 와 semantic 동등: NOT FOUND / invalid SHA) |
+| `GET /repos/actions/cache/commits/5a3e84c9ed5f96e6bccc1e24985906d792b805ed` | 422 Unprocessable Entity | broken (cj-210 와 semantic 동등: NOT FOUND / invalid SHA) |
+| `GET /repos/actions/checkout/commits/11bd71901bbe5b1630ceea73d27597364c9af683` | 200 OK | cj-210 evidence 보존, 여전히 valid upstream SHA |
+| `GET /repos/actions/cache/commits/0c907a75c2c80ebcb7f088228285e798b750cf8f` | 200 OK | cj-210 evidence 보존, 여전히 valid upstream SHA |
+| `GET /repos/actions/checkout/git/refs/tags/v4.2.2` | 200 OK | `object.sha: 11bd71901bbe5b1630ceea73d27597364c9af683` (cj-211 verbatim 재확인) |
+| `GET /repos/actions/cache/git/refs/tags/v4.2.1` | 200 OK | `object.sha: 0c907a75c2c80ebcb7f088228285e798b750cf8f` (cj-211 verbatim 재확인) |
+| `GET /repos/actions/checkout/git/refs/tags/v4.4.0` | 200 OK | latest stable 존재 — cj-211 scope 외 (version bump 결정 wire 보류) |
+| `GET /repos/actions/cache/git/refs/tags/v4.3.0` | 200 OK | latest stable 존재 — cj-211 scope 외 (version bump 결정 wire 보류) |
+
+→ cj-210 의 upstream evidence 가 cj-211 시점에서도 verbatim 유효 (동일
+SHA, 동일 tag) 결정 wire 보존. cj-211 의 fix wire 의 근거는 그대로
+honest 보고 가능. 단, broken SHA 의 HTTP status 는 404 → 422 로
+변경 (GitHub API behavior 변경 가능성 — semantic 은 동일하게 NOT
+FOUND / invalid).
+
+### 10.3 결정 근거
+
+- **Option A (verbatim v4.2.x swap)** 채택: minimal-scope fix (15 line
+  swap), version bump 없음, AD-14 §Decision (1) intent verbatim 보존.
+- Option B (latest stable v4.3.0/v4.4.0 bump) 기각: feature change,
+  AD-14 stack pin policy 의 semantic 변경을 수반하므로 별도 ADR 필요
+  — cj-211 scope 외. 결정 wire 보류 (cj-211+ 후속 sprint 후보).
+- Option C (현재 trigger surface 보존 + verification 보류) 기각:
+  Option A 가 source-side fix 이므로 trigger surface 변경 없이도
+  setup recovery 가능 — verification cycle 의 source blocker 해소
+  가 본 sprint 의 primary goal.
+
+### 10.4 runtime 동작 변화 honestly reported
+
+- ci.yml 의 15 line swap 결정 wire → **runtime 동작 변화**: setup
+  job 의 SHA resolve 가능 → 12개 downstream job (stack-pin-check
+  포함) 의 trigger 가능 cycle 의 **source-side** 회복 결정 wire.
+- AD-14 stack pin 정책 (35 pins) 변경 없음 — 본 sprint 는 actions
+  SHAs 의 typo / 잘못된 pin 만 fix, version bump 없음 (v4.2.x
+  verbatim 보존), `[STACK BUMP]` tag 불필요.
+- 실제 CI run trigger → setup recovery → downstream jobs trigger
+  cycle 의 **live verification** 은 다음 push 후 결정 wire 보존 —
+  trigger surface `branches: [main]` EXTENSION 은 cj-211 scope 외,
+  별도 follow-up sprint 결정 wire (cj-211 의 source fix 만으로는
+  non-main branch push 에서 CI trigger 안 됨 — cj-210 의 blocker A
+  와 동일).
+- AD-14-ci-verification-blocker-2026-08-29.md 본 AD 의 status 결정
+  wire: cj-210 의 "⚠️ PARTIAL honest DEFER" → cj-211 의 "✅
+  RESOLVED" 결정 wire 갱신 (honestly reported — source-side fix 완료,
+  live CI run trigger cycle 의 verification 은 보존 결정 wire).
 
 Co-Authored-By: Claude <noreply@anthropic.com>

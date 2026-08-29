@@ -20,7 +20,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with:
           node-version-file: ".nvmrc"
@@ -30,12 +30,12 @@ jobs:
       - name: Install uv
         run: pip install uv==0.11.32
       - name: Cache uv
-        uses: actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed # v4.2.1
+        uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
         with:
           path: ~/.cache/uv
           key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
       - name: Cache pnpm
-        uses: actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed # v4.2.1
+        uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -51,7 +51,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
       - run: pnpm install --frozen-lockfile
@@ -64,7 +64,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
@@ -81,7 +81,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@0a44ba7841725637a19e28ba30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
@@ -113,7 +113,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # fetch-depth: 0 so `git log -1` sees the full commit message
           fetch-depth: 0
@@ -201,7 +201,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # fetch-depth: 0 so `git log -1` sees the full commit message
           fetch-depth: 0
@@ -273,7 +273,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
@@ -288,7 +288,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
@@ -303,7 +303,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Fail if `service_role` is invoked outside the guard module
         run: |
           # Operational references: function calls to with_service_role or
@@ -368,7 +368,7 @@ jobs:
       RLS_TEST_DATABASE_URL: "postgresql://costmgr_test:costmgr_test@localhost:54322/postgres"
       RLS_BOOTSTRAP_DATABASE_URL: "postgresql://postgres:postgres@localhost:54322/postgres"
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
@@ -411,7 +411,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
       - run: pnpm install --frozen-lockfile
@@ -433,7 +433,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
       - run: pnpm install --frozen-lockfile
@@ -483,7 +483,7 @@ jobs:
       ENVIRONMENT: "ci"
       PIPA_REVIEW_COMPLETED: "true"
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888 # v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32

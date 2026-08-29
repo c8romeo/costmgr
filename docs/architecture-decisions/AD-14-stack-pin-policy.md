@@ -238,7 +238,7 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
 | `docs/architecture-decisions/AD-14-tsc-baseline.json` (tsc drift baseline — cj-209 NEW) | ✅ **cj-209 신규 install** | First run 에서 자동 작성된 tsc error count snapshot. cj-209 시점 baseline: `{apps/web: {total: 0, by_code: {}}}` (cj-204 cleanup 후 clean state). cj-209 검증 시점 `apps/web/tsconfig.json` tsc --noEmit → 0 errors (verbatim 일치). |
 | `tests/integration/test_install_stage_check.py` (install stage test — cj-209 NEW) | ✅ **installed + functional (cj-209)** | 3-case integration test (clean repo exit + VERBOSE=1 no-crash + missing node_modules MISS line) all PASS. CR 11-3 honest boundary: exit 1 또는 2 모두 acceptable (실제 install state 반영). |
 | `tests/integration/test_tsc_drift_check.py` (tsc drift test — cj-209 NEW) | ✅ **installed + functional (cj-209)** | 4-case integration test (cold-checkout NOT INVOKABLE exit 2 + baseline format + no-drift exit 0 + drift detection exit 1 / 0) all PASS. CR 11-3 honest boundary: exit 0 또는 1 모두 acceptable (현재 repo state 반영). |
-| `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (CI verification blocker AD — cj-210 NEW) | ⚠️ **cj-210 신규 install (honest DEFER)** | cj-209 next-옵션 (a) 의 CI `stack-pin-check` job FULL functional 실측 verification 결과, ci.yml 의 setup job 이 **unresolvable action SHA** (actions/checkout + actions/cache 의 잘못된 SHA pin) 로 fail → 12개 downstream job (stack-pin-check 포함) 전부 skipped → **CJ-210 verification 결과: BLOCKED** honestly DEFER. **`D-CI-SHA-1` 신규 honestly DEFER** (다음 sprint: ci.yml SHA remediation 결정 wire). setup 자체의 SHA unresolvable 는 [[AD-14-ci-verification-blocker-2026-08-29]] §3.3~§3.4 에 upstream commit 조회 evidence 와 함께 verbatim 기록. **cj-209 의 PARTIAL → FULL 자동 회복 claim 의 honest scope boundary**: local 동일 명령 level 의 회복은 검증됨 (T7.1~T7.5 모두 local PASS), CI workflow level 의 recovery 는 검증되지 않은 상태 그대로 보존 (cj-209 handoff 의 "실제 CI run 실측은 보류" 문장이 cj-210 에서 정직 회복됨). |
+| `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (CI verification blocker AD — cj-210 NEW) | ✅ **cj-210 신규 install + cj-211 RESOLVED** (sha remediation source sprint) | cj-209 next-옵션 (a) 의 CI `stack-pin-check` job FULL functional 실측 verification 결과, ci.yml 의 setup job 이 **unresolvable action SHA** (actions/checkout + actions/cache 의 잘못된 SHA pin) 로 fail → 12개 downstream job (stack-pin-check 포함) 전부 skipped → **cj-210 verification 결과: BLOCKED honestly DEFER**. **`D-CI-SHA-1` 신규 honestly DEFER**. setup 자체의 SHA unresolvable 는 [[AD-14-ci-verification-blocker-2026-08-29]] §3.3~§3.4 에 upstream commit 조회 evidence 와 함께 verbatim 기록. **cj-211 source sprint** 에서 AD-14 §Option A verbatim swap 으로 RESOLVED — `actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888` (claim v4.2.2, upstream 404) → `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` (실제 v4.2.2) + `actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed` (claim v4.2.1, upstream 404) → `actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f` (실제 v4.2.1) — 13 + 2 = 15 occurrences verbatim swap, minimal scope fix (version bump 없음, AD-14 §Decision (1) Pin the version intent verbatim 보존). **cj-209 의 PARTIAL → FULL 자동 회복 claim 의 honest scope boundary**: local 동일 명령 level 의 회복은 검증됨 (T7.1~T7.5 모두 local PASS), **CI workflow level 의 recovery 자체는 cj-211 source sprint 으로 fix wire 결정** — 실제 CI run trigger → setup recovery → downstream jobs trigger cycle 의 verification 은 **다음 push 후 결정 wire 보존** (trigger surface `branches: [main]` EXTENSION 은 별도 follow-up sprint 결정 wire, cj-211 scope 외). |
 
 ## Cross-references
 
@@ -282,6 +282,22 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   회복은 검증됨 (T7.1~T7.5 모두 local PASS), CI workflow level 의
   recovery 는 검증되지 않은 상태 그대로 보존. **CR 11-3 honest-DEFER
   103번째** epic 연속 정직 회복 (cj-209 의 102번째에 이어).
+- cj-211 SHA remediation source sprint EXTENSION — cj-210 의 **D-CI-SHA-1**
+  (ci.yml setup job unresolvable action SHA) 의 verbatim source fix
+  결정 wire. fix wire: AD-14 §Option A verbatim swap — 13 occurrences
+  `actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888` (claim
+  v4.2.2, upstream 404) → `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683`
+  (실제 v4.2.2, upstream commit query 200) + 2 occurrences
+  `actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed` (claim
+  v4.2.1, upstream 404) → `actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f`
+  (실제 v4.2.1, upstream commit query 200). 결정 근거: minimal-scope
+  fix (version bump 없음, AD-14 §Decision (1) "Pin the version" intent
+  verbatim 보존), atomic single sprint (15 line swap), upstream
+  evidence 기반 결정. 실제 CI run trigger → setup recovery →
+  downstream jobs trigger cycle 의 verification 은 **다음 push 후
+  결정 wire 보존** — trigger surface `branches: [main]` EXTENSION 은
+  별도 follow-up sprint 결정 wire (cj-211 scope 외). **CR 11-3
+  honest-DEFER 104번째** epic 연속 정직 회복 (cj-210 의 103번째에 이어).
 
 ## Open Items
 
@@ -296,6 +312,36 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   (3) `uv run python scripts/check_stack_pin.py` → **35 pins match,
   exit 0** 검증 + (4) `uv sync --frozen` / `uv lock --check` exit 0.
   runtime 동작 변화 0건 (제거된 패키지는 애초에 설치된 적이 없음).
+- **D-CI-SHA-1** ✅ **RESOLVED (cj-style 211 SHA remediation source sprint)** —
+  ci.yml setup job 의 unresolvable action SHA fix 결정 wire. 원인은
+  `/.github/workflows/ci.yml` 의 `actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888`
+  (claim v4.2.2, upstream `GET /repos/actions/checkout/commits/...`
+  404) + `actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed`
+  (claim v4.2.1, upstream `GET /repos/actions/cache/commits/...` 404)
+  으로, typo / 잘못된 SHA pinning 으로 GitHub Actions runner 가 SHA
+  를 resolve 하지 못해 setup failure → 12개 downstream job (stack-pin-check
+  포함) 전부 skipped. cj-211 source sprint 에서 AD-14 §Option A
+  verbatim swap 으로 fix wire — actual upstream v4.2.x SHA 로 결정:
+  (1) `actions/checkout` v4.2.2 = `11bd71901bbe5b1630ceea73d27597364c9af683`
+  (upstream commit query 200 confirm, cj-211 re-verified) — 13
+  occurrences verbatim swap; (2) `actions/cache` v4.2.1 =
+  `0c907a75c2c80ebcb7f088228285e798b750cf8f` (upstream commit query
+  200 confirm, cj-211 re-verified) — 2 occurrences verbatim swap.
+  합계 15 occurrences = 13 + 2 결정 wire. 검증 실측: `grep -c
+  "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"
+  .github/workflows/ci.yml` → 13, `grep -c "actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f"
+  .github/workflows/ci.yml` → 2, `grep -c "11bd71901bbe5b1630ceea73d27529564c616888\|5a3e84c9ed5f96e6bccc1e24985906d792b805ed"
+  .github/workflows/ci.yml` → 0 (broken SHA 잔존 0건). 본 sprint
+  는 version bump 없음 (v4.2.x 보존, AD-14 §Decision (1) "Pin the
+  version" intent verbatim 보존), 35 pins unchanged, `[STACK BUMP]`
+  tag 불필요. runtime 동작 변화: setup job 이 SHA resolve 가능 →
+  downstream jobs trigger 가능 cycle 의 source-side fix 결정 wire
+  보존 — 실제 CI run 실측 verification 은 **다음 push 후 결정 wire
+  보존** (cj-211 source sprint scope 외, trigger surface `branches:
+  [main]` EXTENSION 도 별도 follow-up 결정 wire). cj-210 의
+  `AD-14-ci-verification-blocker-2026-08-29.md` 결정 wire 의 Status
+  도 "⚠️ PARTIAL honest DEFER" → "✅ RESOLVED on cj-211" 결정 wire
+  갱신.
 - **D-AD-14-2** ✅ **RESOLVED (cj-style 208 source sprint)** —
   retention `response_model` 회복 source sprint. 원인은
   `apps/api/modules/audit/retention/retention_dsl.py:52` 의
@@ -385,6 +431,32 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   나머지 16 surface 모두 그대로 보존. **CR 11-3 honest-DEFER 103번째**
   epic 연속 정직 회복. 본 sprint 는 source code 변경 0건, docs-only
   atomic sprint.
+- 본 AD-14 문서의 cj-style 211 sprint EXTENSION 은 **source+docs
+  atomic single sprint** — **D-CI-SHA-1** ci.yml setup job
+  unresolvable action SHA fix wire 결정. fix wire: AD-14 §Option A
+  verbatim swap — 13 occurrences `actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888`
+  (claim v4.2.2, upstream 404) → `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683`
+  (실제 v4.2.2, upstream commit query 200 confirm, cj-211 re-verified) +
+  2 occurrences `actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed`
+  (claim v4.2.1, upstream 404) → `actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f`
+  (실제 v4.2.1, upstream commit query 200 confirm, cj-211 re-verified).
+  합계 15 occurrences = 13 + 2 atomic 결정 wire. 결정 근거: minimal-scope
+  fix (version bump 없음, AD-14 §Decision (1) "Pin the version" intent
+  verbatim 보존), atomic single sprint, upstream evidence 기반 결정.
+  검증 실측: `grep -c` 3건 모두 PASS — broken SHA 잔존 0건, 새 SHA
+  count 13+2 = 15건 정상, 본 AD 의 cj-211 row EXTENSION +
+  Open Items D-CI-SHA-1 RESOLVED 결정 wire + Cross-references cj-211
+  paragraph EXTENSION. cj-211 install state: ✅ 16 surface 모두
+  installed + functional 회복 + ⚠️ 1 partial (Dependabot auto-label,
+  보존) — **D-CI-SHA-1 RESOLVED**, cj-210 의 BLOCKED honestly DEFER
+  에서 결정 wire 회복. 실제 CI run trigger → setup recovery →
+  downstream jobs trigger cycle 의 verification 은 **다음 push 후
+  결정 wire 보존** — trigger surface `branches: [main]` EXTENSION 은
+  별도 follow-up sprint 결정 wire (cj-211 scope 외, AD-14 territory
+  외부 design 결정). **CR 11-3 honest-DEFER 104번째** epic 연속 정직
+  회복 (cj-210 의 103번째에 이어). 본 sprint 는 pin 을 1건도 bump
+  하지 않았으므로 `[STACK BUMP]` tag 불필요 (35 pins 전부 unchanged,
+  actions SHAs 도 v4.2.x 동일 major.minor 보존).
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의
