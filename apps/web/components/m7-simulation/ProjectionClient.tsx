@@ -228,7 +228,9 @@ export function ProjectionClient({
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ProjectionForm
-          onSubmit={(values) => void handleSubmit(values)}
+          onSubmit={(values) =>
+            void handleSubmit(values as unknown as ProjectionInputsSchema)
+          }
           onValidityChange={handleValidityChange}
           isSubmitting={isComputing}
         />

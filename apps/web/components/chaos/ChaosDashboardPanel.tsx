@@ -22,9 +22,9 @@ import {
   listChaosExperiments,
   listChaosRollbacks,
   triggerChaosExperiment,
+  ChaosExperimentApiError,
   type ChaosExperiment,
   type ChaosRollback,
-  type ChaosExperimentApiError,
 } from "@/lib/chaos/chaos-client";
 
 interface Props {

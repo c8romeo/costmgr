@@ -15,6 +15,7 @@ import type {
   DepartmentBreakdown,
   DepartmentCostCenterMapping,
   ExportFormat,
+  PeriodMode,
   ShowbackDefinition,
 } from "@/lib/finops/finops-types";
 
@@ -25,6 +26,7 @@ export type {
   DepartmentBreakdown,
   DepartmentCostCenterMapping,
   ExportFormat,
+  PeriodMode,
   ShowbackDefinition,
 };
 

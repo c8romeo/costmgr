@@ -39,6 +39,7 @@ import {
   type CapacityHeadroomReport,
   type BurnRateProjection,
   type ForecastAccuracy,
+  type HorizonMonths,
 } from "@/lib/finops-forecast/finops-forecast-client";
 
 // ── Sub-component 1: ForecastHorizonSelector ────────────────────
@@ -224,7 +225,7 @@ export function FinopsForecastDashboardPanel() {
     let cancelled = false;
     setError(null);
     Promise.all([
-      fetchFinopsForecastDefinition({ target_metric: "tenant_total", horizon }),
+      fetchFinopsForecastDefinition({ target_metric: "tenant_total", horizon: horizon as HorizonMonths }),
       fetchFinopsCapacityHeadroom({ resource_type: "compute", lookahead_days: 90 }),
       fetchFinopsBudgetBurnRate({ budget_id: "default" }),
       fetchFinopsForecastAccuracy({

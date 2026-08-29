@@ -358,19 +358,19 @@ describe("MonthlyInputTabs", () => {
     };
 
     const v4_verdict = {
+      code: "monthly_closing_v4_fail",
+      product_whitelist_size: 4,
       status: "FAIL" as const,
-      source_count: 4 as const,
+      source_count: 2 as const,
       failures: [
         {
           product_id: "019200a0-0000-7000-8000-0000000000a1",
           ledger_qty: "10.0000",
           closing_snapshot_qty: "11.0000",
-          fiscal_period_snapshot_qty: "100.0000",
           message_ko: "마감 snapshot 불일치",
         },
       ],
       skip_reason_ko: null,
-      industry: "manufacturing",
       verified_at: "2026-08-08T00:00:00Z",
       trace_id: "trace-v4",
     };

@@ -124,7 +124,10 @@ export async function signInWithSocialOAuth({
     const supabase = createSupabaseBrowserClient();
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: provider as AllowedSocialProvider,
+      // Supabase `Provider` enum does not yet include 'naver'; we cast
+      // through `unknown` to honour the typed `AllowedSocialProvider`
+      // literal set (caller-side validation at module boundary).
+      provider: provider as unknown as Parameters<typeof supabase.auth.signInWithOAuth>[0]["provider"],
       options: {
         redirectTo: `${origin}/${locale}/auth-callback`,
       },

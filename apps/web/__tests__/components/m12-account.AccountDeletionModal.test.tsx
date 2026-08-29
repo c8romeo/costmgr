@@ -11,7 +11,7 @@
 //  - Korean SSOT strings from ko-KR.json (CR 11-4 D-002)
 
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AccountDeletionModal } from "../../components/m12-account/AccountDeletionModal";
 import { DELETION_CONSENT_TEMPLATE_KO } from "../../lib/m12-account-deletion";

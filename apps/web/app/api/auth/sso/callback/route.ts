@@ -45,9 +45,12 @@ export async function POST(request: NextRequest) {
   }
 
   // Sentry breadcrumb (observability EXTENSION).
-  if (typeof globalThis.Sentry !== "undefined") {
+  const globalScope = globalThis as unknown as {
+    Sentry?: { addBreadcrumb: (b: unknown) => void };
+  };
+  if (typeof globalScope.Sentry !== "undefined") {
     try {
-      const sentry = (globalThis as { Sentry?: { addBreadcrumb: (b: unknown) => void } }).Sentry;
+      const sentry = globalScope.Sentry;
       sentry?.addBreadcrumb({
         category: "auth.sso",
         message: "SSO ACS callback succeeded",

@@ -119,7 +119,7 @@ export function SnapshotPersistencePanel({
         // multi-channel publish receipt) + `state` (current state after
         // commit). Idempotent no-op is detected via `state='committed'` on
         // a re-commit call (CR 1.1 SSOT).
-        if (response.cache_invalidation_receipts?.length > 0) {
+        if ((response.cache_invalidation_receipts?.length ?? 0) > 0) {
           toast.success(t("committed_toast"));
         } else {
           toast.success(t("idempotent_toast"));

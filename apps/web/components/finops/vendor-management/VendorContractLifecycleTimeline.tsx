@@ -17,6 +17,7 @@ import {
     fetchVendorContracts,
 } from "@/lib/finops/vendor-management-client";
 import type { VendorContract } from "@/lib/finops/vendor-management-types";
+import type { VendorContractLifecycle } from "@/lib/finops/vendor-management-types";
 
 const LIFECYCLE_STAGES = [
     "draft",
@@ -52,7 +53,7 @@ export function VendorContractLifecycleTimeline({
             });
     }, []);
 
-    const handleAdvance = async (contractId: string, target: string) => {
+    const handleAdvance = async (contractId: string, target: VendorContractLifecycle) => {
         try {
             const updated = await advanceContractLifecycle(contractId, target);
             setContracts(

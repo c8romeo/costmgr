@@ -25,7 +25,7 @@ import {
 import {
   type ProjectionInputsSchema,
   isAllFieldsFilledTS,
-  projectionInputsSchema,
+  ProjectionInputsSchema as projectionInputsSchema,
   validateProjectionInputs,
 } from "@/lib/m7-simulation-projection-schema";
 

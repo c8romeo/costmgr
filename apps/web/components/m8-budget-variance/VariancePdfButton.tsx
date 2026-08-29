@@ -18,11 +18,13 @@ import { useCallback, useState } from "react";
 interface VariancePdfButtonProps {
   accessToken: string | undefined;
   periodKey: string;
+  envelope?: unknown;
 }
 
 export function VariancePdfButton({
   accessToken,
   periodKey,
+  envelope: _envelope,
 }: VariancePdfButtonProps): React.ReactElement {
   const t = useTranslations("budget_variance");
   const [submitting, setSubmitting] = useState<boolean>(false);
