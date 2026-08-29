@@ -24,6 +24,7 @@ vi.mock("next-intl", () => ({
       const messages = (koKR as unknown as Record<string, Record<string, string>>)[namespace];
       let template = messages?.[key] ?? `[${namespace}.${key}]`;
       if (vars) {
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types -- vars map values may be any primitive
         for (const [k, v] of Object.entries(vars)) {
           template = template.replace(`{${k}}`, String(v));
         }

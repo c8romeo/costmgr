@@ -35,7 +35,7 @@ describe('Phase 7 observability i18n SSOT drift', () => {
 
   it('all observability keys are non-empty strings', () => {
     const obs = koKR.observability as Record<string, string>;
-    for (const [key, value] of Object.entries(obs)) {
+    for (const [_key, value] of Object.entries(obs)) {
       expect(typeof value).toBe('string');
       expect(value.length).toBeGreaterThan(0);
     }

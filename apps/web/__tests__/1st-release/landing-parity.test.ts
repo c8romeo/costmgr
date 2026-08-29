@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const REPO_ROOT = path.resolve(__dirname, "../../../..");
-const LANDING_DIRS = [
+const _LANDING_DIRS = [
   "apps/web/app/[locale]/(public)/landing",
   "apps/web/components/landing",
 ];

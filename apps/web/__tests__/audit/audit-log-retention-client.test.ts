@@ -18,7 +18,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
   listRetentionPolicies,
-  getRetentionPolicy,
   createRetentionPolicy,
   updateRetentionPolicy,
   deleteRetentionPolicy,
@@ -35,6 +34,7 @@ const BASE = "http://localhost:8765";
 const ACCESS = "test-access-token";
 
 interface MockResponseInit {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types -- HTTP status code (status/count/index exception per AD-8)
   status?: number;
   body?: unknown;
 }

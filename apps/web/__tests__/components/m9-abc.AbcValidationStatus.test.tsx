@@ -7,7 +7,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AbcValidationStatus } from "../../components/m9-abc/AbcValidationStatus";
-import type { ValidationLayerWire } from "../../lib/m9-abc-validation";
 
 import koKR from "../../messages/ko-KR.json";
 

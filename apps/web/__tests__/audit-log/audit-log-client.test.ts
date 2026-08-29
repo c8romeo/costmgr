@@ -36,6 +36,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types -- HTTP status code (status/count/index exception per AD-8)
 function mockFetchOnce(status: number, body: unknown): ReturnType<typeof vi.fn> {
   const mock = vi.fn().mockResolvedValue(
     new Response(JSON.stringify(body), {
