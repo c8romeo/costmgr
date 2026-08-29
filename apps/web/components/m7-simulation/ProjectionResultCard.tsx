@@ -85,7 +85,7 @@ export function ProjectionResultCard({
 
 // Local helper to avoid pulling in the translations provider for a
 // simple label — we display "기준" inline as the baseline reference.
-// eslint-disable-next-line camelcase
+// eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
 function t_baseline(): string {
   return "기준";
 }

@@ -47,7 +47,9 @@ const OTEL_SDK_DISABLED: boolean =
   (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_OTEL_SDK_DISABLED === 'true') ||
   false;
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 let _provider: WebTracerProvider | null = null;
+// eslint-disable-next-line @typescript-eslint/naming-convention
 let _tracer: Tracer | null = null;
 
 /**
@@ -103,6 +105,7 @@ export function getBrowserTracer(): Tracer {
 // ────────────────────────────────────────────────────────────
 // 2. Web Vitals auto-collection
 // ────────────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function _registerWebVitalsHandlers(tracer: Tracer): void {
   // LCP — Largest Contentful Paint
   onLCP((metric: Metric) => {
@@ -141,6 +144,7 @@ export function recordWebVital(
   span.end();
 }
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function _ratingFor(
   name: 'lcp' | 'fid' | 'cls' | 'inp' | 'ttfb',
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
@@ -240,6 +244,7 @@ export function enrichSpanWithRouteContext(route: RouteContext): void {
 // ────────────────────────────────────────────────────────────
 // 5. No-op tracer fallback (Phase 4 Sentry conditional init mirror)
 // ────────────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function _getNoopTracer(): Tracer {
   // The OTEL API `trace.getTracer()` always returns a real Tracer (the
   // no-op tracer provider is the global default when no provider is

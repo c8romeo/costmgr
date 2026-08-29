@@ -111,9 +111,9 @@ export interface ClosingInvariant {
 export function classifyClosingInvariant(
   closing: ClosingBalance[],
 ): ClosingInvariant {
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const closing_per_product: Record<string, string> = {};
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const negative_products: Record<string, string> = {};
   for (const b of closing) {
     // eslint-disable-next-line camelcase

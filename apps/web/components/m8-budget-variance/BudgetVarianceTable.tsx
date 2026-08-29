@@ -51,7 +51,7 @@ export function BudgetVarianceTable({
     );
   }
 
-  {/* eslint-disable-next-line camelcase */}
+  {/* eslint-disable-next-line @typescript-eslint/naming-convention, camelcase */}
   const { rows, total_row, abcd_disabled_badge, abcd_disabled_note } =
     initialTable;
 

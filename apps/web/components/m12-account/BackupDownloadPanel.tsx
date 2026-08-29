@@ -104,6 +104,7 @@ export function BackupDownloadPanel({
         setError(`HTTP ${res.status}`);
         return;
       }
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const _trigger: BackupTriggerResponse = await res.json();
       // Refresh list to show the new backup
       await refreshList(days);

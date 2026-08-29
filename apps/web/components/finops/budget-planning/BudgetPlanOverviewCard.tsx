@@ -39,7 +39,7 @@ export function BudgetPlanOverviewCard({ dryRun }: BudgetPlanOverviewCardProps) 
 
     const handleCreate = async () => {
         const now = new Date();
-        // eslint-disable-next-line camelcase
+        // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
         const period_key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
         try {
             const plan = await createBudgetPlan({

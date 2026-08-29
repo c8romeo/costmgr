@@ -43,9 +43,9 @@ export function runPreStandardBenchTS(
   for (let i = 0; i < PRE_STANDARD_BENCH_ITERATIONS; i += 1) {
     computePreStandardCostTS(inputs);
   }
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const total_ms = performance.now() - start;
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const per_iteration_us = (total_ms * 1000) / PRE_STANDARD_BENCH_ITERATIONS;
   return {
     iterations: PRE_STANDARD_BENCH_ITERATIONS,

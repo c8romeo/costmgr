@@ -99,7 +99,7 @@ describe("ClosingPdfExport — Korean SSOT", () => {
 describe("triggerClosingPdfExportDownload", () => {
   let originalCreateObjectURL: typeof URL.createObjectURL;
   let originalRevokeObjectURL: typeof URL.revokeObjectURL;
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   let clicked_elements: HTMLAnchorElement[];
 
   beforeEach(() => {

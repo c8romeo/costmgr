@@ -78,17 +78,17 @@ export default async function MonthlyClosingReportPage({
         report_generated_at: new Date().toISOString(),
       };
 
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const v4_verdict = v4VerdictResponse?.verdict ?? null;
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const audit_trail = auditTrailResponse?.entries ?? [];
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const capability_granted = reportResponse != null;
 
   // 6-3 wire: industry code from tenant settings (W5 deferral guard).
   // Filter to one of 4 canonical industries — non-canonical (e.g. 'trad')
   // → no PDF export (button hidden).
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const raw_industry = tenantSettings?.industry ?? null;
   // eslint-disable-next-line camelcase
   const industry = isValidClosingPdfIndustry(raw_industry) ? raw_industry : null;

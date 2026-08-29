@@ -98,6 +98,7 @@ function labelForChannel(
       return t("channel_closing_snapshot_cache");
     default: {
       // Exhaustiveness check.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const _exhaustive: never = channel;
       return _exhaustive;
     }

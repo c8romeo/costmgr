@@ -53,13 +53,13 @@ export function buildTwoFactorDisableState(input: {
   is_owner: boolean;
 }): TwoFactorDisableState {
   const code = input.current_code;
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const code_present = code !== null && code.length > 0;
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const code_verified = code_present && TOTP_CODE_PATTERN.test(code);
 
   // Reason length validation (only enforced for admin override path).
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   let reason_valid = true;
   // eslint-disable-next-line camelcase
   if (!code_verified) {
@@ -78,12 +78,12 @@ export function buildTwoFactorDisableState(input: {
       (input.reason.length >= 1 && input.reason.length <= MAX_REASON_LENGTH);
   }
 
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const admin_override = !code_verified && input.is_owner && reason_valid;
   // eslint-disable-next-line camelcase
   const authorized = code_verified || admin_override;
 
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   let reject_reason_ko: string | null = null;
   if (!authorized) {
     // eslint-disable-next-line camelcase

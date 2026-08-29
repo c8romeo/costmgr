@@ -203,7 +203,7 @@ describe("MonthlyClosingReportPanel", () => {
   it("test_panel_renders_v4_fail_verdict", () => {
     // NOTE (bmad-code-review D1 결정, 2026-08-08): 3-source contract —
     // fiscal_period_snapshot_qty / industry 필드 제거, source_count 2.
-    // eslint-disable-next-line camelcase
+    // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
     const v4_verdict = {
       status: "FAIL" as const,
       code: "V4",

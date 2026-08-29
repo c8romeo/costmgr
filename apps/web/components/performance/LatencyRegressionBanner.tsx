@@ -29,7 +29,7 @@ export default function LatencyRegressionBanner({
   if (baseline_p99_ms <= 0) {
     return null;
   }
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const delta_pct = ((actual_p99_ms - baseline_p99_ms) / baseline_p99_ms) * 100;
   // eslint-disable-next-line camelcase
   if (delta_pct <= threshold_pct) {

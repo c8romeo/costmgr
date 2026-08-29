@@ -113,7 +113,7 @@ export function parseVirtualBudgetPeriodKeyTS(
   }
   const year = match[1];
   const month = match[2];
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const scenario_index = parseInt(match[3], 10);
   // eslint-disable-next-line camelcase
   if (scenario_index > MVP_SCENARIO_INDEX) {

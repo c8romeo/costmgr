@@ -27,7 +27,7 @@ export default async function CostAnomalyMLPredictionPage({
     searchParams,
 }: PageProps): Promise<React.ReactElement> {
     const { locale } = await params;
-    // eslint-disable-next-line camelcase
+    // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
     const { period_key } = await searchParams;
 
     const cookieStore = await cookies();

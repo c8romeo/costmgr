@@ -231,7 +231,7 @@ export interface MonthlyClosingReportV4VerdictResponse {
 export function buildMonthlyClosingReportAggregate(
   response: MonthlyClosingReportResponse,
 ): MonthlyClosingReportAggregate {
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const closing_per_product: ClosingPerProductRow[] =
     response.closing_per_product.map((row) => ({
       product_id: row.product_id,

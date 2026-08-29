@@ -11,6 +11,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const REPO_ROOT = path.resolve(__dirname, "../../../..");
+// eslint-disable-next-line @typescript-eslint/naming-convention
 const _LANDING_DIRS = [
   "apps/web/app/[locale]/(public)/landing",
   "apps/web/components/landing",

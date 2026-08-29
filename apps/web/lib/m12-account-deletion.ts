@@ -198,6 +198,7 @@ export function getStatusLabel(status: TenantDeletionStatusValue): string {
     default: {
       // Exhaustiveness check — TS will error here if a new status is added
       // without updating this switch (CR 11-4 D-005).
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const _exhaustive: never = status;
       throw new Error(
         `Unknown TenantDeletionStatus: ${_exhaustive as string}. ` +

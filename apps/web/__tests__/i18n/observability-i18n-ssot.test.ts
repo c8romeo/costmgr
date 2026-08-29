@@ -36,6 +36,7 @@ describe('Phase 7 observability i18n SSOT drift', () => {
 
   it('all observability keys are non-empty strings', () => {
     const obs = koKR.observability as Record<string, string>;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     for (const [_key, value] of Object.entries(obs)) {
       expect(typeof value).toBe('string');
       expect(value.length).toBeGreaterThan(0);

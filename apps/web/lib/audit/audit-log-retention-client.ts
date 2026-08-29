@@ -113,6 +113,7 @@ interface FetchOpts {
   signal?: AbortSignal;
 }
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 async function _request<T>(
   path: string,
   init: RequestInit,

@@ -136,6 +136,7 @@ export function BOMEditorClient({ productId, accessToken, initialBom }: BOMEdito
   const handleRemove = useCallback((childId: string) => {
     setLines((prev) => prev.filter((l) => l.child_product_id !== childId));
     setChildMeta((prev) => {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const { [childId]: _, ...rest } = prev;
       return rest;
     });

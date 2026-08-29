@@ -92,7 +92,7 @@ export function ReopenOperatorDialog({
 }: ReopenOperatorDialogProps): React.ReactElement | null {
   const t = useTranslations("reopen_operator_dialog");
   const [submitting, setSubmitting] = React.useState(false);
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
   const [operator_action, setOperatorAction] = React.useState<string>(
     REOPEN_OPERATOR_ACTIONS[0],
   );

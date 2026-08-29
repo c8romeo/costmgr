@@ -357,7 +357,7 @@ describe("MonthlyInputTabs", () => {
       report_generated_at: "2026-08-08T00:00:00Z",
     };
 
-    // eslint-disable-next-line camelcase
+    // eslint-disable-next-line @typescript-eslint/naming-convention, camelcase
     const v4_verdict = {
       code: "monthly_closing_v4_fail",
       product_whitelist_size: 4,

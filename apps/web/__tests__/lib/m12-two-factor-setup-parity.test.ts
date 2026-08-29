@@ -20,6 +20,7 @@ import {
 const VALID_SECRET = "JBSWY3DPEHPK3PXP";
 const VALID_URI = "otpauth://totp/costmgr:test@example.com?secret=JBSWY3DPEHPK3PXP&issuer=costmgr";
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function _validRecoveryCode(): string {
   // Generate a 10-char Crockford base32 string.
   const alphabet = Array.from(CROCKFORD_BASE32_ALPHABET);
@@ -30,6 +31,7 @@ function _validRecoveryCode(): string {
   return out;
 }
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function _validRecoveryCodes(): string[] {
   return Array.from({ length: RECOVERY_CODE_COUNT }, () => _validRecoveryCode());
 }
