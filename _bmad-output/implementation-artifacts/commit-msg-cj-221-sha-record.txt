@@ -1,0 +1,28 @@
+fix(finops): cj-221 post-commit SHA 기록 (cj-style 123번째 정합 보존 atomic single docs-only sprint)
+
+cj-221 sprint scope 결정 wire commit `e1c71e0` 의 post-commit SHA 기록.
+A908 entry status: pending → done 결정 wire 갱신 + action text 의 commit
+SHA `e1c71e0` reference 추가 + 4 files breakdown verbatim 추가.
+
+v4_31 note 신규 (2026-08-30 KST) — cj-221 sprint scope 결정 wire commit
+post-commit SHA 기록 (cj-style 123번째 atomic single docs-only sprint
+정합 보존).
+
+cj-style discipline 정합 보존 = decision wire commit + post-commit SHA
+record = 2 commits for 1 sprint (cj-220a/b PARTIAL honestly-DEFER 의
+proven pattern verbatim 보존).
+
+`git show --stat e1c71e0` = 4 files changed, 168 insertions(+),
+28 deletions(-) 정합 결정 wire.
+
+CR 11-3 honest-DEFER 123번째 epic 연속 정직 회복 atomic single
+docs-only sprint 의 honest commit completion 결정 wire.
+
+runtime 동작 변화 0건 (metadata only 변경, source/test/ci.yml 무변경).
+
+AD-14 stack pin 정책 (35 pins) unchanged ([STACK BUMP] tag 불필요).
+
+2 files = 1 NEW + 1 MODIFIED atomic single docs-only sprint.
+
+deterministic and reproducible (no pnpm/network deps).
+Co-Authored-By: Claude Code <noreply@anthropic.com>
