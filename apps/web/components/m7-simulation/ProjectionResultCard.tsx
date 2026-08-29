@@ -69,7 +69,7 @@ export function ProjectionResultCard({
       <p className="mt-1 font-mono text-lg">
         {formatKRWTS(value)} 원
       </p>
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       {baseline_value !== undefined ? (
         <p className="mt-1 text-xs text-gray-400">
           {t_baseline()}: {formatKRWTS(baseline_value)} 원

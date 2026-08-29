@@ -80,7 +80,7 @@ export function ClosingPdfExportButton({
   }
 
   const handleDownload = async (): Promise<void> => {
-    {/* eslint-disable-next-line camelcase */}
+    // eslint-disable-next-line camelcase
     if (is_downloading) return; // idempotent no-op (CR 1.1)
     setIsDownloading(true);
 
@@ -158,12 +158,12 @@ export function ClosingPdfExportButton({
     <button
       type="button"
       onClick={handleDownload}
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       disabled={is_downloading}
       data-testid="closing-pdf-export-button"
       data-period-key={periodKey}
       data-industry={industry}
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       data-status={is_downloading ? "DOWNLOADING" : "IDLE"}
       className={
         "inline-flex items-center justify-center rounded-md border " +
@@ -174,7 +174,7 @@ export function ClosingPdfExportButton({
       }
     >
       <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       {is_downloading ? t("button_downloading") : t("button_label")}
     </button>
   );

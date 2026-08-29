@@ -132,7 +132,7 @@ export function ClosingPeriodConfirmationPanel({
     // eslint-disable-next-line camelcase
     description = finalized_at ? (
       <span>
-        {/* eslint-disable-next-line camelcase */}
+        // eslint-disable-next-line camelcase
         {t("finalized_at_label")}: {finalized_at}
       </span>
     ) : (
@@ -153,15 +153,15 @@ export function ClosingPeriodConfirmationPanel({
       data-testid="closing-period-confirmation-panel"
       data-status={state.status}
       data-allowed={allowed}
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       data-capability-granted={capability_granted}
       className={cn("flex flex-col gap-2", className)}
     >
       <Alert
         variant={variant}
-        {/* eslint-disable-next-line camelcase */}
+        // eslint-disable-next-line camelcase
         role={is_blocked ? "alert" : "status"}
-        {/* eslint-disable-next-line camelcase */}
+        // eslint-disable-next-line camelcase
         aria-live={is_blocked ? "assertive" : "polite"}
       >
         {icon}

@@ -107,10 +107,10 @@ export function MonthlyClosingReportPanel({
   // OQ1 cj-style default — partial-path 시 sonner toast.info "잠시 후 갱신".
   // Effect는 1회만 발동 (idempotent no-op skip).
   React.useEffect(() => {
-    {/* eslint-disable-next-line camelcase */}
+    // eslint-disable-next-line camelcase
     if (is_partial) {
       toast.info(t("toast_view_partial"));
-    {/* eslint-disable-next-line camelcase */}
+    // eslint-disable-next-line camelcase
     } else if (is_empty) {
       toast.warning(t("toast_view_empty"));
     }
@@ -134,12 +134,12 @@ export function MonthlyClosingReportPanel({
     variant = "default";
     icon = <CheckCircle2 className="h-4 w-4" aria-hidden="true" />;
     title = t("panel_title_ko");
-  {/* eslint-disable-next-line camelcase */}
+  // eslint-disable-next-line camelcase
   } else if (is_partial) {
     variant = "default";
     icon = <AlertCircle className="h-4 w-4" aria-hidden="true" />;
     title = t("panel_title_ko") + " (PARTIAL)";
-  {/* eslint-disable-next-line camelcase */}
+  // eslint-disable-next-line camelcase
   } else if (is_empty) {
     variant = "default";
     icon = <FileX className="h-4 w-4" aria-hidden="true" />;
@@ -157,15 +157,15 @@ export function MonthlyClosingReportPanel({
     <div
       data-testid="monthly-closing-report-panel"
       data-view-mode={aggregate.view_mode}
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       data-capability-granted={capability_granted}
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       data-v4-status={v4_status ?? "none"}
       className={cn("flex flex-col gap-3", className)}
     >
       <Alert
         variant={variant}
-        {/* eslint-disable-next-line camelcase */}
+        // eslint-disable-next-line camelcase
         role={is_empty ? "status" : "status"}
         aria-live="polite"
       >
@@ -225,7 +225,7 @@ export function MonthlyClosingReportPanel({
         </div>
         <div
           data-testid="kpi-v4-verdict"
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           data-status={v4_status ?? "none"}
           className={cn(
             "rounded-md border p-3",
@@ -247,12 +247,12 @@ export function MonthlyClosingReportPanel({
               v4_status === "PASS" && "text-green-700",
             )}
           >
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             {v4_status ?? "—"}
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             {v4_status === "FAIL" && (
               <span data-testid="v4-failure-count" className="ml-2 text-sm">
-                {/* eslint-disable-next-line camelcase */}
+                // eslint-disable-next-line camelcase
                 ({v4_failure_count})
               </span>
             )}
@@ -261,7 +261,7 @@ export function MonthlyClosingReportPanel({
       </div>
 
       {/* ── Closing per-product Table ── */}
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       {is_ready && aggregate.closing_per_product.length > 0 && (
         <div
           data-testid="closing-per-product-table-container"
@@ -335,16 +335,16 @@ export function MonthlyClosingReportPanel({
       )}
 
       {/* ── V4 failures list (OQ2 default — KPI 빨강 + audit-trail 표시) ── */}
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       {v4_verdict && v4_verdict.failures.length > 0 && (
         <div
           data-testid="v4-failures-list"
           className="rounded-md border border-red-500 bg-red-50 p-3"
         >
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           <h3 className="font-medium text-red-700">V4 FAIL — {v4_failure_count}건</h3>
           <ul className="mt-2 space-y-1 text-sm">
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             {v4_verdict.failures.map((f, idx) => (
               <li
                 key={`${f.product_id}-${idx}`}
@@ -359,7 +359,7 @@ export function MonthlyClosingReportPanel({
       )}
 
       {/* ── Audit trail list (CR 1.1 observability) ── */}
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       {audit_trail && audit_trail.length > 0 && (
         <div
           data-testid="monthly-closing-report-audit-trail"
@@ -367,7 +367,7 @@ export function MonthlyClosingReportPanel({
         >
           <h3 className="font-medium">마감 보고서 검증 이력</h3>
           <ul className="mt-2 space-y-1">
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             {audit_trail.map((entry) => (
               <li
                 key={entry.id}

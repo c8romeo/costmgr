@@ -64,27 +64,27 @@ export function MonthlyInputRowForm({
   );
 
   return (
-    {/* eslint-disable-next-line camelcase */}
+    // eslint-disable-next-line camelcase
     <M2ClosingGuardGate is_blocked={is_blocked}>
       <form
         onSubmit={handleSubmit}
         className={cn("flex flex-col gap-3", className)}
         data-testid="monthly-input-row-form"
-        {/* eslint-disable-next-line camelcase */}
+        // eslint-disable-next-line camelcase
         data-period-key={period_key}
       >
         <div className="text-sm text-muted-foreground">
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           {period_key} 수불 입력
         </div>
         <button
           type="submit"
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           data-testid="monthly-input-row-submit"
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           title={is_blocked ? NEGATIVE_CLOSING_INVENTORY_KO : undefined}
         >
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           {is_blocked ? "마감 불가" : "저장"}
         </button>
       </form>

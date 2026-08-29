@@ -205,7 +205,7 @@ export function MonthlyInputTabs({
       value={activeTab}
       className={cn("w-full", className)}
       data-testid="monthly-input-tabs"
-      {/* eslint-disable-next-line camelcase */}
+      // eslint-disable-next-line camelcase
       data-period-key={period_key}
     >
       <TabsList>
@@ -221,17 +221,17 @@ export function MonthlyInputTabs({
       </TabsList>
       <TabsContent value="opening">
         {/* P3-3rd-sweep P3: manual edit reject UI when opening locked */}
-        {/* eslint-disable-next-line camelcase */}
+        // eslint-disable-next-line camelcase
         {opening_inventory_locked ? (
           <fieldset
             disabled
             data-testid="opening-inventory-locked-fieldset"
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             data-trace-id={trace_id}
             className="flex flex-col gap-2 border-0 p-0 m-0"
           >
             <div className="text-sm text-muted-foreground">
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               {period_key} 기초재고 입력 (Story 5.1 M14)
             </div>
             <p
@@ -243,7 +243,7 @@ export function MonthlyInputTabs({
           </fieldset>
         ) : (
           <div className="text-sm text-muted-foreground">
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             {period_key} 기초재고 입력 (Story 5.1 M14)
           </div>
         )}
@@ -251,17 +251,17 @@ export function MonthlyInputTabs({
       <TabsContent value="subub">
         <div className="flex flex-col gap-3">
           <div className="text-sm text-muted-foreground">
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             {period_key} 수불부 입력
           </div>
           {/* P3-3rd-sweep P6: production consumption events list */}
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           {production_consumption_events && production_consumption_events.length > 0 && (
             <ul
               data-testid="production-consumption-list"
               className="text-sm space-y-1"
             >
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               {production_consumption_events.map((event) => (
                 <li
                   key={`${event.product_id}-${event.event_type}`}
@@ -283,27 +283,27 @@ export function MonthlyInputTabs({
           {/* Story 6.1 T8.5 — ClosingPeriodConfirmationPanel additive on top
               of ClosingGuardBanner (5-3 wire). Same vertical stack; only
               visible when MONTHLY_CLOSING_REPORT capability is granted (A10). */}
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           {closing_period_state && (
             <ClosingPeriodConfirmationPanel
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               state={closing_period_state}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               finalized_at={closing_period_finalized_at}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               capability_granted={closing_period_capability_granted}
               onConfirmClick={handleConfirmClick}
             />
           )}
           {/* Story 6.1 T8.5 — Dialog open when panel button fires. */}
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           {closing_period_state && onClosingPeriodConfirm && (
             <ClosingPeriodConfirmDialog
               open={dialogOpen}
               onOpenChange={setDialogOpen}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               state={closing_period_state}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               period_key={period_key}
               onConfirm={onClosingPeriodConfirm}
             />
@@ -312,16 +312,16 @@ export function MonthlyInputTabs({
               ClosingPeriodConfirmationPanel. Renders 4 KPI cards + table +
               V4 verdict envelope + audit-trail. Hidden when
               monthly_closing_report_capability_granted=false. */}
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           {monthly_closing_report && (
             <MonthlyClosingReportPanel
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               aggregate={monthly_closing_report}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               v4_verdict={monthly_closing_report_v4_verdict ?? null}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               audit_trail={monthly_closing_report_audit_trail ?? []}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               capability_granted={closing_period_capability_granted}
             />
           )}
@@ -330,16 +330,16 @@ export function MonthlyInputTabs({
               handled internally (returns null when capability_granted=false).
               Hidden when reversal_request_trigger is not provided (page-level
               MonthlyInputStateResponse determines trigger shape). */}
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           {reversal_request_trigger && (
             <ReversalRequestButton
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               target_event_id={reversal_request_trigger.target_event_id}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               period_key={period_key}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               period_status={reversal_request_period_status}
-              {/* eslint-disable-next-line camelcase */}
+              // eslint-disable-next-line camelcase
               capability_granted={reversal_request_trigger.capability_granted}
               onSubmit={async (payload) => {
                 if (!onReversalRequestSubmit) {
@@ -359,19 +359,19 @@ export function MonthlyInputTabs({
             />
           )}
           <MonthlyInputRowForm
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             is_blocked={is_blocked}
-            {/* eslint-disable-next-line camelcase */}
+            // eslint-disable-next-line camelcase
             period_key={period_key}
             onSubmit={onSubmit}
           />
           {/* P3-3rd-sweep P6: closing-guard audit trail list */}
-          {/* eslint-disable-next-line camelcase */}
+          // eslint-disable-next-line camelcase
           {audit_trail && audit_trail.length > 0 && (
             <div data-testid="audit-trail-list" className="text-sm space-y-1">
               <h3 className="font-medium">마감 검증 이력</h3>
               <ul className="space-y-1">
-                {/* eslint-disable-next-line camelcase */}
+                // eslint-disable-next-line camelcase
                 {audit_trail.map((entry) => (
                   <li
                     key={entry.id}
