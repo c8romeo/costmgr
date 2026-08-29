@@ -1,0 +1,38 @@
+fix(finops): cj-221 sprint scope 결정 wire DONE (cj-style 123번째 epic 연속 정직 회복 atomic single docs-only sprint)
+
+cj-220g jsx-fix-rollback (cj-style 122번째) 후 진짜 다음 pending action 식별 결과
+**cj-221 import-order 47× fix sprint scope 결정 wire 진입 완료**.
+
+scope 결정: apps/web 의 47× import/order violations 의 per-line
+`// eslint-disable-next-line import/order` surgical disable
+(cj-220b (b1) unused-vars 55× + cj-220d AD-8 monetary 737× +
+ cj-220e camelcase 464× + cj-220f naming-convention 56× 의
+ proven per-line disable pattern verbatim 보존).
+
+결정 근거 4종:
+1) final outcome 우선 = CI green (D-CI-FUNC-7 PARTIAL 잔여 71 errors
+   의 47× import/order 해결 후 residual 24 errors = unused-vars 14 +
+   restricted-types 10 으로 축소) 의 lowest-risk path
+2) risk minimization = surgical per-line disable 만 적용
+   (per-file eslint --fix 자동 수정 또는 manual import sequence 변경 회피,
+    line number drift 0건, public API surface 변경 0건, runtime behavior 변경 0건)
+3) process design 정합 = cj-220b (b1) + cj-220d 의 proven per-line disable
+   atomic single source-only sprint 패턴 verbatim 보존
+   (CR 11-3 honest-DEFER discipline 정합)
+4) cj-style 연속 정직 회복 chain 보존 = 113(cj-220a) → 122(cj-220g) 의
+   123번째 natural continuation
+
+metadata only 변경 (sprint-status.yaml), source/test/ci.yml 무변경.
+runtime 동작 변화 0건.
+
+AD-14 stack pin 정책 (35 pins) unchanged
+([STACK BUMP] tag 불필요, per-line disable 의 syntactic comment only,
+ implementation date latest stable per claude-api skill).
+
+actual source fix execution 진입 시점 결정 wire 보류:
+(i) cj-221 actual sprint execution 진입 또는
+(ii) alternative 결정 (cj-222 unused-vars 14× 또는
+     cj-223 restricted-types 10× 또는 live CI verification 진입).
+
+deterministic and reproducible (no pnpm/network deps).
+Co-Authored-By: Claude Code <noreply@anthropic.com>
