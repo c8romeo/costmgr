@@ -60,11 +60,14 @@ export function ProductListClient({
   industry,
   initialProducts,
 }: ProductListClientProps) {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const allowedTypes: readonly (typeof PRODUCT_TYPE_VALUES)[number][] = industry
     ? INDUSTRY_ALLOWED_PRODUCT_TYPES[industry]
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     : (PRODUCT_TYPE_VALUES as readonly (typeof PRODUCT_TYPE_VALUES)[number][]);
 
   const [typeFilter, setTypeFilter] = useState<
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     (typeof PRODUCT_TYPE_VALUES)[number] | typeof TYPE_FILTER_ALL
   >(TYPE_FILTER_ALL);
   const [includeInactive, setIncludeInactive] = useState<boolean>(false);

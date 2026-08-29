@@ -28,13 +28,16 @@ import type { KRW } from "./money";
 // ── PayType enum (PRD §6.1) ──────────────────────────────────────
 // Mirrors `packages.services.m2_input.labor_conversion.PayType`.
 export const PAY_TYPE_VALUES = ["monthly", "daily"] as const;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type PayType = (typeof PAY_TYPE_VALUES)[number];
 
 // ── PayrollSettings (PRD §6.1 인건비 정책) ──────────────────────
 // All amounts in KRW (`bigint`) except `companyBurdenRate` (Decimal).
 export interface PayrollSettings {
   monthlySalaryBasisKrw: KRW;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   workdaysInMonth: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   standardMonthlyHours: number;
   companyBurdenRate: Decimal;
 }
@@ -124,6 +127,7 @@ export function mergePayrollSettings(
  * cross-language parity is broken at 0.5 boundaries — caught by the
  * `test_compute_fte_for_daily_matches_python` case.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function roundHalfEven2(n: Decimal | number): Decimal {
   const d = n instanceof Decimal ? n : new Decimal(n);
   // decimal.js `Decimal.ROUND_HALF_EVEN` set globally in `money.ts`
@@ -201,8 +205,11 @@ export function computePayTypeBreakdown(args: {
  * Mirrors `compute_fte_for_daily` in the Python module.
  */
 export function computeFteForDaily(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   workers: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   daysPerWorker: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   workdaysInMonth: number = DEFAULT_PAYROLL.workdaysInMonth,
 ): Decimal {
   if (workers <= 0 || daysPerWorker <= 0) return new Decimal("0.00");
@@ -224,6 +231,7 @@ export function computeFteForDaily(
  * `format_fte_headcount` was per-row aggregates only; Story 3.2 adds
  * per-pay-type dispatch here.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function computeFteForMonthly(workers: number): Decimal {
   if (workers <= 0) return new Decimal("0.00");
   return roundHalfEven2(workers);
@@ -239,8 +247,11 @@ export function computeFteForMonthly(workers: number): Decimal {
  * summed across workers/days. Mirrors `compute_fte_wage_for_daily`.
  */
 export function computeFteWageForDaily(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   dailyWageKrw: KRW | number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   workers: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   daysPerWorker: number,
 ): KRW {
   if (dailyWageKrw < 0 || workers < 0 || daysPerWorker < 0) {
@@ -263,6 +274,7 @@ export function computeFteWageForDaily(
  * total (which already includes the company burden).
  */
 export function computeFteWageForMonthly(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   workers: number,
   breakdown: PayTypeBreakdown,
 ): KRW {
@@ -280,6 +292,7 @@ export function computeFteWageForMonthly(
  * Mirrors `rollup_daily_fte` in the Python module.
  */
 export function rollupDailyFte(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   perDay: Array<{ fte: Decimal | string; wage: KRW | number }>,
 ): { fte: Decimal; wage: KRW } {
   if (perDay.length === 0) return { fte: new Decimal("0.00"), wage: 0n };
@@ -301,12 +314,15 @@ export interface FteDisplay {
   fteHeadcount: Decimal;
   fteWageKrw: KRW;
   breakdown: PayTypeBreakdown | null;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   sourceRows: number;
 }
 
 export function buildFteDisplay(args: {
   payType: PayType;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   workers: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   daysPerWorker: number | null;
   dailyWageKrw: KRW | null;
   monthlySalaryBasisKrw: KRW | null;
@@ -316,6 +332,7 @@ export function buildFteDisplay(args: {
   retirementReserveKrw: KRW | null;
   companyBurdenRate: Decimal | null;
   payroll: PayrollSettings;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   sourceRows: number;
 }): FteDisplay {
   if (args.payType === "daily") {

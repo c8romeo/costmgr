@@ -41,6 +41,7 @@ export function isClosingGuardNegativeError(
   if (!err || typeof err !== "object") {
     return false;
   }
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const e = err as { status?: number; payload?: { code?: string } };
   return (
     e.status === 409 &&

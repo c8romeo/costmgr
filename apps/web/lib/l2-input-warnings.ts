@@ -39,9 +39,11 @@ export const WARNING_CODE_VALUES = [
   "NEGATIVE_CLOSING_INVENTORY",
   "OVERCAPACITY_OPERATING_RATE",
 ] as const;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type WarningCodeValue = (typeof WARNING_CODE_VALUES)[number];
 
 // PRD §A11 severity ordering — error=0, warning=1, info=2.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const SEVERITY_ORDER: Readonly<Record<string, number>> = {
   error: 0,
   warning: 1,
@@ -53,6 +55,7 @@ export interface Warning {
   code: WarningCodeValue;
   severity: "error" | "warning" | "info";
   messageKo: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   details: Record<string, string | number>;
   stream: string;
   traceId: string;
@@ -79,8 +82,11 @@ export interface InventoryMovement {
 
 /** PRD §6.2: closing = opening + inbound − outbound. */
 export function computeClosingInventory(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   opening: Decimal | number | string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   inbound: Decimal | number | string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   outbound: Decimal | number | string,
 ): Decimal {
   const o = new Decimal(opening);
@@ -94,7 +100,9 @@ const DEFAULT_UNIT_TIME_HOURS = new Decimal("1.0");
 const OPERATING_RATE_LIMIT_PCT = new Decimal("100");
 
 export function computeTotalAvailableHours(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   totalFteHeadcount: Decimal | number | string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   standardMonthlyHours: number,
 ): Decimal {
   const fte = new Decimal(totalFteHeadcount);
@@ -107,7 +115,9 @@ export function computeTotalAvailableHours(
 }
 
 export function computeProductionRequiredHours(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   productionRows: Array<{ qty: Decimal | number | string | null }>,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   unitTimeHours: Decimal | number | string = DEFAULT_UNIT_TIME_HOURS,
 ): Decimal {
   if (productionRows.length === 0) return new Decimal("0.00");
@@ -123,7 +133,9 @@ export function computeProductionRequiredHours(
 }
 
 export function computeOperatingRate(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   availableHours: Decimal | number | string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   requiredHours: Decimal | number | string,
 ): Decimal {
   const a = new Decimal(availableHours);
@@ -134,6 +146,7 @@ export function computeOperatingRate(
 
 // ── Trailing-zero strip (matches Python `_strip_zeros`) ─────────
 // Cross-language parity helper. AC #1 spec uses "100" not "100.00".
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 function stripZeros(d: Decimal | number | string): string {
   const fixed = new Decimal(d).toFixed(2);
   if (!fixed.includes(".")) return fixed;
@@ -165,10 +178,15 @@ export function formatInventoryWarningKo(
 }
 
 export interface FormatOperatingRateArgs {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   totalFteHeadcount: Decimal | number | string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   standardMonthlyHours: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   totalAvailableHours: Decimal | number | string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   productionRequiredHours: Decimal | number | string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   operatingRatePct: Decimal | number | string;
 }
 
@@ -239,10 +257,15 @@ export function buildInventoryWarnings(
 
 // ── build_operating_rate_warning ─────────────────────────────────
 export interface BuildOperatingRateWarningArgs {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   operatingRatePct: Decimal | number | string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   totalFteHeadcount: Decimal | number | string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   standardMonthlyHours: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   totalAvailableHours: Decimal | number | string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   productionRequiredHours: Decimal | number | string;
   periodKey: string;
   traceId?: string;

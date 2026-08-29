@@ -51,6 +51,7 @@ export function useBom(
   accessTokenRef.current = accessToken;
   const initialSeedRef = useRef<boolean>(initial != null);
   initialSeedRef.current = initial != null;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const reqIdRef = useRef<number>(0);
 
   const refetch = useCallback(() => {

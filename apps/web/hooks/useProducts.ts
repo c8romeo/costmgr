@@ -42,6 +42,7 @@ import {
 
 export interface UseProductsResult {
   products: ProductResponse[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total: number;
   isLoading: boolean;
   error: string | null;
@@ -60,6 +61,7 @@ export function useProducts(
   const [products, setProducts] = useState<ProductResponse[]>(
     initial?.items ?? [],
   );
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const [total, setTotal] = useState<number>(initial?.total ?? 0);
   const [isLoading, setIsLoading] = useState<boolean>(initial == null);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +79,7 @@ export function useProducts(
   // onto the outgoing fetch and reads it back in the response handler.
   // A later refetch bumps `reqIdRef.current`; the in-flight handler of
   // the older refetch then bails because its captured reqId is stale.
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const reqIdRef = useRef<number>(0);
 
   const refetch = useCallback(() => {

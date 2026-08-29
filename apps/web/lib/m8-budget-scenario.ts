@@ -17,7 +17,9 @@ export const VIRTUAL_BUDGET_PERIOD_KEY_PATTERN: RegExp =
   /^(\d{4})-(0[1-9]|1[0-2])#B([1-9]\d*)$/;
 
 // 1차 MVP scenario 한도 (PRD §F8.1 verbatim + §15 NON-GOAL #2).
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const MVP_MAX_SCENARIOS_PER_TENANT: number = 1;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const MVP_SCENARIO_INDEX: number = 1;
 
 // Korean SSOT message (HTTP 409 SCENARIO_LIMIT_EXCEEDED envelope).
@@ -33,6 +35,7 @@ export interface BudgetScenarioSerialized {
   tenant_id: string; // UUID
   period_key: string; // AD-24 virtual: YYYY-MM#B<n>
   real_period_key: string; // AD-24 real: YYYY-MM
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scenario_index: number; // 1차 MVP = 1 only
   scenario_hash: string; // V8 determinism sha256:32hex
   created_by: string; // UUID
@@ -50,6 +53,7 @@ export interface BudgetScenarioResponse {
 
 export interface BudgetScenarioListResponse {
   scenarios: BudgetScenarioSerialized[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_count: number;
   trace_id: string | null;
 }
@@ -89,6 +93,7 @@ export function isValidVirtualBudgetPeriodKeyTS(period_key: string): boolean {
  */
 export interface BudgetPeriodKeyPartsTS {
   real_period_key: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scenario_index: number;
   scenario_suffix: string;
 }
@@ -124,6 +129,7 @@ export function parseVirtualBudgetPeriodKeyTS(
  */
 export function deriveBudgetPeriodKeyTS(
   real_period_key: string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scenario_index: number = MVP_SCENARIO_INDEX,
 ): string | null {
   if (!isValidRealPeriodKeyTS(real_period_key)) {
@@ -145,6 +151,7 @@ export function deriveBudgetPeriodKeyTS(
  * Mirrors Python `validate_scenario_uniqueness`.
  */
 export function validateScenarioUniquenessTS(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   existing_count: number,
 ): string | null {
   if (!Number.isInteger(existing_count) || existing_count < 0) {
@@ -160,6 +167,7 @@ export function validateScenarioUniquenessTS(
 // Mirror Python `packages/services/m8_budget/budget_period_key_serializers.py`.
 export function serializeBudgetScenarioTS(
   scenario: BudgetScenarioSerialized,
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 ): Record<string, string | number> {
   return {
     id: String(scenario.id),

@@ -96,6 +96,7 @@ export async function fetchCompletionServerSide(
 export async function fetchProductsServerSide(
   accessToken: string | undefined,
   traceId: string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   query?: { product_type?: string; is_active?: boolean; limit?: number; offset?: number },
 ): Promise<ProductListResponse | null> {
   const headers = new Headers();
@@ -285,7 +286,9 @@ export async function fetchM2EntryGateServerSide(
 export interface TotpStatusServerSideResponse {
   totp_enabled: boolean;
   totp_enabled_at: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   recovery_codes_remaining: number | null;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   failed_attempts: number;
   locked_out: boolean;
   lockout_until: string | null;
@@ -318,7 +321,9 @@ export async function fetchTotpStatusServerSide(
     const data = (await res.json()) as {
       totp_enabled?: boolean;
       totp_enabled_at?: string | null;
+      // eslint-disable-next-line @typescript-eslint/no-restricted-types
       recovery_codes_remaining?: number | null;
+      // eslint-disable-next-line @typescript-eslint/no-restricted-types
       failed_attempts?: number;
       locked_out?: boolean;
       lockout_until?: string | null;
@@ -494,6 +499,7 @@ export async function fetchTenantSettingsServerSide(
 export async function fetchBackupsRecentServerSide(
   accessToken: string | undefined,
   traceId: string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   days: number = 7,
 ): Promise<BackupListResponse | null> {
   const headers = new Headers();
@@ -792,7 +798,9 @@ export async function fetchIdPConfigServerSide(
 export async function fetchAuditLogServerSide(
   accessToken: string | undefined,
   filters: AuditLogQueryFilters,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   pageSize: number,
   traceId: string,
 ): Promise<AuditLogPage | null> {

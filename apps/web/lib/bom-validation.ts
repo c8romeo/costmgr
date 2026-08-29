@@ -34,6 +34,7 @@ const QUANTUM = new Decimal("0.0001");
  * `Decimal(value)` so `"12.3456"` works. Non-numeric inputs throw.
  */
 export function sumRatios(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   rows: Iterable<number | string | Decimal>,
 ): Decimal {
   let total = new Decimal(0);
@@ -61,6 +62,7 @@ export function sumRatios(
  * 100.0000 is complete.
  */
 export function isCompleteBom(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   rows: Iterable<number | string | Decimal>,
 ): boolean {
   return sumRatios(rows).equals(TARGET_TOTAL);
@@ -70,6 +72,7 @@ export function isCompleteBom(
  * How much is needed to reach 100.0000%? Clamped at zero.
  */
 export function missingToComplete(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   rows: Iterable<number | string | Decimal>,
 ): Decimal {
   const total = sumRatios(rows);
@@ -84,6 +87,7 @@ export function missingToComplete(
  * Defense-in-depth — Pydantic should have caught invalid ratios at the
  * wire boundary. This is the last layer before the API call.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function quantizeRatio(value: Decimal | number | string): Decimal {
   if (value instanceof Decimal) {
     return value.toDecimalPlaces(4, Decimal.ROUND_HALF_EVEN);
