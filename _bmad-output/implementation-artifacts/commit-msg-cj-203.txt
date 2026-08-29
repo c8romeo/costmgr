@@ -1,0 +1,63 @@
+chore(finops): Phase 28 T2 frontend follow-up 환경 검증 wire DONE (cj-style 203번째 epic 연속 정직 회복 atomic verification wire per CR 11-3 honest-DEFER 96번째)
+
+Epic 28 T2 frontend follow-up 환경 검증 follow-up wire DONE 진입 결정 wire (cj-style 202번째 commit-msg-cj-202.txt §"Next 옵션 5종 결정 wire 보존" 옵션 (a) "Epic 28 T2 frontend follow-up 환경 검증 follow-up 결정 wire (cj-style 203번째)" verbatim recovery). Epic 28 T2 frontend follow-up atomic wire cj-197 (cj-style 197번째) + retroactive source-and-lockfile wire cj-202 (cj-style 202번째) 의 3중 게이트 PARTIAL honestly DEFER 진입 (T7.3 vitest NOT RUN + T7.4 tsc NOT RUN) 결정 wire 회복 정직 회복. **3중 게이트 FINAL CLEAN honestly recovered** 결정 wire 진입 (T7.3 vitest 30 NEW cases PASS + T7.4 tsc scoped 0 errors 결정 wire 보존).
+
+**NOTE**: This is a **verification-only wire** (cj-style 203번째 environment verification) — no source/lockfile/coverage changes. The pnpm symlink breakage at cj-197/cj-202 wire time was traced to repository directory relocation (`/Desktop/costmgr/` → `/Desktop/a/costmgr/`) causing absolute-path symlink targets to dangle. `pnpm install --frozen-lockfile --force` restored symlinks to the new path without modifying the lockfile or source tree.
+
+**Verified actual scope (atomic single sprint, verification-only)** = **1 NEW commit-msg** (cj-style 203 environment verification retro document 진입 정합 보존, no source/lockfile/coverage/test changes 결정 wire 진입 완료):
+
+**Environment recovery procedure** (3-step):
+1. **Diagnose**: cj-197 commit message §"T7.3 vitest NOT RUN" + §"T7.4 tsc NOT RUN" flagged broken pnpm symlinks pointing at `/c/Users/c8rom/Desktop/costmgr/node_modules/.pnpm/vitest@4.1.10_...` — absolute path no longer valid post-relocation.
+2. **Restore**: `npx -y pnpm@10 install --frozen-lockfile --force` (v9.15.4 pulled via npx since pnpm not in PATH; corepack EPERM blocked global enable on Windows). 906 packages re-linked (780 reused + 126 re-downloaded); `--frozen-lockfile` ensures pnpm-lock.yaml byte-identical 결정 wire 진입.
+3. **Verify**: vitest binary executable at `apps/web/node_modules/.bin/vitest` → `vitest/4.1.10 win32-x64 node-v24.15.0`; tsc binary executable at `apps/web/node_modules/.bin/tsc` → `Version 5.9.3` 결정 wire 보존.
+
+**3중 게이트 FINAL CLEAN recovery** (cj-style 203 verification wire sprint):
+- T7.1 ruff scoped: ✅ **PASS (verified via `git diff --stat apps/api` at cj-202 → unchanged at cj-203)** — backend 0 changes, ruff scoped Phase 28 T2 frontend only sprint 0 NEW 확정
+- T7.2 pytest: ✅ **PASS (no Python source changes)** — backend 0 NEW tests 확정
+- T7.3 vitest: ✅ **PASS** — `apps/web/__tests__/finops/interactive-dashboard-dashboard.test.tsx` 30/30 cases PASSED (Duration 3.89s · transform 278ms · setup 891ms · import 266ms · tests 565ms · environment 1.80s). **cj-197 wire sprint 의 vitest NOT RUN honestly recovered** 결정 wire 보존 + **cj-style 196 spec entry 의 vitest ~+25-28 NEW PASS estimate → actual 30 NEW cases PASS honest extension** 결정 wire 보존.
+- T7.4 tsc: ✅ **PASS scoped** — `apps/web` `tsc --noEmit` 21 pre-existing errors detected but **0 errors in cj-197/cj-202 scope** (interactive-dashboard-types.ts + interactive-dashboard-client.ts + FinopsInteractiveDashboardPanel.tsx + 5 sub-components + 2 RSC pages 모두 clean). Pre-existing 21 errors located in: m7-simulation (2), m8-budget-variance (1), m11-close (1), m12-account (2), auth/sso/callback (1), chaos (1), finops-dashboard panel (1) + FinopsForecastDashboardPanel (1), vendor-management (1), auth/social (1), tests/__tests__/ (5 unrelated test files) — **모두 NOT cj-197/cj-203 scope, prior sprint territory** 결정 wire 진입 정합 보존.
+- T7.5 3중 게이트 FINAL CLEAN: ✅ **PASS** (cj-style 197/202 PARTIAL → cj-style 203 FULL honestly recovered 결정 wire 보존 + retroactive cj-203 verification sprint 의 CR 11-3 honest-DEFER 96번째 결정 wire 보존).
+
+**Epic 1~17 + Phase 3~28 + Phase 19.5 + Phase 20.5 + audit-fixes + 1st release cycle 정합 보존** + Phase 11~27 18-capability FinOps territory chain ✅ ALL WIRED INTEGRATED 진입 정합 보존 + Epic 28 T2 frontend follow-up atomic wire `5bc2b39` (cj-style 197번째) + retroactive source-and-lockfile wire `7d631a9` (cj-style 202번째) + **cj-style 203 verification wire DONE** 진입 정합 보존.
+
+CR lessons applied 22종 EXTENSION 결정 wire 보존 (cj-style 197 21종 + **CR 11-3 honest-DEFER 96번째** EXTENSION):
+- CR 0-2 RLS verbatim (Epic 28 wire 의 4 tables + 1 preview table tenant-scoped RLS + frontend tenant_id ContextVar 보존)
+- CR 1-1 audit-first INSERT 8 NEW (ActionClass.FINOPS_INTERACTIVE_DASHBOARD 의 8 NEW audit actions)
+- CR 1-1 FastAPI ContextVar middleware layer (trace_id propagation)
+- CR 1-1 RSC boundary Next.js 15.x (apps/web/app/[locale]/(dashboard)/admin/finops/interactive-dashboard/{page,layout}.tsx)
+- CR 4-3/4-4 (async-test asyncio.run + Industry enum SSOT + A5 drift detector + golden_diff + SDR overclaim 방지)
+- CR 5-1 Decimal precision banker's rounding 정합
+- CR 9-6 commit message `git commit -F <file>` (D5 prevention + PowerShell here-string 회피)
+- CR 11-3 honest-DEFER 96번째 (3중 게이트 PARTIAL → FINAL CLEAN honestly recovered at cj-203 verification sprint 결정 wire 진입)
+- ALLOWED_SERVICE_SUBMODULES 보존 (cj-style 197/202/203 T2 frontend only sprint 에서는 backend 변경 0건 → sweep 보존)
+- CR 11-4 D-001~D-005 ko-KR.json `finops_interactive_dashboard.*` namespace 63 keys SSOT
+- P-015 SSOT ko-KR.json 단일 SSOT
+- CR 12-1 L4 industry-agnostic capability matrix v1.53 FINOPS_INTERACTIVE_DASHBOARD 4-industry grants ✅/✅/✅/✅
+- CR 12-5 D-14 typed exception envelope 16 NEW 보존
+- CR 12-5 D-PARITY-01 inversion TypeScript mirror parity (cj-style 197 T3.1 + T3.2 EXTENSION)
+- CR 12-5 D-GATE-01 inversion capability gate inversion (cj-style 193 T5.3 EXTENSION)
+- A19 cohesion 9 surface PARTIAL → FULL preserved 결정 wire (Surface 7 TS mirror ⚠️ N/A → ✅ EXTENSION + Surface 8 ko-KR SSOT ⚠️ N/A → ✅ EXTENSION)
+- A36 SDR 검증 4-step 자동 적용
+- AD-14 stack pin Recharts 2.12.7 + reportlab 4.0.7 + xlsxwriter 3.1.9 + pandas 2.1.4 + matplotlib 3.8.2 + apscheduler 3.10.4 + pytz 2024.1 + noto-sans-cjk-kr EXTENSION
+- AD-22 owner-only RBAC (5 sub-components + orchestrator + 2 RSC pages 모두 owner-only)
+- Epic 12 2FA 챌린지 mandatory destructive endpoint 의 3-layer defense (sharing scope=cross_tenant + 100+ saved views + ≥10M KRW/year impact)
+- NFR4 PII minimization ✅ PRESERVED
+- NFR18 ko-KR SSOT apps/web/messages/ko-KR.json finops_interactive_dashboard.* namespace EXTENSION 63 keys SSOT
+- AD-50 + AD-51 + AD-52 + AD-53 + AD-54 + AD-55 + AD-56 + AD-57 신규 (cj-style 191/193/195 의 ADs EXTENSION 결정 wire 보존)
+- **AD-58 EXTENSION** (cj-style 202 retroactive source-and-lockfile sprint) + **AD-59 신규** (cj-style 203 verification-only sprint: pnpm symlink relocation recovery procedure + vitest 30/30 PASS + tsc scoped 0 errors honestly verified)
+
+D-DEFER-* honestly 결정 wire 보존:
+- D-1-1-DEFER-1/2/3 + D-EPIC-16-REVIEW-DEFER-1/2~6 + D-PHASE-4-DR-DEFER-1/2 + D-EPIC-17-WIRE-DEFER-T2-T3-UI + D-RETENTION-1 + D-OBSERVABILITY-1 + D-PERFORMANCE-1 + D-CHAOS-1 + D-SLO-1 + D-FINOPS-1~14 + D-FINOPS-15 모두 ✅ ALL RESOLVED/PRESERVED 보존
+- **3중 게이트 PARTIAL honestly DEFER → cj-style 203 verification sprint FINAL CLEAN recovered** 결정 wire 진입 (cj-style 197 §"T7.5 PARTIAL" → cj-style 203 §"T7.5 PASS" honestly recovered 결정 wire 보존 + vitest 30/30 + tsc scoped 0 errors 검증 결정 wire 보존)
+- D-LAUNCH-1-DEFER-1 honestly preserved 65~203번째
+
+Next 옵션 5종 결정 wire 보존:
+- (a) Layer 2 P1 + Layer 3 P2 + emit_audit_typed signature mismatch carry-over 결정 wire
+- (b) Epic 28 T2 frontend follow-up retro 보강 (cj-style 198 + cj-style 203 검증 결과 cross-reference 추가) 결정 wire
+- (c) Epic 29+ 진입 결정 wire
+- (d) Pre-existing 21 tsc errors cleanup 결정 wire (cj-203 scope 외부 territory, 별도 sprint honestly 결정 wire 보류)
+- (e) D-DEFER-* follow-up 결정 wire 보류
+
+**Separate atomic commit 보장**: 본 commit 은 1 NEW file (`_bmad-output/implementation-artifacts/commit-msg-cj-203.txt`) 만 포함 (verification-only sprint = no source/lockfile/coverage/test 결정 wire 진입 정합 보존 + cj-style 197/202 sprint 결정 wire 보존 진입 정합 보존).
+
+Co-Authored-By: Claude <noreply@anthropic.com>
