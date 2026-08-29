@@ -2022,6 +2022,83 @@
       "selection_threshold_default_notice": "기본 선정 임계값: 60.00 / 점수 버전 한도: ≤ 100.00",
       "over_budget_check_notice": "계약 진행 시 예산 초과 자동 검사",
       "d_finops_14_notice": "D-FINOPS-14 honestly DEFER: 벤더 마켓플레이스 + 자동 조달 + 벤더 통합 + 벤더 ESG + AI 기반 RFP + SLA 자동 강화 + 다중 통화 FX + 인보이스 OCR + KYC + 위험 점수 ML"
+    },
+    "interactive_dashboard": {
+      "section_title": "FinOps Interactive Dashboard (Phase 28 T2)",
+      "section_description": "Epic 28 T2 frontend follow-up — executive dashboard surface (Phase 28 backend wire cj-193 의 4 NEW modules 의 UI surface)",
+      "dry_run_toggle": "드라이런 모드 (기본 ON per CR 11-3 honest-DEFER discipline)",
+      "owner_only_notice": "이 작업은 tenant_owner 권한이 필요합니다 (AD-22 owner-only RBAC).",
+      "two_fa_required_notice": "2FA 챌린지 mandatory (Epic 12 RFC 6238 TOTP) — 공유 scope가 high-value 임계값 (10M KRW/년) 이상이거나 saved view 100개 이상입니다.",
+      "tabs": {
+        "overview": "개요 (Overview)",
+        "saved_views": "Saved Views",
+        "drill_down": "Drill-Down",
+        "export": "Export",
+        "sharing": "Sharing"
+      },
+      "cross_phase_kpi": {
+        "title": "Cross-Phase 통합 KPI",
+        "description": "Phase 11~28 unified_kpi_total 기반 5-dim 가중 집계",
+        "weighted_total_label": "가중 합계 (weighted_total)",
+        "dimension_cost": "비용 (Cost)",
+        "dimension_usage": "사용량 (Usage)",
+        "dimension_performance": "성능 (Performance)",
+        "dimension_compliance": "컴플라이언스 (Compliance)",
+        "dimension_sla": "SLA"
+      },
+      "saved_view": {
+        "title": "Saved View Manager",
+        "description": "12 pre-defined view templates · 최대 50 views/tenant",
+        "create_button": "새 Saved View 생성",
+        "template_select_label": "Pre-defined view template",
+        "granularity_select_label": "Granularity",
+        "actions_read": "Read",
+        "actions_update": "Update",
+        "actions_execute": "Execute",
+        "actions_delete": "Delete"
+      },
+      "drill_down": {
+        "title": "Drill-Down Explorer",
+        "description": "7-dim drill-down navigation · 7-dim granularity",
+        "dimension_select_label": "Drill-down dimension",
+        "granularity_select_label": "Granularity",
+        "breadcrumb_label": "Breadcrumb",
+        "back_button": "← 뒤로"
+      },
+      "export": {
+        "title": "Export Configuration",
+        "description": "5 export formats · max 50MB · 3 auto-retries",
+        "format_label": "Export format",
+        "format_pdf": "PDF (Phase 17 sustainability report generator 재사용)",
+        "format_xlsx": "XLSX (Phase 22 chargeback invoice generator 재사용)",
+        "format_csv": "CSV",
+        "format_json": "JSON",
+        "format_png": "PNG",
+        "view_id_label": "Saved view ID",
+        "start_button": "Export Job 시작",
+        "status_label": "Status",
+        "status_pending": "대기 중 (pending)",
+        "status_in_progress": "진행 중 (in_progress)",
+        "status_completed": "완료 (completed)",
+        "status_failed": "실패 (failed)",
+        "status_cancelled": "취소됨 (cancelled)"
+      },
+      "sharing": {
+        "title": "Dashboard Sharing",
+        "description": "4 sharing scopes · 기본 30일 만료 · tenant isolation",
+        "scope_label": "Sharing scope",
+        "scope_private": "Private (본인만)",
+        "scope_tenant": "Tenant (테넌트 전체)",
+        "scope_tenant_owner": "Tenant Owner",
+        "scope_cross_tenant": "Cross-Tenant (owner-only)",
+        "view_id_label": "Saved view ID",
+        "granted_to_user_label": "Granted to user ID",
+        "share_button": "Sharing Grant 생성",
+        "error_owner_only": "DashboardSharingScopeError: cross_tenant sharing requires tenant_owner role",
+        "error_2fa_required": "InteractiveDashboardSharing2FARequiredError: 2FA 챌린지 필요 (Epic 12 mandatory)",
+        "success_grant_created": "Sharing grant created"
+      },
+      "d_finops_15_notice": "D-FINOPS-15 honestly DEFER: multi-modal cost input aggregation (vision/NLP/receipt OCR) + causal inference root cause analysis + LLM 기반 cost anomaly explanation auto-narrative + automated cost remediation + cross-tenant federated cost benchmarking + cost optimization marketplace + real-time streaming cost prediction + unsupervised online learning"
     }
   }
 }
