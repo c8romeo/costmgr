@@ -17,7 +17,7 @@
  * NFR18 ko-KR SSOT.
  */
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import {
     DASHBOARD_CADENCE_HOURS_KST,
@@ -563,7 +563,7 @@ describe("DrillDownExplorer sub-component", () => {
             <DrillDownExplorer dryRun={true} periodKey="2026-08" />
         );
         const btn = screen.getByTestId("drill-alpha");
-        btn.click();
+        fireEvent.click(btn);
         expect(screen.getByTestId("breadcrumb-list")).toBeTruthy();
     });
 
@@ -658,7 +658,7 @@ describe("DashboardSharingPanel sub-component", () => {
         }
         btn.click();
         // Even when cross_tenant is disabled, the owner-only notice is shown
-        expect(screen.getByText(/owner-only/)).toBeTruthy();
+        expect(screen.getAllByText(/owner-only/).length).toBeGreaterThan(0);
     });
 
     it("Test 29: 4 sharing scope options total present", () => {

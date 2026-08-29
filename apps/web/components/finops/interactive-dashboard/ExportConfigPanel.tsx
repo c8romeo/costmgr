@@ -22,8 +22,8 @@ import {
 } from "@/lib/finops/interactive-dashboard-types";
 import type {
     ExportFormat,
+    ExportJob,
     ExportJobStatus,
-    UnifiedKPI,
 } from "@/lib/finops/interactive-dashboard-types";
 
 interface ExportConfigPanelProps {
@@ -64,7 +64,7 @@ export function ExportConfigPanel({
 }: ExportConfigPanelProps) {
     const [format, setFormat] = useState<ExportFormat>("pdf");
     const [viewId, setViewId] = useState<string>("demo-view-001");
-    const [job, setJob] = useState<UnifiedKPI | null>(null);
+    const [job, setJob] = useState<ExportJob | null>(null);
     const [status, setStatus] = useState<ExportJobStatus | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);

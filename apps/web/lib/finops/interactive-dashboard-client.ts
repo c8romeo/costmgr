@@ -27,6 +27,7 @@ import type {
     DrillDownDimension,
     DrillDownGranularity,
     ExportFormat,
+    ExportJob,
     KPIRefreshCadence,
     SavedView,
     SharingGrant,
@@ -181,14 +182,14 @@ export interface StartExportJobInput {
 
 export async function startExportJob(
     input: StartExportJobInput
-): Promise<UnifiedKPI> {
-    return post<UnifiedKPI, StartExportJobInput>("/exports", input);
+): Promise<ExportJob> {
+    return post<ExportJob, StartExportJobInput>("/exports", input);
 }
 
 export async function getExportJobStatus(
     jobId: string
-): Promise<UnifiedKPI> {
-    return get<UnifiedKPI>(`/exports/${encodeURIComponent(jobId)}`);
+): Promise<ExportJob> {
+    return get<ExportJob>(`/exports/${encodeURIComponent(jobId)}`);
 }
 
 export interface ShareDashboardInput {

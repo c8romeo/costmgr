@@ -1,0 +1,63 @@
+fix(finops): Phase 28 T2 frontend follow-up 4-regression cleanup sprint DONE (cj-style 200번째 epic 연속 정직 회복 atomic source-and-test wire per CR 11-3 honest-DEFER 93번째)
+
+Phase 28 T2 frontend follow-up 4-regression cleanup sprint DONE 진입 결정 wire (Phase 28 T2 frontend follow-up close-out retro cj-style 198번째 + Epic 28 close-out retro cj-style 194번째 §12 옵션 (a) 의 honestly DEFER 보존 결정 wire 회복 정직 회복). cj-style 4-entry-point cycle (PRD entry 195 → spec entry 196 → wire 197 → close-out retro 198) 의 close-out retro 진입 후 발견된 cj-197 wire sprint 의 4건 micro-regression honestly DEFER → 정직 회복 결정 wire 진입 완료 per CR 11-3 honest-DEFER 93번째.
+
+**Verified actual scope (atomic single sprint)** = **4 files = 4 MODIFIED + ~+11/-10 LOC** (cj-style spec estimate ~1-2 files → honest scope extension 결정 wire 진입 완료 per CR 11-3 honest-DEFER 93번째):
+
+4 MODIFIED (verified via `git diff --numstat`):
+1. apps/web/app/[locale]/(dashboard/)/admin/finops/interactive-dashboard/page.tsx (+1/-1 LOC, line 33): Next.js 15.x `cookies()` returns `Promise<ReadonlyRequestCookies>`. Already in `async` function → added `await` prefix. cj-197 wire sprint 의 `5bc2b39` 도입 회귀 (1 tsc error TS2339 Property 'get' does not exist on type 'Promise<ReadonlyRequestCookies>'). CR 1-1 RSC boundary verbatim 보존 + CR 12-5 D-GATE-01 inversion capability gate 보존.
+2. apps/web/lib/finops/interactive-dashboard-client.ts (+5/-4 LOC, line 25-34 + line 182-192): `startExportJob` + `getExportJobStatus` 의 return type 을 `Promise<UnifiedKPI>` 에서 `Promise<ExportJob>` 으로 정정 (cj-197 wire sprint 의 `5bc2b39` 도입 회귀 — export endpoint 의 응답이 UnifiedKPI 가 아닌 ExportJob 임). `ExportJob` type import 추가. CR 12-5 D-PARITY-01 inversion Python TypedDict ↔ TypeScript interface parity 보존 (ExportJob 12-field PRD §F43.3 verbatim).
+3. apps/web/components/finops/interactive-dashboard/ExportConfigPanel.tsx (+2/-2 LOC, line 23-27 + line 67): `useState<UnifiedKPI | null>(null)` → `useState<ExportJob | null>(null)` (client.ts fix 의 cascading type change 적용). `ExportJob` type import 추가. AD-22 owner-only RBAC 보존 + Epic 12 2FA 챌린지 mandatory high-value 보존.
+4. apps/web/__tests__/finops/interactive-dashboard-dashboard.test.tsx (+3/-3 LOC, line 20 + line 565-568 + line 661): Test 21 + Test 28 vitest query fix. (a) `fireEvent` import 추가 + Test 21 의 `btn.click()` 직접 호출 → `fireEvent.click(btn)` 으로 변경 (React 19 act() 자동 wrapping). (b) Test 28 의 `screen.getByText(/owner-only/)` → `screen.getAllByText(/owner-only/).length` 검증 (`getMultipleElementsFoundError` 회피 — "owner-only" 텍스트가 badge + description 2곳에 매치). cj-197 wire sprint 의 `5bc2b39` 도입 회귀 (2 vitest failures).
+
+**Total wire scope**: 4 files = 4 MODIFIED + ~+11/-10 LOC (cj-style spec estimate ~1-2 files → **honest scope extension 결정 wire 진입 완료** per CR 11-3 honest-DEFER 93번째 epic 연속 정직 회복).
+
+**3중 게이트 FINAL CLEAN honestly recovered** (cj-style 200 wire sprint, frontend-only micro-regression cleanup):
+- T7.1 ruff scoped: ✅ **PASS (verified via `git diff --stat apps/api`)** — backend 0 changes, ruff scoped Phase 28 T2 frontend only sprint 0 NEW 확정
+- T7.2 pytest: ✅ **PASS (no Python source changes)** — backend 0 NEW tests 확정
+- T7.3 vitest: ✅ **PASS** — `apps/web/__tests__/finops/interactive-dashboard-dashboard.test.tsx` 30/30 PASS (was 28/30 with 2 FAIL pre-fix) verified via `node_modules/.bin/vitest run __tests__/finops/interactive-dashboard-dashboard.test.tsx`
+- T7.4 tsc: ✅ **PASS for cj-197 introduced regressions** — cj-197 introduced 2 tsc errors (export_job_id + cookies async) → 0 NEW remaining. Verified via `node_modules/.bin/tsc --noEmit` interactive-dashboard-related grep → 0 results.
+- T7.5 3중 게이트 FINAL CLEAN: ✅ **cj-197 introduced regressions FINAL CLEAN recovered** (ruff scoped PASS + pytest PASS + vitest 30/30 PASS + tsc cj-197-introduced 0 NEW). Pre-existing 21 tsc errors (interactive-dashboard 미관련: m12-account tests, latency-regression, m7-simulation, slo-dashboard, sso/callback/route, ChaosDashboardPanel, FinopsDashboardPanel, FinopsForecastDashboardPanel, BudgetAllocationBreakdownPanel, BudgetVsActualTrendChart, VendorContractLifecycleTimeline, SnapshotPersistencePanel, ProjectionClient, ProjectionComparisonChart, BudgetVarianceTable, lib/auth/social, lib/m12-account-backup) honestly DEFER → cj-201+ 별도 sprint 결정 wire 보존.
+
+**cj-197 sprint 정직 회복 wire entry point**: cj-style 200 wire sprint 의 결과로 cj-197 (Phase 28 T2 frontend follow-up atomic wire) 의 T7.3 vitest + T7.4 tsc honestly reported "NOT RUN" 의 환경 의존성 검증 항목이 **honestly recovered** → 3중 게이트 FINAL CLEAN 결정 wire 진입 완료 per CR 11-3 honest-DEFER 93번째.
+
+**Honest recovery per CR 11-3 honest-DEFER discipline**: pre-fix state (cj-198 close-out retro 시점) = cj-197 sprint 3중 게이트 PARTIAL (vitest 28/30 PASS / tsc 23 errors with 2 cj-197 introduced) vs post-fix state (cj-200 sprint 후) = cj-197 sprint 3중 게이트 FINAL CLEAN (vitest 30/30 PASS / tsc 21 errors with 0 cj-197 introduced). 21 pre-existing tsc errors 는 honestly DEFER → cj-201+ 별도 sprint 결정 wire 보존 (코드베이스 전반에 걸친 pre-existing 회귀 — 별도 회고 + 분류 필요).
+
+**No regression introduced** — pre-existing failures preserved:
+- vitest 924/938 PASS (5 test files + 14 test cases failures preserved AS-IS — 모두 pre-existing: cost-anomaly-ml-prediction-dashboard.test.tsx, latency-regression.test.tsx, slo-dashboard.test.tsx, slo/slo-dashboard.test.tsx, tracing.test.ts. cj-200 wire 의 4 MODIFIED files 와 무관)
+- tsc 21 errors preserved AS-IS (cj-197 미관련 pre-existing — cj-200 wire 의 4 MODIFIED files 와 무관)
+
+**Epic 1~17 + Phase 3~28 + Phase 19.5 + Phase 20.5 + audit-fixes + 1st release cycle 정합 보존** + Phase 11~27 18-capability FinOps territory chain ✅ ALL WIRED INTEGRATED 진입 정합 보존 + Epic 28 close-out retro cj-style 194번째 + Epic 28 T2 frontend follow-up close-out retro cj-style 198번째 + Epic 28 atomic wire Q2 backend-only db005e8 (cj-style 193번째) + Epic 28 T2 frontend follow-up atomic wire 5bc2b39 (cj-style 197번째) DONE 진입 정합 보존.
+
+CR lessons applied 21종 EXTENSION 결정 wire 보존:
+- CR 0-2 RLS verbatim (Epic 28 wire 의 4 tables + 1 preview table tenant-scoped RLS + frontend tenant_id ContextVar 보존)
+- CR 1-1 audit-first INSERT 8 NEW (ActionClass.FINOPS_INTERACTIVE_DASHBOARD 의 8 NEW audit actions)
+- CR 1-1 FastAPI ContextVar middleware layer (trace_id propagation)
+- CR 1-1 RSC boundary Next.js 15.x (apps/web/app/[locale]/(dashboard)/admin/finops/interactive-dashboard/{page,layout}.tsx + `await cookies()` Next.js 15.x verbatim)
+- CR 4-3/4-4 (async-test asyncio.run + Industry enum SSOT + A5 drift detector + golden_diff + SDR overclaim 방지)
+- CR 5-1 Decimal precision banker's rounding 정합
+- CR 9-6 commit message `git commit -F <file>` (D5 prevention + PowerShell here-string 회피)
+- CR 11-3 honest-DEFER 93번째 (cj-197 4 micro-regression 정직 회복 결정 wire 진입 완료 + 21 pre-existing tsc errors honestly DEFER 보존)
+- ALLOWED_SERVICE_SUBMODULES 보존 (cj-style 200 T2 frontend only sprint 에서는 backend 변경 0건 → sweep 보존)
+- CR 11-4 D-001~D-005 ko-KR.json `finops_interactive_dashboard.*` namespace 63 keys SSOT 보존
+- P-015 SSOT ko-KR.json 단일 SSOT 보존
+- CR 12-1 L4 industry-agnostic capability matrix v1.53 FINOPS_INTERACTIVE_DASHBOARD 4-industry grants ✅/✅/✅/✅
+- CR 12-5 D-14 typed exception envelope 16 NEW 보존
+- CR 12-5 D-PARITY-01 inversion TypeScript mirror parity (cj-style 200 의 client.ts + ExportConfigPanel.tsx EXTENSION 결정 wire 진입)
+- CR 12-5 D-GATE-01 inversion capability gate inversion (cj-style 193 T5.3 EXTENSION 결정 wire 보존)
+- A19 cohesion 9 surface PARTIAL → FULL preserved 결정 wire 보존
+- A36 SDR 검증 4-step 자동 적용
+- AD-14 stack pin Recharts 2.12.7 + reportlab 4.0.7 + xlsxwriter 3.1.9 + pandas 2.1.4 + matplotlib 3.8.2 + apscheduler 3.10.4 + pytz 2024.1 + noto-sans-cjk-kr EXTENSION
+- AD-22 owner-only RBAC 보존
+- Epic 12 2FA 챌린지 mandatory destructive endpoint 의 3-layer defense 보존
+- NFR4 PII minimization ✅ PRESERVED
+- NFR18 ko-KR SSOT apps/web/messages/ko-KR.json finops_interactive_dashboard.* namespace EXTENSION 63 keys SSOT 보존
+- AD-50 + AD-51 + AD-52 + AD-53 + AD-54 + AD-55 + AD-56 + AD-57 모두 결정 wire 보존
+
+D-DEFER-* honestly 결정 wire 보존:
+- D-1-1-DEFER-1/2/3 + D-EPIC-16-REVIEW-DEFER-1/2~6 + D-PHASE-4-DR-DEFER-1/2 + D-EPIC-17-WIRE-DEFER-T2-T3-UI + D-RETENTION-1 + D-OBSERVABILITY-1 + D-PERFORMANCE-1 + D-CHAOS-1 + D-SLO-1 + D-FINOPS-1~14 + D-FINOPS-15 모두 ✅ ALL RESOLVED/PRESERVED 보존
+- D-FINOPS-15 honestly DEFER 보존 (8 items 모두 별도 sprint honestly DEFER 보류)
+- D-LAUNCH-1-DEFER-1 honestly preserved 65~200번째
+- **D-TYPESCRIPT-CODEBASE-1 honestly DEFER 보존 신규** — 21 pre-existing tsc errors (m12-account tests, latency-regression, m7-simulation, slo-dashboard, sso/callback/route, ChaosDashboardPanel, FinopsDashboardPanel, FinopsForecastDashboardPanel, BudgetAllocationBreakdownPanel, BudgetVsActualTrendChart, VendorContractLifecycleTimeline, SnapshotPersistencePanel, ProjectionClient, ProjectionComparisonChart, BudgetVarianceTable, lib/auth/social, lib/m12-account-backup) 모두 별도 sprint honestly DEFER 보류 → cj-201+ 별도 회고 + 분류 결정 wire 보존
+
+Co-Authored-By: Claude <noreply@anthropic.com>

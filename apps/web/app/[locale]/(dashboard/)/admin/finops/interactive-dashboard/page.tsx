@@ -30,7 +30,7 @@ export default async function InteractiveDashboardPage({
     params,
     searchParams,
 }: PageProps) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get("access_token")?.value;
     if (!accessToken) {
         redirect(`/${params.locale}/login`);
