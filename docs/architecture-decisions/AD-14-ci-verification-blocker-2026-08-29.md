@@ -5,6 +5,8 @@
 **Baseline commit**: 9d59712 (cj-209 AD-14 install stage + tsc drift detector EXTENSION)
 **cj-211 RESOLVED commit**: b32e2ab 의 다음 sprint (atomic source-and-docs wire)
 **Status**: ✅ **cj-211 RESOLVED** — D-CI-SHA-1 verbatim SHA swap source fix 결정 wire 완료 (verification cycle 의 setup blocker 해소). Actual CI run trigger → downstream jobs trigger 의 live verification 은 다음 push 후 결정 wire 보존 (trigger surface `branches: [main]` EXTENSION 은 cj-211 scope 외, 별도 follow-up).
+
+**Status update (cj-style 212 EXTENSION)**: ✅ **cj-212 RESOLVED** — trigger surface EXTENSION 결정 wire 완료. `/.github/workflows/ci.yml` 의 `on:` definition 을 `main` + `9-3-*` + `story-*` working branch patterns + `workflow_dispatch:` manual trigger 로 확장 결정 wire 보존. 본 cj-211 의 source-side fix (15 line SHA swap) 후 live CI run trigger cycle 의 verification 가능 surface 회복 결정 wire — `9-3-dev-2026-08-17` working branch 의 다음 push 부터 자동 trigger, manual verification 도 `workflow_dispatch:` 로 가능. cj-210 blocker A (`branches: [main]` 으로 인한 non-main branch push 미 trigger) + cj-210 blocker B (setup job unresolvable action SHA) 양쪽 모두 해소. CR 11-3 honest-DEFER 105번째 epic 연속 정직 회복 결정 wire.
 **Cross-references**:
 - [[AD-14-stack-pin-policy]] §Detection Surface — cj-210 row + cj-211 RESOLVED row EXTENSION
 - `handoff-2026-08-29-cj-210-ci-stack-pin-check-verification-blocked.md` (cj-210 handoff)
@@ -200,8 +202,8 @@ verification 의 의도 자체를 본 sprint 에서 만족 못하므로 추가 s
 | Defer ID | Status | Owner | Resolution Sprint |
 |---|---|---|---|
 | **D-CI-SHA-1** (NEW, cj-210 관찰) | ✅ **RESOLVED (cj-style 211th)** | kjw | cj-211 source sprint — verbatim v4.2.x SHA swap 결정 wire |
-| CI workflow 의 `branches: [main]` trigger surface | honestly preserved | kjw | 별도 follow-up 결정 wire (cj-211 scope 외) |
-| stack-pin-check FULL functional 실측 verification (cj-209→cj-210→cj-211) | honestly preserved → 결정 wire 보존 | kjw | D-CI-SHA-1 RESOLVED + trigger surface follow-up 후 live CI run trigger |
+| CI workflow 의 `branches: [main]` trigger surface | ✅ **RESOLVED (cj-style 212th)** | kjw | cj-212 source sprint — `main` + `9-3-*` + `story-*` + `workflow_dispatch:` EXTENSION 결정 wire |
+| stack-pin-check FULL functional 실측 verification (cj-209→cj-210→cj-211→cj-212) | honestly preserved → 결정 wire 보존 | kjw | D-CI-SHA-1 RESOLVED (cj-211) + trigger surface EXTENSION (cj-212) 후 live CI run 자동 trigger cycle 회복 |
 
 ## 8. 결정 wire 일자
 

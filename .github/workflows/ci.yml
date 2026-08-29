@@ -1,10 +1,33 @@
 name: ci
 
+# Trigger surface (cj-style 212 EXTENSION):
+# - push / pull_request on `main` (legacy canonical branch — verbatim preserved)
+# - push / pull_request on `9-3-*` (cj-style working branches, current epic
+#   territory — cj-209 → cj-210 → cj-211 → cj-212 recovery chain 의 working
+#   surface)
+# - push / pull_request on `story-*` (story development branches)
+# - workflow_dispatch (manual trigger for explicit verification — defensive
+#   fallback)
+#
+# Rationale (cj-212 결정 wire):
+# cj-209 PARTIAL → cj-210 BLOCKED (ci.yml setup SHA unresolvable) → cj-211
+# SHA fix RESOLVED 결정 wire 보존. cj-211 의 source-side fix 후 live CI
+# run trigger → setup recovery → downstream jobs trigger cycle 의
+# verification 을 가능케 하려면 trigger surface 자체가 working branch 에서
+# trigger 되어야 함. cj-210 blocker A (`branches: [main]` 으로 인한
+# non-main branch push 미 trigger) 해소 결정 wire.
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - '9-3-*'
+      - 'story-*'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - '9-3-*'
+      - 'story-*'
+  workflow_dispatch:
 
 # CI-3 (CR 2026-07-25): do NOT cancel in-progress on PR builds — the
 # stack-pin-check must complete to record drift annotations. On push to

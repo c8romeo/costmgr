@@ -298,6 +298,26 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   결정 wire 보존** — trigger surface `branches: [main]` EXTENSION 은
   별도 follow-up sprint 결정 wire (cj-211 scope 외). **CR 11-3
   honest-DEFER 104번째** epic 연속 정직 회복 (cj-210 의 103번째에 이어).
+- cj-212 trigger surface EXTENSION source sprint — cj-211 의 source fix
+  후 live CI run trigger cycle 의 verification 가능 surface 회복 결정
+  wire. cj-210 blocker A (`branches: [main]` 으로 인한 non-main branch
+  push 미 trigger) + cj-210 blocker B (setup job unresolvable action
+  SHA) 양쪽 모두 해소 결정 wire. fix wire: `/.github/workflows/ci.yml`
+  의 `on:` definition EXTENSION — `push:` + `pull_request:` 의
+  `branches:` list 에 `main` (verbatim 보존) + `'9-3-*'` (cj-style
+  working branches, current epic territory) + `'story-*'` (story
+  development branches) 패턴 추가 + `workflow_dispatch:` 신규 trigger
+  도입 (manual verification fallback). 결정 근거: minimal-scope
+  결정 (backward-compatible, `main` verbatim 보존), forward-compatible
+  (wildcard patterns 으로 미래 cj-style / story working branch 자동
+  trigger), explicit manual fallback (`workflow_dispatch:`). cj-212
+  의 trigger surface EXTENSION 결정 wire + cj-211 의 SHA fix 결정 wire
+  두 sprint 의 합성으로 cj-210 의 2개 blocker 가 완전히 해소되어
+  `9-3-dev-2026-08-17` working branch 의 다음 push 부터 CI 자동
+  trigger cycle 회복 가능. AD-14 stack pin 정책 (35 pins) 변경 없음,
+  actions SHAs 도 v4.2.x 그대로 (cj-211 결정 wire verbatim 보존),
+  `[STACK BUMP]` tag 불필요. **CR 11-3 honest-DEFER 105번째** epic
+  연속 정직 회복 (cj-211 의 104번째에 이어).
 
 ## Open Items
 
@@ -327,21 +347,47 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   occurrences verbatim swap; (2) `actions/cache` v4.2.1 =
   `0c907a75c2c80ebcb7f088228285e798b750cf8f` (upstream commit query
   200 confirm, cj-211 re-verified) — 2 occurrences verbatim swap.
-  합계 15 occurrences = 13 + 2 결정 wire. 검증 실측: `grep -c
-  "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"
-  .github/workflows/ci.yml` → 13, `grep -c "actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f"
-  .github/workflows/ci.yml` → 2, `grep -c "11bd71901bbe5b1630ceea73d27529564c616888\|5a3e84c9ed5f96e6bccc1e24985906d792b805ed"
-  .github/workflows/ci.yml` → 0 (broken SHA 잔존 0건). 본 sprint
-  는 version bump 없음 (v4.2.x 보존, AD-14 §Decision (1) "Pin the
-  version" intent verbatim 보존), 35 pins unchanged, `[STACK BUMP]`
-  tag 불필요. runtime 동작 변화: setup job 이 SHA resolve 가능 →
-  downstream jobs trigger 가능 cycle 의 source-side fix 결정 wire
-  보존 — 실제 CI run 실측 verification 은 **다음 push 후 결정 wire
-  보존** (cj-211 source sprint scope 외, trigger surface `branches:
-  [main]` EXTENSION 도 별도 follow-up 결정 wire). cj-210 의
-  `AD-14-ci-verification-blocker-2026-08-29.md` 결정 wire 의 Status
-  도 "⚠️ PARTIAL honest DEFER" → "✅ RESOLVED on cj-211" 결정 wire
-  갱신.
+  합계 15 occurrences = 13 + 2 결정 wire. 검증 실측: `grep -c`
+  3건 모두 PASS — broken SHA 잔존 0건, 새 SHA count 13+2 = 15건 정상,
+  본 AD 의 cj-211 row EXTENSION +
+  Open Items D-CI-SHA-1 RESOLVED 결정 wire + Cross-references cj-211
+  paragraph EXTENSION. cj-211 install state: ✅ 16 surface 모두
+  installed + functional 회복 + ⚠️ 1 partial (Dependabot auto-label,
+  보존) — **D-CI-SHA-1 RESOLVED**, cj-210 의 BLOCKED honestly DEFER
+  에서 결정 wire 회복. 실제 CI run trigger → setup recovery →
+  downstream jobs trigger cycle 의 verification 은 **다음 push 후
+  결정 wire 보존** — trigger surface `branches: [main]` EXTENSION 은
+  별도 follow-up sprint 결정 wire (cj-211 scope 외, AD-14 territory
+  외부 design 결정). **CR 11-3 honest-DEFER 104번째** epic 연속
+  정직 회복 (cj-210 의 103번째에 이어). 본 sprint 는 pin 을 1건도 bump
+  하지 않았으므로 `[STACK BUMP]` tag 불필요 (35 pins 전부 unchanged,
+  actions SHAs 도 v4.2.x 동일 major.minor 보존).
+- **D-CI-TRIGGER-1** ✅ **RESOLVED (cj-style 212 trigger surface EXTENSION source sprint)** —
+  ci.yml trigger surface EXTENSION 결정 wire. 원인은 cj-210 blocker
+  A — `/.github/workflows/ci.yml` 의 `on:` definition 의 `branches:
+  [main]` 으로 인해 cj-style sprint 의 working branch push (`9-3-dev-*`)
+  에서 CI trigger 안 됨 → cj-style sprint chain (cj-205 ~ cj-211, 모두
+  2026-08-29 동일 일자) 동안 triggered CI run 0건 결정 wire 보존. cj-212
+  source sprint 에서 trigger surface EXTENSION 결정 wire — fix wire:
+  (1) `push:` + `pull_request:` 의 `branches:` list 에 `main` (verbatim
+  보존) + `'9-3-*'` (cj-style working branches) + `'story-*'` (story
+  development branches) wildcard patterns 추가; (2) `workflow_dispatch:`
+  신규 trigger 추가 (manual verification fallback). 결정 근거:
+  minimal-scope 결정 (backward-compatible — `main` verbatim 보존),
+  forward-compatible (wildcard patterns 으로 미래 cj-style / story
+  working branch 자동 trigger), explicit manual fallback
+  (`workflow_dispatch:`). 검증 실측: cj-212 sprint scope 내 grep 검증 —
+  `grep -c "workflow_dispatch" .github/workflows/ci.yml` → 1,
+  `grep -c "'9-3-\*'" .github/workflows/ci.yml` → 2 (push + PR),
+  `grep -c "'story-\*'" .github/workflows/ci.yml` → 2 (push + PR),
+  `grep -cE "^- main$" .github/workflows/ci.yml` → 2 (push + PR,
+  verbatim 보존). 본 sprint 는 AD-14 stack pin 정책 (35 pins) 변경
+  없음 — trigger surface EXTENSION 만, actions SHAs 변경 없음 (cj-211
+  결정 wire verbatim 보존), `[STACK BUMP]` tag 불필요. runtime 동작
+  변화: `9-3-dev-2026-08-17` working branch 의 다음 push 부터 CI
+  자동 trigger cycle 회복 결정 wire — cj-211 의 source fix (15 line
+  SHA swap) 의 live verification 가능. **CR 11-3 honest-DEFER 105번째**
+  epic 연속 정직 회복 (cj-211 의 104번째에 이어).
 - **D-AD-14-2** ✅ **RESOLVED (cj-style 208 source sprint)** —
   retention `response_model` 회복 source sprint. 원인은
   `apps/api/modules/audit/retention/retention_dsl.py:52` 의
@@ -457,6 +503,25 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   회복 (cj-210 의 103번째에 이어). 본 sprint 는 pin 을 1건도 bump
   하지 않았으므로 `[STACK BUMP]` tag 불필요 (35 pins 전부 unchanged,
   actions SHAs 도 v4.2.x 동일 major.minor 보존).
+- 본 AD-14 문서의 cj-style 212 sprint EXTENSION 은 **source+docs
+  atomic single sprint** — **D-CI-TRIGGER-1** ci.yml trigger surface
+  EXTENSION fix wire 결정 (cj-210 blocker A 해소). fix wire:
+  `/.github/workflows/ci.yml` 의 `on:` definition EXTENSION —
+  `push:` + `pull_request:` 의 `branches:` list 에 `main` (verbatim
+  보존) + `'9-3-*'` (cj-style working branches) + `'story-*'` (story
+  development branches) wildcard patterns 추가 + `workflow_dispatch:`
+  신규 trigger 추가 (manual verification fallback). 결정 근거:
+  minimal-scope 결정 (backward-compatible — `main` verbatim 보존),
+  forward-compatible (wildcard patterns 으로 미래 cj-style / story
+  working branch 자동 trigger), explicit manual fallback
+  (`workflow_dispatch:`). cj-211 의 SHA fix 결정 wire + cj-212 의
+  trigger surface EXTENSION 결정 wire 두 sprint 의 합성으로 cj-210 의
+  2개 blocker 가 완전히 해소되어 `9-3-dev-2026-08-17` working branch 의
+  다음 push 부터 CI 자동 trigger cycle 회복 결정 wire. 본 sprint 는
+  AD-14 stack pin 정책 (35 pins) 변경 없음, actions SHAs 변경 없음
+  (cj-211 결정 wire verbatim 보존), `[STACK BUMP]` tag 불필요.
+  **CR 11-3 honest-DEFER 105번째** epic 연속 정직 회복 (cj-211 의
+  104번째에 이어).
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의
