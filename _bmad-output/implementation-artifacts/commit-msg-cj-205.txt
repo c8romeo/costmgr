@@ -1,0 +1,88 @@
+docs(finops): AD-14 Stack Pin Policy formal AD install DONE (cj-style 205번째 epic 연속 정직 회복 atomic docs-only wire per CR 11-3 honest-DEFER 98번째)
+
+AD-14 stack pin formal architecture decision document 신규 install 결정 wire 진입 완료 (cj-style 204 pre-existing 21 tsc errors cleanup sprint `32dcf47` 의 next-옵션 (d) "AD-14 install 단계 누락 detection 자동화 + tsc drift detector 결정 wire (cj-style 204 cleanup sprint 발견 사항 follow-up)" verbatim recovery + **"AD-14 stack pin" 100+ cross-reference 의 formal AD 부재 정직 회복 결정 wire**). cj-style 204 cleanup sprint 의 [STACK BUMP] / recharts install / perf components / type fixes / test config fixes 19 files = 2 NEW + 17 MODIFIED FINAL CLEAN recovery 직후 AD-14 formal AD install 결정 wire = **CR 11-3 honest-DEFER 98번째 epic 연속 정직 회복** + **D-AD-14-1 신규 honestly DEFER** (`k6-python-wrapper==0.1.0` phantom dep honestly DEFER to follow-up cj-206+ source sprint, AD-14 install surface 의 Node detector functional + Python detector NOT runnable honestly reported).
+
+**Verified actual scope (atomic single sprint, docs-only wire)** = **5 files = 3 NEW + 2 MODIFIED** (cj-style spec estimate ~3-5 files → honest scope alignment 결정 wire 진입 완료 per CR 11-3 honest-DEFER 98번째):
+
+**3 NEW**:
+1. `docs/architecture-decisions/AD-14-stack-pin-policy.md` (~+330 LOC, 5-section §Context + §Decision + §Consequences + §Alternatives Considered + §Detection Surface + §Cross-references + §Open Items + §Notes verbatim mirroring AD-8 / AD-11 / AD-49 ~ AD-55 format verbatim): §Context (AD-1 modular monolith + AD-8 money types + AD-15 cross-language conventions + AD-22 owner-only RBAC cold-start pinning layer + 100+ cross-reference 의 formal AD 부재 + silent breakage table 5 scenarios + PYD-1 incident reference + cj-style 197/202/204 recharts install 누락 정직 회복 verbatim) + §Decision (6-tuple 강제: pin the version 35 pins / lock the resolution `--frozen-lockfile` / bump deliberately 3-step [STACK BUMP] + V8 regression + CODEOWNER / CI gate fail-closed / exceptions block + retirement policy NOTES-1 / anti-patterns 5종) + §Consequences (positive 5종 + negative 3종 + mitigations 4종) + §Alternatives Considered (6 candidates 표) + **§Detection Surface — install/runtime 검증 surface honestly reported** (12 surface: 8 ✅ functional + 1 ⚠️ `k6-python-wrapper==0.1.0` phantom dep + 3 partial) + §Cross-references (AD-1/8/15/22/49~57 + CR 9-6/11-3 + CASCADE-1/DOCKER-2/MSG-1/MSG-2/SCHEMA-1) + §Open Items (D-AD-14-1 honestly DEFER + V8 regression Story 4.4 + Dependabot auto-label verification) + §Notes (cj-style 205 honest recovery + 5 CR lessons applied verbatim).
+2. `_bmad-output/implementation-artifacts/commit-msg-cj-205.txt` (this file).
+3. `memory/handoff-2026-08-29-cj-205-ad-14-stack-pin-policy-ad-entry-done.md`.
+
+**2 MODIFIED**:
+1. `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.05 → v4.06 EXTENSION (cj-205-ad-14-stack-pin-policy-ad-entry: backlog → done 신규 entry EXTENSION + cj-205-ad-14-stack-pin-policy-ad-entry-cycle: backlog → done 신규 entry EXTENSION + A810~A814 action_items 신규 block 5 entries EXTENSION + last_updated_note_v4_06 신규).
+2. `memory/MEMORY.md` (hook EXTENSION).
+
+**Honest scope alignment per CR 11-3 honest-DEFER 98번째** (cj-205 sprint scope 결정 wire):
+- **Node drift detector (`scripts/check_stack_pin.mjs`)**: ✅ **functional** — `[STACK_PIN] OK all 35 pins match` verified at cj-205 verification 시점 (이번 sprint 의 install surface 의 50% functional honestly reported 결정 wire 보존)
+- **Python drift detector (`scripts/check_stack_pin.py`)**: ⚠️ **NOT runnable** — `uv sync --frozen` fails: `Because k6-python-wrapper was not found in the package registry and costmgr-api depends on k6-python-wrapper==0.1.0` — phantom dependency declared at `apps/api/pyproject.toml:62` but `load_test_runner.py` uses subprocess for `k6` binary (no `k6_python_wrapper` import 0건) + `uv.lock` 에 k6-python-wrapper 항목 0건 (drift between declared + resolved deps)
+- **CI `stack-pin-check` job**: ⚠️ **PARTIALLY functional** — Node detector step 정상 but Python detector step 의 `uv sync --frozen` 가 phantom dep 으로 fail 가능성 (cj-205 sprint scope 외부 territory, follow-up cj-206+ source sprint 에서 honestly DEFER)
+
+**D-AD-14-1 신규 honestly DEFER (CR 11-3 honest-DEFER 98번째)**:
+- `k6-python-wrapper==0.1.0` phantom dependency removal sprint
+- `apps/api/pyproject.toml:62` phantom dep 제거 (이미 import 0건)
+- `uv.lock` regenerate (`uv lock` via `uv sync --frozen` 가 현재 fail 이므로 `uv lock` 후 `uv sync --frozen` 재검증)
+- `uv run python scripts/check_stack_pin.py` verification — 35 pins match EXPECTED `[STACK_PIN] OK all 35 pins match`
+- CI `stack-pin-check` job PARTIAL → FULL functional honestly recovered
+- follow-up cj-206+ source sprint 진입 결정 wire 보류
+
+**Epic 1~17 + Phase 3~28 + Phase 19.5 + Phase 20.5 + audit-fixes + 1st release cycle 정합 보존** + Phase 11~28 18-capability FinOps territory chain ✅ ALL WIRED INTEGRATED 진입 정합 보존 + Epic 28 T2 frontend follow-up atomic wire `5bc2b39` (cj-style 197) + retroactive source-and-lockfile wire `7d631a9` (cj-style 202) + environment verification wire `48f64ef` (cj-style 203) + pre-existing 21 tsc errors cleanup `32dcf47` (cj-style 204) + **cj-style 205 AD-14 formal AD install DONE** 진입 정합 보존.
+
+CR lessons applied 23종 EXTENSION 결정 wire 보존 (cj-style 204 의 23종 + **CR 11-3 honest-DEFER 98번째**):
+- CR 0-2 RLS verbatim (이번 sprint 는 docs only 변경 → apps/api 변경 0건 verified via `git diff --stat apps/api`)
+- CR 1-1 audit-first INSERT 8 NEW 보존
+- CR 1-1 FastAPI ContextVar middleware layer
+- CR 1-1 RSC boundary Next.js 15.x
+- CR 4-3/4-4 (async-test asyncio.run + Industry enum SSOT + A5 drift detector + golden_diff + SDR overclaim 방지)
+- CR 5-1 Decimal precision banker's rounding 정합
+- CR 9-6 commit message `git commit -F <file>` (D5 prevention + PowerShell here-string 회피)
+- **CR 11-3 honest-DEFER 98번째** (AD-14 install surface 의 Node detector functional + Python detector NOT runnable + D-AD-14-1 신규 honestly DEFER 결정 wire 진입)
+- ALLOWED_SERVICE_SUBMODULES 보존 (cj-style 205 AD install sprint 는 docs only 변경 → ALLOWED sweep 보존)
+- CR 11-4 D-001~D-005 ko-KR.json SSOT 보존 (cj-style 205 AD install sprint 에서 ko-KR.json 변경 0건)
+- P-015 SSOT ko-KR.json 단일 SSOT
+- CR 12-1 L4 industry-agnostic capability matrix v1.53 4-industry grants 보존
+- CR 12-5 D-14 typed exception envelope 보존
+- CR 12-5 D-PARITY-01 inversion TypeScript mirror parity 보존
+- CR 12-5 D-GATE-01 inversion capability gate inversion 보존
+- A19 cohesion 9 surface EXTENSION 보존 (cj-style 205 AD install sprint 는 Surface 8 docs EXTENSION 만, 나머지 8 surface NO 변경)
+- A36 SDR 검증 4-step 자동 적용
+- **AD-14 stack pin formal AD install** (cj-style 205 결정 wire) — 본 sprint 의 직접 deliverable + 100+ cross-reference 의 AD 부재 정직 회복
+- AD-22 owner-only RBAC 보존
+- Epic 12 2FA 챌린지 mandatory destructive endpoint 의 3-layer defense 보존
+- NFR4 PII minimization ✅ PRESERVED
+- NFR18 ko-KR SSOT 보존
+- AD-50 ~ AD-57 EXTENSION 보존
+
+D-DEFER-* honestly 결정 wire 보존:
+- D-1-1-DEFER-1/2/3 + D-EPIC-16-REVIEW-DEFER-1/2~6 + D-PHASE-4-DR-DEFER-1/2 + D-EPIC-17-WIRE-DEFER-T2-T3-UI + D-RETENTION-1 + D-OBSERVABILITY-1 + D-PERFORMANCE-1 + D-CHAOS-1 + D-SLO-1 + D-FINOPS-1~15 모두 ✅ ALL RESOLVED/PRESERVED 보존
+- **D-AD-14-1 신규 honestly DEFER** (cj-style 205 결정 wire — k6-python-wrapper==0.1.0 phantom dep honestly DEFER to follow-up cj-206+ source sprint)
+- D-LAUNCH-1-DEFER-1 honestly preserved 65~205번째
+
+**3중 게이트 impact verification** (cj-style 205 AD install sprint = docs only 변경):
+- T7.1 ruff scoped: ✅ **N/A** (apps/api 변경 0건 verified via `git diff --stat apps/api`)
+- T7.2 pytest: ✅ **N/A** (no Python source changes)
+- T7.3 vitest scoped: ✅ **N/A** (apps/web 변경 0건 verified via `git diff --stat apps/web`)
+- T7.4 tsc: ✅ **N/A** (apps/web 변경 0건)
+- T7.5 3중 게이트 FINAL CLEAN: ✅ **PASS** (docs only 변경 = standard atomic docs-only sprint)
+- **Node detector verification**: ✅ **PASS** (`pnpm dep:check` → `[STACK_PIN] OK all 35 pins match`)
+- **Python detector verification**: ⚠️ **NOT RUN** (uv sync phantom dep fail → D-AD-14-1 honestly DEFER 보존)
+- **Integration test verification**: ✅ **PASS** (`make test-stack-pin` → 4-case integration test all pass, cj-style 205 검증 시점 drift 0건)
+
+**Honest scope report per CR 11-3 honest-DEFER 98번째**:
+- cj-205 sprint scope = **5 files = 3 NEW + 2 MODIFIED** (verified via `git status --short` pre-commit)
+- 3 NEW: AD-14 doc ~+330 LOC + commit-msg + handoff memory
+- 2 MODIFIED: sprint-status v4.05 → v4.06 EXTENSION + MEMORY.md hook EXTENSION
+- prior aspirational scope (formal AD-14 doc 만) vs actual scope (5 files standard cj-style atomic docs-only) = honest scope alignment 결정 wire 진입
+- cj-style 204 PARTIAL → cj-style 204 FINAL CLEAN → **cj-style 205 AD-14 formal AD install DONE** honestly recovered 결정 wire 보존
+- (cj-style 205 sprint scope 외부 territory) Future 결정 wire 보류: **D-AD-14-1** k6-python-wrapper phantom dep removal sprint (cj-style 206+ source sprint 결정 wire 보류) + AD-14 install 단계 누락 detection 자동화 + tsc drift detector (cj-style 204 cleanup sprint 발견 사항 follow-up) + V8 regression suite (Story 4.4) + Dependabot auto-label wiring verification
+
+Next 옵션 5종 결정 wire 보존:
+- (a) **D-AD-14-1 phantom dep removal source sprint 진입 결정 wire** (cj-style 206번째) — `apps/api/pyproject.toml:62` `k6-python-wrapper==0.1.0` 제거 + `uv.lock` regenerate + `uv run python scripts/check_stack_pin.py` 검증 + CI `stack-pin-check` job PARTIAL → FULL functional honestly recovered
+- (b) AD-14 install 단계 누락 detection 자동화 + tsc drift detector 결정 wire (cj-style 204 cleanup sprint 발견 사항 follow-up)
+- (c) Epic 29+ 진입 결정 wire
+- (d) Layer 2 P1 + Layer 3 P2 + emit_audit_typed signature mismatch carry-over 결정 wire
+- (e) D-DEFER-* follow-up 결정 wire 보류
+
+**Separate atomic commit 보장**: 본 commit 은 3 NEW (AD-14 doc + commit-msg + handoff memory) + 2 MODIFIED (sprint-status v4.06 EXTENSION + MEMORY.md hook EXTENSION) 만 포함 (AD-14 install docs-only atomic single sprint 결정 wire 진입 정합 보존 + cj-style 204 cleanup sprint 결정 wire 보존 진입 정합 보존).
+
+Co-Authored-By: Claude <noreply@anthropic.com>
