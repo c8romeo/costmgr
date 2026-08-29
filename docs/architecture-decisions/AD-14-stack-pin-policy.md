@@ -213,23 +213,25 @@ retired candidate: 0건, 모든 exceptions 가 active deviation 상태).
 
 ## Detection Surface — install/runtime 검증 surface
 
-cj-style 205 sprint 의 install state honestly reported:
+cj-style 206 sprint 의 install state honestly reported (cj-205 최초
+report → cj-206 `D-AD-14-1` RESOLVED 반영):
 
 | Surface | State | Notes |
 |---|---|---|
-| `scripts/check_stack_pin.mjs` (Node detector) | ✅ **installed + functional** | `[STACK_PIN] OK all 35 pins match` (cj-205 검증) |
-| `scripts/check_stack_pin.py` (Python mirror) | ⚠️ **installed but NOT runnable in current env** | `uv sync --frozen` fails: `k6-python-wrapper==0.1.0 was not found in the package registry`. Phantom dependency declared at `apps/api/pyproject.toml:62` but `load_test_runner.py` uses subprocess for `k6` binary (not the Python wrapper). uv.lock 에 k6-python-wrapper 항목 0건 — drift between declared + resolved deps. **D-AD-14-1 honestly DEFER per CR 11-3** to follow-up cj-206+ source sprint. |
+| `scripts/check_stack_pin.mjs` (Node detector) | ✅ **installed + functional** | `[STACK_PIN] OK all 35 pins match` (cj-205 + cj-206 재검증) |
+| `scripts/check_stack_pin.py` (Python mirror) | ✅ **installed + functional (cj-206 회복)** | `uv run python scripts/check_stack_pin.py` → `[STACK_PIN] Exceptions tracked: 9` + `[STACK_PIN] OK all 35 pins match` (exit 0). cj-205 시점의 `k6-python-wrapper==0.1.0` phantom dep (`apps/api/pyproject.toml:62`) 이 `uv lock` resolution 을 unsatisfiable 로 만들어 NOT runnable 이었으나, cj-206 sprint 에서 phantom dep 제거 + `uv.lock` regenerate 로 회복. **D-AD-14-1 RESOLVED**. |
 | `scripts/regenerate_stack_pin.py` | ✅ installed + functional | derive STACK_PIN.yaml from ARCHITECTURE-SPINE.md §Stack |
 | `scripts/bump_stack_pin.sh` | ✅ installed + functional | auto `[STACK BUMP]` tag helper |
-| `tests/integration/test_stack_pin_check.py` | ✅ installed + functional | 4-case integration test (exit 0 on clean repo / exit 1 on drift / `[STACK BUMP]` authorizes / drift output reports package name) |
+| `tests/integration/test_stack_pin_check.py` | ✅ installed + functional | 9-case integration test all PASS (cj-206 재검증; exit 0 on clean repo / exit 1 on drift / `[STACK BUMP]` authorizes / drift output reports package name) |
 | `pnpm dep:check` (package.json) | ✅ wired | `node scripts/check_stack_pin.mjs` |
 | `pnpm test:stack-pin` (package.json) | ✅ wired | `uv run python scripts/check_stack_pin.py` |
 | `make dep-check` (Makefile) | ✅ wired | `pnpm dep:check + check_stack_pin` |
 | `make test-stack-pin` (Makefile) | ✅ wired | `$(PYTEST) tests/integration/test_stack_pin_check.py -v` |
-| CI `.github/workflows/ci.yml` `stack-pin-check` job | ✅ wired (lines 110-195) | Node + Python pin check + drift annotation + `stack-pin-violation` label |
+| CI `.github/workflows/ci.yml` `stack-pin-check` job | ✅ wired (lines 110-195) — **cj-206 PARTIAL → FULL** | Node + Python pin check + drift annotation + `stack-pin-violation` label. cj-205 시점에는 `Python pin check` step 의 `uv run` 이 phantom dep 으로 fail 했으나 (job 전체 red), cj-206 phantom dep 제거로 local 동일 명령 exit 0 회복. CI 실측은 다음 push 에서 확인 (local 검증만 수행 — honestly reported). |
 | CI Dependabot auto-label | ⚠️ partial — see `stack-pin` label docs | weekly npm + pip PRs |
 | `docs/STACK_PIN.md` + `docs/STACK_PIN.yaml` | ✅ installed + SSOT | hand-edit YAML only; MD is mirror |
-| `docs/architecture-decisions/AD-14-stack-pin-policy.md` | ✅ **cj-205 신규 install** | THIS document |
+| `docs/architecture-decisions/AD-14-stack-pin-policy.md` | ✅ **cj-205 신규 install** | THIS document (cj-206 Detection Surface + Open Items EXTENSION) |
+| `uv.lock` ↔ `apps/api/pyproject.toml` declared/resolved parity | ✅ **cj-206 회복** | cj-205 시점 lock 은 k6 뿐 아니라 lxml / opentelemetry 7종 / prometheus-client / pyyaml / python3-saml / jsonschema 도 미해결 상태 (`costmgr-api` requires-dist: lock 13 vs pyproject 25 — dev extra 포함). cj-206 `uv lock` 으로 +518 lines 추가 resolution — 기존 pin 은 1건도 변경되지 않음 (0 deletions). `uv lock --check` exit 0. |
 
 ## Cross-references
 
@@ -247,19 +249,39 @@ cj-style 205 sprint 의 install state honestly reported:
   tag commit 시 here-string 회피
 - CR 11-3 (honest-DEFER) — `exceptions:` 블록의 honest deviation +
   this AD-14 cj-205 sprint 의 `D-AD-14-1` (k6-python-wrapper phantom
-  dep) honestly DEFER
+  dep) honestly DEFER → **cj-206 source sprint 에서 RESOLVED** +
+  `D-AD-14-2` (retention `response_model` FastAPIError) 신규
+  honestly DEFER
 
 ## Open Items
 
-- **D-AD-14-1** (cj-style 205 honestly DEFER) — `k6-python-wrapper==0.1.0`
-  phantom dependency removal sprint. `apps/api/pyproject.toml:62`
-  선언되어 있으나 `apps/api/core/load_test_runner.py:1-30` 은
-  subprocess 로 `k6` binary 를 직접 invoke (`k6-python-wrapper`
-  import 0건). `uv.lock` 에도 k6-python-wrapper 항목 없음. follow-up
-  cj-206+ source sprint 에서 (1) `pyproject.toml` phantom dep 제거 +
-  (2) `uv.lock` regenerate + (3) `uv run python scripts/check_stack_pin.py`
-  검증. 현재 cj-205 본 sprint 의 install surface 는 Node detector 만
-  functional.
+- **D-AD-14-1** ✅ **RESOLVED (cj-style 206 source sprint)** —
+  `k6-python-wrapper==0.1.0` phantom dependency removal 완료.
+  cj-205 honestly DEFER 된 항목으로, `apps/api/pyproject.toml:62` 에
+  선언되어 있었으나 PyPI 에 존재하지 않는 패키지였고
+  `apps/api/core/load_test_runner.py` 는 stdlib `subprocess` 로 `k6`
+  binary 를 직접 invoke (`K6_BINARY` env override, `k6_python_wrapper`
+  import 0건). cj-206 에서 (1) `pyproject.toml` phantom dep 제거 +
+  (2) `uv lock` regenerate (+518 lines, 0 deletions) +
+  (3) `uv run python scripts/check_stack_pin.py` → **35 pins match,
+  exit 0** 검증 + (4) `uv sync --frozen` / `uv lock --check` exit 0.
+  runtime 동작 변화 0건 (제거된 패키지는 애초에 설치된 적이 없음).
+- **D-AD-14-2** (cj-style 206 신규 honestly DEFER per CR 11-3) —
+  `tests/architecture/test_api_calls_only_ports.py::
+  test_apps_api_has_no_unintended_dunder_imports_at_module_load` 가
+  **fastapi 가 설치된 환경에서 pre-existing FAIL**. 원인은
+  `apps/api/modules/audit/retention/retention_dsl.py:52` 의
+  `class RetentionPolicy(dict)` 를
+  `retention_routes.py:102` 가 `response_model=` 으로 사용 →
+  `fastapi.utils` `FastAPIError` (dict subclass 는 valid response
+  field 가 아님) at `apps.api.main` import time. 본 test 는 fastapi
+  미설치 환경에서 `pytest.skip` 하므로 CI (`uv sync --frozen` = root
+  dev group 15 packages only) 에서는 skip 되어 왔음 — cj-206 의
+  `uv sync --frozen --all-packages` 환경에서 처음 표면화.
+  **본 sprint 변경과 무관함이 `git stash` baseline 재현으로 증명됨**
+  (stash 상태에서도 동일 FAIL). follow-up cj-207+ source sprint 에서
+  `RetentionPolicy` 를 pydantic `BaseModel` 로 승격하거나
+  `response_model` 을 제거하는 결정 wire 필요.
 - **V8 regression suite (Story 4.4)** — 현재 `no tests ran` until
   Story 4.4 ships the fixtures. Setup 시 AD-14 §Bump policy §V8
   regression gate 활성화.
@@ -274,6 +296,14 @@ cj-style 205 sprint 의 install state honestly reported:
   functional state 의 honestly reported + Python detector 의
   honestly DEFER (`D-AD-14-1`) 결정 wire 보존. **CR 11-3
   honest-DEFER 98번째** epic 연속 정직 회복.
+- 본 AD-14 문서의 cj-style 206 sprint EXTENSION 은 **source+docs
+  atomic single sprint** — `D-AD-14-1` phantom dep 제거로 Python
+  detector 회복 (install surface 12 중 ✅ 10 + ⚠️ 1 partial
+  (Dependabot auto-label) + ⚠️ 1 신규 DEFER (`D-AD-14-2`, AD-14
+  territory 외부 source defect)). **CR 11-3 honest-DEFER 99번째**
+  epic 연속 정직 회복. 본 sprint 는 pin 을 1건도 bump 하지 않았으므로
+  `[STACK BUMP]` tag 불필요 (35 pins 전부 unchanged, `uv.lock` 은
+  additive resolution only).
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의

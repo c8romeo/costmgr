@@ -1,0 +1,33 @@
+fix(finops): D-AD-14-1 k6-python-wrapper phantom dep removal DONE (cj-style 206번째 epic 연속 정직 회복 atomic source-and-docs wire per CR 11-3 honest-DEFER 99번째)
+
+AD-14 Python drift detector 회복 결정 wire 진입 완료 (cj-style 205 AD-14 Stack Pin Policy formal AD install `2cb0027` 의 next-옵션 (a) "D-AD-14-1 phantom dep removal source sprint 진입 결정 wire (cj-style 206번째)" **verbatim recovery**). cj-205 가 honestly DEFER 한 `k6-python-wrapper==0.1.0` phantom dependency 를 다음 sprint 에서 즉시 회수 = **D-AD-14-1 ✅ RESOLVED** + **D-AD-14-2 신규 honestly DEFER** (`RetentionPolicy(dict)` response_model FastAPIError pre-existing FAIL — 본 sprint 변경과 무관함이 `git stash` baseline 재현으로 증명됨) = **CR 11-3 honest-DEFER 99번째 epic 연속 정직 회복**.
+
+**Verified actual scope (atomic single sprint, source-and-docs wire)** = **7 files = 2 NEW + 5 MODIFIED**:
+
+**2 NEW**:
+1. `_bmad-output/implementation-artifacts/commit-msg-cj-206.txt` (this file).
+2. `memory/handoff-2026-08-29-cj-206-d-ad-14-1-phantom-dep-removal-done.md`.
+
+**5 MODIFIED**:
+1. `apps/api/pyproject.toml` (6 insertions / 3 deletions) — line 62 `"k6-python-wrapper==0.1.0",` 제거 + Phase 8 주석 블록 정정. 기존 주석은 "The `k6` Python wrapper below provides subprocess orchestration for local dev + CI (load_test_runner.py)" 라고 서술했으나 **사실이 아님**: `apps/api/core/load_test_runner.py:65` 은 `K6_BINARY = os.environ.get("K6_BINARY", "k6")` 로 stdlib `subprocess` 를 통해 k6 binary 를 직접 invoke 하며, repo 전역 `k6_python_wrapper` import 는 0건 (grep 검증). 해당 패키지는 PyPI 에 존재하지 않아 애초에 설치된 적이 없으므로 **runtime 동작 변화 0건**. k6 binary 버전 pin 은 `.github/workflows/load-test.yml` 의 `apt-get install k6=0.45.0` 레벨에서 계속 강제 (AD-14 §Decision 불변).
+2. `uv.lock` (**518 insertions / 0 deletions**) — `uv lock` regenerate. **기존 pin 은 1건도 변경되지 않음** (deletions 0 = ruff 0.7.0 / pytest 9.1.1 / import-linter 2.13 / fastapi 0.139.2 / pydantic 2.11.9 / pydantic-core 2.33.2 / sqlalchemy 2.0.36 전부 불변 → RANGE-1 + PYD-1 보존, `[STACK BUMP]` tag 불필요). 추가 해결분은 cj-205 시점에 이미 pyproject 에 declared 였으나 lock 에는 resolved 되지 않았던 drift (`costmgr-api` requires-dist lock 13 → 25): lxml 6.1.2 + opentelemetry-{api,sdk,exporter-otlp-proto-http,instrumentation-{fastapi,sqlalchemy,httpx,asyncpg}} + prometheus-client 0.20.0 + pyyaml 6.0.2 + python3-saml 1.16.0 (+ xmlsec 1.3.17 transitive) + jsonschema 4.23.0 + 나머지 transitive → **k6 1건 뿐 아니라 declared/resolved parity 자체를 회복** (AD-14 §Decision (2) "lock the resolution" 의 실질 회복).
+3. `docs/architecture-decisions/AD-14-stack-pin-policy.md` — §Detection Surface (Python detector ⚠️ NOT runnable → ✅ functional + integration test 4-case → 9-case 실측 정정 + CI job PARTIAL → FULL 근거 명시 + `uv.lock` ↔ pyproject declared/resolved parity surface 1행 신규) + §Cross-references (CR 11-3 D-AD-14-1 RESOLVED + D-AD-14-2 신규) + §Open Items (D-AD-14-1 ✅ RESOLVED 상세 + **D-AD-14-2 신규 honestly DEFER**) + §Notes (cj-206 EXTENSION + `[STACK BUMP]` 불필요 근거).
+4. `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.06 → v4.07 EXTENSION (A815~A819 action_items 신규 block 5 entries + last_updated_note_v4_07 신규 + epic 14 action_items 의 D-AD-14-1 항목 open → done + D-AD-14-2 신규 open 1건).
+5. `memory/MEMORY.md` (hook EXTENSION).
+
+**검증 실측 — all local, honestly reported (CR 11-3)**:
+- **Python drift detector ✅ 회복** — `uv run python scripts/check_stack_pin.py` → `[STACK_PIN] Exceptions tracked: 9` + `[STACK_PIN] OK all 35 pins match`, **exit 0** (cj-205 의 `No solution found when resolving dependencies` NOT runnable 상태에서 회복 = **D-AD-14-1 RESOLVED**)
+- **Node drift detector ✅** — `node scripts/check_stack_pin.mjs` → `[STACK_PIN] OK all 35 pins match`, exit 0
+- **lock 무결성 ✅** — `uv lock` exit 0 + `uv lock --check` exit 0 + `uv sync --frozen` exit 0 + `uv sync --frozen --all-packages` exit 0 (xmlsec 1.3.17 포함 Windows 설치 성공)
+- **Integration test ✅** — `tests/integration/test_stack_pin_check.py` **9 passed**, exit 0
+- **3중 게이트 impact verification** (source 변경 = `pyproject.toml` + `uv.lock` only, `.py` 변경 0건): T7.1 ruff scoped N/A (`.py` 변경 0건 — 참고로 `ruff check apps/api` 전역 573 findings 는 전부 pre-existing, 본 sprint 무관) + T7.2 pytest ✅ `pytest tests/architecture tests/cost_engine` **586 passed / 1 skipped / 1 failed** (1 failed = **D-AD-14-2 pre-existing**) + T7.3 vitest scoped N/A (apps/web 변경 0건) + T7.4 tsc N/A (apps/web 변경 0건) + T7.5 FINAL CLEAN ✅ PASS (pre-existing 1건 honestly carry-over)
+- **CI `stack-pin-check` job** — local 에서 CI 와 동일한 명령 시퀀스 (`uv sync --frozen` → `uv run python scripts/check_stack_pin.py`) 가 exit 0 회복됨을 확인. **실제 CI run 실측은 다음 push 에서 확인 — PARTIAL → FULL 은 근거 기반 추정이며 실측 아님 (honestly reported, 과장 금지)**
+
+**D-AD-14-2 신규 honestly DEFER (CR 11-3 honest-DEFER 99번째)**:
+- `tests/architecture/test_api_calls_only_ports.py::test_apps_api_has_no_unintended_dunder_imports_at_module_load` 가 **fastapi 가 설치된 환경에서 pre-existing FAIL**
+- 원인: `apps/api/modules/audit/retention/retention_dsl.py:52` 의 `class RetentionPolicy(dict)` 를 `apps/api/modules/audit/retention/retention_routes.py:102` 가 `response_model=` 으로 사용 → `fastapi.utils` `FastAPIError` (dict subclass 는 valid response field 아님) at `apps.api.main` import time
+- 본 test 는 fastapi 미설치 환경에서 `pytest.skip` 하며, CI 의 `uv sync --frozen` 은 root dev group 15 packages 만 설치하므로 CI 에서는 skip 되어 표면화되지 않았음 — cj-206 의 `uv sync --frozen --all-packages` 환경에서 처음 표면화
+- **본 sprint 변경과 무관함 증명**: `git stash` 로 `pyproject.toml` + `uv.lock` 변경 제거 후 동일 test 재실행 → **동일 FAIL 재현** (baseline 에서도 FAIL)
+- follow-up cj-207+ source sprint 에서 `RetentionPolicy` 를 pydantic `BaseModel` 로 승격하거나 `response_model` 을 제거하는 결정 wire 필요
+
+**Epic 1~17 + Phase 3~28 + Phase 19.5 + Phase 20.5 + audit-fixes + 1st release cycle 정합 보존** + Phase 11~28 18-capability FinOps territory chain ✅ ALL WIRED INTEGRATED 진입 정합 보존 + Epic 28 T2 frontend follow-up atomic wire `5bc2b39` (cj-style 197) + retroactive source-and-lockfile wire `7d631a9` (cj-style 202) + environment verification wire `48f64ef` (cj-style 203) + pre-existing 21 tsc errors cleanup `32dcf47` (cj-style 204) + AD-14 formal AD install `2cb0027` (cj-style 205) + **cj-style 206 D-AD-14-1 phantom dep removal DONE** 진입 정합 보존.

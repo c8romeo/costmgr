@@ -57,9 +57,12 @@ dependencies = [
     # Phase 8 (cj-style 95번째 wire) — Performance/Load Testing territory
     # (PRD §F24). AD-14 stack pin — k6 binary version is enforced at the
     # GitHub Actions workflow level (.github/workflows/load-test.yml pins
-    # `apt-get install k6=0.45.0`). The `k6` Python wrapper below provides
-    # subprocess orchestration for local dev + CI (load_test_runner.py).
-    "k6-python-wrapper==0.1.0",
+    # `apt-get install k6=0.45.0`), NOT via a Python dependency.
+    # D-AD-14-1 (cj-style 206): `k6-python-wrapper==0.1.0` was declared here
+    # but never existed on PyPI and was never imported — `load_test_runner.py`
+    # invokes the `k6` binary via stdlib `subprocess` (K6_BINARY env override).
+    # The phantom pin made `uv lock` / `uv run` unsatisfiable, so the Python
+    # half of the AD-14 detector could not run. Removed; no runtime change.
     # tenant_settings.latency_budget JSONB override JSON-schema validation
     # (F24.3-7 — p99 latency budget per-tenant override).
     "jsonschema==4.23.0",
