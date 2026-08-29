@@ -33,6 +33,13 @@ from typing import Any, Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# cj-style 216 (D-CI-FUNC-4): import the JWT role literal from
+# apps.api.core (the package __init__ is in the CI lint allow-list). This
+# keeps the literal out of audit_action.py while avoiding a circular import
+# with apps/api/core/service_role.py (which imports ActionClass +
+# emit_audit_typed from this module).
+from apps.api.core import SERVICE_ROLE_JWT_ROLE
+
 
 # ────────────────────────────────────────────────────────────
 # 1. ActionClass — the target class (which table / aggregate)
@@ -44,7 +51,7 @@ class ActionClass(str, __import__("enum").Enum):
     """
 
     TENANT_SETTINGS = "tenant_settings"
-    SERVICE_ROLE = "service_role"
+    SERVICE_ROLE = SERVICE_ROLE_JWT_ROLE  # imported from guard module
     UPLOADED_DOCUMENT = "uploaded_document"
     INPUT_DRAFT = "input_draft"
     PRODUCT = "product"

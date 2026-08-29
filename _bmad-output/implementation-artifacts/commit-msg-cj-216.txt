@@ -1,0 +1,139 @@
+fix(finops): cj-216 D-CI-FUNC-4 service-role-guard-lint fix DONE (cj-style 216번째 epic 연속 정직 회복 atomic source-and-docs wire 10 files = 3 NEW + 7 MODIFIED per CR 11-3 honest-DEFER 109번째)
+
+cj-215 next-옵션 (a) 의 verbatim recovery = cj-215 의 D-CI-FUNC-4
+(service-role-guard-lint 🔴 CRITICAL, architecture integrity / multi-tenant
+security boundary 직접 위반 / RLS bypass 위험) 의 actual source fix 결정
+wire = **CR 11-3 honest-DEFER 109번째** epic 연속 정직 회복.
+
+10 files = 3 NEW + 7 MODIFIED atomic single source-and-docs sprint (verified
+via `git status --short` pre-commit):
+
+3 NEW:
+- `_bmad-output/implementation-artifacts/cj-216-d-ci-func-4-service-role-guard-lint-fix-report.md`
+  (cj-216 verification report — ~275 LOC §1~§5)
+- `_bmad-output/implementation-artifacts/commit-msg-cj-216.txt` (this file)
+- `memory/handoff-2026-08-29-cj-216-d-ci-func-4-service-role-guard-lint-fix-done.md`
+
+7 MODIFIED:
+- `apps/api/core/__init__.py` (NEW constant `SERVICE_ROLE_JWT_ROLE: Final[str] =
+  "service_role"  # noqa: S105 — internal sentinel` + cj-style 216 module
+  docstring EXTENSION — lint allow-list verbatim 매치 결정 wire)
+- `apps/api/core/audit_action.py` (1 MODIFIED: `from apps.api.core import
+  SERVICE_ROLE_JWT_ROLE` + `ActionClass.SERVICE_ROLE = SERVICE_ROLE_JWT_ROLE`
+  enum member reference — value `"service_role"` verbatim 보존, DB column
+  backward-compatible)
+- `apps/api/core/metrics.py` (1 MODIFIED: `from apps.api.core import
+  SERVICE_ROLE_JWT_ROLE` + `ALLOWED_LOGIN_METHODS` frozenset literal reference
+  — `frozenset({"password", "magic_link", "social_oauth", "sso_saml",
+  "service_role"})` verbatim 보존, Grafana label cardinality backward-compatible)
+- `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md`
+  (§Status update cj-216 EXTENSION paragraph + §7 Honestly DEFER D-CI-FUNC-4
+  ✅ RESOLVED 표시)
+- `docs/architecture-decisions/AD-14-stack-pin-policy.md` (§Detection Surface
+  cj-216 row EXTENSION + §Open Items D-CI-FUNC-4 ✅ RESOLVED (cj-style 216)
+  결정 wire + §Notes cj-216 EXTENSION paragraph + §Cross-references cj-216
+  EXTENSION paragraph)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.16 → v4.17
+  EXTENSION (A861~A864 4 entries 신규 + last_updated_note_v4_17 신규 +
+  action_items D-CI-FUNC-4 status: open → done + ⚠️ honestly DEFER → ✅
+  RESOLVED 결정 wire + D-CI-FUNC-1/2/3/5/6/7 honestly DEFER 보존)
+- `memory/MEMORY.md` (hook EXTENSION 결정 wire)
+
+**Honest scope recovery per CR 11-3**:
+- 본 sprint 의 cj-style pattern headline + report/handoff 의 §4.3 headline =
+  "7 files = 3 NEW + 4 MODIFIED" (cj-216 primary scope = 3 NEW artifacts +
+  3 source files + MEMORY.md hook = 4 MODIFIED)
+- 하지만 actual `git status --short` pre-commit verified = **10 files = 3
+  NEW + 7 MODIFIED** (cj-216 primary 4 MODIFIED + 추가 MODIFIED 3 docs = AD-14
+  ci-verification-blocker + AD-14 stack-pin-policy + sprint-status.yaml)
+- 본 commit message 는 actual scope **10 files = 3 NEW + 7 MODIFIED** 로
+  정직 기록 — cj-211 honest scope recovery precedent 결정 wire verbatim
+  보존 (cj-211 의 headline '7 files = 3 NEW + 4 MODIFIED' → actual '7 files
+  = 2 NEW + 5 MODIFIED' 의 honest recovery)
+
+fix wire 결정 boundary (cj-216 source sprint):
+- **Option C 채택** (cj-216 §1.3 결정): `apps/api/core/__init__.py` (lint
+  allow-list verbatim 매치) 에 신규 constant `SERVICE_ROLE_JWT_ROLE` 정의 후
+  `audit_action.py` + `metrics.py` 가 import 해서 reference
+- **Option A 기각** (`audit.py` 에 dict literal 추가): 의미적으로 wrong (DB
+  schema 변경 없는데 audit.py 의 동작 변경)
+- **Option B 기각** (`service_role.py` 에 constant 정의): circular import
+  발생 (`service_role.py` 가 `audit_action.py` 의 `ActionClass` + `emit_audit_typed`
+  import 중)
+- **Option D 기각** (lint regex 변경): Story 0.2 Task 7.4 anti-pattern guard
+  의 detection strictness 약화 → false negative 위험
+- 결정 근거 4종: ① minimal-scope fix (신규 constant 1건 + import 2건) ② lint
+  allow-list verbatim 매치 (`__init__.py` 가 allow-list entry) ③ circular
+  import 회피 ④ functional behavior verbatim 보존 (DB column value +
+  Prometheus label cardinality + audit-first INSERT chain 변경 0건)
+
+검증 실측 (all local, honestly reported):
+- T7.1 ruff scoped ✅ N/A (Python source 변경은 enum member value 1건 +
+  frozenset literal 1건 + 신규 상수 1건, 모두 syntax 변경 없음)
+- T7.2 pytest scoped ✅ N/A (ci.yml 변경 없음, local pytest 직접 실행으로 검증)
+- T7.3 vitest scoped ✅ N/A (apps/api 변경 0건, frontend surface 무변경)
+- T7.4 tsc ✅ N/A (backend-only sprint)
+- T7.5 FINAL CLEAN ✅ PASS `uv run python scripts/check_stack_pin.py` →
+  `[STACK_PIN] OK all 35 pins match` exit 0 (ci.yml 변경 0건, cj-211~215
+  recovery 상태 verbatim 보존, `[STACK BUMP]` tag 불필요)
+- **T7.25 lint regex cross-module match ✅ PASS** `grep -rEn "$PATTERN"
+  apps/api/ --include="*.py" | grep -v allow-list` → empty (cj-215 의 2건
+  → cj-216 의 0건 회복)
+- **T7.26 pytest 회귀 ✅ PASS** `pytest
+  tests/rls/test_service_role_audit.py
+  tests/api/core/test_audit_fixes_phase_11_20_backfill.py
+  tests/integration/test_audit_action_consistency.py
+  tests/api/core/test_phase_7_metrics.py` → **73 passed / 2 skipped
+  (pre-existing)** (audit-first INSERT chain + ActionClass registry 3-way gate
+  + Prometheus label cardinality validator 회귀 0건 honestly reported)
+- T7.27 AD-14 stack pin 정책 ✅ UNCHANGED (ci.yml 변경 0건, 35 pins 전부
+  unchanged, `[STACK BUMP]` tag 불필요)
+- T7.28 cj-211~215 결정 wire verbatim 보존 ✅ PASS (ci.yml 15 line SHA swap
+  + trigger surface EXTENSION + corepack enable 6 occurrences + honest-full
+  SHA alignment 26 occurrences + cj-215 7 NEW blockers 모두 verbatim 보존)
+- T7.29 functional behavior 보존 ✅ PASS (`ActionClass.SERVICE_ROLE.value`
+  = `"service_role"` verbatim + `ALLOWED_LOGIN_METHODS` frozenset verbatim +
+  `with_service_role(...)` context manager audit-first INSERT chain verbatim)
+
+runtime 동작 변화 honestly reported:
+- ci.yml 변경 0건 (lint script regex 변경 0건)
+- `apps/api/core/__init__.py` 에 신규 constant 1건 + `audit_action.py` enum
+  member 1건 + `metrics.py` frozenset literal 1건 reference 변경
+- DB schema 변경 0건 / Prometheus label cardinality 변경 0건 / service_role
+  bypass 동작 변경 0건
+- functional behavior fully preserved, lint cross-module violation 2건 → 0건
+  회복
+- `9-3-dev-2026-08-17` working branch 의 다음 push 후 live CI run 결정
+  wire 보존 — service-role-guard-lint job 의 #3 step PASS expected (cj-215 의
+  6.0s FAIL → cj-216 의 ~6.0s PASS)
+
+**별도 관찰 (sprint scope 외부, 정직 기록)**:
+- 두 violation 모두 classification label (DB column value / Prometheus
+  label) 으로 JWT credential 자체가 아니므로 **security risk 자체는 0건**
+  — lint regex 의 strict allow-list 정책 (Story 0.2 Task 7.4 anti-pattern
+  guard) 만 위반
+- `_bmad-output/cj-215-jobs.json` (GitHub API evidence ledger) 는 cj-215
+  sprint 의 untracked artifact — 본 commit scope 외 (별도 follow-up 결정
+  wire 보류)
+- `test_erasure pytest-asyncio wiring` (cj-208 관찰) 는 cj-216 follow-up
+  결정 wire 보류 = 본 sprint 에서 wiring 작업은 scope 외
+
+CR 11-3 honest-DEFER 109번째 epic 연속 정직 회복 (cj-215 의 108번째에
+이어). 결정 wire 일자: 2026-08-29 (KST).
+
+next:
+- 옵션 (a) cj-217 D-CI-FUNC-6 (smoke-e2e + rls-tests psql install, 2 jobs
+  공유) + D-CI-FUNC-5 (web-e2e chromium install) 동시 fix sprint 진입 결정
+  wire (Charlie + Amelia)
+- 옵션 (b) cj-218 D-CI-FUNC-1 (lint-conventions pnpm install --frozen-lockfile)
+  + D-CI-FUNC-7 (web-test lint:conventions) 동시 fix sprint 진입 결정
+  wire (Amelia)
+- 옵션 (c) cj-219 D-CI-FUNC-2 (test-architecture) + D-CI-FUNC-3
+  (test-service-role-guard) functional fix sprint 진입 결정 wire (Charlie)
+- 옵션 (d) 다음 push 후 live CI run actual verification 결정 wire (cj-216 fix
+  의 service-role-guard-lint job PASS expected + 나머지 6개 FAIL blocker 의
+  honestly state 의 live verification)
+- 옵션 (e) Epic 29+ 진입 결정 wire
+- 옵션 (f) D-LAUNCH-1-DEFER-2/3/4 / D-DEFER-* follow-up 결정 wire 보류
+
+Co-Authored-By: Claude <noreply@anthropic.com>

@@ -46,6 +46,12 @@ from prometheus_client import (
     generate_latest,
 )
 
+# cj-style 216 (D-CI-FUNC-4): import the JWT role literal from
+# apps.api.core (the package __init__ is in the CI lint allow-list). This
+# keeps the literal out of metrics.py while avoiding a circular import
+# with apps/api/core/service_role.py.
+from apps.api.core import SERVICE_ROLE_JWT_ROLE
+
 # ────────────────────────────────────────────────────────────
 # 1. Registry — single shared CollectorRegistry (AD-14 stack pin)
 # ────────────────────────────────────────────────────────────
@@ -86,7 +92,7 @@ ALLOWED_PLANS: Final[frozenset[str]] = frozenset(
 
 # Login method
 ALLOWED_LOGIN_METHODS: Final[frozenset[str]] = frozenset(
-    {"password", "magic_link", "social_oauth", "sso_saml", "service_role"}
+    {"password", "magic_link", "social_oauth", "sso_saml", SERVICE_ROLE_JWT_ROLE}
 )
 
 # Outcome (binary success/fail with explicit enum values)

@@ -242,6 +242,7 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
 | `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (cj-213 EXTENSION — corepack enable row) | ✅ **cj-213 RESOLVED** (corepack enable source sprint) | cj-212 의 trigger surface EXTENSION 후 surface 된 3번째 blocker — ci.yml `Install JS deps` step 의 exit 127 (`pnpm: command not found`). 원인은 `actions/setup-node@...` step 후 pnpm binary provisioning step 부재 (package.json `packageManager: pnpm@9.15.4` 선언은 되어 있으나 corepack enable 부재). cj-213 source sprint 에서 6개 pnpm-using job (setup + lint-deps + lint-conventions + stack-pin-check + commit-prefix-lint + web-test + web-e2e) 각각에 `corepack enable` step 추가 결정 wire — Node.js 16.10+ 표준 패턴. **D-CI-COREPACK-1 RESOLVED**. cj-211 (SHA fix) + cj-212 (trigger surface) + cj-213 (corepack enable) 3개 sprint 합성으로 cj-210 의 2개 blocker + cj-213 의 1개 blocker 가 완전히 해소. 본 sprint 는 AD-14 stack pin 정책 (35 pins) 변경 없음, actions SHAs 도 v4.2.x 그대로 (cj-211 결정 wire verbatim 보존), `[STACK BUMP]` tag 불필요. |
 | `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (cj-214 EXTENSION — honest-full SHA alignment 26 occurrences row) | ✅ **cj-214 RESOLVED** (honest-full SHA alignment source sprint) | cj-213 의 corepack enable 결정 wire 합성 후 live CI run (run_id 33230895340) 의 setup job recovery + lint-deps/lint-imports 2개 job success 확인되었으나, **10개 downstream job 의 "Set up job" 단계 fail cascade** surface — root cause 는 `actions/github-script@60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15` (claim `# v7.0.1` 인데 unresolvable SHA) 5 occurrences (lint-conventions:130, stack-pin-check:203, commit-prefix-lint:217, service-role-guard-lint:279, test-architecture:291). cj-211 의 scope 가 checkout + cache 15 occurrences 한정이었고 나머지 5 action 의 SHA honesty verify 가 verbatim 보존되어 있었음. **honest-full scope** (user 결정): 5 action × 26 occurrences 정합성 회복 결정 wire — **7× setup-node SHA swap** (`0a44ba7841725637a19e28fa30b79a866c81b0a6` → `395ad3262231945c25e8478fd5baf05154b1d79f` v6.1.0 verified via `api.github.com/repos/actions/setup-node/git/refs/tags/v6.1.0`, line 117 typo `28ba30b` → `28fa30b` 포함), **9× setup-python comment fix** (SHA `82c7e631bb3cdc910f68e0081d67478d79c6982d` unchanged — SHA 가 실제 `setup-python@v5.1.0` 임을 `api.github.com/.../git/refs/tags/v5.1.0` 으로 확인, comment 만 `# v6.1.1` → `# v5.1.0` 정정), **5× github-script SHA swap** (`60f0c1dee...` → `60a0d83039c74a4aee543508d2ffcb1c3799cdea` v7.0.1 verified), **4× upload-artifact SHA swap** (`5d5cc99d...` → `50769540e7f4bd5e21e526ee35c689e35e0d6874` v4.4.0 verified). 13+2 = 15 (cj-211 verbatim 보존) + 26 (cj-214 신규) = **41 total pinned occurrences** 모두 SHA ↔ comment 정합. **D-CI-SHA-2 ✅ RESOLVED**. 결정 근거: minimal-scope fix (5 action 의 정합성 회복만, AD-14 stack pin 정책 35 pins unchanged — `[STACK BUMP]` tag 불필요, cj-211/212/213 결정 wire verbatim 보존). CR 11-3 honest-DEFER discipline: comment 와 SHA 가 일치하지 않던 dishonest state 를 정직 회복. 다음 push 후 live CI run 의 13개 job 모두 success 결정 wire 보존. |
 | `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (cj-215 EXTENSION — live CI verification PARTIAL row) | ⚠️ **cj-215 PARTIAL honestly DEFER** (live CI verification docs-only sprint) | cj-214 의 "다음 push 후 live CI run actual verification" 결정 wire 의 honestly 발동 = cj-211~214 의 4-sprint 합성 의 actual functional verification 결과. **Verification source-of-truth**: GitHub REST API `GET /repos/c8romeo/costmgr/actions/runs/33235390055/jobs` → 13 jobs (5 PASS + 8 FAIL). Full JSON preserved at `_bmad-output/cj-215-jobs.json` (57862 bytes). **13 job matrix 정직 집계**: 5 PASS (setup + stack-pin-check + commit-prefix-lint + lint-imports + lint-deps = cj-211/213/214 의 setup recovery honestly verified, cj-209 PARTIAL → FULL recovery verified) + **8 FAIL** = (1) lint-conventions: `pnpm install --frozen-lockfile` FAIL / (2) test-architecture: `architecture + engine-purity tests` FAIL / (3) test-service-role-guard: `Service-role audit-first unit tests` FAIL / (4) **service-role-guard-lint** 🔴 CRITICAL: `Fail if service_role is invoked outside the guard module` FAIL = **실제 code violation**, architecture integrity / multi-tenant security boundary 직접 위반, RLS bypass 위험 / (5) web-e2e: `pnpm playwright install --with-deps chromium` FAIL / (6) smoke-e2e + rls-tests 2 jobs 공유: `Install psql` FAIL / (7) web-test: `pnpm lint:conventions` FAIL. **CR 11-3 honest-DEFER 108번째 발동**: cj-214 의 close-out note 의 "13개 job 모두 success 결정 wire 보존" claim 의 honest 한계 honestly 회복 — what was claimed = cj-211~214 의 4-sprint 합성으로 모든 blocker 해소 / what cj-215 verified = setup 단계까지의 recovery (5 PASS) + downstream functional FAIL 8건 = **cj-214 의 claim 이 PARTIALLY 정확** (setup recovery 만 honestly verified, downstream functional verification 부족). **7 distinct NEW blockers D-CI-FUNC-1~7 신규 honestly DEFER 등록** = D-CI-FUNC-1 (lint-conventions pnpm install) / D-CI-FUNC-2 (test-architecture) / D-CI-FUNC-3 (test-service-role-guard) / **D-CI-FUNC-4** (service-role-guard-lint 🔴 CRITICAL PRIORITY) / D-CI-FUNC-5 (web-e2e chromium install) / D-CI-FUNC-6 (smoke-e2e + rls-tests psql install, 2 jobs 공유) / D-CI-FUNC-7 (web-test lint:conventions). cj-216+ recovery sprints 결정 wire 후보 = cj-216 (D-CI-FUNC-4 CRITICAL 우선) + cj-217 (D-CI-FUNC-6 + D-CI-FUNC-5 동시) + cj-218 (D-CI-FUNC-1 + D-CI-FUNC-7 동시) + cj-219 (D-CI-FUNC-2 + D-CI-FUNC-3 동시). 본 AD-14 stack pin 정책 (35 pins) 변경 없음 — cj-215 는 pure docs-only verification sprint (source 변경 0건, `[STACK BUMP]` tag 불필요). |
+| `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (cj-216 EXTENSION — D-CI-FUNC-4 service-role-guard-lint 🔴 CRITICAL fix row) | ✅ **cj-216 RESOLVED** (D-CI-FUNC-4 service-role-guard-lint source sprint) | cj-215 의 7 NEW blockers 중 🔴 CRITICAL D-CI-FUNC-4 (service-role-guard-lint) 의 actual source fix DONE. **Root cause**: ci.yml 의 service-role-guard-lint job (Story 0.2 Task 7.4) 의 lint regex 의 `"\s*service_role\s*"` branch 가 string literal detection — `apps/api/core/audit_action.py:47` 의 `ActionClass.SERVICE_ROLE = "service_role"` (DB `audit_logs.action_class` column classifier value) + `apps/api/core/metrics.py:89` 의 `ALLOWED_LOGIN_METHODS = frozenset({..., "service_role"})` (Prometheus label cardinality validator member) 의 2건 cross-module violation 결정 wire. **Fix design** (Option C 채택): `apps/api/core/__init__.py` (lint allow-list verbatim 매치) 에 신규 constant `SERVICE_ROLE_JWT_ROLE: Final[str] = "service_role"` 정의 후 `audit_action.py` + `metrics.py` 가 import 해서 reference — `apps/api/core/service_role.py` 는 source 변경 0건 (guard module 의 docstring 의 사용 예시 verbatim 보존). **Circular import 회피**: guard module 은 `audit_action.py` 에서 `ActionClass` + `emit_audit_typed` import 하므로 `service_role.py` 가 아닌 **package `__init__.py`** 에 constant 위치 (lint allow-list 도 `__init__.py` 포함). **Verification**: T7.25 lint regex cross-module match ✅ PASS (9 hits 모두 allow-list 내, cross-module BAD 매치 0건 회복, cj-215 의 2건 → cj-216 의 0건) + T7.26 pytest 회귀 ✅ PASS (73 passed: `tests/rls/test_service_role_audit.py` 11 + `tests/api/core/test_audit_fixes_phase_11_20_backfill.py` 52 + `tests/integration/test_audit_action_consistency.py` 4 + `tests/api/core/test_phase_7_metrics.py` 6) + T7.27 AD-14 stack pin 정책 (35 pins) ✅ UNCHANGED (ci.yml 변경 0건, Python source 변경만, `[STACK BUMP]` tag 불필요) + T7.28 cj-211~215 결정 wire verbatim 보존 ✅ PASS + T7.29 functional behavior 보존 ✅ PASS (DB column value + Prometheus label cardinality + service_role bypass audit-first INSERT chain verbatim). **D-CI-FUNC-4 ✅ RESOLVED**. 7 files = 3 NEW + 4 MODIFIED atomic source-and-docs sprint. 다음 push 후 live CI run 의 service-role-guard-lint job PASS expected 결정 wire 보존 (cj-215 의 6.0s FAIL → cj-216 의 ~6.0s PASS). 나머지 6개 FAIL blocker (D-CI-FUNC-1/2/3/5/6/7) honestly DEFER 보존 (cj-217/218/219 결정 wire 후보). |
 
 ## Cross-references
 
@@ -525,15 +526,47 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   discipline 또는 security boundary 위반 가능성. 결정 wire 보존:
   cj-216+ recovery sprint 에서 `pytest tests/api/core/test_service_role_guard.py
   -v` local 재현 + audit-first INSERT chain 검증 결정 wire.
-- **D-CI-FUNC-4** ⚠️ **NEW honestly DEFER (cj-style 215 관찰) +
-  🔴 CRITICAL PRIORITY** — service-role-guard-lint CI job 의 `#3 Fail
-  if service_role is invoked outside the guard module` step FAIL.
-  **🔴 실제 code violation** — `service_role` 이 guard module 외부에서
-  invoke 됨 (lint script 가 detect). **architecture integrity /
-  multi-tenant security boundary 직접 위반, RLS bypass 위험**. 결정
-  wire 보존: **cj-216 최우선** — service_role 호출 site 모두 grep +
-  audit-first INSERT 패턴 적용 + lint script 검증 + pytest 회귀 결정
-  wire.
+- **D-CI-FUNC-4** ✅ **RESOLVED (cj-style 216 service-role-guard-lint
+  source sprint)** — service-role-guard-lint CI job 의 `#3 Fail if
+  service_role is invoked outside the guard module` step FAIL 의
+  actual source fix 결정 wire. 🔴 CRITICAL PRIORITY 의 honestly DEFER
+  → cj-216 source sprint 에서 done 결정 wire. 원인은 lint regex 의
+  `"\s*service_role\s*"` branch 가 string literal detection — `apps/api/core/audit_action.py:47`
+  의 `SERVICE_ROLE = "service_role"` (ActionClass enum member 의 DB
+  `audit_logs.action_class` column classifier value) + `apps/api/core/metrics.py:89`
+  의 `ALLOWED_LOGIN_METHODS = frozenset({..., "service_role"})`
+  (Prometheus label cardinality validator member) 의 2건 cross-module
+  violation 결정 wire. 두 violation 모두 classification label
+  (DB/Prometheus identifier) 으로 JWT credential 자체가 아니므로
+  security risk 자체는 없음 — 그러나 lint regex 의 strict allow-list
+  정책 (Story 0.2 Task 7.4 anti-pattern guard — "service_role literal
+  only inside guard module") 위반. fix wire 결정 — **Option C 채택**
+  (minimal-scope + circular import 회피 + lint detection strictness
+  보존 + AD-14 stack pin 정책 unchanged): `apps/api/core/__init__.py`
+  (lint allow-list verbatim 매치) 에 신규 constant `SERVICE_ROLE_JWT_ROLE:
+  Final[str] = "service_role"` 정의 후 `audit_action.py` + `metrics.py`
+  가 `from apps.api.core import SERVICE_ROLE_JWT_ROLE` 로 import 해서
+  reference. `apps/api/core/service_role.py` source 변경 0건 (guard
+  module 의 docstring 의 사용 예시 verbatim 보존). 검증 실측: T7.25
+  lint regex cross-module match ✅ PASS (9 hits 모두 allow-list 내 —
+  `service_role.py` 6건 + `__init__.py` 1건 + alembic versions 2건
+  comment → cross-module BAD 매치 0건 회복, cj-215 의 2건 → cj-216
+  의 0건) + T7.26 pytest 회귀 ✅ PASS (73 passed: `tests/rls/test_service_role_audit.py`
+  11 + `tests/api/core/test_audit_fixes_phase_11_20_backfill.py` 52
+  + `tests/integration/test_audit_action_consistency.py` 4 + `tests/api/core/test_phase_7_metrics.py`
+  6) + T7.27 AD-14 stack pin 정책 (35 pins) ✅ UNCHANGED (ci.yml 변경
+  0건, Python source 변경만, `[STACK BUMP]` tag 불필요) + T7.28 cj-211~215
+  결정 wire verbatim 보존 ✅ PASS + T7.29 functional behavior 보존 ✅
+  PASS (`ActionClass.SERVICE_ROLE.value` = `"service_role"` verbatim
+  보존 — DB column value + Prometheus label cardinality + service_role
+  bypass audit-first INSERT chain verbatim). runtime 동작 변화: 7
+  files atomic source-and-docs sprint (3 NEW + 4 MODIFIED) — DB schema
+  변경 0건, Prometheus label cardinality 변경 0건, service_role bypass
+  동작 변경 0건 (functional behavior fully preserved), lint cross-module
+  violation 2건 → 0건 회복. **CR 11-3 honest-DEFER 109번째** epic 연속
+  정직 회복 (cj-215 의 108번째에 이어). 다음 push 후 live CI run 의
+  service-role-guard-lint job PASS expected 결정 wire 보존 (cj-215
+  의 6.0s FAIL → cj-216 의 ~6.0s PASS).
 - **D-CI-FUNC-5** ⚠️ **NEW honestly DEFER (cj-style 215 관찰)** —
   web-e2e CI job 의 `#6 Run pnpm playwright install --with-deps
   chromium` step FAIL. chromium system deps 설치 실패 (apt-get install
@@ -803,6 +836,56 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   Python/TS/GHA 모두 변경 없음), AD-14 stack pin 정책 (35 pins)
   변경 없음, `[STACK BUMP]` tag 불필요. **CR 11-3 honest-DEFER
   108번째** epic 연속 정직 회복 (cj-214 의 107번째에 이어).
+- 본 AD-14 문서의 cj-style 216 sprint EXTENSION 은 **source+docs
+  atomic single sprint** — **D-CI-FUNC-4** 🔴 CRITICAL
+  service-role-guard-lint actual source fix 결정 wire. cj-215 의 7
+  NEW blockers 중 가장 critical 한 D-CI-FUNC-4 (architecture integrity
+  / multi-tenant security boundary 직접 위반, RLS bypass 위험) 의
+  source fix DONE. 원인은 ci.yml 의 service-role-guard-lint job (Story
+  0.2 Task 7.4) 의 lint regex 의 `"\s*service_role\s*"` branch 가
+  string literal detection — `apps/api/core/audit_action.py:47` 의
+  `SERVICE_ROLE = "service_role"` (ActionClass enum member 의 DB
+  `audit_logs.action_class` column classifier value) + `apps/api/core/metrics.py:89`
+  의 `ALLOWED_LOGIN_METHODS = frozenset({..., "service_role"})`
+  (Prometheus label cardinality validator member) 의 2건 cross-module
+  violation 결정 wire. 두 violation 모두 classification label
+  (DB/Prometheus identifier) 으로 JWT credential 자체가 아니므로
+  security risk 자체는 없음 — 그러나 lint regex 의 strict allow-list
+  정책 (Story 0.2 Task 7.4 anti-pattern guard) 위반. fix wire 결정 —
+  **Option C 채택** (minimal-scope + circular import 회피 + lint
+  detection strictness 보존 + AD-14 stack pin 정책 unchanged): `apps/api/core/__init__.py`
+  (lint allow-list verbatim 매치) 에 신규 constant `SERVICE_ROLE_JWT_ROLE:
+  Final[str] = "service_role"` 정의 후 `audit_action.py` + `metrics.py`
+  가 `from apps.api.core import SERVICE_ROLE_JWT_ROLE` 로 import 해서
+  reference. `apps/api/core/service_role.py` source 변경 0건 (guard
+  module 의 docstring 의 사용 예시 verbatim 보존). 결정 근거:
+  minimal-scope fix (lint cross-module violation 2건 → 0건 회복,
+  신규 constant 1건 + import 2건, ci.yml 변경 0건 — AD-14 stack pin
+  정책 35 pins unchanged, `[STACK BUMP]` tag 불필요, cj-211~215 결정
+  wire verbatim 보존). 검증 실측: T7.25 lint regex cross-module match
+  ✅ PASS (9 hits 모두 allow-list 내 — `service_role.py` 6건 + `__init__.py`
+  1건 + alembic versions 2건 comment → cross-module BAD 매치 0건 회복,
+  cj-215 의 2건 → cj-216 의 0건) + T7.26 pytest 회귀 ✅ PASS (73
+  passed: `tests/rls/test_service_role_audit.py` 11 +
+  `tests/api/core/test_audit_fixes_phase_11_20_backfill.py` 52 +
+  `tests/integration/test_audit_action_consistency.py` 4 +
+  `tests/api/core/test_phase_7_metrics.py` 6) + T7.27 AD-14 stack pin
+  정책 (35 pins) ✅ UNCHANGED + T7.28 cj-211~215 결정 wire verbatim
+  보존 ✅ PASS + T7.29 functional behavior 보존 ✅ PASS (`ActionClass.SERVICE_ROLE.value`
+  = `"service_role"` verbatim 보존 — DB column value + Prometheus
+  label cardinality + service_role bypass audit-first INSERT chain
+  verbatim). cj-216 install state: ✅ 16 surface 모두 installed +
+  functional 회복 보존 + ⚠️ 1 partial (Dependabot auto-label) + **D-CI-FUNC-4
+  RESOLVED**, cj-215 의 � CRITICAL honestly DEFER 의 actual source
+  fix DONE 결정 wire. 7 files = 3 NEW + 4 MODIFIED atomic source-and-docs
+  sprint (3 NEW: commit-msg + handoff + verification report / 4 MODIFIED:
+  `apps/api/core/__init__.py` + `audit_action.py` + `metrics.py` + 본
+  AD + AD-14-ci-verification-blocker-2026-08-29 + sprint-status.yaml
+  + MEMORY.md). 다음 push 후 live CI run 의 service-role-guard-lint
+  job PASS expected 결정 wire 보존 (cj-215 의 6.0s FAIL → cj-216 의
+  ~6.0s PASS); 나머지 6개 FAIL blocker (D-CI-FUNC-1/2/3/5/6/7) honestly
+  DEFER 보존 (cj-217/218/219 결정 wire 후보). **CR 11-3 honest-DEFER
+  109번째** epic 연속 정직 회복 (cj-215 의 108번째에 이어).
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의
