@@ -104,7 +104,6 @@ export function MonthlyClosingReportPanel({
     } else if (is_empty) {
       toast.warning(t("toast_view_empty"));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aggregate.view_mode]);
 
   // OQ2 cj-style default — V4 fail 시 KPI FAIL 빨강 + audit-trail 표시.

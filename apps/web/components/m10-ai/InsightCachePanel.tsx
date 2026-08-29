@@ -118,7 +118,6 @@ export function InsightCachePanel({
       void loadInsights();
     }
     // loadInsights is intentionally excluded from deps — initial load only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cacheKey = tenantId
