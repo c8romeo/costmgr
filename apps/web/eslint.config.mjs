@@ -150,7 +150,6 @@ export default [
   // IndustrySelector.tsx: INDUSTRY_MENU_MAP — kept for tests/devtools.
   // LanguageStep.tsx: initial — Story 1.2 wizard prop-passing pattern.
   // SettingsWizardClient.tsx: status — destructured but unused (Story 1.2).
-  // react-hooks/exhaustive-deps — plugin not loaded (deferred to hook story).
   // ============================================================
   {
     files: [
@@ -161,7 +160,6 @@ export default [
     ],
     rules: {
       "@typescript-eslint/no-unused-vars": "off",
-      "react-hooks/exhaustive-deps": "off",
     },
   },
 ];
