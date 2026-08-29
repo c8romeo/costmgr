@@ -47,6 +47,13 @@ jobs:
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with:
           node-version-file: ".nvmrc"
+      # CI-COREPACK-1 (cj-style 213): Node.js corepack 으로 package.json 의
+      # `packageManager: pnpm@9.15.4` 를 자동 provisioning. setup node 후
+      # pnpm 사용 직전에 1회 enable. cj-212 의 trigger surface EXTENSION 으로
+      # live trigger cycle 이 회복된 후 Install JS deps step 의 exit 127
+      # (`pnpm: command not found`) blocker 해소.
+      - name: Enable corepack (provides pnpm from packageManager field)
+        run: corepack enable
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
         with:
           python-version-file: ".python-version"
@@ -77,6 +84,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
+      - name: Enable corepack (provides pnpm from packageManager field)
+        run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint:deps
 
@@ -142,6 +151,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
+      - name: Enable corepack (provides pnpm from packageManager field)
+        run: corepack enable
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
@@ -230,6 +241,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
+      - name: Enable corepack (provides pnpm from packageManager field)
+        run: corepack enable
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v6.1.1
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
@@ -437,6 +450,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
+      - name: Enable corepack (provides pnpm from packageManager field)
+        run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: cd apps/web && pnpm lint:tsc
       - run: cd apps/web && pnpm lint:conventions
@@ -459,6 +474,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v6.1.0
         with: { node-version-file: ".nvmrc" }
+      - name: Enable corepack (provides pnpm from packageManager field)
+        run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: cd apps/web && pnpm playwright install --with-deps chromium
       - run: cd apps/web && pnpm playwright test --project=chromium

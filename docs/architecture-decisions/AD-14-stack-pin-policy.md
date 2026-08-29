@@ -239,6 +239,7 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
 | `tests/integration/test_install_stage_check.py` (install stage test — cj-209 NEW) | ✅ **installed + functional (cj-209)** | 3-case integration test (clean repo exit + VERBOSE=1 no-crash + missing node_modules MISS line) all PASS. CR 11-3 honest boundary: exit 1 또는 2 모두 acceptable (실제 install state 반영). |
 | `tests/integration/test_tsc_drift_check.py` (tsc drift test — cj-209 NEW) | ✅ **installed + functional (cj-209)** | 4-case integration test (cold-checkout NOT INVOKABLE exit 2 + baseline format + no-drift exit 0 + drift detection exit 1 / 0) all PASS. CR 11-3 honest boundary: exit 0 또는 1 모두 acceptable (현재 repo state 반영). |
 | `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (CI verification blocker AD — cj-210 NEW) | ✅ **cj-210 신규 install + cj-211 RESOLVED** (sha remediation source sprint) | cj-209 next-옵션 (a) 의 CI `stack-pin-check` job FULL functional 실측 verification 결과, ci.yml 의 setup job 이 **unresolvable action SHA** (actions/checkout + actions/cache 의 잘못된 SHA pin) 로 fail → 12개 downstream job (stack-pin-check 포함) 전부 skipped → **cj-210 verification 결과: BLOCKED honestly DEFER**. **`D-CI-SHA-1` 신규 honestly DEFER**. setup 자체의 SHA unresolvable 는 [[AD-14-ci-verification-blocker-2026-08-29]] §3.3~§3.4 에 upstream commit 조회 evidence 와 함께 verbatim 기록. **cj-211 source sprint** 에서 AD-14 §Option A verbatim swap 으로 RESOLVED — `actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888` (claim v4.2.2, upstream 404) → `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` (실제 v4.2.2) + `actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed` (claim v4.2.1, upstream 404) → `actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f` (실제 v4.2.1) — 13 + 2 = 15 occurrences verbatim swap, minimal scope fix (version bump 없음, AD-14 §Decision (1) Pin the version intent verbatim 보존). **cj-209 의 PARTIAL → FULL 자동 회복 claim 의 honest scope boundary**: local 동일 명령 level 의 회복은 검증됨 (T7.1~T7.5 모두 local PASS), **CI workflow level 의 recovery 자체는 cj-211 source sprint 으로 fix wire 결정** — 실제 CI run trigger → setup recovery → downstream jobs trigger cycle 의 verification 은 **다음 push 후 결정 wire 보존** (trigger surface `branches: [main]` EXTENSION 은 별도 follow-up sprint 결정 wire, cj-211 scope 외). |
+| `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (cj-213 EXTENSION — corepack enable row) | ✅ **cj-213 RESOLVED** (corepack enable source sprint) | cj-212 의 trigger surface EXTENSION 후 surface 된 3번째 blocker — ci.yml `Install JS deps` step 의 exit 127 (`pnpm: command not found`). 원인은 `actions/setup-node@...` step 후 pnpm binary provisioning step 부재 (package.json `packageManager: pnpm@9.15.4` 선언은 되어 있으나 corepack enable 부재). cj-213 source sprint 에서 6개 pnpm-using job (setup + lint-deps + lint-conventions + stack-pin-check + commit-prefix-lint + web-test + web-e2e) 각각에 `corepack enable` step 추가 결정 wire — Node.js 16.10+ 표준 패턴. **D-CI-COREPACK-1 RESOLVED**. cj-211 (SHA fix) + cj-212 (trigger surface) + cj-213 (corepack enable) 3개 sprint 합성으로 cj-210 의 2개 blocker + cj-213 의 1개 blocker 가 완전히 해소. 본 sprint 는 AD-14 stack pin 정책 (35 pins) 변경 없음, actions SHAs 도 v4.2.x 그대로 (cj-211 결정 wire verbatim 보존), `[STACK BUMP]` tag 불필요. |
 
 ## Cross-references
 
@@ -318,6 +319,29 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   actions SHAs 도 v4.2.x 그대로 (cj-211 결정 wire verbatim 보존),
   `[STACK BUMP]` tag 불필요. **CR 11-3 honest-DEFER 105번째** epic
   연속 정직 회복 (cj-211 의 104번째에 이어).
+- cj-213 corepack enable source sprint — cj-212 의 trigger surface
+  EXTENSION 후 live CI run 의 setup job 에서 surface 된 신규 blocker
+  ("Install JS deps" step exit 127 = `pnpm: command not found`) 의
+  source-side fix 결정 wire. 원인은 ci.yml 의 `actions/setup-node@...`
+  step 후 `pnpm install --frozen-lockfile` step 직전까지 pnpm binary
+  provisioning step 부재 — `package.json` 의 `packageManager:
+  pnpm@9.15.4` field 는 선언되어 있으나 corepack 으로 enable 되지
+  않아 pnpm binary 가 PATH 에 부재 결정 wire. fix wire: 6개 pnpm-using
+  job (setup + lint-deps + lint-conventions + stack-pin-check +
+  commit-prefix-lint + web-test + web-e2e) 각각에 `- name: Enable
+  corepack (provides pnpm from packageManager field)\n  run: corepack
+  enable` step 추가. 결정 근거: minimal-scope fix (1줄 `run:` step 만,
+  actions SHA 변경 0건 — cj-211 결정 wire verbatim 보존, AD-14 stack
+  pin 정책 (35 pins) 변경 없음, `[STACK BUMP]` tag 불필요), Node.js
+  16.10+ 표준 패턴 (corepack 이 package.json `packageManager` field
+  읽고 pnpm@9.15.4 자동 provisioning). cj-212 의 trigger surface
+  EXTENSION 결정 wire + cj-213 의 corepack enable 결정 wire 두
+  sprint 의 합성으로 cj-210 blocker chain 의 3번째 blocker 해소. 실제
+  CI run trigger → setup recovery → downstream jobs trigger cycle 의
+  verification 은 **다음 push 후 결정 wire 보존** — 첫 trigger cycle
+  의 corepack step 의 runtime 동작 자체는 source code review + Node.js
+  corepack spec 으로 검증. **CR 11-3 honest-DEFER 106번째** epic 연속
+  정직 회복 (cj-212 의 105번째에 이어).
 
 ## Open Items
 
@@ -388,6 +412,36 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   자동 trigger cycle 회복 결정 wire — cj-211 의 source fix (15 line
   SHA swap) 의 live verification 가능. **CR 11-3 honest-DEFER 105번째**
   epic 연속 정직 회복 (cj-211 의 104번째에 이어).
+- **D-CI-COREPACK-1** ✅ **RESOLVED (cj-style 213 corepack enable source sprint)** —
+  ci.yml 의 6개 pnpm-using job 에 corepack enable step 추가 결정
+  wire. 원인은 cj-212 의 trigger surface EXTENSION 후 live CI run
+  의 setup job ("Install JS deps" step) 의 exit code 127
+  (`pnpm: command not found`) — cj-211 의 SHA swap 으로 setup job
+  action resolve 는 회복되었으나, `actions/setup-node@...` step
+  후 `pnpm install --frozen-lockfile` step 직전까지 pnpm binary
+  provisioning step 부재 결정 wire. `package.json` 의
+  `packageManager: pnpm@9.15.4` field 는 선언되어 있으나 corepack
+  으로 enable 되지 않아 pnpm binary 가 PATH 에 부재. cj-213 source
+  sprint 에서 fix wire — 6개 job (setup + lint-deps + lint-conventions
+  + stack-pin-check + commit-prefix-lint + web-test + web-e2e) 각각에
+  `- name: Enable corepack (provides pnpm from packageManager field)\n  run: corepack enable`
+  step 추가. 결정 근거: minimal-scope fix (1줄 `run:` step 만,
+  actions SHA 변경 0건 — cj-211 결정 wire verbatim 보존, AD-14
+  stack pin 정책 (35 pins) 변경 없음, `[STACK BUMP]` tag 불필요),
+  Node.js 16.10+ 표준 패턴 (corepack 이 package.json
+  `packageManager` field 읽고 pnpm@9.15.4 자동 provisioning).
+  검증 실측: T7.5 FINAL CLEAN PASS (`uv run python
+  scripts/check_stack_pin.py` → `[STACK_PIN] OK all 35 pins match`,
+  exit 0 — cj-211 recovery 상태 verbatim 보존, 35 pins unchanged)
+  + T7.12 grep PASS (`grep -c "corepack enable" .github/workflows/ci.yml` → 6,
+  YAML syntax check via `python -c "import yaml; yaml.safe_load(...)"` → valid).
+  runtime 동작 변화: cj-211 의 SHA fix + cj-212 의 trigger surface
+  EXTENSION + cj-213 의 corepack enable 3개 sprint 의 합성으로
+  `9-3-dev-2026-08-17` working branch 의 다음 push 부터 CI 자동
+  trigger → setup recovery (corepack 으로 pnpm@9.15.4 provisioning)
+  → downstream 12개 job trigger cycle 회복 결정 wire. **CR 11-3
+  honest-DEFER 106번째** epic 연속 정직 회복 (cj-212 의 105번째에
+  이어).
 - **D-AD-14-2** ✅ **RESOLVED (cj-style 208 source sprint)** —
   retention `response_model` 회복 source sprint. 원인은
   `apps/api/modules/audit/retention/retention_dsl.py:52` 의
@@ -522,6 +576,40 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   (cj-211 결정 wire verbatim 보존), `[STACK BUMP]` tag 불필요.
   **CR 11-3 honest-DEFER 105번째** epic 연속 정직 회복 (cj-211 의
   104번째에 이어).
+- 본 AD-14 문서의 cj-style 213 sprint EXTENSION 은 **source+docs
+  atomic single sprint** — **D-CI-COREPACK-1** ci.yml 6개 pnpm-using
+  job 의 corepack enable step 추가 fix wire 결정. 원인은 cj-212 의
+  trigger surface EXTENSION 후 live CI run 의 setup job ("Install JS
+  deps" step) 의 exit code 127 (`pnpm: command not found`) — cj-211
+  의 SHA swap 으로 setup job action resolve 는 회복되었으나, `actions/setup-node@...`
+  step 후 `pnpm install --frozen-lockfile` step 직전까지 pnpm binary
+  provisioning step 부재 결정 wire. `package.json` 의
+  `packageManager: pnpm@9.15.4` field 는 선언되어 있으나 corepack
+  으로 enable 되지 않아 pnpm binary 가 PATH 에 부재. cj-213 source
+  sprint 에서 fix wire 결정 — 6개 job (setup + lint-deps +
+  lint-conventions + stack-pin-check + commit-prefix-lint + web-test
+  + web-e2e) 각각에 `- name: Enable corepack (provides pnpm from
+  packageManager field)\n  run: corepack enable` step 추가 결정 wire.
+  결정 근거: minimal-scope fix (1줄 `run:` step 만, actions SHA 변경
+  0건 — cj-211 결정 wire verbatim 보존), Node.js 16.10+ 표준 패턴
+  (corepack 이 package.json `packageManager` field 읽고 pnpm@9.15.4
+  자동 provisioning). 본 sprint 는 AD-14 stack pin 정책 (35 pins)
+  변경 없음, actions SHAs 변경 없음 (cj-211 결정 wire verbatim 보존),
+  `[STACK BUMP]` tag 불필요. 검증 실측: T7.5 FINAL CLEAN PASS (`uv
+  run python scripts/check_stack_pin.py` → `[STACK_PIN] OK all 35
+  pins match`, exit 0 — cj-211 recovery 상태 verbatim 보존, 35 pins
+  unchanged) + T7.12 grep PASS (`grep -c "corepack enable" .github/workflows/ci.yml` → 6)
+  + YAML syntax check via `python -c "import yaml; yaml.safe_load(...)"` → valid.
+  cj-213 install state: ✅ 16 surface 모두 installed + functional 회복
+  보존 + ⚠️ 1 partial (Dependabot auto-label) + **D-CI-COREPACK-1
+  RESOLVED**, cj-212 의 trigger surface EXTENSION 후 surface 된
+  3번째 blocker 해소. cj-211 의 SHA fix + cj-212 의 trigger surface
+  EXTENSION + cj-213 의 corepack enable 3개 sprint 의 합성으로
+  cj-210 의 2개 blocker + cj-213 의 1개 blocker 가 완전히 해소되어
+  `9-3-dev-2026-08-17` working branch 의 다음 push 부터 CI 자동
+  trigger → setup recovery (corepack 으로 pnpm@9.15.4 provisioning)
+  → downstream 12개 job trigger cycle 회복 결정 wire. **CR 11-3
+  honest-DEFER 106번째** epic 연속 정직 회복 (cj-212 의 105번째에 이어).
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의
