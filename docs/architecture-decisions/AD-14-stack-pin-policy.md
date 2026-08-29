@@ -241,6 +241,7 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
 | `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (CI verification blocker AD — cj-210 NEW) | ✅ **cj-210 신규 install + cj-211 RESOLVED** (sha remediation source sprint) | cj-209 next-옵션 (a) 의 CI `stack-pin-check` job FULL functional 실측 verification 결과, ci.yml 의 setup job 이 **unresolvable action SHA** (actions/checkout + actions/cache 의 잘못된 SHA pin) 로 fail → 12개 downstream job (stack-pin-check 포함) 전부 skipped → **cj-210 verification 결과: BLOCKED honestly DEFER**. **`D-CI-SHA-1` 신규 honestly DEFER**. setup 자체의 SHA unresolvable 는 [[AD-14-ci-verification-blocker-2026-08-29]] §3.3~§3.4 에 upstream commit 조회 evidence 와 함께 verbatim 기록. **cj-211 source sprint** 에서 AD-14 §Option A verbatim swap 으로 RESOLVED — `actions/checkout@11bd71901bbe5b1630ceea73d27529564c616888` (claim v4.2.2, upstream 404) → `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` (실제 v4.2.2) + `actions/cache@5a3e84c9ed5f96e6bccc1e24985906d792b805ed` (claim v4.2.1, upstream 404) → `actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f` (실제 v4.2.1) — 13 + 2 = 15 occurrences verbatim swap, minimal scope fix (version bump 없음, AD-14 §Decision (1) Pin the version intent verbatim 보존). **cj-209 의 PARTIAL → FULL 자동 회복 claim 의 honest scope boundary**: local 동일 명령 level 의 회복은 검증됨 (T7.1~T7.5 모두 local PASS), **CI workflow level 의 recovery 자체는 cj-211 source sprint 으로 fix wire 결정** — 실제 CI run trigger → setup recovery → downstream jobs trigger cycle 의 verification 은 **다음 push 후 결정 wire 보존** (trigger surface `branches: [main]` EXTENSION 은 별도 follow-up sprint 결정 wire, cj-211 scope 외). |
 | `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (cj-213 EXTENSION — corepack enable row) | ✅ **cj-213 RESOLVED** (corepack enable source sprint) | cj-212 의 trigger surface EXTENSION 후 surface 된 3번째 blocker — ci.yml `Install JS deps` step 의 exit 127 (`pnpm: command not found`). 원인은 `actions/setup-node@...` step 후 pnpm binary provisioning step 부재 (package.json `packageManager: pnpm@9.15.4` 선언은 되어 있으나 corepack enable 부재). cj-213 source sprint 에서 6개 pnpm-using job (setup + lint-deps + lint-conventions + stack-pin-check + commit-prefix-lint + web-test + web-e2e) 각각에 `corepack enable` step 추가 결정 wire — Node.js 16.10+ 표준 패턴. **D-CI-COREPACK-1 RESOLVED**. cj-211 (SHA fix) + cj-212 (trigger surface) + cj-213 (corepack enable) 3개 sprint 합성으로 cj-210 의 2개 blocker + cj-213 의 1개 blocker 가 완전히 해소. 본 sprint 는 AD-14 stack pin 정책 (35 pins) 변경 없음, actions SHAs 도 v4.2.x 그대로 (cj-211 결정 wire verbatim 보존), `[STACK BUMP]` tag 불필요. |
 | `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (cj-214 EXTENSION — honest-full SHA alignment 26 occurrences row) | ✅ **cj-214 RESOLVED** (honest-full SHA alignment source sprint) | cj-213 의 corepack enable 결정 wire 합성 후 live CI run (run_id 33230895340) 의 setup job recovery + lint-deps/lint-imports 2개 job success 확인되었으나, **10개 downstream job 의 "Set up job" 단계 fail cascade** surface — root cause 는 `actions/github-script@60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15` (claim `# v7.0.1` 인데 unresolvable SHA) 5 occurrences (lint-conventions:130, stack-pin-check:203, commit-prefix-lint:217, service-role-guard-lint:279, test-architecture:291). cj-211 의 scope 가 checkout + cache 15 occurrences 한정이었고 나머지 5 action 의 SHA honesty verify 가 verbatim 보존되어 있었음. **honest-full scope** (user 결정): 5 action × 26 occurrences 정합성 회복 결정 wire — **7× setup-node SHA swap** (`0a44ba7841725637a19e28fa30b79a866c81b0a6` → `395ad3262231945c25e8478fd5baf05154b1d79f` v6.1.0 verified via `api.github.com/repos/actions/setup-node/git/refs/tags/v6.1.0`, line 117 typo `28ba30b` → `28fa30b` 포함), **9× setup-python comment fix** (SHA `82c7e631bb3cdc910f68e0081d67478d79c6982d` unchanged — SHA 가 실제 `setup-python@v5.1.0` 임을 `api.github.com/.../git/refs/tags/v5.1.0` 으로 확인, comment 만 `# v6.1.1` → `# v5.1.0` 정정), **5× github-script SHA swap** (`60f0c1dee...` → `60a0d83039c74a4aee543508d2ffcb1c3799cdea` v7.0.1 verified), **4× upload-artifact SHA swap** (`5d5cc99d...` → `50769540e7f4bd5e21e526ee35c689e35e0d6874` v4.4.0 verified). 13+2 = 15 (cj-211 verbatim 보존) + 26 (cj-214 신규) = **41 total pinned occurrences** 모두 SHA ↔ comment 정합. **D-CI-SHA-2 ✅ RESOLVED**. 결정 근거: minimal-scope fix (5 action 의 정합성 회복만, AD-14 stack pin 정책 35 pins unchanged — `[STACK BUMP]` tag 불필요, cj-211/212/213 결정 wire verbatim 보존). CR 11-3 honest-DEFER discipline: comment 와 SHA 가 일치하지 않던 dishonest state 를 정직 회복. 다음 push 후 live CI run 의 13개 job 모두 success 결정 wire 보존. |
+| `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (cj-215 EXTENSION — live CI verification PARTIAL row) | ⚠️ **cj-215 PARTIAL honestly DEFER** (live CI verification docs-only sprint) | cj-214 의 "다음 push 후 live CI run actual verification" 결정 wire 의 honestly 발동 = cj-211~214 의 4-sprint 합성 의 actual functional verification 결과. **Verification source-of-truth**: GitHub REST API `GET /repos/c8romeo/costmgr/actions/runs/33235390055/jobs` → 13 jobs (5 PASS + 8 FAIL). Full JSON preserved at `_bmad-output/cj-215-jobs.json` (57862 bytes). **13 job matrix 정직 집계**: 5 PASS (setup + stack-pin-check + commit-prefix-lint + lint-imports + lint-deps = cj-211/213/214 의 setup recovery honestly verified, cj-209 PARTIAL → FULL recovery verified) + **8 FAIL** = (1) lint-conventions: `pnpm install --frozen-lockfile` FAIL / (2) test-architecture: `architecture + engine-purity tests` FAIL / (3) test-service-role-guard: `Service-role audit-first unit tests` FAIL / (4) **service-role-guard-lint** 🔴 CRITICAL: `Fail if service_role is invoked outside the guard module` FAIL = **실제 code violation**, architecture integrity / multi-tenant security boundary 직접 위반, RLS bypass 위험 / (5) web-e2e: `pnpm playwright install --with-deps chromium` FAIL / (6) smoke-e2e + rls-tests 2 jobs 공유: `Install psql` FAIL / (7) web-test: `pnpm lint:conventions` FAIL. **CR 11-3 honest-DEFER 108번째 발동**: cj-214 의 close-out note 의 "13개 job 모두 success 결정 wire 보존" claim 의 honest 한계 honestly 회복 — what was claimed = cj-211~214 의 4-sprint 합성으로 모든 blocker 해소 / what cj-215 verified = setup 단계까지의 recovery (5 PASS) + downstream functional FAIL 8건 = **cj-214 의 claim 이 PARTIALLY 정확** (setup recovery 만 honestly verified, downstream functional verification 부족). **7 distinct NEW blockers D-CI-FUNC-1~7 신규 honestly DEFER 등록** = D-CI-FUNC-1 (lint-conventions pnpm install) / D-CI-FUNC-2 (test-architecture) / D-CI-FUNC-3 (test-service-role-guard) / **D-CI-FUNC-4** (service-role-guard-lint 🔴 CRITICAL PRIORITY) / D-CI-FUNC-5 (web-e2e chromium install) / D-CI-FUNC-6 (smoke-e2e + rls-tests psql install, 2 jobs 공유) / D-CI-FUNC-7 (web-test lint:conventions). cj-216+ recovery sprints 결정 wire 후보 = cj-216 (D-CI-FUNC-4 CRITICAL 우선) + cj-217 (D-CI-FUNC-6 + D-CI-FUNC-5 동시) + cj-218 (D-CI-FUNC-1 + D-CI-FUNC-7 동시) + cj-219 (D-CI-FUNC-2 + D-CI-FUNC-3 동시). 본 AD-14 stack pin 정책 (35 pins) 변경 없음 — cj-215 는 pure docs-only verification sprint (source 변경 0건, `[STACK BUMP]` tag 불필요). |
 
 ## Cross-references
 
@@ -349,6 +350,41 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   2개 job success 확인되었으나, **10개 downstream job 의 "Set up job"
   단계 fail cascade** surface — root cause 는 `actions/github-script@60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15` (claim `# v7.0.1` 인데 unresolvable SHA) 5 occurrences. cj-211 의 scope 가 `actions/checkout` 13 + `actions/cache` 2 = 15 occurrences 한정이었고 **나머지 5 action 의 SHA honesty verify 가 verbatim 보존** 되어 있었음 (setup-node + setup-python + github-script + upload-artifact 의 comment 가 실제 SHA 와 일치하지 않는 dishonest state). **honest-full scope 결정 wire** (user 결정): 5 action × 26 occurrences 정합성 회복 — **7× setup-node SHA swap** (`0a44ba7841725637a19e28fa30b79a866c81b0a6` → `395ad3262231945c25e8478fd5baf05154b1d79f` v6.1.0 verified via `api.github.com/repos/actions/setup-node/git/refs/tags/v6.1.0`, line 117 의 `28ba30b` → `28fa30b` 1자 typo fix 포함) + **9× setup-python comment fix** (SHA `82c7e631bb3cdc910f68e0081d67478d79c6982d` unchanged — SHA 가 실제 `setup-python@v5.1.0` 임을 `api.github.com/.../git/refs/tags/v5.1.0` 으로 확인, comment 만 `# v6.1.1` → `# v5.1.0` 정정) + **5× github-script SHA swap** (`60f0c1deee...` → `60a0d83039c74a4aee543508d2ffcb1c3799cdea` v7.0.1 verified) + **4× upload-artifact SHA swap** (`5d5cc99d...` → `50769540e7f4bd5e21e526ee35c689e35e0d6874` v4.4.0 verified). 13+2 = 15 (cj-211 verbatim 보존) + 26 (cj-214 신규) = **41 total pinned occurrences** 모두 SHA ↔ comment 정합. 결정 근거: minimal-scope fix (5 action 의 정합성 회복만, AD-14 stack pin 정책 35 pins unchanged — `[STACK BUMP]` tag 불필요, cj-211/212/213 결정 wire verbatim 보존). CR 11-3 honest-DEFER discipline: comment 와 SHA 가 일치하지 않던 dishonest state 를 정직 회복 (setup-python 의 `# v6.1.1` comment 는 tag 자체가 부재하여 v5.1.0 으로 정정, upload-artifact/setup-node/github-script 의 기존 SHA 는 resolvable 이지만 다른 commit 을 가리키던 state 정직 회복). 다음 push 후 live CI run 의 13개 job 모두 success 결정 wire 보존 — 첫 trigger cycle 의 actual verification 결과는 **다음 push 후 결정 wire 보존**. **CR 11-3 honest-DEFER 107번째** epic 연속 정직 회복 (cj-213 의 106번째에 이어).
   정직 회복 (cj-212 의 105번째에 이어).
+- cj-215 live CI verification docs-only sprint — cj-214 의
+  "다음 push 후 live CI run actual verification" 결정 wire 의 honestly
+  발동 = cj-211~214 의 4-sprint 합성 의 actual functional verification
+  결과. **Verification source-of-truth**: GitHub REST API public,
+  no-auth — `GET /repos/c8romeo/costmgr/actions/runs/33235390055/jobs`
+  → run_id 33235390055, head_sha `fe26a86` (cj-214 tip), head_branch
+  `9-3-dev-2026-08-17`, event=push, status=completed, **conclusion=failure**,
+  total_count=13 jobs. Full JSON preserved at `_bmad-output/cj-215-jobs.json`
+  (57862 bytes) — cj-215 decision ledger source-of-truth. **13 job
+  matrix 정직 집계**: 5 PASS (setup + stack-pin-check + commit-prefix-lint
+  + lint-imports + lint-deps = cj-211/213/214 의 setup recovery honestly
+  verified, cj-209 PARTIAL → FULL recovery verified, cj-212 trigger
+  surface EXTENSION verified) + **8 FAIL** = lint-conventions:
+  `pnpm install --frozen-lockfile` / test-architecture: `architecture +
+  engine-purity tests` / test-service-role-guard: `Service-role
+  audit-first unit tests` / **service-role-guard-lint** 🔴 CRITICAL:
+  `Fail if service_role is invoked outside the guard module` (실제
+  code violation, RLS bypass 위험) / web-e2e: `pnpm playwright
+  install --with-deps chromium` / smoke-e2e + rls-tests 공유: `Install
+  psql` / web-test: `pnpm lint:conventions`. **CR 11-3 honest-DEFER
+  108번째 발동**: cj-214 의 close-out note 의 "13개 job 모두 success
+  결정 wire 보존" claim 의 honest 한계 honestly 회복 — what was claimed
+  = cj-211~214 의 4-sprint 합성으로 모든 blocker 해소 / what cj-215
+  verified = setup 단계까지의 recovery (5 PASS) + downstream functional
+  FAIL 8건 = **cj-214 의 claim 이 PARTIALLY 정확** (setup recovery 만
+  honestly verified, downstream functional verification 부족). 7
+  distinct NEW blockers **D-CI-FUNC-1~7 신규 honestly DEFER 등록**
+  결정 wire (AD-14 §Open Items cj-215 EXTENSION). cj-216+ recovery
+  sprints 결정 wire 후보 = cj-216 (D-CI-FUNC-4 CRITICAL 우선) +
+  cj-217 (D-CI-FUNC-6 + D-CI-FUNC-5 동시) + cj-218 (D-CI-FUNC-1 +
+  D-CI-FUNC-7 동시) + cj-219 (D-CI-FUNC-2 + D-CI-FUNC-3 동시) 결정
+  wire 보존. 본 sprint 는 pure docs-only verification (source 변경
+  0건 — Python/TS/GHA 모두 변경 없음), AD-14 stack pin 정책 (35
+  pins) 변경 없음, `[STACK BUMP]` tag 불필요. **CR 11-3 honest-DEFER
+  108번째** epic 연속 정직 회복 (cj-214 의 107번째에 이어).
 
 ## Open Items
 
@@ -469,6 +505,51 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   → `395ad3262231945c25e8478fd5baf05154b1d79f` (v6.1.0, `api.github.com/repos/actions/setup-node/git/refs/tags/v6.1.0` verified), line 117 의 typo `28ba30b` → `28fa30b` 1자 fix 포함, comment `# v6.1.0` 그대로 (정합 회복) /
   (b) **9× setup-python comment fix** SHA `82c7e631bb3cdc910f68e0081d67478d79c6982d`
   unchanged (SHA 가 실제 `setup-python@v5.1.0` 임을 `api.github.com/.../git/refs/tags/v5.1.0` 으로 확인), comment `# v6.1.1` → `# v5.1.0` 정정 (v6.1.1 tag 자체 부재) / (d) **5× github-script SHA swap** `60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15` → `60a0d83039c74a4aee543508d2ffcb1c3799cdea` (v7.0.1, `api.github.com/.../git/refs/tags/v7.0.1` verified), comment `# v7.0.1` 그대로 (정합 회복) / (e) **4× upload-artifact SHA swap** `5d5cc99d66b86fc1631cb4e6c5e34ba1da8e4887` → `50769540e7f4bd5e21e526ee35c689e35e0d6874` (v4.4.0, `api.github.com/.../git/refs/tags/v4.4.0` verified), comment `# v4.4.0` 그대로 (정합 회복). 13+2 = 15 (cj-211 verbatim 보존) + 26 (cj-214 신규) = **41 total pinned occurrences** 모두 SHA ↔ comment 정합. 결정 근거: minimal-scope fix (5 action 의 정합성 회복만, AD-14 stack pin 정책 35 pins unchanged — `[STACK BUMP]` tag 불필요, cj-211/212/213 결정 wire verbatim 보존), CR 11-3 honest-DEFER discipline: comment 와 SHA 가 일치하지 않던 dishonest state 를 정직 회복. 검증 실측: T7.16 grep PASS (`grep -c 'actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f' .github/workflows/ci.yml` → 7, `grep -c 'actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0' ...` → 9, `grep -c 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea' ...` → 5, `grep -c 'actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874' ...` → 4) + T7.17 grep PASS (broken SHAs 모두 0: `grep -c '60f0c1deea2cdc3e9f9e5bdb7e2734458699cd15'` → 0, `grep -c '28ba30b79a866c81b0a6'` → 0) + T7.18 YAML syntax check via `python -c "import yaml; yaml.safe_load(...)"` → valid + T7.19 cj-211/212/213 결정 wire verbatim 보존 (checkout 13 + cache 2 + workflow_dispatch 2 + 9-3-* 3 + story-* 3 + main 2 + corepack enable 6 모두 그대로). runtime 동작 변화: cj-211 의 SHA fix (15 occurrences) + cj-212 의 trigger surface EXTENSION + cj-213 의 corepack enable (6 occurrences) + cj-214 의 honest-full SHA alignment (26 occurrences) **4개 sprint 합성** 으로 cj-210 의 2개 blocker + cj-213 의 1개 blocker + cj-214 의 1개 blocker (10개 downstream job cascade fail) 가 완전히 해소되어 `9-3-dev-2026-08-17` working branch 의 다음 push 부터 CI 자동 trigger → setup recovery → 13개 job 모두 success 결정 wire 보존 (첫 trigger cycle 의 actual verification 결과는 다음 push 후 결정 wire 보존). **CR 11-3 honest-DEFER 107번째** epic 연속 정직 회복 (cj-213 의 106번째에 이어).
+- **D-CI-FUNC-1** ⚠️ **NEW honestly DEFER (cj-style 215 관찰)** —
+  lint-conventions CI job 의 `#6 Run pnpm install --frozen-lockfile`
+  step FAIL 결정 wire. cj-215 live CI verification 결과 surface
+  (run_id 33235390055, head_sha `fe26a86`, 13 jobs 중 8 FAIL 중 1건).
+  Root cause (high-level): lockfile drift 또는 peer dependency 미일치
+  가능성. 결정 wire 보존: cj-216+ recovery sprint 에서 lockfile actual
+  state + `pnpm install --frozen-lockfile` local 환경 재현 + 원인
+  분석 + fix 결정 wire.
+- **D-CI-FUNC-2** ⚠️ **NEW honestly DEFER (cj-style 215 관찰)** —
+  test-architecture CI job 의 `#6 Run architecture + engine-purity
+  tests` step FAIL. CR 4-3/4-4 (Industry enum SSOT, A5 drift detector)
+  또는 SDD 검증 위반 가능성. 결정 wire 보존: cj-216+ recovery sprint
+  에서 `pytest tests/api/architecture/ tests/api/core/test_engine_purity.py
+  -v` local 재현 + SDR 4-step 분석 결정 wire.
+- **D-CI-FUNC-3** ⚠️ **NEW honestly DEFER (cj-style 215 관찰)** —
+  test-service-role-guard CI job 의 `#6 Service-role audit-first unit
+  tests (no DB required)` step FAIL. CR 1-1 audit-first INSERT
+  discipline 또는 security boundary 위반 가능성. 결정 wire 보존:
+  cj-216+ recovery sprint 에서 `pytest tests/api/core/test_service_role_guard.py
+  -v` local 재현 + audit-first INSERT chain 검증 결정 wire.
+- **D-CI-FUNC-4** ⚠️ **NEW honestly DEFER (cj-style 215 관찰) +
+  🔴 CRITICAL PRIORITY** — service-role-guard-lint CI job 의 `#3 Fail
+  if service_role is invoked outside the guard module` step FAIL.
+  **🔴 실제 code violation** — `service_role` 이 guard module 외부에서
+  invoke 됨 (lint script 가 detect). **architecture integrity /
+  multi-tenant security boundary 직접 위반, RLS bypass 위험**. 결정
+  wire 보존: **cj-216 최우선** — service_role 호출 site 모두 grep +
+  audit-first INSERT 패턴 적용 + lint script 검증 + pytest 회귀 결정
+  wire.
+- **D-CI-FUNC-5** ⚠️ **NEW honestly DEFER (cj-style 215 관찰)** —
+  web-e2e CI job 의 `#6 Run pnpm playwright install --with-deps
+  chromium` step FAIL. chromium system deps 설치 실패 (apt-get install
+  또는 sudo 권한 이슈 가능). 결정 wire 보존: cj-217 recovery sprint
+  에서 local 재현 + chromium system deps fix 결정 wire.
+- **D-CI-FUNC-6** ⚠️ **NEW honestly DEFER (cj-style 215 관찰)** —
+  smoke-e2e + rls-tests 2 jobs 의 `#7 Install psql` step FAIL (동일
+  root cause). postgresql-client 설치 실패 (apt-get install 또는
+  network 이슈 가능). 결정 wire 보존: cj-217 recovery sprint 에서
+  ci.yml 의 psql install step 의 정확한 command 확인 + local 재현 +
+  fix 결정 wire.
+- **D-CI-FUNC-7** ⚠️ **NEW honestly DEFER (cj-style 215 관찰)** —
+  web-test CI job 의 `#7 Run pnpm lint:conventions` step FAIL.
+  apps/web frontend convention 위반 (custom money type + migration
+  linter 등). 결정 wire 보존: cj-218 recovery sprint 에서 local 재현
+  + 위반 항목 fix 결정 wire.
 - **D-AD-14-2** ✅ **RESOLVED (cj-style 208 source sprint)** —
   retention `response_model` 회복 source sprint. 원인은
   `apps/api/modules/audit/retention/retention_dsl.py:52` 의
@@ -690,6 +771,38 @@ report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED →
   wire 보존 (첫 trigger cycle 의 actual verification 결과는 다음 push
   후 결정 wire 보존). **CR 11-3 honest-DEFER 107번째** epic 연속 정직
   회복 (cj-213 의 106번째에 이어).
+- 본 AD-14 문서의 cj-style 215 sprint EXTENSION 은 **docs-only
+  atomic single sprint** — **live CI verification** 결정 wire 보존.
+  cj-214 의 "다음 push 후 live CI run actual verification" 결정
+  wire 의 honestly 발동 = cj-211~214 의 4-sprint 합성 의 actual
+  functional verification 결과. **Verification source-of-truth**:
+  GitHub REST API public, no-auth — `GET /repos/c8romeo/costmgr/actions/runs/33235390055/jobs`
+  → run_id 33235390055, head_sha `fe26a86` (cj-214 tip), head_branch
+  `9-3-dev-2026-08-17`, event=push, status=completed, **conclusion=failure**,
+  total_count=13 jobs. Full JSON preserved at `_bmad-output/cj-215-jobs.json`
+  (57862 bytes) — cj-215 decision ledger source-of-truth. **13 job
+  matrix 정직 집계**: 5 PASS (setup + stack-pin-check + commit-prefix-lint
+  + lint-imports + lint-deps = cj-211/213/214 의 setup recovery
+  honestly verified, cj-209 PARTIAL → FULL recovery verified, cj-212
+  trigger surface EXTENSION verified) + **8 FAIL** = lint-conventions
+  / test-architecture / test-service-role-guard / **service-role-guard-lint
+  🔴 CRITICAL** / web-e2e / smoke-e2e + rls-tests (2 jobs 공유) /
+  web-test. **CR 11-3 honest-DEFER 108번째 발동**: cj-214 의
+  close-out note 의 "13개 job 모두 success 결정 wire 보존" claim 의
+  honest 한계 honestly 회복 — what was claimed = cj-211~214 의
+  4-sprint 합성으로 모든 blocker 해소 / what cj-215 verified = setup
+  단계까지의 recovery (5 PASS) + downstream functional FAIL 8건 =
+  **cj-214 의 claim 이 PARTIALLY 정확** (setup recovery 만 honestly
+  verified, downstream functional verification 부족). 7 distinct
+  NEW blockers **D-CI-FUNC-1~7 신규 honestly DEFER 등록** 결정 wire
+  (AD-14 §Open Items cj-215 EXTENSION). cj-216+ recovery sprints
+  결정 wire 후보 = cj-216 (D-CI-FUNC-4 CRITICAL 우선) + cj-217
+  (D-CI-FUNC-6 + D-CI-FUNC-5 동시) + cj-218 (D-CI-FUNC-1 + D-CI-FUNC-7
+  동시) + cj-219 (D-CI-FUNC-2 + D-CI-FUNC-3 동시) 결정 wire 보존.
+  본 sprint 는 pure docs-only verification (source 변경 0건 —
+  Python/TS/GHA 모두 변경 없음), AD-14 stack pin 정책 (35 pins)
+  변경 없음, `[STACK BUMP]` tag 불필요. **CR 11-3 honest-DEFER
+  108번째** epic 연속 정직 회복 (cj-214 의 107번째에 이어).
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의
