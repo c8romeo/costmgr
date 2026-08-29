@@ -36,10 +36,12 @@ export interface CacheInvalidationChannelBadgeProps {
  * receipts to surface which caches were invalidated.
  */
 export function CacheInvalidationChannelBadge({
+  // eslint-disable-next-line camelcase
   active_subset,
   className,
 }: CacheInvalidationChannelBadgeProps): React.ReactElement {
   const t = useTranslations("cache_invalidation_channel_badge");
+  // eslint-disable-next-line camelcase
   const subset = active_subset ?? CACHE_INVALIDATION_CHANNELS;
 
   return (

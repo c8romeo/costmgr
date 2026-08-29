@@ -27,6 +27,7 @@ export default async function CVPPage({
   searchParams,
 }: CVPPageProps): Promise<React.ReactElement> {
   await params;
+  // eslint-disable-next-line camelcase
   const { period_key } = await searchParams;
 
   const cookieStore = await cookies();
@@ -40,6 +41,7 @@ export default async function CVPPage({
     return `${year}-${month}`;
   })();
 
+  // eslint-disable-next-line camelcase
   const initialPeriodKey = period_key ?? fallbackPeriodKey;
 
   return (

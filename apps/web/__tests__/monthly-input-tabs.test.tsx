@@ -357,6 +357,7 @@ describe("MonthlyInputTabs", () => {
       report_generated_at: "2026-08-08T00:00:00Z",
     };
 
+    // eslint-disable-next-line camelcase
     const v4_verdict = {
       code: "monthly_closing_v4_fail",
       product_whitelist_size: 4,
@@ -386,6 +387,7 @@ describe("MonthlyInputTabs", () => {
           guard_enabled: true,
         }}
         monthly_closing_report={aggregate}
+        // eslint-disable-next-line camelcase
         monthly_closing_report_v4_verdict={v4_verdict}
         closing_period_capability_granted={true}
       />,

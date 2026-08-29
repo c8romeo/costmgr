@@ -60,8 +60,11 @@ function formatDateTime(iso: string | null | undefined): string {
  */
 export function TwoFactorStatusBadge({
   status,
+  // eslint-disable-next-line camelcase
   last_login_at,
+  // eslint-disable-next-line camelcase
   lockout_until,
+  // eslint-disable-next-line camelcase
   recovery_codes_remaining,
   locale,
   className,
@@ -83,11 +86,13 @@ export function TwoFactorStatusBadge({
         <span className="font-medium text-green-800">
           {t("label_enabled")}
         </span>
+        {/* eslint-disable-next-line camelcase */}
         {last_login_at ? (
           <span className="text-xs text-green-700">
             · 최근: {formatDateTime(last_login_at)}
           </span>
         ) : null}
+        {/* eslint-disable-next-line camelcase */}
         {recovery_codes_remaining != null ? (
           <span className="text-xs text-green-700">
             · {t("recovery_codes_remaining_label").replace(
@@ -112,6 +117,7 @@ export function TwoFactorStatusBadge({
       >
         <span className="h-2 w-2 rounded-full bg-yellow-600" aria-hidden="true" />
         <span className="font-medium text-yellow-800">{t("label_locked")}</span>
+        {/* eslint-disable-next-line camelcase */}
         {lockout_until ? (
           <span className="text-xs text-yellow-700">
             · {formatDateTime(lockout_until)} 까지

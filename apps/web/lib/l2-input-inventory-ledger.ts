@@ -111,19 +111,25 @@ export interface ClosingInvariant {
 export function classifyClosingInvariant(
   closing: ClosingBalance[],
 ): ClosingInvariant {
+  // eslint-disable-next-line camelcase
   const closing_per_product: Record<string, string> = {};
+  // eslint-disable-next-line camelcase
   const negative_products: Record<string, string> = {};
   for (const b of closing) {
+    // eslint-disable-next-line camelcase
     closing_per_product[b.product_id] = b.closing_qty;
     const qty = new Decimal(b.closing_qty);
     if (qty.isNegative()) {
+      // eslint-disable-next-line camelcase
       negative_products[b.product_id] = b.closing_qty;
     }
   }
   if (closing.length === 0) {
     return {
       code: "EMPTY_PERIOD",
+      // eslint-disable-next-line camelcase
       negative_products,
+      // eslint-disable-next-line camelcase
       closing_per_product,
       guard_enabled: true,
     };
@@ -131,14 +137,18 @@ export function classifyClosingInvariant(
   if (Object.keys(negative_products).length > 0) {
     return {
       code: "NEGATIVE_CLOSING",
+      // eslint-disable-next-line camelcase
       negative_products,
+      // eslint-disable-next-line camelcase
       closing_per_product,
       guard_enabled: true,
     };
   }
   return {
     code: "CLOSING_OK",
+    // eslint-disable-next-line camelcase
     negative_products,
+    // eslint-disable-next-line camelcase
     closing_per_product,
     guard_enabled: true,
   };

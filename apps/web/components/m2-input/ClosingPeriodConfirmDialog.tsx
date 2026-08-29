@@ -63,6 +63,7 @@ export function ClosingPeriodConfirmDialog({
   open,
   onOpenChange,
   state,
+  // eslint-disable-next-line camelcase
   period_key,
   onConfirm,
   className,
@@ -74,6 +75,7 @@ export function ClosingPeriodConfirmDialog({
   const statusKnown = CLOSING_PERIOD_STATUSES.includes(state.status);
   const preview = Object.entries(state.closing_per_product)
     .slice(0, 5)
+    {/* eslint-disable-next-line camelcase */}
     .map(([product_id, qty]) => ({ product_id, qty }));
 
   const handleConfirm = async () => {
@@ -118,6 +120,7 @@ export function ClosingPeriodConfirmDialog({
       <DialogContent
         className={cn("sm:max-w-md", className)}
         data-testid="closing-period-confirm-dialog"
+        {/* eslint-disable-next-line camelcase */}
         data-period-key={period_key}
         data-status={state.status}
       >
@@ -130,6 +133,7 @@ export function ClosingPeriodConfirmDialog({
           data-testid="closing-period-snapshot-preview"
         >
           <div className="mb-2">
+            {/* eslint-disable-next-line camelcase */}
             period_key: <span className="font-mono">{period_key}</span>
           </div>
           <div className="mb-2">

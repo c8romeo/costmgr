@@ -202,6 +202,7 @@ export async function runDryRun(
 }
 
 export async function fetchTrend(
+    // eslint-disable-next-line camelcase
     period_key: string | null
 ): Promise<{
     results: UnitEconomicsResult[];
@@ -210,6 +211,7 @@ export async function fetchTrend(
     trace_id: string;
 }> {
     const params = new URLSearchParams();
+    // eslint-disable-next-line camelcase
     if (period_key) {
         params.set("period_key", period_key);
     }

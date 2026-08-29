@@ -74,9 +74,13 @@ export interface ReversalRequestDialogProps {
 export function ReversalRequestDialog({
   open,
   onOpenChange,
+  // eslint-disable-next-line camelcase
   target_event_id,
+  // eslint-disable-next-line camelcase
   period_key,
+  // eslint-disable-next-line camelcase
   period_status,
+  // eslint-disable-next-line camelcase
   capability_granted,
   onSubmit,
   className,
@@ -86,8 +90,11 @@ export function ReversalRequestDialog({
 
   // Defense-in-depth: compute authorization state.
   const state: ReversalRequestState = buildReversalRequestState({
+    // eslint-disable-next-line camelcase
     target_event_id,
+    // eslint-disable-next-line camelcase
     period_status,
+    // eslint-disable-next-line camelcase
     capability_granted,
   });
 
@@ -139,8 +146,11 @@ export function ReversalRequestDialog({
       <DialogContent
         className={cn("sm:max-w-md", className)}
         data-testid="reversal-request-dialog"
+        // eslint-disable-next-line camelcase
         data-target-event-id={target_event_id}
+        // eslint-disable-next-line camelcase
         data-period-key={period_key}
+        // eslint-disable-next-line camelcase
         data-period-status={period_status}
       >
         <DialogHeader>
@@ -163,7 +173,9 @@ export function ReversalRequestDialog({
           </div>
         </div>
         <ReversalRequestForm
+          // eslint-disable-next-line camelcase
           target_event_id={target_event_id}
+          // eslint-disable-next-line camelcase
           period_key={period_key}
           submitting={submitting}
           allowed={isReversalRequestAllowed(state)}

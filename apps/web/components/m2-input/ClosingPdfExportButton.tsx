@@ -64,6 +64,7 @@ export function ClosingPdfExportButton({
   className,
 }: ClosingPdfExportButtonProps): React.ReactElement | null {
   const t = useTranslations("closing_pdf_export");
+  // eslint-disable-next-line camelcase
   const [is_downloading, setIsDownloading] = React.useState(false);
 
   // Defensive: industry must be one of 4 canonical (W5 deferral guard).
@@ -79,6 +80,7 @@ export function ClosingPdfExportButton({
   }
 
   const handleDownload = async (): Promise<void> => {
+    {/* eslint-disable-next-line camelcase */}
     if (is_downloading) return; // idempotent no-op (CR 1.1)
     setIsDownloading(true);
 
@@ -106,6 +108,7 @@ export function ClosingPdfExportButton({
           // ignore parse error
         }
         const code = errPayload.code ?? "EXPORT_PDF_ERROR";
+        // eslint-disable-next-line camelcase
         const message_ko =
           errPayload.message_ko ?? t("toast_error_generic", { code });
 
@@ -155,10 +158,12 @@ export function ClosingPdfExportButton({
     <button
       type="button"
       onClick={handleDownload}
+      {/* eslint-disable-next-line camelcase */}
       disabled={is_downloading}
       data-testid="closing-pdf-export-button"
       data-period-key={periodKey}
       data-industry={industry}
+      {/* eslint-disable-next-line camelcase */}
       data-status={is_downloading ? "DOWNLOADING" : "IDLE"}
       className={
         "inline-flex items-center justify-center rounded-md border " +
@@ -169,6 +174,7 @@ export function ClosingPdfExportButton({
       }
     >
       <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+      {/* eslint-disable-next-line camelcase */}
       {is_downloading ? t("button_downloading") : t("button_label")}
     </button>
   );

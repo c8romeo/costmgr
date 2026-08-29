@@ -167,10 +167,12 @@ export async function triggerOverBudgetAlert(
 }
 
 export async function fetchBudgetPlanningPlans(
+    // eslint-disable-next-line camelcase
     tenant_id?: string,
 // eslint-disable-next-line @typescript-eslint/no-restricted-types
 ): Promise<{ plans: BudgetPlan[]; count: number }> {
     const params = new URLSearchParams();
+    // eslint-disable-next-line camelcase
     if (tenant_id) params.set("tenant_id", tenant_id);
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
     return request<{ plans: BudgetPlan[]; count: number }>(

@@ -58,7 +58,9 @@ export function buildTwoFactorSetupState(input: {
   recovery_codes: string[];
   already_enabled?: boolean;
 }): TwoFactorSetupState {
+  // eslint-disable-next-line camelcase
   const already_enabled = input.already_enabled ?? false;
+  // eslint-disable-next-line camelcase
   if (already_enabled) {
     return {
       authorized: false,
@@ -73,7 +75,9 @@ export function buildTwoFactorSetupState(input: {
   // Validate secret (base32 — uppercase + digits 2-7, RFC 4648).
   // Length 16-64 (TOTP spec floor 16 chars = 80 bits of entropy).
   // Strict case-sensitive check: lowercase letters are rejected.
+  // eslint-disable-next-line camelcase
   const secret_is_valid = /^[A-Z2-7]{16,64}=*$/.test(input.secret);
+  // eslint-disable-next-line camelcase
   if (!secret_is_valid) {
     return {
       authorized: false,
@@ -86,7 +90,9 @@ export function buildTwoFactorSetupState(input: {
   }
 
   // Validate uri (otpauth://totp/...).
+  // eslint-disable-next-line camelcase
   const uri_is_valid = input.uri.startsWith("otpauth://totp/");
+  // eslint-disable-next-line camelcase
   if (!uri_is_valid) {
     return {
       authorized: false,

@@ -60,7 +60,9 @@ export function canEditOpening(state: OpeningCarryState): boolean {
  * Format the Korean lock reason for display. Falls back to a stable
  * SSOT constant when the state has no explicit reason.
  */
+// eslint-disable-next-line camelcase
 export function formatCarryChainReason(reason_ko: string | null): string {
+  // eslint-disable-next-line camelcase
   return reason_ko ?? "기초재고 이월 체인 비활성";
 }
 

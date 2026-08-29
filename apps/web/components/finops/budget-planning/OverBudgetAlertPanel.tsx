@@ -22,12 +22,14 @@ export function OverBudgetAlertPanel(_: OverBudgetAlertPanelProps = {}) {
     const [loading, setLoading] = useState<boolean>(false);
 
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
+    // eslint-disable-next-line camelcase
     const handleTrigger = async (variance_pct: number) => {
         setLoading(true);
         try {
             const alert = await triggerOverBudgetAlert({
                 plan_id: "demo-plan",
                 tenant_id: "demo",
+                // eslint-disable-next-line camelcase
                 variance_pct,
                 plan_total_budget_amount: 15_000_000.0,
                 dry_run: true,

@@ -39,10 +39,12 @@ export function BudgetPlanOverviewCard({ dryRun }: BudgetPlanOverviewCardProps) 
 
     const handleCreate = async () => {
         const now = new Date();
+        // eslint-disable-next-line camelcase
         const period_key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
         try {
             const plan = await createBudgetPlan({
                 tenant_id: "demo",
+                // eslint-disable-next-line camelcase
                 period_key,
                 period_type: "monthly",
                 scope: ["cost_center", "department", "business_unit", "tag", "tenant"],

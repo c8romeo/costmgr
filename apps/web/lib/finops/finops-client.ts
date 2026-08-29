@@ -68,12 +68,14 @@ export class FinopsApiError extends Error {
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
     status: number,
     code: string,
+    // eslint-disable-next-line camelcase
     trace_id: string,
   ) {
     super(message);
     this.name = "FinopsApiError";
     this.status = status;
     this.code = code;
+    // eslint-disable-next-line camelcase
     this.trace_id = trace_id;
   }
 }
@@ -156,6 +158,7 @@ export async function listShowbackComparison(
 }
 
 export async function listChargebackResults(
+  // eslint-disable-next-line camelcase
   period_key: string,
   opts: RequestOptions,
 ): Promise<FinopsApiPage<ChargebackResult>> {
@@ -183,6 +186,7 @@ export async function listDepartmentMappings(
 }
 
 export async function exportChargeback(
+  // eslint-disable-next-line camelcase
   period_key: string,
   format: ExportFormat,
   opts: RequestOptions,

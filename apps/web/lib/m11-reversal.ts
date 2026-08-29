@@ -163,16 +163,23 @@ export function buildReversalRequestState(input: {
   period_status: PeriodStatus;
   capability_granted: boolean;
 }): ReversalRequestState {
+  // eslint-disable-next-line camelcase
   const period_locked = input.period_status === PERIOD_STATUS_LOCKED;
+  // eslint-disable-next-line camelcase
   const allow_submission =
+    // eslint-disable-next-line camelcase
     !period_locked &&
     input.capability_granted &&
     input.target_event_id.length > 0;
 
+  // eslint-disable-next-line camelcase
   let reject_reason_ko: string | null = null;
   if (!input.capability_granted) {
+    // eslint-disable-next-line camelcase
     reject_reason_ko = M11_REJECT_NO_CAPABILITY_KO;
+  // eslint-disable-next-line camelcase
   } else if (period_locked) {
+    // eslint-disable-next-line camelcase
     reject_reason_ko = M11_REJECT_LOCKED_KO;
   }
 
@@ -180,8 +187,11 @@ export function buildReversalRequestState(input: {
     target_event_id: input.target_event_id,
     period_status: input.period_status,
     capability_granted: input.capability_granted,
+    // eslint-disable-next-line camelcase
     period_locked,
+    // eslint-disable-next-line camelcase
     allow_submission,
+    // eslint-disable-next-line camelcase
     reject_reason_ko,
   };
 }

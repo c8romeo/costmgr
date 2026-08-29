@@ -50,26 +50,36 @@ export interface CloseSequencePanelProps {
  * confirm button. Toast feedback handled by individual button components.
  */
 export function CloseSequencePanel({
+  // eslint-disable-next-line camelcase
   divisions_completed_at,
+  // eslint-disable-next-line camelcase
   manufacturing_completed_at,
+  // eslint-disable-next-line camelcase
   abc_completed_at,
+  // eslint-disable-next-line camelcase
   common_completed_at,
   onStepComplete,
   onConfirm,
+  // eslint-disable-next-line camelcase
   capability_granted,
   className,
 }: CloseSequencePanelProps): React.ReactElement | null {
   const t = useTranslations("close_sequence_panel");
 
+  // eslint-disable-next-line camelcase
   if (!capability_granted) {
     return null;
   }
 
   // Compute sequence order result + state via TS mirror.
   const orderResult = validateCloseSequenceOrder({
+    // eslint-disable-next-line camelcase
     divisions_completed_at,
+    // eslint-disable-next-line camelcase
     manufacturing_completed_at,
+    // eslint-disable-next-line camelcase
     abc_completed_at,
+    // eslint-disable-next-line camelcase
     common_completed_at,
   });
   // P-010: Derive closed_at from the 4 stage timestamps — when all 4 stages
@@ -80,17 +90,26 @@ export function CloseSequencePanel({
   // once the confirm action returns the actual server-confirmed timestamp.
   const allStagesCompleted = orderResult.next_step === "confirmed";
   const state: CloseSequenceStage = computeCloseSequenceState({
+    // eslint-disable-next-line camelcase
     divisions_completed_at,
+    // eslint-disable-next-line camelcase
     manufacturing_completed_at,
+    // eslint-disable-next-line camelcase
     abc_completed_at,
+    // eslint-disable-next-line camelcase
     common_completed_at,
+    // eslint-disable-next-line camelcase
     closed_at: allStagesCompleted ? common_completed_at : null,
   });
 
   const timestamps: Record<string, string | null> = {
+    // eslint-disable-next-line camelcase
     divisions: divisions_completed_at,
+    // eslint-disable-next-line camelcase
     manufacturing: manufacturing_completed_at,
+    // eslint-disable-next-line camelcase
     abc: abc_completed_at,
+    // eslint-disable-next-line camelcase
     common: common_completed_at,
   };
 

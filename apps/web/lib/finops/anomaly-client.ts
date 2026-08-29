@@ -45,12 +45,14 @@ export class AnomalyApiError extends Error {
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
     status: number,
     code: string,
+    // eslint-disable-next-line camelcase
     trace_id: string,
   ) {
     super(message);
     this.name = "AnomalyApiError";
     this.status = status;
     this.code = code;
+    // eslint-disable-next-line camelcase
     this.trace_id = trace_id;
   }
 }
@@ -118,6 +120,7 @@ export async function runAnomalyDetection(
 }
 
 export async function listAnomalyDetections(
+  // eslint-disable-next-line camelcase
   period_key: string,
   opts: RequestOptions,
 ): Promise<AnomalyApiPage<DetectionResult>> {
@@ -147,6 +150,7 @@ export async function createBudget(
 }
 
 export async function listBudgets(
+  // eslint-disable-next-line camelcase
   period_key: string,
   opts: RequestOptions,
 ): Promise<AnomalyApiPage<BudgetDefinition>> {
@@ -161,6 +165,7 @@ export async function listBudgets(
 }
 
 export async function listBudgetAlerts(
+  // eslint-disable-next-line camelcase
   period_key: string,
   opts: RequestOptions,
 ): Promise<AnomalyApiPage<BudgetAlert>> {
@@ -175,8 +180,11 @@ export async function listBudgetAlerts(
 }
 
 export async function evaluateForecastAccuracy(
+  // eslint-disable-next-line camelcase
   tenant_id: string,
+  // eslint-disable-next-line camelcase
   period_key: string,
+  // eslint-disable-next-line camelcase
   model_name: string,
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
   predicted: number[],
@@ -191,8 +199,11 @@ export async function evaluateForecastAccuracy(
       accessToken: opts.accessToken,
       locale: opts.locale,
       body: JSON.stringify({
+        // eslint-disable-next-line camelcase
         tenant_id,
+        // eslint-disable-next-line camelcase
         period_key,
+        // eslint-disable-next-line camelcase
         model_name,
         predicted,
         actual,

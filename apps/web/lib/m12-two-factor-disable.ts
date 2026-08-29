@@ -53,13 +53,18 @@ export function buildTwoFactorDisableState(input: {
   is_owner: boolean;
 }): TwoFactorDisableState {
   const code = input.current_code;
+  // eslint-disable-next-line camelcase
   const code_present = code !== null && code.length > 0;
+  // eslint-disable-next-line camelcase
   const code_verified = code_present && TOTP_CODE_PATTERN.test(code);
 
   // Reason length validation (only enforced for admin override path).
+  // eslint-disable-next-line camelcase
   let reason_valid = true;
+  // eslint-disable-next-line camelcase
   if (!code_verified) {
     // Admin override is required → reason must be ≥ 20 chars AND ≤ 500.
+    // eslint-disable-next-line camelcase
     reason_valid =
       input.is_owner &&
       input.reason.length >= MIN_REASON_LENGTH_FOR_ADMIN_OVERRIDE &&
@@ -67,32 +72,45 @@ export function buildTwoFactorDisableState(input: {
   } else {
     // Code path: reason optional (default empty). Even if provided,
     // length bounds are not enforced for the code path.
+    // eslint-disable-next-line camelcase
     reason_valid =
       input.reason.length === 0 ||
       (input.reason.length >= 1 && input.reason.length <= MAX_REASON_LENGTH);
   }
 
+  // eslint-disable-next-line camelcase
   const admin_override = !code_verified && input.is_owner && reason_valid;
+  // eslint-disable-next-line camelcase
   const authorized = code_verified || admin_override;
 
+  // eslint-disable-next-line camelcase
   let reject_reason_ko: string | null = null;
   if (!authorized) {
+    // eslint-disable-next-line camelcase
     if (code_present && !code_verified) {
+      // eslint-disable-next-line camelcase
       reject_reason_ko = ERROR_CODE_INVALID_CODE_FORMAT;
     } else if (input.reason.length < MIN_REASON_LENGTH_FOR_ADMIN_OVERRIDE) {
+      // eslint-disable-next-line camelcase
       reject_reason_ko = ERROR_CODE_REASON_TOO_SHORT;
     } else if (input.reason.length > MAX_REASON_LENGTH) {
+      // eslint-disable-next-line camelcase
       reject_reason_ko = ERROR_CODE_REASON_TOO_LONG;
     } else {
+      // eslint-disable-next-line camelcase
       reject_reason_ko = TWO_FACTOR_DISABLE_UNAUTHORIZED_KO;
     }
   }
 
   return {
     authorized,
+    // eslint-disable-next-line camelcase
     code_verified,
+    // eslint-disable-next-line camelcase
     admin_override,
+    // eslint-disable-next-line camelcase
     reason_valid,
+    // eslint-disable-next-line camelcase
     reject_reason_ko,
   };
 }

@@ -25,12 +25,14 @@ interface ProjectionResultCardProps {
 export function ProjectionResultCard({
   title,
   value,
+  // eslint-disable-next-line camelcase
   baseline_value,
   higherIsBetter = true,
   testId,
 }: ProjectionResultCardProps): React.ReactElement {
   const currentValue = parseFloat(value);
   const baseValue =
+    // eslint-disable-next-line camelcase
     baseline_value !== undefined ? parseFloat(baseline_value) : null;
 
   let arrow = "=";
@@ -67,6 +69,7 @@ export function ProjectionResultCard({
       <p className="mt-1 font-mono text-lg">
         {formatKRWTS(value)} 원
       </p>
+      {/* eslint-disable-next-line camelcase */}
       {baseline_value !== undefined ? (
         <p className="mt-1 text-xs text-gray-400">
           {t_baseline()}: {formatKRWTS(baseline_value)} 원
@@ -82,6 +85,7 @@ export function ProjectionResultCard({
 
 // Local helper to avoid pulling in the translations provider for a
 // simple label — we display "기준" inline as the baseline reference.
+// eslint-disable-next-line camelcase
 function t_baseline(): string {
   return "기준";
 }

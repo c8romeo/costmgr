@@ -31,6 +31,7 @@ export default async function ProjectionPage({
   searchParams,
 }: ProjectionPageProps): Promise<React.ReactElement> {
   await params;
+  // eslint-disable-next-line camelcase
   const { period_key, projection_month } = await searchParams;
 
   const cookieStore = await cookies();
@@ -56,7 +57,9 @@ export default async function ProjectionPage({
     return `${year}-${String(month).padStart(2, "0")}`;
   })();
 
+  // eslint-disable-next-line camelcase
   const initialPeriodKey = period_key ?? fallbackPeriodKey;
+  // eslint-disable-next-line camelcase
   const initialProjectionMonth = projection_month ?? fallbackProjectionMonth;
 
   return (

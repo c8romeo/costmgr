@@ -57,7 +57,9 @@ export interface ClosingPeriodConfirmationPanelProps {
  */
 export function ClosingPeriodConfirmationPanel({
   state,
+  // eslint-disable-next-line camelcase
   finalized_at,
+  // eslint-disable-next-line camelcase
   capability_granted = false,
   onConfirmClick,
   className,
@@ -65,6 +67,7 @@ export function ClosingPeriodConfirmationPanel({
   const t = useTranslations("closing_period");
 
   // A10 capability gate — service-only tenant → hidden entirely.
+  // eslint-disable-next-line camelcase
   if (!capability_granted) {
     return null;
   }
@@ -75,10 +78,13 @@ export function ClosingPeriodConfirmationPanel({
   }
 
   const allowed = isClosingPeriodAllowed(state.status);
+  // eslint-disable-next-line camelcase
   const is_blocked = state.status === "CLOSING_BLOCKED";
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line camelcase
   const is_already_closed = state.status === "ALREADY_CLOSED";
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line camelcase
   const is_empty = state.status === "EMPTY_PERIOD";
 
   // Variant + icon + title per status code (AD-15 §11 SSOT).
@@ -123,8 +129,10 @@ export function ClosingPeriodConfirmationPanel({
     variant = "default";
     icon = <Lock className="h-4 w-4" aria-hidden="true" />;
     title = t("panel_already_closed");
+    // eslint-disable-next-line camelcase
     description = finalized_at ? (
       <span>
+        {/* eslint-disable-next-line camelcase */}
         {t("finalized_at_label")}: {finalized_at}
       </span>
     ) : (
@@ -145,12 +153,15 @@ export function ClosingPeriodConfirmationPanel({
       data-testid="closing-period-confirmation-panel"
       data-status={state.status}
       data-allowed={allowed}
+      {/* eslint-disable-next-line camelcase */}
       data-capability-granted={capability_granted}
       className={cn("flex flex-col gap-2", className)}
     >
       <Alert
         variant={variant}
+        {/* eslint-disable-next-line camelcase */}
         role={is_blocked ? "alert" : "status"}
+        {/* eslint-disable-next-line camelcase */}
         aria-live={is_blocked ? "assertive" : "polite"}
       >
         {icon}

@@ -99,9 +99,11 @@ describe("ClosingPdfExport — Korean SSOT", () => {
 describe("triggerClosingPdfExportDownload", () => {
   let originalCreateObjectURL: typeof URL.createObjectURL;
   let originalRevokeObjectURL: typeof URL.revokeObjectURL;
+  // eslint-disable-next-line camelcase
   let clicked_elements: HTMLAnchorElement[];
 
   beforeEach(() => {
+    // eslint-disable-next-line camelcase
     clicked_elements = [];
     originalCreateObjectURL = URL.createObjectURL;
     originalRevokeObjectURL = URL.revokeObjectURL;
@@ -116,6 +118,7 @@ describe("triggerClosingPdfExportDownload", () => {
         const anchorEl = el as HTMLAnchorElement;
         const origClick = anchorEl.click.bind(anchorEl);
         anchorEl.click = () => {
+          // eslint-disable-next-line camelcase
           clicked_elements.push(anchorEl);
           origClick();
         };
@@ -136,6 +139,7 @@ describe("triggerClosingPdfExportDownload", () => {
 
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
     expect(clicked_elements).toHaveLength(1);
+    // eslint-disable-next-line camelcase
     expect(clicked_elements[0].download).toBe("closing-2026-07.pdf");
   });
 });

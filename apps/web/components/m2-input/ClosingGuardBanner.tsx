@@ -57,6 +57,7 @@ export function M2ClosingGuardBanner({
 
   // P21: Top-N offenders slice (top 5) sorted by severity ASC (qty ASC).
   const topOffenders = Object.entries(invariant.negative_products)
+    // eslint-disable-next-line camelcase
     .map(([product_id, qty]) => ({ product_id, qty }))
     .sort((a, b) => new Decimal(a.qty).minus(new Decimal(b.qty)).toNumber())
     .slice(0, 5);
@@ -116,10 +117,12 @@ export interface M2ClosingGuardGateProps {
  * blocks form submission, while pointer-events-none only blocks mouse).
  */
 export function M2ClosingGuardGate({
+  // eslint-disable-next-line camelcase
   is_blocked,
   children,
   fallback,
 }: M2ClosingGuardGateProps): React.ReactElement {
+  // eslint-disable-next-line camelcase
   if (!is_blocked) {
     return <>{children}</>;
   }

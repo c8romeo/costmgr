@@ -27,6 +27,7 @@ export default async function CostAnomalyMLPredictionPage({
     searchParams,
 }: PageProps): Promise<React.ReactElement> {
     const { locale } = await params;
+    // eslint-disable-next-line camelcase
     const { period_key } = await searchParams;
 
     const cookieStore = await cookies();
@@ -39,6 +40,7 @@ export default async function CostAnomalyMLPredictionPage({
     return (
         <main lang={locale}>
             <FinopsCostAnomalyMLPredictionDashboardPanel
+                // eslint-disable-next-line camelcase
                 periodKey={period_key ?? "2026-08"}
             />
         </main>

@@ -151,10 +151,12 @@ export async function listRetentionPolicies(opts: FetchOpts): Promise<{ policies
 }
 
 export async function getRetentionPolicy(
+  // eslint-disable-next-line camelcase
   action_class: RetentionClass,
   opts: FetchOpts,
 ): Promise<RetentionPolicy> {
   return _request(
+    // eslint-disable-next-line camelcase
     `/api/v1/audit-log/retention/${action_class}`,
     { method: "GET" },
     opts,
@@ -173,11 +175,13 @@ export async function createRetentionPolicy(
 }
 
 export async function updateRetentionPolicy(
+  // eslint-disable-next-line camelcase
   action_class: RetentionClass,
   payload: Partial<Omit<RetentionPolicy, "tenant_id" | "action_class">>,
   opts: FetchOpts,
 ): Promise<RetentionPolicy> {
   return _request(
+    // eslint-disable-next-line camelcase
     `/api/v1/audit-log/retention/${action_class}`,
     { method: "PUT", body: JSON.stringify(payload) },
     opts,
@@ -185,10 +189,12 @@ export async function updateRetentionPolicy(
 }
 
 export async function deleteRetentionPolicy(
+  // eslint-disable-next-line camelcase
   action_class: RetentionClass,
   opts: FetchOpts,
 ): Promise<void> {
   return _request<void>(
+    // eslint-disable-next-line camelcase
     `/api/v1/audit-log/retention/${action_class}`,
     { method: "DELETE" },
     opts,
@@ -207,10 +213,12 @@ export async function previewPurge(
 }
 
 export async function triggerColdArchive(
+  // eslint-disable-next-line camelcase
   action_class: RetentionClass,
   opts: FetchOpts,
 ): Promise<{ action_class: RetentionClass; cold_archive_triggered: boolean; trace_id: string }> {
   return _request(
+    // eslint-disable-next-line camelcase
     `/api/v1/audit-log/retention/${action_class}/cold-archive`,
     { method: "POST" },
     opts,

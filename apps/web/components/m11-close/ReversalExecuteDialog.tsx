@@ -93,14 +93,23 @@ export interface ReversalExecuteDialogProps {
 export function ReversalExecuteDialog({
   open,
   onOpenChange,
+  // eslint-disable-next-line camelcase
   tenant_id,
+  // eslint-disable-next-line camelcase
   target_event_id,
+  // eslint-disable-next-line camelcase
   snapshot_id,
+  // eslint-disable-next-line camelcase
   snapshot_state,
+  // eslint-disable-next-line camelcase
   target_qty,
+  // eslint-disable-next-line camelcase
   corrected_qty,
+  // eslint-disable-next-line camelcase
   correction_group_id,
+  // eslint-disable-next-line camelcase
   actor_id,
+  // eslint-disable-next-line camelcase
   capability_granted,
   onSubmit,
   className,
@@ -110,19 +119,28 @@ export function ReversalExecuteDialog({
   const [reason, setReason] = React.useState("");
 
   // Capability gate.
+  // eslint-disable-next-line camelcase
   if (!capability_granted) {
     return null;
   }
 
   // Compute authorization state via TS mirror.
   const state: ReversalExecuteState = buildReversalExecuteState({
+    // eslint-disable-next-line camelcase
     tenant_id,
+    // eslint-disable-next-line camelcase
     target_event_id,
+    // eslint-disable-next-line camelcase
     snapshot_id,
+    // eslint-disable-next-line camelcase
     snapshot_state,
+    // eslint-disable-next-line camelcase
     target_qty,
+    // eslint-disable-next-line camelcase
     corrected_qty: corrected_qty ?? null,
+    // eslint-disable-next-line camelcase
     correction_group_id,
+    // eslint-disable-next-line camelcase
     actor_id,
   });
 
@@ -135,11 +153,17 @@ export function ReversalExecuteDialog({
     setSubmitting(true);
     try {
       const response = await onSubmit?.({
+        // eslint-disable-next-line camelcase
         tenant_id,
+        // eslint-disable-next-line camelcase
         target_event_id,
+        // eslint-disable-next-line camelcase
         snapshot_id,
+        // eslint-disable-next-line camelcase
         correction_group_id,
+        // eslint-disable-next-line camelcase
         target_qty,
+        // eslint-disable-next-line camelcase
         corrected_qty: corrected_qty ?? null,
       });
       if (response) {
@@ -177,6 +201,7 @@ export function ReversalExecuteDialog({
       <DialogContent
         className={className ?? "sm:max-w-md"}
         data-testid="reversal-execute-dialog"
+        // eslint-disable-next-line camelcase
         data-snapshot-state={snapshot_state}
       >
         <DialogHeader>

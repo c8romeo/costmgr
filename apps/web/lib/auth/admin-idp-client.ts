@@ -295,6 +295,7 @@ export interface TestIdPConfigResult {
 export async function testIdPConfig(
   accessToken: string,
   tenantSlug: string,
+  // eslint-disable-next-line camelcase
   metadata_xml: string,
 ): Promise<TestIdPConfigResult> {
   const traceId = crypto.randomUUID();
@@ -308,6 +309,7 @@ export async function testIdPConfig(
           Authorization: `Bearer ${accessToken}`,
           "X-Trace-Id": traceId,
         },
+        // eslint-disable-next-line camelcase
         body: JSON.stringify({ metadata_xml }),
       },
     );

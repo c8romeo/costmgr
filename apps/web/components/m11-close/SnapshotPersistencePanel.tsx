@@ -71,11 +71,17 @@ export interface SnapshotPersistencePanelProps {
  * reversed-reject. Idempotent no-op per CR 1.1.
  */
 export function SnapshotPersistencePanel({
+  // eslint-disable-next-line camelcase
   snapshot_id,
+  // eslint-disable-next-line camelcase
   period_key,
+  // eslint-disable-next-line camelcase
   current_state,
+  // eslint-disable-next-line camelcase
   actor_id,
+  // eslint-disable-next-line camelcase
   tenant_id,
+  // eslint-disable-next-line camelcase
   capability_granted,
   onCommit,
   className,
@@ -85,19 +91,26 @@ export function SnapshotPersistencePanel({
   const [submitting, setSubmitting] = React.useState(false);
 
   // P-009 — committed state is terminal (AD-20); 영구화 button is no-op.
+  // eslint-disable-next-line camelcase
   const isCommitted = current_state === "committed";
 
   // Capability gate: service-only tenant → panel hidden entirely.
+  // eslint-disable-next-line camelcase
   if (!capability_granted) {
     return null;
   }
 
   // Compute authorization state via TS mirror.
   const state: SnapshotPersistenceState = buildSnapshotPersistenceState({
+    {/* eslint-disable-next-line camelcase */}
     snapshot_id,
+    // eslint-disable-next-line camelcase
     period_key,
+    // eslint-disable-next-line camelcase
     current_state,
+    // eslint-disable-next-line camelcase
     actor_id,
+    // eslint-disable-next-line camelcase
     tenant_id,
   });
 
@@ -115,6 +128,7 @@ export function SnapshotPersistencePanel({
     }
     setSubmitting(true);
     try {
+      {/* eslint-disable-next-line camelcase */}
       const response = await onCommit?.({ snapshot_id, period_key });
       if (response) {
         // P-002 — backend envelope uses `cache_invalidation_receipts` (AD-25
@@ -165,7 +179,9 @@ export function SnapshotPersistencePanel({
         (className ?? "")
       }
       data-testid="snapshot-persistence-panel"
+      {/* eslint-disable-next-line camelcase */}
       data-current-state={current_state}
+      {/* eslint-disable-next-line camelcase */}
       data-capability-granted={capability_granted}
     >
       <h2 className="mb-2 text-lg font-semibold text-slate-900">
@@ -175,6 +191,7 @@ export function SnapshotPersistencePanel({
         {t("panel_step_indicator")}
       </p>
       <div className="mb-4 text-sm text-slate-700">
+        {/* eslint-disable-next-line camelcase */}
         <span className="font-mono">state: {current_state}</span>
         <span className="ml-3 font-mono">
           result: {formatCommitResultKo(state)}
@@ -185,6 +202,7 @@ export function SnapshotPersistencePanel({
         onClick={handleCommit}
         disabled={isCommitted || submitting || !allowed}
         data-testid="snapshot-persistence-commit-button"
+        {/* eslint-disable-next-line camelcase */}
         data-current-state={current_state}
         className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
       >

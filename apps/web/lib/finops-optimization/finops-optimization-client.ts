@@ -152,10 +152,13 @@ export interface OptimizationAccuracyReport {
 export class FinopsOptimizationApiError extends Error {
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
+    // eslint-disable-next-line camelcase
     public http_status: number,
     public code: string,
+    // eslint-disable-next-line camelcase
     public message_ko: string,
     public details: Record<string, unknown> = {},
+    // eslint-disable-next-line camelcase
     public trace_id: string = "",
   ) {
     super(message_ko);

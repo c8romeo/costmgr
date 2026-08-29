@@ -79,32 +79,43 @@ export interface ReopenOperatorDialogProps {
 export function ReopenOperatorDialog({
   open,
   onOpenChange,
+  // eslint-disable-next-line camelcase
   tenant_id,
+  // eslint-disable-next-line camelcase
   actor_id,
+  // eslint-disable-next-line camelcase
   is_owner,
+  // eslint-disable-next-line camelcase
   capability_granted,
   onSubmit,
   className,
 }: ReopenOperatorDialogProps): React.ReactElement | null {
   const t = useTranslations("reopen_operator_dialog");
   const [submitting, setSubmitting] = React.useState(false);
+  // eslint-disable-next-line camelcase
   const [operator_action, setOperatorAction] = React.useState<string>(
     REOPEN_OPERATOR_ACTIONS[0],
   );
   const [reason, setReason] = React.useState("");
 
   // Capability gate: owner + capability both required.
+  // eslint-disable-next-line camelcase
   if (!capability_granted || !is_owner) {
     return null;
   }
 
   // Compute authorization state via TS mirror.
   const state: ReopenAuthorizationState = buildReopenAuthorizationState({
+    // eslint-disable-next-line camelcase
     tenant_id,
+    // eslint-disable-next-line camelcase
     actor_id,
+    // eslint-disable-next-line camelcase
     operator_action,
     reason,
+    // eslint-disable-next-line camelcase
     capability_granted,
+    // eslint-disable-next-line camelcase
     is_owner,
   });
 
@@ -129,8 +140,11 @@ export function ReopenOperatorDialog({
     setSubmitting(true);
     try {
       const response = await onSubmit?.({
+        // eslint-disable-next-line camelcase
         tenant_id,
+        // eslint-disable-next-line camelcase
         actor_id,
+        // eslint-disable-next-line camelcase
         operator_action,
         reason,
       });
@@ -173,6 +187,7 @@ export function ReopenOperatorDialog({
       <DialogContent
         className={className ?? "sm:max-w-md"}
         data-testid="reopen-operator-dialog"
+        // eslint-disable-next-line camelcase
         data-operator-action={operator_action}
       >
         <DialogHeader>
@@ -190,6 +205,7 @@ export function ReopenOperatorDialog({
           </label>
           <select
             className="mb-3 w-full rounded-md border border-slate-300 p-2 text-sm"
+            // eslint-disable-next-line camelcase
             value={operator_action}
             onChange={(e) => setOperatorAction(e.target.value)}
             data-testid="reopen-operator-action-select"

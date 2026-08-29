@@ -56,6 +56,7 @@ vi.mock("next-intl", () => ({
 const PERIOD_KEY = "2026-08";
 
 function makeAggregate(
+  // eslint-disable-next-line camelcase
   view_mode: "READY" | "PARTIAL" | "EMPTY",
   closingSnapshotCount = 4,
   ledgerEventCount = 12,
@@ -63,12 +64,14 @@ function makeAggregate(
 ): MonthlyClosingReportAggregate {
   return {
     period_key: PERIOD_KEY,
+    // eslint-disable-next-line camelcase
     view_mode,
     closing_snapshot_count: closingSnapshotCount,
     ledger_event_count: ledgerEventCount,
     fiscal_period_snapshot_count: fiscalPeriodSnapshotCount,
     opening_inventory_count: 4,
     closing_per_product:
+      // eslint-disable-next-line camelcase
       view_mode === "READY"
         ? [
             {
@@ -93,6 +96,7 @@ function makeAggregate(
         : [],
     audit_emitted: false,
     currency_pair:
+      // eslint-disable-next-line camelcase
       view_mode === "READY"
         ? {
             base: "KRW",
@@ -199,6 +203,7 @@ describe("MonthlyClosingReportPanel", () => {
   it("test_panel_renders_v4_fail_verdict", () => {
     // NOTE (bmad-code-review D1 결정, 2026-08-08): 3-source contract —
     // fiscal_period_snapshot_qty / industry 필드 제거, source_count 2.
+    // eslint-disable-next-line camelcase
     const v4_verdict = {
       status: "FAIL" as const,
       code: "V4",
@@ -219,6 +224,7 @@ describe("MonthlyClosingReportPanel", () => {
     render(
       <MonthlyClosingReportPanel
         aggregate={makeAggregate("READY")}
+        // eslint-disable-next-line camelcase
         v4_verdict={v4_verdict}
         capability_granted={true}
       />,

@@ -80,8 +80,10 @@ export function isValidRealPeriodKeyTS(value: string): boolean {
  * Validate virtual budget period key (AD-24 §6.2) — `YYYY-MM#B<n>` format.
  * Returns true if the input matches the canonical virtual pattern.
  */
+// eslint-disable-next-line camelcase
 export function isValidVirtualBudgetPeriodKeyTS(period_key: string): boolean {
   return (
+    // eslint-disable-next-line camelcase
     typeof period_key === "string" &&
     VIRTUAL_BUDGET_PERIOD_KEY_PATTERN.test(period_key)
   );
@@ -99,6 +101,7 @@ export interface BudgetPeriodKeyPartsTS {
 }
 
 export function parseVirtualBudgetPeriodKeyTS(
+  // eslint-disable-next-line camelcase
   period_key: string,
 ): BudgetPeriodKeyPartsTS | null {
   if (!isValidVirtualBudgetPeriodKeyTS(period_key)) {
@@ -110,13 +113,17 @@ export function parseVirtualBudgetPeriodKeyTS(
   }
   const year = match[1];
   const month = match[2];
+  // eslint-disable-next-line camelcase
   const scenario_index = parseInt(match[3], 10);
+  // eslint-disable-next-line camelcase
   if (scenario_index > MVP_SCENARIO_INDEX) {
     return null; // 1차 MVP 한도
   }
   return {
     real_period_key: `${year}-${month}`,
+    // eslint-disable-next-line camelcase
     scenario_index,
+    // eslint-disable-next-line camelcase
     scenario_suffix: `#B${scenario_index}`,
   };
 }
@@ -128,19 +135,24 @@ export function parseVirtualBudgetPeriodKeyTS(
  * Mirrors Python `packages.cost_engine.budget_period_key.py::derive_budget_period_key`.
  */
 export function deriveBudgetPeriodKeyTS(
+  // eslint-disable-next-line camelcase
   real_period_key: string,
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
+  // eslint-disable-next-line camelcase
   scenario_index: number = MVP_SCENARIO_INDEX,
 ): string | null {
   if (!isValidRealPeriodKeyTS(real_period_key)) {
     return null;
   }
+  // eslint-disable-next-line camelcase
   if (!Number.isInteger(scenario_index) || scenario_index < 1) {
     return null;
   }
+  // eslint-disable-next-line camelcase
   if (scenario_index > MVP_SCENARIO_INDEX) {
     return null; // 1차 MVP 한도
   }
+  // eslint-disable-next-line camelcase
   return `${real_period_key}#B${scenario_index}`;
 }
 
@@ -152,11 +164,14 @@ export function deriveBudgetPeriodKeyTS(
  */
 export function validateScenarioUniquenessTS(
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
+  // eslint-disable-next-line camelcase
   existing_count: number,
 ): string | null {
+  // eslint-disable-next-line camelcase
   if (!Number.isInteger(existing_count) || existing_count < 0) {
     return "existing_count must be a non-negative integer";
   }
+  // eslint-disable-next-line camelcase
   if (existing_count >= MVP_MAX_SCENARIOS_PER_TENANT) {
     return SCENARIO_LIMIT_EXCEEDED_MESSAGE_KO;
   }

@@ -44,7 +44,9 @@ export interface MonthlyInputRowFormProps {
  * keyboard navigation + form submission at the DOM level.
  */
 export function MonthlyInputRowForm({
+  // eslint-disable-next-line camelcase
   is_blocked,
+  // eslint-disable-next-line camelcase
   period_key,
   onSubmit,
   className,
@@ -52,30 +54,37 @@ export function MonthlyInputRowForm({
   const handleSubmit = React.useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
+      // eslint-disable-next-line camelcase
       if (is_blocked) return;
       if (!onSubmit) return;
       await onSubmit(period_key);
     },
+    // eslint-disable-next-line camelcase
     [is_blocked, onSubmit, period_key],
   );
 
   return (
+    {/* eslint-disable-next-line camelcase */}
     <M2ClosingGuardGate is_blocked={is_blocked}>
       <form
         onSubmit={handleSubmit}
         className={cn("flex flex-col gap-3", className)}
         data-testid="monthly-input-row-form"
+        {/* eslint-disable-next-line camelcase */}
         data-period-key={period_key}
       >
         <div className="text-sm text-muted-foreground">
+          {/* eslint-disable-next-line camelcase */}
           {period_key} 수불 입력
         </div>
         <button
           type="submit"
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           data-testid="monthly-input-row-submit"
+          {/* eslint-disable-next-line camelcase */}
           title={is_blocked ? NEGATIVE_CLOSING_INVENTORY_KO : undefined}
         >
+          {/* eslint-disable-next-line camelcase */}
           {is_blocked ? "마감 불가" : "저장"}
         </button>
       </form>

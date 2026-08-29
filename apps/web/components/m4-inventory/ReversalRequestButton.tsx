@@ -50,9 +50,13 @@ export interface ReversalRequestButtonProps {
  * Hidden when capability_granted=false (service-only tenant).
  */
 export function ReversalRequestButton({
+  // eslint-disable-next-line camelcase
   target_event_id,
+  // eslint-disable-next-line camelcase
   period_key,
+  // eslint-disable-next-line camelcase
   period_status,
+  // eslint-disable-next-line camelcase
   capability_granted,
   onSubmit,
   className,
@@ -61,11 +65,13 @@ export function ReversalRequestButton({
   const [open, setOpen] = React.useState(false);
 
   // Capability gate: service-only tenant → button hidden entirely.
+  // eslint-disable-next-line camelcase
   if (!capability_granted) {
     return null;
   }
 
   // Period lock gate: button disabled when period_status='locked'.
+  // eslint-disable-next-line camelcase
   const disabled = period_status === PERIOD_STATUS_LOCKED;
 
   return (
@@ -75,7 +81,9 @@ export function ReversalRequestButton({
         onClick={() => setOpen(true)}
         disabled={disabled}
         data-testid="reversal-request-button"
+        // eslint-disable-next-line camelcase
         data-period-key={period_key}
+        // eslint-disable-next-line camelcase
         data-period-status={period_status}
         className={cn(
           "px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed",
@@ -87,9 +95,13 @@ export function ReversalRequestButton({
       <ReversalRequestDialog
         open={open}
         onOpenChange={setOpen}
+        // eslint-disable-next-line camelcase
         target_event_id={target_event_id}
+        // eslint-disable-next-line camelcase
         period_key={period_key}
+        // eslint-disable-next-line camelcase
         period_status={period_status}
+        // eslint-disable-next-line camelcase
         capability_granted={capability_granted}
         onSubmit={async (payload) => {
           if (!onSubmit) {

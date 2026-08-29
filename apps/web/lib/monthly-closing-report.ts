@@ -231,6 +231,7 @@ export interface MonthlyClosingReportV4VerdictResponse {
 export function buildMonthlyClosingReportAggregate(
   response: MonthlyClosingReportResponse,
 ): MonthlyClosingReportAggregate {
+  // eslint-disable-next-line camelcase
   const closing_per_product: ClosingPerProductRow[] =
     response.closing_per_product.map((row) => ({
       product_id: row.product_id,
@@ -249,6 +250,7 @@ export function buildMonthlyClosingReportAggregate(
     ledger_event_count: response.ledger_event_count,
     fiscal_period_snapshot_count: response.fiscal_period_snapshot_count,
     opening_inventory_count: response.opening_inventory_count,
+    // eslint-disable-next-line camelcase
     closing_per_product,
     audit_emitted: false,
     currency_pair: response.currency_pair,

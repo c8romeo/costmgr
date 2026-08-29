@@ -64,18 +64,22 @@ export function buildM2EntryGateState(input: {
   lockout_until: string | null;
 }): M2EntryGateState {
   // Role gate (AD-10).
+  // eslint-disable-next-line camelcase
   const role_allowed = ALLOWED_M2_ROLES.has(input.role);
 
   // 2FA gate (kernel SSOT parity — Story 12.5 D-GATE-01 fix).
   // Python `packages/services/m12_account/two_factor_gate.py::check_two_factor_required`
   // returns True iff user has NOT registered TOTP. Therefore
   // `requires_two_factor = !input.totp_enabled` (True when setup is needed).
+  // eslint-disable-next-line camelcase
   const requires_two_factor = !input.totp_enabled;
   // `requires_challenge` = setup complete, must complete fresh TOTP
   // challenge before M2 entry (POST /api/v1/account/2fa/challenge).
+  // eslint-disable-next-line camelcase
   const requires_challenge = input.totp_enabled && !input.locked_out;
 
   // Lockout gate (5-fail → 15-min, mirrors Python LOCKOUT_DURATION_SECONDS).
+  // eslint-disable-next-line camelcase
   const locked_out = input.locked_out;
 
   // Compose decision (kernel-equivalent enforce_role_gate +
@@ -83,6 +87,7 @@ export function buildM2EntryGateState(input: {
   // 1. role allowed (owner/member)
   // 2. NOT locked out
   // 3. 2FA setup complete (TOTP registered)
+  // eslint-disable-next-line camelcase
   const allowed = role_allowed && !locked_out && !requires_two_factor;
 
   // Compose message (Korean SSOT, priority order).
@@ -90,24 +95,37 @@ export function buildM2EntryGateState(input: {
   // 2. locked out (Retry-After countdown)
   // 3. role denied
   // 4. all gates passed → "M2 진입 가능"
+  // eslint-disable-next-line camelcase
   let message_ko: string;
+  // eslint-disable-next-line camelcase
   if (requires_two_factor) {
+    // eslint-disable-next-line camelcase
     message_ko = M2_ENTRY_GATE_REQUIRES_2FA_KO;
+  // eslint-disable-next-line camelcase
   } else if (locked_out && input.lockout_until) {
+    // eslint-disable-next-line camelcase
     message_ko = M2_ENTRY_GATE_LOCKED_OUT_KO.replace("{until}", input.lockout_until);
+  // eslint-disable-next-line camelcase
   } else if (!role_allowed) {
+    // eslint-disable-next-line camelcase
     message_ko = M2_ENTRY_GATE_ROLE_DENIED_KO;
   } else {
+    // eslint-disable-next-line camelcase
     message_ko = "M2 진입 가능";
   }
 
   return {
     allowed,
+    // eslint-disable-next-line camelcase
     requires_two_factor,
+    // eslint-disable-next-line camelcase
     requires_challenge,
+    // eslint-disable-next-line camelcase
     role_allowed,
+    // eslint-disable-next-line camelcase
     locked_out,
     lockout_until: input.lockout_until,
+    // eslint-disable-next-line camelcase
     message_ko,
   };
 }

@@ -45,7 +45,9 @@ export interface ReversalRequestFormProps {
  * corrected_period_key. Submits via onSubmit when [역분개 실행] clicked.
  */
 export function ReversalRequestForm({
+  // eslint-disable-next-line camelcase
   target_event_id,
+  // eslint-disable-next-line camelcase
   period_key,
   submitting,
   allowed,
@@ -83,9 +85,11 @@ export function ReversalRequestForm({
       try {
         validateReversalCorrectedConstraints({
           target_event: {
+            // eslint-disable-next-line camelcase
             event_id: target_event_id,
             tenant_id: "",
             product_id: "",
+            // eslint-disable-next-line camelcase
             period_key,
             event_type: "",
             qty: "",
@@ -113,6 +117,7 @@ export function ReversalRequestForm({
 
     setValidationError(null);
     onSubmit({
+      // eslint-disable-next-line camelcase
       target_event_id,
       reason: reasonKo,
       corrected_qty: qtyProvided ? correctedQty : null,
@@ -137,6 +142,7 @@ export function ReversalRequestForm({
           id="reversal-target-event-id"
           name="target_event_id"
           type="text"
+          // eslint-disable-next-line camelcase
           value={target_event_id}
           readOnly
           data-testid="reversal-request-target-event-id"

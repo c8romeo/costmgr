@@ -70,8 +70,10 @@ export function AuditLogRetentionPanel({ accessToken, locale }: Props) {
     };
   }, [accessToken]);
 
+  // eslint-disable-next-line camelcase
   const onPreviewPurge = async (action_class: RetentionClass) => {
     try {
+      // eslint-disable-next-line camelcase
       const result = await previewPurge({ action_class }, { accessToken });
       setPreviewResult(result);
     } catch (err) {
@@ -80,6 +82,7 @@ export function AuditLogRetentionPanel({ accessToken, locale }: Props) {
     }
   };
 
+  // eslint-disable-next-line camelcase
   const onColdArchive = async (action_class: RetentionClass) => {
     try {
       await triggerColdArchive(action_class, { accessToken });
@@ -91,12 +94,14 @@ export function AuditLogRetentionPanel({ accessToken, locale }: Props) {
   };
 
   const onRequestErasure = async (
+    // eslint-disable-next-line camelcase
     actor_id: string,
     scope: "all" | "actor" | "tenant",
     reason: string,
   ) => {
     try {
       await requestAuditLogErasure(
+        // eslint-disable-next-line camelcase
         { actor_id, scope, reason },
         { accessToken },
       );

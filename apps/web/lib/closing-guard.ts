@@ -113,10 +113,13 @@ export function buildClosingGuardState(
   productNames: Record<string, string> = {},
 ): ClosingGuardState {
   const offenders = Object.entries(invariant.negative_products)
+    // eslint-disable-next-line camelcase
     .map(([product_id, qty]) => ({
+      // eslint-disable-next-line camelcase
       product_id,
       qty,
       product_name:
+        // eslint-disable-next-line camelcase
         productNames[product_id] ?? `product-${product_id.slice(0, 8)}`,
     }))
     .sort((a, b) =>

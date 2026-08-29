@@ -54,8 +54,11 @@ export interface TwoFactorGuardProps {
  */
 export function TwoFactorGuard({
   role,
+  // eslint-disable-next-line camelcase
   totp_enabled,
+  // eslint-disable-next-line camelcase
   locked_out,
+  // eslint-disable-next-line camelcase
   lockout_until,
   children,
   className,
@@ -65,8 +68,11 @@ export function TwoFactorGuard({
 
   const state: M2EntryGateState = buildM2EntryGateState({
     role,
+    // eslint-disable-next-line camelcase
     totp_enabled,
+    // eslint-disable-next-line camelcase
     locked_out,
+    // eslint-disable-next-line camelcase
     lockout_until,
   });
 
@@ -80,6 +86,7 @@ export function TwoFactorGuard({
   if (state.locked_out) {
     visibleMessage = tGate(
       "blocked_lockout_label",
+    // eslint-disable-next-line camelcase
     )?.replace("{until}", lockout_until ?? "") ?? visibleMessage;
   } else if (!state.role_allowed) {
     visibleMessage = tGate("blocked_role_label") ?? visibleMessage;

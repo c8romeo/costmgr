@@ -320,6 +320,7 @@ export function projectNextMonthTS(
     projectedRevenue - projectedVariableCost - projectedFixedCost;
 
   // 5. Corporate tax + after-tax income.
+  // eslint-disable-next-line camelcase
   const { corporate_tax, after_tax_income } = computeAfterTaxIncomeTS(
     preTaxIncome,
     corporateTaxRate,
@@ -331,7 +332,9 @@ export function projectNextMonthTS(
     projected_fixed_cost: Math.round(projectedFixedCost).toString(),
     interest_expense: interestExpenseStr,
     pre_tax_income: Math.round(preTaxIncome).toString(),
+    // eslint-disable-next-line camelcase
     corporate_tax,
+    // eslint-disable-next-line camelcase
     after_tax_income,
   };
 }

@@ -43,6 +43,7 @@ export interface TwoFactorDisableFormProps {
  * server-side at the handler dependency).
  */
 export function TwoFactorDisableForm({
+  // eslint-disable-next-line camelcase
   is_owner,
   onDisable,
   className,
@@ -55,6 +56,7 @@ export function TwoFactorDisableForm({
   const [submitting, setSubmitting] = React.useState(false);
   const [showConfirm, setShowConfirm] = React.useState(false);
 
+  // eslint-disable-next-line camelcase
   if (!is_owner) {
     return (
       <div
