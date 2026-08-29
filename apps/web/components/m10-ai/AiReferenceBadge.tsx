@@ -30,7 +30,7 @@ export function AiReferenceBadge({
 }: AiReferenceBadgeProps): React.ReactElement | null {
   if (sourceKind !== "ai_reference") {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[AiReferenceBadge] sourceKind='${sourceKind}' is not 'ai_reference' — AiReferenceBadge MUST NOT render this. Use AutoAnalysisBadge instead.`,
       );

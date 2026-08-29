@@ -11,11 +11,10 @@
  */
 
 import "@testing-library/jest-dom/vitest";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-
 import * as React from "react";
 import { toast } from "sonner";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock sonner toast — reference the same vi.fn() instances the test will assert against
 vi.mock("sonner", () => ({

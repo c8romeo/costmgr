@@ -21,8 +21,8 @@
 
 "use client";
 
-import * as React from "react";
 import { useTranslations } from "next-intl";
+import * as React from "react";
 
 import {
   buildM2EntryGateState,

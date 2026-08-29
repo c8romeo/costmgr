@@ -20,9 +20,9 @@
 
 "use client";
 
-import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import * as React from "react";
 import { toast } from "sonner";
 
 export interface TwoFactorSetupFormProps {

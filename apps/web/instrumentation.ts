@@ -29,7 +29,7 @@ export async function register(): Promise<void> {
       return;
     }
     // Server runtime — delegate to instrumentation-node.ts.
-    // eslint-disable-next-line no-eval
+     
     const modulePath: string = eval("'./instrumentation-node'");
     await import(modulePath);
   } else {

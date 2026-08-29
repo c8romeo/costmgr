@@ -13,8 +13,8 @@
  * row's "view" button opens the modal with `entry != null`).
  */
 
-import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
 
 import type { AuditLogEntry } from "@/lib/audit/audit-log-client";
 

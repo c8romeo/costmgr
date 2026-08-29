@@ -5,15 +5,15 @@
  * Covers: dashbaord path regex, auth path regex, /api/v1/* bypass, 2FA gate,
  * ?redirect= preservation, locale strip.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/supabase/middleware", () => ({
   updateSupabaseSession: vi.fn(),
 }));
 
-import { updateSupabaseSession } from "@/lib/supabase/middleware";
 import { routeGuard } from "@/lib/auth/middleware";
+import { updateSupabaseSession } from "@/lib/supabase/middleware";
 
 const mockUpdateSupabaseSession = updateSupabaseSession as unknown as ReturnType<typeof vi.fn>;
 

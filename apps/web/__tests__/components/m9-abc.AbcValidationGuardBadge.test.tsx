@@ -8,7 +8,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AbcValidationGuardBadge } from "../../components/m9-abc/AbcValidationGuardBadge";
 import type { ValidationResponse } from "../../lib/m9-abc-validation";
-
 import koKR from "../../messages/ko-KR.json";
 
 vi.mock("next-intl", () => ({

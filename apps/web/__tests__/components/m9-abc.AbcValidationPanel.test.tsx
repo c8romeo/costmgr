@@ -7,7 +7,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AbcValidationPanel } from "../../components/m9-abc/AbcValidationPanel";
-
 import koKR from "../../messages/ko-KR.json";
 
 vi.mock("next-intl", () => ({

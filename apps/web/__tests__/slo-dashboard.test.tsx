@@ -2,8 +2,9 @@
 //
 // CR 12-5 D-PARITY-01 — backend ↔ frontend parity check.
 // 3 NEW vitest cases PASS (Phase 8 cj-style 95번째 wire frontend tests).
-import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
 import SLOStatusBadge from "@/components/performance/SLOStatusBadge";
 
 describe("SLOStatusBadge — Phase 8 F24.2", () => {

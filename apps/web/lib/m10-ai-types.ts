@@ -14,9 +14,9 @@
  * Discriminated union `status` discriminators.
  */
 
+import type { AICommentKind } from "./ai-comments";
 import type { PromoteEnvelope, PromoteStatus } from "./ai-promote";
 import type { InsightKind, SourceKind } from "./insight-cache";
-import type { AICommentKind } from "./ai-comments";
 
 // Re-export common union types (single source of truth for components)
 export type { SourceKind, InsightKind, AICommentKind, PromoteStatus };

@@ -41,7 +41,7 @@ export class WizardErrorBoundary extends Component<
     // The hook already surfaces parse/network failures via its own state
     // (F-30: clears cached status on error). This boundary is the last
     // line of defence — log it so we can spot render-phase regressions.
-    // eslint-disable-next-line no-console
+     
     console.error("[wizard-error-boundary]", error, info.componentStack);
   }
 

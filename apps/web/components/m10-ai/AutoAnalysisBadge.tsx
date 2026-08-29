@@ -26,7 +26,7 @@ export function AutoAnalysisBadge({
 }: AutoAnalysisBadgeProps): React.ReactElement | null {
   if (sourceKind !== "auto_analysis") {
     if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[AutoAnalysisBadge] sourceKind='${sourceKind}' is not 'auto_analysis' — AutoAnalysisBadge MUST NOT render this. Use AiReferenceBadge instead.`,
       );

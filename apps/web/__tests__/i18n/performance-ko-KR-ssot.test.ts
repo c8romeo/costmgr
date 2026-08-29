@@ -2,6 +2,7 @@
 //
 // 3 NEW vitest cases PASS (Phase 8 cj-style 95번째 wire frontend tests).
 import { describe, expect, it } from "vitest";
+
 import koKR from "@/messages/ko-KR.json";
 
 describe("i18n: performance ko-KR SSOT — Phase 8 F24", () => {

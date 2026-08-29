@@ -20,12 +20,12 @@
 
 import { useCallback, useState } from "react";
 
-import { ApiError } from "@/lib/api-client";
 import {
   type PromoteEnvelope,
   type PromoteRequestBody,
   promoteAiDraft,
 } from "@/lib/ai-promote";
+import { ApiError } from "@/lib/api-client";
 
 interface PromoteConfirmButtonProps {
   accessToken?: string;

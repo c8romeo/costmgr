@@ -16,7 +16,6 @@ import {
   SOURCE_KIND_VALUES,
   AI_COMMENT_SOURCE_KIND_WARNING,
 } from "@/lib/ai-comments";
-
 import koKR from "@/messages/ko-KR.json";
 
 interface PySchemaFixture {

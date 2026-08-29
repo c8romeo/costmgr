@@ -5,9 +5,10 @@
  * - 6 landing components + ko-KR inline copy EXTENSION + vercel.json public route
  *   EXTENSION + capability gate `LAUNCH_LANDING` 결정 (D-003 vitest RTL render).
  */
-import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+
+import { describe, expect, it } from "vitest";
 
 const REPO_ROOT = path.resolve(__dirname, "../../../..");
 const _LANDING_DIRS = [

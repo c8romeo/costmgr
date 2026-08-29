@@ -4,9 +4,9 @@
 // Smoke test that the manually-authored shadcn primitives render correctly
 // and respond to user interaction. Full test suite activates in AC #4 (T4 vitest wire).
 
-import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it } from "vitest";
 
 import {
   Tabs,

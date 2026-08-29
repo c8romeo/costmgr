@@ -13,8 +13,8 @@
  */
 
 import "@testing-library/jest-dom/vitest";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MonthlyClosingReportPanel } from "@/components/m2-input/MonthlyClosingReportPanel";
 import type { MonthlyClosingReportAggregate } from "@/lib/monthly-closing-report";

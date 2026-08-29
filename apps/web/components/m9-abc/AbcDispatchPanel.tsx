@@ -34,11 +34,11 @@ import {
   MAX_DEPARTMENT_COUNT,
 } from "@/lib/m9-abc-dispatch";
 
-import { AbcDispatchResultCard } from "./AbcDispatchResultCard";
 import {
   AbcDispatchErrorToast,
   type AbcDispatchErrorCode,
 } from "./AbcDispatchErrorToast";
+import { AbcDispatchResultCard } from "./AbcDispatchResultCard";
 
 interface AbcDispatchPanelProps {
   accessToken: string | undefined;

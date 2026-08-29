@@ -24,9 +24,9 @@
 /// <reference types="@testing-library/jest-dom" />
 
 import "@testing-library/jest-dom/vitest";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useRouter } from "next/navigation";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IndustrySelector } from "@/components/onboarding/IndustrySelector";
 import { useMenuContext } from "@/components/sidebar/MenuContext";

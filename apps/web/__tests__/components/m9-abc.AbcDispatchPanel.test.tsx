@@ -18,9 +18,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
+import { AbcDispatchPanel } from "@/components/m9-abc/AbcDispatchPanel";
 import koKR from "@/messages/ko-KR.json";
 
-import { AbcDispatchPanel } from "@/components/m9-abc/AbcDispatchPanel";
 
 const messages = koKR;
 

@@ -29,13 +29,13 @@
 'use client';
 
 import { trace, context, type Span, type Tracer } from '@opentelemetry/api';
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
+import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { onLCP, onFID, onCLS, onINP, onTTFB, type Metric } from 'web-vitals';
 
 // ────────────────────────────────────────────────────────────

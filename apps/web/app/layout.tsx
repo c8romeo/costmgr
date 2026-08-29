@@ -3,8 +3,8 @@
 //                  T3.3 (AC #3) — sonner <Toaster /> wired
 // Resolves Story 0.1 L4 (Pretendard CDN without SRI) + Story 0.4 design tokens.
 
-import type { ReactNode } from "react";
 import localFont from "next/font/local";
+import type { ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 

@@ -18,8 +18,8 @@
  * CR 11-4 D-005: invalid baseline / input → reject (NOT silent fall-through).
  */
 
-import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   type NextMonthProjectionSerialized,
@@ -32,18 +32,19 @@ import {
   isValidRealPeriodKeyTS,
 } from "@/lib/m7-simulation-projection";
 import { type ProjectionInputsSchema } from "@/lib/m7-simulation-projection-schema";
-import {
-  ProjectionForm,
-} from "./ProjectionForm";
-import {
-  ProjectionResultCard,
-} from "./ProjectionResultCard";
+
 import {
   ProjectionComparisonChart,
 } from "./ProjectionComparisonChart";
 import {
+  ProjectionForm,
+} from "./ProjectionForm";
+import {
   ProjectionPdfButton,
 } from "./ProjectionPdfButton";
+import {
+  ProjectionResultCard,
+} from "./ProjectionResultCard";
 
 interface ProjectionClientProps {
   accessToken: string | undefined;

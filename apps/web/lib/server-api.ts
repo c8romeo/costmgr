@@ -23,18 +23,18 @@ import type {
   ProductListResponse,
   TenantSettingsResponse,
 } from "./api-client";
-import type { IdPConfig } from "./auth/admin-idp-client";
 import type {
   MonthlyClosingReportResponse,
   MonthlyClosingReportAuditTrailResponse,
   MonthlyClosingReportV4VerdictResponse,
 } from "./monthly-closing-report";
-import type { BackupListResponse } from "./m12-account-backup";
 import type {
   ActivityStreamGroup,
   AuditLogPage,
   AuditLogQueryFilters,
 } from "./audit/audit-log-client";
+import type { IdPConfig } from "./auth/admin-idp-client";
+import type { BackupListResponse } from "./m12-account-backup";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8765";
 

@@ -1,8 +1,9 @@
 // apps/web/__tests__/latency-regression.test.tsx — Latency regression PR banner parity.
 //
 // 2 NEW vitest cases PASS (Phase 8 cj-style 95번째 wire frontend tests).
-import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
 import LatencyRegressionBanner from "@/components/performance/LatencyRegressionBanner";
 
 describe("LatencyRegressionBanner — Phase 8 F24.4", () => {

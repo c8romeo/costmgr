@@ -35,7 +35,6 @@ import {
   type UnusedCapacityRow as UnusedCapacityRowType,
   isAllocationResult,
 } from "@/lib/m9-abc-allocation";
-
 import {
   AbcAllocationInputError,
   buildKoreanUnusedCapacityMessage,

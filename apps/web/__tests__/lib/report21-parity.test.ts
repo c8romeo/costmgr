@@ -11,6 +11,7 @@
 //
 // A35 wire — resolves D3 (TS mirror parity 누락 3건 중 report21 parity 추가).
 
+import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -21,7 +22,6 @@ import {
   type Report21ResponseEnvelope,
 } from "../../lib/report21";
 import { server } from "../../mocks/server";
-import { http, HttpResponse } from "msw";
 
 afterEach(() => {
   server.resetHandlers();

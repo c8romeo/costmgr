@@ -7,9 +7,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { PromoteResultToast } from "@/components/m10-ai/PromoteResultToast";
 import type { PromoteEnvelope } from "@/lib/ai-promote";
 
-import { PromoteResultToast } from "@/components/m10-ai/PromoteResultToast";
 
 const successEnv: PromoteEnvelope = {
   status: "success",

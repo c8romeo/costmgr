@@ -11,9 +11,9 @@
  * 3 NEW vitest cases (page test).
  */
 
-import { describe, it, expect, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { describe, it, expect, vi } from "vitest";
 
 import koKR from "@/messages/ko-KR.json";
 

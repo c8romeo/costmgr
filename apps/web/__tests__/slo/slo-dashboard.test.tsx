@@ -4,9 +4,9 @@
  * SLO Engineering dashboard. Verifies the panel renders + handles
  * freeze action + handles governance approval.
  */
-import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
 import { SloDashboardPanel } from "@/components/slo/SloDashboardPanel";
 

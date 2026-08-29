@@ -21,11 +21,11 @@
 
 import { useState } from "react";
 
+import { ABTestChampionChallengerPanel } from "./cost-anomaly-ml-prediction/ABTestChampionChallengerPanel";
 import { AnomalyMLPredictionOverviewCard } from "./cost-anomaly-ml-prediction/AnomalyMLPredictionOverviewCard";
 import { EnsembleConsensusScorePanel } from "./cost-anomaly-ml-prediction/EnsembleConsensusScorePanel";
 import { MLvsThresholdComparisonChart } from "./cost-anomaly-ml-prediction/MLvsThresholdComparisonChart";
 import { ModelDriftDetectionPanel } from "./cost-anomaly-ml-prediction/ModelDriftDetectionPanel";
-import { ABTestChampionChallengerPanel } from "./cost-anomaly-ml-prediction/ABTestChampionChallengerPanel";
 
 type TabKey =
     | "overview"

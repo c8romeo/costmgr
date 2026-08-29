@@ -17,8 +17,8 @@
 import { cookies } from "next/headers";
 
 import { BackupDownloadPanel } from "@/components/m12-account/BackupDownloadPanel";
-import { fetchBackupsRecentServerSide } from "@/lib/server-api";
 import type { BackupListResponse } from "@/lib/m12-account-backup";
+import { fetchBackupsRecentServerSide } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
 

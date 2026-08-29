@@ -10,6 +10,7 @@
  * 3. Verbatim label invariants: page_title='관측성 대시보드'.
  */
 import { describe, it, expect } from 'vitest';
+
 import koKR from '../../messages/ko-KR.json';
 
 describe('Phase 7 observability i18n SSOT drift', () => {

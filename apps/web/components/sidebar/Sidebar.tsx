@@ -25,6 +25,7 @@ import { usePathname } from "next/navigation";
 
 import { CalcButton } from "@/components/calc/CalcButton";
 import { SEGMENT_SPLIT_TOOLTIP } from "@/lib/menu-config";
+
 import { useMenuContext } from "./MenuContext";
 import { SidebarItem } from "./SidebarItem";
 

@@ -13,9 +13,9 @@
  * Tests MUST `vi.mock('@/lib/supabase/middleware')` to avoid the Edge
  * runtime dependency.
  */
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 import { getSupabaseEnv } from "./env";
 

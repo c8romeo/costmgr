@@ -18,17 +18,17 @@
  * the empty/error envelope via typed CR 12-5 D-14 envelopes.
  */
 
-import { useCallback, useState } from "react";
-import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useCallback, useState } from "react";
 
 import {
   fetchActivityStream,
   type ActivityStreamGroup,
 } from "@/lib/audit/audit-log-client";
 
-import { ActivityStreamWindowSelector } from "./ActivityStreamWindowSelector";
 import { ActivityStreamTimeline } from "./ActivityStreamTimeline";
+import { ActivityStreamWindowSelector } from "./ActivityStreamWindowSelector";
 
 interface ActivityStreamPanelProps {
   accessToken: string;

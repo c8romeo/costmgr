@@ -16,9 +16,27 @@
  * CR 1-1 RSC boundary + CR 12-5 D-PARITY-01 + AD-22 owner-only RBAC +
  * NFR18 ko-KR SSOT.
  */
-import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
+import { FinopsInteractiveDashboardPanel } from "@/components/finops/FinopsInteractiveDashboardPanel";
+import { CrossPhaseKPIOverview } from "@/components/finops/interactive-dashboard/CrossPhaseKPIOverview";
+import { DashboardSharingPanel } from "@/components/finops/interactive-dashboard/DashboardSharingPanel";
+import { DrillDownExplorer } from "@/components/finops/interactive-dashboard/DrillDownExplorer";
+import { ExportConfigPanel } from "@/components/finops/interactive-dashboard/ExportConfigPanel";
+import { SavedViewManager } from "@/components/finops/interactive-dashboard/SavedViewManager";
+import {
+    computeUnifiedKPI,
+    createSavedView,
+    deleteSavedView,
+    executeSavedView,
+    fetchHealthcheck,
+    getExportJobStatus,
+    listPredefinedTemplates,
+    shareDashboard,
+    startExportJob,
+    updateSavedView,
+} from "@/lib/finops/interactive-dashboard-client";
 import {
     DASHBOARD_CADENCE_HOURS_KST,
     DASHBOARD_KPI_DIMENSION_WEIGHTS,
@@ -88,18 +106,6 @@ describe("Phase 28 T2 interactive-dashboard-types constants", () => {
 // Group 2: lib client fetch — 6 cases
 // ---------------------------------------------------------------------------
 
-import {
-    computeUnifiedKPI,
-    createSavedView,
-    deleteSavedView,
-    executeSavedView,
-    fetchHealthcheck,
-    getExportJobStatus,
-    listPredefinedTemplates,
-    shareDashboard,
-    startExportJob,
-    updateSavedView,
-} from "@/lib/finops/interactive-dashboard-client";
 
 describe("Phase 28 T2 interactive-dashboard-client endpoints", () => {
     it("Test 5: fetchHealthcheck GET /healthcheck returns status envelope", async () => {
@@ -355,7 +361,6 @@ describe("Phase 28 T2 interactive-dashboard-client endpoints", () => {
 // Group 3: sub-components — 18 cases total (4+4+4+3+4)
 // ---------------------------------------------------------------------------
 
-import { CrossPhaseKPIOverview } from "@/components/finops/interactive-dashboard/CrossPhaseKPIOverview";
 
 describe("CrossPhaseKPIOverview sub-component", () => {
     it("Test 11: renders loading state initially", () => {
@@ -474,7 +479,6 @@ describe("CrossPhaseKPIOverview sub-component", () => {
     });
 });
 
-import { SavedViewManager } from "@/components/finops/interactive-dashboard/SavedViewManager";
 
 describe("SavedViewManager sub-component", () => {
     it("Test 15: renders 12 pre-defined templates in select", async () => {
@@ -540,7 +544,6 @@ describe("SavedViewManager sub-component", () => {
     });
 });
 
-import { DrillDownExplorer } from "@/components/finops/interactive-dashboard/DrillDownExplorer";
 
 describe("DrillDownExplorer sub-component", () => {
     it("Test 19: renders 7 dimension options", () => {
@@ -575,7 +578,6 @@ describe("DrillDownExplorer sub-component", () => {
     });
 });
 
-import { ExportConfigPanel } from "@/components/finops/interactive-dashboard/ExportConfigPanel";
 
 describe("ExportConfigPanel sub-component", () => {
     it("Test 23: 5 export format radio options present", () => {
@@ -598,7 +600,6 @@ describe("ExportConfigPanel sub-component", () => {
     });
 });
 
-import { DashboardSharingPanel } from "@/components/finops/interactive-dashboard/DashboardSharingPanel";
 
 describe("DashboardSharingPanel sub-component", () => {
     it("Test 26: 4 sharing scope radios + cross_tenant disabled when isOwner=false", () => {
@@ -682,7 +683,6 @@ describe("DashboardSharingPanel sub-component", () => {
 // Group 4: orchestrator — 1 case
 // ---------------------------------------------------------------------------
 
-import { FinopsInteractiveDashboardPanel } from "@/components/finops/FinopsInteractiveDashboardPanel";
 
 describe("FinopsInteractiveDashboardPanel orchestrator", () => {
     it("Test 30: renders 5 tabs + dry-run toggle default ON", () => {

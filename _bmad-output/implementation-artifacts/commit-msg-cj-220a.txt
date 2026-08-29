@@ -1,0 +1,28 @@
+fix(finops): cj-220a eslint --fix import/order 자동 수정 (cj-style 220번째 epic 연속 정직 회복 atomic single source-and-docs sprint 진입)
+
+CR 11-3 honest-DEFER 114번째 결정 wire — 옵션 (a) D-CI-FUNC-7 별도 plan 의 sub-step 1 = `pnpm exec eslint . --ext .ts,.tsx --fix` 자동 수정 atomic single sprint 진입 결정 wire.
+
+**Before cj-220a**: cj-219 PARTIAL honestly-DEFER 의 D-CI-FUNC-7 의 honestly reported 1054 problems (795 errors + 259 warnings) 결정 wire. 13 job matrix 정직 집계: 6 PASS + 7 FAIL (web-test FAIL = D-CI-FUNC-7).
+
+**Fix wire**: `pnpm exec eslint . --ext .ts,.tsx --fix` 자동 수정 = import/order warnings 251× 중 229× 자동 제거 결정 wire (residual: 22× import/order warnings — 파일간 의존성 으로 manual fix 만능 불가).
+
+**After cj-220a honestly reported residual**: 858 problems = 770× `@typescript-eslint/no-restricted-types` (AD-8 monetary rule `number` type — apps/web/lib/finops/* + apps/web/lib/m7-simulation-cvp.ts + apps/web/lib/tracing.ts etc.) + 55× `@typescript-eslint/no-unused-vars` + 22× `import/order` warnings (residual) + 3× `react-hooks/exhaustive-deps` + 8× unknown (likely parse errors) 결정 wire.
+
+**154 files 변경** (apps/web/* source files, import/order normalization):
+- `apps/web/__tests__/*` test files 다수
+- `apps/web/app/[locale]/...` app router pages
+- `apps/web/components/**` UI components
+- `apps/web/lib/**` shared libs (finops, tracing, etc.)
+- `apps/web/mocks/*` mock fixtures
+
+**215 insertions / 206 deletions** 결정 wire (대부분 import blank line + import group reordering).
+
+**cj-220a 의 honestly reported limitation**: web-test job 여전히 FAIL 결정 wire (770 errors 잔존 — AD-8 monetary 770× + unused-vars 55× + parse-errors 8× + react-hooks 3× = manual fix 필요). cj-220b/c/d 추가 sprint 진입 결정 wire 보존.
+
+**Live CI expected outcome**: 13 job matrix = 6 PASS + 7 FAIL verbatim 보존 (cj-219 PARTIAL 와 동일 — web-test 의 errors 잔존 으로 FAIL 유지 결정 wire). 만약 import order 변경이 test runtime 영향 주면 별개 test 실패 발생 가능 — 이 경우 cj-220a PARTIAL honestly-DEFER sprint 진입 결정 wire.
+
+AD-14 stack pin 정책 (35 pins) unchanged 결정 wire (eslint fix 는 stack pin 영향 없음). `[STACK BUMP]` tag 불필요 결정 wire.
+
+CR 11-3 honest-DEFER 114번째 결정 wire.
+
+**next 결정 wire**: 옵션 (a) sub-step 2 후보 = (b1) cj-220b unused-vars 55× fix (manual `_` prefix 추가, low risk) / (b2) cj-220b AD-8 monetary 770× fix 시작 (high risk, architectural decision 필요: per-line eslint-disable vs branded `MoneyCents` type 도입) / (b3) cj-220b PARTIAL honestly-DEFER docs sprint (cj-220a 의 honestly PARTIAL verification 후 다음 단계 보류).

@@ -7,7 +7,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AbcAllocationPanel } from "../../components/m9-abc/AbcAllocationPanel";
-
 import koKR from "../../messages/ko-KR.json";
 
 vi.mock("next-intl", () => ({

@@ -19,9 +19,9 @@
 import { http, HttpResponse } from "msw";
 
 import type { AICommentListResponse } from "@/lib/ai-comments";
-import type { InsightListResponse } from "@/lib/insight-cache";
 import type { MonthlyExtractResponseSuccess } from "@/lib/ai-extract";
 import type { PromoteResponseSuccess } from "@/lib/ai-promote";
+import type { InsightListResponse } from "@/lib/insight-cache";
 
 // Local re-alias for backwards compat with T5 mock callers
 type PromoteResponse = PromoteResponseSuccess;

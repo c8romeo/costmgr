@@ -16,9 +16,9 @@
  *
  * Tests MUST `vi.mock('@/lib/supabase/server')` to avoid real cookies().
  */
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 import { getSupabaseEnv } from "./env";
 

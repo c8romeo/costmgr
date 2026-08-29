@@ -22,6 +22,7 @@
  */
 
 import { Decimal } from "decimal.js";
+
 import type { KRW } from "./money";
 
 // ── PayType enum (PRD §6.1) ──────────────────────────────────────

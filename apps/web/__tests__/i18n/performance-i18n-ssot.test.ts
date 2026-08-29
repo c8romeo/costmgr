@@ -3,6 +3,7 @@
 // CR 11-4 D-002 + P-015 — SSOT only, never inline copy.
 // 2 NEW vitest cases PASS (Phase 8 cj-style 95번째 wire frontend tests).
 import { describe, expect, it } from "vitest";
+
 import koKR from "@/messages/ko-KR.json";
 
 describe("i18n: performance namespace — Phase 8", () => {

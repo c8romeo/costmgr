@@ -10,8 +10,8 @@
  * loading spinner when generating.
  */
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { ERROR_CODE_PROJECTION_BASELINE_NOT_FOUND } from "@/lib/m7-simulation-projection";
 import type { ProjectionInputsSerialized } from "@/lib/m7-simulation-projection";

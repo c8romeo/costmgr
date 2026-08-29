@@ -8,8 +8,8 @@
  */
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 export function HelpWidget() {
   const t = useTranslations("support");

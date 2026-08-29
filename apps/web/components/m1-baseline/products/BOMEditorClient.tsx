@@ -25,11 +25,12 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Decimal from "decimal.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ProductTypeBadge } from "@/components/m1-baseline/products/ProductTypeBadge";
+import { useBom } from "@/hooks/useBom";
 import {
   type BOMLineResponse,
   type BOMResponse,
@@ -43,7 +44,6 @@ import {
   missingToComplete,
   quantizeRatio,
 } from "@/lib/bom-validation";
-import { useBom } from "@/hooks/useBom";
 
 export interface BOMEditorClientProps {
   productId: string;

@@ -15,8 +15,8 @@
  * CR 11-4 D-005: invalid delta → reject (NOT silent fall-through).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   type CVPBaselineSerialized,

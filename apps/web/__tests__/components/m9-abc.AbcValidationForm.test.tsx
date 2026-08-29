@@ -14,14 +14,13 @@
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import koKR from "@/messages/ko-KR.json";
-
 import { AbcValidationForm } from "@/components/m9-abc/AbcValidationForm";
+import koKR from "@/messages/ko-KR.json";
 import { server } from "@/mocks/server";
-import { http, HttpResponse } from "msw";
 
 afterEach(() => {
   server.resetHandlers();

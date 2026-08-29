@@ -21,14 +21,14 @@
 
 "use client";
 
-import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import * as React from "react";
 import { toast } from "sonner";
 
-import { TwoFactorStatusBadge } from "./TwoFactorStatusBadge";
-import { TwoFactorSetupForm, formatSecretWithGroups } from "./TwoFactorSetupForm";
 import { TwoFactorDisableForm } from "./TwoFactorDisableForm";
+import { TwoFactorSetupForm, formatSecretWithGroups } from "./TwoFactorSetupForm";
+import { TwoFactorStatusBadge } from "./TwoFactorStatusBadge";
 
 export interface AccountSecurityPanelProps {
   /** Whether 2FA is currently enrolled for this user. */

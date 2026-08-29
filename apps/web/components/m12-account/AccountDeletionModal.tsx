@@ -25,9 +25,9 @@
  * Negative/Destructive token (Story 12.5 UX decisions).
  */
 
+import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 
-import { useTranslations } from "next-intl";
 
 import {
   DELETION_CHALLENGE_TOKEN_PURPOSE,

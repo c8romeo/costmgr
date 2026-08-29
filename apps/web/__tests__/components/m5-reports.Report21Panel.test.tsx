@@ -13,17 +13,15 @@
  * Total: ~23 NEW vitest cases (T5).
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import koKR from "@/messages/ko-KR.json";
 
 import { CostObjectBreakdownTable } from "@/components/m5-reports/CostObjectBreakdownTable";
 import { PdfExportButton } from "@/components/m5-reports/PdfExportButton";
 import { Report21Panel } from "@/components/m5-reports/Report21Panel";
 import { UnusedCapacityAccordion } from "@/components/m5-reports/UnusedCapacityAccordion";
-import { server } from "@/mocks/server";
-import { http, HttpResponse } from "msw";
 
 afterEach(() => {
   server.resetHandlers();
@@ -237,6 +235,8 @@ import {
   downloadReport21PdfTS,
   triggerPdfDownload,
 } from "@/lib/report21-pdf";
+import koKR from "@/messages/ko-KR.json";
+import { server } from "@/mocks/server";
 
 describe("TS mirror type-narrowing", () => {
   it("REPORT21_ERROR_CODES has 4 envelope codes", () => {

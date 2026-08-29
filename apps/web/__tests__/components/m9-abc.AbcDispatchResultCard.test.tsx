@@ -14,13 +14,13 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
-import koKR from "@/messages/ko-KR.json";
 
 import { AbcDispatchResultCard } from "@/components/m9-abc/AbcDispatchResultCard";
 import type {
   CalcAbcResponse,
   CalcResponse,
 } from "@/lib/m9-abc-dispatch";
+import koKR from "@/messages/ko-KR.json";
 
 const messages = koKR;
 

@@ -20,8 +20,8 @@
  *    can add `zod` + `react-hook-form` and migrate to the Zod schema.
  */
 
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 
 import {
   CORPORATE_TAX_RATE_MAX,

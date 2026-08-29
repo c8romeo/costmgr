@@ -6,10 +6,10 @@
  * AAL 2FA redirect (aal1 → /auth/2fa, aal2 → /dashboard), ?redirect= preservation,
  * password show/hide toggle, router.refresh on success.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/navigation";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),

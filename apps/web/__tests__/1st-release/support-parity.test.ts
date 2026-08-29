@@ -5,9 +5,10 @@
  * - HelpWidget + FAQ + onboarding wizard 4-step + tooltip 4 conditions +
  *   support@bizup.kr mailto link 결정.
  */
-import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+
+import { describe, expect, it } from "vitest";
 
 const REPO_ROOT = path.resolve(__dirname, "../../../..");
 

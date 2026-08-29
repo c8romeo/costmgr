@@ -12,8 +12,8 @@
 
 "use client";
 
-import * as React from "react";
 import { useTranslations } from "next-intl";
+import * as React from "react";
 
 import {
   CLOSE_SEQUENCE_STAGES,
@@ -23,6 +23,7 @@ import {
   validateCloseSequenceOrder,
   type CloseSequenceStage,
 } from "@/lib/m11-close-sequence";
+
 import { CloseSequenceConfirmButton } from "./CloseSequenceConfirmButton";
 import { CloseSequenceStepCompleteButton } from "./CloseSequenceStepCompleteButton";
 

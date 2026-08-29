@@ -18,9 +18,9 @@
  * which calls `fetchBackupsRecentServerSide` for the initial list.
  */
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
-import { useTranslations } from "next-intl";
 
 import {
   BACKUP_DEFAULT_LIST_DAYS,

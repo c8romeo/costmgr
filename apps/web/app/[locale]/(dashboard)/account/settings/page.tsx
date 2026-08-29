@@ -20,8 +20,8 @@
 import { cookies } from "next/headers";
 
 import { DeletionStatusPanel } from "@/components/m12-account/DeletionStatusPanel";
-import { fetchDeletionStatusServerSide } from "@/lib/server-api";
 import type { DeletionStatusResponse } from "@/lib/m12-account-deletion";
+import { fetchDeletionStatusServerSide } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
 

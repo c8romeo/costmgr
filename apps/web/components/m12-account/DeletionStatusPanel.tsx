@@ -16,9 +16,9 @@
  *  - If `deleted`, shows terminal state (HTTP 410 from API).
  */
 
+import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 
-import { useTranslations } from "next-intl";
 
 import {
   TenantDeletionStatus,

@@ -18,9 +18,9 @@
 import { useState } from "react";
 
 import { VendorCatalogOverviewCard } from "./vendor-management/VendorCatalogOverviewCard";
-import { VendorSelectionScorePanel } from "./vendor-management/VendorSelectionScorePanel";
 import { VendorContractLifecycleTimeline } from "./vendor-management/VendorContractLifecycleTimeline";
 import { VendorPerformanceScorecardTable } from "./vendor-management/VendorPerformanceScorecardTable";
+import { VendorSelectionScorePanel } from "./vendor-management/VendorSelectionScorePanel";
 import { VendorSpendAttributionChart } from "./vendor-management/VendorSpendAttributionChart";
 
 type TabKey =

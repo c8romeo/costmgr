@@ -25,8 +25,8 @@
 
 "use client";
 
-import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { ApiError, updateIndustry } from "@/lib/api-client";
 import {
@@ -36,8 +36,9 @@ import {
   type Industry,
 } from "@/lib/menu-config";
 
-import { IndustryCard } from "./IndustryCard";
 import { useMenuContext } from "../sidebar/MenuContext";
+
+import { IndustryCard } from "./IndustryCard";
 
 export interface IndustrySelectorProps {
   /** Access token (string) forwarded from the Server Component. (F-4.)

@@ -15,8 +15,8 @@
 
 "use client";
 
-import * as React from "react";
 import { useTranslations } from "next-intl";
+import * as React from "react";
 import { toast } from "sonner";
 
 import {
@@ -27,7 +27,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
+import {
+  REOPEN_REASON_MAX_LENGTH,
+  REOPEN_REASON_MIN_LENGTH,
+} from "@/lib/m11-reopen";
 import {
   REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO,
   REVERSAL_EXECUTE_OK_KO,
@@ -36,10 +39,6 @@ import {
   isReversalExecuteAllowed,
   type ReversalExecuteState,
 } from "@/lib/m11-reversal-execute";
-import {
-  REOPEN_REASON_MAX_LENGTH,
-  REOPEN_REASON_MIN_LENGTH,
-} from "@/lib/m11-reopen";
 
 export interface ReversalExecuteDialogProps {
   /** Controlled open state. */

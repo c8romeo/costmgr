@@ -13,6 +13,7 @@
  * 6. RSC boundary: tracing.ts is client-only (no top-level Node imports).
  */
 import { describe, it, expect, vi } from 'vitest';
+
 import {
   initBrowserTracing,
   getBrowserTracer,

@@ -5,10 +5,10 @@
  * Covers forgot-password always-success security invariant + reset-password
  * strength regex + mismatch check + redirect.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/navigation";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),

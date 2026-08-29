@@ -14,9 +14,10 @@
  */
 
 import "@testing-library/jest-dom/vitest";
-import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 
+import { ClosingPdfExportButton } from "@/components/m2-input/ClosingPdfExportButton";
 import {
   CLOSING_PDF_EXPORT_TITLE_KO,
   CLOSING_PDF_EXPORT_EMPTY_KO,
@@ -26,7 +27,6 @@ import {
   isValidClosingPdfIndustry,
   triggerClosingPdfExportDownload,
 } from "@/lib/closing-pdf-export";
-import { ClosingPdfExportButton } from "@/components/m2-input/ClosingPdfExportButton";
 
 // Mock sonner toast
 vi.mock("sonner", () => ({

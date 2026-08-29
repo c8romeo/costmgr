@@ -24,7 +24,6 @@ import {
   type CalcAbcResponse,
   isCalcAbcResponse,
 } from "@/lib/m9-abc-dispatch";
-
 import {
   formatV7DeltaKrw,
   formatV7VerdictLabel,

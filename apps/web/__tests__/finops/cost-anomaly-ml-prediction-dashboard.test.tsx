@@ -16,8 +16,8 @@
  * Mirrors apps/web/__tests__/finops/finops-dashboard.test.tsx and
  * apps/web/__tests__/finops/anomaly-dashboard.test.tsx pattern.
  */
-import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
     AB_TEST_AUTO_PROMOTE_MARGIN,

@@ -13,9 +13,9 @@
  * Korean SSOT: apps/web/messages/ko-KR.json::two_factor_status_badge.
  */
 
-import * as React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import * as React from "react";
 
 export type TotpStatus = "enabled" | "disabled" | "locked";
 

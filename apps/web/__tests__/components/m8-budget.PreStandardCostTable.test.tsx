@@ -6,7 +6,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PreStandardCostTable } from "../../components/m8-budget/PreStandardCostTable";
-
 import koKR from "../../messages/ko-KR.json";
 
 vi.mock("next-intl", () => ({

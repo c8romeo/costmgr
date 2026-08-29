@@ -16,9 +16,9 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
+import { AbcDispatchDecisionBadge } from "@/components/m9-abc/AbcDispatchDecisionBadge";
 import koKR from "@/messages/ko-KR.json";
 
-import { AbcDispatchDecisionBadge } from "@/components/m9-abc/AbcDispatchDecisionBadge";
 
 const messages = koKR;
 

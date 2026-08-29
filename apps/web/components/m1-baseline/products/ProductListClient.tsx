@@ -22,6 +22,7 @@
 
 import { useState } from "react";
 
+import { useProducts } from "@/hooks/useProducts";
 import {
   type ProductCreateRequest,
   type ProductListResponse,
@@ -34,7 +35,6 @@ import {
   PRODUCT_TYPE_LABEL_KO,
   PRODUCT_TYPE_VALUES,
 } from "@/lib/menu-config";
-import { useProducts } from "@/hooks/useProducts";
 // M2: AD-8 money formatters — locale-aware display so the table renders
 // `1,000,000원` / `$1,000.00` instead of raw `1000000` / `1000.00` strings.
 import { formatKRW, formatUSD, toKRW, toUSD } from "@/lib/money";

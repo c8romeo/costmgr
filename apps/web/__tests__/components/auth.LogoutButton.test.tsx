@@ -5,10 +5,10 @@
  * Covers: fetch POST /api/auth/logout, redirect to /login on success,
  * network error display, button disable while submitting.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/navigation";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),

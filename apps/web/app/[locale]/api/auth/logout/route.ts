@@ -12,8 +12,8 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logoutWithAudit } from "@/lib/auth/logout";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 

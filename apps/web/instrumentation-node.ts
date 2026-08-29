@@ -15,9 +15,9 @@
  * 3. Otherwise, register OpenTelemetry NodeSDK + OTLP HTTP exporter.
  * 4. W3C Trace Context propagator is the default in opentelemetry-api.
  */
-import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
+import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
   TraceIdRatioBasedSampler,
@@ -60,7 +60,7 @@ if (!OTEL_SDK_DISABLED) {
     try {
       await sdk.shutdown();
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.error('instrumentation-node: shutdown error', err);
     }
   };

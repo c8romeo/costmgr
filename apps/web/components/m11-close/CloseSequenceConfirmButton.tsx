@@ -10,8 +10,8 @@
 
 "use client";
 
-import * as React from "react";
 import { useTranslations } from "next-intl";
+import * as React from "react";
 
 export interface CloseSequenceConfirmButtonProps {
   /** Disabled state — true when 4 stages not all complete OR not in chronological order. */

@@ -11,6 +11,7 @@
 //
 // A35 wire — resolves D3 (TS mirror parity 누락 3건 중 report21-pdf parity 추가).
 
+import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -19,7 +20,6 @@ import {
   triggerPdfDownload,
 } from "../../lib/report21-pdf";
 import { server } from "../../mocks/server";
-import { http, HttpResponse } from "msw";
 
 afterEach(() => {
   server.resetHandlers();

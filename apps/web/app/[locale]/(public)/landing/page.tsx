@@ -9,10 +9,10 @@
  *   <LandingPricing /> + <LandingCTA /> (CR 11-4 D-001 lesson carry, no <TODO> stubs).
  * - ko-KR SSOT only (CR 11-4 D-002) — uses `landing.*` namespace from messages/ko-KR.json.
  */
-import { LandingHero } from "@/components/landing/LandingHero";
-import { LandingFeatures } from "@/components/landing/LandingFeatures";
-import { LandingPricing } from "@/components/landing/LandingPricing";
 import { LandingCTA } from "@/components/landing/LandingCTA";
+import { LandingFeatures } from "@/components/landing/LandingFeatures";
+import { LandingHero } from "@/components/landing/LandingHero";
+import { LandingPricing } from "@/components/landing/LandingPricing";
 
 export const dynamic = "force-dynamic";
 

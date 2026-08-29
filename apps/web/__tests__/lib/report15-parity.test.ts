@@ -11,6 +11,7 @@
 //
 // A35 wire — cross-language parity 검증 (Story 11.6 EXTENSION).
 
+import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -21,7 +22,6 @@ import {
   type Report15ResponseEnvelope,
 } from "../../lib/report15";
 import { server } from "../../mocks/server";
-import { http, HttpResponse } from "msw";
 
 afterEach(() => {
   server.resetHandlers();

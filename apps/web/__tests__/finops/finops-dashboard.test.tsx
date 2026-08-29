@@ -3,9 +3,9 @@
  * Phase 11 T7 (cj-style 107번째 wire) — 3 NEW vitest cases for the
  * FinOps Showback / Chargeback dashboard.
  */
-import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { describe, expect, it, vi } from "vitest";
 
 import koKR from "@/messages/ko-KR.json";
 

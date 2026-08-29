@@ -17,9 +17,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
+import { AbcDispatchErrorToast } from "@/components/m9-abc/AbcDispatchErrorToast";
 import koKR from "@/messages/ko-KR.json";
 
-import { AbcDispatchErrorToast } from "@/components/m9-abc/AbcDispatchErrorToast";
 
 const messages = koKR;
 

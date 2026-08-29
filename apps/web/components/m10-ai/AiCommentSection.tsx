@@ -19,13 +19,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { ApiError } from "@/lib/api-client";
 import {
   type AICommentEntry,
   type AICommentEnvelope,
   fetchAIComments,
   isSourceKind,
 } from "@/lib/ai-comments";
+import { ApiError } from "@/lib/api-client";
 
 import { AiReferenceBadge } from "./AiReferenceBadge";
 import { AutoAnalysisBadge } from "./AutoAnalysisBadge";

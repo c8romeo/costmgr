@@ -9,6 +9,7 @@
 //   - base64PdfToBlob (Base64 → Blob with application/pdf MIME)
 //   - triggerPdfDownload (anchor + click + revokeObjectURL — filename 'report15_{periodKey}.pdf')
 
+import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -17,7 +18,6 @@ import {
   triggerPdfDownload,
 } from "../../lib/report15-pdf";
 import { server } from "../../mocks/server";
-import { http, HttpResponse } from "msw";
 
 afterEach(() => {
   server.resetHandlers();

@@ -19,14 +19,15 @@
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 
-import { CostObjectBreakdownTable } from "./CostObjectBreakdownTable";
-import { PdfExportButton } from "./PdfExportButton";
-import { UnusedCapacityAccordion } from "./UnusedCapacityAccordion";
 import {
   type Report21ErrorCode,
   type Report21ResponseEnvelope,
   fetchReport21TS,
 } from "@/lib/report21";
+
+import { CostObjectBreakdownTable } from "./CostObjectBreakdownTable";
+import { PdfExportButton } from "./PdfExportButton";
+import { UnusedCapacityAccordion } from "./UnusedCapacityAccordion";
 
 interface Report21PanelProps {
   accessToken: string | undefined;
