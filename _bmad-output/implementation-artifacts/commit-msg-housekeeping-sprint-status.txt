@@ -1,0 +1,90 @@
+chore(housekeeping): sprint-status.yaml 40 misplaced action_items entries status 정정 (Epic 2/3/4/5/6/8/9/11/12 sprint-status sprint atomic single docs-only wire 4 files = 3 NEW + 1 MODIFIED)
+
+cj-style sprint atomic single docs-only housekeeping sprint. cj-217 의 install-fix
+source sprint 와 별개의 atomic sprint �로 분리 — user confirmed via
+"housekeeping 따로 commit 진행" 결정 wire (2026-08-29).
+
+scope honestly reported:
+- 45 occurrences of "misplaced in action_items block - resolved" 코멘트 in
+  sprint-status.yaml
+- 43 actual action_items entries (the remaining 2 are `# updated_note` comment
+  lines, not actual entries)
+- 40 entries 의 status 정정 (in-progress → 실제 indicator 값으로 복원)
+- 3 entries 의 status 의도적 보존 (epic-2/5/6 — action 자체의 indicator 가
+  in-progress → 일치, 변경 불필요)
+
+4 files = 3 NEW + 1 MODIFIED atomic single docs-only sprint:
+
+3 NEW:
+- `_bmad-output/implementation-artifacts/housekeeping-sprint-status-cleanup-report.md`
+  (verification report — 6 sections)
+- `_bmad-output/implementation-artifacts/commit-msg-housekeeping-sprint-status.txt`
+  (this file)
+- `memory/handoff-2026-08-29-housekeeping-sprint-status-cleanup-done.md` (handoff)
+
+1 MODIFIED:
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (40 status updates)
+
+status 정정 분포 (40 updates applied, 0 mismatches):
+- 17 in-progress → done (Epic 2: 2-1/2-2/2-3/epic-2 + Epic 3: epic-3/3-1/3-2/3-3
+  + Epic 4: epic-4/4-1/4-2/4-3/4-4 + Epic 5: 5-1/5-2)
+- 1 in-progress → review (5-3-negative-closing-inventory-guard)
+- 4 in-progress → optional (epic-5/6/11/12-retrospective)
+- 18 in-progress → backlog (Epic 6: 6-1-21/6-2-krw-usd/6-3-pdf-a4 + Epic 8:
+  epic-8/8-1/8-2/8-3 + Epic 9: epic-9/9-1/9-3 + Epic 11: epic-11/11-1/11-2/11-3
+  + Epic 12: epic-12/12-1/12-2/12-3)
+- 3 in-progress → in-progress 의도적 보존 (epic-2/5/6 — action indicator 자체가
+  in-progress, 변경 불필요)
+
+검증 실측 (all local, honestly reported):
+- T7.40 status 분포 sanity ✅ PASS — 17 done + 1 review + 4 optional + 18 backlog
+  + 3 in-progress = 43 actual entries + 2 comment-block skipped = 45 occurrences
+  (총합 일치)
+- T7.41 indicator vs status alignment ✅ PASS — 0 mismatches (action 의
+  `??<indicator>` 와 실제 status 완전 일치)
+- T7.42 yaml 문법 — pre-existing U+0080 BOM at line 536 unchanged
+  (cj-51/52/55 의 historical condition, 이번 housekeeping 의 영향 0건,
+  lines 994-1334 외부)
+- T7.43 status line 들여쓰기 4-space 보존 ✅ PASS (40 entries 모두 4-space
+  indent 유지)
+- T7.44 action 코멘트 보존 ✅ PASS — "misplaced in action_items block -
+  resolved" 코멘트 (historical context) 40 entries 모두 보존
+
+scope 결정 boundary (atomic):
+- `epic:` field 의 wrong value (항상 `epic: 2` 표기) 는 의도적으로 untouched
+  — 더 광범위한 bookkeeping surgery 위험 회피, status 만 atomic 정정
+- cj-217 sprint 의 install-fix 결정 wire (D-CI-FUNC-5/6 ✅ RESOLVED) 와
+  cj-215 의 7 NEW blockers honestly DEFER 보존 무영향
+- sprint-status.yaml 외 다른 파일 변경 0건 — single docs-only wire
+- `_bmad-output/cj-215-jobs.json` (untracked, cj-215 sprint scope 외) 보존
+
+runtime 동작 변화 0건 (sprint-status.yaml 만 변경 — runtime source code 무관,
+sprint-status.yaml 의 status field 는 bookkeeping artifact 일 뿐 runtime
+behavior 에 영향 없음).
+
+별도 관찰 (housekeeping scope 외부, 정직 기록):
+- sprint-status.yaml 의 line 536 에 pre-existing U+0080 BOM characters
+  (cj-51/52/55 sprint 의 historical artifact) — yaml parser 가 이를 error
+  로 report 하지만 functional 영향 0건 (의도적 보존, 별도 follow-up 결정
+  wire 보류)
+- Epic 6 의 3 BACKLOG items (6-1-21-report-library-view-toggle, 6-2-krw-usd-
+  dual-display-rate-source, 6-3-pdf-a4-export-print-optimization) 은
+  housekeeping 의 backlog 복원 대상이었으며, Epic 5 retro §6 의 cj-style
+  3-story 분할 (6-1 = closing-period-service + 6-2 = monthly-closing-report
+  + 6-3 = closing-pdf-export) 의 SUPERSEDED 결정 wire — housekeeping 으로
+  status 만 backlog 복원, 실제 close-out 결정은 Epic 6 retro 별도 follow-up
+
+CR 11-3 honest-DEFER 111번째 epic 연속 정직 회복 (cj-217 의 110번째에 이어).
+결정 wire 일자: 2026-08-29 (KST).
+
+next:
+- 옵션 (a) cj-217 commit + 다음 push 후 live CI run actual verification
+  결정 wire
+- 옵션 (b) cj-218 sprint 진입 (D-CI-FUNC-1 + D-CI-FUNC-7 fix) 결정 wire
+- 옵션 (c) cj-219 sprint 진입 (D-CI-FUNC-2 + D-CI-FUNC-3 fix) 결정 wire
+- 옵션 (d) Epic 29+ 진입 결정 wire
+- 옵션 (e) D-LAUNCH-1-DEFER-2/3/4 / D-DEFER-* follow-up 결정 wire 보류
+- 옵션 (f) sprint-status.yaml line 536 U+0080 BOM housekeeping follow-up
+  결정 wire 보류
+
+Co-Authored-By: Claude <noreply@anthropic.com>
