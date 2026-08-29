@@ -526,7 +526,7 @@ class CalcResponse(BaseModel):
 | `LAUNCH_LANDING` | 1st release | ✅ | ✅ | ✅ | ✅ |
 | `LAUNCH_TOS` | 1st release | ✅ | ✅ | ✅ | ✅ |
 | `LAUNCH_SUPPORT` | 1st release | ✅ | ✅ | ✅ | ✅ |
-| `LAUNCH_MONITORING` | 1st release | ✅ | ✅ | ✅ | ✅ |
+| `LAUNCH_MONITORING` | 1st release | ✅ | ✅ | ✅ | ✅ | `LAUNCH_MONITORING` (smoke test RE-RUN 정직 결정 + backup drill 0036 PITR quarterly + Sentry alert wiring production + RPO 4h/RTO 24h SLA verification, 1st release T5 wire 진입). cj-style 207 EXTENSION: **(a) Live endpoint verification in smoke_test.py (staging-only sprint) ✅ RESOLVED** — `apps/api/scripts/smoke_test.py` stub → real HTTP driver (stdlib urllib only, zero-deps) + STAGING_BASE_URL/STAGING_JWT_TOKEN env var. (b)(c)(d) **D-LAUNCH-1-DEFER-2/3/4 신규 honestly DEFER** — 외부 Supabase Pro PITR / Sentry Team project / cross-region failover_orchestrator 인프라 보류. 4-industry grants ✅/✅/✅/✅ preserved.
 | `TENANT_IDP_MANAGEMENT` | Epic 16 | ✅ | ✅ | ✅ | ✅ |
 | `MULTI_REGION_BACKUP` | Phase 5 | ✅ | ✅ | ✅ | ✅ |
 | `MULTI_REGION_FAILOVER` | Phase 5 | ✅ | ✅ | ✅ | ✅ |
