@@ -1,0 +1,13 @@
+fix(finops): cj-220a PARTIAL honestly-DEFER (cj-style 220번째 epic 연속 정직 회복 atomic single docs-only sprint)
+
+CR 11-3 honest-DEFER 115번째 결정 wire — cj-220a commit 5c4ed88 push 후 live CI run 33243740970 verification 결과 cj-220a close-out claim ("229× import/order warnings 제거, 858 problems 잔여") 의 honestly PARTIAL 회복 결정 wire. live CI 매트릭스 6 PASS + 7 FAIL verbatim 보존 (cj-219 PARTIAL 동일 matrix):
+
+- D-CI-FUNC-7 ⚠️ PARTIAL honestly DEFER (cj-220a PARTIAL recovery): web-test 의 `pnpm exec eslint . --ext .ts,.tsx --fix` ✅ import/order warnings 229× 제거 (251 → 22 residual), `pnpm exec eslint . --ext .ts,.tsx` ❌ 770 errors 잔존 = AD-8 monetary 770× + unused-vars 55× + import/order 22× + react-hooks 3× + parse-errors 8× 결정 wire.
+
+cj-220a 의 honestly reported actual done scope: 154 files 변경 (apps/web/* import/order normalization), 215 insertions / 206 deletions 결정 wire. runtime functional 변경 0건 (import 순서 정렬 만).
+
+7 files = 3 NEW + 4 MODIFIED atomic single docs-only sprint: 3 NEW (`_bmad-output/implementation-artifacts/cj-220a-partial-recovery-report.md` 6-section verification report + `_bmad-output/implementation-artifacts/commit-msg-cj-220a-partial.txt` + `memory/handoff-2026-08-29-cj-220a-partial-honestly-defer.md`) + 4 MODIFIED (`_bmad-output/implementation-artifacts/sprint-status.yaml` v4.21 → v4.22 EXTENSION + `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` §Status update cj-220a PARTIAL EXTENSION paragraph + §7 D-CI-FUNC-7 PARTIAL 잔여 표기 결정 wire + `docs/architecture-decisions/AD-14-stack-pin-policy.md` §Detection Surface cj-220a PARTIAL row EXTENSION + §Open Items D-CI-FUNC-7 PARTIAL 잔여 EXTENSION + §Notes cj-220a PARTIAL EXTENSION paragraph + `memory/MEMORY.md` hook EXTENSION).
+
+AD-14 stack pin 정책 (35 pins) unchanged 결정 wire (docs-only sprint, source code 변경 0건 — ci.yml/apps/api/apps/web 모두 변경 없음, cj-220a 의 lint fix 결정 wire verbatim 보존). `[STACK BUMP]` tag 불필요. CR 11-3 honest-DEFER 115번째 결정 wire.
+
+다음 결정 wire 보류 (사용자 결정): 옵션 (b1) cj-220b unused-vars 55× fix (manual `_` prefix, low risk) / 옵션 (b2) cj-220b AD-8 monetary 770× fix 시작 (high risk, architectural decision 필요) / 옵션 (b3) cj-220b PARTIAL honestly-DEFER docs sprint / 옵션 (b4) cj-220b combine (b1 + react-hooks 3× + parse-errors 8× = 66 errors 제거, low-medium risk).
