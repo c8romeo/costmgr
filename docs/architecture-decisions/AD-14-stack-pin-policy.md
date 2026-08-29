@@ -213,8 +213,8 @@ retired candidate: 0건, 모든 exceptions 가 active deviation 상태).
 
 ## Detection Surface — install/runtime 검증 surface
 
-cj-style 206 sprint 의 install state honestly reported (cj-205 최초
-report → cj-206 `D-AD-14-1` RESOLVED 반영):
+cj-style 208 sprint 의 install state honestly reported (cj-205 최초
+report → cj-206 `D-AD-14-1` RESOLVED → cj-208 `D-AD-14-2` RESOLVED 반영):
 
 | Surface | State | Notes |
 |---|---|---|
@@ -251,7 +251,9 @@ report → cj-206 `D-AD-14-1` RESOLVED 반영):
   this AD-14 cj-205 sprint 의 `D-AD-14-1` (k6-python-wrapper phantom
   dep) honestly DEFER → **cj-206 source sprint 에서 RESOLVED** +
   `D-AD-14-2` (retention `response_model` FastAPIError) 신규
-  honestly DEFER
+  honestly DEFER → **cj-208 source sprint 에서 RESOLVED**
+  (kernel `RetentionPolicy(dict)` 보존 + API surface
+  `RetentionPolicyResponse(BaseModel)` 도입)
 
 ## Open Items
 
@@ -266,22 +268,31 @@ report → cj-206 `D-AD-14-1` RESOLVED 반영):
   (3) `uv run python scripts/check_stack_pin.py` → **35 pins match,
   exit 0** 검증 + (4) `uv sync --frozen` / `uv lock --check` exit 0.
   runtime 동작 변화 0건 (제거된 패키지는 애초에 설치된 적이 없음).
-- **D-AD-14-2** (cj-style 206 신규 honestly DEFER per CR 11-3) —
-  `tests/architecture/test_api_calls_only_ports.py::
-  test_apps_api_has_no_unintended_dunder_imports_at_module_load` 가
-  **fastapi 가 설치된 환경에서 pre-existing FAIL**. 원인은
+- **D-AD-14-2** ✅ **RESOLVED (cj-style 208 source sprint)** —
+  retention `response_model` 회복 source sprint. 원인은
   `apps/api/modules/audit/retention/retention_dsl.py:52` 의
   `class RetentionPolicy(dict)` 를
-  `retention_routes.py:102` 가 `response_model=` 으로 사용 →
+  `retention_routes.py:102/118/133` 가 `response_model=` 으로 사용 →
   `fastapi.utils` `FastAPIError` (dict subclass 는 valid response
-  field 가 아님) at `apps.api.main` import time. 본 test 는 fastapi
-  미설치 환경에서 `pytest.skip` 하므로 CI (`uv sync --frozen` = root
-  dev group 15 packages only) 에서는 skip 되어 왔음 — cj-206 의
-  `uv sync --frozen --all-packages` 환경에서 처음 표면화.
-  **본 sprint 변경과 무관함이 `git stash` baseline 재현으로 증명됨**
-  (stash 상태에서도 동일 FAIL). follow-up cj-207+ source sprint 에서
-  `RetentionPolicy` 를 pydantic `BaseModel` 로 승격하거나
-  `response_model` 을 제거하는 결정 wire 필요.
+  field 가 아님) at `apps.api.main` import time. fix wire 결정:
+  (1) `apps/api/modules/audit/retention/retention_routes.py` 에 전용
+  Pydantic `RetentionPolicyResponse(BaseModel)` 결정 wire — API surface
+  layer (kernel `RetentionPolicy(dict)` 는 verbatim 보존, 기존 16
+  kernel tests 의 `["key"]` access pattern 무변경); (2) GET single +
+  POST create + PUT update 3개 route 의 `response_model=RetentionPolicy`
+  → `response_model=RetentionPolicyResponse` swap + 각 handler 의
+  `parse_retention_policy(...)` 결과를 `RetentionPolicyResponse(**result)`
+  로 wrap; (3) `tests/api/modules/audit/retention/test_retention_routes.py`
+  NEW 6 pytest cases — TS mirror parity 검증 (5 field set + Literal
+  action_class type + parse→Response round-trip + model_dump() JSON shape
+  kernel dict 동등 + 4-class default days round-trip + apps.api.main
+  import regression guard). 검증 실측: T7.1 ruff scoped PASS / T7.2
+  pytest 23/23 (6 NEW + 16 kernel + 1 D-AD-14-2 architecture test) /
+  T7.3 vitest N/A (apps/web 무변경) / T7.4 tsc N/A / T7.5 FINAL CLEAN
+  PASS (`uv run python scripts/check_stack_pin.py` → `[STACK_PIN] OK
+  all 35 pins match`, exit 0). runtime 동작 변화: JSON wire-format
+  동일 (5 field shape verbatim 보존 — TS mirror parity CR 12-5
+  D-PARITY-01 손상 없음).
 - **V8 regression suite (Story 4.4)** — 현재 `no tests ran` until
   Story 4.4 ships the fixtures. Setup 시 AD-14 §Bump policy §V8
   regression gate 활성화.
@@ -304,6 +315,15 @@ report → cj-206 `D-AD-14-1` RESOLVED 반영):
   epic 연속 정직 회복. 본 sprint 는 pin 을 1건도 bump 하지 않았으므로
   `[STACK BUMP]` tag 불필요 (35 pins 전부 unchanged, `uv.lock` 은
   additive resolution only).
+- 본 AD-14 문서의 cj-style 208 sprint EXTENSION 은 **source+docs
+  atomic single sprint** — `D-AD-14-2` retention `response_model` 회복
+  (install surface 12 중 ✅ 11 + ⚠️ 1 partial (Dependabot auto-label).
+  fix wire: kernel `RetentionPolicy(dict)` 보존 + API surface
+  `RetentionPolicyResponse(BaseModel)` 도입으로 FastAPI
+  `response_model=` 호환 회복 — TS mirror parity (CR 12-5
+  D-PARITY-01) 손상 없음. **CR 11-3 honest-DEFER 101번째** epic 연속
+  정직 회복. 본 sprint 는 pin 을 1건도 bump 하지 않았으므로
+  `[STACK BUMP]` tag 불필요.
 - 본 AD-14 의 `scripts/check_stack_pin.py` 의 CASCADE-1 (CR
   2026-07-25) PyYAML 사용 — BOM / anchors / folded scalars /
   escaped quotes 같은 YAML edge cases 에서 hand-rolled parser 의

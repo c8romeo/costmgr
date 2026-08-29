@@ -41,7 +41,6 @@ from apps.api.modules.audit.retention.erasure import (
 from apps.api.modules.audit.retention.retention_dsl import (
     DEFAULT_RETENTION_DAYS,
     RetentionClass,
-    RetentionPolicy,
     parse_retention_policy,
 )
 
@@ -81,6 +80,41 @@ class PurgePreviewRequest(BaseModel):
     action_class: RetentionClass
 
 
+# ── Pydantic response model (CR 12-5 D-PARITY-01 inversion mirror) ──
+#
+# The pure kernel `RetentionPolicy(dict)` in `retention_dsl.py` is a
+# `dict` subclass used as a typed envelope (verbatim mirror of TS
+# `RetentionPolicy` interface, CR 12-5 D-PARITY-01). FastAPI's
+# `response_model=` parameter, however, requires a Pydantic field
+# type — a plain `dict` subclass is rejected at import time with
+# `fastapi.exceptions.FastAPIError: Invalid args for response field!`
+# (D-AD-14-2). The fix: introduce a dedicated `RetentionPolicyResponse`
+# Pydantic `BaseModel` for the API surface, keeping the kernel
+# `RetentionPolicy(dict)` unchanged so all kernel tests
+# (`tests/api/modules/audit/retention/test_retention_dsl.py`) and
+# downstream consumers continue to use the `["key"]` access pattern.
+#
+# JSON shape parity with TS mirror is preserved: the `model_dump()`
+# of this `BaseModel` produces the exact same keys as
+# `RetentionPolicy(dict)` (tenant_id, action_class, days, archive,
+# mask_pii) — verified by `test_retention_routes.py`.
+
+
+class RetentionPolicyResponse(BaseModel):
+    """Retention policy response — API surface mirror of TS `RetentionPolicy`.
+
+    Kernel value type is `RetentionPolicy(dict)` in `retention_dsl.py`;
+    route handlers wrap the kernel result via `RetentionPolicyResponse(
+    **parse_retention_policy(...))` to feed FastAPI's `response_model=`.
+    """
+
+    tenant_id: str
+    action_class: RetentionClass
+    days: int
+    archive: bool
+    mask_pii: bool
+
+
 # ── Routes (CR 12-5 D-GATE-01 inversion) ───────────────────────────
 
 
@@ -99,49 +133,55 @@ async def list_retention_policies(
     }
 
 
-@router.get("/audit-log/retention/{action_class}", response_model=RetentionPolicy)
+@router.get("/audit-log/retention/{action_class}", response_model=RetentionPolicyResponse)
 async def get_retention_policy(
     request: Request,
     action_class: RetentionClass,
     _gate: None = Depends(require_audit_log_retention),
-) -> RetentionPolicy:
+) -> RetentionPolicyResponse:
     """Get a single retention policy by class."""
     days = DEFAULT_RETENTION_DAYS[action_class]
-    return parse_retention_policy(
-        tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-        payload={"action_class": action_class, "days": days, "archive": True, "mask_pii": True},
+    return RetentionPolicyResponse(
+        **parse_retention_policy(
+            tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
+            payload={"action_class": action_class, "days": days, "archive": True, "mask_pii": True},
+        )
     )
 
 
 @router.post(
     "/audit-log/retention",
-    response_model=RetentionPolicy,
+    response_model=RetentionPolicyResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_retention_policy(
     request: Request,
     body: RetentionPolicyCreateRequest,
     _gate: None = Depends(require_audit_log_retention),
-) -> RetentionPolicy:
+) -> RetentionPolicyResponse:
     """Create a retention policy (CR 1-1 audit-first INSERT policy_updated)."""
-    return parse_retention_policy(
-        tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-        payload=body.model_dump(),
+    return RetentionPolicyResponse(
+        **parse_retention_policy(
+            tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
+            payload=body.model_dump(),
+        )
     )
 
 
-@router.put("/audit-log/retention/{action_class}", response_model=RetentionPolicy)
+@router.put("/audit-log/retention/{action_class}", response_model=RetentionPolicyResponse)
 async def update_retention_policy(
     request: Request,
     action_class: RetentionClass,
     body: RetentionPolicyUpdateRequest,
     _gate: None = Depends(require_audit_log_retention),
-) -> RetentionPolicy:
+) -> RetentionPolicyResponse:
     """Update an existing retention policy (CR 1-1 audit-first INSERT)."""
     payload = {"action_class": action_class, **body.model_dump(exclude_unset=True)}
-    return parse_retention_policy(
-        tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
-        payload=payload,
+    return RetentionPolicyResponse(
+        **parse_retention_policy(
+            tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000000"),
+            payload=payload,
+        )
     )
 
 

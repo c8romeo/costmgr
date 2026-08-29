@@ -1,0 +1,83 @@
+fix(finops): D-AD-14-2 retention response_model 회복 DONE (cj-style 208번째 epic 연속 정직 회복 atomic source-and-docs wire per CR 11-3 honest-DEFER 101번째)
+
+cj-style 207 LAUNCH_MONITORING sub-item (a) staging smoke_test wire
+`f534ba6` 의 next-옵션 (a) **D-AD-14-2 retention `response_model` 회복
+source sprint 진입 결정 wire** (cj-style 208번째) 의 verbatim recovery.
+cj-206 이 honestly DEFER 한 retention source defect 를 즉시 회수 =
+**CR 11-3 honest-DEFER 101번째** epic 연속 정직 회복.
+
+원인 (cj-206 baseline repro, cj-208 baseline 재검증):
+- `apps/api/modules/audit/retention/retention_dsl.py:52` 의
+  `class RetentionPolicy(dict)` 를
+  `apps/api/modules/audit/retention/retention_routes.py:102/118/133`
+  가 `response_model=` 으로 사용
+- `fastapi.utils` `FastAPIError` (`Invalid args for response field!
+  Hint: check that <class 'apps.api.modules.audit.retention.
+  retention_dsl.RetentionPolicy'> is a valid Pydantic field type.`)
+  at `apps.api.main` import time
+- `tests/architecture/test_api_calls_only_ports.py::
+  test_apps_api_has_no_unintended_dunder_imports_at_module_load`
+  fastapi 설치 환경에서 pre-existing FAIL (cj-206 `git stash` baseline
+  재현으로 본 sprint 무관함 증명)
+
+fix wire 결정 (cj-style 208 source-and-docs atomic single sprint):
+1. `apps/api/modules/audit/retention/retention_routes.py` 에 전용
+   Pydantic `RetentionPolicyResponse(BaseModel)` 결정 wire — API
+   surface layer (kernel `RetentionPolicy(dict)` 는 verbatim 보존,
+   기존 16 kernel tests 의 `["key"]` access pattern 무변경)
+2. GET single + POST create + PUT update 3개 route 의
+   `response_model=RetentionPolicy` →
+   `response_model=RetentionPolicyResponse` swap + 각 handler 의
+   `parse_retention_policy(...)` 결과를
+   `RetentionPolicyResponse(**result)` 로 wrap
+3. `tests/api/modules/audit/retention/test_retention_routes.py`
+   NEW 6 pytest cases — TS mirror parity 검증 (5 field set + Literal
+   action_class type + parse→Response round-trip + model_dump() JSON
+   shape kernel dict 동등 + 4-class default days round-trip +
+   apps.api.main import regression guard)
+4. `apps/api/modules/audit/retention/retention_routes.py` unused
+   `RetentionPolicy` import 제거 (kernel 모듈에서 re-export 자체는
+   `__init__.py` 에서 보존)
+5. AD-14 §Open Items + §Detection Surface + §Cross-references +
+   §Notes EXTENSION (D-AD-14-2 RESOLVED 반영)
+6. sprint-status.yaml v4.08 → v4.09 EXTENSION (A825~A829 + D-AD-14-2
+   status open → done)
+7. memory MEMORY.md hook EXTENSION 결정 wire
+
+검증 실측 (all local, honestly reported):
+- T7.1 ruff scoped: PASS (`ruff check apps/api/modules/audit/
+  retention/retention_routes.py tests/api/modules/audit/retention/
+  test_retention_routes.py` → All checks passed!)
+- T7.2 pytest scoped: PASS (`pytest tests/api/modules/audit/
+  retention/ tests/architecture/test_api_calls_only_ports.py::
+  test_apps_api_has_no_unintended_dunder_imports_at_module_load`)
+  → **23 passed** (6 NEW + 16 retention_dsl kernel + 1 D-AD-14-2
+  architecture test) — cj-206 FAIL architecture test 본 sprint GREEN
+  회복
+- T7.3 vitest scoped: N/A (apps/web 무변경)
+- T7.4 tsc: N/A (apps/web 무변경)
+- T7.5 FINAL CLEAN: PASS (`uv run python scripts/check_stack_pin.py`
+  → `[STACK_PIN] OK all 35 pins match`, exit 0)
+- import smoke: PASS (`python -c "import apps.api.main"` → no error)
+
+runtime 동작 변화: JSON wire-format 동일 (5 field shape verbatim
+보존 — TS mirror parity CR 12-5 D-PARITY-01 손상 없음). 본 sprint
+는 pin 을 1건도 bump 하지 않았으므로 `[STACK BUMP]` tag 불필요
+(35 pins 전부 unchanged).
+
+related: cj-206 D-AD-14-1 phantom dep removal, cj-207 LAUNCH
+smoke_test wire, CR 12-5 D-PARITY-01 Python ↔ TS mirror parity,
+AD-14 Stack Pin Policy, AD-22 Owner-only RBAC, AD-49~AD-57 Phase
+11~28 forward-lock chain
+
+verified scope (atomic single sprint): **7 files = 3 NEW + 4 MODIFIED**
+verified via `git status --short` pre-commit: 3 NEW
+(`_bmad-output/implementation-artifacts/commit-msg-cj-208.txt` +
+`memory/handoff-2026-08-29-cj-208-d-ad-14-2-retention-response-model-recovery-done.md`
++ `tests/api/modules/audit/retention/test_retention_routes.py` ~130 LOC)
+/ 4 MODIFIED (`apps/api/modules/audit/retention/retention_routes.py`
++56/-16 + `docs/architecture-decisions/AD-14-stack-pin-policy.md`
++44/-8 + `_bmad-output/implementation-artifacts/sprint-status.yaml`
+v4.08 → v4.09 EXTENSION + `memory/MEMORY.md` hook EXTENSION)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
