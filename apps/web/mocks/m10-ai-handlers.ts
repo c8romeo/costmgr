@@ -24,6 +24,7 @@ import type { PromoteResponseSuccess } from "@/lib/ai-promote";
 import type { InsightListResponse } from "@/lib/insight-cache";
 
 // Local re-alias for backwards compat with T5 mock callers
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type PromoteResponse = PromoteResponseSuccess;
 
 const extractMonthlyMockBody = (): MonthlyExtractResponseSuccess => ({

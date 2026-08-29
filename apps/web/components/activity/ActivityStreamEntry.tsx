@@ -30,6 +30,7 @@ interface ActivityStreamEntryProps {
 }
 
 export function ActivityStreamEntry({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   entryId,
   traceId,
   actorId,

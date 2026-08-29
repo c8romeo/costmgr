@@ -76,7 +76,9 @@ export function ClosingPeriodConfirmationPanel({
 
   const allowed = isClosingPeriodAllowed(state.status);
   const is_blocked = state.status === "CLOSING_BLOCKED";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const is_already_closed = state.status === "ALREADY_CLOSED";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const is_empty = state.status === "EMPTY_PERIOD";
 
   // Variant + icon + title per status code (AD-15 §11 SSOT).

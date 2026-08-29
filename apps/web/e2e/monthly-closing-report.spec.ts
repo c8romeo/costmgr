@@ -21,6 +21,7 @@ import { expect, test } from "@playwright/test";
 
 const TEST_LOCALE = "ko-KR";
 const TEST_PERIOD = "2026-08";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TEST_TENANT = "manufacturing";
 
 test.describe("M4 inventory monthly closing report — UI flow", () => {

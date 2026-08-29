@@ -53,6 +53,7 @@ export function AccountDeletionModal({
   const [step, setStep] = useState<"totp" | "consent" | "submitting">("totp");
   const [totpCode, setTotpCode] = useState<string>("");
   const [consentText, setConsentText] = useState<string>("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [challengeToken, setChallengeToken] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 

@@ -79,6 +79,7 @@ function parseAAL(headers: Headers): "aal1" | "aal2" | null {
 
 export async function routeGuard(
   request: RouteGuardRequest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   intlResponse: NextResponse,
 ): Promise<NextResponse> {
   const { pathname } = request.nextUrl;

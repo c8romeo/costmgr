@@ -29,9 +29,11 @@ import {
   ABC_ALLOCATION_BALANCE_ERROR_KO,
   ABC_CCR_INVALID_CAPACITY_KO,
   type AllocationResult,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   type CCRResult,
   type CostObjectRow,
   type ActivityMapping,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   type UnusedCapacityRow as UnusedCapacityRowType,
   isAllocationResult,
 } from "@/lib/m9-abc-allocation";

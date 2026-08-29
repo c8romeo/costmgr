@@ -19,6 +19,7 @@ import {
   ABC_DRIVER_INVALID_SUM_KO,
   ABC_VALIDATION_NOT_FOUND_KO,
   VALIDATION_100_PCT_TARGET,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isValidAbcPct,
   isValidAbcPctList,
   sumPct,

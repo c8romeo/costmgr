@@ -56,6 +56,7 @@ export function FinopsDashboardPanel({ accessToken, locale }: Props) {
   const [chargeback, setChargeback] = useState<ChargebackResult[]>([]);
   const [mappings, setMappings] = useState<DepartmentCostCenterMapping[]>([]);
   const [periodMode, setPeriodMode] = useState<PeriodMode>("current_month");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [periodKey, setPeriodKey] = useState<string>("2026-08");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -12,6 +12,7 @@
  * 5. enrichSpanWithUserContext doesn't throw when no active span.
  * 6. RSC boundary: tracing.ts is client-only (no top-level Node imports).
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { describe, it, expect, vi } from 'vitest';
 
 import {

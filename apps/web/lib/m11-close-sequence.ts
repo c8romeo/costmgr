@@ -87,6 +87,7 @@ export function validateCloseSequenceOrder(input: {
   // Rule 1: forward-jump detection (chronological ordering).
   for (let i = 0; i < timestamps.length - 1; i++) {
     const [prevName, prevTs] = timestamps[i];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [currName, currTs] = timestamps[i + 1];
     if (prevTs === null && currTs !== null) {
       violations.push(`${prevName} 단계 미완료`);

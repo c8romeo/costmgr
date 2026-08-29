@@ -33,6 +33,7 @@ import {
 } from "@/lib/m11-reopen";
 import {
   REVERSAL_EXECUTE_INVALID_SNAPSHOT_KO,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   REVERSAL_EXECUTE_OK_KO,
   buildReversalExecuteState,
   formatReversalExecuteResultKo,

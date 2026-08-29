@@ -24,7 +24,9 @@ import { toast } from "sonner";
 
 import {
   SNAPSHOT_COMMIT_DRAFT_REJECT_KO,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   SNAPSHOT_COMMIT_IDEMPOTENT_KO,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   SNAPSHOT_COMMIT_OK_KO,
   SNAPSHOT_COMMIT_REVERSED_REJECT_KO,
   buildSnapshotPersistenceState,

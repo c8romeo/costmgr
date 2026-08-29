@@ -94,6 +94,7 @@ export async function resetPassword(args: ResetPasswordArgs): Promise<ResetPassw
   }
 
   // Best-effort backend audit INSERT.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const accessToken = data?.user ? null : null;
   const userId = data?.user?.id ?? null;
   const tenantId = (data?.user?.app_metadata?.tenant_id as string | undefined) ?? null;

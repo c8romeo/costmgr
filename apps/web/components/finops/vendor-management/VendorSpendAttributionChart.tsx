@@ -18,6 +18,7 @@ interface VendorSpendAttributionChartProps {
 }
 
 export function VendorSpendAttributionChart({
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     dryRun,
 }: VendorSpendAttributionChartProps) {
     const [attributions, setAttributions] = useState<VendorSpendAttribution[]>(

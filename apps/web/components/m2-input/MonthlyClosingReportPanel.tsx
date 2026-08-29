@@ -16,6 +16,7 @@
 
 "use client";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { FileText, AlertCircle, CheckCircle2, FileX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";

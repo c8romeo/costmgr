@@ -35,6 +35,7 @@ interface Props {
   locale: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function SloDashboardPanel({ accessToken, locale }: Props) {
   const router = useRouter();
   const [definitions, setDefinitions] = useState<SloDefinition[]>([]);

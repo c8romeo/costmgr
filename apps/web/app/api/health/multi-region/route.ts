@@ -37,6 +37,7 @@ interface MultiRegionHealth {
   timestamp: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? "";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";

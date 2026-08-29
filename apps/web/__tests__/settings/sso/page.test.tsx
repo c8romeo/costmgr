@@ -57,6 +57,7 @@ import {
   deleteIdPConfig,
   listIdPConfigs,
   testIdPConfig,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   updateIdPConfig,
 } from "@/lib/auth/admin-idp-client";
 

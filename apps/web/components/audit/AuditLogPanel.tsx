@@ -69,6 +69,7 @@ export function AuditLogPanel({
 }: AuditLogPanelProps): React.ReactElement {
   const t = useTranslations("audit_log");
   const [filters, setFilters] = useState<AuditLogQueryFilters>(initialFilters);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
   const [pageSize] = useState<number>(initialPageSize);
   const [data, setData] = useState<AuditLogPage | null>(initialPage);

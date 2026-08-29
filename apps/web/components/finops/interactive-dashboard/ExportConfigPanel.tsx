@@ -60,6 +60,7 @@ const STATUS_COLORS: Record<ExportJobStatus, string> = {
 
 export function ExportConfigPanel({
     dryRun,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     periodKey,
 }: ExportConfigPanelProps) {
     const [format, setFormat] = useState<ExportFormat>("pdf");

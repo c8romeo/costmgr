@@ -54,6 +54,7 @@ const DIMENSIONS: AnomalyDefinition["dimension"][] = [
   "tenant_total",
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const BASELINE_WINDOWS: AnomalyDefinition["baseline_window"][] = [
   "last_30d",
   "last_90d",

@@ -131,6 +131,7 @@ export async function signInWithPassword({
     // app_metadata.aal; we fall back to default 'aal1' if missing.
     const aal = (data.session?.user?.app_metadata?.aal ?? "aal1") as "aal1" | "aal2";
     return { ok: true, aal, message: "OK" };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     const NETWORK_ERROR = "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
     return {

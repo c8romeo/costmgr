@@ -25,6 +25,7 @@ import {
 import {
   type ProjectionInputsSchema,
   isAllFieldsFilledTS,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ProjectionInputsSchema as projectionInputsSchema,
   validateProjectionInputs,
 } from "@/lib/m7-simulation-projection-schema";

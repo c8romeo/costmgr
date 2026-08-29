@@ -28,10 +28,12 @@
  */
 'use client';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { trace, context, type Span, type Tracer } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   BatchSpanProcessor,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';

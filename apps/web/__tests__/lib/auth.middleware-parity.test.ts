@@ -31,6 +31,7 @@ function makeSupabaseResponse(userId: string | null, aal: string | null = null):
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   mockUpdateSupabaseSession.mockImplementation(async (req: NextRequest) => {
     // Default: no session.
     return makeSupabaseResponse(null);

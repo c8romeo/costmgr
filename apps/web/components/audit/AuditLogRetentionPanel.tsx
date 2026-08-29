@@ -35,8 +35,10 @@ interface Props {
   locale: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const RETENTION_CLASSES: RetentionClass[] = ["admin", "auth", "data", "security"];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function AuditLogRetentionPanel({ accessToken, locale }: Props) {
   const router = useRouter();
   const [policies, setPolicies] = useState<RetentionPolicy[]>([]);

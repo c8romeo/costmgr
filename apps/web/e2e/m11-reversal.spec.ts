@@ -26,6 +26,7 @@ import { expect, test } from "@playwright/test";
 
 const TEST_LOCALE = "ko-KR";
 const TEST_PERIOD = "2026-08";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TEST_TENANT = "manufacturing";
 
 test.describe("M11 inventory reversal request — UI flow", () => {
@@ -63,6 +64,7 @@ test.describe("M11 inventory reversal request — UI flow", () => {
   // ── Case 2: atomic-transaction failure rollback ────────────────
   test("atomic transaction failure rolls back + sonner toast.error", async ({
     page,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     request,
   }) => {
     // Intercept POST to fail with 500 to trigger rollback path.

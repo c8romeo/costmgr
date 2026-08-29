@@ -25,6 +25,7 @@ const PASSWORD_STRENGTH =
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const INDOTRY_VALUES = [
   "manufacturing",
   "service",

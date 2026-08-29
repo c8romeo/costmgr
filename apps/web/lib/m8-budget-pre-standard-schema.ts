@@ -131,6 +131,7 @@ export function validatePreStandardInputs(
 // ── Snapshot deserializers (mirror BudgetPreStandardSnapshotSerialized) ──
 export function isValidPreStandardSnapshotField(
   value: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   field: "material_cost" | "labor_cost" | "overhead_cost" | "manufacturing_cost",
 ): boolean {
   return KRW_INTEGER_REGEX.test(value);

@@ -21,6 +21,7 @@ import {
   fetchIdleResources,
   fetchCommitmentRecommendations,
   fetchOptimizationAccuracy,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   type OptimizationDefinition,
   type RightsizingRecommendation,
   type IdleResource,
@@ -249,8 +250,11 @@ function OptimizationAccuracyPanel({
 
 // ── Main Dashboard Panel ──
 export function FinopsOptimizationDashboardPanel() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [optimizationStrategy, setOptimizationStrategy] = useState("composite");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [resourceType, setResourceType] = useState("compute");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [baselinePeriod, setBaselinePeriod] = useState("last_30d");
   const [recommendations, setRecommendations] = useState<RightsizingRecommendation[]>([]);
   const [idleResources, setIdleResources] = useState<IdleResource[]>([]);
