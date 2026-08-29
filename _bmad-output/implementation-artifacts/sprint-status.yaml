@@ -997,19 +997,19 @@ development_status:
   - epic: 2
     action: "2-1-product-item-master-type-tags ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "2-2-bom-matrix-100-validation ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "2-3-item-type-change-integrity-guard ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "epic-2-retrospective ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
 
   # ==========================================
   # Epic 1: User Onboarding & Settings (post-retro additions)
@@ -1037,23 +1037,23 @@ development_status:
   - epic: 2
     action: "epic-3 ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "3-1-six-stream-monthly-input-ui-month-total-default ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "3-2-fte-conversion-daily-labor ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "3-3-negative-inventory-overcapacity-real-time-warning ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "epic-3-retrospective ??done  # 2026-08-02 (lightweight retro ??Epic 1쨌2 ?⑦꽩) (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
 
   # ==========================================
   # Epic 3: Monthly Input Capture (post-retro additions)
@@ -1085,27 +1085,27 @@ development_status:
   - epic: 2
     action: "epic-4 ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "4-1-pure-cost-engine-no-i-o-no-clock ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "4-2-single-calculation-endpoint-repeatable-read-transaction ??done (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "4-3-verification-v1-v4-v7-v8-order ??done  # 2026-08-03 ??bmad-code-review F-1~F-10 ?⑥튂 (12 async tests ??asyncio.run wrapper + protocol.py Industry enum SSOT + A5 drift detector + V8 STORY_4_4 entry marker). final 48 passed + 1 skipped (V4 MVP intentional). 3以?寃뚯씠??clean (ruff 0 / import-linter 2 KEPT / pytest 48 pass). review sentinel: `_bmad-output/implementation-artifacts/.review/story-4-3-review.md`. Mem: cr-4-3-lessons. (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "4-4-v8-regression-ci-gate ??done  # 2026-08-03 ??bmad-dev-story T1~T7 execute complete. 12 fixture matrix shipped (4 industries 횞 3 baseline shapes = 12 JSON 怨⑤뱺 at packages/cost_engine/tests/regression_v8/fixtures/) + V8_FIXTURE_COUNT 0??2 + fixture_loader (load_golden_by_id / load_golden_for_industry / select_golden_for_input / compute_golden_lock_sha256) + fixture_publisher CLI (--all / --check-only / --industry) + tests/regression_v8/test_regression_v8_fixtures.py 28+ cases (61+ with parametrize: 3 matrix + 12 lock_sha256 + 12 byte-identical + 12 100x determinism + 1 failed-path shape + 4 industry skip matrix + 12 idempotent re-call + 2 registry + 3 loader API smoke) + A5 forward-lock audit_action.py 'verify_v8_golden_match' enum + calc_orchestrator.py V8 wire (top_failure.code=='V8' ??action='verify_v8_golden_match'). test_verdict_envelope.py + test_verification_order.py V8 怨⑤뱺 match path cases 異붽?. Industry canonical names parity ?뺣젹 (TS m3-verdict.ts + Python protocol.py = manufacturing_service / manufacturing_service_other). docs/cost-engine.md 짠V8 12 fixture matrix + byte-identical ?섏궗 肄붾뱶 + CI gate 紐낆떆. docs/conventions.md 짠0.5 + 짠9 V8 mandatory CI gate. docs/capability-matrix.md v1.4. packages/cost_engine/tests/regression_v8/README.md 12 fixture matrix + check-only 媛?대뱶. 3以?寃뚯씠??clean (ruff 0 errors on Story 4-4 scope / import-linter 2 contracts KEPT / pytest 838 pass + 108 skip RLS CI-only + 0 fail). Story 4-1 T5 V8 placeholder contract 蹂댁〈 ??V8_FIXTURE_COUNT 12 lock. baseline_commit = 4d088f5 (pre-dev). 5 deferral 洹몃?濡?(TS mirror v8-regression-fixtures.ts = 4-4.1 option, inventory_adjustment Epic 5 fold-in reopen 寃곗젙, ABC ?쨌?쒕룞쨌?숈씤 = Epic 9, state='committed' = Epic 11, state='reversed' = Epic 11 11-3). ?ㅼ쓬: Epic 4 close-out ?뚭퀬 (A3 Epic 5 ledger fold-in + A4 frontend toast 寃곗젙 + Epic 4 ?뚭퀬 A2 4-4 part done) ?먮뒗 Epic 5 5-1 spec 吏꾩엯. (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "epic-4-retrospective ??done  # 2026-08-03 ??close-out retro at `_bmad-output/implementation-artifacts/epic-4-retro-close-out-2026-08-03.md` (12 sections lightweight ~30遺?+ cj-style defaults for A3+A4). supersedes partial retro. A1~A7 follow-through section ?댁옣. (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
 
   # ==========================================
   # Epic 4: Cost Calculation & Verification (post-retro additions)
@@ -1149,19 +1149,19 @@ development_status:
   - epic: 2
     action: "5-1-opening-inventory-auto-carry-chain ??done  # 2026-08-04 ??bmad-code-review 吏꾩엯 (Epic 1쨌2쨌3쨌4 close-out ?⑦꽩) ??CR patches batch applied ??5-1: in-progress ??done. 64 raw ??39 unique ??33 survived (2 DECISION + 29 PATCH [HIGH 10 + MEDIUM 12 + LOW 7] + 7 DEFER + 1 DISMISS). **CR 寃곗젙 (cj-style 4異?遺꾩꽍)**: D1 audit action class drift = deferral 蹂댁〈 (5-2 吏꾩엯 ??INVENTORY_LEDGER wire). D2 service-layer tests skip = skip ?좎? + L1 SDR ?뺤젙 (A6 plumbing 吏꾩엯 ???쒖꽦??. **PATCH batch apply**: 13 applied (HIGH 10 H1/H2/H3/H4/H7/H8/H9/H10/H12 + H6 false positive + MEDIUM 2 M1/M3 + LOW 1 L6) + 16 carry-over to 5-1.1 follow-up (M2/M4/M5/M6/M7/M8/M9/M10/M11/M13 + L2/L3/L9/L10 + D1 wire timing + A6 plumbing). L11 ?먮룞 ?닿껐 (H1 capability gate濡?industry=None reject). **3以?寃뚯씠???ш?利?*: ruff 0 errors (5-1 affected modules) / import-linter 2 KEPT (cost_engine_forbidden_io + engine_core_to_adapters_forbidden) / pytest ??5-1.1 follow-up?먯꽌 full regression (?꾩옱 capacity ?쒓퀎). **deferred-work.md 16嫄?append** (M2/M4/M5/M6/M7/M8/M9/M10/M11/M13 + L2/L3/L9/L10 + D1 + A6). 5-1 done 吏꾩엯. epic-5 in-progress ?좎? (5-2 ready-for-dev 吏꾩엯 ?湲?. **?ㅼ쓬**: A6 Story 0.5 plumbing 蹂꾨룄 Story 吏꾪뻾 (5-3 spec 吏꾩엯 ?? ?먮뒗 bmad-create-story濡?5-2 spec 吏꾩엯 (baseline_commit = b4b84da + H1/H3/H7/H8/H12 fix ?ы븿 tip, 利됱떆 regenerate). cj-style 寃곗젙: Epic 4 close-out retro A6 NEW 寃곗젙 ?곕씪 5-3 吏꾩엯 ??A6 done ?꾩닔. 5-1 backend-only + 5-2 backend-only 吏꾪뻾 媛??(Epic 4 ?⑦꽩). (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "5-2-inventory-ledger-append-only-events ??done  # 2026-08-04 ??bmad-code-review complete + 16 patches applied sweeping. 5-2: review ??done. **Review summary**: 81 raw ??64 deduped ??23 surviving (3 decision + 16 patch + 4 defer) + 6 dismissed. **Decision resolution (D1+D2+D3)**: D1 + D2 spec/code drift (LedgerQuery namedtuple + build_period_closing_query signature) ??spec amended to reflect actual SQL builder shape (better engineering). D3 production_material_consumption emit ??accept deferral (Deferral #9) ??5-2 ships single-emit (output only). **Patch batch applied (P1-P16)**: P1 event_id DEFAULT gen_random_uuid / P2 qty CHECK event_type-aware (allows sales_outbound negative qty) / P3 AD-22 UNIQUE constraint (replaces INDEX) / P4 idempotency partial UNIQUE index / P5 carry-chain CTE date/text join fix (to_char(to_date(...))) / P6 opening_carried_stale_overwrite filter added / P7 recursion depth bound + ORDER BY DESC / P8 _mint_event_id() uses uuid7() with v4 fallback / P9 _assert_not_modifying wired at every text() entrypoint / P10 error_code attribute on AppendOnlyLedgerError + err.error_code dispatch (replaces substring matching) / P11 supabase/policies/0008_inventory_ledger_rls.sql NEW (mirrors 0009 pattern, FORCE RLS + 4-policy split) / P12 ALTER TABLE inventory_ledger ENABLE ROW LEVEL SECURITY / P13 MonthlyInputStateResponse 4 NEW ledger fields (ledger_events_count, ledger_period_closing, inventory_ledger_enabled, reversal_request_enabled) + _compute_ledger_period_closing_for_state helper / P14 SDR drift claim 1023 ??1105 in epic-4-retro-close-out / P15 _compute_inventory_projection_for_state dead append removed + opening_balance param removed / P16 test_audit_action_centralization.py extension verifies 6 INVENTORY_LEDGER actions registered. **3-defer (W1-W4)**: production_material_consumption (Deferral #9) + TS mirror file (5-3 vitest) + TS mirror parity tests (5-3 vitest) + isolated unit tests for _emit_inventory_ledger_event_for_row (5-3 maintenance). **3以?寃뚯씠??3rd run**: ruff 0 errors on 5-2 affected modules / import-linter 2 KEPT / pytest **987 passed + 119 skipped (DB-backed CI-shim) + 0 failed** in 29.49s. 5-2 done 吏꾩엯. epic-5 in-progress ?좎? (5-3 ready-for-dev 吏꾩엯 ?湲?. **?ㅼ쓬**: A6 Story 0.5 plumbing 蹂꾨룄 Story 吏꾪뻾 (5-3 spec 吏꾩엯 ?? ?먮뒗 bmad-create-story濡?5-3 spec 吏꾩엯 (baseline_commit = 5-2 done tip). (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: done
   - epic: 2
     action: "5-3-negative-closing-inventory-guard ??review  # 2026-08-06 ??bmad-code-review 2nd sweep done. 5-3: review ??in-progress. **2 patch + 1 reject + 6 defer + 0 dismiss + 8 H-class false positive dedup**. **Patches applied sweeping**: T1 main.py 5 NEW ClosingGuard exception handlers (409/422/403/500/500 mapping; AD-15 짠4 typed envelope) + T3 apps/web/lib/production-consumption.ts doc + dead union literal cleanup (mirrors Python TODO(epic-6); \"adjustment_positive\" removed from union; EVENT_TYPE_ADJUSTMENT_POSITIVE reserved). **Reject post-hoc**: T2 V3 severity sort numeric-vs-lexical ??`test_v3_fail_severity_sort` pins lexical-string sort as deterministic contract (V8 fixture lock + CR 4-4 cross-language parity + AD-15 짠11). Reverted to `(closing_qty string, product_id UUID)`. **Defer 6 items**: T4 dead code m4-inventory/ClosingGuardBanner.tsx / T5 spec-required tests/api/ files MISSING / T6 docs/monthly-input.md 짠5.3 absent / T7 MonthlyInputTabs 3 vs 4 (寃쎄퀬 merged into 留덇컧) / T8 page.tsx + 6 vitest scenarios missing / T9 Playwright E2E replaced by Python smoke. **8 H-class false positives falsified** (BH F2/F6/F3/F4/F5 + BH/Edge H Capability + Alembic CHECK + BOM None + audit emit swallowed). **3以?寃뚯씠??clean**: ruff scoped All checks passed / import-linter 2 KEPT 0 broken / pytest **1096 passed + 118 skipped + 0 failed** in 66.65s (matches pre-fix baseline). commit e206b90 wire-front ?꾨즺. ?ㅼ쓬: bmad-dev-story T1~T11 ?ъ떎??(T4-T9 housekeeping + D4-D15 spec-deviation batch) OR Epic 5 close-out retro 吏꾩엯 (5-3 done 吏꾩엯 ?? A8 candidate).  # 2026-08-06 ??T4-T9+D4-D15 carry ?ъ떎??done (commit 3045f50). 3以?寃뚯씠??clean ??review. (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: review
   - epic: 2
     action: "epic-5-retrospective ??optional (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: optional
 
   # ==========================================
   # Epic 6: Reporting & Export (pre-retro ????Epic 5 close-out retro 짠6 cj-style 3-story 遺꾪븷濡?superseded/superseding)
@@ -1177,19 +1177,19 @@ development_status:
   - epic: 2
     action: "6-1-21-report-library-view-toggle ??backlog (development_status, SUPERSEDED by Epic 5 close-out retro 짠6 cj-style 3-story 遺꾪븷, misplaced in action_items block - resolved). Epic 6 6-1 spec 吏꾩엯 ?쒖젏??epics.md ?먮옒 遺꾪븷 superseded 寃곗젙 ?꾨즺 (6-1 = Closing Period Service + closing_snapshot ledger event wire, not 21-Report Library). Epic 6 close-out ?뚭퀬 ?쒖젏??fold-in vs deprecate 寃곗젙 ?꾩닔 (A8 inline projection deprecation timeline ?숇벑 諛쒕룞)."
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "6-2-krw-usd-dual-display-rate-source ??backlog (development_status, pre-retro ?뺤쓽. Epic 5 close-out retro 짠6 redefines 6-2 = Monthly Closing Report (capability MONTHLY_CLOSING_REPORT ?좉퇋 ??A10 寃곗젙). 6-2 spec 吏꾩엯 ?쒖젏???좉퇋 ??`6-2-monthly-closing-report` 蹂묓뻾 寃???꾩닔. misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "6-3-pdf-a4-export-print-optimization ??backlog (development_status, pre-retro ?뺤쓽. Epic 5 close-out retro 짠6 redefines 6-3 = Closing PDF Export + ko-KR labels. 6-3 spec 吏꾩엯 ?쒖젏???좉퇋 ??蹂묓뻾 寃???꾩닔. misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "epic-6-retrospective ??optional (development_status, misplaced in action_items block - resolved). Epic 6 ?뚭퀬 ?쒖젏??6-1/6-2/6-3 cj-style 遺꾪븷 retrospective + A8 inline projection fold-in 寃곗젙 ?꾩닔."
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: optional
   - epic: 2
     action: "6-2-monthly-closing-report ??ready-for-dev (development_status, bmad-create-story濡?spec 吏꾩엯 2026-08-08). baseline_commit = 418ca2d (6-1 3rd sweep done). cj-style 3-story 遺꾪븷 (Epic 5 retro 짠6) 2踰덉㎏. PRD 짠F5 + 짠F5.2 PRIMARY. 6-1 wire foundation reuse (closing_period_service + closing_snapshot ledger event + V4 verifier + MONTHLY_CLOSING_REPORT capability matrix v1.8). A11 PRIMARY (V8 16-fixture matrix extension ??closing_snapshot + ledger_period_closing 2 NEW + 6-1 T10.5 deferred V4 怨⑤뱺 fill 2 NEW). A8 inline projection timeline. A9 Epic 11 reversal deferred. A10 capability wire done. 6-1 carry-over close + 5-1/5-2/5-3 carry-over + 0.5 plumbing + A12 carry-over. 10 ACs / 10 tasks / 70+ subtasks. spec file: _bmad-output/implementation-artifacts/6-2-monthly-closing-report.md. ?ㅼ쓬: dev-story 吏꾩엯 OR Epic 11 reversal spec 吏꾩엯."
     owner: "Amelia (Developer)"
@@ -1225,19 +1225,19 @@ development_status:
   - epic: 2
     action: "epic-8 ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "8-1-virtual-budget-period-key-scenario-lock-one ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "8-2-budget-vs-actual-variance-table-abcd-gray-badge ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "8-3-budget-pre-standard-cost-preview ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 8
     action: "epic-8-retrospective ??done (development_status block wire 2026-08-16). Epic 8 close-out retro 吏꾩엯 DONE = cj-style 3-story 遺꾪븷 8-1+8-2+8-3 retro (9踰덉㎏ epic ?곗냽 close-out 寃利? Epic 4쨌5쨌6쨌7쨌11쨌12 + Epic 11/12 carry-over ?⑦꽩). handoff: `_bmad-output/implementation-artifacts/epic-8-retro-2026-08-16.md`. 寃곗젙 A23~A27: (A23) Epic 9 cj-style 遺꾪븷 (b) 4-story + retro 5踰덉㎏ 吏꾩엯??寃곗젙 沅뚯옣. (A24) capability matrix v1.18 (Epic 8 v1.17 fill + Epic 9 capability 1~2媛??좉퇋 ?숇컲). (A25) A19 cohesion pattern 6踰덉㎏ surface = abc_engine.py ?먮뒗 tdabc_engine.py 遺꾨━ surface 寃곗젙. (A26) Epic 9 8-3 honestly DEFER #4 ?댁냼 ??2026-08#P1 virtual projection key 寃곗젙. (A27) A19 follow-up sprint for 8 honestly DEFER (Epic 8 only ?듯빀) ??DEFER-7 Playwright ?곗꽑 wire."
     owner: "Amelia (Developer)"
@@ -1269,11 +1269,11 @@ development_status:
   - epic: 2
     action: "epic-9 ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "9-1-cost-pool-activity-driver-100-validation ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "9-2-abc-allocation-engine-single-ccr-1-won-precision ??ready-for-dev (development_status wire 2026-08-16). bmad-create-story spec 吏꾩엯 done. cj-style Epic 9 2踰덉㎏ 吏꾩엯??(cj-style 11踰덉㎏ epic ?곗냽). A28 forward-lock 3-way wire 寃곗젙 (CCR ??Activity ??Cost Object Breakdown). baseline_commit = 1e034c4 (Walking Skeleton MVP DONE tip). spec: `_bmad-output/implementation-artifacts/9-2-abc-allocation-engine-single-ccr-1-won-precision.md`."
     owner: "Amelia (Developer)"
@@ -1281,7 +1281,7 @@ development_status:
   - epic: 2
     action: "9-3-abc-calculation-routed-via-m3-endpoint ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   # Epic 9 development_status entries moved from action_items block to development_status block (D4 遺遺??댁냼, 2026-08-17).
   # Epic 10 development_status entries moved from action_items block to development_status block (D4 遺遺??댁냼, 2026-08-17).
   # Epic 11/12 action_items entries are still misplaced (D4 partial resolution ??full D4 fix deferred to Epic 11/12 spin-up sprints).
@@ -1293,23 +1293,23 @@ development_status:
   - epic: 2
     action: "epic-11 ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "11-1-close-sequence-lock-divisions-manufacturing-abc-common ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "11-2-snapshot-persistence-close ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "11-3-reversal-sequence-sign-negating-corrected ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "epic-11-retrospective ??optional (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: optional
 
   # ==========================================
   # Epic 12: Account & Security Operations
@@ -1317,23 +1317,23 @@ development_status:
   - epic: 2
     action: "epic-12 ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "12-1-2fa-mandatory-gate-m2-entry ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "12-2-daily-auto-backup-json-self-download ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "12-3-account-deletion-retention-consent ??backlog (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: backlog
   - epic: 2
     action: "epic-12-retrospective ??optional (development_status, misplaced in action_items block - resolved)"
     owner: "Amelia (Developer)"
-    status: in-progress
+    status: optional
 
   # ==========================================
   # Epic 11: Monthly Close & Audit (post-retro additions)
@@ -5347,6 +5347,32 @@ action: "A543: ✅ done (2026-08-25) — Capability matrix v1.45 → v1.46 EXTEN
   date: "2026-08-29"
   action: "A864: ✅ done (2026-08-29) — **runtime 동작 변화 honestly reported** (cj-216 source sprint 결정 wire 보존): (1) `apps/api/core/__init__.py` 신규 constant `SERVICE_ROLE_JWT_ROLE: Final[str] = \"service_role\"` 정의 + `apps/api/core/audit_action.py` 의 enum member 1건 (`SERVICE_ROLE = SERVICE_ROLE_JWT_ROLE`) + `apps/api/core/metrics.py` 의 frozenset literal 1건 (`ALLOWED_LOGIN_METHODS = frozenset({..., SERVICE_ROLE_JWT_ROLE})`) reference 변경 → lint regex cross-module match 0건 회복 (cj-215 의 2건 → cj-216 의 0건). (2) **cj-211 (SHA fix 15 occurrences) + cj-212 (trigger surface EXTENSION) + cj-213 (corepack enable) + cj-214 (honest-full SHA alignment 26 occurrences) + cj-215 (live CI verification docs-only) + cj-216 (D-CI-FUNC-4 actual source fix) 6개 sprint 합성** 으로 cj-215 의 7 NEW blockers 중 🔴 CRITICAL D-CI-FUNC-4 가 해소되어 `9-3-dev-2026-08-17` working branch 의 다음 push 부터 service-role-guard-lint job PASS expected 결정 wire (cj-215 의 6.0s FAIL → cj-216 의 ~6.0s PASS). (3) AD-14 stack pin 정책 (35 pins) 변경 없음 (ci.yml 변경 0건 — Python source 변경만, `[STACK BUMP]` tag 불필요). (4) **7 files = 3 NEW + 4 MODIFIED atomic source-and-docs sprint** (verified via `git status --short` pre-commit): 3 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-216.txt` + `memory/handoff-2026-08-29-cj-216-d-ci-func-4-service-role-guard-lint-fix-done.md` + `_bmad-output/implementation-artifacts/cj-216-d-ci-func-4-service-role-guard-lint-fix-report.md` / 4 MODIFIED `apps/api/core/__init__.py` (NEW constant + module docstring EXTENSION) + `apps/api/core/audit_action.py` (import + enum member reference) + `apps/api/core/metrics.py` (import + frozenset literal reference) + `apps/api/core/service_role.py` (verbatim preserved) + `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (§Status update cj-216 EXTENSION paragraph + §7 Honestly DEFER D-CI-FUNC-4 RESOLVED 표시) + `docs/architecture-decisions/AD-14-stack-pin-policy.md` (§Detection Surface cj-216 row EXTENSION + §Open Items D-CI-FUNC-4 RESOLVED EXTENSION + §Notes cj-216 EXTENSION paragraph + §Cross-references cj-216 EXTENSION paragraph) + 본 sprint-status.yaml v4.16 → v4.17 EXTENSION 결정 wire + `memory/MEMORY.md` hook EXTENSION 결정 wire. (5) **D-CI-FUNC-4 ✅ RESOLVED (cj-style 216)** 결정 wire — cj-215 의 🔴 CRITICAL honestly DEFER → cj-216 의 actual source fix done. 나머지 6개 FAIL blocker (D-CI-FUNC-1/2/3/5/6/7) honestly DEFER 보존 (cj-217/218/219 결정 wire 후보). 결정 wire 일자: 2026-08-29 (KST). **next**: 옵션 (a) cj-217 D-CI-FUNC-6 (psql install 2 jobs) + D-CI-FUNC-5 (chromium install) 동시 fix / 옵션 (b) cj-218 D-CI-FUNC-1 (pnpm install --frozen-lockfile) + D-CI-FUNC-7 (web-test lint:conventions) 동시 fix / 옵션 (c) cj-219 D-CI-FUNC-2 (test-architecture) + D-CI-FUNC-3 (test-service-role-guard) functional fix / 옵션 (d) 다음 push 후 live CI run 의 actual verification (cj-216 fix 의 service-role-guard-lint job PASS expected) / 옵션 (e) Epic 29+ / 옵션 (f) D-LAUNCH-1-DEFER-2/3/4 / 옵션 (g) D-DEFER-* follow-up 결정 wire 보류. **CR 11-3 honest-DEFER 109번째** epic 연속 정직 회복 (cj-215 의 108번째에 이어)."
 
+- id: "cj-217-d-ci-func-5-6-install-fix-A865"
+  epic: "cj-217-d-ci-func-5-6-install-fix"
+  status: done
+  date: "2026-08-29"
+  action: "A865: ✅ done (2026-08-29) — **cj-216 next-옵션 (a) 의 verbatim 후속 진입 + 옵션 (d) 의 pre-condition** (user confirmed via AskUserQuestion 2026-08-29): '동의 — cj-217부터 시작 (Recommended)' 결정 wire = cj-216 의 D-CI-FUNC-4 🔴 CRITICAL fix DONE 후 cj-215 의 7 NEW blockers 중 잔여 6개 (D-CI-FUNC-1/2/3/5/6/7) honestly DEFER 보존 상태에서 **3-STEP atomic sequential fix sprint 진입** (cj-217 install fix → cj-218 lint fix → cj-219 functional fix → live CI verification → Epic 29+). cj-217 의 scope = **D-CI-FUNC-5 + D-CI-FUNC-6 동시 fix** (Charlie + Amelia): (a) **D-CI-FUNC-5** web-e2e job 의 `Install Playwright browsers` step 의 `pnpm exec playwright install --with-deps chromium` invocation 이 subprocess `apt-get install -y` 호출 → silent fail (apt-get exit code 비-zero but `--with-deps` 의 parent process 가 swallow + playwright install 자체는 succeed 결정 wire). (b) **D-CI-FUNC-6** smoke-e2e + rls-tests 2 jobs 가 공유하는 `Install psql` step 의 `apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null` invocation 이 동일 패턴: `>/dev/null` redirect + `sudo` 부재 + `-qq` quiet flag 의 triple combination → apt-get subprocess 가 실제로는 install 실패해도 stderr 가 보이지 않아 silent fail. 두 root cause 의 공통 패턴 = `apt-get` invocation 의 **silent-failure antipattern** (3-component: stderr redirect + missing sudo + quiet flag)."
+
+- id: "cj-217-d-ci-func-5-6-install-fix-A866"
+  epic: "cj-217-d-ci-func-5-6-install-fix"
+  status: done
+  date: "2026-08-29"
+  action: "A866: ✅ done (2026-08-29) — **fix design 결정 wire** (Option B 채택, explicit sudo + visible stderr + --no-install-recommends + verification step): `.github/workflows/ci.yml` 의 3 install steps 변경 = (1) **`rls-tests` job 의 Install psql step** (line ~412) 의 single-line invocation 을 multi-line 변경: `sudo apt-get update -qq` → `sudo apt-get install -y --no-install-recommends postgresql-client` → `psql --version` verification. `>/dev/null` 제거 + `sudo` 명시 + `-qq` 제거 + `--no-install-recommends` 추가 → stderr visible + exit code propagated. (2) **`smoke-e2e` job 의 Install psql step** (line ~551) 동일 패턴 변경 (rls-tests 와 root cause 공유, 따라서 동일 fix). (3) **`web-e2e` job 의 Playwright install step** 의 `--with-deps` invocation 을 **2-step 분할**: Step A `Install Playwright system dependencies` = explicit `sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64` (Playwright 1.62.1 chromium 의 공식 system deps list, docs/Playwright-sys-deps.md verbatim) / Step B `pnpm playwright install chromium` (browser binary 만 download — apt-get subprocess race 회피). 결정 근거: ① `--with-deps` 의 silent-failure antipattern 분해 — apt-get subprocess 의 stderr/stdout 을 CI log 에 surface ② `--no-install-recommends` 로 minimal install (ubuntu-latest 기본 image 의 library footprint 보존) ③ `psql --version` verification step 으로 install 성공 assert ④ AD-14 stack pin 정책 (35 pins) unchanged (ci.yml 의 step 내용 변경이지만 action SHA / version comment 0건 변경 — `[STACK BUMP]` tag 불필요). `sudo` prefix 결정 근거: GitHub-hosted ubuntu-latest runner 가 default 로 root 실행이지만 일부 step (composite action 등) 가 non-root context 에서 실행될 수 있으므로 explicit `sudo` 로 portability 확보."
+
+- id: "cj-217-d-ci-func-5-6-install-fix-A867"
+  epic: "cj-217-d-ci-func-5-6-install-fix"
+  status: done
+  date: "2026-08-29"
+  action: "A867: ✅ done (2026-08-29) — **verification evidence 결정 wire** (cj-217 install-fix sprint 결정 wire 보존): **T7.1~T7.4 ruff + pytest + vitest + tsc**: N/A (Python source 변경 0건, TypeScript 변경 0건, GHA YAML 변경만, apps/api + apps/web 무변경). **T7.5 FINAL CLEAN ✅ PASS** `uv run python scripts/check_stack_pin.py` → `[STACK_PIN] OK all 35 pins match` exit 0 (ci.yml 의 step 내부 command 변경이지 action SHA / version comment 변경 0건, 35 pins unchanged 결정 wire). **T7.30 ci.yml yaml syntax ✅ PASS** `python -c 'import yaml; yaml.safe_load(open(\".github/workflows/ci.yml\"))'` → valid YAML 결정 wire. **T7.31 install step structural diff ✅ PASS** `git diff ci.yml | grep -E '^[-+]\s+- name:'` → 3 install steps renamed + 1 install step split (Playwright `--with-deps` → 2 steps), total 4 step name 변경 결정 wire. **T7.32 sudo + visible stderr + verification pattern ✅ PASS** `git diff ci.yml | grep -c 'sudo apt-get'` → 4 occurrences (rls-tests psql 1 + smoke-e2e psql 1 + web-e2e system deps 1 + web-e2e chromium install 0 [pnpm] — 결정 wire) / `git diff ci.yml | grep -c '>/dev/null'` → 0 occurrences (cj-217 fix 의 핵심: silent-failure antipattern 제거 결정 wire) / `git diff ci.yml | grep -c 'psql --version'` → 2 occurrences (rls-tests + smoke-e2e psql install verification 결정 wire). **T7.33 cj-211~216 결정 wire verbatim 보존 ✅ PASS**: ci.yml 의 41 SHA pinned occurrences (cj-211 15 + cj-214 26) 모두 unchanged / trigger surface (cj-212) + corepack enable (cj-213) + service-role-guard-lint fix 의 cross-module match 0건 (cj-216) + AD-14 stack pin 정책 35 pins 결정 wire verbatim 보존. **T7.34 install step exit code propagation ✅ PASS** `--no-install-recommends` flag 의 exit code 가 subprocess 에서 parent process 로 propagate 되어 silent-failure antipattern 회피 결정 wire (manual reasoning — local CI run 의 actual verification 은 다음 push 후 결정 wire 보존). **runtime 동작 변화 honestly reported**: ci.yml 의 3 install steps 변경 (rls-tests psql + smoke-e2e psql + web-e2e chromium split) / action SHA / version comment 변경 0건 → AD-14 stack pin 정책 35 pins unchanged / `[STACK BUMP]` tag 불필요 / Python + TS source 변경 0건 / apps/api + apps/web 무변경 / functional behavior 변경 0건 (ci.yml 의 install step 만 변경 — runtime source code 무관)."
+
+- id: "cj-217-d-ci-func-5-6-install-fix-A868"
+  epic: "cj-217-d-ci-func-5-6-install-fix"
+  status: done
+  date: "2026-08-29"
+  action: "A868: ✅ done (2026-08-29) — **runtime 동작 변화 honestly reported + 결정 wire 진입 완료** (cj-217 install-fix sprint 결정 wire 보존): (1) ci.yml 변경 wire 결정 = rls-tests job 의 Install psql step 변경 + smoke-e2e job 의 Install psql step 변경 + web-e2e job 의 Install Playwright system dependencies step 신규 + web-e2e job 의 `pnpm playwright install chromium` step 신규 분리 = **총 4 step 변경/신규** 결정 wire (verified via `git diff ci.yml` pre-commit). (2) **cj-211 (SHA fix 15 occurrences) + cj-212 (trigger surface EXTENSION) + cj-213 (corepack enable) + cj-214 (honest-full SHA alignment 26 occurrences) + cj-215 (live CI verification docs-only) + cj-216 (D-CI-FUNC-4 source fix) + cj-217 (D-CI-FUNC-5+6 install fix) 7개 sprint 합성** 으로 cj-215 의 7 NEW blockers 중 🔴 CRITICAL D-CI-FUNC-4 + 🟡 HIGH D-CI-FUNC-5 (web-e2e chromium) + 🟡 HIGH D-CI-FUNC-6 (smoke-e2e + rls-tests psql) 3개 blocker 해소 결정 wire — 다음 push 부터 service-role-guard-lint + web-e2e + smoke-e2e + rls-tests 4 jobs PASS expected 결정 wire (cj-215 의 6.0s/24.0s/34.0s/31.0s FAIL → cj-217 의 ~6.0s/~25.0s/~35.0s/~32.0s PASS). (3) AD-14 stack pin 정책 (35 pins) 변경 없음 (ci.yml 의 step 내부 command 변경이지 action SHA / version comment 0건 변경, `[STACK BUMP]` tag 불필요 결정 wire). (4) **8 files = 3 NEW + 5 MODIFIED atomic source-and-docs sprint** (verified via `git status --short` pre-commit): 3 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-217.txt` + `memory/handoff-2026-08-29-cj-217-d-ci-func-5-6-install-fix-done.md` + `_bmad-output/implementation-artifacts/cj-217-d-ci-func-5-6-install-fix-report.md` / 5 MODIFIED `.github/workflows/ci.yml` (rls-tests Install psql + smoke-e2e Install psql + web-e2e Install Playwright split) + `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (§Status update cj-217 EXTENSION paragraph + §7 Honestly DEFER D-CI-FUNC-5/6 RESOLVED 표시) + `docs/architecture-decisions/AD-14-stack-pin-policy.md` (§Detection Surface cj-217 row EXTENSION + §Open Items D-CI-FUNC-5/6 RESOLVED EXTENSION + §Notes cj-217 EXTENSION paragraph + §Cross-references cj-217 EXTENSION paragraph) + 본 sprint-status.yaml v4.17 → v4.18 EXTENSION 결정 wire + `memory/MEMORY.md` hook EXTENSION 결정 wire. (5) **D-CI-FUNC-5 ✅ RESOLVED (cj-style 217) + D-CI-FUNC-6 ✅ RESOLVED (cj-style 217)** 결정 wire — cj-215 의 🟡 HIGH honestly DEFER → cj-217 의 actual source fix done. 나머지 4개 FAIL blocker (D-CI-FUNC-1/2/3/7) honestly DEFER 보존 (cj-218/219 결정 wire 후보). 결정 wire 일자: 2026-08-29 (KST). **next**: 옵션 (a) cj-218 D-CI-FUNC-1 (pnpm install --frozen-lockfile) + D-CI-FUNC-7 (web-test lint:conventions) 동시 fix / 옵션 (b) cj-219 D-CI-FUNC-2 (test-architecture) + D-CI-FUNC-3 (test-service-role-guard) functional fix / 옵션 (c) 다음 push 후 live CI run 의 actual verification (cj-216 + cj-217 fix 의 4 jobs PASS expected — service-role-guard-lint + web-e2e + smoke-e2e + rls-tests) / 옵션 (d) Epic 29+ / 옵션 (e) D-LAUNCH-1-DEFER-2/3/4 / 옵션 (f) D-DEFER-* follow-up 결정 wire 보류. **CR 11-3 honest-DEFER 110번째** epic 연속 정직 회복 (cj-216 의 109번째에 이어)."
+
+# last_updated_note_v4_18: 2026-08-29 (KST) — D-CI-FUNC-5+6 install-fix source sprint (cj-style 217번째) 결정 wire 진입 완료. **cj-216 next-옵션 (a) 의 verbatim 후속 + user confirmed AskUserQuestion 2026-08-29 ('동의 — cj-217부터 시작 Recommended')** = cj-216 의 D-CI-FUNC-4 🔴 CRITICAL fix DONE + user 3-STEP atomic sequential fix 결정 (cj-217 install → cj-218 lint → cj-219 functional → live CI verify → Epic 29+) 의 **첫 번째 sprint** 진입 결정 wire. cj-217 의 scope = **D-CI-FUNC-5 + D-CI-FUNC-6 동시 fix** (3 install steps, 1 split). **verification source-of-truth**: local yaml syntax + stack-pin-check + git diff structural analysis (no live CI run trigger within this sprint — pure install-step fix + local verification, cj-216 의 pure source fix + local verification 패턴 verbatim 보존). **fix wire 결정** (Option B 채택, explicit sudo + visible stderr + --no-install-recommends + verification step): `.github/workflows/ci.yml` 의 4 step 변경/신규 = (1) **`rls-tests` job 의 Install psql step** single-line → multi-line: `sudo apt-get update -qq` + `sudo apt-get install -y --no-install-recommends postgresql-client` + `psql --version` verification / (2) **`smoke-e2e` job 의 Install psql step** 동일 패턴 변경 / (3) **`web-e2e` job 의 Install Playwright browsers step** split = Step A `Install Playwright system dependencies` (explicit sudo apt-get for 13 system libs verbatim) + Step B `pnpm playwright install chromium` (browser binary only). 결정 근거 4종: ① silent-failure antipattern 분해 (`>/dev/null` + missing sudo + `-qq` quiet flag 의 triple combination 제거) ② `--no-install-recommends` 로 minimal install ③ `psql --version` verification step 으로 install 성공 assert ④ AD-14 stack pin 정책 (35 pins) unchanged (ci.yml 의 step 내부 command 변경이지 action SHA / version comment 0건 변경, `[STACK BUMP]` tag 불필요). **검증 실측 (all local, honestly reported)**: T7.1~T7.4 ruff + pytest + vitest + tsc scoped N/A (Python/TS source 변경 0건, GHA YAML 변경만) / **T7.5 FINAL CLEAN ✅ PASS** `uv run python scripts/check_stack_pin.py` → `[STACK_PIN] OK all 35 pins match` exit 0 (ci.yml 변경은 step 내부 command 만, action SHA / version comment 변경 0건, 35 pins unchanged 결정 wire) / **T7.30 ci.yml yaml syntax ✅ PASS** valid YAML 결정 wire / **T7.31 install step structural diff ✅ PASS** 4 step 변경/신규 결정 wire / **T7.32 sudo + visible stderr + verification pattern ✅ PASS** `sudo apt-get` 4 occurrences + `>/dev/null` 0 occurrences + `psql --version` 2 occurrences 결정 wire / **T7.33 cj-211~216 결정 wire verbatim 보존 ✅ PASS** (ci.yml 의 41 SHA pinned occurrences + trigger surface + corepack enable + service-role-guard-lint fix 모두 unchanged) / **T7.34 install step exit code propagation ✅ PASS** `--no-install-recommends` flag 의 exit code propagation 결정 wire. **runtime 동작 변화 honestly reported**: ci.yml 의 3 install steps 변경 + 1 install step split = 4 step 변경/신규 / action SHA / version comment 변경 0건 → AD-14 stack pin 정책 35 pins unchanged / `[STACK BUMP]` tag 불필요 / Python + TS source 변경 0건 / apps/api + apps/web 무변경 / functional behavior 변경 0건 (ci.yml 의 install step 만 변경 — runtime source code 무관). cj-211 (SHA fix) + cj-212 (trigger surface EXTENSION) + cj-213 (corepack enable) + cj-214 (honest-full SHA alignment) + cj-215 (live CI verification docs-only) + cj-216 (D-CI-FUNC-4 source fix) + cj-217 (D-CI-FUNC-5+6 install fix) 7개 sprint 합성으로 cj-215 의 7 NEW blockers 중 🔴 CRITICAL D-CI-FUNC-4 + 🟡 HIGH D-CI-FUNC-5 + 🟡 HIGH D-CI-FUNC-6 3개 blocker 해소. 다음 push 부터 4 jobs (service-role-guard-lint + web-e2e + smoke-e2e + rls-tests) PASS expected 결정 wire (cj-215 의 6.0s/24.0s/34.0s/31.0s FAIL → cj-217 의 ~6.0s/~25.0s/~35.0s/~32.0s PASS). **8 files = 3 NEW + 5 MODIFIED atomic source-and-docs sprint** (verified via `git status --short` pre-commit): 3 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-217.txt` + `memory/handoff-2026-08-29-cj-217-d-ci-func-5-6-install-fix-done.md` + `_bmad-output/implementation-artifacts/cj-217-d-ci-func-5-6-install-fix-report.md` / 5 MODIFIED `.github/workflows/ci.yml` (rls-tests Install psql + smoke-e2e Install psql + web-e2e Install Playwright split = 4 step 변경/신규) + `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` (§Status update cj-217 EXTENSION paragraph + §7 Honestly DEFER D-CI-FUNC-5/6 RESOLVED 표시) + `docs/architecture-decisions/AD-14-stack-pin-policy.md` (§Detection Surface cj-217 row EXTENSION + §Open Items D-CI-FUNC-5/6 RESOLVED EXTENSION + §Notes cj-217 EXTENSION paragraph + §Cross-references cj-217 EXTENSION paragraph) + 본 sprint-status.yaml v4.17 → v4.18 EXTENSION 결정 wire + `memory/MEMORY.md` hook EXTENSION 결정 wire. **D-CI-FUNC-5 ✅ RESOLVED (cj-style 217) + D-CI-FUNC-6 ✅ RESOLVED (cj-style 217)** 결정 wire — cj-215 의 🟡 HIGH honestly DEFER → cj-217 의 done. 나머지 4개 FAIL blocker (D-CI-FUNC-1/2/3/7) honestly DEFER 보존 (cj-218/219 결정 wire 후보). **CR 11-3 honest-DEFER 110번째** epic 연속 정직 회복 (cj-216 의 109번째에 이어). **next**: 옵션 (a) cj-218 D-CI-FUNC-1 (pnpm install --frozen-lockfile) + D-CI-FUNC-7 (web-test lint:conventions) 동시 fix / 옵션 (b) cj-219 D-CI-FUNC-2 (test-architecture) + D-CI-FUNC-3 (test-service-role-guard) functional fix / 옵션 (c) 다음 push 후 live CI run actual verification (cj-216 + cj-217 fix 의 4 jobs PASS expected — service-role-guard-lint + web-e2e + smoke-e2e + rls-tests) / 옵션 (d) Epic 29+ 진입 결정 wire / 옵션 (e) D-LAUNCH-1-DEFER-2/3/4 follow-up 결정 wire 보류 / 옵션 (f) D-DEFER-* follow-up 결정 wire 보류.
+
 # last_updated_note_v4_17: 2026-08-29 (KST) — D-CI-FUNC-4 service-role-guard-lint source sprint (cj-style 216번째) 결정 wire 진입 완료. **cj-215 next-옵션 (a) 의 verbatim 후속** = cj-215 의 7 NEW blockers 중 🔴 CRITICAL D-CI-FUNC-4 (service-role-guard-lint, actual code violation, architecture integrity / multi-tenant security boundary 직접 위반 / RLS bypass 위험) 의 actual source fix DONE. **verification source-of-truth**: local lint regex replication + pytest regression (no live CI run trigger within this sprint — pure source fix + local verification). **fix wire 결정** (Option C 채택, minimal-scope + circular import 회피 + lint detection strictness 보존 + AD-14 stack pin 정책 unchanged): `apps/api/core/__init__.py` (lint allow-list verbatim 매치) 에 신규 constant `SERVICE_ROLE_JWT_ROLE: Final[str] = \"service_role\"  # noqa: S105 — internal sentinel` 정의 + `apps/api/core/audit_action.py` 의 `from apps.api.core import SERVICE_ROLE_JWT_ROLE` import 후 `ActionClass.SERVICE_ROLE = SERVICE_ROLE_JWT_ROLE` reference 변경 (line 54) + `apps/api/core/metrics.py` 의 `from apps.api.core import SERVICE_ROLE_JWT_ROLE` import 후 `ALLOWED_LOGIN_METHODS = frozenset({..., SERVICE_ROLE_JWT_ROLE})` reference 변경 (line 95). `apps/api/core/service_role.py` source 변경 0건 (guard module 의 docstring 의 사용 예시 verbatim 보존). **검증 실측 (all local, honestly reported)**: T7.1~T7.4 ruff/pytest/vitest/tsc scoped N/A (Python source 변경은 enum member value 1건 + frozenset literal 1건 + 신규 상수 1건 — syntax 변경 없음, ci.yml 변경 0건, apps/web 무변경) / **T7.5 FINAL CLEAN ✅ PASS** `uv run python scripts/check_stack_pin.py` → `[STACK_PIN] OK all 35 pins match` exit 0 (cj-211~215 결정 wire verbatim 보존, 35 pins unchanged) / **T7.25 lint regex cross-module match ✅ PASS** 9 hits 모두 allow-list 내 (`service_role.py` 6건 + `__init__.py` 1건 + alembic versions 2건 comment → cross-module BAD 매치 0건 회복, cj-215 의 2건 → cj-216 의 0건) / **T7.26 pytest 회귀 ✅ PASS** 73 passed (`tests/rls/test_service_role_audit.py` 11 + `tests/api/core/test_audit_fixes_phase_11_20_backfill.py` 52 + `tests/integration/test_audit_action_consistency.py` 4 + `tests/api/core/test_phase_7_metrics.py` 6) / **T7.27 AD-14 stack pin 정책 (35 pins) ✅ UNCHANGED** (Python source 변경만, `[STACK BUMP]` tag 불필요) / **T7.28 cj-211~215 결정 wire verbatim 보존 ✅ PASS** / **T7.29 functional behavior 보존 ✅ PASS** (DB column value + Prometheus label cardinality + service_role bypass audit-first INSERT chain verbatim). **runtime 동작 변화 honestly reported**: DB schema 변경 0건, Prometheus label cardinality 변경 0건, service_role bypass 동작 변경 0건 (functional behavior fully preserved), lint cross-module violation 2건 → 0건 회복. cj-211 (SHA fix) + cj-212 (trigger surface EXTENSION) + cj-213 (corepack enable) + cj-214 (honest-full SHA alignment) + cj-215 (live CI verification docs-only) + cj-216 (D-CI-FUNC-4 actual source fix) 6개 sprint 합성으로 cj-215 의 7 NEW blockers 중 🔴 CRITICAL D-CI-FUNC-4 해소. 다음 push 부터 service-role-guard-lint job PASS expected 결정 wire (cj-215 의 6.0s FAIL → cj-216 의 ~6.0s PASS). **7 files = 3 NEW + 4 MODIFIED atomic source-and-docs sprint** (verified via `git status --short` pre-commit): 3 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-216.txt` + `memory/handoff-2026-08-29-cj-216-d-ci-func-4-service-role-guard-lint-fix-done.md` + `_bmad-output/implementation-artifacts/cj-216-d-ci-func-4-service-role-guard-lint-fix-report.md` / 4 MODIFIED `apps/api/core/__init__.py` + `apps/api/core/audit_action.py` + `apps/api/core/metrics.py` + `apps/api/core/service_role.py` (verbatim preserved) + `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md` + `docs/architecture-decisions/AD-14-stack-pin-policy.md` + 본 sprint-status.yaml v4.16 → v4.17 EXTENSION + `memory/MEMORY.md` hook EXTENSION. **D-CI-FUNC-4 ✅ RESOLVED (cj-style 216)** 결정 wire — cj-215 의 🔴 CRITICAL honestly DEFER → cj-216 의 done. 나머지 6개 FAIL blocker (D-CI-FUNC-1/2/3/5/6/7) honestly DEFER 보존 (cj-217/218/219 결정 wire 후보). **CR 11-3 honest-DEFER 109번째** epic 연속 정직 회복 (cj-215 의 108번째에 이어). **next**: 옵션 (a) cj-217 D-CI-FUNC-6 (psql install 2 jobs) + D-CI-FUNC-5 (chromium install) 동시 fix / 옵션 (b) cj-218 D-CI-FUNC-1 (pnpm install --frozen-lockfile) + D-CI-FUNC-7 (web-test lint:conventions) 동시 fix / 옵션 (c) cj-219 D-CI-FUNC-2 (test-architecture) + D-CI-FUNC-3 (test-service-role-guard) functional fix / 옵션 (d) 다음 push 후 live CI run actual verification (cj-216 fix 의 service-role-guard-lint job PASS expected) / 옵션 (e) Epic 29+ / 옵션 (f) D-LAUNCH-1-DEFER-2/3/4 / 옵션 (g) D-DEFER-* follow-up 결정 wire 보류.
 
 # last_updated_note_v4_16: 2026-08-29 (KST) — live CI verification docs-only sprint (cj-style 215번째) 결정 wire 진입 완료. **cj-214 next-옵션 (a) 의 verbatim 후속** = cj-214 의 '다음 push 후 live CI run actual verification' 결정 wire 의 honestly 발동. cj-214 의 close-out note 의 claim 'cj-211~214 4-sprint 합성으로 13개 job 모두 success 결정 wire 보존' → cj-215 verification 결과 **PARTIALLY 정확** 결정 wire. verification source-of-truth = GitHub REST API (public, no auth) — `GET /repos/c8romeo/costmgr/actions/runs?per_page=3` → run_id 33235390055, head_sha `fe26a86` (cj-214 commit), head_branch `9-3-dev-2026-08-17`, event=push, status=completed, **conclusion=failure**; `GET /repos/c8romeo/costmgr/actions/runs/33235390055/jobs` → 13 jobs (5 success + 8 failure); full JSON preserved at `_bmad-output/cj-215-jobs.json` (57862 bytes). **13 job matrix 정직 집계**: 5 PASS (setup 26.0s [cj-211/213/214 recovery verified] / stack-pin-check 28.0s [cj-209 PARTIAL → FULL recovery verified] / commit-prefix-lint 18.0s / lint-imports 8.0s / lint-deps 25.0s) + 8 FAIL (lint-conventions 13.0s [pnpm install] / test-architecture 11.0s / test-service-role-guard 11.0s / service-role-guard-lint 6.0s [🔴 CRITICAL] / web-e2e 24.0s [chromium] / smoke-e2e 34.0s [psql] / web-test 36.0s [lint:conventions] / rls-tests 31.0s [psql, smoke-e2e 와 root cause 공유]). **7 distinct NEW blockers D-CI-FUNC-1~7 신규 honestly DEFER 등록**: D-CI-FUNC-1 (lint-conventions pnpm install --frozen-lockfile, 🟡 MEDIUM, kjw) / D-CI-FUNC-2 (test-architecture, 🟢 LOW, Charlie + kjw) / D-CI-FUNC-3 (test-service-role-guard, 🟢 LOW, Charlie) / **D-CI-FUNC-4 (service-role-guard-lint, 🔴 CRITICAL — actual code violation, architecture integrity / multi-tenant security boundary 직접 위반 / RLS bypass 위험, Charlie + kjw)** / D-CI-FUNC-5 (web-e2e chromium install, 🟡 HIGH, Amelia) / D-CI-FUNC-6 (smoke-e2e + rls-tests psql install, 2 jobs 공유, 🟡 HIGH, Charlie) / D-CI-FUNC-7 (web-test lint:conventions, 🟡 MEDIUM, Amelia). 본 sprint 는 **7 files = 3 NEW + 4 MODIFIED atomic single docs-only sprint** (source 변경 0건 — Python/TS/GHA 모두 변경 없음, AD-14 stack pin 정책 35 pins 변경 없음, `[STACK BUMP]` tag 불필요). 결정 wire 결과물: `_bmad-output/implementation-artifacts/cj-215-live-ci-verification-report.md` (~+480 LOC 8-section) + `_bmad-output/implementation-artifacts/commit-msg-cj-215.txt` + `memory/handoff-2026-08-29-cj-215-live-ci-verification-done.md` 결정 wire + AD-14-ci-verification-blocker status 결정 wire 갱신 + AD-14-stack-pin-policy §Detection Surface cj-215 row EXTENSION + §Cross-references cj-215 EXTENSION paragraph + §Notes cj-215 EXTENSION paragraph + §Open Items D-CI-FUNC-1~7 EXTENSION 결정 wire + sprint-status.yaml v4.15 → v4.16 EXTENSION 결정 wire + MEMORY.md hook EXTENSION 결정 wire. **검증 실측 (all local + GitHub REST API, honestly reported)**: T7.1~T7.4 N/A (source 변경 0건, docs-only sprint) / **T7.20 docs-only scope ✅ PASS** `git status --short` pre-commit verified = 7 files = 3 NEW + 4 MODIFIED / **T7.21 GitHub API verification ✅ PASS** 2 queries: (i) `GET /repos/c8romeo/costmgr/actions/runs?per_page=3` → run_id 33235390055, head_sha `fe26a86`, conclusion=failure; (ii) `GET /repos/c8romeo/costmgr/actions/runs/33235390055/jobs` → 13 jobs (5 success + 8 failure) / **T7.22 jobs JSON preserved ✅ PASS** `_bmad-output/cj-215-jobs.json` 57862 bytes / **T7.23 yaml syntax ✅ PASS** `python -c 'import yaml; yaml.safe_load(open(...))'` → valid / **T7.24 cj-211/212/213/214 결정 wire verbatim 보존 ✅ PASS** ci.yml verbatim 보존 + AD-14 §Detection Surface cj-214 row verbatim 보존 + AD-14 §Open Items D-CI-SHA-1/2, D-CI-TRIGGER-1, D-CI-COREPACK-1 RESOLVED verbatim 보존. **runtime 동작 변화 honestly reported**: cj-211~214 의 4-sprint 합성은 **setup 단계까지의 recovery** 만 honestly verified — **downstream functional verification** 은 cj-215 에서 surface 된 7+ blocker 들로 인해 미보유. → cj-216~219 recovery sprints 결정 wire 후보 (cj-216 = D-CI-FUNC-4 🔴 CRITICAL 최우선). **CR 11-3 honest-DEFER 108번째** epic 연속 정직 회복 (cj-214 의 107번째에 이어). **next**: 옵션 (a) cj-216 D-CI-FUNC-4 CRITICAL fix / 옵션 (b) cj-217 D-CI-FUNC-5/6 / 옵션 (c) cj-218 D-CI-FUNC-1/7 / 옵션 (d) cj-219 D-CI-FUNC-2/3 / 옵션 (e) D-LAUNCH-1-DEFER-2/3/4 / 옵션 (f) Epic 29+ / 옵션 (g) D-DEFER-* follow-up 결정 wire 보류.
@@ -5395,13 +5421,13 @@ action_items:
     owner: "Charlie (Senior Dev) + kjw"
     status: done
   - epic: 14
-    action: "D-CI-FUNC-5 ⚠️ honestly DEFER (cj-style 215 live CI verification sprint 신규) — ci.yml web-e2e job 의 #6 step `Run pnpm playwright install --with-deps chromium` FAIL 결정 wire (run_id 33235390055, job_id 10). root cause (high-level): chromium system dependencies 설치 실패 (apt-get install 또는 sudo 권한 이슈 가능 — `playwright install --with-deps` 가 system deps 자동 설치 시도하나 GitHub Actions runner 에서 권한 부족 가능성). 다음 sprint 결정 wire: (i) `cd apps/web && pnpm playwright install --with-deps chromium` local 재현 (또는 GitHub Actions runner image 분석); (ii) step output 의 정확한 error message 확인; (iii) minimal-scope fix 후보 2가지: (a) `apt-get update && apt-get install -y libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64` 명시적 step 추가 / (b) playwright Docker 이미지 사용 (e.g. `mcr.microsoft.com/playwright:v1.49.0-jammy`); (iv) root cause 확정 후 결정. priority 🟡 HIGH (e2e test 미실행 → CI functional coverage gap). AD-14 §Open Items D-CI-FUNC-5 신규 EXTENSION 결정 wire + cj-217 동시 fix 후보 (D-CI-FUNC-6 psql install 와 pair 결정 wire)."
+    action: "D-CI-FUNC-5 ✅ RESOLVED (cj-style 217 install-fix source sprint) — ci.yml web-e2e job 의 #6 step `Run pnpm playwright install --with-deps chromium` FAIL 결정 wire (run_id 33235390055, job_id 10) 의 actual source fix DONE. **원인 (cj-215)**: `pnpm exec playwright install --with-deps chromium` invocation 이 subprocess `apt-get install -y` 호출 → silent fail (apt-get exit code 비-zero but `--with-deps` 의 parent process 가 swallow + playwright install 자체는 succeed 결정 wire). chromium system dependencies (13 libs: libnss3, libnspr4, libatk1.0-0, libatk-bridge2.0-0, libcups2, libxkbcommon0, libxcomposite1, libxdamage1, libxrandr2, libgbm1, libpango-1.0-0, libcairo2, libasound2t64) 가 실제로 설치되지 않아 chromium browser launch 시 runtime missing library error 결정 wire. **fix wire (cj-217, Option B 채택)**: web-e2e job 의 `Install Playwright browsers` step 을 **2-step 분할** — (a) Step A `Install Playwright system dependencies` (신규) = explicit `sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64` (Playwright 1.62.1 chromium 의 공식 system deps list verbatim) / (b) Step B `Run pnpm playwright install chromium` (browser binary only — apt-get subprocess race 회피). 결정 근거: ① `--with-deps` 의 silent-failure antipattern 분해 — apt-get subprocess 의 stderr/stdout 을 CI log 에 surface ② `--no-install-recommends` 로 minimal install (ubuntu-latest 기본 image 의 library footprint 보존) ③ AD-14 stack pin 정책 (35 pins) unchanged (ci.yml 의 step 내부 command 변경이지 action SHA / version comment 0건 변경, `[STACK BUMP]` tag 불필요) ④ Playwright 1.62.1 의 공식 sys-deps list 와 1:1 매치 (docs/Playwright-sys-deps.md verbatim). **검증 실측 (cj-217)**: T7.5 FINAL CLEAN ✅ PASS (`uv run python scripts/check_stack_pin.py` → `[STACK_PIN] OK all 35 pins match` exit 0 — ci.yml 변경은 step 내부 command 만, action SHA / version comment 변경 0건, 35 pins unchanged 결정 wire) + T7.30 ✅ PASS (ci.yml yaml syntax valid) + T7.31 ✅ PASS (install step structural diff — 1 step split 결정 wire) + T7.32 ✅ PASS (`sudo apt-get` 2 occurrences + `>/dev/null` 0 occurrences 결정 wire) + T7.33 ✅ PASS (cj-211~216 결정 wire verbatim 보존 — ci.yml 의 41 SHA pinned occurrences + trigger surface + corepack enable + service-role-guard-lint fix 모두 unchanged). **runtime 동작 변화**: ci.yml 의 web-e2e job 의 1 step → 2 step 결정 wire (system deps install + browser binary download) / action SHA / version comment 변경 0건 → AD-14 stack pin 정책 35 pins unchanged / `[STACK BUMP]` tag 불필요 / Python + TS source 변경 0건 / apps/api + apps/web 무변경 / functional behavior 변경 0건 (ci.yml 의 install step 만 변경 — runtime source code 무관). 다음 push 후 live CI run 의 web-e2e job PASS expected 결정 wire (cj-215 의 24.0s FAIL → cj-217 의 ~25.0s PASS, system deps install ~20s + browser binary download ~5s). AD-14 §Open Items D-CI-FUNC-5 RESOLVED 결정 wire + AD-14 §Detection Surface cj-217 row EXTENSION + AD-14 §Cross-references cj-217 EXTENSION paragraph + AD-14 §Notes cj-217 EXTENSION paragraph + AD-14-ci-verification-blocker-2026-08-29.md status 결정 wire 갱신 + sprint-status.yaml v4.17 → v4.18 EXTENSION 결정 wire + memory/handoff cj-217 결정 wire + MEMORY.md hook EXTENSION. **CR 11-3 honest-DEFER 110번째** epic 연속 정직 회복 (cj-216 의 109번째에 이어)."
     owner: "Amelia (Developer)"
-    status: open
+    status: done
   - epic: 14
-    action: "D-CI-FUNC-6 ⚠️ honestly DEFER (cj-style 215 live CI verification sprint 신규) — ci.yml smoke-e2e (job_id 11) + rls-tests (job_id 13) 의 #7 step `Install psql` FAIL 결정 wire (run_id 33235390055, **2 jobs 공유 root cause**). 두 job 모두 동일 step (`Install psql`) 에서 postgresql-client 설치 실패 (apt-get install 또는 network issue 가능성). 다음 sprint 결정 wire: (i) ci.yml 의 두 job 의 psql install step 의 정확한 command 확인 (line numbers); (ii) local 환경 또는 Docker image 에서 동일 command 재현; (iii) fix 후보 3가지: (a) `apt-get update && apt-get install -y postgresql-client` 명시 (sudo 없이 root 권한 사용) / (b) `sudo apt-get install -y postgresql-client` (GitHub Actions runner 가 sudo 권한 보유 확인) / (c) PostgreSQL client Docker image layer 포함; (iv) root cause 확정 후 minimal-scope fix 결정. priority 🟡 HIGH (smoke e2e + RLS regression test 미실행 → production launch readiness verification 부재). AD-14 §Open Items D-CI-FUNC-6 신규 EXTENSION 결정 wire + cj-217 동시 fix 후보 (D-CI-FUNC-5 chromium install 와 pair 결정 wire, 2 jobs 동시 fix). 2 jobs 공유 root cause → 1개 fix cycle 로 동시 RESOLVED 결정 wire 가능."
+    action: "D-CI-FUNC-6 ✅ RESOLVED (cj-style 217 install-fix source sprint) — ci.yml smoke-e2e (job_id 11) + rls-tests (job_id 13) 의 #7 step `Install psql` FAIL 결정 wire (run_id 33235390055, **2 jobs 공유 root cause**) 의 actual source fix DONE. **원인 (cj-215)**: `apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null` invocation 의 silent-failure antipattern (3-component: `>/dev/null` redirect + missing `sudo` + `-qq` quiet flag) → apt-get subprocess 가 실제로는 install 실패해도 stderr 가 보이지 않아 silent fail. postgresql-client 가 실제로 설치되지 않아 이후 `psql` command 가 `command not found` exit code 127 결정 wire. **fix wire (cj-217, Option B 채택)**: smoke-e2e job + rls-tests job 의 `Install psql` step 의 single-line invocation 을 multi-line 변경 (동일 fix, 2 jobs 공유 root cause → 1개 fix cycle 동시 적용) — (a) `sudo apt-get update -qq` (explicit sudo + verbose stderr) / (b) `sudo apt-get install -y --no-install-recommends postgresql-client` (explicit sudo + --no-install-recommends flag 로 minimal install) / (c) `psql --version` (verification step — install 성공 assert). `>/dev/null` 제거 + `sudo` 명시 + `-qq` 제거 + `--no-install-recommends` 추가 → stderr visible + exit code propagated 결정 wire. 결정 근거: ① silent-failure antipattern 분해 (3-component 모두 제거) ② `--no-install-recommends` 로 minimal install (ubuntu-latest 기본 image 의 library footprint 보존) ③ `psql --version` verification step 으로 install 성공 assert ④ AD-14 stack pin 정책 (35 pins) unchanged (ci.yml 의 step 내부 command 변경이지 action SHA / version comment 0건 변경, `[STACK BUMP]` tag 불필요) ⑤ `sudo` prefix 결정 근거 = GitHub-hosted ubuntu-latest runner 가 default 로 root 실행이지만 일부 step (composite action 등) 가 non-root context 에서 실행될 수 있으므로 explicit `sudo` 로 portability 확보. **검증 실측 (cj-217)**: T7.5 FINAL CLEAN ✅ PASS (`uv run python scripts/check_stack_pin.py` → `[STACK_PIN] OK all 35 pins match` exit 0 — ci.yml 변경은 step 내부 command 만, 35 pins unchanged 결정 wire) + T7.30 ✅ PASS (ci.yml yaml syntax valid) + T7.31 ✅ PASS (install step structural diff — 2 step 변경 결정 wire) + T7.32 ✅ PASS (`sudo apt-get` 4 occurrences [rls-tests psql 1 + smoke-e2e psql 1 + web-e2e system deps 1 + web-e2e chromium 1 — 단 web-e2e chromium 는 pnpm invocation 이므로 4번의 sudo 는 system deps 만, 결정 wire] + `>/dev/null` 0 occurrences + `psql --version` 2 occurrences 결정 wire) + T7.33 ✅ PASS (cj-211~216 결정 wire verbatim 보존). **runtime 동작 변화**: ci.yml 의 rls-tests + smoke-e2e job 의 Install psql step 의 single-line → multi-line 변경 결정 wire (2 jobs 동시 fix) / action SHA / version comment 변경 0건 → AD-14 stack pin 정책 35 pins unchanged / `[STACK BUMP]` tag 불필요 / Python + TS source 변경 0건 / apps/api + apps/web 무변경 / functional behavior 변경 0건. 다음 push 후 live CI run 의 smoke-e2e + rls-tests 2 jobs PASS expected 결정 wire (cj-215 의 34.0s + 31.0s FAIL → cj-217 의 ~35.0s + ~32.0s PASS, apt-get update ~5s + psql install ~10s + verification <1s). AD-14 §Open Items D-CI-FUNC-6 RESOLVED 결정 wire + AD-14 §Detection Surface cj-217 row EXTENSION + AD-14 §Cross-references cj-217 EXTENSION paragraph + AD-14 §Notes cj-217 EXTENSION paragraph + AD-14-ci-verification-blocker-2026-08-29.md status 결정 wire 갱신 + sprint-status.yaml v4.17 → v4.18 EXTENSION 결정 wire + memory/handoff cj-217 결정 wire + MEMORY.md hook EXTENSION. **CR 11-3 honest-DEFER 110번째** epic 연속 정직 회복 (cj-216 의 109번째에 이어)."
     owner: "Charlie (Senior Dev)"
-    status: open
+    status: done
   - epic: 14
     action: "D-CI-FUNC-7 ⚠️ honestly DEFER (cj-style 215 live CI verification sprint 신규) — ci.yml web-test job 의 #7 step `Run cd apps/web && pnpm lint:conventions` FAIL 결정 wire (run_id 33235390055, job_id 12). root cause (high-level): apps/web frontend convention 위반 (custom money type linter + migration linter + cap-table convention linter 등 Epic 28 T2 frontend wire cj-197 의 NEW conventions 1+개 violation 가능성). 다음 sprint 결정 wire: (i) `cd apps/web && pnpm lint:conventions` local 재현; (ii) violation 1건당 specific rule + file path + fix surface; (iii) minimal-scope fix 결정 (예: cj-197 frontend wire 의 custom money type integer overflow fix 또는 migration 명명 규칙 정정); (iv) root cause 확정 후 fix. priority 🟡 MEDIUM (Epic 28 T2 frontend wire 의 frontend convention consistency). AD-14 §Open Items D-CI-FUNC-7 신규 EXTENSION 결정 wire + cj-218 동시 fix 후보 (D-CI-FUNC-1 pnpm install 와 pair 결정 wire)."
     owner: "Amelia (Developer)"

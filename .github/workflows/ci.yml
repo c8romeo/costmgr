@@ -410,7 +410,15 @@ jobs:
       - run: pip install uv==0.11.32
       - run: uv sync --frozen
       - name: Install psql
-        run: apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null
+        run: |
+          # cj-style 217 (D-CI-FUNC-6): explicit sudo + visible stderr + verification.
+          # rls-tests job (Story 0.2 — CI-only RLS verification). The previous
+          # `apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null`
+          # pattern completed in <1s with FAIL conclusion (run_id 33235390055,
+          # job_id 13, step 7) — `>/dev/null` swallowed all diagnostics.
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          psql --version
       - name: Apply Alembic migration
         run: uv run alembic -c apps/api/alembic.ini upgrade head
       - name: Apply Supabase CI shim (auth.jwt() stub + service_role + costmgr_test roles)
@@ -477,7 +485,19 @@ jobs:
       - name: Enable corepack (provides pnpm from packageManager field)
         run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: cd apps/web && pnpm playwright install --with-deps chromium
+      - name: Install Playwright system dependencies
+        run: |
+          # cj-style 217 (D-CI-FUNC-5): split `--with-deps` into explicit sudo apt-get
+          # step + plain `playwright install chromium`. The previous combined command
+          # completed in <1s with FAIL conclusion (run_id 33235390055, job_id 10,
+          # step 6). Splitting surfaces whether apt-get or browser binary download
+          # is the actual failing stage.
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libxkbcommon0 libxcomposite1 libxdamage1 \
+            libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64
+      - run: cd apps/web && pnpm playwright install chromium
       - run: cd apps/web && pnpm playwright test --project=chromium
       - name: Upload Playwright report
         if: always()
@@ -529,7 +549,14 @@ jobs:
       - run: pip install uv==0.11.32
       - run: uv sync --frozen
       - name: Install psql
-        run: apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null
+        run: |
+          # cj-style 217 (D-CI-FUNC-6): explicit sudo + visible stderr + verification.
+          # smoke-e2e job (Story 0.6 — smoke E2E). Same root cause as rls-tests —
+          # `>/dev/null` swallowed diagnostics. The cj-215 live CI run showed both
+          # jobs failing this step in <1s (run_id 33235390055, job_ids 11 + 13).
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          psql --version
       - name: Apply Alembic migration
         run: uv run alembic -c apps/api/alembic.ini upgrade head
       - name: Apply Supabase CI shim (auth.jwt() stub + roles)

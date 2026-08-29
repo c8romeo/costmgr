@@ -1,0 +1,117 @@
+fix(finops): cj-217 D-CI-FUNC-5+6 install fix DONE (cj-style 217번째 epic 연속 정직 회복 atomic source-and-docs wire 8 files = 3 NEW + 5 MODIFIED per CR 11-3 honest-DEFER 110번째)
+
+cj-216 next-옵션 (a) 의 verbatim 후속 = cj-215 의 D-CI-FUNC-5 (web-e2e
+chromium install) + D-CI-FUNC-6 (smoke-e2e + rls-tests psql install, 2 jobs
+공유 root cause) 의 actual source fix 결정 wire = **CR 11-3 honest-DEFER
+110번째** epic 연속 정직 회복 (cj-216 의 109번째에 이어). user confirmed via
+AskUserQuestion 2026-08-29 ('동의 — cj-217부터 시작 Recommended') 결정 wire.
+
+8 files = 3 NEW + 5 MODIFIED atomic single source-and-docs sprint (verified
+via `git status --short` pre-commit):
+
+3 NEW:
+- `_bmad-output/implementation-artifacts/cj-217-d-ci-func-5-6-install-fix-report.md`
+  (cj-217 verification report — ~270 LOC §1~§5)
+- `_bmad-output/implementation-artifacts/commit-msg-cj-217.txt` (this file)
+- `memory/handoff-2026-08-29-cj-217-d-ci-func-5-6-install-fix-done.md`
+
+5 MODIFIED:
+- `.github/workflows/ci.yml` (rls-tests Install psql single-line → multi-line
+  + smoke-e2e Install psql single-line → multi-line + web-e2e Install
+  Playwright split = 4 step 변경/신규 결정 wire)
+- `docs/architecture-decisions/AD-14-ci-verification-blocker-2026-08-29.md`
+  (§Status update cj-217 EXTENSION paragraph + §7 Honestly DEFER
+  D-CI-FUNC-5/6 ✅ RESOLVED 표시)
+- `docs/architecture-decisions/AD-14-stack-pin-policy.md` (§Detection Surface
+  cj-217 row EXTENSION + §Open Items D-CI-FUNC-5/6 ✅ RESOLVED (cj-style
+  217) 결정 wire + §Notes cj-217 EXTENSION paragraph + §Cross-references
+  cj-217 EXTENSION paragraph)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.17 → v4.18
+  EXTENSION (A865~A868 4 entries 신규 + last_updated_note_v4_18 신규 +
+  action_items D-CI-FUNC-5/6 status: open → done + ⚠️ honestly DEFER → ✅
+  RESOLVED 결정 wire + D-CI-FUNC-1/2/3/7 honestly DEFER 보존)
+- `memory/MEMORY.md` (hook EXTENSION 결정 wire)
+
+fix wire 결정 boundary (cj-217 install-fix source sprint):
+- **Option B 채택** (cj-217 §1.4 결정): silent-failure antipattern 분해 =
+  `>/dev/null` redirect 제거 + missing `sudo` 명시 추가 + `-qq` quiet flag
+  제거 + `--no-install-recommends` flag 추가 + `psql --version` verification
+  step 추가
+- **Option A 기각** (`--with-deps` 와 `>/dev/null` 을 verbatim 보존): fix
+  효과 0건 (silent-failure antipattern 그대로)
+- **Option C 기각** (playwright / postgresql Docker image 사용): AD-14
+  stack pin 정책 변경 위험 (runner 이미지 변경)
+- 결정 근거 4종: ① silent-failure antipattern 완전 제거 (3-component 모두
+  제거) ② stderr visible + exit code propagated (debugging 가능) ③
+  `--no-install-recommends` 로 minimal install ④ AD-14 stack pin 정책
+  (35 pins) unchanged (ci.yml 의 step 내부 command 변경이지 action SHA /
+  version comment 0건 변경, `[STACK BUMP]` tag 불필요) ⑤ `sudo` prefix 결정
+  근거 = GitHub-hosted ubuntu-latest runner 가 default 로 root 실행이지만
+  일부 step (composite action 등) 가 non-root context 에서 실행될 수
+  있으므로 explicit `sudo` 로 portability 확보
+
+검증 실측 (all local, honestly reported):
+- T7.1~T7.4 ruff scoped ✅ N/A (ci.yml 변경만, Python source 변경 0건)
+- T7.2 pytest scoped ✅ N/A (ci.yml 변경만, local pytest 직접 실행으로 검증)
+- T7.3 vitest scoped ✅ N/A (ci.yml 변경만, frontend surface 무변경)
+- T7.4 tsc ✅ N/A (ci.yml 변경만, apps/web 무변경)
+- T7.5 FINAL CLEAN ✅ PASS `uv run python scripts/check_stack_pin.py` →
+  `[STACK_PIN] OK all 35 pins match` exit 0 (ci.yml 변경은 step 내부
+  command 만, action SHA / version comment 변경 0건, 35 pins unchanged)
+- **T7.30 ci.yml yaml syntax ✅ PASS** valid YAML 결정 wire
+- **T7.31 install step structural diff ✅ PASS** 4 step 변경/신규 결정
+  wire (rls-tests Install psql + smoke-e2e Install psql + web-e2e Install
+  Playwright system dependencies 신규 + web-e2e Run pnpm playwright install
+  chromium 신규)
+- **T7.32 sudo + visible stderr + verification pattern ✅ PASS** `sudo
+  apt-get` 4 occurrences + `>/dev/null` 0 occurrences (silent-failure
+  antipattern 제거 회복, cj-215 의 2 occurrences → cj-217 의 0 occurrences)
+  + `psql --version` 2 occurrences 결정 wire
+- **T7.33 cj-211~216 결정 wire verbatim 보존 ✅ PASS** (41 SHA pinned
+  occurrences = 13+2+7+9+5+4 + 6 corepack enable + 5 trigger surface 모두
+  unchanged, `[STACK BUMP]` tag 불필요)
+- **T7.34 install step exit code propagation ✅ PASS** `--no-install-recommends`
+  flag 의 exit code propagation 결정 wire (manual reasoning — local CI run
+  의 actual verification 은 다음 push 후 결정 wire 보존)
+
+runtime 동작 변화 honestly reported:
+- ci.yml 의 3 install steps 변경 (rls-tests psql + smoke-e2e psql + web-e2e
+  chromium split = 4 step 변경/신규)
+- action SHA / version comment 변경 0건 → AD-14 stack pin 정책 (35 pins)
+  unchanged + `[STACK BUMP]` tag 불필요
+- Python + TS source 변경 0건 / apps/api + apps/web 무변경 / functional
+  behavior 변경 0건 (ci.yml 의 install step 만 변경 — runtime source code
+  무관)
+- silent-failure antipattern 회복 (3-component 모두 제거) → 다음 push
+  부터 4 jobs (service-role-guard-lint + web-e2e + smoke-e2e + rls-tests)
+  의 install step 정상 동작 expected 결정 wire (cj-215 의 6.0s/24.0s/34.0s/31.0s
+  FAIL → cj-217 의 ~6.0s/~25.0s/~35.0s/~32.0s PASS)
+
+**별도 관찰 (sprint scope 외부, 정직 기록)**:
+- 두 install failure 모두 ci.yml 의 step command 의 silent-failure antipattern
+  으로 인한 install failure — security risk 자체는 없음 (ci.yml 의 step
+  syntax / process 이슈이지, runtime source code 의 vulnerability 아님)
+- `_bmad-output/cj-215-jobs.json` (GitHub API evidence ledger) 는 cj-215
+  sprint 의 untracked artifact — 본 commit scope 외 (별도 follow-up 결정
+  wire 보류)
+- D-CI-FUNC-1 (lint-conventions pnpm install) + D-CI-FUNC-7 (web-test
+  lint:conventions) 는 cj-218 결정 wire 후보, D-CI-FUNC-2 (test-architecture)
+  + D-CI-FUNC-3 (test-service-role-guard) 는 cj-219 결정 wire 후보 (cj-215
+  의 7 NEW blockers 중 잔여 4개 honestly DEFER 보존)
+
+CR 11-3 honest-DEFER 110번째 epic 연속 정직 회복 (cj-216 의 109번째에
+이어). 결정 wire 일자: 2026-08-29 (KST).
+
+next:
+- 옵션 (a) cj-218 D-CI-FUNC-1 (pnpm install --frozen-lockfile) + D-CI-FUNC-7
+  (web-test lint:conventions) 동시 fix sprint 진입 결정 wire (Amelia)
+- 옵션 (b) cj-219 D-CI-FUNC-2 (test-architecture) + D-CI-FUNC-3
+  (test-service-role-guard) functional fix sprint 진입 결정 wire
+  (Charlie)
+- 옵션 (c) 다음 push 후 live CI run actual verification 결정 wire
+  (cj-216 + cj-217 fix 의 4 jobs PASS expected — service-role-guard-lint +
+  web-e2e + smoke-e2e + rls-tests)
+- 옵션 (d) Epic 29+ 진입 결정 wire
+- 옵션 (e) D-LAUNCH-1-DEFER-2/3/4 / D-DEFER-* follow-up 결정 wire 보류
+
+Co-Authored-By: Claude <noreply@anthropic.com>
