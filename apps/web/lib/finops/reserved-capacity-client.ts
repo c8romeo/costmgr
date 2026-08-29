@@ -58,8 +58,11 @@ export interface AggregateDemandForecastRequest {
     tenant_id: string;
     period_key: string;
     industry: OrchestrationScope;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     five_module_inputs: Record<string, number>;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     confidence_pct?: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     previous_demand_krw?: number | null;
     dry_run?: boolean;
 }
@@ -100,7 +103,9 @@ export interface CadencePreviewResponse {
     cadence: ReservedCapacityCadence;
     cron_expression: string;
     next_run_at_kst: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     cadence_hour_kst: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     cadence_minute_kst: number;
 }
 

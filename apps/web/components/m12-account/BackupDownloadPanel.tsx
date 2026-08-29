@@ -46,11 +46,13 @@ export function BackupDownloadPanel({
   const t = useTranslations("account_backup");
   const [list, setList] = useState<BackupListResponse | null>(initialList);
   const [error, setError] = useState<string | null>(initialError);
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const [days, setDays] = useState<number>(BACKUP_DEFAULT_LIST_DAYS);
   const [isTriggering, setIsTriggering] = useState<boolean>(false);
 
   // ── Refresh list ──────────────────────────────────────────
   const refreshList = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     async (daysArg: number): Promise<void> => {
       try {
         const res = await fetch(

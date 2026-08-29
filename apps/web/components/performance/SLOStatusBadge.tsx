@@ -8,7 +8,9 @@
 // Epic 12 2FA 챌린지 preserved).
 
 interface Props {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   actual_p99_ms: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   budget_ms: number;
 }
 

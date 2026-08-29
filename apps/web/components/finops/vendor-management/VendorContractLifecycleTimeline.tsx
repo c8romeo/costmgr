@@ -110,6 +110,7 @@ export function VendorContractLifecycleTimeline({
                     <tbody>
                         {contracts.slice(0, 10).map((c) => {
                             const stageIndex = LIFECYCLE_STAGES.indexOf(
+                                // eslint-disable-next-line @typescript-eslint/no-restricted-types
                                 c.lifecycle as typeof LIFECYCLE_STAGES[number]
                             );
                             const nextStage =

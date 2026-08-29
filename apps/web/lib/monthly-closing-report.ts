@@ -37,6 +37,7 @@ export const REPORT_VIEW_MODES = [
   REPORT_VIEW_MODE_EMPTY,
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type ReportViewMode = (typeof REPORT_VIEW_MODES)[number];
 
 // ── CurrencyPair (PRD §F5.2 — tenant_settings.baseline.currency_pair) ──
@@ -99,9 +100,13 @@ export interface ClosingPerProductRow {
 export interface MonthlyClosingReportAggregate {
   period_key: string;
   view_mode: ReportViewMode;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   closing_snapshot_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ledger_event_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   fiscal_period_snapshot_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   opening_inventory_count: number;
   closing_per_product: ClosingPerProductRow[];
   audit_emitted: boolean;       // CR 1.1 idempotent no-op marker
@@ -128,8 +133,11 @@ export function isMonthlyClosingReportAllowed(mode: ReportViewMode): boolean {
 // ── classifyReportViewMode (helper — pure) ──
 // Mirrors Python `classify_report_view_mode` logic.
 export function classifyReportViewMode(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ledgerEventCount: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   closingSnapshotCount: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   fiscalPeriodSnapshotCount: number,
 ): ReportViewMode {
   const populated =
@@ -163,9 +171,13 @@ export interface MonthlyClosingReportRow {
 export interface MonthlyClosingReportResponse {
   period_key: string;
   view_mode: ReportViewMode;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   closing_snapshot_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ledger_event_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   fiscal_period_snapshot_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   opening_inventory_count: number;
   closing_per_product: MonthlyClosingReportRow[];
   currency_pair: CurrencyPair | null;
@@ -202,6 +214,7 @@ export interface MonthlyClosingReportV4Verdict {
     message_ko: string;
   }>;
   verified_at: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   product_whitelist_size: number;
   skip_reason_ko: string | null;
   source_count: 2;

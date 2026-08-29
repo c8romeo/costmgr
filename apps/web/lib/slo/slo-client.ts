@@ -17,17 +17,22 @@ export type { SloDefinition, ErrorBudget, GovernanceReview };
 
 export interface SloApiPage<T> {
   items: T[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page_size: number;
 }
 
 export class SloApiError extends Error {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   readonly status: number;
   readonly code: string;
   readonly trace_id: string;
   constructor(
     message: string,
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     opts: { status: number; code: string; trace_id: string },
   ) {
     super(message);

@@ -85,6 +85,7 @@ describe("phase-4 Sentry browser integration", () => {
       const mod = await import("@/lib/observability/sentry");
       await mod.initSentry();
       expect(mockSentryInit).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line @typescript-eslint/no-restricted-types
       const initArg = mockSentryInit.mock.calls[0][0] as { tracesSampleRate?: number };
       expect(initArg.tracesSampleRate).toBe(0.1);
     });
@@ -95,6 +96,7 @@ describe("phase-4 Sentry browser integration", () => {
       const mod = await import("@/lib/observability/sentry");
       await mod.initSentry();
       const initArg = mockSentryInit.mock.calls[0][0] as {
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types
         replaysSessionSampleRate?: number;
       };
       expect(initArg.replaysSessionSampleRate).toBe(0);

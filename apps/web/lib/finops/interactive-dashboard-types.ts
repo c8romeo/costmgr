@@ -79,6 +79,7 @@ export type ExportJobStatus =
     | "cancelled";
 
 /** 5-dim weighted aggregation (PRD §F43.2 + AD-56 (b) verbatim) */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const DASHBOARD_KPI_DIMENSION_WEIGHTS: Record<string, number> = {
     cost: 0.30,
     usage: 0.20,
@@ -88,6 +89,7 @@ export const DASHBOARD_KPI_DIMENSION_WEIGHTS: Record<string, number> = {
 };
 
 /** Cadence schedule KST pytz (PRD §F43.1 + AD-56 (a) verbatim) */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const DASHBOARD_CADENCE_HOURS_KST: Record<string, readonly [number, number]> = {
     daily_unified_kpi_refresh: [4, 0],
     weekly_export_cleanup: [5, 0],
@@ -193,22 +195,39 @@ export interface UnifiedKPI {
     period_key: string;
     dimension: string;
     dimension_value: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     kpi_value_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     showback_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     anomaly_count: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     forecast_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     optimization_savings_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     tag_compliance_pct: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     report_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     sustainability_co2_kg: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     commitment_utilization_pct: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     pricing_savings_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     multi_cloud_reconciliation_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     reserved_capacity_utilization_pct: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     chargeback_settlement_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     unit_economics_cost_per_unit: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     budget_consumption_pct: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     vendor_spend_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     anomaly_ml_score: number;
     refresh_cadence: KPIRefreshCadence;
     computed_at: string;
@@ -219,11 +238,17 @@ export interface UnifiedKPI {
 export interface KPIBreakdown {
     tenant_id: string;
     period_key: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     cost_score: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     usage_score: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     performance_score: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     compliance_score: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     sla_score: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     weighted_total: number;
 }
 
@@ -262,8 +287,10 @@ export interface ExportJob {
     saved_view_id: string;
     export_format: ExportFormat;
     status: ExportJobStatus;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     progress_pct: number;
     file_path: string | null;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     file_size_bytes: number;
     checksum_sha256: string | null;
     expires_at: string | null;

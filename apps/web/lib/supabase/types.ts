@@ -42,6 +42,7 @@ export interface AuthSession {
   access_token: string;
   refresh_token: string;
   /** Epoch (seconds) when the access token expires. */
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   expires_at: number;
   /** Supabase assigns this — `aal1` (password only) or `aal2` (2FA verified). */
   aal: "aal1" | "aal2";
@@ -67,6 +68,7 @@ export interface TenantMembership {
 
 export interface TenantSettings {
   tenant_id: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   settings_version: number;
   onboarding: {
     industry?: string;

@@ -110,6 +110,7 @@ export function validateAbcPctList(
  * Compute the local sum of an allocation list (mirror backend Decimal sum).
  * Returns the sum as a number — useful for the "현재 N%" hint message.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function computeSumPct(values: string[]): number {
   return sumPct(values);
 }
@@ -132,6 +133,7 @@ export function is100Percent(
  */
 export function buildKoreanMismatchHint(
   target: ValidationTarget,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   sumPctValue: number,
 ): string {
   if (target === "cost_pool") {

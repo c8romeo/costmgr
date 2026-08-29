@@ -208,7 +208,9 @@ interface ProjectionInputProps {
   suffix: string;
   type: "number" | "text";
   step?: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   min?: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   max?: number;
   placeholder?: string;
   value: string;

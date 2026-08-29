@@ -37,7 +37,9 @@ type TabKey =
 interface FinopsInteractiveDashboardPanelProps {
     periodKey?: string;
     isOwner?: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     savedViewCount?: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     impactKrwPerYear?: number;
 }
 

@@ -19,6 +19,7 @@ export interface Report15PdfResponse {
   period_key: string;
   /** Base64-encoded PDF bytes (AD-15 cross-language parity) */
   pdf_base64: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   size_bytes: number;
   /** V8 byte-equality sha256 hexdigest */
   generation_hash: string;

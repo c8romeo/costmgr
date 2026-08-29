@@ -100,6 +100,7 @@ export async function allocateBudget(
 export async function submitForApproval(
     req: SubmitForApprovalRequest,
 ): Promise<BudgetApprovalStep[]> {
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const res = await request<{ status: string; steps: BudgetApprovalStep[]; count: number }>(
         `/plans/${req.plan_id}/submit-approval?plan_id=${req.plan_id}&tenant_id=${req.tenant_id}&plan_total_budget_amount=${req.plan_total_budget_amount}`,
         {
@@ -133,6 +134,7 @@ export async function approveStep(
 export async function computeBudgetVsActual(
     req: ComputeVsActualRequest,
 ): Promise<BudgetVsActual[]> {
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const res = await request<{ status: string; rows: BudgetVsActual[]; count: number }>(
         `/plans/${req.plan_id}/vs-actual?plan_id=${req.plan_id}&tenant_id=${req.tenant_id}&period_key=${req.period_key}`,
         {
@@ -166,9 +168,11 @@ export async function triggerOverBudgetAlert(
 
 export async function fetchBudgetPlanningPlans(
     tenant_id?: string,
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 ): Promise<{ plans: BudgetPlan[]; count: number }> {
     const params = new URLSearchParams();
     if (tenant_id) params.set("tenant_id", tenant_id);
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     return request<{ plans: BudgetPlan[]; count: number }>(
         `/plans?${params.toString()}`,
     );

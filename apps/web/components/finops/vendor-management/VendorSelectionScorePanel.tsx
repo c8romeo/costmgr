@@ -33,6 +33,7 @@ export function VendorSelectionScorePanel({
     dryRun,
 }: VendorSelectionScorePanelProps) {
     const [selections, setSelections] = useState<VendorSelectionScore[]>([]);
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const [threshold, setThreshold] = useState<number>(60.00);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);

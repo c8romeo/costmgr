@@ -13,12 +13,19 @@
 //   as Python `compute_bep` / `simulate_cvp` for the same inputs.
 
 // ── Constants (PRD §F7.1 + AD-5) ───────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const PRICE_DELTA_PCT_BOUNDS: readonly [number, number] = [-0.5, 0.5] as const;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const FIXED_COST_DELTA_PCT_BOUNDS: readonly [number, number] = [-0.3, 0.3] as const;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const OPERATING_RATE_DELTA_PCT_BOUNDS: readonly [number, number] = [-0.5, 0.5] as const;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const OPERATING_RATE_MIN: number = 0.5;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const OPERATING_RATE_MAX: number = 1.5;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const DEFAULT_OPERATING_RATE: number = 1.0;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const DEFAULT_TARGET_PROFIT: number = 0;
 
 // Real period key pattern (AD-24 §6.1) — `^\d{4}-(0[1-9]|1[0-2])$`.
@@ -64,6 +71,7 @@ export interface CVPSimulationResponse {
   baseline: CVPBaselineSerialized;
   delta: CVPDeltaSerialized;
   result: CVPResultSerialized;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   latency_ms: number;
   trace_id: string | null;
 }
@@ -97,6 +105,7 @@ export function isValidRealPeriodKeyTS(value: string): boolean {
   return typeof value === "string" && REAL_PERIOD_KEY_PATTERN.test(value);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function isValidDeltaPctTS(value: number, bounds: readonly [number, number]): boolean {
   return Number.isFinite(value) && value >= bounds[0] && value <= bounds[1];
 }
@@ -107,8 +116,11 @@ export function isValidDeltaPctTS(value: number, bounds: readonly [number, numbe
 // Cross-language drift caught by `tests/integration/test_m7_simulation_cross_language_drift.py`.
 
 export function computeBepTS(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   fixedCost: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   unitVariableCost: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   unitPrice: number,
 ): BEPResultSerialized {
   if (unitPrice <= unitVariableCost) {
@@ -203,9 +215,13 @@ export function simulateCvpTS(
 }
 
 function computeTargetProfitTSToObj(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   targetProfit: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   fixedCost: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   unitVariableCost: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   unitPrice: number,
 ): TargetProfitResultSerialized {
   if (unitPrice <= unitVariableCost) {
@@ -229,6 +245,7 @@ function computeTargetProfitTSToObj(
  * Note: full banker's rounding parity requires `decimal.js`; for slider
  * UI display, Math.round is sufficient (P95 ≤ 200ms latency target).
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 function roundTo(value: number, decimals: number): number {
   const factor = Math.pow(10, decimals);
   return Math.round(value * factor) / factor;

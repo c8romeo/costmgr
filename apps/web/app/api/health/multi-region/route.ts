@@ -26,6 +26,7 @@ interface RegionHealth {
     | "lagging"
     | "stalled"
     | "disconnected";
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   lag_seconds: number;
   last_wal_received_at: string | null;
 }

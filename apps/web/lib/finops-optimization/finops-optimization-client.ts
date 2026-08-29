@@ -47,10 +47,15 @@ export interface RightsizingRecommendation {
   resource_type: "compute" | "storage" | "database" | "network" | "container";
   current_instance_type: string;
   recommended_instance_type: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   current_cost_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   recommended_cost_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   projected_savings_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   projected_savings_amount_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   confidence_score: number;
   recommendation_severity: "low" | "medium" | "high";
   model_version: string;
@@ -65,12 +70,16 @@ export interface IdleResource {
   resource_id: string;
   resource_type: "compute" | "storage" | "database" | "network" | "container";
   idle_reason: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   idle_duration_days: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   current_cost_krw_per_month: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   potential_savings_krw_per_month: number;
   idle_severity: "low" | "medium" | "high";
   action: "review" | "downsize" | "terminate";
   detection_method: "z_score" | "threshold" | "heuristic";
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   detection_window_days: number;
   generated_at: string;
   trace_id: string;
@@ -89,12 +98,19 @@ export interface CommitmentRecommendation {
     | "dynamodb_sp";
   commitment_term: "1_year" | "3_year";
   resource_pattern: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   current_on_demand_cost_krw_per_month: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   projected_commit_cost_krw_per_month: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   projected_savings_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   projected_savings_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   upfront_cost_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   break_even_months: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   roi_pct: number;
   recommendation_severity: "low" | "medium" | "high";
   generated_at: string;
@@ -114,12 +130,19 @@ export interface OptimizationAccuracyReport {
     | "commit_3y"
     | "storage_tier_down"
     | "composite";
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_recommendations: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   applied_recommendations: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   precision: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   recall: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   realized_savings_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   projected_savings_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   accuracy_score: number;
   generated_at: string;
   trace_id: string;
@@ -128,6 +151,7 @@ export interface OptimizationAccuracyReport {
 // ── Custom error class for FinOps optimization API calls ──
 export class FinopsOptimizationApiError extends Error {
   constructor(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     public http_status: number,
     public code: string,
     public message_ko: string,

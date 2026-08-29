@@ -45,6 +45,7 @@ export interface ChaosExperiment {
   fault_type: ChaosFaultType;
   blast_radius: ChaosBlastRadius;
   region: ChaosRegion;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   duration_seconds: number;
   intensity: ChaosIntensity;
   status: ChaosStatus;
@@ -65,16 +66,19 @@ export interface ChaosTriggerRequest {
   fault_type: ChaosFaultType;
   blast_radius: ChaosBlastRadius;
   region: ChaosRegion;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   duration_seconds: number;
   intensity: ChaosIntensity;
   dry_run: boolean;
 }
 
 export class ChaosExperimentApiError extends Error {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   readonly status: number;
   readonly traceId: string | null;
   constructor(
     message: string,
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     status: number,
     traceId: string | null = null,
   ) {

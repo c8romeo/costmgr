@@ -37,6 +37,7 @@ export type RetentionClass = "admin" | "auth" | "data" | "security";
 export interface RetentionPolicy {
   tenant_id: string;
   action_class: RetentionClass;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   days: number;
   archive: boolean;
   mask_pii: boolean;
@@ -44,13 +45,16 @@ export interface RetentionPolicy {
 
 export interface PurgePreviewResult {
   action_class: RetentionClass;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   days: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   would_purge_count: number;
   dry_run: true;
   trace_id: string;
 }
 
 export interface ErasureResult {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   erased_count: number;
   trace_id: string;
   scope: "all" | "actor" | "tenant";
@@ -79,10 +83,12 @@ class AuditLogRetentionApiError extends Error {
   code: string;
   details: Record<string, unknown>;
   trace_id: string | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   status: number;
   message_ko: string;
 
   constructor(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     status: number,
     payload: AuditLogRetentionApiErrorEnvelope | { detail?: string },
   ) {

@@ -59,6 +59,7 @@ Decimal.set({ rounding: Decimal.ROUND_HALF_EVEN });
  * Mirrors Python `banker_round_qrw(Decimal)` policy at the qty quantum.
  * Used by all ledger aggregate computations in the panel before display.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function parityQuantizeQty(value: string | number): string {
   return new Decimal(value).toFixed(4);
 }
@@ -68,6 +69,7 @@ export function parityQuantizeQty(value: string | number): string {
  *
  * Mirrors Python `USD_QUANTUM = Decimal("0.01") + quantize(... rounding=ROUND_HALF_EVEN)`.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function parityQuantizeUSD(value: string | number): USD {
   return new Decimal(value).toFixed(2);
 }

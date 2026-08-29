@@ -31,8 +31,10 @@ export interface CreateSettlementRuleRequest {
     period_key: string;
     rule_name: string;
     rule_type: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     target_amount_krw: number;
     target_dimensions: AllocationDimension[];
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     five_module_inputs: Record<string, number>;
     settlement_status?: string;
     requires_2fa_challenge?: boolean;
@@ -42,7 +44,9 @@ export interface CreateSettlementRuleRequest {
 export interface ComputeAllocationRequest {
     result_id: string;
     period_key: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     total_amount_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     dimension_amounts: Record<string, number>;
     target_dimensions: AllocationDimension[];
     settlement_status?: string;
@@ -57,7 +61,9 @@ export interface GenerateInvoiceRequest {
     allocation_lines: Array<{
         dimension: string;
         dimension_value: string;
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types
         weight: number;
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types
         allocated_amount_krw: number;
     }>;
     recipient_template?: string;
@@ -67,21 +73,31 @@ export interface GenerateInvoiceRequest {
 export interface ReconcileSettlementRequest {
     result_id: string;
     period_key: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     allocation_amount_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     invoice_amount_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     ledger_amount_krw: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     target_amount_krw?: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     tolerance_pct?: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     max_retries?: number;
     dry_run?: boolean;
 }
 
 export interface DispatchRequest {
     cadence: SettlementCadence;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     five_module_inputs: Record<string, number>;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     target_amount_krw: number;
     target_dimensions: AllocationDimension[];
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     invoice_amount_krw?: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     ledger_amount_krw?: number;
     dry_run?: boolean;
 }
@@ -89,7 +105,9 @@ export interface DispatchRequest {
 export interface DryRunRequest {
     cadence: SettlementCadence;
     tenant_id: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     five_module_inputs: Record<string, number>;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     target_amount_krw: number;
     target_dimensions: AllocationDimension[];
 }

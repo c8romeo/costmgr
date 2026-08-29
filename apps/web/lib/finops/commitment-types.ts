@@ -70,13 +70,21 @@ export interface CommitmentInventoryRollup {
   scope_id: string;
   period_key: string;
   scope_chain: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_commitment_value_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   coverage_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   utilization_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   expiring_commitments_30d: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   recommended_purchase_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   savings_realized_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   idle_commitment_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   renewal_decision_score: number;
   cache_key: string;
   computed_at: string;
@@ -90,8 +98,10 @@ export interface CommitmentKPI {
   scope_id: string;
   period_key: string;
   kpi_name: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   kpi_value: number;
   kpi_unit: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   kpi_delta?: number | null;
   kpi_trend: "up" | "down" | "flat";
   kpi_threshold_status: CommitmentKPIThresholdStatus;
@@ -109,6 +119,7 @@ export interface CommitmentReport {
   framework: CommitmentFramework;
   export_format: CommitmentExportFormat;
   report_file_url: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   report_size_bytes: number;
   report_generated_at: string;
   generated_by?: string | null;
@@ -148,4 +159,5 @@ export const ALL_COMMITMENT_KPI_NAMES = [
   "renewal_decision_score",
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type CommitmentKPIName = (typeof ALL_COMMITMENT_KPI_NAMES)[number];

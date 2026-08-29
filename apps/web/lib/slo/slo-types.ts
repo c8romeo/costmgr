@@ -36,8 +36,10 @@ export interface SloDefinition {
   tenant_id: string;
   service: string;
   sli_type: SliType;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   objective: number;
   window: SliWindow;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   burn_rate_threshold: number;
   error_budget_policy: ErrorBudgetPolicy;
   region: SloRegion;
@@ -53,8 +55,11 @@ export interface SloDefinition {
 export interface ErrorBudget {
   slo_id: string;
   tenant_id: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   budget_total_minutes: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   budget_consumed_minutes: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   budget_remaining_minutes: number;
   freeze_triggered: boolean;
   exhaustion_predicted_at: string | null;

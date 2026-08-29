@@ -44,6 +44,7 @@ export const CLOSE_SEQUENCE_STAGES = [
   "confirmed",
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type CloseSequenceStage = (typeof CLOSE_SEQUENCE_STAGES)[number];
 
 // ── Step timestamp attribute pairing (PRD §F11.1) ───────────────
@@ -138,6 +139,7 @@ export const AD6_LOCKED_TABLES = [
   "fiscal_period_snapshots",
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type TargetTable = (typeof AD6_LOCKED_TABLES)[number];
 
 export const REVERSAL_TARGET_EVENT_TYPES = [
@@ -146,6 +148,7 @@ export const REVERSAL_TARGET_EVENT_TYPES = [
 ] as const;
 
 export type ReversalTargetEventType =
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   (typeof REVERSAL_TARGET_EVENT_TYPES)[number];
 
 // ── Ad6InsertGuardResult (mirror of Python NamedTuple) ───────────

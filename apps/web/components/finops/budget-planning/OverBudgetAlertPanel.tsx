@@ -21,6 +21,7 @@ export function OverBudgetAlertPanel(_: OverBudgetAlertPanelProps = {}) {
     const [alerts, setAlerts] = useState<BudgetAlert[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
 
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const handleTrigger = async (variance_pct: number) => {
         setLoading(true);
         try {

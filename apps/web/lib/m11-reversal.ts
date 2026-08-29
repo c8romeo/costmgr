@@ -39,6 +39,7 @@ export const REVERSAL_EVENT_TYPES = [
   REVERSAL_CORRECTED_EVENT_TYPE,
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type ReversalEventType = (typeof REVERSAL_EVENT_TYPES)[number];
 
 // ── Period status (AD-6 close lock — monthly_input_periods.status) ──
@@ -54,6 +55,7 @@ export const PERIOD_STATUSES = [
   PERIOD_STATUS_LOCKED,
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type PeriodStatus = (typeof PERIOD_STATUSES)[number];
 
 // ── ReversalRequestState (frontend mirror of authorize_reversal result) ──

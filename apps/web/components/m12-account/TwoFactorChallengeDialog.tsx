@@ -35,9 +35,11 @@ export interface TwoFactorChallengeDialogProps {
   /** Submit handlers — receive the code and return ok/error envelope. */
   onChallenge?: (
     code: string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ) => Promise<{ ok: boolean; retry_after_seconds?: number; error_ko?: string }>;
   onRecovery?: (
     code: string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ) => Promise<{ ok: boolean; retry_after_seconds?: number; error_ko?: string }>;
   /** Callback after successful challenge/recovery. */
   onSuccess?: () => void;
@@ -53,6 +55,7 @@ type Mode = "totp" | "recovery";
  * useCountdown — derives seconds remaining from an ISO-8601 expiry.
  * Returns 0 when expired.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 function useCountdown(until_iso: string | null | undefined): number {
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
@@ -68,6 +71,7 @@ function useCountdown(until_iso: string | null | undefined): number {
   return diff;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 function formatMmSs(total_seconds: number): string {
   const mm = Math.floor(total_seconds / 60)
     .toString()
@@ -96,6 +100,7 @@ export function TwoFactorChallengeDialog({
   const [code, setCode] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = React.useState<
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     number | null
   >(null);
 

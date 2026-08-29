@@ -133,6 +133,7 @@ export interface CalcAbcResponse {
   engine_type: "abc";
   tenant_id: string;
   period_key: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   baseline_revision: number;
   allocation_outcome: AllocationOutcomeABC;
   snapshot_id: string;
@@ -165,11 +166,17 @@ export interface CalcResponse {
   // M3 orchestrator's `_resolve_engine_type` discriminates.
   tenant_id: string;
   period_key: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   baseline_revision: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   material_cost: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   labor_cost: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   overhead_cost: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   manufacturing_cost: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   inventory_adjustment: number;
   result_hash: string;
   state: "verified";

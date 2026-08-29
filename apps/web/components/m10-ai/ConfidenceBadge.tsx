@@ -21,6 +21,7 @@
 import { MONTHLY_EXTRACT_CONFIDENCE_THRESHOLD } from "@/lib/ai-extract";
 
 interface ConfidenceBadgeProps {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   confidence: number;
   locale?: "ko-KR" | "en-US";
 }
@@ -28,6 +29,7 @@ interface ConfidenceBadgeProps {
 const HIGH_CONFIDENCE_THRESHOLD = 0.85;
 
 function classifyConfidence(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   confidence: number,
 ): "high" | "medium" | "low" {
   if (confidence >= HIGH_CONFIDENCE_THRESHOLD) return "high";

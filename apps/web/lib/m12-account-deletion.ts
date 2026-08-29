@@ -211,6 +211,7 @@ export function getStatusLabel(status: TenantDeletionStatusValue): string {
  * Compute the days-remaining-until-hard-delete for a pending deletion.
  * Returns null if not pending_deletion or anchor is null.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function daysUntilHardDelete(scheduledForIso: string | null): number | null {
   if (!scheduledForIso) {
     return null;

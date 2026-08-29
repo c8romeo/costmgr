@@ -132,6 +132,7 @@ function _registerWebVitalsHandlers(tracer: Tracer): void {
 export function recordWebVital(
   tracer: Tracer,
   name: 'lcp' | 'fid' | 'cls' | 'inp' | 'ttfb',
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   value: number,
 ): void {
   const span = tracer.startSpan(`web_vital.${name}`);
@@ -142,9 +143,11 @@ export function recordWebVital(
 
 function _ratingFor(
   name: 'lcp' | 'fid' | 'cls' | 'inp' | 'ttfb',
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   value: number,
 ): 'good' | 'needs-improvement' | 'poor' {
   // Web Vitals thresholds (https://web.dev/vitals/).
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const thresholds: Record<string, [number, number]> = {
     lcp: [2500, 4000],
     fid: [100, 300],
@@ -255,6 +258,7 @@ function _getNoopTracer(): Tracer {
  */
 export function recordBrowserError(
   error: Error,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   context_: Record<string, string | number | boolean>,
 ): void {
   const tracer = getBrowserTracer();

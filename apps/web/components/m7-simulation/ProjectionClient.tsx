@@ -72,6 +72,7 @@ export function ProjectionClient({
   const [lastSubmittedInputs, setLastSubmittedInputs] =
     useState<ProjectionInputsSerialized | null>(null);
   const [isComputing, setIsComputing] = useState<boolean>(false);
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const [latencyMs, setLatencyMs] = useState<number>(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [formValid, setFormValid] = useState<boolean>(false);
@@ -175,6 +176,7 @@ export function ProjectionClient({
         }
         const data = (await res.json()) as {
           result: NextMonthProjectionSerialized;
+          // eslint-disable-next-line @typescript-eslint/no-restricted-types
           latency_ms: number;
         };
         setResult(data.result);

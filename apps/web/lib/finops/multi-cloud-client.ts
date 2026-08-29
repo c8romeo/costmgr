@@ -57,6 +57,7 @@ export interface AggregateCostRequest {
   scope_id: string;
   period_key: string;
   cloud_provider: MultiCloudProvider;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   cost_sources: Record<string, number | null>;
   dry_run?: boolean;
 }

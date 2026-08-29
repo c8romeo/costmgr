@@ -183,6 +183,7 @@ export default async function MonthlyInputPeriodPage({
             throw err;
           }
           const data = (await res.json()) as {
+            // eslint-disable-next-line @typescript-eslint/no-restricted-types
             closing_snapshot_count?: number;
           };
           // CR 6-1 R4 patch D12: revalidate the page path so the

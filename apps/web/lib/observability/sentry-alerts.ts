@@ -30,6 +30,7 @@ export function captureAlert(payload: AlertPayload): void {
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const ALERT_THRESHOLDS: Readonly<Record<AlertRule, { threshold: number; windowSec: number }>> = {
   "5xx_error_rate": { threshold: 0.01, windowSec: 300 },
   auth_error_rate: { threshold: 0.05, windowSec: 300 },

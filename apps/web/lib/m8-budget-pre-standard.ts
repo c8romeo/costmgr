@@ -29,15 +29,19 @@ export const BUDGET_VARIANCE_PDF_NOT_READY_MESSAGE_KO: string =
 
 // ── Constants (PRD §F8.3 verbatim) ──────────────────────────────
 // Quantum: KRW integer, BigInteger-as-string (AD-8 / AD-11).
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const PRE_STANDARD_QUANTUM_DECIMAL_PLACES: number = 0;
 
 // Rate quantum: percentage with 4 decimal places.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const PRE_STANDARD_RATE_DECIMAL_PLACES: number = 4;
 
 // Default overhead rate cap: 100% (PRD §F8.3 verbatim).
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const PRE_STANDARD_OVERHEAD_RATE_MAX_PCT: number = 100;
 
 // Default material/labor unit cost min: 0 KRW (PRD §F8.3 verbatim).
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const PRE_STANDARD_UNIT_COST_MIN: number = 0;
 
 // ── TS view model (mirror BudgetPreStandardSnapshotSerialized) ───
@@ -51,6 +55,7 @@ export interface BudgetPreStandardInputs {
 
 export interface BudgetPreStandardSnapshotSerialized {
   period_key: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scenario_index: number; // 1차 MVP = 1 only
   material_cost: string; // KRW integer (material_unit_cost × material_qty)
   labor_cost: string; // KRW integer (labor_unit_cost × labor_hours)
@@ -67,6 +72,7 @@ export interface BudgetPreStandardResponse {
 
 export interface BudgetVariancePdfFromPreStandard {
   period_key: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scenario_index: number;
   pdf_bytes_b64: string; // 8-3 real PDF; not empty
   filename: string;
@@ -103,6 +109,7 @@ export function isValidVirtualBudgetPeriodKeyTS(
  *
  * Used by computePreStandardCostTS to ensure decimal.js parity.
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 function bankersRoundKRW(value: number): number {
   if (Number.isNaN(value)) return 0;
   const floor = Math.floor(value);

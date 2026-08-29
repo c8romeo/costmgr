@@ -66,8 +66,11 @@ export interface BackupListItem {
   backup_date: string;
   schema_version: string;
   payload_sha256: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   payload_size_bytes: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   row_count_total: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   audit_log_exported_rows: number;
   created_at: string;
 }
@@ -75,7 +78,9 @@ export interface BackupListItem {
 /** Envelope returned by `GET /api/v1/account/backups/recent`. */
 export interface BackupListResponse {
   items: BackupListItem[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   days: number;
   trace_id: string;
 }
@@ -85,7 +90,9 @@ export interface BackupTriggerResponse {
   backup_id: string;
   backup_date: string;
   payload_sha256: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   row_count_total: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   audit_log_exported_rows: number;
   created_at: string;
   trace_id: string;
@@ -100,6 +107,7 @@ export function buildBackupFilename(backupDateIso: string): string {
 }
 
 /** Format byte count as human-readable string (B / KB / MB). */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

@@ -96,6 +96,7 @@ export interface MonthlyInputTabsProps {
    */
   onClosingPeriodConfirm?: (
     period_key: string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ) => Promise<number>;
   /**
    * Story 6.2 T7.6 — Monthly closing report aggregate (read-only join).

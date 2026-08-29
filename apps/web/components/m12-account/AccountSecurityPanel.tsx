@@ -36,6 +36,7 @@ export interface AccountSecurityPanelProps {
   /** TOTP enabled_at (ISO-8601), null when disabled. */
   totp_enabled_at: string | null;
   /** Recovery codes remaining, null when disabled. */
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   recovery_codes_remaining: number | null;
   /** Whether the user is currently locked out. */
   locked_out: boolean;
@@ -135,12 +136,14 @@ export function AccountSecurityPanel(props: AccountSecurityPanelProps): React.Re
       }
       const data = (await res.json().catch(() => ({}))) as {
         message_ko?: string;
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types
         retry_after_seconds?: number;
       };
       return {
         ok: false,
         error_ko: data.message_ko ?? "인증 실패",
         retry_after_seconds: data.retry_after_seconds,
+      // eslint-disable-next-line @typescript-eslint/no-restricted-types
       } as { ok: boolean; retry_after_seconds?: number; error_ko?: string };
     } catch {
       return { ok: false, error_ko: "네트워크 오류" };

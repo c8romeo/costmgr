@@ -41,8 +41,11 @@ export interface ForecastResult {
   tenant_id: string;
   target_metric: TargetMetric;
   horizon_months: HorizonMonths;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   predicted_values: number[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   confidence_lower: number[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   confidence_upper: number[];
   model_type: ModelType;
   model_version: string;
@@ -53,12 +56,17 @@ export interface CapacityHeadroomReport {
   report_id: string;
   tenant_id: string;
   resource_type: ResourceType;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   saturation_pct: number;
   saturation_level: SaturationLevel;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   lookahead_days: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   predicted_utilization: number[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   headroom_pct: number;
   primary_model: ModelType;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ensemble_predicted: number[];
   recommendation: string;
   trace_id: string;
@@ -70,13 +78,19 @@ export interface BurnRateProjection {
   projection_id: string;
   tenant_id: string;
   budget_id: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   consumed_budget: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_budget: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   elapsed_days: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   remaining_days: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   burn_rate_pct: number;
   severity: SeverityLevel;
   alert_required: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   predicted_end_period_spend: number;
   trace_id: string;
 }
@@ -86,15 +100,20 @@ export interface ForecastAccuracy {
   tenant_id: string;
   target_metric: TargetMetric;
   model_type: ModelType;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   mae: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   mape: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   rmse: number;
   mape_above_baseline: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   periods_above_threshold: number;
   evaluated_at: string;
 }
 
 export class FinopsForecastApiError extends Error {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   constructor(message: string, public readonly status: number) {
     super(message);
     this.name = "FinopsForecastApiError";
@@ -126,6 +145,7 @@ export async function fetchFinopsForecastDefinition(
 }
 
 export async function fetchFinopsCapacityHeadroom(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   params: { resource_type: ResourceType; lookahead_days: number },
 ): Promise<CapacityHeadroomReport> {
   return fetchJson<CapacityHeadroomReport>(

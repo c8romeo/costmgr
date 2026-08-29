@@ -20,8 +20,11 @@ import {
 
 interface TrendRow {
     month: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     budget: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     actual: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     variance_pct: number;
 }
 

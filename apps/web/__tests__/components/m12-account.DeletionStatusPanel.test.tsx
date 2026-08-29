@@ -20,6 +20,7 @@ import koKR from "../../messages/ko-KR.json";
 
 vi.mock("next-intl", () => ({
   useTranslations: (namespace: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     return (key: string, vars?: Record<string, string | number>) => {
       const messages = (koKR as unknown as Record<string, Record<string, string>>)[namespace];
       let template = messages?.[key] ?? `[${namespace}.${key}]`;

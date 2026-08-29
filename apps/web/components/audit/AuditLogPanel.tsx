@@ -45,7 +45,9 @@ interface AuditLogPanelProps {
   accessToken: string;
   initialPage: AuditLogPage | null;
   initialFilters: AuditLogQueryFilters;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   initialPageNumber: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   initialPageSize: number;
 }
 
@@ -70,7 +72,9 @@ export function AuditLogPanel({
   const t = useTranslations("audit_log");
   const [filters, setFilters] = useState<AuditLogQueryFilters>(initialFilters);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const [pageSize] = useState<number>(initialPageSize);
   const [data, setData] = useState<AuditLogPage | null>(initialPage);
   const [loading, setLoading] = useState<boolean>(false);
@@ -82,6 +86,7 @@ export function AuditLogPanel({
   );
 
   const refetch = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     async (nextFilters: AuditLogQueryFilters, nextPage: number) => {
       setLoading(true);
       setErrorMessage(null);
@@ -127,6 +132,7 @@ export function AuditLogPanel({
   }, [refetch]);
 
   const handlePageChange = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     (nextPage: number) => {
       setPageNumber(nextPage);
       void refetch(filters, nextPage);

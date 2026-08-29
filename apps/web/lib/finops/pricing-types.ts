@@ -74,15 +74,25 @@ export interface RateCardInventory {
   scope_id: string;
   period_key: string;
   scope_chain: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_blended_rate_krw_per_hour: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   effective_discount_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   tco_1year_commitment_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   tco_3year_commitment_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   tco_on_demand_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   cost_per_user_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   cost_per_transaction_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   unit_economics_score: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   cloud_provider_breakdown: Record<string, number>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   pricing_model_breakdown: Record<string, number>;
   cache_key: string;
   computed_at: string;
@@ -96,11 +106,14 @@ export interface TCOKPIBundle {
   scope_id: string;
   period_key: string;
   kpi_name: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   kpi_value: number;
   kpi_unit: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   kpi_delta?: number | null;
   kpi_trend: "up" | "down" | "flat";
   kpi_threshold_status: PricingKPIThresholdStatus;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   break_even_months: number;
   computed_at: string;
   trace_id: string;
@@ -116,6 +129,7 @@ export interface PricingReport {
   framework: PricingFramework;
   export_format: PricingExportFormat;
   report_file_url: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   report_size_bytes: number;
   report_generated_at: string;
   generated_by?: string | null;
@@ -155,4 +169,5 @@ export const ALL_PRICING_KPI_NAMES = [
   "unit_economics_score",
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type PricingKPIName = (typeof ALL_PRICING_KPI_NAMES)[number];

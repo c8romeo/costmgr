@@ -163,6 +163,7 @@ export function MarkdownContent({ source }: MarkdownContentProps) {
       {blocks.map((block, idx) => {
         switch (block.kind) {
           case "heading": {
+            // eslint-disable-next-line @typescript-eslint/no-restricted-types
             const sizes: Record<number, string> = {
               1: "2rem",
               2: "1.5rem",

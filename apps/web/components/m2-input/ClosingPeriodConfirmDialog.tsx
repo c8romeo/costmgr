@@ -47,6 +47,7 @@ export interface ClosingPeriodConfirmDialogProps {
   /** Period key (e.g. "2026-07"). */
   period_key: string;
   /** Click handler that triggers the POST. Returns the confirmed snapshot count. */
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   onConfirm?: (period_key: string) => Promise<number>;
   /** Optional className override. */
   className?: string;

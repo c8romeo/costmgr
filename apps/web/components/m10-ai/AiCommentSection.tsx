@@ -34,14 +34,17 @@ interface AiCommentSectionProps {
   accessToken?: string;
   initialPeriodKey?: string;
   initialCalculationHash?: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   onCounterTotal?: (n: number) => void;
 }
 
 type LoadState =
   | { kind: "idle" }
   | { kind: "loading" }
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   | { kind: "success"; comments: AICommentEntry[]; counterTotal: number }
   | { kind: "empty" }
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   | { kind: "warning_source_kind"; unknownCount: number }
   | { kind: "error"; message_ko: string; errorCode: string };
 

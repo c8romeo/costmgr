@@ -59,7 +59,9 @@ interface FormErrors {
 type ExtractionState =
   | { kind: "idle" }
   | { kind: "loading" }
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   | { kind: "success"; drafts: MonthlyDraftEntry[]; lowConfidenceCount: number }
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   | { kind: "low_confidence_warning"; drafts: MonthlyDraftEntry[]; lowConfidenceCount: number }
   | { kind: "error"; message_ko: string; error_code: string };
 

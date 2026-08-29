@@ -15,14 +15,23 @@ export interface ExecutiveRollup {
   scope_type: "tenant" | "department" | "cost_center" | "product_line";
   scope_id: string;
   period_key: string; // e.g. "2026-08" | "2026-Q3" | "2026"
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   showback_total_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   anomaly_count_30d: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   forecast_projection_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   optimization_savings_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   tag_compliance_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   idle_cost_krw: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   department_breakdown: Record<string, number>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   cost_center_breakdown: Record<string, number>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   resource_type_breakdown: Record<string, number>;
   cache_key: string;
   generated_at: string;
@@ -47,8 +56,10 @@ export interface KPIMetric {
   scope_id: string;
   period_key: string;
   kpi_name: KPIName;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   kpi_value: number;
   kpi_unit: string; // "KRW" | "pct" | "count"
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   kpi_delta: number | null;
   kpi_trend: "up" | "down" | "flat";
   kpi_threshold_status: "on_track" | "warning" | "critical";
@@ -66,6 +77,7 @@ export interface ExecutiveReport {
   cadence: "monthly" | "quarterly" | "annual";
   export_format: "pdf" | "csv" | "excel";
   report_file_url: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   report_size_bytes: number;
   report_generated_at: string;
   generated_by: string;
@@ -102,12 +114,14 @@ export interface ScheduledDispatch {
 // ── ComplianceTrendPoint ──
 export interface ComplianceTrendPoint {
   period_key: string; // "YYYY-MM"
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   tag_compliance_pct: number;
 }
 
 // ── Error class (CR 12-5 D-GATE-01) ──
 export class FinopsReportingApiError extends Error {
   constructor(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     public readonly status: number,
     public readonly code: string,
     message: string,

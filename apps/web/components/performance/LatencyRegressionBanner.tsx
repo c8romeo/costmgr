@@ -6,8 +6,11 @@
 // delta is at or below the threshold so the banner is not visible.
 
 interface Props {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   actual_p99_ms: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   baseline_p99_ms: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   threshold_pct: number;
   trace_id: string;
 }

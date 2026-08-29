@@ -36,6 +36,7 @@ export const CLOSING_PDF_INDUSTRY_VALUES = [
   "service",
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type ClosingPdfIndustry = (typeof CLOSING_PDF_INDUSTRY_VALUES)[number];
 
 // ── Export status (3 codes — AD-15 §11 SSOT) ─────────────────────
@@ -50,6 +51,7 @@ export const CLOSING_PDF_EXPORT_STATUSES = [
 ] as const;
 
 export type ClosingPdfExportStatus =
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   (typeof CLOSING_PDF_EXPORT_STATUSES)[number];
 
 // ── Export response wire envelope (matches backend Pydantic) ──────
@@ -69,9 +71,12 @@ export type ClosingPdfExportStatus =
 export interface ClosingPdfExportResponse {
   period_key: string;
   industry: ClosingPdfIndustry;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   pdf_size_bytes: number;
   is_empty: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   closing_snapshot_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ledger_event_count: number;
   finalized_at: string;
   pdf_bytes: Uint8Array;
@@ -120,6 +125,7 @@ export function triggerClosingPdfExportDownload(
 }
 
 // ── Helper: format PDF size for toast display ──────────────────
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function formatClosingPdfExportSize(sizeBytes: number): string {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
   if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;

@@ -40,6 +40,7 @@ export function BudgetAllocationBreakdownPanel() {
                                 <Cell key={entry.name} fill={entry.color} />
                             ))}
                         </Pie>
+                        // eslint-disable-next-line @typescript-eslint/no-restricted-types
                         <Tooltip formatter={(value: number) => `${(value * 100).toFixed(0)}%`} />
                         <Legend />
                     </PieChart>

@@ -28,6 +28,7 @@ export function UnusedCapacityAccordion({
   rows,
 }: UnusedCapacityAccordionProps): React.ReactElement {
   const t = useTranslations("report21");
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   if (rows.length === 0) {

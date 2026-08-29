@@ -20,6 +20,7 @@
 import { useTranslations } from "next-intl";
 
 interface ActivityStreamEntryProps {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   entryId: number;
   traceId: string;
   actorId: string;

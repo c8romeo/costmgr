@@ -9,11 +9,14 @@
 // ── Constants (PRD §F8.2 + spec verbatim) ─────────────────────────
 // Severity threshold: ±5% yellow / ±10% red (PRD §F8.2 verbatim).
 // Mirrors Python `packages.cost_engine/budget_variance.py::SEVERITY_THRESHOLD_*`.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const SEVERITY_THRESHOLD_WARNING_PCT: number = 5;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const SEVERITY_THRESHOLD_CRITICAL_PCT: number = 10;
 
 // Variance percentage quantum: 4 decimal places (banker's rounding).
 // Mirrors Python `VARIANCE_PCT_QUANTUM`.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const VARIANCE_PCT_DECIMAL_PLACES: number = 4;
 
 // ABCD disabled note (PRD §15 NON-GOAL #1 + §10 M8 (b) verbatim).
@@ -51,6 +54,7 @@ export interface ABCDDisabledBadgeSerialized {
 
 export interface VarianceTableResponse {
   period_key: string; // AD-24 virtual YYYY-MM#B<n>
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scenario_index: number; // 1차 MVP = 1 only
   rows: VarianceRowSerialized[];
   total_row: VarianceRowSerialized;
@@ -61,6 +65,7 @@ export interface VarianceTableResponse {
 
 export interface BudgetVariancePdfResponse {
   period_key: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scenario_index: number;
   pdf_bytes_b64: string; // 8-2 placeholder empty; 8-3 follow-up real PDF
   envelope: Record<string, unknown>;

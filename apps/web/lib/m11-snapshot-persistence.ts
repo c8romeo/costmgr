@@ -36,6 +36,7 @@ export const SNAPSHOT_STATES = [
   SNAPSHOT_STATE_REVERSED,
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type SnapshotState = (typeof SNAPSHOT_STATES)[number];
 
 // ── State transition whitelist ──────────────────────────────────

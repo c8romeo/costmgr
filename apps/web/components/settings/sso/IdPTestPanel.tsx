@@ -39,6 +39,7 @@ export function IdPTestPanel(props: IdPTestPanelProps): React.ReactElement {
   const [running, setRunning] = React.useState(false);
   const [result, setResult] = React.useState<{
     passed: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     steps: { step: number; name: string; passed: boolean; detail: string | null }[];
     metadata: {
       entity_id: string;

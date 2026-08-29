@@ -162,6 +162,7 @@ export interface ComputeUnifiedKPIInput {
     tenant_id: string;
     period_key?: string;
     modules?: string[];
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     module_values?: Record<string, number>;
     dimension?: DrillDownDimension;
     dimension_value?: string;

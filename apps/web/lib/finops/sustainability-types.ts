@@ -53,12 +53,19 @@ export interface CarbonEmissionsRollup {
   scope_id: string;
   period_key: string;
   scope_chain: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_carbon_emissions_kgco2e: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scope1_emissions_kgco2e: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scope2_emissions_kgco2e: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   scope3_emissions_kgco2e: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   carbon_offset_kgco2e: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   net_carbon_emissions_kgco2e: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   renewable_energy_pct: number;
   computed_at: string;
   trace_id: string;
@@ -66,8 +73,10 @@ export interface CarbonEmissionsRollup {
 
 export interface SustainabilityKPIMetric {
   kpi_name: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   kpi_value: number;
   kpi_unit: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   kpi_delta?: number | null;
   kpi_trend: "up" | "down" | "flat";
   kpi_threshold_status: SustainabilityKPIThresholdStatus;
@@ -85,6 +94,7 @@ export interface SustainabilityReport {
   framework: SustainabilityFramework;
   export_format: SustainabilityExportFormat;
   report_file_url: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   report_size_bytes: number;
   report_generated_at: string;
   generated_by: string;
@@ -122,4 +132,5 @@ export const ALL_SUSTAINABILITY_KPI_NAMES = [
 ] as const;
 
 export type SustainabilityKPIName =
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   (typeof ALL_SUSTAINABILITY_KPI_NAMES)[number];

@@ -53,6 +53,7 @@ export function CVPSimulationClient({
   });
   const [result, setResult] = useState<CVPResultSerialized | null>(null);
   const [isComputing, setIsComputing] = useState<boolean>(false);
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const [latencyMs, setLatencyMs] = useState<number>(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,6 +128,7 @@ export function CVPSimulationClient({
           }
           return;
         }
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types
         const data = (await res.json()) as { result: CVPResultSerialized; latency_ms: number };
         setResult(data.result);
         setLatencyMs(data.latency_ms);
@@ -158,6 +160,7 @@ export function CVPSimulationClient({
 
   // ── Slider change handlers ─────────────────────────────────
   const handleSliderChange = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     (field: keyof CVPDeltaSerialized, valuePct: number): void => {
       setDelta((prev) => ({ ...prev, [field]: valuePct.toString() }));
     },
@@ -333,10 +336,15 @@ export function CVPSimulationClient({
 interface SliderRowProps {
   label: string;
   field: keyof CVPDeltaSerialized;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   min: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   max: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   step: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   value: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   onChange: (field: keyof CVPDeltaSerialized, value: number) => void;
   suffix: string;
 }

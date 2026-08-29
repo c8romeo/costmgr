@@ -118,6 +118,7 @@ export async function signUpAndCreateTenant(args: SignUpArgs): Promise<SignUpRes
 
   // Step 2 — backend tenant creation.
   const accessToken = data.session.access_token;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const industry: (typeof INDOTRY_VALUES)[number] = "manufacturing"; // default; UI lets user change on /onboarding/industry
   try {
     const response = await fetch("/api/v1/onboarding/complete-signup", {

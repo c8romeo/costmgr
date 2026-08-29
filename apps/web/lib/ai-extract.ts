@@ -35,6 +35,7 @@ export interface MonthlyDraftEntry {
   value: string;
   confidence: string;
   target_table: "monthly_inputs";
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   evidence_page: number | null;
   requires_user_confirmation: boolean;
 }
@@ -44,6 +45,7 @@ export interface MonthlyExtractResponseSuccess {
   extraction_id: string;
   period_key: string;
   drafts: MonthlyDraftEntry[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   low_confidence_count: number;
 }
 

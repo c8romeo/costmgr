@@ -51,6 +51,7 @@ export interface IdPCreateRequest {
 }
 
 export interface IdPTestStep {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   step: number;
   name: string;
   passed: boolean;
@@ -88,10 +89,12 @@ class IdPAdminApiError extends Error {
   code: string;
   details: Record<string, unknown>;
   trace_id: string | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   status: number;
   /** Korean error message (CR 12-5 D-14 envelope field). */
   message_ko: string;
 
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   constructor(status: number, payload: IdPApiError | { detail?: string }) {
     const fallbackDetail = "detail" in payload ? payload.detail ?? "오류" : "오류";
     const messageKo =

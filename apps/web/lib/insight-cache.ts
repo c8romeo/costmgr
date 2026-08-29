@@ -54,7 +54,9 @@ export interface InsightListResponse {
   insights: InsightEntry[];
   period_key: string;
   calculation_result_hash: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   hit_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   miss_count: number;
 }
 

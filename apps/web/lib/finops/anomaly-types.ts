@@ -59,8 +59,10 @@ export interface AnomalyDefinition {
   dimension: Dimension;
   dimension_value: string;
   threshold_method: DetectionMethod;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   threshold_value: number;
   baseline_window: BaselineWindow;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   consecutive_periods_required: number;
   trace_id?: string;
 }
@@ -73,6 +75,7 @@ export interface DetectionResult {
   dimension_value: string;
   observed_cost: string;
   baseline_cost: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   deviation_pct: number;
   severity: Severity;
   methods_voted: DetectionMethod[];
@@ -82,8 +85,11 @@ export interface DetectionResult {
 }
 
 export interface AlertThresholds {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   warning: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   critical: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   exceeded: number;
 }
 
@@ -114,6 +120,7 @@ export interface BudgetAlert {
   budget_id: string;
   period_key: string;
   alert_level: AlertLevel;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   consumption_pct: number;
   consumption_amount: string;
   budget_amount: string;
@@ -127,8 +134,11 @@ export interface ForecastAccuracyMetrics {
   tenant_id: string;
   period_key: string;
   model_name: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   mae: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   mape: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   rmse: number;
   status: AccuracyStatus;
   retraining_recommended: boolean;

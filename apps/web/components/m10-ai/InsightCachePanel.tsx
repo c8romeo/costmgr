@@ -47,6 +47,7 @@ interface InsightCachePanelProps {
 type LoadState =
   | { kind: "idle" }
   | { kind: "loading" }
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   | { kind: "success"; entries: InsightEntry[]; periodKey: string; hitCount: number; missCount: number }
   | { kind: "empty"; periodKey: string }
   | { kind: "error"; message_ko: string; errorCode: string };

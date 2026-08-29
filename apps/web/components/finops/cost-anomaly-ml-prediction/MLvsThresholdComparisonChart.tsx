@@ -26,10 +26,15 @@ interface MLvsThresholdComparisonChartProps {
 
 interface ScoreRow {
     period: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     ml: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     z: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     iqr: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     ewma: number;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     iso: number;
 }
 

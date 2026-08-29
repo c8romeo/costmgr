@@ -14,12 +14,14 @@ export const QTY_QUANTUM = "0.0001" as const;
 
 // ── quantizeDecimal (banker's rounding parity helper) ──────────
 // Mirrors Python `Decimal.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)`.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function quantizeDecimal(value: string | number): string {
   return new Decimal(value).toFixed(4, Decimal.ROUND_HALF_EVEN);
 }
 
 // ── negateQty (sign-negating arithmetic — banker's rounding) ──
 // Mirrors Python `(-target.qty).quantize(QTY_QUANTUM, ROUND_HALF_EVEN)`.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function negateQty(targetQty: string | number): string {
   const negated = new Decimal(targetQty).negated();
   return negated.toFixed(4, Decimal.ROUND_HALF_EVEN);
@@ -27,6 +29,7 @@ export function negateQty(targetQty: string | number): string {
 
 // ── correctedQty (corrected row qty — banker's rounding) ──────
 // Mirrors Python `corrected_qty.quantize(QTY_QUANTUM, ROUND_HALF_EVEN)`.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function correctedQty(inputQty: string | number): string {
   return quantizeDecimal(inputQty);
 }

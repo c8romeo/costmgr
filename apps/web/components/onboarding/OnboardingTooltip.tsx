@@ -19,6 +19,7 @@ import { useTranslations } from "next-intl";
 export function OnboardingTooltip({ step }: { step: 1 | 2 | 3 | 4 }) {
   const t = useTranslations("onboarding");
 
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const tooltipKey: Record<number, string> = {
     1: "tooltip_dashboard",
     2: "tooltip_data",

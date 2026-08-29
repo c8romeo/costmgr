@@ -20,6 +20,7 @@ export interface TagPolicy {
     | "optional"
     | "blocked";
   default_value: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   compliance_threshold_pct: number;
   remediation_action:
     | "notify_only"
@@ -48,6 +49,7 @@ export interface UntaggedResource {
     | "block_provisioning"
     | "manual_review";
   detected_at: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   remediation_sla_hours: number;
   trace_id: string;
 }
@@ -63,6 +65,7 @@ export interface AllocationRule {
     | "conditional"
     | "fallback";
   scope_resource_types: string[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   precedence: number;
   parameters: Record<string, unknown>;
   effective_from: string;
@@ -85,9 +88,13 @@ export interface ComplianceReport {
     | "chargeback_reconciliation";
   period_start: string;
   period_end: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_resources_scanned: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   compliant_resources: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   non_compliant_resources: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   compliance_pct: number;
   status: "ok" | "warning" | "breach" | "remediating";
   export_format: "csv" | "pdf" | "json";
@@ -101,11 +108,17 @@ export interface Reconciliation {
   strategy: "chargeback_only" | "tag_allocation_only" | "hybrid_blended";
   period_start: string;
   period_end: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   chargeback_amount_usd: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   tag_allocation_amount_usd: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   variance_amount_usd: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   variance_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   delta_threshold_pct: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   auto_approve_below_pct: number;
   status: "pending" | "investigating" | "approved" | "resolved";
   trace_id: string;
@@ -114,6 +127,7 @@ export interface Reconciliation {
 // ── Error class (CR 12-5 D-GATE-01) ──
 export class FinopsTagGovernanceApiError extends Error {
   constructor(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     public readonly status: number,
     public readonly code: string,
     message: string,

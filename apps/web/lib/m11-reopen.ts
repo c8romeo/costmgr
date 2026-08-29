@@ -50,6 +50,7 @@ export const REOPEN_OPERATOR_ACTIONS = [
   OPERATOR_ACTION_DATA_CORRECTION,
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type ReopenOperatorAction = (typeof REOPEN_OPERATOR_ACTIONS)[number];
 
 // ── Error codes (mirror Python ERROR_CODE_*) ────────────────────
@@ -74,6 +75,7 @@ export interface ReopenAuthorizationState {
   authorized: boolean;
   reject_reason_ko: string | null;
   operator_action: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   reason_length: number;
   capability_granted: boolean;
   is_owner: boolean;

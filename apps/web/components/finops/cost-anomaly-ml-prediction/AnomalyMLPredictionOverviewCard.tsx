@@ -39,6 +39,7 @@ export function AnomalyMLPredictionOverviewCard({
 }: AnomalyMLPredictionOverviewCardProps) {
     const [predictions, setPredictions] = useState<AnomalyMLPrediction[]>([]);
     const [models, setModels] = useState<ModelRegistryEntry[]>([]);
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const [ensembleScore, setEnsembleScore] = useState<number>(0);
     const [consensusDetected, setConsensusDetected] = useState<boolean>(false);
     const [driftDetected, setDriftDetected] = useState<boolean>(false);

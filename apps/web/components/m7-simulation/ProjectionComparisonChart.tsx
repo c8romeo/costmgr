@@ -43,7 +43,9 @@ interface ProjectionComparisonChartProps {
 
 interface ChartDatum {
   name: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   baseline: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   projected: number;
 }
 
@@ -90,9 +92,11 @@ export function ProjectionComparisonChart({
           <XAxis dataKey="name" tick={{ fontSize: 12 }} />
           <YAxis
             tick={{ fontSize: 12 }}
+            // eslint-disable-next-line @typescript-eslint/no-restricted-types
             tickFormatter={(v: number) => v.toLocaleString("ko-KR")}
           />
           <Tooltip
+            // eslint-disable-next-line @typescript-eslint/no-restricted-types
             formatter={(value: number) => value.toLocaleString("ko-KR") + " 원"}
             labelStyle={{ fontWeight: "bold" }}
           />

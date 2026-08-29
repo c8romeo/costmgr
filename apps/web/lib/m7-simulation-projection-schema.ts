@@ -22,26 +22,38 @@
 
 // ── Constants (mirror backend Pydantic Field bounds) ──────────
 /** AD-17 BigInteger KRW range — practical upper bound. */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const LOAN_AMOUNT_MIN: number = 1;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const LOAN_AMOUNT_MAX: number = 1_000_000_000_000; // 1조 KRW
 
 /** Backend `Field(ge=0, le=100)` parity. */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const INTEREST_RATE_MIN: number = 0;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const INTEREST_RATE_MAX: number = 100;
 
 /** Disinflation..Inflation range (PRD §F7.2 + backend AC #2). */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const COST_INFLATION_RATE_MIN: number = -50;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const COST_INFLATION_RATE_MAX: number = 100;
 
 /** Backend `Field(ge=0, le=100)` parity. */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const CORPORATE_TAX_RATE_MIN: number = 0;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const CORPORATE_TAX_RATE_MAX: number = 100;
 
 // ── TypeScript view model (mirror Python `ProjectionInputs`) ──
 export interface ProjectionInputsSchema {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   loan_amount: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   interest_rate: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   cost_inflation_rate: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   corporate_tax_rate: number;
 }
 

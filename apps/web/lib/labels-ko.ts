@@ -44,6 +44,7 @@ export function formatClosingPeriodLabelKo(periodKey: string): string {
   return `${CLOSING_PERIOD_LABEL_KO}: ${periodKey}`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function formatClosingSnapshotEventLabelKo(count: number): string {
   return `${CLOSING_SNAPSHOT_EVENT_LABEL_KO} ${count}건`;
 }

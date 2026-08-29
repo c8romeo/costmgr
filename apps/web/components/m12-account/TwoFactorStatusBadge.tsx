@@ -27,6 +27,7 @@ export interface TwoFactorStatusBadgeProps {
   /** Lockout expiry (ISO-8601), only when status='locked'. */
   lockout_until?: string | null;
   /** Recovery codes remaining count, only when status='enabled'. */
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   recovery_codes_remaining?: number | null;
   /** Locale prefix for the link href (e.g. 'ko' or 'en'). */
   locale?: string;

@@ -11,12 +11,17 @@ import {
   type BudgetPreStandardInputs,
 } from "./m8-budget-pre-standard";
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const PRE_STANDARD_BENCH_ITERATIONS: number = 10_000;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export const PRE_STANDARD_BENCH_BUDGET_MS: number = 2000;
 
 export interface PreStandardBenchResult {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   iterations: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_ms: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   per_iteration_us: number;
   passed: boolean;
 }

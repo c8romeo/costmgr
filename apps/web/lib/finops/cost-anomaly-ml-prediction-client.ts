@@ -100,8 +100,10 @@ export async function fetchEnsembleSummary(
     periodKey: string
 ): Promise<{
     period_key: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     ensemble_score: number;
     consensus_detected: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     model_breakdown: Record<string, number>;
     drift_detected: boolean;
 }> {

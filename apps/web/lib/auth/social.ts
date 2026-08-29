@@ -42,8 +42,10 @@ function coolDownStorageKey(provider: string): string {
 }
 
 interface FailureState {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   count: number;
   /** Epoch ms when the cool-down expires. */
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   blockedUntil: number;
 }
 

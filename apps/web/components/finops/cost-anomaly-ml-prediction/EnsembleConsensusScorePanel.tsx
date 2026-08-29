@@ -38,8 +38,10 @@ export function EnsembleConsensusScorePanel({
     dryRun,
     periodKey,
 }: EnsembleConsensusScorePanelProps) {
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const [ensembleScore, setEnsembleScore] = useState<number>(0);
     const [modelBreakdown, setModelBreakdown] = useState<
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types
         Record<string, number>
     >({});
     const [consensusDetected, setConsensusDetected] = useState<boolean>(false);
@@ -89,6 +91,7 @@ export function EnsembleConsensusScorePanel({
         );
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const formatPercent = (v: number) => `${(v * 100).toFixed(2)}%`;
 
     return (

@@ -85,7 +85,9 @@ export interface ShowbackDefinition {
   governance_required: boolean;
   industry?: string;
   override_applied?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page_size?: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   offset?: number;
   trace_id?: string;
 }
@@ -98,6 +100,7 @@ export interface DepartmentBreakdown {
   total_amount: string;
   currency_code: string;
   period_key: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   rank: number;
 }
 

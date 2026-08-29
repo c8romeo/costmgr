@@ -20,6 +20,7 @@ export const DECIMAL_STRING_REGEX = /^-?\d+(\.\d+)?$/;
 
 /** Layer target literals (mirror Pydantic ValidationTarget). */
 export const VALIDATION_TARGETS = ["cost_pool", "activity", "driver"] as const;
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type ValidationTarget = (typeof VALIDATION_TARGETS)[number];
 
 /** Korean SSOT constants — ko-KR.json SSOT CR 11-4 D-002 fallback. */
@@ -33,6 +34,7 @@ export const ABC_VALIDATION_NOT_FOUND_KO = "ABC 검증 대상을 찾을 수 없�
 export interface CostPoolValidationState {
   department_id: string;
   sum_pct: string; // Decimal-as-string
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   department_count: number;
   is_valid: boolean;
   hash: string; // sha256:64-hex
@@ -41,6 +43,7 @@ export interface CostPoolValidationState {
 export interface ActivityValidationState {
   cost_pool_id: string;
   sum_pct: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   activity_count: number;
   is_valid: boolean;
   hash: string;
@@ -49,6 +52,7 @@ export interface ActivityValidationState {
 export interface DriverValidationState {
   activity_id: string;
   sum_pct: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   driver_count: number;
   is_valid: boolean;
   hash: string;
@@ -59,6 +63,7 @@ export interface DriverValidationState {
 export interface ValidationLayerWire {
   target: ValidationTarget;
   sum_pct: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   count: number;
   is_valid: boolean;
   hash: string;
@@ -137,6 +142,7 @@ export function isValidAbcPctList(values: string[]): boolean {
   return values.every(isValidAbcPct);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export function sumPct(values: string[]): number {
   return values.reduce((acc, v) => acc + Number(v), 0);
 }

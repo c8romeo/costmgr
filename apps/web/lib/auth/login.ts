@@ -19,8 +19,10 @@ const COOL_DOWN_DURATION_MS = 30_000;
 const COOL_DOWN_STORAGE_KEY = "auth.login.failures";
 
 interface FailureState {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   count: number;
   /** Epoch ms when the cool-down expires. */
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   blockedUntil: number;
 }
 

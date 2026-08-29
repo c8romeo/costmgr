@@ -59,6 +59,7 @@ export const ALLOWED_CHANNELS = [
 ] as const;
 
 export type CacheInvalidationChannel =
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   (typeof ALLOWED_CHANNELS)[number];
 
 /** NOTIFY channel name (mirrors `NOTIFY_CHANNEL_NAME` in Python). */
@@ -73,6 +74,7 @@ export const PAYLOAD_KEYS = [
   "trace_id",
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
 export type CacheInvalidationPayloadKey = (typeof PAYLOAD_KEYS)[number];
 
 /**
@@ -92,6 +94,7 @@ export const PAYLOAD_KEYS_CROSS_TENANT = [
 ] as const;
 
 export type CacheInvalidationPayloadKeyCrossTenant =
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   (typeof PAYLOAD_KEYS_CROSS_TENANT)[number];
 
 /**

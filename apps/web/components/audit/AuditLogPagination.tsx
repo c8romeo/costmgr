@@ -13,10 +13,14 @@
 import { useTranslations } from "next-intl";
 
 interface AuditLogPaginationProps {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   pageSize: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total: number;
   hasNext: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   onPageChange: (nextPage: number) => void;
 }
 

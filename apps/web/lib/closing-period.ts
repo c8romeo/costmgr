@@ -35,6 +35,7 @@ export const CLOSING_PERIOD_STATUSES = [
 ] as const;
 
 export type ClosingPeriodStatus =
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   (typeof CLOSING_PERIOD_STATUSES)[number];
 
 // ── ClosingSnapshotEvent (AD-15 snake_case parity) ──────────────
@@ -60,7 +61,9 @@ export interface ClosingPeriodState {
   status: ClosingPeriodStatus;
   allowed: boolean;
   closing_per_product: Record<string, string>; // product_id (string) → Decimal string
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   closing_snapshot_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ledger_event_count: number;
   period_key: string;
 }
@@ -95,7 +98,9 @@ export interface ClosingPeriodResponse {
   status: ClosingPeriodStatus;
   allowed: boolean;
   closing_per_product: Record<string, string>;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   closing_snapshot_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ledger_event_count: number;
   period_key: string;
   trace_id: string;
@@ -187,4 +192,5 @@ export const CACHE_INVALIDATION_CHANNELS = [
 ] as const;
 
 export type CacheInvalidationChannel =
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   (typeof CACHE_INVALIDATION_CHANNELS)[number];

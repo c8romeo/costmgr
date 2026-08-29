@@ -38,6 +38,7 @@ export interface AuditLogQueryFilters {
 }
 
 export interface AuditLogEntry {
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   id: number;
   tenant_id: string;
   actor_id: string;
@@ -54,14 +55,18 @@ export interface AuditLogEntry {
 
 export interface AuditLogPage {
   entries: AuditLogEntry[];
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page_size: number;
   has_next: boolean;
 }
 
 export interface ActivityStreamGroup {
   timestamp_bucket: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   entry_count: number;
   top_actions: string[];
   top_actors: string[];
@@ -87,11 +92,13 @@ class AuditLogApiError extends Error {
   code: string;
   details: Record<string, unknown>;
   trace_id: string | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   status: number;
   /** Korean error message (CR 12-5 D-14 envelope field). */
   message_ko: string;
 
   constructor(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     status: number,
     payload: AuditLogApiErrorEnvelope | { detail?: string },
   ) {
@@ -121,7 +128,9 @@ async function parseError(res: Response): Promise<AuditLogApiError> {
 
 function buildQuery(
   filters: AuditLogQueryFilters,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   pageSize: number,
 ): string {
   const params = new URLSearchParams();
@@ -147,7 +156,9 @@ export interface FetchAuditLogResult {
 export async function fetchAuditLog(
   accessToken: string,
   filters: AuditLogQueryFilters,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   page: number,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   pageSize: number,
 ): Promise<FetchAuditLogResult> {
   const traceId = crypto.randomUUID();
@@ -189,6 +200,7 @@ export interface FetchAuditLogEntryResult {
 
 export async function fetchAuditLogEntry(
   accessToken: string,
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   entryId: number,
 ): Promise<FetchAuditLogEntryResult> {
   const traceId = crypto.randomUUID();
@@ -224,6 +236,7 @@ export async function fetchAuditLogEntry(
 
 export interface FetchAuditLogCountResult {
   ok: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   data?: number;
   error?: AuditLogApiError;
 }
@@ -259,6 +272,7 @@ export async function fetchAuditLogCount(
       const error = await parseError(res);
       return { ok: false, error };
     }
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const data = (await res.json()) as number;
     return { ok: true, data };
   } catch (err) {

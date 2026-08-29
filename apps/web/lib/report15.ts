@@ -30,6 +30,7 @@ export interface Report15ActivityCostRow {
   total_cost_krw: string;
   /** Decimal-as-string (e.g., "4950") */
   total_cost_usd: string;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   driver_count: number;
   /** Decimal-as-string (e.g., "1650000") */
   cost_per_driver_krw: string;
@@ -48,7 +49,9 @@ export type Report15ResponseEnvelope = {
   /** V8 byte-equality invariant (V8 결정론 해시) */
   generation_hash: string;
   report_code: "ACTIVITY_COST_DETAIL";
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   activity_count: number;
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   total_driver_count: number;
   /** Decimal-as-string */
   total_cost_krw: string;
