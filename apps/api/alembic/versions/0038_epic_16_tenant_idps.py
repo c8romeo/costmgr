@@ -289,8 +289,16 @@ def upgrade() -> None:
     # so Epic 15 saml_routes.py test flows (tenant_slug='acme') keep
     # passing verbatim. Operators update via PUT /api/v1/admin/tenant/
     # acme/idp after first deploy.
+    #
+    # D-CI-FUNC-9 cj-230 fix: the original call passed the bind-param
+    # dict as a 2nd positional arg to op.execute(), but Alembic's
+    # op.execute() only accepts a single SQL string. The runtime error
+    # was `TypeError: execute() takes 2 positional arguments but 3 were
+    # given`. The seed values are static module-level literals, so
+    # inline them via Python f-string rather than introducing
+    # text()/bindparam() machinery.
     op.execute(
-        """
+        f"""
         INSERT INTO public.tenant_idps (
             id,
             tenant_id,
@@ -307,12 +315,12 @@ def upgrade() -> None:
         SELECT
             '00000000-0000-0000-0000-000000000001'::uuid,
             t.id,
-            :acme_entity_id,
-            :acme_sso_url,
+            '{_ACME_ENTITY_ID}',
+            '{_ACME_SSO_URL}',
             NULL,
-            :acme_x509_cert,
-            :acme_acs_url,
-            :acme_name_id_format,
+            '{_ACME_X509_CERT_PLACEHOLDER}',
+            '{_ACME_ACS_URL}',
+            '{_ACME_NAME_ID_FORMAT}',
             TRUE,
             u.id,
             u.id
@@ -321,14 +329,7 @@ def upgrade() -> None:
         WHERE t.slug = 'acme'
         LIMIT 1
         ON CONFLICT (tenant_id, idp_entity_id) DO NOTHING
-        """,
-        {
-            "acme_entity_id": _ACME_ENTITY_ID,
-            "acme_sso_url": _ACME_SSO_URL,
-            "acme_x509_cert": _ACME_X509_CERT_PLACEHOLDER,
-            "acme_acs_url": _ACME_ACS_URL,
-            "acme_name_id_format": _ACME_NAME_ID_FORMAT,
-        },
+        """
     )
 
 
