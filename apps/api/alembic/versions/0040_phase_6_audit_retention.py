@@ -79,7 +79,7 @@ VALID_REGIONS = (
 
 
 def upgrade() -> None:
-    """Create `audit_log_archive` + `phase_6_audit_purge_log` + ALTER `audit_log`.
+    """Create `audit_log_archive` + `phase_6_audit_purge_log` + ALTER `audit_logs`.
 
     All tables RLS-enabled (CR 0-2 verbatim) — per-tenant isolation.
     audit_log_archive is append-only (BEFORE UPDATE/DELETE trigger).
@@ -288,10 +288,20 @@ def upgrade() -> None:
     )
 
     # ─────────────────────────────────────────────────────────────
-    # ALTER audit_log: add archived_at column (PRD §F22.3 verbatim)
+    # ALTER audit_logs: add archived_at column (PRD §F22.3 verbatim)
+    #
+    # D-CI-FUNC-9 cj-234 fix: previous code passed `"audit_log"`
+    # (singular) to `op.add_column`, but 0001 created the table as
+    # `audit_logs` (plural). Postgres reported
+    # `relation "audit_log" does not exist` and the migration aborted
+    # before archived_at was added. Fix: rename the SQL identifier to
+    # `audit_logs`. The audit_log_archive / audit_log_id / audit_logs_row
+    # identifiers in this file are intentionally preserved as-is —
+    # they're either separate tables (`audit_log_archive`) or column
+    # names (`audit_log_id`), not the source table being altered.
     # ─────────────────────────────────────────────────────────────
     op.add_column(
-        "audit_log",
+        "audit_logs",
         sa.Column(
             "archived_at",
             sa.TIMESTAMP(timezone=True),
@@ -349,7 +359,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop triggers + tables + ALTER audit_log archived_at column."""
+    """Drop triggers + tables + ALTER audit_logs archived_at column."""
     # Drop triggers on audit_log_archive.
     op.execute("DROP TRIGGER IF EXISTS trg_audit_log_archive_immutable_update ON audit_log_archive;")
     op.execute("DROP TRIGGER IF EXISTS trg_audit_log_archive_immutable_delete ON audit_log_archive;")
@@ -369,5 +379,5 @@ def downgrade() -> None:
     op.drop_index("idx_phase_6_audit_purge_log_tenant_purged_at", table_name="phase_6_audit_purge_log")
     op.drop_table("phase_6_audit_purge_log")
 
-    # Drop archived_at column from audit_log.
-    op.drop_column("audit_log", "archived_at")
+    # Drop archived_at column from audit_logs.
+    op.drop_column("audit_logs", "archived_at")
