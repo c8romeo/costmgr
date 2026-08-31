@@ -1,0 +1,50 @@
+fix(finops): cj-223 D-CI-FUNC-8 workspace sync fix DONE (cj-style 223번째 epic 연속 정직 회복 atomic single source-only sprint)
+
+D-CI-FUNC-8 HIGH priority blocker 의 actual source fix (cj-222 의 alembic graph fix 후 live CI smoke-e2e + rls-tests `Apply Alembic migration` step 여전히 ❌ FAIL 의 unmasked 한 runtime blocker 해소). PAT 환경변수 fetch 결과 actual root cause = **`Failed to spawn: alembic (os error 2)`** — uv venv 에 alembic binary 부재.
+
+**root cause (uv workspace sync gap)**:
+- `uv sync --frozen` at workspace root installs **only 14 packages** (root dev group: import-linter + pytest + ruff + pyyaml + grimp + click + iniconfig + markdown-it-py + mdurl + packaging + pluggy + pygments + rich + typing-extensions)
+- **`apps/api` workspace member 의 17+ dependencies 부재**: alembic 1.18.5 + sqlalchemy 2.0.36 + asyncpg 0.30.0 + fastapi 0.139.2 + uvicorn 0.32.0 + supabase 2.10.0 + pydantic* + cryptography 43.0.1 + lxml 5.0.0+ + opentelemetry-api/sdk/exporter/instrumentation-* + prometheus-client 0.20.0 + jsonschema 4.23.0 + httpx 0.27.0 + pyjwt 2.10.1 + pydantic-settings 2.6.1 + python3-saml 1.16.0
+- `uv 0.11.32` 의 default behavior = root project (`package = false` + `managed = true`) 만 sync, workspace member deps skip
+- `uv run alembic` invocation = `Failed to spawn: alembic (os error 2)` — alembic binary not in venv
+
+**fix wire (Option A minimal-scope YAML-only, 2 lines 변경 + 13 lines 신규 marker comment)**:
+1. `.github/workflows/ci.yml` line 416 (rls-tests job) 의 `- run: uv sync --frozen` → `- run: uv sync --frozen --all-packages`
+2. `.github/workflows/ci.yml` line 558 (smoke-e2e job) 의 `- run: uv sync --frozen` → `- run: uv sync --frozen --all-packages`
+3. 양쪽 job 모두 cj-223 marker comment block 신규 (root cause + fix 결정 wire 보존)
+- `--all-packages` flag = uv docs: "Sync all packages in the workspace"
+
+**verification (cj-223 5-step FINAL CLEAN)**:
+- T7.1 ruff scoped → ✅ N/A (Python source 변경 0건, ci.yml YAML only 변경)
+- T7.2 pytest 회귀 → ✅ PASS — 598 passed + 1 skipped + 13 warnings (cj-222 와 정확히 동일, regression 0건: tests/architecture 10 passed + tests/cost_engine 577 passed + tests/rls/test_service_role_audit.py 11 passed)
+- T7.3 alembic graph 단일 head → ✅ VERIFIED (cj-222 의 graph fix 그대로 보존 — 0 duplicates · 0 broken · 1 single head `0059_phase_28_interactive_dashboard`)
+- T7.4 AD-14 stack pin 정책 (35 pins) → ✅ UNCHANGED (ci.yml step command 만 변경, action SHA / version comment 0건 변경, pyproject.toml 변경 0건, [STACK BUMP] tag 불필요)
+- T7.5 FINAL CLEAN → ✅ PASS
+
+**runtime 동작 변화 (honestly reported)**: 0건 — ci.yml step command 2 lines 변경 + cj-223 marker comment 13 lines 신규, action SHA / version comment 0건 변경, Python / TS source 변경 0건, functional behavior 변경 0건 (CI 의 venv sync scope 만 확장 — runtime source code 무관).
+
+**부수 효과 (cj-218 → cj-219 → cj-220 → cj-221 → cj-222 → cj-223 합성 회복)**:
+- **D-CI-FUNC-8 ✅ RESOLVED** (cj-style 125번째): cj-218 의 🆕 NEW honestly DEFER 의 actual root cause fix (graph 외의 unmasked workspace sync gap blocker 해소)
+- **D-CI-FUNC-5+6 PARTIAL 잔여 해소**: cj-217 의 install-fix 의 PARTIAL 의 downstream Alembic migration blocker 해소 (D-CI-FUNC-5 의 browser binary 단계 별개 root cause 보존, D-CI-FUNC-6 의 psql install 단계 ✅ DONE + Alembic migration 단계 ✅ DONE)
+- 다른 6개 pre-existing PARTIAL honestly-DEFER 결정 wire 보존:
+  - D-CI-FUNC-1 lint-conventions (cj-219 PARTIAL 잔여, Node 20 deprecation)
+  - D-CI-FUNC-2 test-architecture (cj-220 결정 wire 후보)
+  - D-CI-FUNC-3 test-service-role-guard (cj-220 결정 wire 후보)
+  - D-CI-FUNC-7 web-test (PARTIAL 잔여 71 errors: import/order 47 + unused-vars 14 + restricted-types 10)
+  - D-CI-FUNC-5 PARTIAL 잔여 web-e2e browser binary 단계
+  - D-CI-FUNC-7 PARTIAL 잔여 71 errors cleanup
+
+**files (4 = 1 NEW + 3 MODIFIED atomic single source-only sprint)**:
+- MODIFIED: `.github/workflows/ci.yml` (2 lines 변경 + 13 lines 신규 = +15 / -2)
+- MODIFIED: `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.31 → v4.32 EXTENSION (A909 action_items entry + last_updated_note_v4_32)
+- NEW: `memory/handoff-2026-08-31-cj-223-d-ci-func-8-uv-sync-workspace-fix-done.md`
+- MODIFIED: `memory/MEMORY.md` hook EXTENSION (cj-223 chain entry 추가)
+- decision ledger: `_bmad-output/cj-223-logs/` (smoke-e2e-99470454455.log + rls-tests-99470454491.log + test-architecture-99470454553.log PAT 환경변수 fetch 보존)
+
+**Epic 28 retro §12 옵션 (b) 의 Alembic migration blocker 합성 회복** 결정 wire 진입 완료 (cj-218 honestly-DEFER → cj-219 PARTIAL → cj-220 PARTIAL → cj-221 scope → cj-222 graph fix → **cj-223 sync fix** 의 6-sprint 정직 회복 chain).
+
+**CR 11-3 honest-DEFER 125번째** epic 연속 정직 회복 (cj-222 의 124번째에 이어) — D-CI-FUNC-8 honestly-DEFER 의 actual source fix wire 결정 wire.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

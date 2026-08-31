@@ -413,7 +413,14 @@ jobs:
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
-      - run: uv sync --frozen
+      # cj-style 223 (D-CI-FUNC-8 workspace sync fix): `uv sync --frozen` at
+      # workspace root installs only the root dev group (14 packages) — NOT
+      # apps/api member deps (alembic, sqlalchemy, asyncpg, fastapi, uvicorn,
+      # supabase, pydantic, ...). Without `--all-packages`, `uv run alembic`
+      # and `uv run uvicorn` fail with `Failed to spawn: ... (os error 2)`.
+      # `--all-packages` syncs all workspace members (apps/api, packages/*)
+      # so alembic + uvicorn become available.
+      - run: uv sync --frozen --all-packages
       - name: Install psql
         run: |
           # cj-style 217 (D-CI-FUNC-6): explicit sudo + visible stderr + verification.
@@ -555,7 +562,13 @@ jobs:
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
-      - run: uv sync --frozen
+      # cj-style 223 (D-CI-FUNC-8 workspace sync fix): same root cause as
+      # rls-tests — `uv sync --frozen` at workspace root installs only root
+      # dev group, missing apps/api runtime deps (alembic, uvicorn). Without
+      # `--all-packages`, the `Apply Alembic migration` step fails with
+      # `Failed to spawn: alembic (os error 2)`. Fix: `--all-packages` syncs
+      # all workspace members so alembic + uvicorn become available.
+      - run: uv sync --frozen --all-packages
       - name: Install psql
         run: |
           # cj-style 217 (D-CI-FUNC-6): explicit sudo + visible stderr + verification.
