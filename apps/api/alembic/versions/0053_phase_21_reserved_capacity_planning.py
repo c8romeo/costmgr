@@ -255,7 +255,14 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "ix_phase_21_scheduled_reserved_capacity_dispatch_tenant_schedule",
+        # D-CI-FUNC-9 cj-243 fix: original name was 64 chars, exceeds
+        # Postgres NAMEDATALEN-1=63 and trips SQLAlchemy's
+        # `dialect.validate_identifier`. Shortened
+        # `..._dispatch_tenant_schedule` → `..._dispatch_tenant_idx`
+        # (59 chars). Columns unchanged. (Second over-63 identifier
+        # in 0053 — cj-242 already shortened the sibling CHECK
+        # `..._dispatch_recipient_strategy`.)
+        "ix_phase_21_scheduled_reserved_capacity_dispatch_tenant_idx",
         "phase_21_scheduled_reserved_capacity_dispatch",
         ["tenant_id", "dispatch_schedule"],
     )
