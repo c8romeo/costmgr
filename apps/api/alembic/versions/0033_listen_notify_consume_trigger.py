@@ -99,7 +99,7 @@ def _build_trigger_function_ddl() -> str:
             -- unrecognised channel even if the constraint is dropped).
             IF NEW.channel NOT IN ({in_clause}) THEN
                 RAISE EXCEPTION
-                    'cache_invalidation_log_notify: channel %% not in allowed set',
+                    'cache_invalidation_log_notify: channel % not in allowed set',
                     NEW.channel
                     USING ERRCODE = '22000';
             END IF;
