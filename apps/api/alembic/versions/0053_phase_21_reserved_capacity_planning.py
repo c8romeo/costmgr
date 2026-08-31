@@ -239,7 +239,15 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "recipient_strategy IN ('owner_only', 'executive', 'finops_team', 'custom_recipients')",
-            name="ck_phase_21_scheduled_reserved_capacity_dispatch_recipient_strategy",
+            # D-CI-FUNC-9 cj-242 fix: original name was 67 chars, exceeds
+            # Postgres NAMEDATALEN-1=63 and trips SQLAlchemy's
+            # `dialect.validate_identifier`. Shortened to
+            # `ck_phase_21_scheduled_reserved_capacity_dispatch_recipient`
+            # (58 chars) — drops the redundant `_strategy` suffix because
+            # the table name + recipient already conveys intent. CHECK
+            # expression unchanged. (Same recurring defect class as
+            # cj-238/239/240 — `phase_NN_finops_scheduled_*_dispatch_recipient_strategy`.)
+            name="ck_phase_21_scheduled_reserved_capacity_dispatch_recipient",
         ),
         sa.CheckConstraint(
             "status IN ('scheduled', 'running', 'completed', 'failed', 'cancelled')",
