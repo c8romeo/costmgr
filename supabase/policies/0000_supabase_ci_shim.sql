@@ -21,6 +21,53 @@ BEGIN
 END
 $$;
 
+-- D-CI-FUNC-9 cj-228 fix: the alembic chain reached
+-- 0037_epic_15_sso_external_identities (and downstream 0038+) which
+-- CREATE POLICY ... TO anon. The previous shim only created
+-- service_role + costmgr_test, so the migration aborted with
+-- 'role "anon" does not exist'. RLS policies in supabase/policies/
+-- also reference authenticated / owner / member / viewer. Create all
+-- five idempotently so the migrations and the downstream RLS step
+-- both succeed.
+
+-- Create the anon role (idempotent). Supabase uses this for unauthenticated
+-- web requests; CI shim mirrors the contract.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        CREATE ROLE anon NOLOGIN NOINHERIT;
+    END IF;
+END
+$$;
+
+-- Create the authenticated role (idempotent). Supabase uses this for
+-- logged-in users; CI shim mirrors the contract.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        CREATE ROLE authenticated NOLOGIN NOINHERIT;
+    END IF;
+END
+$$;
+
+-- Create the tenant-scoped role markers (owner / member / viewer).
+-- These are PG roles (NOT just `tenant_memberships.role` enum values)
+-- because supabase/policies/0006..0011 reference them in `TO owner` /
+-- `TO member` / `TO viewer` clauses.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'owner') THEN
+        CREATE ROLE owner NOLOGIN NOINHERIT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'member') THEN
+        CREATE ROLE member NOLOGIN NOINHERIT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'viewer') THEN
+        CREATE ROLE viewer NOLOGIN NOINHERIT;
+    END IF;
+END
+$$;
+
 -- Create a costmgr_test role that does NOT bypass RLS, used by
 -- tenant_isolation tests so the policies actually filter rows.
 DO $$
