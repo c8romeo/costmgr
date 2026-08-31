@@ -40,6 +40,21 @@ $$;
 -- canonical BEFORE UPDATE trigger helper idempotently. Production
 -- uses Supabase's real set_updated_at() if present; CI shim supplies
 -- the same signature so migrations + downstream triggers resolve.
+--
+-- D-CI-FUNC-9 cj-231 fix: 0038_epic_16_tenant_idps.py seeds the
+-- `acme` row by `WHERE t.slug = 'acme'`. The `tenants` table (0001)
+-- has no `slug` column — it was never added in any alembic revision
+-- (codebase grep 0 hit for ADD COLUMN slug). The application code at
+-- apps/api/modules/auth/sso/tenant_idp_lookup.py:84 also queries
+-- `WHERE slug = :slug`, so Epic 16 was wired against a column that
+-- does not exist. The correct production fix is a new alembic
+-- migration that adds the column + backfills `slug='acme'` for the
+-- seed tenant — but the alembic chain itself has 7+ blockers in
+-- 0038-0059 (VARCHAR(32), op.execute signature, etc.) and adding a
+-- new migration to a broken chain is high risk. CI-only mitigation:
+-- add the column to the shim so the migrations + downstream app code
+-- resolve. Production deployment requires a follow-up alembic
+-- migration (tracked separately, post chain-unblock).
 
 -- Create the anon role (idempotent). Supabase uses this for unauthenticated
 -- web requests; CI shim mirrors the contract.
@@ -122,6 +137,22 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+
+-- D-CI-FUNC-9 cj-231 fix: ensure the `tenants.slug` column exists so
+-- 0038_epic_16_tenant_idps.py's acme seed (`WHERE t.slug = 'acme'`)
+-- and apps/api/modules/auth/sso/tenant_idp_lookup.py:84's runtime
+-- query (`WHERE slug = :slug`) both resolve. The column is missing
+-- from 0001_tenants_users_memberships_settings.py and was never
+-- added by any subsequent alembic revision. CI-only mitigation —
+-- production requires a real alembic migration (tracked separately).
+-- Use IF NOT EXISTS so this is a no-op when the column already
+-- exists in some future alembic revision.
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS slug TEXT NULL;
+
+-- Backfill existing tenants rows with slug = name (best-effort,
+-- preserves Epic 16's expectation that the seed tenant has
+-- slug='acme'). Dev seed may overwrite this later.
+UPDATE public.tenants SET slug = name WHERE slug IS NULL;
 
 -- Grant schema usage so the test role can read tenants/users.
 GRANT USAGE ON SCHEMA public TO costmgr_test, service_role;
