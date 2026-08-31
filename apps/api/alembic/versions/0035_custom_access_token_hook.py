@@ -147,13 +147,29 @@ BEGIN
     RETURN jsonb_set(event, '{claims}', v_claims, true);
 END;
 $$;
+"""
 
--- 함수 owner 와 실행 권한 명시. Supabase 의 GoTrue auth hook 은
--- `postgres` role 의 권한으로 함수를 호출하므로 EXECUTE 권한이
--- postgres 에 부여되어 있어야 한다. anon / authenticated / service_role
--- 에도 부여해 두면 직접 psql 로 테스트할 때 편하다.
+# 함수 owner 와 실행 권한 명시. Supabase 의 GoTrue auth hook 은
+# `postgres` role 의 권한으로 함수를 호출하므로 EXECUTE 권한이
+# postgres 에 부여되어 있어야 한다. anon / authenticated / service_role
+# 에도 부여해 두면 직접 psql 로 테스트할 때 편하다.
+#
+# D-CI-FUNC-9 cj-226 fix: each statement below is its own op.execute()
+# call because asyncpg's prepared-statement protocol rejects a single
+# cursor.execute() string containing multiple ;-separated commands
+# ("cannot insert multiple commands into a prepared statement"). The
+# function body itself is one statement, but ALTER / REVOKE / GRANT are
+# separate ones — we must split them. (Other migrations such as 0019
+# and 0021 already follow this pattern.)
+_OWNER_SQL = r"""
 ALTER FUNCTION public.custom_access_token_hook(jsonb) OWNER TO postgres;
+"""
+
+_REVOKE_SQL = r"""
 REVOKE ALL ON FUNCTION public.custom_access_token_hook(jsonb) FROM PUBLIC;
+"""
+
+_GRANT_SQL = r"""
 GRANT EXECUTE ON FUNCTION public.custom_access_token_hook(jsonb) TO postgres;
 """
 
@@ -164,7 +180,13 @@ DROP FUNCTION IF EXISTS public.custom_access_token_hook(jsonb);
 
 
 def upgrade() -> None:
+    # Each op.execute() must carry a SINGLE SQL statement. The function
+    # DDL (_HOOK_SQL) is one CREATE FUNCTION statement; the owner /
+    # revoke / grant statements are each separate.
     op.execute(_HOOK_SQL)
+    op.execute(_OWNER_SQL)
+    op.execute(_REVOKE_SQL)
+    op.execute(_GRANT_SQL)
 
 
 def downgrade() -> None:
