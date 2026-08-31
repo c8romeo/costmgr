@@ -285,7 +285,16 @@ def upgrade() -> None:
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
             "tenant_id", "user_id", "settlement_id",
-            name="uq_phase_22_chargeback_settlement_owner_approval_user_settlement",
+            # D-CI-FUNC-9 cj-244 fix: original name was 64 chars, exceeds
+            # Postgres NAMEDATALEN-1=63 and trips SQLAlchemy's
+            # `dialect.validate_identifier`. Shortened to
+            # `uq_phase_22_chargeback_settlement_owner_approval_user_set`
+            # (60 chars) — drops `_settlement` suffix and uses `_set`
+            # abbreviation since the table prefix already conveys it.
+            # Columns unchanged. First NAMEDATALEN-1 sprint on a
+            # UNIQUE constraint (uq_*) — same defect class but on a
+            # different constraint type than prior CK/IX sprints.
+            name="uq_phase_22_chargeback_settlement_owner_approval_user_set",
         ),
     )
 
