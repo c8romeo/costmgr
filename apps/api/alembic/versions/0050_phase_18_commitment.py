@@ -178,7 +178,15 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "recipient_strategy IN ('owner_only', 'commitment_team', 'finance_team', 'custom_recipients')",
-            name="ck_phase_18_finops_scheduled_commitment_dispatch_recipient_strategy",
+            # D-CI-FUNC-9 cj-239 fix: original name was 67 chars, exceeds
+            # Postgres NAMEDATALEN-1=63 and trips SQLAlchemy's
+            # `dialect.validate_identifier` BEFORE Postgres ever sees it.
+            # Shortened to
+            # `ck_phase_18_finops_scheduled_commitment_dispatch_recipient`
+            # (58 chars) — drops the redundant `_strategy` suffix because
+            # the table name + recipient already conveys intent. CHECK
+            # expression unchanged.
+            name="ck_phase_18_finops_scheduled_commitment_dispatch_recipient",
         ),
         sa.CheckConstraint(
             "status IN ('scheduled', 'running', 'completed', 'failed', 'cancelled')",
@@ -186,7 +194,12 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "ix_phase_18_finops_scheduled_commitment_dispatch_tenant_schedule",
+        # D-CI-FUNC-9 cj-239 fix: original name was 64 chars, exceeds
+        # Postgres NAMEDATALEN-1=63. Shortened
+        # `..._dispatch_tenant_schedule` → `..._dispatch_tenant_idx`
+        # (59 chars). Columns unchanged. Single `_idx` suffix is
+        # conventional for indexes (mirrors cj-238 fix in 0049).
+        "ix_phase_18_finops_scheduled_commitment_dispatch_tenant_idx",
         "phase_18_finops_scheduled_commitment_dispatch",
         ["tenant_id", "dispatch_schedule"],
     )
