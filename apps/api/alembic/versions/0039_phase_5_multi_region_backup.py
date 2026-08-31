@@ -181,10 +181,21 @@ def upgrade() -> None:
     )
 
     # CHECK constraints (PRD §F20.1 verbatim — defense-in-depth).
+    #
+    # D-CI-FUNC-9 cj-233 fix: previous code did
+    # `f"region IN {tuple(VALID_REGIONS)!s}".replace("'", "''")` which
+    # produced `region IN (''primary_seoul'', ''secondary_tokyo'')` —
+    # Postgres parses that as adjacent empty quoted identifiers, not as
+    # string literals, so the CHECK constraint failed at creation with
+    # `syntax error at or near "primary_seoul"`. The right shape is
+    # `region IN ('primary_seoul', 'secondary_tokyo')` — real SQL string
+    # literals. Build the quoted tuple with `repr()` which produces the
+    # exact form Postgres expects.
+    _region_in_clause = ", ".join(repr(r) for r in VALID_REGIONS)
     op.create_check_constraint(
         "ck_phase_5_replication_lag_region",
         "phase_5_replication_lag",
-        sa.text(f"region IN {tuple(VALID_REGIONS)!s}".replace("'", "''")),
+        sa.text(f"region IN ({_region_in_clause})"),
     )
     op.create_check_constraint(
         "ck_phase_5_replication_lag_status",
