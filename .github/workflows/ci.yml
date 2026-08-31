@@ -447,6 +447,11 @@ jobs:
       # alembic's auto-create a silent no-op). Pure YAML-only change — no
       # alembic version files touched, no alembic graph topology change,
       # revision IDs preserved (matches cj-223 minimal-scope pattern).
+      - name: Apply Supabase CI shim (auth.jwt() stub + service_role + costmgr_test roles)
+        run: |
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0000_supabase_ci_shim.sql
       - name: Pre-create alembic_version (VARCHAR(64))
         run: |
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
@@ -455,11 +460,6 @@ jobs:
                 (version_num VARCHAR(64) NOT NULL PRIMARY KEY)"
       - name: Apply Alembic migration
         run: uv run alembic -c apps/api/alembic.ini upgrade head
-      - name: Apply Supabase CI shim (auth.jwt() stub + service_role + costmgr_test roles)
-        run: |
-          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
-            -h localhost -p 54322 -U postgres -d postgres \
-            -f supabase/policies/0000_supabase_ci_shim.sql
       - name: Apply RLS policies
         run: |
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
@@ -609,6 +609,11 @@ jobs:
       # upgrade head` (CREATE TABLE IF NOT EXISTS makes alembic's auto-create
       # a silent no-op). Pure YAML-only — preserves all 59 revision IDs and
       # alembic graph topology from cj-222.
+      - name: Apply Supabase CI shim (auth.jwt() stub + roles)
+        run: |
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0000_supabase_ci_shim.sql
       - name: Pre-create alembic_version (VARCHAR(64))
         run: |
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
@@ -617,11 +622,6 @@ jobs:
                 (version_num VARCHAR(64) NOT NULL PRIMARY KEY)"
       - name: Apply Alembic migration
         run: uv run alembic -c apps/api/alembic.ini upgrade head
-      - name: Apply Supabase CI shim (auth.jwt() stub + roles)
-        run: |
-          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
-            -h localhost -p 54322 -U postgres -d postgres \
-            -f supabase/policies/0000_supabase_ci_shim.sql
       - name: Apply RLS policies
         run: |
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
