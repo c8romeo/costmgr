@@ -162,7 +162,15 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "ix_phase_20_multi_cloud_negotiation_recommendation_tenant_status",
+        # D-CI-FUNC-9 cj-241 fix: original name was 64 chars, exceeds
+        # Postgres NAMEDATALEN-1=63 and trips SQLAlchemy's
+        # `dialect.validate_identifier`. Shortened
+        # `..._recommendation_tenant_status` → `..._recommendation_tenant_idx`
+        # (61 chars). Columns unchanged. Same recurring defect class as
+        # cj-238/239/240 (NAMEDATALEN-1) but this time on the
+        # `phase_20_multi_cloud_negotiation_recommendation` table (not the
+        # scheduled_dispatch slot).
+        "ix_phase_20_multi_cloud_negotiation_recommendation_tenant_idx",
         "phase_20_multi_cloud_negotiation_recommendation",
         ["tenant_id", "recommendation_status"],
     )
