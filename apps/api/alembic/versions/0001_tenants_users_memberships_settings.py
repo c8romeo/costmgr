@@ -55,17 +55,26 @@ def upgrade() -> None:
             )),
             created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
             deleted_at  TIMESTAMPTZ NULL,
-            -- D-CI-FUNC-9 cj-231 fix: Epic 16's tenant_idps seed
-            -- (0038 line 329 `WHERE t.slug = 'acme'`) and the
+            -- D-CI-FUNC-9 cj-231 + cj-232 fix: Epic 16's tenant_idps
+            -- seed (0038 line 329 `WHERE t.slug = 'acme'`) and the
             -- application code at
             -- apps/api/modules/auth/sso/tenant_idp_lookup.py:84
-            -- (`SELECT id FROM public.tenants WHERE slug = :slug`)
+            -- (SELECT id FROM public.tenants WHERE slug = <param>)
             -- both reference a `slug` column that was never added in
             -- any alembic revision (codebase grep 0 hit for ADD
             -- COLUMN slug). Add it here at the source so all
             -- downstream code resolves without a new migration.
             -- Nullable + backfilled by the dev seed (which sets
             -- slug='acme' for the seed tenant).
+            -- NOTE (cj-232): the `<param>` placeholder above is
+            -- written without a leading colon because SQLAlchemy
+            -- treats colon-prefixed identifiers anywhere in the SQL
+            -- string — including inside `--` comments — as bind
+            -- parameters. The previous cj-231 comment used the
+            -- colon-prefixed form and caused
+            -- `InvalidRequestError: A value is required for bind
+            -- parameter 'slug'` before 0001 even reached the
+            -- CREATE TABLE body.
             slug        TEXT NULL
         )
         """
