@@ -221,7 +221,15 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_phase_10_slo_definitions_window",
         "phase_10_slo_definitions",
-        f"window IN {VALID_WINDOWS!r}",
+        # D-CI-FUNC-9 cj-235 fix: `window` is a Postgres 15 reserved
+        # keyword (per SQL Key Words appendix, "reserved, requires AS").
+        # Bare `window IN (...)` aborts with
+        # `syntax error at or near "window"`. Quote the column name
+        # so Postgres parses it as an identifier, not a clause. Other
+        # column names in this file (`state`, `region`, `sli_type`,
+        # `multi_region_aggregation`, `error_budget_policy`) are
+        # non-reserved and don't need quoting.
+        f'"window" IN {VALID_WINDOWS!r}',
     )
     op.create_check_constraint(
         "ck_phase_10_slo_definitions_error_budget_policy",
