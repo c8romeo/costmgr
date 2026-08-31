@@ -29,6 +29,17 @@ $$;
 -- also reference authenticated / owner / member / viewer. Create all
 -- five idempotently so the migrations and the downstream RLS step
 -- both succeed.
+--
+-- D-CI-FUNC-9 cj-229 fix: 0038_epic_16_tenant_idps.py attaches
+-- `EXECUTE FUNCTION public.set_updated_at()` to an
+-- `updated_at_auto_update_trg` BEFORE UPDATE trigger on tenant_idps.
+-- The function is NEVER defined in any alembic revision (codebase
+-- grep 0 hit — it was assumed to exist). CI stock postgres has no
+-- such helper, so the migration aborted with
+-- `function public.set_updated_at() does not exist`. Define the
+-- canonical BEFORE UPDATE trigger helper idempotently. Production
+-- uses Supabase's real set_updated_at() if present; CI shim supplies
+-- the same signature so migrations + downstream triggers resolve.
 
 -- Create the anon role (idempotent). Supabase uses this for unauthenticated
 -- web requests; CI shim mirrors the contract.
@@ -95,6 +106,21 @@ AS $$
         current_setting('request.jwt.claims', true)::jsonb,
         '{}'::jsonb
     );
+$$;
+
+-- D-CI-FUNC-9 cj-229 fix: canonical BEFORE UPDATE trigger helper for
+-- `updated_at = NOW()` columns. Created with CREATE OR REPLACE so
+-- reruns of the shim are no-ops, and so this declaration coexists
+-- with any pre-existing set_updated_at() in the target schema (the
+-- REPLACE wins, which is the desired behavior for CI).
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
 $$;
 
 -- Grant schema usage so the test role can read tenants/users.
