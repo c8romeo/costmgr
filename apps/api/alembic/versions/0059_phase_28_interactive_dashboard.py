@@ -62,8 +62,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "0058_phase_28_interactive_dashboard"
-down_revision = "0057_phase_25_vendor_management"
+revision = "0059_phase_28_interactive_dashboard"
+down_revision = "0058_phase_26_cost_anomaly_ml_prediction"
 branch_labels = None
 depends_on = None
 

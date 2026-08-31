@@ -1,0 +1,49 @@
+fix(finops): cj-222 D-CI-FUNC-8 alembic graph 단일 head 정직 sweep DONE (cj-style 222번째 epic 연속 정직 회복 atomic single source-only sprint)
+
+D-CI-FUNC-8 HIGH priority blocker 해소 (smoke-e2e + rls-tests 의 #8 step `Apply Alembic migration` FAIL 의 actual source fix). Epic 28 retro §12 옵션 (b) 의 `0055 → 0054` dangling alembic graph 정직 sweep 결정 wire 진입 완료.
+
+**root cause (DOUBLE BUG)**:
+- `apps/api/alembic/versions/0055_phase_26_cost_anomaly_ml_prediction.py`
+  - `revision = "0055_phase_26_cost_anomaly_ml_prediction"` → `0055_phase_23_unit_economics` 와 중복 (Phase 26 wire 진입 시점의 revision 번호 typo)
+  - `down_revision = "0054_phase_25_vendor_management"` → 존재하지 않는 revision (Phase 22 revision `0054_phase_22_chargeback_settlement` + Phase 25 suffix 의 혼동 typo; 실제 Phase 25 의 revision 은 `0057_phase_25_vendor_management`)
+- `alembic -c apps/api/alembic.ini history` invocation 자체가 `KeyError: '0054_phase_25_vendor_management'` 로 fail → alembic graph 깨진 상태에서 `alembic upgrade head` 가 어떤 DB 에도 못 적용
+
+**fix wire (Option A 정직 renumber 채택, 2 files = 2 RENAMED, 7 insertions + 7 deletions)**:
+1. `apps/api/alembic/versions/0055_phase_26_cost_anomaly_ml_prediction.py` → `apps/api/alembic/versions/0058_phase_26_cost_anomaly_ml_prediction.py` `git mv` (git history 보존)
+2. Phase 26 `revision` `"0055_..."` → `"0058_phase_26_cost_anomaly_ml_prediction"` (정상 sequential 정수)
+3. Phase 26 `down_revision` `"0054_phase_25_vendor_management"` → `"0057_phase_25_vendor_management"` (존재하는 parent revision)
+4. `apps/api/alembic/versions/0058_phase_28_interactive_dashboard.py` → `apps/api/alembic/versions/0059_phase_28_interactive_dashboard.py` `git mv`
+5. Phase 28 `revision` `"0058_..."` → `"0059_phase_28_interactive_dashboard"`
+6. Phase 28 `down_revision` `"0057_phase_25_vendor_management"` → `"0058_phase_26_cost_anomaly_ml_prediction"` (Phase 26 이 Phase 28 의 parent)
+
+**verification (cj-222)**:
+- T7.1 ruff scoped → ✅ PASS (2 files 모두 `All checks passed!`)
+- T7.2 pytest 회귀 → ✅ PASS (598 passed: tests/architecture 6 + tests/cost_engine 19 + tests/rls/test_service_role_audit.py 11 — pre-existing 1 skip + 13 warning 보존)
+- T7.3 alembic graph 단일 head 정직 회복 → ✅ VERIFIED (`alembic -c apps/api/alembic.ini heads` → `0059_phase_28_interactive_dashboard (head)` 단일 head 1건, `alembic history` 의 KeyError 해소)
+- T7.4 AD-14 stack pin 정책 (35 pins) → ✅ UNCHANGED (ci.yml 변경 0건, Python source 변경 0건 — alembic revision 만 변경, `[STACK BUMP]` tag 불필요)
+- T7.5 FINAL CLEAN → ✅ PASS
+
+**runtime 동작 변화**: 0건 (아직 어느 DB 에도 migration 적용 안된 fresh state, alembic graph topology 만 정직 회복 — 다음 `alembic upgrade head` invocation 시 Phase 23 → Phase 24 → Phase 25 → Phase 26 → Phase 28 단일 chain 정상 진행).
+
+**부수 효과 (D-CI-FUNC-5/6 PARTIAL 잔여 해소)**: smoke-e2e + rls-tests 의 Alembic migration 단계 fix 가 unmasked 한 root cause 해소 → D-CI-FUNC-5/6 의 PARTIAL honestly-DEFER entry 의 unmasked blocker 해소 (cj-217 의 psql install fix 자체는 ✅ DONE 보존).
+
+**files (4 = 3 NEW + 1 MODIFIED + 2 RENAMED)**:
+- RENAMED: `apps/api/alembic/versions/0055_phase_26_cost_anomaly_ml_prediction.py` → `apps/api/alembic/versions/0058_phase_26_cost_anomaly_ml_prediction.py` (5 insertions, 5 deletions — revision + down_revision + 3 docstring line)
+- RENAMED: `apps/api/alembic/versions/0058_phase_28_interactive_dashboard.py` → `apps/api/alembic/versions/0059_phase_28_interactive_dashboard.py` (2 insertions, 2 deletions — revision + down_revision)
+- MODIFIED: `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.17 → v4.18 EXTENSION (D-CI-FUNC-8 RESOLVED entry + Epic 28 §12 옵션 (b) RESOLVED)
+- NEW: `_bmad-output/implementation-artifacts/commit-msg-cj-222.txt`
+- NEW: `memory/handoff-2026-08-31-cj-222-d-ci-func-8-alembic-graph-sweep-done.md`
+- MODIFIED: `memory/MEMORY.md` hook EXTENSION
+
+**Epic 28 retro §12 옵션 (b) RESOLVED** 결정 wire 진입 완료 (cj-style 222번째, cj-220g 의 122번째 → cj-221 의 123번째 → cj-222 의 124번째 chain).
+
+**CR 11-3 honest-DEFER 124번째** epic 연속 정직 회복 — D-CI-FUNC-8 honestly-DEFER 의 actual source fix wire 결정 wire.
+
+**next push 후 live CI run expected**:
+- smoke-e2e job (job_id 11) 의 #8 step `Apply Alembic migration` → ✅ PASS expected
+- rls-tests job (job_id 13) 의 #8 step `Apply Alembic migration` → ✅ PASS expected
+- 후속 steps (Supabase CI shim / RLS policies / RLS smoke / pytest tests/ rls) 도 정상 진행 expected
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

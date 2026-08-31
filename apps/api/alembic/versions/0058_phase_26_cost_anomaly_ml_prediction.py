@@ -1,7 +1,7 @@
-"""alembic version 0055 — Phase 26 FinOps Cost Anomaly ML Prediction preview table.
+"""alembic version 0058 — Phase 26 FinOps Cost Anomaly ML Prediction preview table.
 
-Revision ID: 0055_phase_26_cost_anomaly_ml_prediction
-Revises: <previous_phase_25_revision>
+Revision ID: 0058_phase_26_cost_anomaly_ml_prediction
+Revises: 0057_phase_25_vendor_management
 Create Date: 2026-08-28 (KST)
 
 Phase 26 wire (cj-style 181번째) — FinOps Cost Anomaly ML Prediction
@@ -27,8 +27,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "0055_phase_26_cost_anomaly_ml_prediction"
-down_revision = "0054_phase_25_vendor_management"
+revision = "0058_phase_26_cost_anomaly_ml_prediction"
+down_revision = "0057_phase_25_vendor_management"
 branch_labels = None
 depends_on = None
 
