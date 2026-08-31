@@ -177,7 +177,13 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "recipient_strategy IN ('owner_only', 'sustainability_team', 'board_observers', 'custom_recipients')",
-            name="ck_phase_17_finops_scheduled_sustainability_dispatch_recipient_strategy",
+            # D-CI-FUNC-9 cj-238 fix: original name was 71 chars, exceeds
+            # Postgres NAMEDATALEN-1=63. Shortened to
+            # `ck_phase_17_finops_scheduled_sustainability_dispatch_recipient`
+            # (62 chars) — drops the redundant `_strategy` suffix because
+            # the table name + recipient already conveys intent. CHECK
+            # expression unchanged.
+            name="ck_phase_17_finops_scheduled_sustainability_dispatch_recipient",
         ),
         sa.CheckConstraint(
             "status IN ('scheduled', 'running', 'completed', 'failed', 'cancelled')",
@@ -185,7 +191,11 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "ix_phase_17_finops_scheduled_sustainability_dispatch_tenant_schedule",
+        # D-CI-FUNC-9 cj-238 fix: original name was 68 chars, exceeds
+        # Postgres NAMEDATALEN-1=63. Shortened `..._dispatch_tenant_schedule`
+        # → `..._dispatch_tenant_idx` (63 chars, exactly at limit). Columns
+        # unchanged. Single `_idx` suffix is conventional for indexes.
+        "ix_phase_17_finops_scheduled_sustainability_dispatch_tenant_idx",
         "phase_17_finops_scheduled_sustainability_dispatch",
         ["tenant_id", "dispatch_schedule"],
     )
