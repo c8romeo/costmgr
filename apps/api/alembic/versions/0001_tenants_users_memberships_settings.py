@@ -54,7 +54,19 @@ def upgrade() -> None:
                 'manufacturing', 'manufacturing_retail', 'service', 'mixed'
             )),
             created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-            deleted_at  TIMESTAMPTZ NULL
+            deleted_at  TIMESTAMPTZ NULL,
+            -- D-CI-FUNC-9 cj-231 fix: Epic 16's tenant_idps seed
+            -- (0038 line 329 `WHERE t.slug = 'acme'`) and the
+            -- application code at
+            -- apps/api/modules/auth/sso/tenant_idp_lookup.py:84
+            -- (`SELECT id FROM public.tenants WHERE slug = :slug`)
+            -- both reference a `slug` column that was never added in
+            -- any alembic revision (codebase grep 0 hit for ADD
+            -- COLUMN slug). Add it here at the source so all
+            -- downstream code resolves without a new migration.
+            -- Nullable + backfilled by the dev seed (which sets
+            -- slug='acme' for the seed tenant).
+            slug        TEXT NULL
         )
         """
     )

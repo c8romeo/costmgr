@@ -138,21 +138,17 @@ BEGIN
 END;
 $$;
 
--- D-CI-FUNC-9 cj-231 fix: ensure the `tenants.slug` column exists so
--- 0038_epic_16_tenant_idps.py's acme seed (`WHERE t.slug = 'acme'`)
--- and apps/api/modules/auth/sso/tenant_idp_lookup.py:84's runtime
--- query (`WHERE slug = :slug`) both resolve. The column is missing
--- from 0001_tenants_users_memberships_settings.py and was never
--- added by any subsequent alembic revision. CI-only mitigation —
--- production requires a real alembic migration (tracked separately).
--- Use IF NOT EXISTS so this is a no-op when the column already
--- exists in some future alembic revision.
-ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS slug TEXT NULL;
-
--- Backfill existing tenants rows with slug = name (best-effort,
--- preserves Epic 16's expectation that the seed tenant has
--- slug='acme'). Dev seed may overwrite this later.
-UPDATE public.tenants SET slug = name WHERE slug IS NULL;
+-- D-CI-FUNC-9 cj-231 fix attempt 2 (rejected): wrapping
+-- `ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS slug` in an
+-- `IF EXISTS` DO block made the shim idempotent on re-run but
+-- defeated the purpose on a fresh DB: the shim runs BEFORE
+-- `Apply Alembic migration`, so `tenants` doesn't exist yet and
+-- the column addition silently no-ops. Reverted.
+--
+-- Correct fix is in 0001_tenants_users_memberships_settings.py —
+-- add `slug TEXT NULL` to the CREATE TABLE so the column exists
+-- once 0001 runs (no new migration, no chain break, no CI workflow
+-- change).
 
 -- Grant schema usage so the test role can read tenants/users.
 GRANT USAGE ON SCHEMA public TO costmgr_test, service_role;
