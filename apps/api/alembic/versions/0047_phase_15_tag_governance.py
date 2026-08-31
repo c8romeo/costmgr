@@ -131,6 +131,8 @@ CR lessons applied:
 """
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -144,20 +146,20 @@ def upgrade() -> None:
     # ── 1. phase_15_finops_tag_policy (PRD §F31.1.2 verbatim) ──────
     op.create_table(
         "phase_15_finops_tag_policy",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("policy_id", op.Text(), nullable=False, unique=True),
-        op.Column("resource_type", op.Text(), nullable=False),
-        op.Column("tag_key", op.Text(), nullable=False),
-        op.Column("enforcement_level", op.Text(), nullable=False),
-        op.Column("default_value", op.Text(), nullable=False),
-        op.Column("compliance_threshold_pct", op.dialects.postgresql.NUMERIC(8, 4), nullable=False),
-        op.Column("remediation_action", op.Text(), nullable=False),
-        op.Column("status", op.Text(), nullable=False),
-        op.Column("metadata", op.dialects.postgresql.JSONB(), nullable=True),
-        op.Column("created_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("updated_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("policy_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("resource_type", sa.Text(), nullable=False),
+        sa.Column("tag_key", sa.Text(), nullable=False),
+        sa.Column("enforcement_level", sa.Text(), nullable=False),
+        sa.Column("default_value", sa.Text(), nullable=False),
+        sa.Column("compliance_threshold_pct", sa.dialects.postgresql.NUMERIC(8, 4), nullable=False),
+        sa.Column("remediation_action", sa.Text(), nullable=False),
+        sa.Column("status", sa.Text(), nullable=False),
+        sa.Column("metadata", sa.dialects.postgresql.JSONB(), nullable=True),
+        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("updated_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
         "phase_15_finops_tag_policy_resource_type_check",
@@ -203,20 +205,20 @@ def upgrade() -> None:
     # ── 2. phase_15_finops_untagged_resource (PRD §F31.2.2 verbatim)
     op.create_table(
         "phase_15_finops_untagged_resource",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("detection_id", op.Text(), nullable=False, unique=True),
-        op.Column("resource_id", op.Text(), nullable=False),
-        op.Column("resource_arn", op.Text(), nullable=True),
-        op.Column("resource_type", op.Text(), nullable=False),
-        op.Column("untagged_tags", op.dialects.postgresql.JSONB(), nullable=False),
-        op.Column("detection_window", op.Text(), nullable=False),
-        op.Column("detection_method", op.Text(), nullable=False),
-        op.Column("severity", op.Text(), nullable=False),
-        op.Column("action_recommendation", op.Text(), nullable=False),
-        op.Column("remediation_sla_hours", op.Integer(), nullable=False),
-        op.Column("detected_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("detection_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("resource_id", sa.Text(), nullable=False),
+        sa.Column("resource_arn", sa.Text(), nullable=True),
+        sa.Column("resource_type", sa.Text(), nullable=False),
+        sa.Column("untagged_tags", sa.dialects.postgresql.JSONB(), nullable=False),
+        sa.Column("detection_window", sa.Text(), nullable=False),
+        sa.Column("detection_method", sa.Text(), nullable=False),
+        sa.Column("severity", sa.Text(), nullable=False),
+        sa.Column("action_recommendation", sa.Text(), nullable=False),
+        sa.Column("remediation_sla_hours", sa.Integer(), nullable=False),
+        sa.Column("detected_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
         "phase_15_finops_untagged_resource_resource_type_check",
@@ -262,20 +264,20 @@ def upgrade() -> None:
     # ── 3. phase_15_finops_allocation_rule (PRD §F31.3.3 verbatim) ──
     op.create_table(
         "phase_15_finops_allocation_rule",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("rule_id", op.Text(), nullable=False, unique=True),
-        op.Column("rule_type", op.Text(), nullable=False),
-        op.Column("scope_resource_types", op.dialects.postgresql.JSONB(), nullable=False),
-        op.Column("precedence", op.Integer(), nullable=False),
-        op.Column("parameters", op.dialects.postgresql.JSONB(), nullable=False),
-        op.Column("effective_from", op.Date(), nullable=False),
-        op.Column("effective_to", op.Date(), nullable=True),
-        op.Column("audit_required", op.Boolean(), nullable=False, server_default=op.text("TRUE")),
-        op.Column("status", op.Text(), nullable=False),
-        op.Column("created_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("updated_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("rule_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("rule_type", sa.Text(), nullable=False),
+        sa.Column("scope_resource_types", sa.dialects.postgresql.JSONB(), nullable=False),
+        sa.Column("precedence", sa.Integer(), nullable=False),
+        sa.Column("parameters", sa.dialects.postgresql.JSONB(), nullable=False),
+        sa.Column("effective_from", sa.Date(), nullable=False),
+        sa.Column("effective_to", sa.Date(), nullable=True),
+        sa.Column("audit_required", sa.Boolean(), nullable=False, server_default=sa.text("TRUE")),
+        sa.Column("status", sa.Text(), nullable=False),
+        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("updated_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
         "phase_15_finops_allocation_rule_rule_type_check",
@@ -316,20 +318,20 @@ def upgrade() -> None:
     # ── 4. phase_15_finops_compliance_report (PRD §F31.4.3 verbatim)
     op.create_table(
         "phase_15_finops_compliance_report",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("report_id", op.Text(), nullable=False, unique=True),
-        op.Column("report_type", op.Text(), nullable=False),
-        op.Column("period_start", op.Date(), nullable=False),
-        op.Column("period_end", op.Date(), nullable=False),
-        op.Column("total_resources_scanned", op.Integer(), nullable=False),
-        op.Column("compliant_resources", op.Integer(), nullable=False),
-        op.Column("non_compliant_resources", op.Integer(), nullable=False),
-        op.Column("compliance_pct", op.dialects.postgresql.NUMERIC(8, 4), nullable=False),
-        op.Column("status", op.Text(), nullable=False),
-        op.Column("export_format", op.Text(), nullable=False),
-        op.Column("retention_until", op.Date(), nullable=False),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("report_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("report_type", sa.Text(), nullable=False),
+        sa.Column("period_start", sa.Date(), nullable=False),
+        sa.Column("period_end", sa.Date(), nullable=False),
+        sa.Column("total_resources_scanned", sa.Integer(), nullable=False),
+        sa.Column("compliant_resources", sa.Integer(), nullable=False),
+        sa.Column("non_compliant_resources", sa.Integer(), nullable=False),
+        sa.Column("compliance_pct", sa.dialects.postgresql.NUMERIC(8, 4), nullable=False),
+        sa.Column("status", sa.Text(), nullable=False),
+        sa.Column("export_format", sa.Text(), nullable=False),
+        sa.Column("retention_until", sa.Date(), nullable=False),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
         "phase_15_finops_compliance_report_report_type_check",
@@ -365,20 +367,20 @@ def upgrade() -> None:
     # ── 5. phase_15_finops_chargeback_reconciliation (PRD §F31.5.3)
     op.create_table(
         "phase_15_finops_chargeback_reconciliation",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("reconciliation_id", op.Text(), nullable=False, unique=True),
-        op.Column("strategy", op.Text(), nullable=False),
-        op.Column("period_start", op.Date(), nullable=False),
-        op.Column("period_end", op.Date(), nullable=False),
-        op.Column("chargeback_amount_usd", op.dialects.postgresql.NUMERIC(20, 2), nullable=False),
-        op.Column("tag_allocation_amount_usd", op.dialects.postgresql.NUMERIC(20, 2), nullable=False),
-        op.Column("variance_amount_usd", op.dialects.postgresql.NUMERIC(20, 2), nullable=False),
-        op.Column("variance_pct", op.dialects.postgresql.NUMERIC(8, 4), nullable=False),
-        op.Column("delta_threshold_pct", op.dialects.postgresql.NUMERIC(8, 4), nullable=False),
-        op.Column("auto_approve_below_pct", op.dialects.postgresql.NUMERIC(8, 4), nullable=False),
-        op.Column("status", op.Text(), nullable=False),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("reconciliation_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("strategy", sa.Text(), nullable=False),
+        sa.Column("period_start", sa.Date(), nullable=False),
+        sa.Column("period_end", sa.Date(), nullable=False),
+        sa.Column("chargeback_amount_usd", sa.dialects.postgresql.NUMERIC(20, 2), nullable=False),
+        sa.Column("tag_allocation_amount_usd", sa.dialects.postgresql.NUMERIC(20, 2), nullable=False),
+        sa.Column("variance_amount_usd", sa.dialects.postgresql.NUMERIC(20, 2), nullable=False),
+        sa.Column("variance_pct", sa.dialects.postgresql.NUMERIC(8, 4), nullable=False),
+        sa.Column("delta_threshold_pct", sa.dialects.postgresql.NUMERIC(8, 4), nullable=False),
+        sa.Column("auto_approve_below_pct", sa.dialects.postgresql.NUMERIC(8, 4), nullable=False),
+        sa.Column("status", sa.Text(), nullable=False),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
         "phase_15_finops_chargeback_reconciliation_strategy_check",
@@ -409,17 +411,17 @@ def upgrade() -> None:
     # ── 6. phase_15_finops_allocation_audit (PRD §F31.4 verbatim) ──
     op.create_table(
         "phase_15_finops_allocation_audit",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("audit_id", op.Text(), nullable=False, unique=True),
-        op.Column("action", op.Text(), nullable=False),
-        op.Column("resource_type", op.Text(), nullable=True),
-        op.Column("resource_id", op.Text(), nullable=True),
-        op.Column("actor_user_id", op.dialects.postgresql.UUID(), nullable=True),
-        op.Column("audit_metadata", op.dialects.postgresql.JSONB(), nullable=True),
-        op.Column("retention_until", op.Date(), nullable=False),
-        op.Column("created_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("audit_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("action", sa.Text(), nullable=False),
+        sa.Column("resource_type", sa.Text(), nullable=True),
+        sa.Column("resource_id", sa.Text(), nullable=True),
+        sa.Column("actor_user_id", sa.dialects.postgresql.UUID(), nullable=True),
+        sa.Column("audit_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
+        sa.Column("retention_until", sa.Date(), nullable=False),
+        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
         "phase_15_finops_allocation_audit_action_check",
@@ -451,15 +453,15 @@ def upgrade() -> None:
     # Tag policy preview
     op.create_table(
         "phase_15_finops_tag_policy_preview",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("dry_run_id", op.Text(), nullable=False, unique=True),
-        op.Column("resource_type", op.Text(), nullable=False),
-        op.Column("tag_key", op.Text(), nullable=False),
-        op.Column("enforcement_level", op.Text(), nullable=False),
-        op.Column("preview_metadata", op.dialects.postgresql.JSONB(), nullable=True),
-        op.Column("created_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("dry_run_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("resource_type", sa.Text(), nullable=False),
+        sa.Column("tag_key", sa.Text(), nullable=False),
+        sa.Column("enforcement_level", sa.Text(), nullable=False),
+        sa.Column("preview_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
+        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.execute(
         "ALTER TABLE phase_15_finops_tag_policy_preview ENABLE ROW LEVEL SECURITY;"
@@ -475,14 +477,14 @@ def upgrade() -> None:
     # Untagged resource preview
     op.create_table(
         "phase_15_finops_untagged_resource_preview",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("dry_run_id", op.Text(), nullable=False, unique=True),
-        op.Column("resource_type", op.Text(), nullable=False),
-        op.Column("severity", op.Text(), nullable=False),
-        op.Column("preview_metadata", op.dialects.postgresql.JSONB(), nullable=True),
-        op.Column("created_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("dry_run_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("resource_type", sa.Text(), nullable=False),
+        sa.Column("severity", sa.Text(), nullable=False),
+        sa.Column("preview_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
+        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.execute(
         "ALTER TABLE phase_15_finops_untagged_resource_preview ENABLE ROW LEVEL SECURITY;"
@@ -498,13 +500,13 @@ def upgrade() -> None:
     # Allocation rule preview
     op.create_table(
         "phase_15_finops_allocation_rule_preview",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("dry_run_id", op.Text(), nullable=False, unique=True),
-        op.Column("rule_type", op.Text(), nullable=False),
-        op.Column("preview_metadata", op.dialects.postgresql.JSONB(), nullable=True),
-        op.Column("created_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("dry_run_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("rule_type", sa.Text(), nullable=False),
+        sa.Column("preview_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
+        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.execute(
         "ALTER TABLE phase_15_finops_allocation_rule_preview ENABLE ROW LEVEL SECURITY;"
@@ -520,13 +522,13 @@ def upgrade() -> None:
     # Chargeback reconciliation preview
     op.create_table(
         "phase_15_finops_chargeback_reconciliation_preview",
-        op.Column("id", op.dialects.postgresql.BIGSERIAL(), primary_key=True),
-        op.Column("tenant_id", op.dialects.postgresql.UUID(), nullable=False),
-        op.Column("dry_run_id", op.Text(), nullable=False, unique=True),
-        op.Column("strategy", op.Text(), nullable=False),
-        op.Column("preview_metadata", op.dialects.postgresql.JSONB(), nullable=True),
-        op.Column("created_at", op.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=op.text("NOW()")),
-        op.Column("trace_id", op.Text(), nullable=True),
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("tenant_id", sa.dialects.postgresql.UUID(), nullable=False),
+        sa.Column("dry_run_id", sa.Text(), nullable=False, unique=True),
+        sa.Column("strategy", sa.Text(), nullable=False),
+        sa.Column("preview_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
+        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.execute(
         "ALTER TABLE phase_15_finops_chargeback_reconciliation_preview ENABLE ROW LEVEL SECURITY;"
