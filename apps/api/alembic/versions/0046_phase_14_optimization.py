@@ -238,7 +238,18 @@ def upgrade() -> None:
         f"resource_type IN {VALID_RESOURCE_TYPES!r}",
     )
     op.create_check_constraint(
-        "ck_phase_14_finops_optimization_definition_optimization_strategy",
+        # D-CI-FUNC-9 cj-236 fix: previous name
+        # `ck_phase_14_finops_optimization_definition_optimization_strategy`
+        # was 64 characters, exceeding Postgres' NAMEDATALEN-1=63 limit.
+        # SQLAlchemy raises IdentifierError before the statement even
+        # reaches Postgres. Shortened to
+        # `ck_phase_14_finops_optimization_definition_strategy` (57 chars)
+        # — the constraint still references the actual column
+        # `optimization_strategy` so the column name is unchanged. Only
+        # the constraint identifier is shortened (cosmetic). No other
+        # identifier in this migration exceeds 63 chars (audited with
+        # `len()` on all op.create_* / op.drop_* / op.add_* calls).
+        "ck_phase_14_finops_optimization_definition_strategy",
         "phase_14_finops_optimization_definition",
         f"optimization_strategy IN {VALID_OPTIMIZATION_STRATEGIES!r}",
     )
