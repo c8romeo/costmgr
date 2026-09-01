@@ -318,7 +318,15 @@ jobs:
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
-      - run: uv sync --frozen
+      # cj-style 245 (D-CI-FUNC-2 #5 test-architecture): workspace sync gap.
+      # `uv sync --frozen` at workspace root installs only the root dev
+      # group (14 packages) — apps/api member deps (fastapi, sqlalchemy,
+      # pydantic, ...) absent. Collection of `tests/cost_engine` reaches
+      # `apps/api/modules/m3_calculate/handlers.py:37` → `from fastapi
+      # import` → `ModuleNotFoundError: No module named 'fastapi'` (run
+      # 33401467136). `--all-packages` syncs all workspace members so
+      # fastapi + sqlalchemy become available for import.
+      - run: uv sync --frozen --all-packages
       - name: Run architecture + engine-purity tests
         run: uv run pytest tests/architecture tests/cost_engine -v
 
@@ -333,7 +341,14 @@ jobs:
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with: { python-version-file: ".python-version" }
       - run: pip install uv==0.11.32
-      - run: uv sync --frozen
+      # cj-style 245 (D-CI-FUNC-3 #6 test-service-role-guard): workspace
+      # sync gap. `uv sync --frozen` at workspace root installs only the
+      # root dev group (14 packages) — apps/api member deps (asyncpg, ...)
+      # absent. `tests/rls/conftest.py:31` runs `import asyncpg` at
+      # conftest load → `ModuleNotFoundError: No module named 'asyncpg'`
+      # (run 33401467136). `--all-packages` syncs all workspace members
+      # so asyncpg becomes available for conftest import.
+      - run: uv sync --frozen --all-packages
       - name: Service-role audit-first unit tests (no DB required)
         run: uv run pytest tests/rls/test_service_role_audit.py -v
 
