@@ -28,7 +28,7 @@ import os
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Final, TypedDict
 
 import yaml
 

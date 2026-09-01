@@ -452,7 +452,7 @@ app.include_router(audit_log_router)
 # (capability matrix v1.31 EXTENSION). audit-first INSERT 5 NEW
 # AUDIT actions (audit_log_purged / archived / pii_masked /
 # cold_archived / personal_data_erased).
-from apps.api.modules.audit.retention.retention_routes import (
+from apps.api.modules.audit.retention.retention_routes import (  # noqa: E402
     router as audit_log_retention_router,
 )
 
@@ -485,7 +485,7 @@ app.include_router(audit_log_retention_router)
 # executive_report_exported + executive_report_dispatched +
 # executive_scheduled_dispatch_evaluated + finops_reporting_dry_run_executed).
 # AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
-from apps.api.modules.finops.executive_dashboard_routes import (
+from apps.api.modules.finops.executive_dashboard_routes import (  # noqa: E402
     router as executive_dashboard_router,
 )
 
@@ -519,19 +519,19 @@ app.include_router(executive_dashboard_router)
 # approve-step + vs-actual + alert-trigger + dry-run + healthcheck.
 # ALLOWED_SERVICE_SUBMODULES EXTENSION m24_finops_budget_planning
 # 신규 submodule 등록.
-from apps.api.modules.finops.budget_planning.budget_planning_routes import (
+from apps.api.modules.finops.budget_planning.budget_planning_routes import (  # noqa: E402
     router as budget_planning_router,
 )
-from apps.api.modules.finops.chargeback_settlement.chargeback_settlement_routes import (
+from apps.api.modules.finops.chargeback_settlement.chargeback_settlement_routes import (  # noqa: E402
     router as chargeback_settlement_router,
 )
-from apps.api.modules.finops.commitment.commitment_routes import (
+from apps.api.modules.finops.commitment.commitment_routes import (  # noqa: E402
     router as commitment_router,
 )
-from apps.api.modules.finops.multi_cloud.multi_cloud_routes import (
+from apps.api.modules.finops.multi_cloud.multi_cloud_routes import (  # noqa: E402
     router as multi_cloud_router,
 )
-from apps.api.modules.finops.pricing.pricing_routes import (
+from apps.api.modules.finops.pricing.pricing_routes import (  # noqa: E402
     router as pricing_router,
 )
 
@@ -540,10 +540,10 @@ from apps.api.modules.finops.pricing.pricing_routes import (
 # Phase 20.5 router omission pattern. Capability gates
 # FINOPS_RESERVED_CAPACITY_PLANNING (capability matrix v1.47 EXTENSION
 # preserve). AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
-from apps.api.modules.finops.reserved_capacity.reserved_capacity_routes import (
+from apps.api.modules.finops.reserved_capacity.reserved_capacity_routes import (  # noqa: E402
     router as reserved_capacity_router,
 )
-from apps.api.modules.finops.sustainability.sustainability_routes import (
+from apps.api.modules.finops.sustainability.sustainability_routes import (  # noqa: E402
     router as sustainability_router,
 )
 
@@ -557,7 +557,7 @@ from apps.api.modules.finops.sustainability.sustainability_routes import (
 # cost-per-transaction + margin-analysis + dry-run + trend + calculation
 # + cadence-preview + healthcheck. ALLOWED_SERVICE_SUBMODULES EXTENSION
 # m31_finops_unit_economics 신규 submodule 등록.
-from apps.api.modules.finops.unit_economics.unit_economics_routes import (
+from apps.api.modules.finops.unit_economics.unit_economics_routes import (  # noqa: E402
     router as unit_economics_router,
 )
 
@@ -571,7 +571,7 @@ from apps.api.modules.finops.unit_economics.unit_economics_routes import (
 # endpoints covering vendor CRUD + selection + blacklist + contract +
 # advance + dry-run. ALLOWED_SERVICE_SUBMODULES EXTENSION
 # m25_finops_vendor_management 신규 submodule 등록.
-from apps.api.modules.finops.vendor_management.vendor_management_routes import (
+from apps.api.modules.finops.vendor_management.vendor_management_routes import (  # noqa: E402
     router as vendor_management_router,
 )
 
@@ -597,13 +597,13 @@ app.include_router(vendor_management_router)
 # (capability matrix v1.32 EXTENSION). audit-first INSERT 2 NEW
 # OBSERVABILITY actions (alert_fired / trace_sampled) — CR 1-1 verbatim
 # pattern mirror of Phase 6 wire `24e1cd7` 5 NEW AUDIT actions.
-from fastapi import APIRouter, Depends
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends  # noqa: E402
+from fastapi.responses import Response  # noqa: E402
 
-from apps.api.core.metrics import (
+from apps.api.core.metrics import (  # noqa: E402
     render_metrics as _render_metrics,
 )
-from apps.api.dependencies.capability import (
+from apps.api.dependencies.capability import (  # noqa: E402
     require_observability_metrics,
     require_observability_traces,
 )

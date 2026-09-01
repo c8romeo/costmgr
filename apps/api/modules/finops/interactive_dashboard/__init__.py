@@ -42,9 +42,6 @@ CR lessons applied:
 
 from __future__ import annotations
 
-# Phase 28 territory version
-INTERACTIVE_DASHBOARD_TERRITORY_VERSION = "1.0.0"
-
 # Re-export public surface from sibling submodules
 from . import (
     cross_phase_aggregator,
@@ -137,20 +134,23 @@ from .serializers import (
     SHARING_EXPIRES_DEFAULT_DAYS,
     TOTAL_VERIFICATION_TOLERANCE_KRW,
     UNIFIED_KPI_LISTEN_NOTIFY_CHANNELS,
-    DashboardLayout,
-    DashboardSharingScope,
-    DrillDownContext,
-    DrillDownDimension,
-    DrillDownGranularity,
-    ExportFormat,
-    ExportJob,
-    ExportJobStatus,
-    KPIBreakdown,
-    KPIRefreshCadence,
-    SavedView,
-    SharingGrant,
-    UnifiedKPI,
+    DashboardLayout,  # noqa: F401
+    DashboardSharingScope,  # noqa: F401
+    DrillDownContext,  # noqa: F401
+    DrillDownDimension,  # noqa: F401
+    DrillDownGranularity,  # noqa: F401
+    ExportFormat,  # noqa: F401
+    ExportJob,  # noqa: F401
+    ExportJobStatus,  # noqa: F401
+    KPIBreakdown,  # noqa: F401
+    KPIRefreshCadence,  # noqa: F401
+    SavedView,  # noqa: F401
+    SharingGrant,  # noqa: F401
+    UnifiedKPI,  # noqa: F401
 )
+
+# Phase 28 territory version
+INTERACTIVE_DASHBOARD_TERRITORY_VERSION = "1.0.0"
 
 __all__ = [
     "ALLOWED_CHART_TYPES",

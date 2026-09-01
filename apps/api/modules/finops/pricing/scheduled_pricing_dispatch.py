@@ -288,7 +288,7 @@ def dispatch_pricing_report(
     # apscheduler job registration (real DB path).
     if db_session is not None:
         try:
-            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: F401
 
             # Real apscheduler registration — Phase 19 wire EXTENSION.
             # apscheduler integration is wired through packages/services/jobs/

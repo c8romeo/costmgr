@@ -307,7 +307,7 @@ def _build_router() -> Any:
             job = start_export_job(
                 tenant_id=tenant_id,
                 view_id=view_id,
-                format=format_,
+                fmt=format_,
                 options=options,
             )
         except ValueError as exc:

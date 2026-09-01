@@ -396,10 +396,12 @@ def parse_tag_policy(policy_text: str, *, trace_id: str = "") -> TagPolicy:
         )
 
     enforcement_level = fields.get("enforcement_level", ENFORCEMENT_LEVEL_RECOMMENDED)
-    if enforcement_level not in TAG_ENFORCEMENT_LEVELS:
+    if (
+        enforcement_level not in TAG_ENFORCEMENT_LEVELS
+        and enforcement_level.lower() in TAG_ENFORCEMENT_LEVELS
+    ):
         # Convert legacy `recommended` to RECOMMENDED canonical
-        if enforcement_level.lower() in TAG_ENFORCEMENT_LEVELS:
-            enforcement_level = enforcement_level.lower()
+        enforcement_level = enforcement_level.lower()
 
     compliance_threshold_pct_raw = fields.get("compliance_threshold_pct", "95.0")
     try:

@@ -246,13 +246,14 @@ def parse_showback_definition(
     if not definition.get("currency_code"):
         definition["currency_code"] = "KRW"
 
-    if period_mode == PERIOD_CUSTOM_RANGE:
-        if not definition.get("period_start") or not definition.get("period_end"):
-            raise ShowbackDefinitionInvalidError(
-                message="custom_range requires period_start + period_end",
-                message_ko="custom_range 모드는 period_start + period_end 가 필요합니다.",
-                code="SHOWBACK_CUSTOM_RANGE_REQUIRED",
-            )
+    if period_mode == PERIOD_CUSTOM_RANGE and (
+        not definition.get("period_start") or not definition.get("period_end")
+    ):
+        raise ShowbackDefinitionInvalidError(
+            message="custom_range requires period_start + period_end",
+            message_ko="custom_range 모드는 period_start + period_end 가 필요합니다.",
+            code="SHOWBACK_CUSTOM_RANGE_REQUIRED",
+        )
 
     page_size = definition.get("page_size", SHOWBACK_PAGE_SIZE_DEFAULT)
     if page_size > SHOWBACK_PAGE_SIZE_MAX:

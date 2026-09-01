@@ -281,12 +281,12 @@ class _NoopTracerProvider:
     works (so audit correlation is preserved even when SDK is off).
     """
 
-    def get_tracer(self, *args: Any, **kwargs: Any) -> _NoopTracer:
+    def get_tracer(self, *args: Any, **kwargs: Any) -> _NoopTracer:  # noqa: ARG002
         return _NoopTracer()
 
 
 class _NoopTracer:
-    def start_span(self, *args: Any, **kwargs: Any) -> _NoopSpan:
+    def start_span(self, *args: Any, **kwargs: Any) -> _NoopSpan:  # noqa: ARG002
         return _NoopSpan()
 
 

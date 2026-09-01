@@ -220,10 +220,10 @@ def _compute_requires_2fa_challenge(
     Requires 2FA when allocated_cost_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR
     AND transaction_count > MAX_TRANSACTIONS_PER_PERIOD (high-volume + high-value).
     """
-    if allocated_cost_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR:
-        if transaction_count > MAX_TRANSACTIONS_PER_PERIOD:
-            return True
-    return False
+    return (
+        allocated_cost_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR
+        and transaction_count > MAX_TRANSACTIONS_PER_PERIOD
+    )
 
 
 def _persist_transaction(

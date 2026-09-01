@@ -24,51 +24,6 @@ CR lessons applied:
 
 from __future__ import annotations
 
-# ── Module metadata ───────────────────────────────────────────────────────
-MODULE_TAG: str = "m34_finops_cost_anomaly_ml_prediction"
-MODULE_NAME: str = "FinOps Cost Anomaly ML Prediction"
-MODULE_VERSION: str = "1.0.0"
-
-# Re-export core public API
-from apps.api.modules.finops.cost_anomaly_ml_prediction.anomaly_ml_prediction_engine import (
-    FEATURE_NAMES,
-    MODEL_HYPERPARAMETERS,
-    PREDICTION_HORIZON_DAYS_DEFAULT,
-    aggregate_predictions,
-    create_prediction,
-    list_predictions,
-    read_prediction,
-    retire_prediction,
-    update_prediction,
-)
-from apps.api.modules.finops.cost_anomaly_ml_prediction.serializers import (
-    BOOTSTRAP_SAMPLES,
-    COST_ANOMALY_ML_PREDICTION_ENGINE_MODEL_VERSION,
-    DEFAULT_ENSEMBLE_WEIGHTS,
-    DRIFT_PSI_THRESHOLD,
-    ENSEMBLE_CONSENSUS_THRESHOLD,
-    LISTEN_NOTIFY_CHANNELS,
-    ML_BATCH_SIZE_DEFAULT,
-    ML_BATCH_SIZE_MAX,
-    ML_CADENCE_HOURS_KST,
-    ML_DEFAULTS,
-    ML_INFERENCE_P95_LATENCY_MS,
-    ML_MODEL_LRU_CACHE_MAX,
-    ML_RECIPIENT_TEMPLATES,
-    AnomalyMLDryRunMode,
-    AnomalyMLPrediction,
-    AnomalyMLScoreResult,
-    DriftType,
-    ModelRegistryEntry,
-    ModelTrainingJob,
-    ModelType,
-    PredictionMethod,
-    PredictionStatus,
-    TrainingJobStatus,
-)
-
-# Re-export DRIFT_PSI_THRESHOLD with full canonical name
-DRIFT_PSI_THRESHOLD_DEFAULT = DRIFT_PSI_THRESHOLD
 from apps.api.modules.finops.cost_anomaly_ml_prediction.anomaly_ml_ensemble_consensus import (
     DEFAULT_THRESHOLD,
     DEFAULT_WEIGHTS,
@@ -86,6 +41,19 @@ from apps.api.modules.finops.cost_anomaly_ml_prediction.anomaly_ml_model_registr
     list_active_models,
     register_model,
     update_model_status,
+)
+
+# Re-export core public API
+from apps.api.modules.finops.cost_anomaly_ml_prediction.anomaly_ml_prediction_engine import (
+    FEATURE_NAMES,
+    MODEL_HYPERPARAMETERS,
+    PREDICTION_HORIZON_DAYS_DEFAULT,
+    aggregate_predictions,
+    create_prediction,
+    list_predictions,
+    read_prediction,
+    retire_prediction,
+    update_prediction,
 )
 from apps.api.modules.finops.cost_anomaly_ml_prediction.anomaly_ml_scoring import (
     batch_predict_anomaly_scores,
@@ -115,6 +83,36 @@ from apps.api.modules.finops.cost_anomaly_ml_prediction.scheduled_cost_anomaly_m
     schedule_cost_anomaly_ml_prediction_jobs,
     weekly_scheduled_training_job,
 )
+from apps.api.modules.finops.cost_anomaly_ml_prediction.serializers import (
+    BOOTSTRAP_SAMPLES,  # noqa: F401
+    COST_ANOMALY_ML_PREDICTION_ENGINE_MODEL_VERSION,
+    DEFAULT_ENSEMBLE_WEIGHTS,
+    DRIFT_PSI_THRESHOLD,  # noqa: F401
+    ENSEMBLE_CONSENSUS_THRESHOLD,  # noqa: F401
+    LISTEN_NOTIFY_CHANNELS,
+    ML_BATCH_SIZE_DEFAULT,
+    ML_BATCH_SIZE_MAX,
+    ML_CADENCE_HOURS_KST,
+    ML_DEFAULTS,
+    ML_INFERENCE_P95_LATENCY_MS,
+    ML_MODEL_LRU_CACHE_MAX,
+    ML_RECIPIENT_TEMPLATES,
+    AnomalyMLDryRunMode,
+    AnomalyMLPrediction,
+    AnomalyMLScoreResult,
+    DriftType,
+    ModelRegistryEntry,
+    ModelTrainingJob,
+    ModelType,
+    PredictionMethod,
+    PredictionStatus,
+    TrainingJobStatus,
+)
+
+# ── Module metadata ───────────────────────────────────────────────────────
+MODULE_TAG: str = "m34_finops_cost_anomaly_ml_prediction"
+MODULE_NAME: str = "FinOps Cost Anomaly ML Prediction"
+MODULE_VERSION: str = "1.0.0"
 
 __all__ = [
     # Module metadata

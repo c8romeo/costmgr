@@ -463,9 +463,12 @@ def reconcile_settlement(
         )
 
     # Final classification if retry exhausted
-    if retry_attempt >= max_retries and status != RECONCILIATION_STATUS_MATCHED:
-        if not requires_2fa:
-            status = RECONCILIATION_STATUS_RETRY_EXHAUSTED
+    if (
+        retry_attempt >= max_retries
+        and status != RECONCILIATION_STATUS_MATCHED
+        and not requires_2fa
+    ):
+        status = RECONCILIATION_STATUS_RETRY_EXHAUSTED
 
     reconciliation_id = _compute_reconciliation_id(
         tenant_id=tenant_id,

@@ -263,8 +263,14 @@ class BudgetAmountInvalidError(FinopsAnomalyError):
     http_status: int = 400
 
 
-class BudgetAlertError(FinopsAnomalyError):
-    """HTTP 500 typed error — budget alert routing failure.
+class BudgetAlertAnomalyError(FinopsAnomalyError):
+    """HTTP 500 typed error — budget alert routing failure (§F31.5 anomaly).
+
+    Distinct from §F38.4 BudgetAlertError (FinopsBudgetPlanningError
+    parent) — this one is the §F31.5 anomaly-context predecessor that
+    was shadowed when §F38.4 redefined the same name at line 3275.
+    Preserved as a separate class so §F31.5 callers retain the
+    FinopsAnomalyError inheritance chain.
 
     Raised by route_budget_alert() when consumption calculation fails
     or alert routing table is invalid.
@@ -848,8 +854,14 @@ class ConditionalRuleParseError(FinopsTagGovernanceError):
 
 
 # §F31.5 chargeback allocation reconciliation (3 NEW)
-class ChargebackReconciliationError(FinopsTagGovernanceError):
+class ChargebackAllocationReconciliationError(FinopsTagGovernanceError):
     """HTTP 500 typed error — chargeback allocation reconciliation failure.
+
+    Distinct from §F38.4 ChargebackReconciliationError
+    (FinopsChargebackSettlementError parent) — this is the §F31.5
+    tag-governance-context predecessor that was shadowed when §F38.4
+    redefined the same name at line 2868. Renamed to preserve the
+    FinopsTagGovernanceError inheritance chain for §F31.5 callers.
 
     Raised by reconcile_chargeback_allocation() when 3 reconciliation
     strategy (chargeback_only/tag_allocation_only/hybrid_blended default)
@@ -886,7 +898,7 @@ class ReconciliationApprovalError(FinopsTagGovernanceError):
 # ComplianceAlertRoutingError — but to maintain 15 NEW total across the
 # spec, we group them with the §F31.5 reconciliation flow.)
 # Note: §F31.4 typed exceptions are not separately defined; instead,
-# compliance workflow errors raise ChargebackReconciliationError
+# compliance workflow errors raise ChargebackAllocationReconciliationError
 # (cross-tenant scenario) + UntaggedThresholdBreachError (severity
 # classification).
 
@@ -1544,6 +1556,7 @@ __all__ = [
     "BudgetScopeInvalidError",
     "BudgetAmountInvalidError",
     "BudgetAlertError",
+    "BudgetAlertAnomalyError",
     "BudgetAlertRoutingError",
     "BudgetAlertDedupWindowActiveError",
     "ForecastAccuracyDegradedError",
@@ -1601,6 +1614,7 @@ __all__ = [
     "AllocationRuleEvaluationError",
     "PercentageSumValidationError",
     "ConditionalRuleParseError",
+    "ChargebackAllocationReconciliationError",
     "ChargebackReconciliationError",
     "ReconciliationDeltaBreachError",
     "ReconciliationApprovalError",

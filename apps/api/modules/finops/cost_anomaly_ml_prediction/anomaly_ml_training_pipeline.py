@@ -55,6 +55,7 @@ from apps.api.modules.finops.cost_anomaly_ml_prediction.anomaly_ml_prediction_en
     _validate_model_type,
     _validate_tenant_id,
 )
+from apps.api.modules.finops.cost_anomaly_ml_prediction.serializers import ModelTrainingJob
 
 # ── Module constants ──────────────────────────────────────────────────────
 TRAINING_DATA_WINDOW_DAYS_DEFAULT: Final[int] = 90

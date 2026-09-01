@@ -297,20 +297,20 @@ from apps.api.modules.finops.idle_resource_detector import (
 # Volume Tier) + 5 marketplace source support + 3 negotiation bot
 # cloud providers + 4 cron schedules KST.
 from apps.api.modules.finops.multi_cloud import (
-    ALL_BLENDED_UNBLENDED_TRACKING_STATUSES,
-    ALL_MARKETPLACE_INTEGRATION_STATUSES,
-    ALL_MARKETPLACE_PRICING_MODELS,
-    ALL_MARKETPLACE_SAAS_CATEGORIES,
-    ALL_MARKETPLACE_SOURCES,
-    ALL_MARKETPLACE_UNITS,
-    ALL_MULTI_CLOUD_COST_SOURCES,
-    ALL_MULTI_CLOUD_PROVIDERS,
-    ALL_MULTI_CLOUD_RATE_CARD_SOURCES,
-    ALL_MULTI_CLOUD_SCOPE_TYPES,
-    ALL_NEGOTIATION_COMMITMENT_TERMS,
-    ALL_NEGOTIATION_RISK_LEVELS,
-    ALL_NEGOTIATION_STATUSES,
-    ALL_NEGOTIATION_STRATEGIES,
+    ALL_BLENDED_UNBLENDED_TRACKING_STATUSES,  # noqa: F401
+    ALL_MARKETPLACE_INTEGRATION_STATUSES,  # noqa: F401
+    ALL_MARKETPLACE_PRICING_MODELS,  # noqa: F401
+    ALL_MARKETPLACE_SAAS_CATEGORIES,  # noqa: F401
+    ALL_MARKETPLACE_SOURCES,  # noqa: F401
+    ALL_MARKETPLACE_UNITS,  # noqa: F401
+    ALL_MULTI_CLOUD_COST_SOURCES,  # noqa: F401
+    ALL_MULTI_CLOUD_PROVIDERS,  # noqa: F401
+    ALL_MULTI_CLOUD_RATE_CARD_SOURCES,  # noqa: F401
+    ALL_MULTI_CLOUD_SCOPE_TYPES,  # noqa: F401
+    ALL_NEGOTIATION_COMMITMENT_TERMS,  # noqa: F401
+    ALL_NEGOTIATION_RISK_LEVELS,  # noqa: F401
+    ALL_NEGOTIATION_STATUSES,  # noqa: F401
+    ALL_NEGOTIATION_STRATEGIES,  # noqa: F401
     MULTI_CLOUD_DEFAULTS,
     MULTI_CLOUD_ENGINE_MODEL_VERSION,
     BlendedUnblendedDiff,
@@ -980,7 +980,7 @@ from apps.api.modules.finops.chargeback_settlement import (
     CHARGEBACK_SETTLEMENT_ENGINE_MODEL_VERSION,
     FIVE_MODULE_WEIGHT_SUM,
     FIVE_MODULE_WEIGHTS,
-    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,  # noqa: F811
     MAX_ALLOCATION_LINES,
     MAX_INVOICE_BYTES,
     RECONCILIATION_AMOUNT_TOLERANCE_KRW,
@@ -1008,7 +1008,7 @@ from apps.api.modules.finops.chargeback_settlement import (
     schedule_cadence_dispatch,
     update_settlement_rule,
     validate_allocation_lines,
-    validate_cadence,
+    validate_cadence,  # noqa: F811
     validate_invoice_format,
     validate_reconciliation_result,
     validate_settlement_rule,
@@ -1037,70 +1037,70 @@ from apps.api.modules.finops.chargeback_settlement import (
 # wire scope T1~T8 + AD-55 (a)~(g) 7 sub-decisions verbatim
 # cross-reference.
 from apps.api.modules.finops.cost_anomaly_ml_prediction import (  # noqa: E402
-    AUTO_PROMOTE_CONSECUTIVE_DAYS,
-    AUTO_PROMOTE_MARGIN,
-    COST_ANOMALY_ML_PREDICTION_ENGINE_MODEL_VERSION,
-    DEFAULT_ENSEMBLE_WEIGHTS,
-    DEFAULT_THRESHOLD,
-    DEFAULT_WEIGHTS,
-    DRIFT_PSI_THRESHOLD_DEFAULT,
-    FEATURE_NAMES,
-    KST_TIMEZONE,
-    LISTEN_NOTIFY_CHANNELS,
-    ML_BATCH_SIZE_DEFAULT,
-    ML_BATCH_SIZE_MAX,
-    ML_CADENCE_HOURS_KST,
-    ML_DEFAULTS,
-    ML_INFERENCE_P95_LATENCY_MS,
-    ML_MODEL_LRU_CACHE_MAX,
-    ML_RECIPIENT_TEMPLATES,
-    MODEL_HYPERPARAMETERS,
-    MODEL_SCORING_WEIGHTS,
-    PREDICTION_HORIZON_DAYS_DEFAULT,
-    SEMVER_DEFAULT_VERSION,
-    TRAFFIC_SPLIT_DEFAULT,
-    TRAINING_CRON_SCHEDULE,
-    TRAINING_DATA_WINDOW_DAYS_DEFAULT,
-    TRAINING_DATA_WINDOW_MAX_DAYS,
-    TRAINING_DATA_WINDOW_MIN_DAYS,
-    TRAINING_RETRY_BASE_SECONDS,
-    TRAINING_RETRY_MAX,
-    TRAINING_RETRY_MAX_SECONDS,
-    TRAINING_TIMEOUT_SECONDS,
-    AnomalyMLDryRunMode,
-    AnomalyMLPrediction,
-    AnomalyMLScoreResult,
-    DriftType,
-    ModelRegistryEntry,
-    ModelTrainingJob,
-    ModelType,
-    PredictionMethod,
-    PredictionStatus,
-    TrainingJobStatus,
-    aggregate_predictions,
-    batch_predict_anomaly_scores,
-    cancel_training_job,
-    consensus_detected,
-    create_prediction,
-    daily_drift_detection_job,
-    daily_model_promotion_check_job,
-    deprecate_model,
-    ensemble_consensus_score,
-    get_training_job_status,
-    list_active_models,
-    list_predictions,
-    list_training_history,
-    nightly_batch_inference_job,
+    AUTO_PROMOTE_CONSECUTIVE_DAYS,  # noqa: F401
+    AUTO_PROMOTE_MARGIN,  # noqa: F401
+    COST_ANOMALY_ML_PREDICTION_ENGINE_MODEL_VERSION,  # noqa: F401
+    DEFAULT_ENSEMBLE_WEIGHTS,  # noqa: F401
+    DEFAULT_THRESHOLD,  # noqa: F401
+    DEFAULT_WEIGHTS,  # noqa: F401
+    DRIFT_PSI_THRESHOLD_DEFAULT,  # noqa: F401
+    FEATURE_NAMES,  # noqa: F401
+    KST_TIMEZONE,  # noqa: F401
+    LISTEN_NOTIFY_CHANNELS,  # noqa: F811
+    ML_BATCH_SIZE_DEFAULT,  # noqa: F401
+    ML_BATCH_SIZE_MAX,  # noqa: F401
+    ML_CADENCE_HOURS_KST,  # noqa: F401
+    ML_DEFAULTS,  # noqa: F401
+    ML_INFERENCE_P95_LATENCY_MS,  # noqa: F401
+    ML_MODEL_LRU_CACHE_MAX,  # noqa: F401
+    ML_RECIPIENT_TEMPLATES,  # noqa: F401
+    MODEL_HYPERPARAMETERS,  # noqa: F401
+    MODEL_SCORING_WEIGHTS,  # noqa: F401
+    PREDICTION_HORIZON_DAYS_DEFAULT,  # noqa: F401
+    SEMVER_DEFAULT_VERSION,  # noqa: F811
+    TRAFFIC_SPLIT_DEFAULT,  # noqa: F401
+    TRAINING_CRON_SCHEDULE,  # noqa: F401
+    TRAINING_DATA_WINDOW_DAYS_DEFAULT,  # noqa: F401
+    TRAINING_DATA_WINDOW_MAX_DAYS,  # noqa: F401
+    TRAINING_DATA_WINDOW_MIN_DAYS,  # noqa: F401
+    TRAINING_RETRY_BASE_SECONDS,  # noqa: F401
+    TRAINING_RETRY_MAX,  # noqa: F401
+    TRAINING_RETRY_MAX_SECONDS,  # noqa: F401
+    TRAINING_TIMEOUT_SECONDS,  # noqa: F401
+    AnomalyMLDryRunMode,  # noqa: F401
+    AnomalyMLPrediction,  # noqa: F401
+    AnomalyMLScoreResult,  # noqa: F401
+    DriftType,  # noqa: F401
+    ModelRegistryEntry,  # noqa: F401
+    ModelTrainingJob,  # noqa: F401
+    ModelType,  # noqa: F401
+    PredictionMethod,  # noqa: F401
+    PredictionStatus,  # noqa: F401
+    TrainingJobStatus,  # noqa: F401
+    aggregate_predictions,  # noqa: F401
+    batch_predict_anomaly_scores,  # noqa: F401
+    cancel_training_job,  # noqa: F401
+    consensus_detected,  # noqa: F401
+    create_prediction,  # noqa: F401
+    daily_drift_detection_job,  # noqa: F401
+    daily_model_promotion_check_job,  # noqa: F401
+    deprecate_model,  # noqa: F401
+    ensemble_consensus_score,  # noqa: F401
+    get_training_job_status,  # noqa: F401
+    list_active_models,  # noqa: F401
+    list_predictions,  # noqa: F401
+    list_training_history,  # noqa: F401
+    nightly_batch_inference_job,  # noqa: F401
     notify_listen_channels,
-    predict_anomaly_score,
-    register_model,
-    retire_prediction,
-    schedule_cost_anomaly_ml_prediction_jobs,
-    score_threshold_anomaly,
-    train_model,
-    update_model_status,
-    update_prediction,
-    weekly_scheduled_training_job,
+    predict_anomaly_score,  # noqa: F401
+    register_model,  # noqa: F401
+    retire_prediction,  # noqa: F401
+    schedule_cost_anomaly_ml_prediction_jobs,  # noqa: F401
+    score_threshold_anomaly,  # noqa: F401
+    train_model,  # noqa: F401
+    update_model_status,  # noqa: F401
+    update_prediction,  # noqa: F401
+    weekly_scheduled_training_job,  # noqa: F401
 )
 
 # Phase 23 wire (cj-style 164번째) — FinOps Unit Economics derived
@@ -1126,7 +1126,7 @@ from apps.api.modules.finops.unit_economics import (
     ALLOWED_TAG_KEYS,
     COST_PER_X_METRIC_WEIGHTS,
     DERIVATION_DIMENSION_WEIGHTS,
-    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,  # noqa: F811
     MARGIN_CRITICAL_THRESHOLD_PCT,
     MARGIN_HEALTHY_THRESHOLD_PCT,
     MARGIN_NEGATIVE_PCT,
@@ -1134,7 +1134,7 @@ from apps.api.modules.finops.unit_economics import (
     MAX_BUSINESS_UNITS_PER_TENANT,
     MAX_COST_PER_X_OVERRIDE_KRW,
     MAX_TRANSACTIONS_PER_PERIOD,
-    MODULE_TAG,  # m31_finops_unit_economics
+    MODULE_TAG,  # m31_finops_unit_economics  # noqa: F811
     UNIT_ECONOMICS_CADENCE_HOURS_KST,
     UNIT_ECONOMICS_DEFAULTS,
     UNIT_ECONOMICS_ENGINE_MODEL_VERSION,
@@ -1161,7 +1161,7 @@ from apps.api.modules.finops.unit_economics import (
     list_unit_economics_results,
     schedule_cadence_calculation,
     unit_economics_router,
-    validate_cadence,
+    validate_cadence,  # noqa: F811
     validate_cost_per_business_unit,
     validate_cost_per_transaction,
     validate_margin_analysis,
@@ -1212,16 +1212,16 @@ from apps.api.modules.finops.vendor_management import (  # noqa: E402
     ALL_VENDOR_STATUS_VALUES,
     ALL_VENDOR_STATUSES,
     AUTO_RENEWAL_WINDOW_DAYS,
-    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
-    LISTEN_NOTIFY_CHANNELS,
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,  # noqa: F811
+    LISTEN_NOTIFY_CHANNELS,  # noqa: F811
     MAX_CONTRACT_OVERRIDE_KRW,
     MAX_CONTRACTS_PER_VENDOR,
     MAX_VENDORS_PER_TENANT,
-    MODULE_TAG,  # m25_finops_vendor_management
+    MODULE_TAG,  # m25_finops_vendor_management  # noqa: F811
     SELECTION_CANDIDATE_LIMIT_DEFAULT,
     SELECTION_SCORE_VERSION_MAX,
     SELECTION_THRESHOLD_DEFAULT,
-    TOTAL_VERIFICATION_TOLERANCE_KRW,
+    TOTAL_VERIFICATION_TOLERANCE_KRW,  # noqa: F811
     VENDOR_BLACKLIST_GATE_FLAGS,
     VENDOR_CADENCE_HOURS_KST,
     VENDOR_DEFAULTS,
@@ -1268,7 +1268,7 @@ from apps.api.modules.finops.vendor_management import (  # noqa: E402
     evaluate_vendor_performance,
     monthly_vendor_performance_job,
     monthly_vendor_spend_attribution_job,
-    notify_listen_channels,
+    notify_listen_channels,  # noqa: F811
     override_selection_score_per_tenant,
     quarterly_vendor_review_job,
     reconcile_cross_budget,

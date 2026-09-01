@@ -218,7 +218,7 @@ class NegotiationRiskLevel(str, enum.Enum):
     HIGH = "high"
 
 
-ALL_NEGOTIATION_RISK_LEVELS: list[str] = [l.value for l in NegotiationRiskLevel]
+ALL_NEGOTIATION_RISK_LEVELS: list[str] = [level.value for level in NegotiationRiskLevel]
 
 
 class NegotiationCommitmentTerm(str, enum.Enum):

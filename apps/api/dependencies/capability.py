@@ -551,14 +551,14 @@ require_finops_cost_anomaly_ml_prediction = require_capability(
 # KST unified KPI refresh + weekly Mon 05:00 KST export cleanup + monthly
 # 1st-day 06:00 KST sharing expiry + on-demand LISTEN/NOTIFY incremental
 # update) + LISTEN/NOTIFY 18 channels + 6-dim cross-rollup
-# (tenant + cost_center + department + business_unit + tag + cloud_provider)
-# + 7-dim drill-down (6 + service) + 12 NEW pre-defined view templates +
+# (tenant + cost_center + department + business_unit + tag + cloud_provider)  # noqa: ERA001
+# + 7-dim drill-down (6 + service) + 12 NEW pre-defined view templates +  # noqa: ERA001
 # 5 export formats (pdf + xlsx + csv + json + png) + 50MB guard + 3-retry
 # cap + 5-state status (pending + in_progress + completed + failed +
 # cancelled) + 4 sharing scopes (private + tenant + tenant_owner +
 # cross_tenant) + audit-first INSERT 8 NEW Literal + 16 NEW typed
 # exceptions CR 12-5 D-14 envelope + dry-run mode + 1 NEW CLI flag
-# `--finops-interactive-dashboard-dry-run` + Epic 12 2FA 챌린지
+# `--finops-interactive-dashboard-dry-run` + Epic 12 2FA 챌린지  # noqa: ERA001
 # mandatory (high-value threshold 10M KRW/year sharing scope AD-56 (g)).
 # Gates the FinOps Interactive Dashboard routes in
 # apps/api/modules/finops/interactive_dashboard/ (healthcheck + 4

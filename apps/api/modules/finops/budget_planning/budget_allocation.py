@@ -189,7 +189,7 @@ def allocate_budget(
         # Auto-retry: redistribute last-row absorb
         if lines:
             lines[-1]["allocated_amount"] = total_budget_amount - sum(
-                l["allocated_amount"] for l in lines[:-1]
+                line["allocated_amount"] for line in lines[:-1]
             )
     else:
         # All retries exhausted → admin email alert
@@ -204,8 +204,8 @@ def allocate_budget(
                 "tenant_id": tenant_id,
                 "total_budget_amount": total_budget_amount,
                 "line_count": len(lines),
-                "verified": all(l["verified"] for l in lines),
-                "retry_count": max(l["retry_count"] for l in lines) if lines else 0,
+                "verified": all(line["verified"] for line in lines),
+                "retry_count": max(line["retry_count"] for line in lines) if lines else 0,
                 "actor_id": actor_id,
             },
         )
@@ -241,7 +241,7 @@ def aggregate_budget_allocations(
             "all_verified": False,
         }
 
-    total_allocated = sum(l["allocated_amount"] for l in lines)
+    total_allocated = sum(line["allocated_amount"] for line in lines)
     by_dimension: dict[str, dict[str, object]] = {}
     for line in lines:
         dim = line["dimension"]
@@ -256,5 +256,5 @@ def aggregate_budget_allocations(
         "line_count": len(lines),
         "total_allocated_amount": _bankers_round(total_allocated),
         "by_dimension": by_dimension,
-        "all_verified": all(l["verified"] for l in lines),
+        "all_verified": all(line["verified"] for line in lines),
     }

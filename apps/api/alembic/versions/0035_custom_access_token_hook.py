@@ -156,11 +156,11 @@ $$;
 #
 # D-CI-FUNC-9 cj-226 fix: each statement below is its own op.execute()
 # call because asyncpg's prepared-statement protocol rejects a single
-# cursor.execute() string containing multiple ;-separated commands
-# ("cannot insert multiple commands into a prepared statement"). The
-# function body itself is one statement, but ALTER / REVOKE / GRANT are
-# separate ones — we must split them. (Other migrations such as 0019
-# and 0021 already follow this pattern.)
+# cursor.execute() string containing multiple ;-separated commands  # noqa: ERA001
+# ("cannot insert multiple commands into a prepared statement"). The  # noqa: ERA001
+# function body itself is one statement, but ALTER / REVOKE / GRANT are  # noqa: ERA001
+# separate ones — we must split them. (Other migrations such as 0019  # noqa: ERA001
+# and 0021 already follow this pattern.)  # noqa: ERA001
 _OWNER_SQL = r"""
 ALTER FUNCTION public.custom_access_token_hook(jsonb) OWNER TO postgres;
 """

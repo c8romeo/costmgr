@@ -433,7 +433,6 @@ def validate_reserved_capacity_dispatch(
 __all__ = [
     "LISTEN_NOTIFY_CHANNELS",
     "_CRON_EXPRESSION_MAP",
-    "_COMPUTE_DISPATCH_CACHE_KEY",
     "dispatch_reserved_capacity_orchestration",
     "resolve_cron_expression",
     "resolve_recipient_list",

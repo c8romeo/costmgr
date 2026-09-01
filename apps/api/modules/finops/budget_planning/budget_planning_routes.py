@@ -91,7 +91,7 @@ async def create_budget_plan_endpoint(
         )
         return {"status": "ok", "plan": plan}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/plans")
@@ -263,7 +263,7 @@ async def approve_step_endpoint(
         )
         return {"status": "ok", "step": updated}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/plans/{plan_id}/vs-actual")
@@ -292,7 +292,7 @@ async def compute_vs_actual_endpoint(
         raise HTTPException(status_code=404, detail="Budget plan not found")
     plan = matches[0]
 
-    # Allocate (placeholder)
+    # Allocate (placeholder)  # noqa: ERA001
     allocations = _allocate(
         tenant_id=tenant_id,
         plan_id=plan_id,

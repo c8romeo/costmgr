@@ -31,6 +31,12 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+# ── SAML XML namespaces (module-level: N806 lowercase-in-function) ──
+SAML_PROTOCOL_NS = "urn:oasis:names:tc:SAML:2.0:protocol"
+SAML_ASSERTION_NS = "urn:oasis:names:tc:SAML:2.0:assertion"
+DSIG_NS = "http://www.w3.org/2000/09/xmldsig#"
+
+
 # ── Typed exceptions (CR 12-5 D-14 envelope) ──────────────────────────
 
 
@@ -191,10 +197,6 @@ def _structural_validate(
         raise SAMLInvalidResponseError(reason="xml_parse_error") from exc
 
     # SAML protocol namespace (samlp).
-    SAML_PROTOCOL_NS = "urn:oasis:names:tc:SAML:2.0:protocol"
-    SAML_ASSERTION_NS = "urn:oasis:names:tc:SAML:2.0:assertion"
-    DSIG_NS = "http://www.w3.org/2000/09/xmldsig#"
-
     if root.tag != f"{{{SAML_PROTOCOL_NS}}}Response":
         raise SAMLInvalidResponseError(reason="root_not_samlp_response")
 

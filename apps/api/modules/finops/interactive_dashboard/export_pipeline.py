@@ -5,7 +5,7 @@ export_pipeline (PRD §F43.3 verbatim + AD-56 (c) verbatim + Phase
 17/22 export pipeline reuse EXTENSION).
 
 Provides:
-- start_export_job(tenant_id, view_id, format, options) → ExportJob
+- start_export_job(tenant_id, view_id, fmt, options) → ExportJob
 - get_export_job_status(job_id) → ExportJob
 - list_export_jobs(tenant_id, filter) → list[ExportJob]
 - cancel_export_job(job_id) → ExportJob
@@ -192,7 +192,7 @@ def _check_status_transition(from_status: str, to_status: str) -> None:
 def start_export_job(
     tenant_id: str,
     view_id: str,
-    format: str,
+    fmt: str,
     options: dict[str, object] | None = None,
 ) -> ExportJob:
     """Start a new export job (PRD §F43.3 — 12 fields).
@@ -200,7 +200,7 @@ def start_export_job(
     Args:
         tenant_id: UUID tenant identifier (CR 0-2 RLS selector).
         view_id: saved_view_id (Phase 28 territory).
-        format: ExportFormat (pdf/xlsx/csv/json/png).
+        fmt: ExportFormat (pdf/xlsx/csv/json/png).
         options: optional dict containing export options (e.g.
             include_charts=True, locale='ko-KR', webhook_url=None).
 
@@ -215,7 +215,7 @@ def start_export_job(
     """
     _validate_tenant_id(tenant_id)
     _validate_view_id(view_id)
-    _validate_format(format)
+    _validate_format(fmt)
 
     job_id = _generate_id()
     now = _now_iso()
@@ -226,7 +226,7 @@ def start_export_job(
         export_job_id=job_id,
         tenant_id=tenant_id,
         saved_view_id=view_id,
-        export_format=format,
+        export_format=fmt,
         status=ExportJobStatus.PENDING.value,
         progress_pct=DEFAULT_PROGRESS_PCT,
         file_path=None,

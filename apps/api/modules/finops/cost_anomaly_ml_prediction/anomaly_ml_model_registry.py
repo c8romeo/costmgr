@@ -45,6 +45,7 @@ from apps.api.modules.finops.cost_anomaly_ml_prediction.anomaly_ml_prediction_en
     _now_iso,
     _validate_tenant_id,
 )
+from apps.api.modules.finops.cost_anomaly_ml_prediction.serializers import ModelRegistryEntry
 
 # ── Module constants ──────────────────────────────────────────────────────
 SEMVER_DEFAULT_VERSION: Final[str] = "0.1.0"

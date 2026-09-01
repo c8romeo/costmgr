@@ -288,7 +288,7 @@ def dispatch_commitment_report(
     # apscheduler job registration (real DB path).
     if db_session is not None:
         try:
-            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: F401
 
             # Real apscheduler registration — Phase 18 wire EXTENSION.
             # apscheduler integration is wired through packages/services/jobs/
@@ -394,7 +394,6 @@ def validate_commitment_dispatch(
 
 
 __all__ = [
-    "schedule_commitment_dispatch",
     "dispatch_commitment_report",
     "resolve_cron_expression",
     "resolve_recipient_list",
