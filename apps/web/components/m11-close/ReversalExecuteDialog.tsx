@@ -44,8 +44,10 @@ import {
 export interface ReversalExecuteDialogProps {
   /** Controlled open state. */
   open: boolean;
-  /** Open state setter. */
-  onOpenChange: (open: boolean) => void;
+  /** Open state setter. cj-252: optional — when omitted, defaults to a
+   * no-op so the dialog can be statically rendered from an RSC server
+   * page (which cannot pass function props across the RSC boundary). */
+  onOpenChange?: (open: boolean) => void;
   /** Tenant id. */
   tenant_id: string;
   /** Target event_id (AD-22 sign-negating target). */
@@ -176,7 +178,7 @@ export function ReversalExecuteDialog({
         } else {
           toast.error(t("invalid_snapshot_toast"));
         }
-        onOpenChange(false);
+        onOpenChange?.(false);
       }
     } catch (err) {
       // P-001 — distinguish network errors vs state errors vs 404.

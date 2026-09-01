@@ -30,7 +30,6 @@
  *   (consistent triple fallback).
  */
 
-import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
 import { CacheInvalidationChannelBadge } from "@/components/m11-close/CacheInvalidationChannelBadge";
@@ -38,7 +37,7 @@ import { ReopenOperatorDialog } from "@/components/m11-close/ReopenOperatorDialo
 import { ReversalExecuteDialog } from "@/components/m11-close/ReversalExecuteDialog";
 import { SnapshotPersistencePanel } from "@/components/m11-close/SnapshotPersistencePanel";
 import { TwoFactorGuard } from "@/components/m12-account/TwoFactorGuard";
-import { MonthlyInputTabs } from "@/components/m2-input/MonthlyInputTabs";
+import { MonthlyInputTabsInteractive } from "@/components/m2-input/MonthlyInputTabsInteractive";
 import type { ClosingInvariant } from "@/lib/l2-input-inventory-ledger";
 import { fetchMonthlyInputStateServerSide } from "@/lib/server-api";
 import { fetchM2EntryGateServerSide } from "@/lib/server-api";
@@ -89,8 +88,11 @@ export default async function MonthlyInputPeriodPage({
     initialState?.production_consumption_events ?? [];
 
   // Story 6.1 T8.6 — 4 NEW closing-period fields from MonthlyInputStateResponse.
+  // cj-252: `closing_snapshot_count` is now consumed inside the client
+  // wrapper (MonthlyInputTabsInteractive.onClosingPeriodConfirm returns
+  // `data.closing_snapshot_count ?? 0` directly from the POST response),
+  // so we no longer project it on the server.
   const closingPeriodState = initialState?.closing_period_state ?? null;
-  const closingSnapshotCount = initialState?.closing_snapshot_count ?? 0;
   const closingPeriodFinalizedAt =
     initialState?.closing_period_finalized_at ?? null;
   // CR 6-1 R4 patch D11 — explicit capability gate (A10 MONTHLY_CLOSING_REPORT).
@@ -144,7 +146,7 @@ export default async function MonthlyInputPeriodPage({
         locked_out={gateState?.locked_out ?? false}
         lockout_until={gateState?.lockout_until ?? null}
       >
-      <MonthlyInputTabs
+      <MonthlyInputTabsInteractive
         period_key={periodKey}
         invariant={invariant}
         audit_trail={auditTrail}
@@ -155,45 +157,7 @@ export default async function MonthlyInputPeriodPage({
         closing_period_state={closingPeriodState ?? undefined}
         closing_period_capability_granted={monthlyClosingReportCapabilityGranted}
         closing_period_finalized_at={closingPeriodFinalizedAt}
-        onSubmit={async (key) => {
-          // P3-3rd-sweep P27: no-op save handler for [수불부] tab in
-          // CLOSING_OK path. Real save flow wires through useSaveRow hook
-          // in follow-up Story (currently saves via api-client directly).
-          await Promise.resolve(key);
-        }}
-        onClosingPeriodConfirm={async (key) => {
-          // Story 6.1 T8.6 — POST /api/v1/inventory/closing-period/confirm.
-          // Best-effort: throw on 409/403 so the Dialog surfaces toast.error.
-          const res = await fetch("/api/v1/inventory/closing-period/confirm", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-            },
-            body: JSON.stringify({ period_key: key }),
-          });
-          if (!res.ok) {
-            const body = (await res.json().catch(() => ({}))) as {
-              error?: { code?: string };
-            };
-            const err = new Error("ClosingPeriodConfirmError") as Error & {
-              response?: { data?: { error?: { code?: string } } };
-            };
-            err.response = { data: body };
-            throw err;
-          }
-          const data = (await res.json()) as {
-            // eslint-disable-next-line @typescript-eslint/no-restricted-types
-            closing_snapshot_count?: number;
-          };
-          // CR 6-1 R4 patch D12: revalidate the page path so the
-          // Server Component re-reads monthly_input_periods.status='closed'
-          // + finalized_at + audit trail on next render. Without this,
-          // the cached state would still show CLOSING_READY even after
-          // the user confirms.
-          revalidatePath(`/m2-input/period/${key}`);
-          return data.closing_snapshot_count ?? closingSnapshotCount;
-        }}
+        accessToken={accessToken}
       />
       </TwoFactorGuard>
       {/* Story 11.4 (A13 sprint-up) — T8 frontend mount (D-001).
@@ -212,10 +176,6 @@ export default async function MonthlyInputPeriodPage({
       />
       <ReversalExecuteDialog
         open={false}
-        onOpenChange={() => {
-          // TODO(11-4 carry): wire controlled open state via a client
-          // wrapper that owns useState (Server Component cannot hold state).
-        }}
         tenant_id="00000000-0000-4000-8000-000000000003"
         target_event_id="00000000-0000-4000-8000-000000000004"
         snapshot_id="00000000-0000-4000-8000-000000000001"
@@ -227,10 +187,6 @@ export default async function MonthlyInputPeriodPage({
       />
       <ReopenOperatorDialog
         open={false}
-        onOpenChange={() => {
-          // TODO(11-4 carry): wire controlled open state via a client
-          // wrapper that owns useState (Server Component cannot hold state).
-        }}
         tenant_id="00000000-0000-4000-8000-000000000003"
         actor_id="00000000-0000-4000-8000-000000000002"
         is_owner={false}

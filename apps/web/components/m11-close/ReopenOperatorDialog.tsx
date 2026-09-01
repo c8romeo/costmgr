@@ -43,8 +43,10 @@ import {
 export interface ReopenOperatorDialogProps {
   /** Controlled open state. */
   open: boolean;
-  /** Open state setter. */
-  onOpenChange: (open: boolean) => void;
+  /** Open state setter. cj-252: optional — when omitted, defaults to a
+   * no-op so the dialog can be statically rendered from an RSC server
+   * page (which cannot pass function props across the RSC boundary). */
+  onOpenChange?: (open: boolean) => void;
   /** Tenant id. */
   tenant_id: string;
   /** Actor id. */
@@ -157,7 +159,7 @@ export function ReopenOperatorDialog({
         } else {
           toast.error(t("reject_invalid_operator_toast"));
         }
-        onOpenChange(false);
+        onOpenChange?.(false);
       }
     } catch (err) {
       // P-001 — distinguish network errors vs auth errors vs validation.
