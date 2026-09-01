@@ -527,6 +527,26 @@ jobs:
   web-e2e:
     needs: setup
     runs-on: ubuntu-latest
+    env:
+      # cj-251 (D-CI-FUNC-5 PART 2): web-e2e job previously had no env block —
+      # `pnpm dev` boots Next.js which calls `getSupabaseEnv()` and hard-throws
+      # when NEXT_PUBLIC_SUPABASE_URL / ANON_KEY are empty. With the cj-250
+      # instrumentation MODULE_NOT_FOUND fix in place, the next failure (run
+      # 33507184865) was exposed: the dev server now boots but every page
+      # render throws `NEXT_PUBLIC_SUPABASE_URL is required`. Placeholder
+      # values are sufficient — apps/web/e2e/fixtures/supabase-test.ts
+      # explicitly defers real Postgres wiring (rlsDb is a no-op stub reading
+      # E2E_TENANT_ID only), so network calls to localhost:54321 are never
+      # issued by the chromium smoke run. Mirrors the pattern apps/web/env.ts
+      # uses for `NODE_ENV=test` mode (deterministic stub URL).
+      CI: "true"
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "ci-anon-key-stub"
+      NEXT_PUBLIC_SUPPORT_EMAIL: "support@bizup.kr"
+      NEXT_PUBLIC_SENTRY_ENVIRONMENT: "ci"
+      LOG_LEVEL: "WARNING"
+      OTEL_SDK_DISABLED: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
