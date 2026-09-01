@@ -101,14 +101,11 @@ const DERIVATION_DIMENSION_WEIGHTS_CLIENT: Record<
     tenant: 0.10,
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// eslint-disable-next-line @typescript-eslint/no-restricted-types
-const COST_PER_X_METRIC_WEIGHTS_CLIENT: Record<string, number> = {
-    cost_per_business_unit: 0.40,
-    cost_per_transaction: 0.30,
-    cost_per_department: 0.20,
-    cost_per_cost_center: 0.10,
-};
+// cj-246: removed dead `COST_PER_X_METRIC_WEIGHTS_CLIENT` constant — defined
+// but never referenced anywhere in apps/web. `grep -rn
+// COST_PER_X_METRIC_WEIGHTS_CLIENT apps/web --include="*.ts" --include="*.tsx"`
+// confirms zero call sites. Module-level unused const tripped
+// `@typescript-eslint/no-unused-vars` and its per-line disable was stale.
 
 export function FinopsUnitEconomicsDashboardPanel() {
     const [activeTab, setActiveTab] = useState<
@@ -540,9 +537,10 @@ function CostPerTransactionCard() {
     const [costCenter, setCostCenter] = useState<string>("billing-001");
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const [allocatedCostKrw, setAllocatedCostKrw] = useState<number>(10_000);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // cj-246: `setTransactionCount` setter unused in `CostPerTransactionCard`
+    // scope — `transactionCount` getter IS read by the request body below.
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    const [transactionCount, setTransactionCount] = useState<number>(1);
+    const [transactionCount] = useState<number>(1);
     const [tagPropagationJson, setTagPropagationJson] = useState<string>(
         '{"cost_center":"billing-001","department":"sales"}'
     );
@@ -881,18 +879,17 @@ function UnitEconomicsDryRunPreviewPanel() {
     const [periodKey, setPeriodKey] = useState<string>("2026-08");
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
     const [totalCostKrw, setTotalCostKrw] = useState<number>(10_000_000);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // cj-246: `setTotalRevenueKrw` setter unused in
+    // `UnitEconomicsDryRunPreviewPanel` scope — only getter referenced in
+    // the five-dim weighted-allocation math below.
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    const [totalRevenueKrw, setTotalRevenueKrw] = useState<number>(0);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [totalRevenueKrw] = useState<number>(0);
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    const [totalUnits, setTotalUnits] = useState<number>(100);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [totalUnits] = useState<number>(100);
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    const [totalTransactions, setTotalTransactions] = useState<number>(10_000);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [totalTransactions] = useState<number>(10_000);
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    const [allocationCount, setAllocationCount] = useState<number>(1000);
+    const [allocationCount] = useState<number>(1000);
     const [result, setResult] = useState<UnitEconomicsResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [pending, setPending] = useState<boolean>(false);

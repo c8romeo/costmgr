@@ -55,8 +55,10 @@ type Mode = "totp" | "recovery";
  * useCountdown — derives seconds remaining from an ISO-8601 expiry.
  * Returns 0 when expired.
  */
-// eslint-disable-next-line @typescript-eslint/no-restricted-types
-// eslint-disable-next-line camelcase
+// cj-246: stacked disable comments were disabling the wrong line. Merging
+// `@typescript-eslint/no-restricted-types, camelcase` onto a single comment
+// so both rules apply to the function declaration below.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types, camelcase
 function useCountdown(until_iso: string | null | undefined): number {
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
@@ -75,8 +77,8 @@ function useCountdown(until_iso: string | null | undefined): number {
   return diff;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-restricted-types
-// eslint-disable-next-line camelcase
+// cj-246: same stacked-disable fix — merging both rules onto one comment.
+// eslint-disable-next-line @typescript-eslint/no-restricted-types, camelcase
 function formatMmSs(total_seconds: number): string {
   // eslint-disable-next-line camelcase
   const mm = Math.floor(total_seconds / 60)

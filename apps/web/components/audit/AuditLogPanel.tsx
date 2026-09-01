@@ -71,9 +71,10 @@ export function AuditLogPanel({
 }: AuditLogPanelProps): React.ReactElement {
   const t = useTranslations("audit_log");
   const [filters, setFilters] = useState<AuditLogQueryFilters>(initialFilters);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // cj-246: `pageNumber` getter unused — only `setPageNumber` is referenced
+  // in pagination handlers below. Drop the unused side from destructuring.
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  const [pageNumber, setPageNumber] = useState<number>(initialPageNumber);
+  const [, setPageNumber] = useState<number>(initialPageNumber);
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
   const [pageSize] = useState<number>(initialPageSize);
   const [data, setData] = useState<AuditLogPage | null>(initialPage);

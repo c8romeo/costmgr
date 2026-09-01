@@ -21,8 +21,11 @@ export function OverBudgetAlertPanel(_: OverBudgetAlertPanelProps = {}) {
     const [alerts, setAlerts] = useState<BudgetAlert[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
 
-    // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    // eslint-disable-next-line camelcase
+    // cj-246: stacked `eslint-disable-next-line` comments disabled the wrong
+    // lines (each one disables ONLY the immediate next line). Merging both
+    // rules onto a single comment so `variance_pct: number` is actually
+    // covered by `@typescript-eslint/no-restricted-types` AND `camelcase`.
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types, camelcase
     const handleTrigger = async (variance_pct: number) => {
         setLoading(true);
         try {

@@ -151,8 +151,10 @@ export interface OptimizationAccuracyReport {
 // ── Custom error class for FinOps optimization API calls ──
 export class FinopsOptimizationApiError extends Error {
   constructor(
-    // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    // eslint-disable-next-line camelcase
+    // cj-246: same stacked-disable fix on the `FinopsOptimizationApiError`
+    // ctor parameter — merging `@typescript-eslint/no-restricted-types,
+    // camelcase` so both rules apply to the `http_status: number` field.
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types, camelcase
     public http_status: number,
     public code: string,
     // eslint-disable-next-line camelcase

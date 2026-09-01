@@ -80,12 +80,11 @@ export function ClosingPeriodConfirmationPanel({
   const allowed = isClosingPeriodAllowed(state.status);
   // eslint-disable-next-line camelcase
   const is_blocked = state.status === "CLOSING_BLOCKED";
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  // eslint-disable-next-line camelcase
-  const is_already_closed = state.status === "ALREADY_CLOSED";
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  // eslint-disable-next-line camelcase
-  const is_empty = state.status === "EMPTY_PERIOD";
+  // cj-246: removed dead `is_already_closed` + `is_empty` consts and their
+  // stale `@typescript-eslint/no-unused-vars` disable directives. Only
+  // `is_blocked` is referenced downstream (lines 163, 165). The other two
+  // status codes (ALREADY_CLOSED, EMPTY_PERIOD) are matched by the
+  // `allowed` switch above and never need a separate per-status const.
 
   // Variant + icon + title per status code (AD-15 §11 SSOT).
   let variant: "default" | "destructive" = "default";
