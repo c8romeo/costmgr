@@ -8,6 +8,7 @@ in Story 0.1. Future stories will add:
   - tenant_context.py (Story 0.2)
   - audit.py / service_role.py (Story 0.2)
 """
+
 from __future__ import annotations
 
 from typing import Final

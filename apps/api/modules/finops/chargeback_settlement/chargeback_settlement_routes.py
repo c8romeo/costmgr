@@ -32,6 +32,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import logging
@@ -84,9 +85,7 @@ router = APIRouter(
 # ── Helper: extract tenant_id from request context ───────────────────────
 def _extract_tenant_id(request: Request) -> str:
     """Extract tenant_id from request context (CR 0-2 RLS verbatim)."""
-    tenant_id = getattr(request.state, "tenant_id", None) or request.headers.get(
-        "X-Tenant-Id"
-    )
+    tenant_id = getattr(request.state, "tenant_id", None) or request.headers.get("X-Tenant-Id")
     if not tenant_id:
         raise HTTPException(
             status_code=400,
@@ -98,9 +97,7 @@ def _extract_tenant_id(request: Request) -> str:
 # ── Helper: extract trace_id from request context ────────────────────────
 def _extract_trace_id(request: Request) -> str:
     """Extract trace_id from request context (CR 1-1 verbatim)."""
-    trace_id = getattr(request.state, "trace_id", None) or request.headers.get(
-        "X-Trace-Id"
-    )
+    trace_id = getattr(request.state, "trace_id", None) or request.headers.get("X-Trace-Id")
     return str(trace_id) if trace_id else ""
 
 

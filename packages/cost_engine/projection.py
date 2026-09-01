@@ -211,16 +211,13 @@ class ProjectionBaselineNotFoundError(Exception):
         self.period_key = period_key
         self.message = (
             message
-            or f"Projection baseline not found: tenant_id={tenant_id}, "
-            f"period_key={period_key}"
+            or f"Projection baseline not found: tenant_id={tenant_id}, " f"period_key={period_key}"
         )
         super().__init__(self.message)
 
 
 # ── Pure functions ───────────────────────────────────────────
-def _validate_decimal(
-    value: object, *, field_name: str
-) -> Decimal:
+def _validate_decimal(value: object, *, field_name: str) -> Decimal:
     """Validate input is Decimal (or convert int/float) — defense-in-depth.
 
     Strict typing prevents silent float precision loss.
@@ -324,9 +321,7 @@ def compute_after_tax_income(
     Determinism (NFR16): 100회 동일 입력 → 100회 byte-identical Decimal.
     """
     pre_tax_income = _validate_decimal(pre_tax_income, field_name="pre_tax_income")
-    corporate_tax_rate = _validate_decimal(
-        corporate_tax_rate, field_name="corporate_tax_rate"
-    )
+    corporate_tax_rate = _validate_decimal(corporate_tax_rate, field_name="corporate_tax_rate")
 
     if corporate_tax_rate < 0 or corporate_tax_rate > 100:
         raise ProjectionInvalidInputError(
@@ -436,23 +431,17 @@ def project_next_month(
     # canonical kernel input — drift detector tests verify parity
     # with service-layer pre-aggregation.
     baseline_monthly_revenue = baseline_cvp.unit_price * operating_rate
-    baseline_monthly_variable_cost = (
-        baseline_cvp.unit_variable_cost * operating_rate
-    )
+    baseline_monthly_variable_cost = baseline_cvp.unit_variable_cost * operating_rate
     baseline_monthly_fixed_cost = baseline_cvp.fixed_cost
 
     # Apply cost inflation to revenue + variable cost.
-    inflation_factor = Decimal("1") + (
-        projection_inputs.cost_inflation_rate / Decimal("100")
-    )
+    inflation_factor = Decimal("1") + (projection_inputs.cost_inflation_rate / Decimal("100"))
     projected_revenue = baseline_monthly_revenue * inflation_factor
     projected_variable_cost = baseline_monthly_variable_cost * inflation_factor
     projected_fixed_cost = baseline_monthly_fixed_cost + interest_expense
 
     # Pre-tax income.
-    pre_tax_income = (
-        projected_revenue - projected_variable_cost - projected_fixed_cost
-    )
+    pre_tax_income = projected_revenue - projected_variable_cost - projected_fixed_cost
 
     # Corporate tax + after-tax income.
     # Use the internal logic (don't call compute_after_tax_income to avoid
@@ -460,9 +449,7 @@ def project_next_month(
     if pre_tax_income < 0:
         corporate_tax = Decimal("0")
     else:
-        corporate_tax = pre_tax_income * (
-            projection_inputs.corporate_tax_rate / Decimal("100")
-        )
+        corporate_tax = pre_tax_income * (projection_inputs.corporate_tax_rate / Decimal("100"))
     after_tax_income = pre_tax_income - corporate_tax
 
     return NextMonthProjection(

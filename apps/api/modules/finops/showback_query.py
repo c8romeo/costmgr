@@ -22,6 +22,7 @@ CR lessons applied:
 AD-22 owner-only RBAC — query_showback_breakdown +
 query_showback_comparison are owner-only by capability gate.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -30,15 +31,14 @@ from typing import Any, Final
 from apps.api.modules.finops.showback_dsl import (
     ALLOWED_GROUP_BY,
     COMPARISON_NONE,
-    ComparisonView,
-    DepartmentBreakdown,
     PERIOD_CURRENT_MONTH,
     SHOWBACK_PAGE_SIZE_DEFAULT,
+    ComparisonView,
+    DepartmentBreakdown,
     ShowbackDefinition,
     parse_showback_definition,
     resolve_period_bounds,
 )
-
 
 # ── Showback query cache (PRD §F27.1.10 verbatim) ──────────────
 SHOWBACK_CACHE_TTL_SECONDS: Final[int] = 300  # 5 minutes
@@ -70,6 +70,7 @@ def _query_hash(
 ) -> str:
     """Compose a deterministic query hash for cache key composition."""
     import hashlib
+
     payload = f"{period_start}|{period_end}|{comparison_period}|{currency_code}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 

@@ -25,6 +25,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT.
 - D-FINOPS-14 honestly DEFER.
 """
+
 from __future__ import annotations
 
 import logging

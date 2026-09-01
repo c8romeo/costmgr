@@ -35,6 +35,7 @@ Epic 12 2FA 챌린지 mandatory when governance_required=True.
 Industry-agnostic per CR 12-1 L4 precedent. All 4 industries get
 FINOPS_FORECASTING_CAPACITY_PLANNING capability.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -223,7 +224,7 @@ def _prophet_predict(
     # Simplified: use mean + seasonality adjustment
     mean_val = sum(history) / len(history)
     variance = sum((v - mean_val) ** 2 for v in history) / len(history)
-    std_dev = variance ** 0.5
+    std_dev = variance**0.5
     predicted = [mean_val for _ in range(horizon_n)]
     ci_band = 1.96 * std_dev * 2.0
     return ForecastResult(
@@ -299,15 +300,27 @@ def _ensemble_voting(
     ensemble_upper = []
     for i in range(horizon_n):
         values = sorted(
-            [arima["predicted_values"][i], prophet["predicted_values"][i], lstm["predicted_values"][i]]
+            [
+                arima["predicted_values"][i],
+                prophet["predicted_values"][i],
+                lstm["predicted_values"][i],
+            ]
         )
         median_v = values[1]
         ensemble_pred.append(median_v)
         ensemble_lower.append(
-            min(arima["confidence_lower"][i], prophet["confidence_lower"][i], lstm["confidence_lower"][i])
+            min(
+                arima["confidence_lower"][i],
+                prophet["confidence_lower"][i],
+                lstm["confidence_lower"][i],
+            )
         )
         ensemble_upper.append(
-            max(arima["confidence_upper"][i], prophet["confidence_upper"][i], lstm["confidence_upper"][i])
+            max(
+                arima["confidence_upper"][i],
+                prophet["confidence_upper"][i],
+                lstm["confidence_upper"][i],
+            )
         )
     return ForecastResult(
         forecast_id=forecast_id,
@@ -400,8 +413,13 @@ def generate_forecast(
 
     if model_type == MODEL_TYPE_ENSEMBLE:
         result = _ensemble_voting(
-            arima_result, prophet_result, lstm_result,
-            history, horizon_months, forecast_id, model_version,
+            arima_result,
+            prophet_result,
+            lstm_result,
+            history,
+            horizon_months,
+            forecast_id,
+            model_version,
         )
         result["tenant_id"] = str(tenant_id)
         result["target_metric"] = target_metric

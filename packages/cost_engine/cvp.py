@@ -64,15 +64,9 @@ QUANT_QUANTITY: Final[Decimal] = Decimal("0.01")  # 2 decimal places for bep_qua
 BEP_HASH_PREFIX: Final[str] = "sha256:"
 
 # Korean SSOT message — used by main.py envelope handlers (CR 12-5 D-14).
-BEP_INVALID_PRICE_MESSAGE_KO: Final[str] = (
-    "단가는 단위변동비보다 커야 합니다 (정상범위 외)"
-)
-BEP_INVALID_FIXED_COST_MESSAGE_KO: Final[str] = (
-    "고정비는 0 이상이어야 합니다"
-)
-BEP_INVALID_TARGET_PROFIT_MESSAGE_KO: Final[str] = (
-    "목표이익은 0 이상이어야 합니다"
-)
+BEP_INVALID_PRICE_MESSAGE_KO: Final[str] = "단가는 단위변동비보다 커야 합니다 (정상범위 외)"
+BEP_INVALID_FIXED_COST_MESSAGE_KO: Final[str] = "고정비는 0 이상이어야 합니다"
+BEP_INVALID_TARGET_PROFIT_MESSAGE_KO: Final[str] = "목표이익은 0 이상이어야 합니다"
 
 # Delta percentage bounds (sliders min/max enforcement):
 # - unit_price / unit_variable_cost: ±50% (PRD §F7.1)
@@ -230,9 +224,7 @@ class CVPInvalidInputError(ValueError):
 
 
 # ── Pure functions ───────────────────────────────────────────
-def _validate_decimal(
-    value: object, *, field_name: str, _allow_zero: bool = True
-) -> Decimal:
+def _validate_decimal(value: object, *, field_name: str, _allow_zero: bool = True) -> Decimal:
     """Validate input is Decimal (or convert int/float) — defense-in-depth.
 
     Strict typing prevents silent float precision loss.
@@ -296,9 +288,7 @@ def compute_bep(
     Determinism (NFR16): 100회 동일 입력 → 100회 byte-identical BEPResult.
     """
     fixed_cost = _validate_decimal(fixed_cost, field_name="fixed_cost")
-    unit_variable_cost = _validate_decimal(
-        unit_variable_cost, field_name="unit_variable_cost"
-    )
+    unit_variable_cost = _validate_decimal(unit_variable_cost, field_name="unit_variable_cost")
     unit_price = _validate_decimal(unit_price, field_name="unit_price")
 
     if unit_price <= unit_variable_cost:
@@ -322,9 +312,7 @@ def compute_bep(
             bep_quantity=_q(Decimal("0"), QUANT_QUANTITY),
             bep_revenue=_q(Decimal("0")),
             contribution_margin_per_unit=_q(contribution_margin_per_unit),
-            contribution_margin_ratio=_q(
-                contribution_margin_per_unit / unit_price, QUANT_RATIO
-            ),
+            contribution_margin_ratio=_q(contribution_margin_per_unit / unit_price, QUANT_RATIO),
         )
 
     bep_quantity = fixed_cost / contribution_margin_per_unit
@@ -363,9 +351,7 @@ def compute_target_profit(
     """
     target_profit = _validate_decimal(target_profit, field_name="target_profit")
     fixed_cost = _validate_decimal(fixed_cost, field_name="fixed_cost")
-    unit_variable_cost = _validate_decimal(
-        unit_variable_cost, field_name="unit_variable_cost"
-    )
+    unit_variable_cost = _validate_decimal(unit_variable_cost, field_name="unit_variable_cost")
     unit_price = _validate_decimal(unit_price, field_name="unit_price")
 
     if unit_price <= unit_variable_cost:
@@ -437,9 +423,7 @@ def apply_delta(baseline: CVPBaseline, delta: CVPDelta) -> CVPBaseline:
     simulated_unit_variable_cost = baseline.unit_variable_cost * (
         Decimal("1") + delta.unit_variable_cost_delta_pct
     )
-    simulated_fixed_cost = baseline.fixed_cost * (
-        Decimal("1") + delta.fixed_cost_delta_pct
-    )
+    simulated_fixed_cost = baseline.fixed_cost * (Decimal("1") + delta.fixed_cost_delta_pct)
     simulated_operating_rate = baseline.operating_rate * (
         Decimal("1") + delta.operating_rate_delta_pct
     )
@@ -531,13 +515,9 @@ def simulate_cvp(
     # 6. Delta summary — 4 variables' effective percentage deltas (after quantize).
     delta_summary = {
         "unit_price_delta_pct": _q(delta.unit_price_delta_pct, QUANT_RATIO),
-        "unit_variable_cost_delta_pct": _q(
-            delta.unit_variable_cost_delta_pct, QUANT_RATIO
-        ),
+        "unit_variable_cost_delta_pct": _q(delta.unit_variable_cost_delta_pct, QUANT_RATIO),
         "fixed_cost_delta_pct": _q(delta.fixed_cost_delta_pct, QUANT_RATIO),
-        "operating_rate_delta_pct": _q(
-            delta.operating_rate_delta_pct, QUANT_RATIO
-        ),
+        "operating_rate_delta_pct": _q(delta.operating_rate_delta_pct, QUANT_RATIO),
     }
 
     return CVPResult(

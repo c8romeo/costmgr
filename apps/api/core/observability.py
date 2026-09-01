@@ -63,9 +63,7 @@ def init_sentry(*, app: Any = None) -> bool:
         from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
         from sentry_sdk.integrations.starlette import StarletteIntegration
     except ImportError as exc:
-        _LOGGER.warning(
-            "sentry-sdk not installed — skipping init: %s", exc
-        )
+        _LOGGER.warning("sentry-sdk not installed — skipping init: %s", exc)
         return False
 
     dsn = os.getenv("SENTRY_DSN", "").strip()

@@ -60,9 +60,9 @@ import asyncio
 import contextlib
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit_action import ActionClass, emit_audit_typed
@@ -397,10 +397,7 @@ class FailoverOrchestrator:
         session = await session_gen.__anext__()
         try:
             if drill_mode:
-                logger.info(
-                    "DRILL mode — skipping actual promotion, recording "
-                    "audit row only"
-                )
+                logger.info("DRILL mode — skipping actual promotion, recording " "audit row only")
                 # Record replication_lag row (system-only table, no RLS).
                 await session.execute(
                     text(

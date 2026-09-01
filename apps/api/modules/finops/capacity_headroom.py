@@ -28,6 +28,7 @@ CR lessons applied:
 AD-22 owner-only RBAC — analyze_capacity_headroom owner-only.
 Epic 12 2FA 챌린지 mandatory when governance_required=True.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -263,28 +264,49 @@ def analyze_capacity_headroom(
     # Run primary model
     if primary_model == "lstm":
         primary_result = _lstm_predict(
-            current_utilization_history, horizon, report_id, SEMVER_DEFAULT_VERSION,
+            current_utilization_history,
+            horizon,
+            report_id,
+            SEMVER_DEFAULT_VERSION,
         )
     elif primary_model == "prophet":
         primary_result = _prophet_predict(
-            current_utilization_history, horizon, report_id, SEMVER_DEFAULT_VERSION,
+            current_utilization_history,
+            horizon,
+            report_id,
+            SEMVER_DEFAULT_VERSION,
         )
     else:
         primary_result = _arima_predict(
-            current_utilization_history, horizon, report_id, SEMVER_DEFAULT_VERSION,
+            current_utilization_history,
+            horizon,
+            report_id,
+            SEMVER_DEFAULT_VERSION,
         )
     primary_utilization = primary_result["predicted_values"]
 
     # Ensemble fallback (PRD §F29.3.6) — run other 2 models + median vote
     arima_result = _arima_predict(
-        current_utilization_history, horizon, report_id, SEMVER_DEFAULT_VERSION,
+        current_utilization_history,
+        horizon,
+        report_id,
+        SEMVER_DEFAULT_VERSION,
     )
     prophet_result = _prophet_predict(
-        current_utilization_history, horizon, report_id, SEMVER_DEFAULT_VERSION,
+        current_utilization_history,
+        horizon,
+        report_id,
+        SEMVER_DEFAULT_VERSION,
     )
     ensemble_pred: list[float] = []
     for i in range(len(primary_utilization)):
-        values = sorted([primary_utilization[i], arima_result["predicted_values"][i], prophet_result["predicted_values"][i]])
+        values = sorted(
+            [
+                primary_utilization[i],
+                arima_result["predicted_values"][i],
+                prophet_result["predicted_values"][i],
+            ]
+        )
         ensemble_pred.append(values[1])
 
     # Average predicted utilization → saturation_pct

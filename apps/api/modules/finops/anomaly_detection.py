@@ -40,17 +40,15 @@ AUDIT_LOG_VIEW Epic 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5
 wire pattern verbatim). All 4 industries get FINOPS_ANOMALY_DETECTION
 capability.
 """
+
 from __future__ import annotations
 
 import uuid
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, TypedDict
 
 from apps.api.core.errors import (
-    AnomalyBaselineUnavailableError,
     AnomalyDefinitionInvalidError,
-    AnomalyDetectionError,
 )
-
 
 # ── Constants — 4 detection methods (PRD §F28.1.2 verbatim) ─────
 DETECTION_METHOD_ZSCORE: Final[str] = "z_score"
@@ -90,6 +88,7 @@ ALL_BASELINE_WINDOWS: Final[tuple[str, ...]] = (
     BASELINE_WINDOW_LAST_90D,
     BASELINE_WINDOW_YTD,
 )
+
 
 # ── AnomalyDefinition TypedDict (PRD §F28.1.1 verbatim, 8 fields) ─
 class AnomalyDefinition(TypedDict, total=True):
@@ -204,7 +203,7 @@ def _validate_definition_fields(definition: dict[str, Any]) -> None:
 
     # Rule 5: threshold_value must be positive number
     threshold_value = definition["threshold_value"]
-    if not isinstance(threshold_value, (int, float)) or threshold_value <= 0:
+    if not isinstance(threshold_value, int | float) or threshold_value <= 0:
         raise AnomalyDefinitionInvalidError(
             message_ko="threshold_value는 양수여야 합니다",
             details={"threshold_value": str(threshold_value)},
@@ -254,9 +253,7 @@ def parse_anomaly_definition(
         threshold_method=str(payload_with_tenant["threshold_method"]),
         threshold_value=float(payload_with_tenant["threshold_value"]),
         baseline_window=str(payload_with_tenant["baseline_window"]),
-        consecutive_periods_required=int(
-            payload_with_tenant["consecutive_periods_required"]
-        ),
+        consecutive_periods_required=int(payload_with_tenant["consecutive_periods_required"]),
     )
 
 

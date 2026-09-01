@@ -73,9 +73,7 @@ PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset({"locked"})
 # blocks direct edits). 'open' / 'closing' / 'reversed' are rejected
 # at the authorization layer (direct edit OR re-edit window).
 FISCAL_PERIOD_STATUS_ALLOWED: Final[frozenset[str]] = frozenset({"closed"})
-FISCAL_PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset(
-    {"open", "closing", "reversed"}
-)
+FISCAL_PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset({"open", "closing", "reversed"})
 
 # 11-3 EXTENSION — fiscal_period_snapshots.state (AD-20 state machine)
 # 3rd-tier guard layer. AD-22 영구화 requires the underlying snapshot
@@ -87,9 +85,7 @@ FISCAL_PERIOD_STATUS_REJECTED: Final[frozenset[str]] = frozenset(
 # 11-1 reversal_request path uses reversal REQUEST (not 영구화), which
 # only requires the snapshot to eventually be committed before execute.
 SNAPSHOT_STATE_ALLOWED: Final[frozenset[str]] = frozenset({"committed"})
-SNAPSHOT_STATE_REJECTED: Final[frozenset[str]] = frozenset(
-    {"draft", "verified", "reversed"}
-)
+SNAPSHOT_STATE_REJECTED: Final[frozenset[str]] = frozenset({"draft", "verified", "reversed"})
 
 # 11-2 EXTENSION — authorization-layer reversibility diverges from
 # build-layer `REVERSIBLE_TARGET_EVENT_TYPES` (reversal_negating.py):
@@ -127,9 +123,7 @@ ERROR_CODE_INVALID_SNAPSHOT_STATE: Final[str] = "INVALID_SNAPSHOT_STATE"
 M11_AUTHORIZE_KO: Final[str] = "M11 모듈 권한 OK"
 M11_REJECT_LOCKED_KO: Final[str] = "잠긴 기간 — 역분개 불가"
 M11_REJECT_NO_CAPABILITY_KO: Final[str] = "역분개 권한 미보유"
-M11_REJECT_TARGET_NOT_REVERSIBLE_KO: Final[str] = (
-    "이 이벤트 타입은 역분개 대상이 아닙니다"
-)
+M11_REJECT_TARGET_NOT_REVERSIBLE_KO: Final[str] = "이 이벤트 타입은 역분개 대상이 아닙니다"
 # 11-3 NEW — snapshot state guard Korean SSOT
 M11_REJECT_SNAPSHOT_NOT_COMMITTED_KO: Final[str] = (
     "스냅샷이 커밋 상태가 아닙니다 — 영구화 역분개 불가"
@@ -321,9 +315,7 @@ def authorize_reversal(
     # is sealed for direct edits (AD-6 INSERT 거부) — AD-22 reversal
     # is the ONLY edit path. 'open' / 'closing' / 'reversed' are
     # rejected at the authorization layer.
-    if fiscal_period_status not in (
-        FISCAL_PERIOD_STATUS_ALLOWED | FISCAL_PERIOD_STATUS_REJECTED
-    ):
+    if fiscal_period_status not in (FISCAL_PERIOD_STATUS_ALLOWED | FISCAL_PERIOD_STATUS_REJECTED):
         raise ReversalAuthorizationError(
             message=(
                 f"fiscal_period_status {fiscal_period_status!r} is not in "
@@ -352,9 +344,7 @@ def authorize_reversal(
     # be in state='committed'. The 11-1 reversal REQUEST path uses the
     # default 'committed' (backward-compat). The 11-3 reversal EXECUTE
     # path passes the actual snapshot_state fetched from the DB.
-    if snapshot_state not in (
-        SNAPSHOT_STATE_ALLOWED | SNAPSHOT_STATE_REJECTED
-    ):
+    if snapshot_state not in (SNAPSHOT_STATE_ALLOWED | SNAPSHOT_STATE_REJECTED):
         raise ReversalAuthorizationError(
             message=(
                 f"snapshot_state {snapshot_state!r} is not in the known "

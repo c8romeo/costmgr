@@ -46,12 +46,8 @@ ERROR_CODE_ALREADY_REVERSED: Final[str] = "SNAPSHOT_ALREADY_REVERSED"
 # Korean constants — AD-15 §11 SSOT.
 SNAPSHOT_COMMIT_OK_KO: Final[str] = "스냅샷 영구화 완료"
 SNAPSHOT_COMMIT_IDEMPOTENT_KO: Final[str] = "스냅샷 이미 영구화됨 — 멱등 처리"
-SNAPSHOT_COMMIT_DRAFT_REJECT_KO: Final[str] = (
-    "스냅샷이 검증 전 상태 — 영구화 불가"
-)
-SNAPSHOT_COMMIT_REVERSED_REJECT_KO: Final[str] = (
-    "스냅샷이 이미 역분개됨 — 영구화 불가"
-)
+SNAPSHOT_COMMIT_DRAFT_REJECT_KO: Final[str] = "스냅샷이 검증 전 상태 — 영구화 불가"
+SNAPSHOT_COMMIT_REVERSED_REJECT_KO: Final[str] = "스냅샷이 이미 역분개됨 — 영구화 불가"
 
 
 # ── Typed exception ──────────────────────────────────────────
@@ -161,10 +157,7 @@ def validate_commit_snapshot_persistence(
         )
     if not isinstance(period_key, str) or not period_key:
         raise CommitSnapshotPersistenceError(
-            message=(
-                f"period_key must be non-empty str, got "
-                f"{type(period_key).__name__!r}"
-            ),
+            message=(f"period_key must be non-empty str, got " f"{type(period_key).__name__!r}"),
             error_code=ERROR_CODE_INVALID_INPUT,
         )
     if current_state not in (

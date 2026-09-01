@@ -575,10 +575,7 @@ async def extract_monthly_endpoint(
         for d in result.drafts
     ]
 
-    status_value = (
-        "low_confidence_warning" if result.low_confidence_count > 0
-        else "success"
-    )
+    status_value = "low_confidence_warning" if result.low_confidence_count > 0 else "success"
     return MonthlyExtractResponse(
         extraction_id=result.extraction_id,
         period_key=result.period_key,
@@ -931,10 +928,7 @@ async def promote_ai_draft_endpoint(
         return AiPipaConsentMissingEnvelope(
             status="pipa_consent_missing",
             code="AI_PIPA_CONSENT_MISSING",
-            message_ko=(
-                "승격 포트는 개인정보 처리 동의가 필요합니다. "
-                "설정에서 동의해 주세요."
-            ),
+            message_ko=("승격 포트는 개인정보 처리 동의가 필요합니다. " "설정에서 동의해 주세요."),
             details={"tenant_id": str(e.tenant_id)},
             trace_id=e.trace_id,
         )
@@ -973,8 +967,7 @@ async def promote_ai_draft_endpoint(
             status="m2_only",
             code="INPUT_PROMOTION_M2_ONLY",
             message_ko=(
-                "승격 포트는 M2 모듈만 호출할 수 있습니다. "
-                "M2 서비스 토큰으로 인증해 주세요."
+                "승격 포트는 M2 모듈만 호출할 수 있습니다. " "M2 서비스 토큰으로 인증해 주세요."
             ),
             details={
                 "actual_role": e.actor_role,
@@ -991,8 +984,7 @@ async def promote_ai_draft_endpoint(
             status="m2_only",
             code="INPUT_PROMOTION_M2_ONLY",
             message_ko=(
-                "승격 요청 형식이 올바르지 않습니다 "
-                "(period_key=YYYY-MM, M2 서비스 토큰 필요)."
+                "승격 요청 형식이 올바르지 않습니다 " "(period_key=YYYY-MM, M2 서비스 토큰 필요)."
             ),
             details={},
             trace_id=trace_id,

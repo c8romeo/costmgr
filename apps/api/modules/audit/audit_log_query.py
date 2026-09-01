@@ -27,6 +27,7 @@ binding: the route layer (`audit_log_routes`) → query layer (this module)
 → audit_logs table (SELECT only, append-only insert is via
 `apps.api.core.audit.emit_audit`).
 """
+
 from __future__ import annotations
 
 import logging
@@ -277,9 +278,7 @@ async def query_audit_log(
     elif isinstance(filters, dict):
         merged = dict(filters)
     else:
-        raise AuditLogQueryInvalidFilterError(
-            "filters must be a dict or None"
-        )
+        raise AuditLogQueryInvalidFilterError("filters must be a dict or None")
     merged["tenant_id"] = str(tenant_id)
     _validate_filters(merged)
     where_sql, params = _build_where_clause(merged)

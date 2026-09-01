@@ -30,16 +30,15 @@ CR lessons applied:
 AD-22 owner-only RBAC — reconciliation approval owner-only.
 Epic 12 2FA 챌린지 mandatory when reconciliation_resolved.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
-from typing import Any, Final, TypedDict
+from typing import Final, TypedDict
 
 from apps.api.core.errors import (
     ChargebackReconciliationError,
     ReconciliationApprovalError,
-    ReconciliationDeltaBreachError,
 )
 
 # ── 3 reconciliation_strategy 옵션 (PRD §F31.5-2 verbatim) ──────
@@ -157,7 +156,7 @@ def initiate_reconciliation(
         ReconciliationDeltaBreachError: variance_pct exceeds delta_threshold.
     """
     # 1. tenant_id validation
-    if not isinstance(tenant_id, (str, uuid.UUID)):
+    if not isinstance(tenant_id, str | uuid.UUID):
         raise ChargebackReconciliationError(
             message_ko=f"tenant_id must be str/UUID, got {type(tenant_id).__name__}",
             details={"tenant_id": str(tenant_id)},
@@ -178,14 +177,14 @@ def initiate_reconciliation(
         )
 
     # 3. amount validation
-    if not isinstance(chargeback_amount_usd, (int, float)):
+    if not isinstance(chargeback_amount_usd, int | float):
         raise ChargebackReconciliationError(
-            message_ko=f"chargeback_amount_usd must be numeric",
+            message_ko="chargeback_amount_usd must be numeric",
             details={"value": str(chargeback_amount_usd)},
         )
-    if not isinstance(tag_allocation_amount_usd, (int, float)):
+    if not isinstance(tag_allocation_amount_usd, int | float):
         raise ChargebackReconciliationError(
-            message_ko=f"tag_allocation_amount_usd must be numeric",
+            message_ko="tag_allocation_amount_usd must be numeric",
             details={"value": str(tag_allocation_amount_usd)},
         )
     if chargeback_amount_usd < 0:

@@ -21,6 +21,7 @@ CR lessons applied:
 
 AD-22 owner-only RBAC — model registration owner-only.
 """
+
 from __future__ import annotations
 
 import uuid

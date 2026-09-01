@@ -40,6 +40,7 @@ CR lessons applied:
 Phase 11~21 carry-over: phase_11_finops_* ~ phase_21_reserved_capacity_*
 tables RLS 정합 보존.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -68,11 +69,15 @@ def upgrade() -> None:
         sa.Column("target_dimensions", JSONB, nullable=False, server_default="[]"),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
         sa.Column("settlement_status", sa.Text, nullable=False, server_default="draft"),
-        sa.Column("requires_2fa_challenge", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "requires_2fa_challenge", sa.Boolean, nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
-            "tenant_id", "period_key", "rule_name",
+            "tenant_id",
+            "period_key",
+            "rule_name",
             name="uq_phase_22_chargeback_settlement_rule_scope_period_name",
         ),
         sa.CheckConstraint(
@@ -105,8 +110,18 @@ def upgrade() -> None:
         sa.Column("tolerance_band_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
         sa.Column("settlement_status", sa.Text, nullable=False, server_default="draft"),
         sa.Column("dry_run", sa.Boolean, nullable=False, server_default=sa.text("false")),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
-        sa.Column("last_updated_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "last_updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
@@ -136,7 +151,12 @@ def upgrade() -> None:
         sa.Column("weight", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("allocated_amount_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
         sa.Column("audit_first_insert", sa.Boolean, nullable=False, server_default=sa.text("true")),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "dimension IN ('cost_center', 'department', 'business_unit', 'tag', 'tenant')",
@@ -163,9 +183,16 @@ def upgrade() -> None:
         sa.Column("invoice_format", sa.Text, nullable=False),
         sa.Column("bytes_size", sa.Integer, nullable=False, server_default="0"),
         sa.Column("recipient_routing", JSONB, nullable=False, server_default="{}"),
-        sa.Column("s3_archive_enabled", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "s3_archive_enabled", sa.Boolean, nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
-        sa.Column("generated_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "generated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "invoice_format IN ('pdf', 'xlsx', 'csv')",
@@ -196,9 +223,16 @@ def upgrade() -> None:
         sa.Column("variance_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
         sa.Column("reconciliation_status", sa.Text, nullable=False, server_default="matched"),
         sa.Column("retry_attempts", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("requires_2fa_challenge", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "requires_2fa_challenge", sa.Boolean, nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "reconciliation_status IN ('matched', 'variance_detected', 'retry_exhausted', 'needs_approval')",
@@ -222,7 +256,12 @@ def upgrade() -> None:
         sa.Column("tenant_id", UUID(as_uuid=True), nullable=False, index=True),
         sa.Column("cadence", sa.Text, nullable=False),
         sa.Column("period_key", sa.Text, nullable=False),
-        sa.Column("executed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "executed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("next_run_at_kst", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("dry_run", sa.Boolean, nullable=False, server_default=sa.text("false")),
         sa.Column("settlement_result_id", UUID(as_uuid=True), nullable=True),
@@ -248,7 +287,9 @@ def upgrade() -> None:
         sa.Column("slack_channels", JSONB, nullable=False, server_default="[]"),
         sa.Column("email_recipients", JSONB, nullable=False, server_default="[]"),
         sa.Column("ms_teams_channels", JSONB, nullable=False, server_default="[]"),
-        sa.Column("s3_archive_enabled", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "s3_archive_enabled", sa.Boolean, nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "recipient_template IN ('owner_only', 'executive', 'audit_only')",
@@ -267,7 +308,9 @@ def upgrade() -> None:
         sa.Column("subject", sa.Text, nullable=False, server_default=""),
         sa.Column("variance_pct", sa.Numeric(8, 4), nullable=False, server_default="0"),
         sa.Column("retry_attempts", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("sent_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "sent_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
     )
 
@@ -279,12 +322,16 @@ def upgrade() -> None:
         sa.Column("user_id", UUID(as_uuid=True), nullable=False),
         sa.Column("settlement_id", UUID(as_uuid=True), nullable=False),
         sa.Column("approved", sa.Boolean, nullable=False, server_default=sa.text("false")),
-        sa.Column("two_factor_verified", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "two_factor_verified", sa.Boolean, nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("approved_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
-            "tenant_id", "user_id", "settlement_id",
+            "tenant_id",
+            "user_id",
+            "settlement_id",
             # D-CI-FUNC-9 cj-244 fix: original name was 64 chars, exceeds
             # Postgres NAMEDATALEN-1=63 and trips SQLAlchemy's
             # `dialect.validate_identifier`. Shortened to
@@ -310,8 +357,15 @@ def upgrade() -> None:
         sa.Column("allocation_preview_data", JSONB, nullable=False, server_default="{}"),
         sa.Column("reconciliation_preview_data", JSONB, nullable=False, server_default="{}"),
         sa.Column("invoice_preview_data", JSONB, nullable=False, server_default="{}"),
-        sa.Column("audit_action", sa.Text, nullable=False, server_default="settlement_dry_run_executed"),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "audit_action", sa.Text, nullable=False, server_default="settlement_dry_run_executed"
+        ),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
     )
 
@@ -328,9 +382,7 @@ def upgrade() -> None:
         "phase_22_chargeback_settlement_owner_approval",
         "phase_22_chargeback_settlement_dry_run_preview",
     ):
-        op.execute(
-            f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;"
-        )
+        op.execute(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;")
         op.execute(
             f"CREATE POLICY tenant_isolation_{table_name} "
             f"ON {table_name} USING ("

@@ -44,6 +44,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -458,9 +459,7 @@ def select_commitment_kpis(
                 kpi_unit=_KPI_UNIT_MAP["coverage_pct"],
                 kpi_delta=None,
                 kpi_trend="flat",
-                kpi_threshold_status=_classify_threshold_status(
-                    "coverage_pct", coverage, industry
-                ),
+                kpi_threshold_status=_classify_threshold_status("coverage_pct", coverage, industry),
                 kpi_target=_KPI_TARGET_MAP["coverage_pct"],
                 kpi_computed_at=datetime.now(tz=UTC),
                 trace_id=trace_id,

@@ -116,9 +116,7 @@ class PromotionSourceDraftNotFoundError(PromoterServiceError):
         source_draft_id: uuid.UUID,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"source draft {source_draft_id} not found for tenant {tenant_id}"
-        )
+        super().__init__(f"source draft {source_draft_id} not found for tenant {tenant_id}")
         self.tenant_id = tenant_id
         self.source_draft_id = source_draft_id
         self.trace_id = trace_id
@@ -307,8 +305,7 @@ class PromoterService:
             actor_id=request.actor_id,
             target_id=request.source_draft_id,
             reason=(
-                f"period_key={request.period_key}|"
-                f"source_draft_id={request.source_draft_id}"
+                f"period_key={request.period_key}|" f"source_draft_id={request.source_draft_id}"
             ),
             payload={
                 "period_key": request.period_key,
@@ -453,9 +450,7 @@ class PromoterService:
                 "period_key": request.period_key,
                 "source_draft_id": str(request.source_draft_id),
                 "monthly_input_row_id": str(monthly_input_row.row_id),
-                "monthly_input_promotion_id": str(
-                    monthly_input_promotion.promotion_id
-                ),
+                "monthly_input_promotion_id": str(monthly_input_promotion.promotion_id),
                 "idempotency_key": str(idempotency_key),
                 "trace_id": self._trace_id,
                 "phase": "promote_complete",
@@ -503,8 +498,7 @@ class PromoterService:
             # Promote base exception — handler maps to
             # 403 PIPPA_CONSENT_MISSING envelope.
             raise PromoterServiceError(
-                f"PIPA consent missing for tenant {tenant_id} "
-                f"(trace_id={self._trace_id})"
+                f"PIPA consent missing for tenant {tenant_id} " f"(trace_id={self._trace_id})"
             )
 
     async def _get_or_create_period(

@@ -23,13 +23,9 @@ from packages.services.m7_simulation.delta_helpers import CVPInvalidDeltaError
 
 # Korean messages for HTTP envelopes (CR 12-5 D-14 typed contract).
 # Module-level re-bindings to keep main.py handler imports flat.
-CVP_BASELINE_NOT_FOUND_KO: str = (
-    "계산된 마감 스냅샷이 없어 CVP 베이스라인을 만들 수 없습니다"
-)
+CVP_BASELINE_NOT_FOUND_KO: str = "계산된 마감 스냅샷이 없어 CVP 베이스라인을 만들 수 없습니다"
 CVP_INVALID_DELTA_KO: str = "CVP 변동률이 허용 범위를 벗어났습니다"
-INVALID_PROJECTION_MONTH_KO: str = (
-    "차월 추정 기간은 YYYY-MM 형식이며 기준 기간보다 이후여야 합니다"
-)
+INVALID_PROJECTION_MONTH_KO: str = "차월 추정 기간은 YYYY-MM 형식이며 기준 기간보다 이후여야 합니다"
 PROJECTION_INPUTS_INVALID_KO: str = (
     "차월 추정 입력값(차입금·이자율·원가 상승률·법인세율)이 유효하지 않습니다"
 )
@@ -54,8 +50,7 @@ class CVPBaselineNotFoundError(Exception):
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.message = (
-            message
-            or f"CVP baseline not found: tenant_id={tenant_id}, period_key={period_key}"
+            message or f"CVP baseline not found: tenant_id={tenant_id}, period_key={period_key}"
         )
         super().__init__(self.message)
 

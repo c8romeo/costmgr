@@ -29,6 +29,7 @@ Industry-agnostic per CR 12-1 L4 precedent (mirrors PERFORMANCE_TESTING
 Phase 8 wire + OBSERVABILITY_* Phase 7 wire pattern verbatim). All 4
 industries get CHAOS_ENGINEERING capability.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -333,7 +334,11 @@ def validate_chaos_experiment(experiment: dict[str, Any]) -> None:
         )
 
     duration = experiment.get("duration_seconds")
-    if not isinstance(duration, int) or duration < MIN_DURATION_SECONDS or duration > MAX_DURATION_SECONDS:
+    if (
+        not isinstance(duration, int)
+        or duration < MIN_DURATION_SECONDS
+        or duration > MAX_DURATION_SECONDS
+    ):
         raise ChaosExperimentError(
             code="CHAOS_EXPERIMENT_INVALID_DURATION",
             message_ko=f"유효하지 않은 duration_seconds: {duration!r}",

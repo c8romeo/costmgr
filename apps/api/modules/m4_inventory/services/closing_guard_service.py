@@ -289,10 +289,12 @@ class ClosingGuardService:
         from apps.api.core.db_models import MonthlyInputPeriod
 
         await self.session.scalar(
-            select(MonthlyInputPeriod).where(
+            select(MonthlyInputPeriod)
+            .where(
                 MonthlyInputPeriod.tenant_id == self.tenant_id,
                 MonthlyInputPeriod.period_key == period_key,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
 
         invariant = await self.evaluate_closing_guard(period_key)
@@ -495,9 +497,7 @@ class ClosingGuardService:
 
             # 1-shot INSERT (all-or-nothing — single transaction, no flush loop).
             if event_dicts:
-                await self.session.execute(
-                    insert(InventoryLedger), event_dicts
-                )
+                await self.session.execute(insert(InventoryLedger), event_dicts)
         except Exception as err:
             raise ClosingGuardProductionConsumptionError(
                 tenant_id=self.tenant_id,

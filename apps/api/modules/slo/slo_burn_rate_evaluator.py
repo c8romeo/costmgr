@@ -33,6 +33,7 @@ Epic 12 2FA 챌린지.
 
 Industry-agnostic per CR 12-1 L4 precedent.
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,11 +42,11 @@ from typing import Final, TypedDict
 
 from apps.api.modules.slo.slo_dsl import (
     DEFAULT_BURN_RATE_THRESHOLD,
-    SloViolationDetectedError,
     WINDOW_1H,
-    WINDOW_24H,
     WINDOW_3D,
     WINDOW_6H,
+    WINDOW_24H,
+    SloViolationDetectedError,
 )
 
 logger = logging.getLogger(__name__)

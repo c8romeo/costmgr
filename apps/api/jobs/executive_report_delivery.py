@@ -21,12 +21,13 @@ CR lessons applied:
 - AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import pytz
 
@@ -41,7 +42,7 @@ logger = logging.getLogger(__name__)
 KST = pytz.timezone("Asia/Seoul")
 
 # Delivery cron expressions (PRD §F32.3-9 verbatim).
-DELIVERY_CRON_EXPRESSIONS: Dict[str, str] = {
+DELIVERY_CRON_EXPRESSIONS: dict[str, str] = {
     Cadence.MONTHLY.value: "0 9 1 * *",  # KST 1st day of month 09:00
     Cadence.QUARTERLY.value: "0 9 1 1,4,7,10 *",  # KST 1st day of quarter
     Cadence.ANNUAL.value: "0 9 1 1 *",  # KST Jan 1 09:00
@@ -55,11 +56,11 @@ def deliver_executive_report(
     tenant_id: str,
     report_id: str,
     cadence: str = "monthly",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
     trace_id: str = "",
     dry_run: bool = False,
-    db_session: Optional[Any] = None,
-) -> Dict[str, Any]:
+    db_session: Any | None = None,
+) -> dict[str, Any]:
     """Deliver executive report via 3 targets (PRD §F32.3-9 verbatim).
 
     Phase 16 wire (cj-style 127번째) — Slack + Email + S3 archive.
@@ -96,6 +97,7 @@ def deliver_executive_report(
     try:
         if not dry_run:
             from apps.api.jobs.scheduled_executive_dispatch import _dispatch_slack
+
             results["slack"] = _dispatch_slack(
                 tenant_id=tenant_id,
                 report_id=report_id,
@@ -114,6 +116,7 @@ def deliver_executive_report(
     try:
         if not dry_run:
             from apps.api.jobs.scheduled_executive_dispatch import _dispatch_email
+
             results["email"] = _dispatch_email(
                 tenant_id=tenant_id,
                 report_id=report_id,
@@ -132,6 +135,7 @@ def deliver_executive_report(
     try:
         if not dry_run:
             from apps.api.jobs.scheduled_executive_dispatch import _dispatch_s3_archive
+
             results["s3_archive"] = _dispatch_s3_archive(
                 tenant_id=tenant_id,
                 period_key=datetime.now(tz=KST).strftime("%Y-%m"),
@@ -150,6 +154,7 @@ def deliver_executive_report(
     if not dry_run:
         try:
             from apps.api.core.audit_action import emit_audit_typed
+
             emit_audit_typed(
                 action="executive_report_dispatched",
                 tenant_id=tenant_id,
@@ -183,7 +188,7 @@ def deliver_executive_report(
         "report_id": report_id,
         "cadence": cadence,
         "results": results,
-        "delivered_at": datetime.now(tz=timezone.utc),
+        "delivered_at": datetime.now(tz=UTC),
         "trace_id": trace_id,
     }
 

@@ -28,6 +28,7 @@ CR lessons applied:
 
 AD-22 owner-only RBAC — track_forecast_accuracy owner-only.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -295,7 +296,11 @@ def track_forecast_accuracy(
     if not dry_run and consecutive_periods >= MAPE_CONSECUTIVE_PERIODS_THRESHOLD:
         with contextlib.suppress(ModelPerformanceDegradationError):
             _check_retraining_trigger(
-                str(tenant_id), target_metric, model_type, mape, consecutive_periods,
+                str(tenant_id),
+                target_metric,
+                model_type,
+                mape,
+                consecutive_periods,
             )
 
     # CR 1-1 audit-first INSERT for `forecast_accuracy_degraded` +

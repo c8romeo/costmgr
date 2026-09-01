@@ -26,6 +26,7 @@ CR lessons applied:
 - AD-53 (a) dry-run mode detail.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,9 +44,7 @@ from apps.api.modules.finops.vendor_management.vendor_selection_engine import (
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Phase 25 FinOps Vendor Management dry-run CLI"
-    )
+    parser = argparse.ArgumentParser(description="Phase 25 FinOps Vendor Management dry-run CLI")
     parser.add_argument(
         "--finops-vendor-management-dry-run",
         action="store_true",

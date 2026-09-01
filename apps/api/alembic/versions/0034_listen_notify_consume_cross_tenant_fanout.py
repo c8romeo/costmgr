@@ -342,9 +342,7 @@ def downgrade() -> None:
 
     # Drop the function (drop order matters — function must be droppable
     # without cascade if no other triggers reference it).
-    op.execute(
-        "DROP FUNCTION IF EXISTS cache_invalidation_log_notify_cross_tenant()"
-    )
+    op.execute("DROP FUNCTION IF EXISTS cache_invalidation_log_notify_cross_tenant()")
 
     # Drop the partial index.
     op.execute(
@@ -355,9 +353,7 @@ def downgrade() -> None:
 
     # Restore the 4-channel CHECK constraint (0021 wire shape).
     in_clause_4 = ", ".join(
-        f"'{c}'"
-        for c in _ALLOWED_CHANNELS_14_1
-        if c != CROSS_TENANT_FANOUT_CHANNEL
+        f"'{c}'" for c in _ALLOWED_CHANNELS_14_1 if c != CROSS_TENANT_FANOUT_CHANNEL
     )
     op.execute(
         """

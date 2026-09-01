@@ -100,9 +100,7 @@ class BackupPayloadTooLargeError(BackupExportServiceError):
 class BackupEnvelopeInvalidError(BackupExportServiceError):
     """Pure-kernel envelope validation failed (422 envelope)."""
 
-    def __init__(
-        self, message_ko: str = BACKUP_EXPORT_TITLE_KO, *, reason: str = ""
-    ) -> None:
+    def __init__(self, message_ko: str = BACKUP_EXPORT_TITLE_KO, *, reason: str = "") -> None:
         self.message_ko = message_ko
         self.error_code = ERROR_CODE_ENVELOPE_INVALID
         self.reason = reason
@@ -115,9 +113,7 @@ class BackupRetentionCutoffInvalidError(BackupExportServiceError):
     HTTP envelope (AD-15 §4): 422 BACKUP_RETENTION_CUTOFF_INVALID
     """
 
-    def __init__(
-        self, message_ko: str = BACKUP_RETENTION_PURGED_KO, *, reason: str = ""
-    ) -> None:
+    def __init__(self, message_ko: str = BACKUP_RETENTION_PURGED_KO, *, reason: str = "") -> None:
         self.message_ko = message_ko
         self.error_code = ERROR_CODE_RETENTION_CUTOFF_INVALID
         self.reason = reason
@@ -151,9 +147,7 @@ def serialize_backup_payload(payload: dict[str, Any]) -> bytes:
         ensure_ascii=False,
     ).encode("utf-8")
     if len(blob) > MAX_PAYLOAD_BYTES:
-        raise BackupPayloadTooLargeError(
-            size_bytes=len(blob), max_bytes=MAX_PAYLOAD_BYTES
-        )
+        raise BackupPayloadTooLargeError(size_bytes=len(blob), max_bytes=MAX_PAYLOAD_BYTES)
     return blob
 
 
@@ -207,9 +201,7 @@ def build_backup_envelope(
         raise BackupEnvelopeInvalidError(reason="tables must be non-empty dict")
     missing = [t for t in BACKUP_TABLES if t not in tables]
     if missing:
-        raise BackupEnvelopeInvalidError(
-            reason=f"missing required tables: {missing!r}"
-        )
+        raise BackupEnvelopeInvalidError(reason=f"missing required tables: {missing!r}")
     row_count_total = sum(len(rows) for rows in tables.values())
     return {
         "schema_version": SCHEMA_VERSION,

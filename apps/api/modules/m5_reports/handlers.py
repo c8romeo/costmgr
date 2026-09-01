@@ -74,11 +74,7 @@ router = APIRouter(prefix="/api/v1/reports", tags=["m5-reports"])
         "Role gate: owner or member."
     ),
     dependencies=[
-        Depends(
-            require_any_capability(
-                Capability.COST_CALCULATION, Capability.ABC_CALCULATION
-            )
-        ),
+        Depends(require_any_capability(Capability.COST_CALCULATION, Capability.ABC_CALCULATION)),
         Depends(require_any_role("owner", "member")),
     ],
 )
@@ -136,11 +132,7 @@ async def get_report21(
         "Capability gate: COST_CALCULATION OR ABC_CALCULATION."
     ),
     dependencies=[
-        Depends(
-            require_any_capability(
-                Capability.COST_CALCULATION, Capability.ABC_CALCULATION
-            )
-        ),
+        Depends(require_any_capability(Capability.COST_CALCULATION, Capability.ABC_CALCULATION)),
         Depends(require_any_role("owner", "member")),
     ],
 )
@@ -185,11 +177,7 @@ async def post_report21_pdf(
         "Role gate: owner or member."
     ),
     dependencies=[
-        Depends(
-            require_any_capability(
-                Capability.COST_CALCULATION, Capability.ABC_CALCULATION
-            )
-        ),
+        Depends(require_any_capability(Capability.COST_CALCULATION, Capability.ABC_CALCULATION)),
         Depends(require_any_role("owner", "member")),
     ],
 )
@@ -248,11 +236,7 @@ async def get_report15(
         "Capability gate: COST_CALCULATION OR ABC_CALCULATION."
     ),
     dependencies=[
-        Depends(
-            require_any_capability(
-                Capability.COST_CALCULATION, Capability.ABC_CALCULATION
-            )
-        ),
+        Depends(require_any_capability(Capability.COST_CALCULATION, Capability.ABC_CALCULATION)),
         Depends(require_any_role("owner", "member")),
     ],
 )

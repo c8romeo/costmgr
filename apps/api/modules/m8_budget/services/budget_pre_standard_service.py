@@ -68,9 +68,7 @@ from packages.services.m8_budget.budget_variance_serializers import (
 BUDGET_PRE_STANDARD_INDUSTRY_AGNOSTIC: Final[bool] = True
 
 # Period key pattern (AD-24 virtual `YYYY-MM#B<n>` — 8-1 wire).
-VIRTUAL_BUDGET_PERIOD_KEY_PATTERN_PRE_STANDARD: Final[str] = (
-    r"^\d{4}-(0[1-9]|1[0-2])#B([1-9]\d*)$"
-)
+VIRTUAL_BUDGET_PERIOD_KEY_PATTERN_PRE_STANDARD: Final[str] = r"^\d{4}-(0[1-9]|1[0-2])#B([1-9]\d*)$"
 
 
 @dataclass(frozen=True, slots=True)
@@ -305,21 +303,16 @@ class BudgetPreStandardService:
             created_at_kst=created_at_kst.isoformat(),
         )
 
-    async def _fetch_existing_snapshot(
-        self, *, period_key: str
-    ) -> FiscalPeriodSnapshot | None:
+    async def _fetch_existing_snapshot(self, *, period_key: str) -> FiscalPeriodSnapshot | None:
         """Fetch existing fiscal_period_snapshots row (RLS same-tenant filter).
 
         RLS same-tenant filter (AD-3) via `WHERE tenant_id = :tenant_id`.
         Returns None if not found.
         """
-        stmt = (
-            select(FiscalPeriodSnapshot)
-            .where(
-                FiscalPeriodSnapshot.tenant_id == self.tenant_id,
-                FiscalPeriodSnapshot.period_key == period_key,
-                FiscalPeriodSnapshot.engine_type == PRE_STANDARD_ENGINE_TYPE,
-            )
+        stmt = select(FiscalPeriodSnapshot).where(
+            FiscalPeriodSnapshot.tenant_id == self.tenant_id,
+            FiscalPeriodSnapshot.period_key == period_key,
+            FiscalPeriodSnapshot.engine_type == PRE_STANDARD_ENGINE_TYPE,
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -376,17 +369,14 @@ class BudgetPreStandardService:
         # 4. ORM → kernel boundary conversion.
         return _to_pre_standard_cost_state(orm_row)
 
-    async def fetch_abcd_disabled_badge(
-        self, *, variant: str = "variance"
-    ) -> dict[str, object]:
+    async def fetch_abcd_disabled_badge(self, *, variant: str = "variance") -> dict[str, object]:
         """Fetch A×B×C×D 회색 배지 placeholder (8-2 wire reuse, 8-3 동일).
 
         Pure kernel delegation (AD-5 + AD-11).
         """
         if variant not in ("variance", "trend", "sensitivity"):
             raise ValueError(
-                f"variant must be one of 'variance'/'trend'/'sensitivity', "
-                f"got {variant!r}"
+                f"variant must be one of 'variance'/'trend'/'sensitivity', " f"got {variant!r}"
             )
         badge = compute_abcd_disabled_badge(variant=variant)  # type: ignore[arg-type]
         return serialize_abcd_disabled_badge(badge)
@@ -449,25 +439,13 @@ class BudgetPreStandardService:
         )
 
         # Convert envelope into ClosingPdfDocument sections.
-        material_text = (
-            f"직접재료: {envelope['material_cost']}원"
-        )
-        labor_text = (
-            f"직접노무: {envelope['labor_cost']}원"
-        )
-        overhead_text = (
-            f"제조경비: {envelope['overhead_cost']}원"
-        )
-        manufacturing_text = (
-            f"제조원가 합계: {envelope['manufacturing_cost']}원"
-        )
-        engine_text = (
-            f"엔진 타입: {envelope['engine_type']}"
-        )
+        material_text = f"직접재료: {envelope['material_cost']}원"
+        labor_text = f"직접노무: {envelope['labor_cost']}원"
+        overhead_text = f"제조경비: {envelope['overhead_cost']}원"
+        manufacturing_text = f"제조원가 합계: {envelope['manufacturing_cost']}원"
+        engine_text = f"엔진 타입: {envelope['engine_type']}"
         abcd_note_text = envelope["abcd_disabled_note"]
-        generated_text = (
-            f"생성일시 (KST): {generated_at_kst}"
-        )
+        generated_text = f"생성일시 (KST): {generated_at_kst}"
 
         summary_section = ClosingPdfSection(
             section_id="summary",

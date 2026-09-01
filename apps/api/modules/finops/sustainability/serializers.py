@@ -23,6 +23,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import enum
@@ -113,9 +114,7 @@ class SustainabilityDispatchSchedule(str, enum.Enum):
     ANNUAL = "annual"
 
 
-ALL_SUSTAINABILITY_DISPATCH_SCHEDULES: list[str] = [
-    d.value for d in SustainabilityDispatchSchedule
-]
+ALL_SUSTAINABILITY_DISPATCH_SCHEDULES: list[str] = [d.value for d in SustainabilityDispatchSchedule]
 
 
 class SustainabilityRecipientStrategy(str, enum.Enum):

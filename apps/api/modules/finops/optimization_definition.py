@@ -49,6 +49,7 @@ Phase 13 wire + FINOPS_ANOMALY_DETECTION + FINOPS_BUDGET_ALERT Phase 12
 wire + FINOPS_SHOWBACK + FINOPS_CHARGEBACK Phase 11 wire pattern verbatim).
 All 4 industries get FINOPS_OPTIMIZATION capability.
 """
+
 from __future__ import annotations
 
 import uuid

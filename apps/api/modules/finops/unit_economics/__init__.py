@@ -49,6 +49,7 @@ CR lessons applied:
 - CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION
   m31_finops_unit_economics (Phase 23 53rd honest-DEFER cycle).
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.unit_economics.cost_per_business_unit import (

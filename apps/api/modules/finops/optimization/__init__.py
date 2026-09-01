@@ -15,6 +15,7 @@ CR lessons applied:
 
 AD-41 FinOps Optimization & Rightsizing 신규 (Phase 14).
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.optimization.serializers import (

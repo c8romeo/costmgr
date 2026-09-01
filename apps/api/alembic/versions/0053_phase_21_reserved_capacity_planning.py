@@ -1,4 +1,4 @@
-﻿"""Phase 21 wire — alembic 0053 phase_21_reserved_capacity_planning.
+"""Phase 21 wire — alembic 0053 phase_21_reserved_capacity_planning.
 
 Phase 21 wire (cj-style 151번째) — FinOps Reserved Capacity Planning
 territory (PRD §F37 + AD-49 (g) decision).
@@ -39,6 +39,7 @@ CR lessons applied:
 Phase 11~20 carry-over: phase_11_finops_* ~ phase_20_finops_* tables
 RLS 정합 보존.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -64,18 +65,34 @@ def upgrade() -> None:
         sa.Column("industry", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
         sa.Column("forecasted_demand_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("confidence_interval_low_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("confidence_interval_high_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column(
+            "confidence_interval_low_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "confidence_interval_high_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+        ),
         sa.Column("seasonal_factor", sa.Numeric(5, 2), nullable=False, server_default="1.0"),
         sa.Column("growth_rate_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("five_module_attribution", JSONB, nullable=False, server_default="{}"),
         sa.Column("confidence_pct", sa.Numeric(5, 2), nullable=False, server_default="80.0"),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
-        sa.Column("last_updated_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "last_updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
-            "tenant_id", "period_key", "industry",
+            "tenant_id",
+            "period_key",
+            "industry",
             name="uq_phase_21_reserved_capacity_demand_forecast_scope_period",
         ),
         sa.CheckConstraint(
@@ -98,17 +115,29 @@ def upgrade() -> None:
         sa.Column("demand_forecast_id", UUID(as_uuid=True), nullable=False),
         sa.Column("industry", sa.Text, nullable=False),
         sa.Column("recommended_tier", sa.Text, nullable=False),
-        sa.Column("break_even_utilization_pct", sa.Numeric(5, 2), nullable=False, server_default="70.0"),
+        sa.Column(
+            "break_even_utilization_pct", sa.Numeric(5, 2), nullable=False, server_default="70.0"
+        ),
         sa.Column("capacity_headroom_pct", sa.Numeric(5, 2), nullable=False, server_default="15.0"),
         sa.Column("target_reserved_capacity_units", sa.Integer, nullable=False, server_default="0"),
         sa.Column("estimated_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
         sa.Column("estimated_savings_pct", sa.Numeric(5, 2), nullable=False, server_default="5.0"),
-        sa.Column("minimum_savings_krw_threshold", sa.Numeric(20, 2), nullable=False, server_default="1000000"),
+        sa.Column(
+            "minimum_savings_krw_threshold",
+            sa.Numeric(20, 2),
+            nullable=False,
+            server_default="1000000",
+        ),
         sa.Column("commitment_term_months", sa.Integer, nullable=False, server_default="12"),
         sa.Column("upfront_payment_option", sa.Text, nullable=False, server_default="no_upfront"),
         sa.Column("capacity_plan_status", sa.Text, nullable=False, server_default="proposed"),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "recommended_tier IN ('1y_no_upfront', '1y_partial_upfront', '1y_all_upfront', '3y_no_upfront', '3y_partial_upfront', '3y_all_upfront')",
@@ -149,15 +178,28 @@ def upgrade() -> None:
         sa.Column("recommended_tier", sa.Text, nullable=False),
         sa.Column("confidence_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("risk_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
-        sa.Column("execution_strategy", sa.Text, nullable=False, server_default="manual_review_required"),
+        sa.Column(
+            "execution_strategy", sa.Text, nullable=False, server_default="manual_review_required"
+        ),
         sa.Column("high_value_flag", sa.Boolean, nullable=False, server_default=sa.text("FALSE")),
-        sa.Column("requires_2fa_challenge", sa.Boolean, nullable=False, server_default=sa.text("FALSE")),
-        sa.Column("estimated_annual_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("estimated_annual_savings_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
+        sa.Column(
+            "requires_2fa_challenge", sa.Boolean, nullable=False, server_default=sa.text("FALSE")
+        ),
+        sa.Column(
+            "estimated_annual_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "estimated_annual_savings_pct", sa.Numeric(5, 2), nullable=False, server_default="0"
+        ),
         sa.Column("confidence_breakdown", JSONB, nullable=False, server_default="{}"),
         sa.Column("risk_breakdown", JSONB, nullable=False, server_default="{}"),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "execution_strategy IN ('auto_execute_ready', 'manual_review_required', 'owner_approval_required', 'low_confidence')",
@@ -194,9 +236,16 @@ def upgrade() -> None:
         sa.Column("demand_forecast_id", UUID(as_uuid=True), nullable=True),
         sa.Column("orchestration_status", sa.Text, nullable=False, server_default="pending"),
         sa.Column("high_value_flag", sa.Boolean, nullable=False, server_default=sa.text("FALSE")),
-        sa.Column("owner_approval_required", sa.Boolean, nullable=False, server_default=sa.text("FALSE")),
+        sa.Column(
+            "owner_approval_required", sa.Boolean, nullable=False, server_default=sa.text("FALSE")
+        ),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "cadence IN ('daily', 'weekly', 'monthly', 'quarterly')",
@@ -229,7 +278,12 @@ def upgrade() -> None:
         sa.Column("recipient_list", JSONB, nullable=False, server_default="{}"),
         sa.Column("orchestration_id", UUID(as_uuid=True), nullable=True),
         sa.Column("status", sa.Text, nullable=False, server_default="scheduled"),
-        sa.Column("scheduled_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "scheduled_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("last_run_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("next_run_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
@@ -275,12 +329,24 @@ def upgrade() -> None:
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("industry", sa.Text, nullable=False),
         sa.Column("total_reserved_capacity_units", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("total_estimated_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("average_break_even_utilization_pct", sa.Numeric(5, 2), nullable=False, server_default="70.0"),
+        sa.Column(
+            "total_estimated_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "average_break_even_utilization_pct",
+            sa.Numeric(5, 2),
+            nullable=False,
+            server_default="70.0",
+        ),
         sa.Column("high_value_commitment_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("low_confidence_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("refresh_status", sa.Text, nullable=False, server_default="success"),
-        sa.Column("refreshed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "refreshed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("model_version", sa.Text, nullable=False, server_default="1.0.0"),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
     )
@@ -304,7 +370,12 @@ def upgrade() -> None:
         sa.Column("commitment_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
         sa.Column("monthly_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("expired_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "trigger_type IN ('auto', 'manual', 'override', 'dry_run')",
@@ -329,11 +400,17 @@ def upgrade() -> None:
         sa.Column("user_id", UUID(as_uuid=True), nullable=False),
         sa.Column("role", sa.Text, nullable=False, server_default="reserved_capacity_viewer"),
         sa.Column("granted_by", UUID(as_uuid=True), nullable=True),
-        sa.Column("granted_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "granted_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
-            "tenant_id", "user_id",
+            "tenant_id",
+            "user_id",
             name="uq_phase_21_reserved_capacity_viewer_tenant_user",
         ),
         sa.CheckConstraint(
@@ -353,8 +430,18 @@ def upgrade() -> None:
         sa.Column("composition_step_chain", JSONB, nullable=False, server_default="[]"),
         sa.Column("composition_step_results", JSONB, nullable=False, server_default="{}"),
         sa.Column("preview_data", JSONB, nullable=False, server_default="{}"),
-        sa.Column("audit_action", sa.Text, nullable=False, server_default="reserved_capacity_dry_run_executed"),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "audit_action",
+            sa.Text,
+            nullable=False,
+            server_default="reserved_capacity_dry_run_executed",
+        ),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
     )
 
@@ -370,9 +457,7 @@ def upgrade() -> None:
         "phase_21_reserved_capacity_viewer",
         "phase_21_orchestration_preview",
     ):
-        op.execute(
-            f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;"
-        )
+        op.execute(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;")
         op.execute(
             f"CREATE POLICY tenant_isolation_{table_name} "
             f"ON {table_name} USING ("

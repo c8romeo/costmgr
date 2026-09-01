@@ -104,9 +104,7 @@ class MonthlyInputDraftRow:
 
 
 # ── Pure function: normalize_monthly_field_value ─────────────
-def normalize_monthly_field_value(
-    *, field_name: MonthlyFieldName, raw_value: str
-) -> Decimal:
+def normalize_monthly_field_value(*, field_name: MonthlyFieldName, raw_value: str) -> Decimal:
     """Parse raw_value string into Decimal, stripping ko-KR comma separator.
 
     Accepts forms like "1,234,567" / "1234567" / "1234.56" / "-500".

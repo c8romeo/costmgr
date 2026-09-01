@@ -18,6 +18,7 @@ CR lessons applied:
   parity verification (verifiable via apps/web/lib/finops-forecast/
   finops-forecast-client.ts).
 """
+
 from __future__ import annotations
 
 from typing import Any

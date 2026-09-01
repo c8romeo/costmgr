@@ -41,10 +41,7 @@ def upgrade() -> None:
     # Per-product ABC allocation rows keyed by product_id (deterministic
     # for V8 hash stability). Each row: {department_id, cost_object_id,
     # allocated_krw, activity_id, driver_id, sha256_hash}.
-    op.execute(
-        "ALTER TABLE fiscal_period_snapshots "
-        "ADD COLUMN cost_object_breakdown JSONB"
-    )
+    op.execute("ALTER TABLE fiscal_period_snapshots " "ADD COLUMN cost_object_breakdown JSONB")
     op.execute(
         "COMMENT ON COLUMN fiscal_period_snapshots.cost_object_breakdown "
         "IS 'Per-product ABC allocation rows (department_id x cost_object_id x allocated_krw x sha256 hash). NFR18 lock.'"
@@ -59,10 +56,7 @@ def upgrade() -> None:
     # unused_cost_krw x sha256_hash). Used for V7 balance verification
     # (sum of allocated_krw + sum of unused_cost_krw == sum of
     # department_cost_krw at 1-won precision).
-    op.execute(
-        "ALTER TABLE fiscal_period_snapshots "
-        "ADD COLUMN unused_capacity_breakdown JSONB"
-    )
+    op.execute("ALTER TABLE fiscal_period_snapshots " "ADD COLUMN unused_capacity_breakdown JSONB")
     op.execute(
         "COMMENT ON COLUMN fiscal_period_snapshots.unused_capacity_breakdown "
         "IS 'Per-department unused capacity rows (department_id x unused_hours x unused_cost_krw x sha256 hash). NFR18 lock.'"
@@ -75,15 +69,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Reverse order: indexes first, then columns
-    op.execute(
-        "DROP INDEX IF EXISTS idx_fiscal_period_snapshots_unused_capacity_breakdown_gin"
-    )
-    op.execute(
-        "DROP INDEX IF EXISTS idx_fiscal_period_snapshots_cost_object_breakdown_gin"
-    )
+    op.execute("DROP INDEX IF EXISTS idx_fiscal_period_snapshots_unused_capacity_breakdown_gin")
+    op.execute("DROP INDEX IF EXISTS idx_fiscal_period_snapshots_cost_object_breakdown_gin")
     op.execute(
         "ALTER TABLE fiscal_period_snapshots DROP COLUMN IF EXISTS unused_capacity_breakdown"
     )
-    op.execute(
-        "ALTER TABLE fiscal_period_snapshots DROP COLUMN IF EXISTS cost_object_breakdown"
-    )
+    op.execute("ALTER TABLE fiscal_period_snapshots DROP COLUMN IF EXISTS cost_object_breakdown")

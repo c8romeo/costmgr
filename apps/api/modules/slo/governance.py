@@ -30,19 +30,17 @@ auto-rollback trigger 모두 owner-only + Epic 12 2FA 챌린지 mandatory.
 
 Industry-agnostic per CR 12-1 L4 precedent.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from typing import Final, Literal, TypedDict
+from typing import Final, TypedDict
 
-from apps.api.modules.slo.error_budget import evaluate_error_budget
 from apps.api.modules.slo.slo_burn_rate_evaluator import (
-    SloBurnRateEvaluation,
-    WINDOW_EXHAUSTION,
     WINDOW_FAST_BURN,
-    WINDOW_LONG,
     WINDOW_SLOW_BURN,
+    SloBurnRateEvaluation,
 )
 from apps.api.modules.slo.slo_dsl import (
     BUDGET_POLICY_AUTO_ROLLBACK,
@@ -173,9 +171,7 @@ def should_trigger_auto_rollback(
     Returns:
         Tuple of (should_trigger, condition_label, within_window_seconds).
     """
-    by_window = {
-        r["window"]: r["breached"] for r in burn_rate_evaluation["window_results"]
-    }
+    by_window = {r["window"]: r["breached"] for r in burn_rate_evaluation["window_results"]}
 
     # (a) fast burn 1h window 14.4x breach
     if by_window.get(WINDOW_FAST_BURN, False):
@@ -190,10 +186,7 @@ def should_trigger_auto_rollback(
         return True, "composite_alert", COMPOSITE_AUTO_ROLLBACK_WINDOW_SECONDS
 
     # (d) error budget exhaustion < 0 minutes remaining
-    if (
-        error_budget_policy == BUDGET_POLICY_AUTO_ROLLBACK
-        and budget_remaining_minutes < 0
-    ):
+    if error_budget_policy == BUDGET_POLICY_AUTO_ROLLBACK and budget_remaining_minutes < 0:
         return True, "budget_exhaustion", EXHAUSTION_AUTO_ROLLBACK_WINDOW_SECONDS
 
     return False, "", 0

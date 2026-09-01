@@ -181,9 +181,7 @@ def downgrade() -> None:
     Operators MUST audit downstream consumers before downgrading.
     """
     # Drop the trigger first (drop order matters — trigger references function).
-    op.execute(
-        "DROP TRIGGER IF EXISTS cache_invalidation_log_notify_trg ON cache_invalidation_log"
-    )
+    op.execute("DROP TRIGGER IF EXISTS cache_invalidation_log_notify_trg ON cache_invalidation_log")
 
     # Drop the function (drop order matters — function must be droppable
     # without cascade if no other triggers reference it).

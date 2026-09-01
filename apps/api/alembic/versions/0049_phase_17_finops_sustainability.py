@@ -29,6 +29,7 @@ CR lessons applied:
 Phase 11~16 carry-over: phase_11_finops_* ~ phase_16_finops_* tables
 RLS 정합 보존.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -54,18 +55,30 @@ def upgrade() -> None:
         sa.Column("scope_id", sa.Text, nullable=False),
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
-        sa.Column("total_carbon_emissions_kgco2e", sa.Numeric(20, 4), nullable=False, server_default="0"),
+        sa.Column(
+            "total_carbon_emissions_kgco2e", sa.Numeric(20, 4), nullable=False, server_default="0"
+        ),
         sa.Column("scope1_emissions_kgco2e", sa.Numeric(20, 4), nullable=False, server_default="0"),
         sa.Column("scope2_emissions_kgco2e", sa.Numeric(20, 4), nullable=False, server_default="0"),
         sa.Column("scope3_emissions_kgco2e", sa.Numeric(20, 4), nullable=False, server_default="0"),
         sa.Column("carbon_offset_kgco2e", sa.Numeric(20, 4), nullable=False, server_default="0"),
-        sa.Column("net_carbon_emissions_kgco2e", sa.Numeric(20, 4), nullable=False, server_default="0"),
+        sa.Column(
+            "net_carbon_emissions_kgco2e", sa.Numeric(20, 4), nullable=False, server_default="0"
+        ),
         sa.Column("renewable_energy_pct", sa.Numeric(8, 4), nullable=False, server_default="0"),
         sa.Column("cache_key", sa.Text, nullable=False),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
-            "tenant_id", "scope_type", "scope_id", "period_key",
+            "tenant_id",
+            "scope_type",
+            "scope_id",
+            "period_key",
             name="uq_phase_17_finops_carbon_emissions_rollup_scope_period",
         ),
         sa.CheckConstraint(
@@ -93,7 +106,12 @@ def upgrade() -> None:
         sa.Column("kpi_delta", sa.Numeric(20, 4), nullable=True),
         sa.Column("kpi_trend", sa.Text, nullable=False, server_default="flat"),
         sa.Column("kpi_threshold_status", sa.Text, nullable=False, server_default="on_track"),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "kpi_trend IN ('up', 'down', 'flat')",
@@ -128,7 +146,12 @@ def upgrade() -> None:
         sa.Column("export_format", sa.Text, nullable=False),
         sa.Column("report_file_url", sa.Text, nullable=False, server_default=""),
         sa.Column("report_size_bytes", sa.BigInteger, nullable=False, server_default="0"),
-        sa.Column("report_generated_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "report_generated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("generated_by", UUID(as_uuid=True), nullable=True),
         sa.Column("status", sa.Text, nullable=False, server_default="generating"),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
@@ -167,7 +190,12 @@ def upgrade() -> None:
         sa.Column("recipient_list", JSONB, nullable=False, server_default="{}"),
         sa.Column("report_id", UUID(as_uuid=True), nullable=True),
         sa.Column("status", sa.Text, nullable=False, server_default="scheduled"),
-        sa.Column("scheduled_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "scheduled_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("last_run_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("next_run_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
@@ -208,11 +236,17 @@ def upgrade() -> None:
         sa.Column("user_id", UUID(as_uuid=True), nullable=False),
         sa.Column("role", sa.Text, nullable=False, server_default="sustainability_viewer"),
         sa.Column("granted_by", UUID(as_uuid=True), nullable=True),
-        sa.Column("granted_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "granted_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
-            "tenant_id", "user_id",
+            "tenant_id",
+            "user_id",
             name="uq_phase_17_finops_sustainability_viewer_tenant_user",
         ),
         sa.CheckConstraint(
@@ -233,7 +267,12 @@ def upgrade() -> None:
         sa.Column("retired_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("retirement_reason", sa.Text, nullable=True),
         sa.Column("project_type", sa.Text, nullable=True),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "registry_type IN ('vcu', 'cer', 'kcu')",
@@ -260,7 +299,12 @@ def upgrade() -> None:
             sa.Column("preview_type", sa.Text, nullable=False),
             sa.Column("period_key", sa.Text, nullable=False),
             sa.Column("preview_data", JSONB, nullable=False, server_default="{}"),
-            sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+            sa.Column(
+                "computed_at",
+                sa.TIMESTAMP(timezone=True),
+                nullable=False,
+                server_default=sa.text("NOW()"),
+            ),
             sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         )
 
@@ -277,9 +321,7 @@ def upgrade() -> None:
         "phase_17_finops_sustainability_report_preview",
         "phase_17_finops_scheduled_sustainability_dispatch_preview",
     ):
-        op.execute(
-            f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;"
-        )
+        op.execute(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;")
         op.execute(
             f"CREATE POLICY tenant_isolation_{table_name} "
             f"ON {table_name} USING ("

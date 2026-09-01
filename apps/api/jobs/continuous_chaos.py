@@ -28,6 +28,7 @@ Continuous chaos statistics (PRD §F25.4.5 verbatim):
 CR 1-1 audit-first INSERT: `chaos_experiment_started` action_class=
 ActionClass.CHAOS_ENGINEERING.
 """
+
 from __future__ import annotations
 
 import asyncio

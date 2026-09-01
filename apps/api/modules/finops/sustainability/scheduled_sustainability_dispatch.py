@@ -39,6 +39,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -236,6 +237,7 @@ def dispatch_sustainability_report(
             from apps.api.modules.finops.sustainability.sustainability_dispatch_query import (
                 query_scheduled_dispatch,
             )
+
             existing = query_scheduled_dispatch(
                 db_session=db_session,
                 tenant_id=tenant_id,

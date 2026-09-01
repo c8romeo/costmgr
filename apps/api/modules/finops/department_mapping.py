@@ -25,13 +25,13 @@ CR lessons applied:
 AD-22 owner-only RBAC — department mapping update owner-only.
 Epic 12 2FA 챌린지 mandatory.
 """
+
 from __future__ import annotations
 
 import re
 import secrets
 import uuid
 from typing import Any, Final, TypedDict
-
 
 # ── Cost center ID pattern (PRD §F27.3.1 verbatim) ──────────────
 COST_CENTER_ID_PATTERN: Final[str] = r"^CC-\d{4}$"

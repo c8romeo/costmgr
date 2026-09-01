@@ -40,6 +40,7 @@ CR lessons applied:
   FX + real-time stream + tenant revenue auto-import — all honestly
   DEFER to future Phase 23.x sprint).
 """
+
 from __future__ import annotations
 
 import enum
@@ -83,10 +84,10 @@ MAX_COST_PER_X_OVERRIDE_KRW = 10_000_000.0  # override requires owner 2FA
 
 # 4 cadence schedule KST pytz (PRD §F39.1 + AD-51 (e))
 UNIT_ECONOMICS_CADENCE_HOURS_KST: dict[str, tuple[int, int]] = {
-    "daily": (3, 30),      # 03:30 KST daily (lightweight rollup)
-    "weekly": (4, 0),      # 04:00 KST weekly Monday
-    "monthly": (4, 30),    # 04:30 KST monthly 1st-day
-    "quarterly": (5, 0),   # 05:00 KST quarterly 1st-day
+    "daily": (3, 30),  # 03:30 KST daily (lightweight rollup)
+    "weekly": (4, 0),  # 04:00 KST weekly Monday
+    "monthly": (4, 30),  # 04:30 KST monthly 1st-day
+    "quarterly": (5, 0),  # 05:00 KST quarterly 1st-day
 }
 
 # Recipient strategy templates (PRD §F39.5 verbatim, extended)
@@ -197,9 +198,7 @@ class UnitEconomicsAlertSeverity(str, enum.Enum):
     CRITICAL = "critical"
 
 
-ALL_UNIT_ECONOMICS_ALERT_SEVERITIES: list[str] = [
-    s.value for s in UnitEconomicsAlertSeverity
-]
+ALL_UNIT_ECONOMICS_ALERT_SEVERITIES: list[str] = [s.value for s in UnitEconomicsAlertSeverity]
 
 
 # ── TypedDicts (PRD §F39.1~§F39.4 verbatim) ────────────────────────────────

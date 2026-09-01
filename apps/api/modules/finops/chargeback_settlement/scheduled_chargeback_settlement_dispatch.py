@@ -32,6 +32,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -70,9 +71,7 @@ ALL_SETTLEMENT_CADENCES: list[str] = list(SETTLEMENT_CADENCE_HOURS_KST.keys())
 
 def _round_to_krw(amount: float) -> float:
     """Banker's rounding to 0.01 KRW (CR 5-1)."""
-    return float(
-        Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
-    )
+    return float(Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN))
 
 
 def _compute_dispatch_id(
@@ -81,9 +80,7 @@ def _compute_dispatch_id(
     cadence: str,
 ) -> str:
     """Compute SHA-256 dispatch ID."""
-    payload = (
-        f"{tenant_id}:{period_key}:{cadence}:chargeback_settlement_dispatch"
-    )
+    payload = f"{tenant_id}:{period_key}:{cadence}:chargeback_settlement_dispatch"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -197,6 +194,7 @@ def _compute_cadence_schedule(
     now = now_utc or datetime.now(UTC)
     try:
         import pytz
+
         kst = pytz.timezone(tz_kst)
         now_kst = now.astimezone(kst)
     except Exception:
@@ -207,30 +205,22 @@ def _compute_cadence_schedule(
         # Next run is next period
         if cadence == "monthly":
             if now_kst.month == 12:
-                next_run_kst = next_run_kst.replace(
-                    year=now_kst.year + 1, month=1, day=1
-                )
+                next_run_kst = next_run_kst.replace(year=now_kst.year + 1, month=1, day=1)
             else:
                 next_run_kst = next_run_kst.replace(month=now_kst.month + 1, day=1)
         elif cadence == "quarterly":
             next_month = ((now_kst.month - 1) // 3 + 1) * 3 + 1
             if next_month > 12:
-                next_run_kst = next_run_kst.replace(
-                    year=now_kst.year + 1, month=1, day=1
-                )
+                next_run_kst = next_run_kst.replace(year=now_kst.year + 1, month=1, day=1)
             else:
                 next_run_kst = next_run_kst.replace(month=next_month, day=1)
         elif cadence == "semi_annual":
             if now_kst.month <= 6:
                 next_run_kst = next_run_kst.replace(month=7, day=1)
             else:
-                next_run_kst = next_run_kst.replace(
-                    year=now_kst.year + 1, month=1, day=1
-                )
+                next_run_kst = next_run_kst.replace(year=now_kst.year + 1, month=1, day=1)
         elif cadence == "annual":
-            next_run_kst = next_run_kst.replace(
-                year=now_kst.year + 1, month=1, day=1
-            )
+            next_run_kst = next_run_kst.replace(year=now_kst.year + 1, month=1, day=1)
 
     return {
         "cadence": cadence,
@@ -287,9 +277,10 @@ def compute_settlement_result(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{cadence}:{period_key}:dispatch".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(f"{tenant_id}:{cadence}:{period_key}:dispatch".encode()).hexdigest()[:32]
+    )
 
     # Step 1: Create settlement rule
     settlement_rule = create_settlement_rule(
@@ -371,7 +362,10 @@ def compute_settlement_result(
                 for m, w in FIVE_MODULE_WEIGHTS.items()
             },
             "weighted_total_krw": _round_to_krw(
-                sum(float(five_module_inputs.get(m, 0.0)) * w for m, w in FIVE_MODULE_WEIGHTS.items())
+                sum(
+                    float(five_module_inputs.get(m, 0.0)) * w
+                    for m, w in FIVE_MODULE_WEIGHTS.items()
+                )
             ),
         }
 
@@ -379,6 +373,7 @@ def compute_settlement_result(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_CHARGEBACK_SETTLEMENT,
@@ -440,7 +435,9 @@ def schedule_cadence_dispatch(
         if cadence == "monthly":
             trigger = CronTrigger(day=1, hour=hour, minute=minute, timezone=tz_kst)
         elif cadence == "quarterly":
-            trigger = CronTrigger(month="1,4,7,10", day=1, hour=hour, minute=minute, timezone=tz_kst)
+            trigger = CronTrigger(
+                month="1,4,7,10", day=1, hour=hour, minute=minute, timezone=tz_kst
+            )
         elif cadence == "semi_annual":
             trigger = CronTrigger(month="1,7", day=1, hour=hour, minute=minute, timezone=tz_kst)
         elif cadence == "annual":

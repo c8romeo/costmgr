@@ -1,4 +1,4 @@
-﻿"""apps.api.modules.finops.reserved_capacity.reserved_capacity_routes — FinOps Reserved Capacity Planning API.
+"""apps.api.modules.finops.reserved_capacity.reserved_capacity_routes — FinOps Reserved Capacity Planning API.
 
 Phase 21 wire (cj-style 151번째) — reserved_capacity router created from
 start (Phase 20.5 router include 패턴 verbatim — Phase 18~20 wires에서
@@ -28,6 +28,7 @@ Capability: FINOPS_RESERVED_CAPACITY_PLANNING (4-industry grants ✅/✅/✅/✅
 CR 0-2 RLS + AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory + NFR4 PII
 minimization PRESERVED + NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import logging
@@ -131,6 +132,7 @@ def _require_finops_reserved_capacity_dep() -> object:
         # Capability module not yet extended — return a passthrough.
         async def _passthrough():
             return None
+
         return _passthrough
     return require_finops_reserved_capacity
 
@@ -227,9 +229,7 @@ async def post_reserved_capacity_commitment_recommendation(
     high-value threshold (>= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR=10M)
     -> Epic 12 2FA 챌린지 mandatory.
     """
-    high_value_flag = (
-        body.estimated_annual_savings_krw >= 10_000_000.0
-    )
+    high_value_flag = body.estimated_annual_savings_krw >= 10_000_000.0
     return {
         "correlation_id": str(uuid.uuid4()),
         "tenant_id": ctx.tenant_id,

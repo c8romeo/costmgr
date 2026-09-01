@@ -48,6 +48,7 @@ CR lessons applied (17종):
 - AD-44 FinOps Sustainability & Carbon Reporting 신규 (a)~(g) 7 sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.sustainability.serializers import (

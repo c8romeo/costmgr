@@ -20,6 +20,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import enum
@@ -71,10 +72,10 @@ RISK_SCORE_WEIGHTS: dict[str, float] = {
 
 # 4 cadence schedule KST pytz (PRD §F37.4 + AD-49 (e) verbatim)
 RESERVED_CAPACITY_CADENCE_HOURS_KST: dict[str, tuple[int, int]] = {
-    "daily": (2, 0),       # 02:00 KST daily
-    "weekly": (3, 0),      # 03:00 KST Monday
-    "monthly": (4, 0),     # 04:00 KST 1st day of month
-    "quarterly": (5, 0),   # 05:00 KST 1st day of quarter
+    "daily": (2, 0),  # 02:00 KST daily
+    "weekly": (3, 0),  # 03:00 KST Monday
+    "monthly": (4, 0),  # 04:00 KST 1st day of month
+    "quarterly": (5, 0),  # 05:00 KST 1st day of quarter
 }
 
 # Recipient strategy templates (PRD §F37.4 verbatim)
@@ -146,9 +147,9 @@ ALL_EXECUTION_STRATEGIES: list[str] = [s.value for s in ExecutionStrategy]
 class ReservedCapacityCadence(str, enum.Enum):
     """4 cadence schedule (PRD §F37.4 + AD-49 (e) verbatim KST pytz)."""
 
-    DAILY = "daily"          # 02:00 KST
-    WEEKLY = "weekly"        # Mon 03:00 KST
-    MONTHLY = "monthly"      # 1st-day 04:00 KST
+    DAILY = "daily"  # 02:00 KST
+    WEEKLY = "weekly"  # Mon 03:00 KST
+    MONTHLY = "monthly"  # 1st-day 04:00 KST
     QUARTERLY = "quarterly"  # 1st-day 05:00 KST
 
 
@@ -225,10 +226,14 @@ class CommitmentRecommendation(TypedDict, total=False):
     risk_score: float  # 0~100
     execution_strategy: str  # ExecutionStrategy value
     high_value_flag: bool  # >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR=10M
-    requires_2fa_challenge: bool  # high_value_flag AND execution_strategy == OWNER_APPROVAL_REQUIRED
+    requires_2fa_challenge: (
+        bool  # high_value_flag AND execution_strategy == OWNER_APPROVAL_REQUIRED
+    )
     estimated_annual_savings_krw: float
     estimated_annual_savings_pct: float
-    confidence_breakdown: dict  # utilization_stability + historical_accuracy + demand_forecast_confidence_pct
+    confidence_breakdown: (
+        dict  # utilization_stability + historical_accuracy + demand_forecast_confidence_pct
+    )
     risk_breakdown: dict  # savings_pct + commitment_term + commitment_flexibility
     model_version: str
     computed_at: str
@@ -242,7 +247,9 @@ class ReservedCapacityOrchestration(TypedDict, total=False):
     tenant_id: str
     period_key: str
     scope_chain: list  # composition_step_chain 5 step trace
-    composition_step_chain: list  # [demand_forecast, capacity_planning, commitment_recommendation, approval, execute]
+    composition_step_chain: (
+        list  # [demand_forecast, capacity_planning, commitment_recommendation, approval, execute]
+    )
     composition_step_results: dict  # step_index → {step_name, status, computed_at, output}
     cadence: str  # ReservedCapacityCadence value
     cadence_hours_kst: tuple  # (hour, minute) KST

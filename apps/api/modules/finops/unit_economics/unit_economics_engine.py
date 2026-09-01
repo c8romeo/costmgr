@@ -50,6 +50,7 @@ CR lessons applied:
 - CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION
   m31_finops_unit_economics (Phase 23 53rd honest-DEFER cycle).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -107,10 +108,7 @@ def _compute_unit_economics_cache_key(
     source_settlement_id: str,
 ) -> str:
     """Compute SHA-256 cache key for UnitEconomicsResult."""
-    payload = (
-        f"{tenant_id}:{period_key}:{source_settlement_id}:"
-        f"unit_economics"
-    )
+    payload = f"{tenant_id}:{period_key}:{source_settlement_id}:" f"unit_economics"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -197,9 +195,7 @@ def _is_valid_period_key(period_key: str) -> bool:
         return True
     if len(period_key) == 5 and period_key[2] == "-" and period_key[:2].isdigit():
         return True
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _compute_five_dim_attribution(
@@ -266,9 +262,7 @@ def _compute_requires_2fa_challenge(
         return False
     if margin_amount_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR:
         return True
-    if cost_per_x_override_krw >= MAX_COST_PER_X_OVERRIDE_KRW:
-        return True
-    return False
+    return cost_per_x_override_krw >= MAX_COST_PER_X_OVERRIDE_KRW
 
 
 def _persist_unit_economics_result(
@@ -360,9 +354,12 @@ def compute_unit_economics(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{period_key}:{source_settlement_id}:compute".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{period_key}:{source_settlement_id}:compute".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_unit_economics_cache_key(
         tenant_id=tenant_id,
@@ -380,9 +377,7 @@ def compute_unit_economics(
     )
 
     # Compute cost_per_business_unit + cost_per_transaction
-    cost_per_business_unit_krw = (
-        round(total_cost_krw / total_units, 2) if total_units > 0 else 0.0
-    )
+    cost_per_business_unit_krw = round(total_cost_krw / total_units, 2) if total_units > 0 else 0.0
     cost_per_transaction_krw = (
         round(total_cost_krw / total_transactions, 2) if total_transactions > 0 else 0.0
     )

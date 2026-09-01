@@ -142,9 +142,7 @@ def generate_totp_secret(*, length_bytes: int = 20) -> bytes:
         via `base64.b32encode` or service-layer AES-256-GCM encryption).
     """
     if length_bytes < 16:
-        raise ValueError(
-            f"TOTP secret must be ≥128 bits (16 bytes), got {length_bytes * 8} bits"
-        )
+        raise ValueError(f"TOTP secret must be ≥128 bits (16 bytes), got {length_bytes * 8} bits")
     return secrets.token_bytes(length_bytes)
 
 
@@ -293,9 +291,7 @@ def hash_recovery_code(code: str) -> tuple[str, str]:
         Service layer stores as JSONB array of {salt, hash, used_at} entries.
     """
     if not code or len(code) != RECOVERY_CODE_LENGTH:
-        raise ValueError(
-            f"recovery code must be {RECOVERY_CODE_LENGTH} chars, got {len(code)}"
-        )
+        raise ValueError(f"recovery code must be {RECOVERY_CODE_LENGTH} chars, got {len(code)}")
     salt = secrets.token_bytes(PBKDF2_SALT_BYTES)
     hash_bytes = hashlib.pbkdf2_hmac(
         PBKDF2_HASH_NAME,
@@ -314,9 +310,7 @@ def generate_recovery_code_hashes(codes: list[str]) -> list[dict[str, str]]:
         `used_at` initially null. Service layer mutates on consume.
     """
     if len(codes) != RECOVERY_CODE_COUNT:
-        raise ValueError(
-            f"expected {RECOVERY_CODE_COUNT} codes, got {len(codes)}"
-        )
+        raise ValueError(f"expected {RECOVERY_CODE_COUNT} codes, got {len(codes)}")
     return [
         {"salt": salt, "hash": digest, "used_at": ""}
         for code in codes

@@ -55,9 +55,7 @@ class ChallengeTokenExpiredError(ChallengeTokenError):
     """401 CHALLENGE_TOKEN_EXPIRED — token past 5-min TTL."""
 
     def __init__(self, *, token_jti: str, expired_at: int) -> None:
-        super().__init__(
-            f"challenge token expired (jti={token_jti}, expired_at={expired_at})"
-        )
+        super().__init__(f"challenge token expired (jti={token_jti}, expired_at={expired_at})")
         self.token_jti = token_jti
         self.expired_at = expired_at
 
@@ -98,9 +96,7 @@ class ChallengeTokenAlreadyConsumedError(ChallengeTokenError):
     """
 
     def __init__(self, *, token_jti: str, trace_id: str) -> None:
-        super().__init__(
-            f"challenge token already consumed (jti={token_jti})"
-        )
+        super().__init__(f"challenge token already consumed (jti={token_jti})")
         self.token_jti = token_jti
         self.trace_id = trace_id
 
@@ -113,12 +109,9 @@ class TwoFactorChallengeFailedError(ChallengeTokenError):
     ChallengeTokenInvalidError (which is about the challenge token itself).
     """
 
-    def __init__(
-        self, *, reason: str, failed_attempts: int, trace_id: str
-    ) -> None:
+    def __init__(self, *, reason: str, failed_attempts: int, trace_id: str) -> None:
         super().__init__(
-            f"two-factor challenge failed: {reason} "
-            f"(failed_attempts={failed_attempts})"
+            f"two-factor challenge failed: {reason} " f"(failed_attempts={failed_attempts})"
         )
         self.reason = reason
         self.failed_attempts = failed_attempts

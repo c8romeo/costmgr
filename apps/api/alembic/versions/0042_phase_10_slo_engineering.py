@@ -89,6 +89,7 @@ CR lessons applied:
   + slo_budget_exhausted + slo_violation_detected).
 - CR 0-2 RLS verbatim — all 3 tables have RLS policies.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -253,9 +254,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE phase_10_slo_definitions ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_10_slo_definitions ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_10_slo_definitions_tenant_isolation
@@ -311,9 +310,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE phase_10_error_budgets ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_10_error_budgets ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_10_error_budgets_tenant_isolation
@@ -383,9 +380,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE phase_10_slo_overrides ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_10_slo_overrides ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_10_slo_overrides_tenant_isolation
@@ -401,7 +396,9 @@ def downgrade() -> None:
     `phase_10_slo_definitions` 3 tables.
     """
     # Drop in reverse order (FK dependencies)
-    op.execute("DROP POLICY IF EXISTS phase_10_slo_overrides_tenant_isolation ON phase_10_slo_overrides;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_10_slo_overrides_tenant_isolation ON phase_10_slo_overrides;"
+    )
     op.execute("ALTER TABLE phase_10_slo_overrides DISABLE ROW LEVEL SECURITY;")
     op.drop_constraint(
         "uq_phase_10_slo_overrides_slo_tenant", "phase_10_slo_overrides", type_="unique"
@@ -409,19 +406,19 @@ def downgrade() -> None:
     op.drop_constraint(
         "uq_phase_10_slo_overrides_override_id", "phase_10_slo_overrides", type_="unique"
     )
-    op.drop_index(
-        "idx_phase_10_slo_overrides_tenant_slo", table_name="phase_10_slo_overrides"
-    )
+    op.drop_index("idx_phase_10_slo_overrides_tenant_slo", table_name="phase_10_slo_overrides")
     op.drop_table("phase_10_slo_overrides")
 
-    op.execute("DROP POLICY IF EXISTS phase_10_error_budgets_tenant_isolation ON phase_10_error_budgets;")
-    op.execute("ALTER TABLE phase_10_error_budgets DISABLE ROW LEVEL SECURITY;")
-    op.drop_index(
-        "idx_phase_10_error_budgets_tenant_slo", table_name="phase_10_error_budgets"
+    op.execute(
+        "DROP POLICY IF EXISTS phase_10_error_budgets_tenant_isolation ON phase_10_error_budgets;"
     )
+    op.execute("ALTER TABLE phase_10_error_budgets DISABLE ROW LEVEL SECURITY;")
+    op.drop_index("idx_phase_10_error_budgets_tenant_slo", table_name="phase_10_error_budgets")
     op.drop_table("phase_10_error_budgets")
 
-    op.execute("DROP POLICY IF EXISTS phase_10_slo_definitions_tenant_isolation ON phase_10_slo_definitions;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_10_slo_definitions_tenant_isolation ON phase_10_slo_definitions;"
+    )
     op.execute("ALTER TABLE phase_10_slo_definitions DISABLE ROW LEVEL SECURITY;")
     op.drop_constraint(
         "ck_phase_10_slo_definitions_state",

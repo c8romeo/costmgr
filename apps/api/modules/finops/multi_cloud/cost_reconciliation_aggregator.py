@@ -50,6 +50,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -77,11 +78,11 @@ logger = logging.getLogger(__name__)
 
 # ── 5-tier cost source priority chain (PRD §F36.2-3 verbatim) ──────────
 COST_SOURCE_PRIORITY_CHAIN: list[str] = [
-    "billing_api",      # (1) AWS Cost Explorer / Azure / GCP Billing / Naver Cloud / KT Cloud — highest trust
-    "invoice_pdf",      # (2) textract OCR of monthly invoice PDF
+    "billing_api",  # (1) AWS Cost Explorer / Azure / GCP Billing / Naver Cloud / KT Cloud — highest trust
+    "invoice_pdf",  # (2) textract OCR of monthly invoice PDF
     "contract_estimated",  # (3) Phase 18 commitment + Phase 19 TCO modeling estimated
-    "manual",           # (4) tenant_admin custom cost
-    "audit",            # (5) recovered from past audit log
+    "manual",  # (4) tenant_admin custom cost
+    "audit",  # (5) recovered from past audit log
 ]
 
 
@@ -148,9 +149,7 @@ def _is_valid_period_key(period_key: str) -> bool:
         return True
     if len(period_key) == 5 and period_key[2] == "-" and period_key[:2].isdigit():
         return True
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _collect_cost_sources(
@@ -360,9 +359,12 @@ def reconcile_multi_cloud_costs(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{period_key}:{cloud_provider}:cost".encode("utf-8")
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(f"{tenant_id}:{period_key}:{cloud_provider}:cost".encode()).hexdigest()[
+            :32
+        ]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -404,9 +406,9 @@ def reconcile_multi_cloud_costs(
     )
 
     cost_reconciliation_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode("utf-8")
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest()
     )
 
     now = datetime.now(UTC)

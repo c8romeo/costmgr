@@ -22,6 +22,7 @@ CR lessons applied:
 - AD-52 (a) scheduled lifecycle detail.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -197,12 +198,6 @@ def schedule_cadence_lifecycle() -> dict[str, object]:
     scheduler = BackgroundScheduler(timezone=kst)
 
     for cadence, (hour, minute) in BUDGET_PLANNING_CADENCE_HOURS_KST.items():
-        trigger_kwargs = {
-            "hour": hour,
-            "minute": minute,
-            "timezone": kst,
-            "id": f"phase_24_{cadence}",
-        }
         # Use cron trigger
         try:
             from apscheduler.triggers.cron import CronTrigger

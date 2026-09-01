@@ -65,12 +65,8 @@ def _serialize_allocation(state: AllocationResult) -> dict[str, object]:
     """AllocationResult → JSON-safe dict (PRD §V7 + AD-15)."""
     return {
         "ccr": _serialize_ccr(state.ccr),
-        "activity_mappings": [
-            _serialize_activity(m) for m in state.activity_mappings
-        ],
-        "cost_object_breakdown": [
-            _serialize_cost_object(r) for r in state.cost_object_breakdown
-        ],
+        "activity_mappings": [_serialize_activity(m) for m in state.activity_mappings],
+        "cost_object_breakdown": [_serialize_cost_object(r) for r in state.cost_object_breakdown],
         "unused_capacity": _serialize_unused(state.unused_capacity),
         "department_cost": str(state.department_cost),
         "total_breakdown_sum": str(state.total_breakdown_sum),
@@ -85,9 +81,7 @@ def serialize_ccr_state(state: CCRResult) -> dict[str, object]:
     TS mirror `apps/web/lib/m9-abc-allocation.ts`.
     """
     if not isinstance(state, CCRResult):
-        raise ValueError(
-            f"state must be CCRResult, got {type(state).__name__}"
-        )
+        raise ValueError(f"state must be CCRResult, got {type(state).__name__}")
     return _serialize_ccr(state)
 
 

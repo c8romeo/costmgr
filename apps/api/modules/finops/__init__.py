@@ -183,6 +183,7 @@ data contains only business metrics + cost amounts (no PII).
 A19 cohesion pattern 9 surface EXTENSION PASS — FinOps anomaly +
 budget alert surface NEW = F28.1~F28.8 territory.
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.anomaly_detection import (
@@ -880,118 +881,6 @@ __all__ = [
 # Epic 12 2FA 챌린지 mandatory (high-value threshold 10M KRW/year) +
 # 8 NEW audit actions + 16 NEW typed exceptions + 9 NEW endpoints +
 # AD-50 (a)~(g) 7 sub-decisions.
-from apps.api.modules.finops.chargeback_settlement import (
-    ALL_ALLOCATION_DIMENSIONS,
-    ALL_INVOICE_FORMATS,
-    ALL_RECONCILIATION_STATUSES,
-    ALL_SETTLEMENT_CADENCES,
-    ALL_SETTLEMENT_RULE_TYPES,
-    ALL_SETTLEMENT_STATUSES,
-    ALLOCATION_DIMENSION_WEIGHT_SUM,
-    ALLOCATION_DIMENSION_WEIGHTS,
-    CHARGEBACK_SETTLEMENT_DEFAULTS,
-    CHARGEBACK_SETTLEMENT_ENGINE_MODEL_VERSION,
-    FIVE_MODULE_WEIGHT_SUM,
-    FIVE_MODULE_WEIGHTS,
-    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
-    MAX_ALLOCATION_LINES,
-    MAX_INVOICE_BYTES,
-    RECONCILIATION_AMOUNT_TOLERANCE_KRW,
-    RECONCILIATION_MAX_RETRIES,
-    RECONCILIATION_TOLERANCE_PCT,
-    SETTLEMENT_CADENCE_HOURS_KST,
-    SETTLEMENT_RECIPIENT_TEMPLATES,
-    AllocationDimension,
-    AllocationLine,
-    InvoiceFormat,
-    ReconciliationResult,
-    SettlementResult,
-    SettlementRule,
-    SettlementRuleType,
-    SettlementStatus,
-    aggregate_allocation_breakdown,
-    chargeback_settlement_router,
-    compute_allocation,
-    compute_settlement_result,
-    create_settlement_rule,
-    execute_dispatch,
-    generate_invoice,
-    list_settlement_rules,
-    reconcile_settlement,
-    schedule_cadence_dispatch,
-    update_settlement_rule,
-    validate_allocation_lines,
-    validate_cadence,
-    validate_invoice_format,
-    validate_reconciliation_result,
-    validate_settlement_rule,
-)
-
-# Phase 23 wire (cj-style 164번째) — FinOps Unit Economics derived
-# metric layer territory. 4-NEW-module composition layer:
-# unit_economics_engine (5-dim cross-join from Phase 22
-# settlement_id → allocation_lines ledger) + cost_per_business_unit
-# (5-dim rollup + ledger-key dedup) + cost_per_transaction (tag
-# propagation + ledger-key dedup) + margin_analysis (OPTIONAL
-# revenue attribution + 3-tier status thresholds + alert generation).
-# 4 cadence schedule KST pytz (daily 03:30 + weekly 04:00 + monthly
-# 04:30 + quarterly 05:00) + dry-run mode + Epic 12 2FA 챌린지
-# mandatory (high-value threshold 10M KRW/year) + 7 NEW audit
-# actions + 15 NEW typed exceptions + 9 NEW endpoints +
-# AD-51 (a)~(g) 7 sub-decisions + D-FINOPS-12 honestly DEFER
-# (cost_per_customer CRM + multi-currency FX + real-time stream).
-from apps.api.modules.finops.unit_economics import (
-    ALLOWED_TAG_KEYS,
-    ALL_COST_PER_X_METRICS,
-    ALL_MARGIN_ANALYSIS_STATUSES,
-    ALL_UNIT_ECONOMICS_ALERT_SEVERITIES,
-    ALL_UNIT_ECONOMICS_CADENCES,
-    ALL_UNIT_ECONOMICS_CALCULATION_STATUSES,
-    ALL_UNIT_ECONOMICS_DIMENSIONS,
-    COST_PER_X_METRIC_WEIGHTS,
-    DERIVATION_DIMENSION_WEIGHTS,
-    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
-    MARGIN_CRITICAL_THRESHOLD_PCT,
-    MARGIN_HEALTHY_THRESHOLD_PCT,
-    MARGIN_NEGATIVE_PCT,
-    MARGIN_WARNING_THRESHOLD_PCT,
-    MAX_BUSINESS_UNITS_PER_TENANT,
-    MAX_COST_PER_X_OVERRIDE_KRW,
-    MAX_TRANSACTIONS_PER_PERIOD,
-    MODULE_TAG,  # m31_finops_unit_economics
-    UNIT_ECONOMICS_CADENCE_HOURS_KST,
-    UNIT_ECONOMICS_DEFAULTS,
-    UNIT_ECONOMICS_ENGINE_MODEL_VERSION,
-    UNIT_ECONOMICS_RECIPIENT_TEMPLATES,
-    CostPerBusinessUnitBreakdown,
-    CostPerTransactionBreakdown,
-    CostPerXMetric,
-    MarginAnalysisResult,
-    MarginAnalysisStatus,
-    UnitEconomicsAlert,
-    UnitEconomicsAlertSeverity,
-    UnitEconomicsCalculationStatus,
-    UnitEconomicsDimension,
-    UnitEconomicsResult,
-    aggregate_cost_per_business_unit,
-    aggregate_cost_per_transaction,
-    aggregate_margin_analysis,
-    compute_cost_per_business_unit,
-    compute_cost_per_transaction,
-    compute_unit_economics,
-    compute_unit_economics_period,
-    execute_calculation,
-    execute_margin_analysis,
-    list_unit_economics_results,
-    schedule_cadence_calculation,
-    unit_economics_router,
-    validate_cadence,
-    validate_cost_per_business_unit,
-    validate_cost_per_transaction,
-    validate_margin_analysis,
-    validate_unit_economics_result,
-)
-
 # Phase 24 wire (cj-style 169번째) — FinOps Budget Planning
 # pre-allocation layer territory. 5-NEW-module composition layer:
 # budget_plan_engine (5-dim cross-join from Phase 22 allocation_lines
@@ -1015,16 +904,16 @@ from apps.api.modules.finops.unit_economics import (
 from apps.api.modules.finops.budget_planning import (  # noqa: E402
     ALL_BUDGET_ALERT_SEVERITIES,
     ALL_BUDGET_ALERT_SEVERITY_VALUES,
-    ALL_BUDGET_APPROVAL_STEP_STATUSES,
     ALL_BUDGET_APPROVAL_STEP_STATUS_VALUES,
-    ALL_BUDGET_PLAN_DIMENSIONS,
+    ALL_BUDGET_APPROVAL_STEP_STATUSES,
     ALL_BUDGET_PLAN_DIMENSION_VALUES,
-    ALL_BUDGET_PLAN_DRY_RUN_MODES,
+    ALL_BUDGET_PLAN_DIMENSIONS,
     ALL_BUDGET_PLAN_DRY_RUN_MODE_VALUES,
-    ALL_BUDGET_PLAN_LIFECYCLES,
+    ALL_BUDGET_PLAN_DRY_RUN_MODES,
     ALL_BUDGET_PLAN_LIFECYCLE_VALUES,
-    ALL_BUDGET_PLAN_PERIOD_TYPES,
+    ALL_BUDGET_PLAN_LIFECYCLES,
     ALL_BUDGET_PLAN_PERIOD_TYPE_VALUES,
+    ALL_BUDGET_PLAN_PERIOD_TYPES,
     BUDGET_ALERT_RECIPIENT_TEMPLATES,
     BUDGET_CRITICAL_THRESHOLD_PCT,
     BUDGET_PLANNING_CADENCE_HOURS_KST,
@@ -1077,6 +966,206 @@ from apps.api.modules.finops.budget_planning import (  # noqa: E402
     validate_budget_plan,
     validate_budget_vs_actual,
     validate_cadence,
+)
+from apps.api.modules.finops.chargeback_settlement import (
+    ALL_ALLOCATION_DIMENSIONS,
+    ALL_INVOICE_FORMATS,
+    ALL_RECONCILIATION_STATUSES,
+    ALL_SETTLEMENT_CADENCES,
+    ALL_SETTLEMENT_RULE_TYPES,
+    ALL_SETTLEMENT_STATUSES,
+    ALLOCATION_DIMENSION_WEIGHT_SUM,
+    ALLOCATION_DIMENSION_WEIGHTS,
+    CHARGEBACK_SETTLEMENT_DEFAULTS,
+    CHARGEBACK_SETTLEMENT_ENGINE_MODEL_VERSION,
+    FIVE_MODULE_WEIGHT_SUM,
+    FIVE_MODULE_WEIGHTS,
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
+    MAX_ALLOCATION_LINES,
+    MAX_INVOICE_BYTES,
+    RECONCILIATION_AMOUNT_TOLERANCE_KRW,
+    RECONCILIATION_MAX_RETRIES,
+    RECONCILIATION_TOLERANCE_PCT,
+    SETTLEMENT_CADENCE_HOURS_KST,
+    SETTLEMENT_RECIPIENT_TEMPLATES,
+    AllocationDimension,
+    AllocationLine,
+    InvoiceFormat,
+    ReconciliationResult,
+    SettlementResult,
+    SettlementRule,
+    SettlementRuleType,
+    SettlementStatus,
+    aggregate_allocation_breakdown,
+    chargeback_settlement_router,
+    compute_allocation,
+    compute_settlement_result,
+    create_settlement_rule,
+    execute_dispatch,
+    generate_invoice,
+    list_settlement_rules,
+    reconcile_settlement,
+    schedule_cadence_dispatch,
+    update_settlement_rule,
+    validate_allocation_lines,
+    validate_cadence,
+    validate_invoice_format,
+    validate_reconciliation_result,
+    validate_settlement_rule,
+)
+
+# Phase 26 wire (cj-style 181번째) — FinOps Cost Anomaly ML Prediction
+# pre-detection layer territory. 5-NEW-module composition layer
+# (anomaly_ml_prediction_engine + anomaly_ml_model_registry +
+# anomaly_ml_training_pipeline + anomaly_ml_scoring +
+# anomaly_ml_ensemble_consensus) + 5 model types ensemble (prophet
+# 0.30 + lstm 0.30 + arima 0.15 + isolation_forest 0.15 + autoencoder
+# 0.10) + 8 features from multi-phase ledger (Phase 11 cost_total_krw +
+# Phase 23 cost_per_unit + Phase 24 variance_pct + Phase 24
+# budget_consumption_pct + Phase 22 settlement_3way_match_score +
+# Phase 14 optimization_savings_amount + Phase 13 month_seasonality +
+# holiday_flag) + model_registry versioning semver + A/B testing
+# champion/challenger traffic_split 50/50 + 3 drift detection types
+# (data + concept + prediction PSI 0.25) + training_pipeline scheduled
+# retraining KST 매주 일요일 03:00 + drift-triggered retraining +
+# SHAP feature importance + 12 NEW audit actions + 16 NEW typed
+# exception classes CR 12-5 D-14 envelope + dashboard UI 5
+# sub-components + Capability matrix v1.52 EXTENSION
+# FINOPS_COST_ANOMALY_ML_PREDICTION row 1 NEW (Phase 26 4-industry
+# grants ✅/✅/✅/✅ industry-agnostic CR 12-1 L4 verbatim) + dry-run +
+# `--finops-cost-anomaly-ml-prediction-dry-run` 1 NEW CLI flag +
+# wire scope T1~T8 + AD-55 (a)~(g) 7 sub-decisions verbatim
+# cross-reference.
+from apps.api.modules.finops.cost_anomaly_ml_prediction import (  # noqa: E402
+    AUTO_PROMOTE_CONSECUTIVE_DAYS,
+    AUTO_PROMOTE_MARGIN,
+    COST_ANOMALY_ML_PREDICTION_ENGINE_MODEL_VERSION,
+    DEFAULT_ENSEMBLE_WEIGHTS,
+    DEFAULT_THRESHOLD,
+    DEFAULT_WEIGHTS,
+    DRIFT_PSI_THRESHOLD_DEFAULT,
+    FEATURE_NAMES,
+    KST_TIMEZONE,
+    LISTEN_NOTIFY_CHANNELS,
+    ML_BATCH_SIZE_DEFAULT,
+    ML_BATCH_SIZE_MAX,
+    ML_CADENCE_HOURS_KST,
+    ML_DEFAULTS,
+    ML_INFERENCE_P95_LATENCY_MS,
+    ML_MODEL_LRU_CACHE_MAX,
+    ML_RECIPIENT_TEMPLATES,
+    MODEL_HYPERPARAMETERS,
+    MODEL_SCORING_WEIGHTS,
+    PREDICTION_HORIZON_DAYS_DEFAULT,
+    SEMVER_DEFAULT_VERSION,
+    TRAFFIC_SPLIT_DEFAULT,
+    TRAINING_CRON_SCHEDULE,
+    TRAINING_DATA_WINDOW_DAYS_DEFAULT,
+    TRAINING_DATA_WINDOW_MAX_DAYS,
+    TRAINING_DATA_WINDOW_MIN_DAYS,
+    TRAINING_RETRY_BASE_SECONDS,
+    TRAINING_RETRY_MAX,
+    TRAINING_RETRY_MAX_SECONDS,
+    TRAINING_TIMEOUT_SECONDS,
+    AnomalyMLDryRunMode,
+    AnomalyMLPrediction,
+    AnomalyMLScoreResult,
+    DriftType,
+    ModelRegistryEntry,
+    ModelTrainingJob,
+    ModelType,
+    PredictionMethod,
+    PredictionStatus,
+    TrainingJobStatus,
+    aggregate_predictions,
+    batch_predict_anomaly_scores,
+    cancel_training_job,
+    consensus_detected,
+    create_prediction,
+    daily_drift_detection_job,
+    daily_model_promotion_check_job,
+    deprecate_model,
+    ensemble_consensus_score,
+    get_training_job_status,
+    list_active_models,
+    list_predictions,
+    list_training_history,
+    nightly_batch_inference_job,
+    notify_listen_channels,
+    predict_anomaly_score,
+    register_model,
+    retire_prediction,
+    schedule_cost_anomaly_ml_prediction_jobs,
+    score_threshold_anomaly,
+    train_model,
+    update_model_status,
+    update_prediction,
+    weekly_scheduled_training_job,
+)
+
+# Phase 23 wire (cj-style 164번째) — FinOps Unit Economics derived
+# metric layer territory. 4-NEW-module composition layer:
+# unit_economics_engine (5-dim cross-join from Phase 22
+# settlement_id → allocation_lines ledger) + cost_per_business_unit
+# (5-dim rollup + ledger-key dedup) + cost_per_transaction (tag
+# propagation + ledger-key dedup) + margin_analysis (OPTIONAL
+# revenue attribution + 3-tier status thresholds + alert generation).
+# 4 cadence schedule KST pytz (daily 03:30 + weekly 04:00 + monthly
+# 04:30 + quarterly 05:00) + dry-run mode + Epic 12 2FA 챌린지
+# mandatory (high-value threshold 10M KRW/year) + 7 NEW audit
+# actions + 15 NEW typed exceptions + 9 NEW endpoints +
+# AD-51 (a)~(g) 7 sub-decisions + D-FINOPS-12 honestly DEFER
+# (cost_per_customer CRM + multi-currency FX + real-time stream).
+from apps.api.modules.finops.unit_economics import (
+    ALL_COST_PER_X_METRICS,
+    ALL_MARGIN_ANALYSIS_STATUSES,
+    ALL_UNIT_ECONOMICS_ALERT_SEVERITIES,
+    ALL_UNIT_ECONOMICS_CADENCES,
+    ALL_UNIT_ECONOMICS_CALCULATION_STATUSES,
+    ALL_UNIT_ECONOMICS_DIMENSIONS,
+    ALLOWED_TAG_KEYS,
+    COST_PER_X_METRIC_WEIGHTS,
+    DERIVATION_DIMENSION_WEIGHTS,
+    HIGH_VALUE_THRESHOLD_KRW_PER_YEAR,
+    MARGIN_CRITICAL_THRESHOLD_PCT,
+    MARGIN_HEALTHY_THRESHOLD_PCT,
+    MARGIN_NEGATIVE_PCT,
+    MARGIN_WARNING_THRESHOLD_PCT,
+    MAX_BUSINESS_UNITS_PER_TENANT,
+    MAX_COST_PER_X_OVERRIDE_KRW,
+    MAX_TRANSACTIONS_PER_PERIOD,
+    MODULE_TAG,  # m31_finops_unit_economics
+    UNIT_ECONOMICS_CADENCE_HOURS_KST,
+    UNIT_ECONOMICS_DEFAULTS,
+    UNIT_ECONOMICS_ENGINE_MODEL_VERSION,
+    UNIT_ECONOMICS_RECIPIENT_TEMPLATES,
+    CostPerBusinessUnitBreakdown,
+    CostPerTransactionBreakdown,
+    CostPerXMetric,
+    MarginAnalysisResult,
+    MarginAnalysisStatus,
+    UnitEconomicsAlert,
+    UnitEconomicsAlertSeverity,
+    UnitEconomicsCalculationStatus,
+    UnitEconomicsDimension,
+    UnitEconomicsResult,
+    aggregate_cost_per_business_unit,
+    aggregate_cost_per_transaction,
+    aggregate_margin_analysis,
+    compute_cost_per_business_unit,
+    compute_cost_per_transaction,
+    compute_unit_economics,
+    compute_unit_economics_period,
+    execute_calculation,
+    execute_margin_analysis,
+    list_unit_economics_results,
+    schedule_cadence_calculation,
+    unit_economics_router,
+    validate_cadence,
+    validate_cost_per_business_unit,
+    validate_cost_per_transaction,
+    validate_margin_analysis,
+    validate_unit_economics_result,
 )
 
 # Phase 25 (cj-style 174th follow-up wire) — FinOps Vendor Management
@@ -1186,99 +1275,10 @@ from apps.api.modules.finops.vendor_management import (  # noqa: E402
     reject_contract_step,
     request_contract_approval,
     request_contract_renewal,
-    score_vendor,
     schedule_vendor_management_jobs,
+    score_vendor,
     terminate_contract,
     update_vendor,
     validate_vendor_scores,
     vendor_management_router,
-)
-
-# Phase 26 wire (cj-style 181번째) — FinOps Cost Anomaly ML Prediction
-# pre-detection layer territory. 5-NEW-module composition layer
-# (anomaly_ml_prediction_engine + anomaly_ml_model_registry +
-# anomaly_ml_training_pipeline + anomaly_ml_scoring +
-# anomaly_ml_ensemble_consensus) + 5 model types ensemble (prophet
-# 0.30 + lstm 0.30 + arima 0.15 + isolation_forest 0.15 + autoencoder
-# 0.10) + 8 features from multi-phase ledger (Phase 11 cost_total_krw +
-# Phase 23 cost_per_unit + Phase 24 variance_pct + Phase 24
-# budget_consumption_pct + Phase 22 settlement_3way_match_score +
-# Phase 14 optimization_savings_amount + Phase 13 month_seasonality +
-# holiday_flag) + model_registry versioning semver + A/B testing
-# champion/challenger traffic_split 50/50 + 3 drift detection types
-# (data + concept + prediction PSI 0.25) + training_pipeline scheduled
-# retraining KST 매주 일요일 03:00 + drift-triggered retraining +
-# SHAP feature importance + 12 NEW audit actions + 16 NEW typed
-# exception classes CR 12-5 D-14 envelope + dashboard UI 5
-# sub-components + Capability matrix v1.52 EXTENSION
-# FINOPS_COST_ANOMALY_ML_PREDICTION row 1 NEW (Phase 26 4-industry
-# grants ✅/✅/✅/✅ industry-agnostic CR 12-1 L4 verbatim) + dry-run +
-# `--finops-cost-anomaly-ml-prediction-dry-run` 1 NEW CLI flag +
-# wire scope T1~T8 + AD-55 (a)~(g) 7 sub-decisions verbatim
-# cross-reference.
-from apps.api.modules.finops.cost_anomaly_ml_prediction import (  # noqa: E402
-    AUTO_PROMOTE_CONSECUTIVE_DAYS,
-    AUTO_PROMOTE_MARGIN,
-    COST_ANOMALY_ML_PREDICTION_ENGINE_MODEL_VERSION,
-    DEFAULT_ENSEMBLE_WEIGHTS,
-    DEFAULT_THRESHOLD,
-    DEFAULT_WEIGHTS,
-    DRIFT_PSI_THRESHOLD_DEFAULT,
-    FEATURE_NAMES,
-    KST_TIMEZONE,
-    LISTEN_NOTIFY_CHANNELS,
-    ML_BATCH_SIZE_DEFAULT,
-    ML_BATCH_SIZE_MAX,
-    ML_CADENCE_HOURS_KST,
-    ML_DEFAULTS,
-    ML_INFERENCE_P95_LATENCY_MS,
-    ML_MODEL_LRU_CACHE_MAX,
-    ML_RECIPIENT_TEMPLATES,
-    MODEL_HYPERPARAMETERS,
-    MODEL_SCORING_WEIGHTS,
-    PREDICTION_HORIZON_DAYS_DEFAULT,
-    SEMVER_DEFAULT_VERSION,
-    TRAINING_CRON_SCHEDULE,
-    TRAINING_DATA_WINDOW_DAYS_DEFAULT,
-    TRAINING_DATA_WINDOW_MAX_DAYS,
-    TRAINING_DATA_WINDOW_MIN_DAYS,
-    TRAINING_RETRY_BASE_SECONDS,
-    TRAINING_RETRY_MAX,
-    TRAINING_RETRY_MAX_SECONDS,
-    TRAINING_TIMEOUT_SECONDS,
-    TRAFFIC_SPLIT_DEFAULT,
-    AnomalyMLDryRunMode,
-    AnomalyMLPrediction,
-    AnomalyMLScoreResult,
-    DriftType,
-    ModelRegistryEntry,
-    ModelTrainingJob,
-    ModelType,
-    PredictionMethod,
-    PredictionStatus,
-    TrainingJobStatus,
-    aggregate_predictions,
-    batch_predict_anomaly_scores,
-    cancel_training_job,
-    consensus_detected,
-    create_prediction,
-    daily_drift_detection_job,
-    daily_model_promotion_check_job,
-    deprecate_model,
-    ensemble_consensus_score,
-    get_training_job_status,
-    list_active_models,
-    list_predictions,
-    list_training_history,
-    nightly_batch_inference_job,
-    notify_listen_channels,
-    predict_anomaly_score,
-    register_model,
-    retire_prediction,
-    schedule_cost_anomaly_ml_prediction_jobs,
-    score_threshold_anomaly,
-    train_model,
-    update_model_status,
-    update_prediction,
-    weekly_scheduled_training_job,
 )

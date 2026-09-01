@@ -42,6 +42,7 @@ FINOPS_CHARGEBACK Phase 11 wire + FINOPS_ANOMALY_DETECTION +
 FINOPS_BUDGET_ALERT Phase 12 wire pattern verbatim). All 4 industries
 get FINOPS_FORECASTING_CAPACITY_PLANNING capability.
 """
+
 from __future__ import annotations
 
 import uuid

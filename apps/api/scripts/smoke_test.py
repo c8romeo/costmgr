@@ -31,6 +31,7 @@ honestly DEFER (cj-207 외 sub-items):
 CR 11-3 honest-DEFER discipline + CR 9-6 commit message discipline +
 CR 12-5 D-14 envelope (HTTPError → AD-15 `{code, message_ko}`).
 """
+
 from __future__ import annotations
 
 import json
@@ -172,9 +173,7 @@ class Runner:
                 payload = json.loads(raw_body)
                 error_code = payload.get("code") if isinstance(payload, dict) else None
                 detail = (
-                    payload.get("message_ko", "")
-                    if isinstance(payload, dict)
-                    else ""
+                    payload.get("message_ko", "") if isinstance(payload, dict) else ""
                 ) or str(payload)[:200]
             except json.JSONDecodeError:
                 detail = raw_body.decode("utf-8", "replace")[:200]
@@ -236,9 +235,7 @@ def _resolve_token() -> str:
     import importlib.util
     from pathlib import Path
 
-    dev_seed_path = (
-        Path(__file__).resolve().parent.parent.parent.parent / "scripts" / "dev_seed.py"
-    )
+    dev_seed_path = Path(__file__).resolve().parent.parent.parent.parent / "scripts" / "dev_seed.py"
     if not dev_seed_path.exists():
         return ""
     spec = importlib.util.spec_from_file_location("dev_seed", dev_seed_path)
@@ -278,7 +275,9 @@ def run_smoke_test(base_url: str, token: str) -> int:
     print("  costmgr production launch smoke — real HTTP, 16 flow coverage")
     print("=" * 74)
     print(f"  base_url  : {base_url}")
-    print(f"  token_src : {'STAGING_JWT_TOKEN' if os.environ.get('STAGING_JWT_TOKEN') else 'dev_seed.mint_dev_token' if os.environ.get('SUPABASE_JWT_SECRET') else 'NONE (401 expected)'}")
+    print(
+        f"  token_src : {'STAGING_JWT_TOKEN' if os.environ.get('STAGING_JWT_TOKEN') else 'dev_seed.mint_dev_token' if os.environ.get('SUPABASE_JWT_SECRET') else 'NONE (401 expected)'}"
+    )
     print()
 
     runner = Runner(base_url=base_url, token=token)
@@ -319,8 +318,7 @@ def run_smoke_test(base_url: str, token: str) -> int:
         rto = backup_status.get("rto_hours")
         overdue = backup_status.get("overdue")
         print(
-            f"          ↳ RPO={rpo}h RTO={rto}h overdue={overdue} "
-            f"(SLA target: RPO=4h RTO=24h)"
+            f"          ↳ RPO={rpo}h RTO={rto}h overdue={overdue} " f"(SLA target: RPO=4h RTO=24h)"
         )
         runner.ctx["backup_rpo_hours"] = rpo
         runner.ctx["backup_rto_hours"] = rto
@@ -394,9 +392,15 @@ def _summarize(runner: Runner) -> int:
     print()
 
     print("  Honestly DEFER (cj-207 scope 외부, 보존 결정):")
-    print("    D-LAUNCH-1-DEFER-2 — backup drill 0036 PITR quarterly 실측 (외부 Supabase Pro PITR infra)")
-    print("    D-LAUNCH-1-DEFER-3 — Sentry alert wiring production (외부 Sentry Team project + Slack webhook)")
-    print("    D-LAUNCH-1-DEFER-4 — RPO 4h / RTO 24h SLA verification 실측 (cross-region failover_orchestrator 실측)")
+    print(
+        "    D-LAUNCH-1-DEFER-2 — backup drill 0036 PITR quarterly 실측 (외부 Supabase Pro PITR infra)"
+    )
+    print(
+        "    D-LAUNCH-1-DEFER-3 — Sentry alert wiring production (외부 Sentry Team project + Slack webhook)"
+    )
+    print(
+        "    D-LAUNCH-1-DEFER-4 — RPO 4h / RTO 24h SLA verification 실측 (cross-region failover_orchestrator 실측)"
+    )
     print()
     return 1 if crit_failed else 0
 

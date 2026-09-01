@@ -159,10 +159,7 @@ async def trigger_opening_carry(
     from sqlalchemy import text
 
     _industry_q = await session.execute(
-        text(
-            "SELECT onboarding->>'industry' "
-            "FROM tenant_settings WHERE tenant_id = :tid"
-        ),
+        text("SELECT onboarding->>'industry' " "FROM tenant_settings WHERE tenant_id = :tid"),
         {"tid": str(ctx.tenant_id)},
     )
     industry: str | None = _industry_q.scalar_one_or_none()
@@ -214,10 +211,7 @@ async def _build_ledger_service(session: AsyncSession, ctx: TenantContext) -> Le
     # that lives on `tenants.industry`, which is the WRONG SSOT for
     # tenant-side onboarding wizard state.
     result = await session.execute(
-        text(
-            "SELECT onboarding->>'industry' "
-            "FROM tenant_settings WHERE tenant_id = :tid"
-        ),
+        text("SELECT onboarding->>'industry' " "FROM tenant_settings WHERE tenant_id = :tid"),
         {"tid": str(ctx.tenant_id)},
     )
     industry: str | None = result.scalar_one_or_none()
@@ -442,10 +436,7 @@ async def _build_closing_guard_service(
     from sqlalchemy import text
 
     result = await session.execute(
-        text(
-            "SELECT onboarding->>'industry' "
-            "FROM tenant_settings WHERE tenant_id = :tid"
-        ),
+        text("SELECT onboarding->>'industry' " "FROM tenant_settings WHERE tenant_id = :tid"),
         {"tid": str(ctx.tenant_id)},
     )
     industry_raw: str | None = result.scalar_one_or_none()
@@ -576,23 +567,27 @@ async def get_closing_guard_audit_trail(
     period_key lookups.
     """
     rows = (
-        await session.execute(
-            select(AuditLog)
-            .where(
-                AuditLog.tenant_id == ctx.tenant_id,
-                AuditLog.target_table == ActionClass.CLOSING_GUARD.value,
-                AuditLog.action.in_(
-                    [
-                        "closing_guard_violated",
-                        "closing_guard_passed",
-                        "v3_closing_invariant_verified",
-                    ]
-                ),
-                AuditLog.payload["period_key"].astext == period_key,
+        (
+            await session.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.tenant_id == ctx.tenant_id,
+                    AuditLog.target_table == ActionClass.CLOSING_GUARD.value,
+                    AuditLog.action.in_(
+                        [
+                            "closing_guard_violated",
+                            "closing_guard_passed",
+                            "v3_closing_invariant_verified",
+                        ]
+                    ),
+                    AuditLog.payload["period_key"].astext == period_key,
+                )
+                .order_by(AuditLog.occurred_at.desc())
             )
-            .order_by(AuditLog.occurred_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     entries = [
         ClosingAuditTrailEntry(
@@ -656,7 +651,10 @@ async def get_closing_period_status(
     )
 
     cp_svc = ClosingPeriodService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=ctx.trace_id,
+        industry=ctx.industry,
     )
     result = await cp_svc.evaluate_closing_period(period_key)
     return ClosingPeriodEvaluateResponse(
@@ -697,10 +695,14 @@ async def post_closing_period_confirm(
     )
 
     cp_svc = ClosingPeriodService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=ctx.trace_id,
+        industry=ctx.industry,
     )
     result = await cp_svc.confirm_closing_period(
-        payload.period_key, actor_id=ctx.user_id,
+        payload.period_key,
+        actor_id=ctx.user_id,
     )
     return ClosingPeriodConfirmResponse(
         confirmed=result["confirmed"],
@@ -733,7 +735,10 @@ async def get_closing_period_audit_trail(
     )
 
     cp_svc = ClosingPeriodService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=ctx.trace_id,
+        industry=ctx.industry,
     )
     rows = await cp_svc.get_closing_period_audit_trail(period_key)
     return ClosingPeriodAuditTrailResponse(
@@ -783,10 +788,14 @@ async def get_monthly_closing_report(
     )
 
     mcr_svc = MonthlyClosingReportService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=ctx.trace_id,
+        industry=ctx.industry,
     )
     return await mcr_svc.get_monthly_closing_report(
-        period_key, actor_id=ctx.user_id,
+        period_key,
+        actor_id=ctx.user_id,
     )
 
 
@@ -819,7 +828,10 @@ async def get_monthly_closing_report_audit_trail(
     )
 
     mcr_svc = MonthlyClosingReportService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=ctx.trace_id,
+        industry=ctx.industry,
     )
     rows = await mcr_svc.get_monthly_closing_report_audit_trail(period_key)
     return {
@@ -856,10 +868,14 @@ async def get_monthly_closing_report_v4_verdict(
     )
 
     mcr_svc = MonthlyClosingReportService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id, industry=ctx.industry,
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=ctx.trace_id,
+        industry=ctx.industry,
     )
     verdict = await mcr_svc.verify_monthly_closing_report_v4(
-        period_key, actor_id=ctx.user_id,
+        period_key,
+        actor_id=ctx.user_id,
     )
     return {
         "period_key": period_key,
@@ -939,7 +955,9 @@ async def export_closing_pdf(
         )
 
     svc = ClosingPdfExportService(
-        session, tenant_id=ctx.tenant_id, trace_id=ctx.trace_id,
+        session,
+        tenant_id=ctx.tenant_id,
+        trace_id=ctx.trace_id,
         actor_id=ctx.user_id,
     )
     result = await svc.export_closing_pdf(period_key, industry=industry)
@@ -948,9 +966,7 @@ async def export_closing_pdf(
         content=result["pdf_bytes"],
         media_type="application/pdf",
         headers={
-            "Content-Disposition": (
-                f"attachment; filename=\"closing-{safe_name}.pdf\""
-            ),
+            "Content-Disposition": (f'attachment; filename="closing-{safe_name}.pdf"'),
             "X-Closing-Pdf-Export-Size": str(result["pdf_size_bytes"]),
             "X-Closing-Pdf-Export-Is-Empty": str(result["is_empty"]).lower(),
             "X-Closing-Pdf-Export-Industry": industry,

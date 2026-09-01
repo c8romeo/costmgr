@@ -211,9 +211,7 @@ def validate_reversal_execute_snapshot(
         )
     if target_qty < Decimal("0"):
         raise ReversalExecuteSnapshotError(
-            message=(
-                f"target_qty must be non-negative, got {target_qty!r}"
-            ),
+            message=(f"target_qty must be non-negative, got {target_qty!r}"),
             error_code=ERROR_CODE_INVALID_INPUT,
         )
     if corrected_qty is not None:
@@ -224,9 +222,7 @@ def validate_reversal_execute_snapshot(
             )
         if corrected_qty < Decimal("0"):
             raise ReversalExecuteSnapshotError(
-                message=(
-                    f"corrected_qty must be non-negative, got {corrected_qty!r}"
-                ),
+                message=(f"corrected_qty must be non-negative, got {corrected_qty!r}"),
                 error_code=ERROR_CODE_INVALID_INPUT,
             )
 

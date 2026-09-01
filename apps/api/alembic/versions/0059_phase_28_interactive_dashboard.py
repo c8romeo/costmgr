@@ -56,6 +56,7 @@ CR lessons applied:
 - AD-56 (a)~(g) 7 sub-decisions (Phase 28 wire).
 - Epic 12 2FA 챌린지 mandatory high-value (≥10M KRW/year sharing).
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -300,7 +301,6 @@ def downgrade() -> None:
         "m28_phase_28_interactive_dashboard_unified_kpi",
     ]:
         op.execute(
-            f"DROP POLICY IF EXISTS {table_name}_tenant_isolation "
-            f"ON public.{table_name};"
+            f"DROP POLICY IF EXISTS {table_name}_tenant_isolation " f"ON public.{table_name};"
         )
         op.drop_table(table_name, schema="public")

@@ -53,8 +53,37 @@ CR lessons applied (18종):
   sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
+from apps.api.modules.finops.multi_cloud.blended_unblended_tracker import (
+    monitor_naver_kt_api_health,
+    track_blended_unblended_diff,
+    validate_blended_unblended_diff,
+    validate_naver_kt_api_data_accuracy,
+)
+from apps.api.modules.finops.multi_cloud.cost_reconciliation_aggregator import (
+    reconcile_multi_cloud_costs,
+    validate_multi_cloud_cost_reconciliation,
+)
+from apps.api.modules.finops.multi_cloud.marketplace_saas_pricing_integrator import (
+    integrate_marketplace_saas_pricing,
+    validate_marketplace_saas_pricing_rollup,
+)
+from apps.api.modules.finops.multi_cloud.negotiation_bot import (
+    run_negotiation_bot,
+    validate_negotiation_recommendation,
+)
+
+# Phase 20.5 wire (cj-style 147번째) — Re-export aggregator functions from
+# multi_cloud submodules. Phase 20 wire `52dad7f` defined these functions
+# but `multi_cloud/__init__.py` did NOT re-export them, breaking the
+# `from apps.api.modules.finops.multi_cloud import integrate_marketplace_*`
+# call sites in `apps/api/modules/finops/__init__.py` and elsewhere.
+from apps.api.modules.finops.multi_cloud.rate_card_reconciliation_aggregator import (
+    reconcile_multi_cloud_rate_cards,
+    validate_multi_cloud_rate_card_reconciliation,
+)
 from apps.api.modules.finops.multi_cloud.serializers import (
     ALL_BLENDED_UNBLENDED_KPI_NAMES,
     ALL_BLENDED_UNBLENDED_TRACKING_STATUSES,
@@ -81,9 +110,9 @@ from apps.api.modules.finops.multi_cloud.serializers import (
     BlendedUnblendedDiff,
     BlendedUnblendedTrackingStatus,
     MarketplaceIntegrationStatus,
-    MarketplaceSaaSPricingRollup,
-    MarketplaceSaaSCategory,
     MarketplacePricingModel,
+    MarketplaceSaaSCategory,
+    MarketplaceSaaSPricingRollup,
     MarketplaceSource,
     MarketplaceUnit,
     MultiCloudCostReconciliation,
@@ -103,33 +132,6 @@ from apps.api.modules.finops.multi_cloud.serializers import (
     NegotiationStatus,
     NegotiationStrategy,
     ScheduledMultiCloudDispatch,
-)
-# Phase 20.5 wire (cj-style 147번째) — Re-export aggregator functions from
-# multi_cloud submodules. Phase 20 wire `52dad7f` defined these functions
-# but `multi_cloud/__init__.py` did NOT re-export them, breaking the
-# `from apps.api.modules.finops.multi_cloud import integrate_marketplace_*`
-# call sites in `apps/api/modules/finops/__init__.py` and elsewhere.
-from apps.api.modules.finops.multi_cloud.rate_card_reconciliation_aggregator import (
-    reconcile_multi_cloud_rate_cards,
-    validate_multi_cloud_rate_card_reconciliation,
-)
-from apps.api.modules.finops.multi_cloud.cost_reconciliation_aggregator import (
-    reconcile_multi_cloud_costs,
-    validate_multi_cloud_cost_reconciliation,
-)
-from apps.api.modules.finops.multi_cloud.negotiation_bot import (
-    run_negotiation_bot,
-    validate_negotiation_recommendation,
-)
-from apps.api.modules.finops.multi_cloud.blended_unblended_tracker import (
-    monitor_naver_kt_api_health,
-    track_blended_unblended_diff,
-    validate_blended_unblended_diff,
-    validate_naver_kt_api_data_accuracy,
-)
-from apps.api.modules.finops.multi_cloud.marketplace_saas_pricing_integrator import (
-    integrate_marketplace_saas_pricing,
-    validate_marketplace_saas_pricing_rollup,
 )
 
 __all__ = [

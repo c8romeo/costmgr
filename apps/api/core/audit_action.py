@@ -66,19 +66,31 @@ class ActionClass(str, __import__("enum").Enum):
     VERIFICATION = "verification"  # Story 5.3 (NEW — V3 closing invariant verification)
     CLOSING_PERIOD = "closing_period"  # Story 6.1 (NEW — closing period service audit-first)
     MONTHLY_CLOSING = "monthly_closing"  # Story 11.2 (NEW — 4-stage close sequence lock audit)
-    MONTHLY_CLOSING_REPORT = "monthly_closing_report"  # Story 6.2 (NEW — monthly closing report read-only audit)
-    SNAPSHOT_PERSISTENCE = "snapshot_persistence"  # Story 11.3 (NEW — AD-20 state machine 영구화 audit)
+    MONTHLY_CLOSING_REPORT = (
+        "monthly_closing_report"  # Story 6.2 (NEW — monthly closing report read-only audit)
+    )
+    SNAPSHOT_PERSISTENCE = (
+        "snapshot_persistence"  # Story 11.3 (NEW — AD-20 state machine 영구화 audit)
+    )
     REOPEN_OPERATOR = "reopen_operator"  # Story 11.3 (NEW — W2 reopen flow audit)
     TWO_FACTOR_AUTH = "two_factor_auth"  # Story 12.1 (NEW — 2FA mandatory gate audit)
-    ACCOUNT_BACKUP = "account_backup"  # Story 12.2 (NEW — daily auto-backup + JSON self-download audit)
-    ACCOUNT_DELETION = "account_deletion"  # Story 12.3 (NEW — destructive endpoint + consent envelope audit)
-    AI_EXTRACTION_EXECUTED = "ai_extraction_executed"  # Story 10.1 (NEW — monthly input extraction audit-first)
+    ACCOUNT_BACKUP = (
+        "account_backup"  # Story 12.2 (NEW — daily auto-backup + JSON self-download audit)
+    )
+    ACCOUNT_DELETION = (
+        "account_deletion"  # Story 12.3 (NEW — destructive endpoint + consent envelope audit)
+    )
+    AI_EXTRACTION_EXECUTED = (
+        "ai_extraction_executed"  # Story 10.1 (NEW — monthly input extraction audit-first)
+    )
     AI_INSIGHT_CACHE_ACCESSED = "ai_insight_cache_accessed"  # Story 10.2
     TENANT = "tenant"  # Phase 3-0 (NEW — tenant signup completion audit-first)
     AUTH = "auth"  # Epic 15 (NEW — magic_link + social_oauth + sso audit-first INSERT)
     INFRA = "infra"  # Phase 5 (NEW — cross-region backup + failover + DR drill audit-first INSERT)
     AUDIT = "audit"  # Epic 17 (NEW — audit log viewer export audit-first INSERT)
-    OBSERVABILITY = "observability"  # Phase 7 (NEW — observability stack alert + sampling audit-first INSERT)
+    OBSERVABILITY = (
+        "observability"  # Phase 7 (NEW — observability stack alert + sampling audit-first INSERT)
+    )
     PERFORMANCE_TEST = "performance_test"  # Phase 8 (NEW — k6 load test + SLO/SLI + latency regression + perf regression gate + cost-engine benchmark audit-first INSERT)
     CHAOS_ENGINEERING = "chaos_engineering"  # Phase 9 (NEW — chaos experiment + game day + continuous chaos + auto-rollback audit-first INSERT)
     SLO_ENGINEERING = "slo_engineering"  # Phase 10 (NEW — SLO definition + error budget + multi-region aggregation + governance review + auto-rollback SLO breach trigger audit-first INSERT)
@@ -440,10 +452,10 @@ AccountDeletionAction = Literal[
 # `monthly_input_rows` (NOT directly into `confirmed_inputs` —
 # AD-7 strict invariant preserved).
 AIExtractionAction = Literal[
-    "monthly_extraction_executed",              # 10.1 service audit-first INSERT
+    "monthly_extraction_executed",  # 10.1 service audit-first INSERT
     "monthly_extraction_low_confidence_warning",  # 10-1 frontend RED 배지 후속
-    "monthly_extraction_promote_denied",        # 10-4 AD-7 strict invariant guard
-    "monthly_extraction_promote_executed",      # 10-4 AD-17 audit-first INSERT Row 2
+    "monthly_extraction_promote_denied",  # 10-4 AD-7 strict invariant guard
+    "monthly_extraction_promote_executed",  # 10-4 AD-17 audit-first INSERT Row 2
 ]
 
 
@@ -460,8 +472,8 @@ AIExtractionAction = Literal[
 # ai_insight_cache_auto_analysis_modify_denied (F10.2-(c) auto_analysis 수정 시도 deny).
 # 카운터는 별도 table 없이 이 두 action 의 audit_logs row count 로 derive 한다.
 AIInsightCacheAction = Literal[
-    "ai_insight_cache_hit",          # 10.2 cache hit (AC #2)
-    "ai_insight_cache_miss",         # 10.2 cache miss → cold compute (AC #3)
+    "ai_insight_cache_hit",  # 10.2 cache hit (AC #2)
+    "ai_insight_cache_miss",  # 10.2 cache miss → cold compute (AC #3)
     "ai_insight_cache_cold_compute",  # 10.2 cold compute within NFR11 SLO
     "ai_insight_cache_invalidation",  # 10.2 F10.1-(c) cache invalidation log consume
     "ai_insight_cache_invalid_source_kind",  # 10.3 F10.2-(b) strict reject + counter
@@ -485,9 +497,9 @@ AIInsightCacheAction = Literal[
 # enforces ActionClass registry ↔ DB CHECK ↔ call sites parity.
 InfraAction = Literal[
     "replica_status_changed",  # §F20.1 replication_lag row audit-first
-    "failover_initiated",      # §F20.2 failover Row 1 audit-first
-    "failover_completed",      # §F20.2 failover Row 2 audit-first
-    "dr_drill_completed",      # §F20.3 quarterly DR drill result audit-first
+    "failover_initiated",  # §F20.2 failover Row 1 audit-first
+    "failover_completed",  # §F20.2 failover Row 2 audit-first
+    "dr_drill_completed",  # §F20.3 quarterly DR drill result audit-first
 ]
 
 

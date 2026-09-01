@@ -69,6 +69,7 @@ CR lessons applied:
   auto-inforcement + multi-currency FX + invoice OCR + KYC + risk
   scoring ML — all honestly DEFER to future Phase 25.x).
 """
+
 from __future__ import annotations
 
 from typing import Final
@@ -157,6 +158,9 @@ from apps.api.modules.finops.vendor_management.vendor_contract_lifecycle_engine 
     request_contract_renewal,
     terminate_contract,
 )
+from apps.api.modules.finops.vendor_management.vendor_management_routes import (  # noqa: E402, F401
+    router as vendor_management_router,
+)
 from apps.api.modules.finops.vendor_management.vendor_performance_evaluation import (  # noqa: E402, F401
     aggregate_vendor_performance,
     classify_performance_severity,
@@ -174,9 +178,6 @@ from apps.api.modules.finops.vendor_management.vendor_spend_attribution import (
     aggregate_vendor_spend_attribution,
     compute_vendor_spend_attribution,
     reconcile_cross_budget,
-)
-from apps.api.modules.finops.vendor_management.vendor_management_routes import (  # noqa: E402, F401
-    router as vendor_management_router,
 )
 
 # ── __all__ (Phase 25 verbatim mirror Phase 24 pattern) ──────────────────

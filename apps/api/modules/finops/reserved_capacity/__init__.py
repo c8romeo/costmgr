@@ -73,6 +73,7 @@ CR lessons applied (18종):
 - AD-49 FinOps Reserved Capacity Planning 신규 (a)~(g) 7 sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.reserved_capacity.capacity_planning_aggregator import (

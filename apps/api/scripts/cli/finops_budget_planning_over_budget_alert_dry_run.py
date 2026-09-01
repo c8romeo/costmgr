@@ -25,6 +25,7 @@ CR lessons applied:
 - Epic 12 2FA 챌린지 mandatory high-value (≥10M KRW/year).
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -115,7 +116,9 @@ async def run_alert_dry_run(args: argparse.Namespace) -> int:
                 actor_id=args.actor_id,
             )
             print("[alert-dry-run] Escalated to on-call chain (level 2)")
-            print(f"[alert-dry-run] Channels after escalation: {escalated.get('channels_notified')}")
+            print(
+                f"[alert-dry-run] Channels after escalation: {escalated.get('channels_notified')}"
+            )
             final_alert = escalated
         else:
             final_alert = alert
@@ -137,7 +140,9 @@ async def run_alert_dry_run(args: argparse.Namespace) -> int:
             "alert_summary": alert_summary,
             "audit_action": "budget_alert_triggered",
         }
-        print(f"[alert-dry-run] Output: {json.dumps(output, indent=2, ensure_ascii=False, default=str)}")
+        print(
+            f"[alert-dry-run] Output: {json.dumps(output, indent=2, ensure_ascii=False, default=str)}"
+        )
         print("[alert-dry-run] ✅ Phase 24 over-budget alert dry-run completed successfully")
         return 0
     except Exception as e:

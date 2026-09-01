@@ -26,11 +26,11 @@ CR lessons applied:
 AD-22 owner-only RBAC — compliance report generation owner-only.
 Epic 12 2FA 챌린지 mandatory.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
-from typing import Any, Final, TypedDict
+from typing import Final, TypedDict
 
 # ── 3 export_format 옵션 (PRD §F31.4-2 verbatim) ─────────────────
 EXPORT_FORMAT_CSV: Final[str] = "csv"
@@ -150,7 +150,7 @@ def generate_compliance_report(
         ValueError: invalid parameters.
     """
     # 1. tenant_id validation
-    if not isinstance(tenant_id, (str, uuid.UUID)):
+    if not isinstance(tenant_id, str | uuid.UUID):
         raise ValueError(f"tenant_id must be str/UUID, got {type(tenant_id).__name__}")
     try:
         tenant_uuid = uuid.UUID(str(tenant_id))
@@ -167,9 +167,9 @@ def generate_compliance_report(
 
     # 4. resource counts validation
     if not isinstance(total_resources_scanned, int) or total_resources_scanned < 0:
-        raise ValueError(f"total_resources_scanned must be non-negative int")
+        raise ValueError("total_resources_scanned must be non-negative int")
     if not isinstance(compliant_resources, int) or compliant_resources < 0:
-        raise ValueError(f"compliant_resources must be non-negative int")
+        raise ValueError("compliant_resources must be non-negative int")
     if compliant_resources > total_resources_scanned:
         raise ValueError(
             f"compliant_resources {compliant_resources} > total_resources_scanned {total_resources_scanned}"

@@ -36,12 +36,13 @@ FinOps Reporting event (CR 1-1 verbatim).
 CR 12-5 D-14 typed exception envelope for all 16 NEW error classes.
 AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
 from contextlib import suppress
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
@@ -156,7 +157,7 @@ async def get_cross_module_kpis(
     scope_type: str = Query(default="tenant"),
     scope_id: str = Query(default=""),
     period_key: str = Query(default=""),
-    kpi_set: Optional[str] = Query(default=None),
+    kpi_set: str | None = Query(default=None),
     trace_id: str = Query(default=""),
     tenant_ctx: TenantContext = Depends(get_tenant_context),
     _capability: None = Depends(require_finops_reporting),
@@ -174,11 +175,7 @@ async def get_cross_module_kpis(
     tenant_id = str(tenant_ctx.tenant_id) if tenant_ctx else ""
     actor_id = str(tenant_ctx.user_id) if tenant_ctx and tenant_ctx.user_id else None
 
-    kpi_names = (
-        [k.strip() for k in kpi_set.split(",") if k.strip()]
-        if kpi_set
-        else None
-    )
+    kpi_names = [k.strip() for k in kpi_set.split(",") if k.strip()] if kpi_set else None
 
     kpis = select_cross_module_kpis(
         tenant_id=tenant_id,

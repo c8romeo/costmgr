@@ -68,9 +68,7 @@ class Tenant(Base):
     # Story 12.3 — Account Deletion (epics.md §F12.3 + NFR4 2절 + AD-9 Seoul)
     # status FSM: 'active' | 'pending_deletion' | 'deleted'
     # CHECK constraint enforces 3-value enum at DB layer.
-    status: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default="active"
-    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="active")
     deletion_requested_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -126,9 +124,7 @@ class User(Base):
     # NFR5 TLS in transit (service layer does NOT log plaintext).
     # totp_recovery_codes_hash: 8 entries {salt, hash, used_at} (PBKDF2-HMAC-SHA256 hash).
     totp_secret: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    totp_enabled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    totp_enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     totp_failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     totp_lockout_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -240,9 +236,7 @@ class UsedChallengeToken(Base):
     jti: Mapped[str] = mapped_column(Text, primary_key=True)
     user_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
     tenant_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
-    used_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 # ── uploaded_documents (Story 1.3 — Task 1.2) ───────────────
@@ -509,9 +503,7 @@ class MonthlyInputPeriod(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    closing_snapshot_event_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    closing_snapshot_event_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     __table_args__ = (
         CheckConstraint(
@@ -720,12 +712,8 @@ class MonthlyInputPromotion(Base):
         ForeignKey("monthly_input_rows.row_id", ondelete="SET NULL"),
         nullable=True,
     )
-    idempotency_key: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), nullable=False
-    )
-    promoted_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    idempotency_key: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False)
+    promoted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(
@@ -1016,26 +1004,16 @@ class FiscalPeriod(Base):
         DateTime(timezone=True), nullable=True
     )
     # 4-stage verification state (PRD §F11.1).
-    close_sequence_state: Mapped[str] = mapped_column(
-        Text, nullable=False, default="divisions"
-    )
-    close_sequence_blocked_reason_ko: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
-    closed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    close_sequence_state: Mapped[str] = mapped_column(Text, nullable=False, default="divisions")
+    close_sequence_blocked_reason_ko: Mapped[str | None] = mapped_column(Text, nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_by_actor_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         # AD-24 typed period_key: 'YYYY-MM'.
@@ -1054,18 +1032,15 @@ class FiscalPeriod(Base):
         ),
         # Defense-in-depth stage ordering (mirror close_sequence_order.py).
         CheckConstraint(
-            "divisions_completed_at IS NOT NULL "
-            "OR manufacturing_completed_at IS NULL",
+            "divisions_completed_at IS NOT NULL " "OR manufacturing_completed_at IS NULL",
             name="fiscal_periods_divisions_ordering_check",
         ),
         CheckConstraint(
-            "manufacturing_completed_at IS NOT NULL "
-            "OR abc_completed_at IS NULL",
+            "manufacturing_completed_at IS NOT NULL " "OR abc_completed_at IS NULL",
             name="fiscal_periods_manufacturing_ordering_check",
         ),
         CheckConstraint(
-            "abc_completed_at IS NOT NULL "
-            "OR common_completed_at IS NULL",
+            "abc_completed_at IS NOT NULL " "OR common_completed_at IS NULL",
             name="fiscal_periods_abc_ordering_check",
         ),
         # close_sequence_state='confirmed' requires status='closed'.
@@ -1112,9 +1087,7 @@ class DeletionConsent(Base):
     consent_text_hash: Mapped[str] = mapped_column(Text, nullable=False)
     # AES-256-GCM ciphertext (28-byte overhead = 12-byte nonce + ciphertext + 16-byte tag).
     encrypted_consent_text: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    consent_checked_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    consent_checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     consent_checked_by_user_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
@@ -1167,22 +1140,14 @@ class TenantBackup(Base):
         nullable=False,
     )
     backup_date: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     schema_version: Mapped[str] = mapped_column(Text, nullable=False, default="1.0")
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     payload_sha256: Mapped[str] = mapped_column(Text, nullable=False)
     row_count_total: Mapped[int] = mapped_column(Integer, nullable=False)
-    audit_log_exported_rows: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
-    retention_class: Mapped[str] = mapped_column(
-        Text, nullable=False, default="daily"
-    )
-    purged_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    audit_log_exported_rows: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    retention_class: Mapped[str] = mapped_column(Text, nullable=False, default="daily")
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     triggered_by_user_id: Mapped[UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -1238,9 +1203,7 @@ class BudgetScenario(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
-    )
+    id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
     tenant_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="CASCADE"),
@@ -1255,9 +1218,7 @@ class BudgetScenario(Base):
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    created_at_kst: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at_kst: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 # ── ai_insight_cache (Story 10.2, alembic 0030) ─────────────
@@ -1325,9 +1286,7 @@ class AiInsightCache(Base):
     question: Mapped[str] = mapped_column(Text, nullable=False)
     answer: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
-    generated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class AiInsightComment(Base):
@@ -1385,9 +1344,7 @@ class AiInsightComment(Base):
         ),
     )
 
-    comment_id: Mapped[UUID] = mapped_column(
-        PgUUID(as_uuid=True), primary_key=True, default=_uuid7
-    )
+    comment_id: Mapped[UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=_uuid7)
     tenant_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("tenants.id", ondelete="RESTRICT"),
@@ -1399,6 +1356,4 @@ class AiInsightComment(Base):
     source_kind: Mapped[str] = mapped_column(Text, nullable=False)
     body_text: Mapped[str] = mapped_column(Text, nullable=False)
     evidence_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
-    generated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -46,6 +46,7 @@ CR lessons applied:
 - AD-47 FinOps Multi-Cloud Cost Unified Reconciliation (a)~(g) 7 sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -218,9 +219,11 @@ def monitor_naver_kt_api_health(
         health_status = "api_unavailable"
     elif uptime_pct >= 99.5 and data_freshness_hours <= 12.0:
         health_status = "verified_realtime"
-    elif uptime_pct >= 98.0 and data_freshness_hours <= 18.0:
-        health_status = "verified_near_realtime"
-    elif uptime_pct >= NAVER_KT_API_UPTIME_TARGET_PCT:
+    elif (
+        uptime_pct >= 98.0
+        and data_freshness_hours <= 18.0
+        or uptime_pct >= NAVER_KT_API_UPTIME_TARGET_PCT
+    ):
         health_status = "verified_near_realtime"
     else:
         health_status = "drift_detected"
@@ -304,12 +307,15 @@ def _persist_blended_unblended_diff(
     if dry_run:
         logger.info(
             "blended_unblended_dry_run tenant=%s provider=%s",
-            tenant_id, cloud_provider,
+            tenant_id,
+            cloud_provider,
         )
         return {"persisted": False, "preview_id": diff_id}
     logger.info(
         "blended_unblended_persisted diff=%s tenant=%s provider=%s",
-        diff_id, tenant_id, cloud_provider,
+        diff_id,
+        tenant_id,
+        cloud_provider,
     )
     return {"persisted": True, "diff_id": diff_id, "tenant_id": tenant_id}
 
@@ -375,9 +381,7 @@ def track_blended_unblended_diff(
 
     tracking_status = _classify_tracking_status(rate_diff_pct=rate_diff_pct)
 
-    diff_threshold_pct = MULTI_CLOUD_DEFAULTS[
-        "blended_unblended_diff_threshold_pct"
-    ]
+    diff_threshold_pct = MULTI_CLOUD_DEFAULTS["blended_unblended_diff_threshold_pct"]
     drift_detected = rate_diff_pct > diff_threshold_pct
 
     cache_key = _compute_cache_key(
@@ -389,9 +393,9 @@ def track_blended_unblended_diff(
     )
 
     diff_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode("utf-8")
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest()
     )
 
     now = datetime.now(UTC)
@@ -412,8 +416,9 @@ def track_blended_unblended_diff(
         "tracking_status": tracking_status,
         "last_tracked_at": now,
         "computed_at": now,
-        "trace_id": trace_id or hashlib.sha256(
-            f"{tenant_id}:blended_unblended:{cloud_provider}:{period_key}".encode("utf-8")
+        "trace_id": trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:blended_unblended:{cloud_provider}:{period_key}".encode()
         ).hexdigest()[:32],
     }
 
@@ -427,9 +432,11 @@ def track_blended_unblended_diff(
 
     if drift_detected and not dry_run:
         logger.warning(
-            "blended_unblended_drift_alert rate_diff_pct=%s threshold=%s "
-            "tenant=%s provider=%s",
-            rate_diff_pct, diff_threshold_pct, tenant_id, cloud_provider,
+            "blended_unblended_drift_alert rate_diff_pct=%s threshold=%s " "tenant=%s provider=%s",
+            rate_diff_pct,
+            diff_threshold_pct,
+            tenant_id,
+            cloud_provider,
         )
         raise BlendedUnblendedDriftError(
             rate_diff_pct=rate_diff_pct,
@@ -440,13 +447,15 @@ def track_blended_unblended_diff(
     if not dry_run:
         logger.info(
             "blended_unblended_tracked diff=%s tenant=%s provider=%s status=%s",
-            diff_id[:12], tenant_id, cloud_provider, tracking_status,
+            diff_id[:12],
+            tenant_id,
+            cloud_provider,
+            tracking_status,
         )
 
     # Stash persistence metadata.
     diff["trace_id"] = (
-        f"{diff['trace_id']}|persist={persistence['persisted']}|"
-        f"drift={drift_detected}"
+        f"{diff['trace_id']}|persist={persistence['persisted']}|" f"drift={drift_detected}"
     )
     return diff
 

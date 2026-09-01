@@ -20,6 +20,7 @@ CR lessons applied:
 - CR 12-5 D-14 typed exception envelope — AnomalyMLEnsembleConsensusError.
 - AD-22 owner-only RBAC.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -42,10 +43,8 @@ def _validate_scores(scores: dict[str, float]) -> None:
     if not isinstance(scores, dict) or len(scores) == 0:
         raise ValueError("per_model_scores must be a non-empty dict")
     for model_type, score in scores.items():
-        if not isinstance(score, (int, float)) or score < 0.0 or score > 1.0:
-            raise ValueError(
-                f"score for {model_type} must be in [0.0, 1.0], got {score}"
-            )
+        if not isinstance(score, int | float) or score < 0.0 or score > 1.0:
+            raise ValueError(f"score for {model_type} must be in [0.0, 1.0], got {score}")
 
 
 def _validate_weights(weights: dict[str, float]) -> None:
@@ -53,10 +52,8 @@ def _validate_weights(weights: dict[str, float]) -> None:
     if not isinstance(weights, dict) or len(weights) == 0:
         raise ValueError("weights must be a non-empty dict")
     for model_type, weight in weights.items():
-        if not isinstance(weight, (int, float)) or weight < 0.0 or weight > 1.0:
-            raise ValueError(
-                f"weight for {model_type} must be in [0.0, 1.0], got {weight}"
-            )
+        if not isinstance(weight, int | float) or weight < 0.0 or weight > 1.0:
+            raise ValueError(f"weight for {model_type} must be in [0.0, 1.0], got {weight}")
 
 
 def ensemble_consensus_score(
@@ -109,12 +106,10 @@ def consensus_detected(
     Returns:
         True if consensus detected, False otherwise.
     """
-    if not isinstance(ml_score, (int, float)) or ml_score < 0.0 or ml_score > 1.0:
+    if not isinstance(ml_score, int | float) or ml_score < 0.0 or ml_score > 1.0:
         raise ValueError(f"ml_score must be in [0.0, 1.0], got {ml_score}")
-    if not isinstance(consensus_threshold, (int, float)) or consensus_threshold < 0.0:
-        raise ValueError(
-            f"consensus_threshold must be >= 0.0, got {consensus_threshold}"
-        )
+    if not isinstance(consensus_threshold, int | float) or consensus_threshold < 0.0:
+        raise ValueError(f"consensus_threshold must be >= 0.0, got {consensus_threshold}")
 
     if threshold_score is None:
         # ML-only consensus

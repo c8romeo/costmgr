@@ -128,8 +128,8 @@ class ProjectionService:
             trace_id=self.trace_id,
         )
         try:
-            baseline, _source_period_key, _state = (
-                await cvp_service.fetch_cvp_baseline(period_key=period_key)
+            baseline, _source_period_key, _state = await cvp_service.fetch_cvp_baseline(
+                period_key=period_key
             )
         except Exception as exc:
             # Wrap CVPBaselineNotFoundError → ProjectionBaselineNotFoundError
@@ -168,9 +168,7 @@ class ProjectionService:
         Raises:
             ProjectionInvalidInputError: kernel-level validation failure
         """
-        return project_next_month(
-            baseline_cvp=baseline, projection_inputs=projection_inputs
-        )
+        return project_next_month(baseline_cvp=baseline, projection_inputs=projection_inputs)
 
     async def compute(
         self,

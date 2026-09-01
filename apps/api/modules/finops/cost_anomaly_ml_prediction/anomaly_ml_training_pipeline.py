@@ -42,6 +42,7 @@ CR lessons applied:
   ModelTrainingTimeoutError.
 - AD-22 owner-only RBAC.
 """
+
 from __future__ import annotations
 
 from typing import Final

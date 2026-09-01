@@ -44,6 +44,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -277,6 +278,7 @@ def compute_carbon_intensity_per_krw(
         )
         # Total cost from Phase 11 showback (real DB path).
         from apps.api.modules.finops.showback_query import query_showback_breakdown
+
         result = query_showback_breakdown(
             db_session=db_session,
             tenant_id=tenant_id,

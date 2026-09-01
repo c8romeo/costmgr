@@ -47,10 +47,10 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 from apps.api.core.errors import (
@@ -253,9 +253,9 @@ def compute_unit_economics_score(
     if industry_avg_cost_per_user_krw == 0:
         return 0.0
     baseline = _get_industry_unit_economics_baseline(industry)
-    return float(baseline) * (
-        float(cost_per_user_krw) / float(industry_avg_cost_per_user_krw)
-    ) * 100.0
+    return (
+        float(baseline) * (float(cost_per_user_krw) / float(industry_avg_cost_per_user_krw)) * 100.0
+    )
 
 
 def compute_break_even_months(
@@ -328,9 +328,9 @@ def compute_tco_kpi_bundle(
             "kt": 0.0,
         }
     if pricing_model_breakdown is None:
-        pricing_model_breakdown = {m: 0.0 for m in (
-            "on_demand", "1y_ri", "3y_ri", "1y_sp", "3y_sp", "savings_plan"
-        )}
+        pricing_model_breakdown = {
+            m: 0.0 for m in ("on_demand", "1y_ri", "3y_ri", "1y_sp", "3y_sp", "savings_plan")
+        }
     if module_index_hints is None:
         module_index_hints = {
             "phase_11": True,
@@ -345,31 +345,21 @@ def compute_tco_kpi_bundle(
 
     # 1) Compute the KPI value
     if kpi_name == "total_blended_rate_krw_per_hour":
-        kpi_value = compute_total_blended_rate_krw_per_hour(
-            total_cost_krw, total_compute_hours
-        )
+        kpi_value = compute_total_blended_rate_krw_per_hour(total_cost_krw, total_compute_hours)
         kpi_unit = "krw_per_hour"
     elif kpi_name == "effective_discount_pct":
-        kpi_value = compute_effective_discount_pct(
-            on_demand_baseline_krw, actual_discounted_krw
-        )
+        kpi_value = compute_effective_discount_pct(on_demand_baseline_krw, actual_discounted_krw)
         kpi_unit = "pct"
     elif kpi_name == "tco_1year_commitment_krw":
-        blended_rate = compute_total_blended_rate_krw_per_hour(
-            total_cost_krw, total_compute_hours
-        )
+        blended_rate = compute_total_blended_rate_krw_per_hour(total_cost_krw, total_compute_hours)
         kpi_value = compute_tco_1year_commitment_krw(blended_rate, total_compute_hours)
         kpi_unit = "krw"
     elif kpi_name == "tco_3year_commitment_krw":
-        blended_rate = compute_total_blended_rate_krw_per_hour(
-            total_cost_krw, total_compute_hours
-        )
+        blended_rate = compute_total_blended_rate_krw_per_hour(total_cost_krw, total_compute_hours)
         kpi_value = compute_tco_3year_commitment_krw(blended_rate, total_compute_hours)
         kpi_unit = "krw"
     elif kpi_name == "tco_on_demand_krw":
-        blended_rate = compute_total_blended_rate_krw_per_hour(
-            total_cost_krw, total_compute_hours
-        )
+        blended_rate = compute_total_blended_rate_krw_per_hour(total_cost_krw, total_compute_hours)
         kpi_value = compute_tco_on_demand_krw(blended_rate, total_compute_hours)
         kpi_unit = "krw"
     elif kpi_name == "cost_per_user_krw":
@@ -393,12 +383,7 @@ def compute_tco_kpi_bundle(
         0.0,
         (float(on_demand_baseline_krw) - float(actual_discounted_krw)) / 12.0,
     )
-    if kpi_name == "tco_1year_commitment_krw":
-        break_even = compute_break_even_months(
-            upfront_cost_krw=float(kpi_value),
-            monthly_savings_krw=monthly_savings_krw,
-        )
-    elif kpi_name == "tco_3year_commitment_krw":
+    if kpi_name == "tco_1year_commitment_krw" or kpi_name == "tco_3year_commitment_krw":
         break_even = compute_break_even_months(
             upfront_cost_krw=float(kpi_value),
             monthly_savings_krw=monthly_savings_krw,
@@ -432,10 +417,7 @@ def compute_tco_kpi_bundle(
 
     # 5) Check for accuracy degradation (CR 11-3 honest-DEFER partial)
     threshold = PRICING_DEFAULTS["unit_economics_score_threshold"]
-    if (
-        kpi_name == "unit_economics_score"
-        and kpi_value < threshold * 0.5
-    ):
+    if kpi_name == "unit_economics_score" and kpi_value < threshold * 0.5:
         raise PricingAccuracyDegradationError(
             kpi_name=kpi_name,
             kpi_value=kpi_value,

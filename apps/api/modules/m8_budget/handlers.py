@@ -274,9 +274,7 @@ async def get_budget_scenario(
     response_model=VarianceTableResponse,
     dependencies=[
         Depends(require_capability(Capability.BUDGET_SCENARIO)),
-        Depends(require_any_role(
-            "owner", "member", "viewer", "consultant_proxy"
-        )),
+        Depends(require_any_role("owner", "member", "viewer", "consultant_proxy")),
     ],
     responses={
         404: {"description": "Budget variance not found"},
@@ -284,9 +282,7 @@ async def get_budget_scenario(
     },
 )
 async def get_budget_variance_table(
-    period_key: str = Path(
-        ..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)"
-    ),
+    period_key: str = Path(..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)"),
     request: Request = ...,  # FastAPI Request injection
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
@@ -331,9 +327,7 @@ async def get_budget_variance_table(
     response_model=BudgetVariancePdfResponse,
     dependencies=[
         Depends(require_capability(Capability.BUDGET_SCENARIO)),
-        Depends(require_any_role(
-            "owner", "member", "viewer", "consultant_proxy"
-        )),
+        Depends(require_any_role("owner", "member", "viewer", "consultant_proxy")),
     ],
     responses={
         404: {"description": "Budget variance not found"},
@@ -342,9 +336,7 @@ async def get_budget_variance_table(
     },
 )
 async def get_budget_variance_pdf(
-    period_key: str = Path(
-        ..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)"
-    ),
+    period_key: str = Path(..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)"),
     request: Request = ...,  # FastAPI Request injection
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
@@ -368,7 +360,8 @@ async def get_budget_variance_pdf(
     kernel_rows = await service.fetch_variance_table(period_key=period_key)
     total_row = await service.compute_variance_total(rows=kernel_rows)
     pdf_bytes = await service.generate_budget_variance_pdf(
-        period_key=period_key, scenario_index=1,
+        period_key=period_key,
+        scenario_index=1,
     )
 
     parts = parse_virtual_budget_period_key(period_key=period_key)
@@ -454,9 +447,7 @@ async def create_budget_pre_standard(
     response_model=BudgetPreStandardResponse,
     dependencies=[
         Depends(require_capability(Capability.BUDGET_SCENARIO)),
-        Depends(require_any_role(
-            "owner", "member", "viewer", "consultant_proxy"
-        )),
+        Depends(require_any_role("owner", "member", "viewer", "consultant_proxy")),
     ],
     responses={
         404: {"description": "Pre-standard snapshot not found"},
@@ -464,9 +455,7 @@ async def create_budget_pre_standard(
     },
 )
 async def get_budget_pre_standard(
-    period_key: str = Query(
-        ..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)"
-    ),
+    period_key: str = Query(..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)"),
     response: Response = None,
     request: Request = ...,  # FastAPI Request injection
     ctx: TenantContext = Depends(get_tenant_context),

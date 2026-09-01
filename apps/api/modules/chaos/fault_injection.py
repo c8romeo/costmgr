@@ -27,6 +27,7 @@ The 10 fault types (PRD §F25.2 verbatim):
 (9) process kill — SIGTERM/SIGKILL/SIGSTOP.
 (10) clock skew — libfaketime.
 """
+
 from __future__ import annotations
 
 import logging
@@ -98,7 +99,7 @@ class FaultInjectionResult(TypedDict):
 
 # ── Validation helpers (per fault type) ─────────────────────────
 def _validate_percentage(percentage: float, *, fault_type: str) -> None:
-    if not isinstance(percentage, (int, float)) or percentage < 0.0 or percentage > 100.0:
+    if not isinstance(percentage, int | float) or percentage < 0.0 or percentage > 100.0:
         raise FaultInjectionInvalidParameterError(
             fault_type=fault_type,
             parameter="percentage",
@@ -107,11 +108,7 @@ def _validate_percentage(percentage: float, *, fault_type: str) -> None:
 
 
 def _validate_duration(duration_seconds: int, *, fault_type: str) -> None:
-    if (
-        not isinstance(duration_seconds, int)
-        or duration_seconds < 1
-        or duration_seconds > 600
-    ):
+    if not isinstance(duration_seconds, int) or duration_seconds < 1 or duration_seconds > 600:
         raise FaultInjectionInvalidParameterError(
             fault_type=fault_type,
             parameter="duration_seconds",

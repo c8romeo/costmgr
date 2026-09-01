@@ -56,6 +56,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT (finops_interactive_dashboard.* namespace).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -83,14 +84,16 @@ DEFAULT_PROGRESS_PCT: Final[float] = 0.0
 COMPLETED_PROGRESS_PCT: Final[float] = 100.0
 
 # Allowed export status transitions (PRD §F43.3 verbatim)
-ALLOWED_STATUS_TRANSITIONS: Final[frozenset[tuple[str, str],],] = frozenset({
-    ("pending", "in_progress"),
-    ("pending", "failed"),
-    ("pending", "cancelled"),
-    ("in_progress", "completed"),
-    ("in_progress", "failed"),
-    ("in_progress", "cancelled"),
-})  # type: ignore[valid-type]
+ALLOWED_STATUS_TRANSITIONS: Final[frozenset[tuple[str, str],],] = frozenset(
+    {
+        ("pending", "in_progress"),
+        ("pending", "failed"),
+        ("pending", "cancelled"),
+        ("in_progress", "completed"),
+        ("in_progress", "failed"),
+        ("in_progress", "cancelled"),
+    }
+)  # type: ignore[valid-type]
 
 # Module-level in-memory job store: job_id → ExportJob
 _EXPORT_JOBS: dict[str, ExportJob] = {}
@@ -146,8 +149,7 @@ def _validate_format(fmt: str) -> None:
     """Validate format is one of ExportFormat enum values (PDF/XLSX/CSV/JSON/PNG)."""
     if fmt not in ExportFormat._value2member_map_:
         raise ValueError(
-            f"format must be one of "
-            f"{[e.value for e in ExportFormat]}, got {fmt!r}"
+            f"format must be one of " f"{[e.value for e in ExportFormat]}, got {fmt!r}"
         )
 
 
@@ -155,8 +157,7 @@ def _validate_status(status: str) -> None:
     """Validate status is one of ExportJobStatus enum values."""
     if status not in ExportJobStatus._value2member_map_:
         raise ValueError(
-            f"status must be one of "
-            f"{[e.value for e in ExportJobStatus]}, got {status!r}"
+            f"status must be one of " f"{[e.value for e in ExportJobStatus]}, got {status!r}"
         )
 
 
@@ -177,17 +178,14 @@ def _validate_retry_count(retry_count: int) -> None:
         raise ValueError("retry_count must be non-negative int")
     if retry_count > EXPORT_MAX_RETRIES:
         raise ValueError(
-            f"retry_count {retry_count} exceeds EXPORT_MAX_RETRIES "
-            f"{EXPORT_MAX_RETRIES}"
+            f"retry_count {retry_count} exceeds EXPORT_MAX_RETRIES " f"{EXPORT_MAX_RETRIES}"
         )
 
 
 def _check_status_transition(from_status: str, to_status: str) -> None:
     """Validate status transition is allowed (PRD §F43.3 lifecycle)."""
     if (from_status, to_status) not in ALLOWED_STATUS_TRANSITIONS:
-        raise ValueError(
-            f"status transition not allowed: {from_status} -> {to_status}"
-        )
+        raise ValueError(f"status transition not allowed: {from_status} -> {to_status}")
 
 
 # ── Public functions (PRD §F43.3 + AD-56 (c)) ─────────────────────────────
@@ -352,12 +350,10 @@ def update_export_job_progress(
         ValueError on invalid progress/file_size/status_transition.
     """
     _validate_job_id(job_id)
-    if not isinstance(progress_pct, (int, float)):
+    if not isinstance(progress_pct, int | float):
         raise ValueError("progress_pct must be numeric")
     if progress_pct < 0.0 or progress_pct > 100.0:
-        raise ValueError(
-            f"progress_pct must be in [0.0, 100.0], got {progress_pct}"
-        )
+        raise ValueError(f"progress_pct must be in [0.0, 100.0], got {progress_pct}")
     if file_size_bytes > 0:
         _enforce_max_size(file_size_bytes)
 
@@ -369,15 +365,13 @@ def update_export_job_progress(
         job["progress_pct"] = COMPLETED_PROGRESS_PCT
         job["completed_at"] = _now_iso()
     else:
-        _check_status_transition(
-            job["status"], ExportJobStatus.IN_PROGRESS.value
-        )
+        _check_status_transition(job["status"], ExportJobStatus.IN_PROGRESS.value)
         if job["status"] == ExportJobStatus.PENDING.value:
             job["status"] = ExportJobStatus.IN_PROGRESS.value
         job["progress_pct"] = float(
-            __import__("decimal").Decimal(str(progress_pct)).quantize(
-                __import__("decimal").Decimal("0.01")
-            )
+            __import__("decimal")
+            .Decimal(str(progress_pct))
+            .quantize(__import__("decimal").Decimal("0.01"))
         )
 
     if file_path is not None:

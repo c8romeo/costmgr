@@ -30,6 +30,7 @@ CR 1-1 audit-first INSERT: 4 NEW audit log actions
 (chaos_experiment_started + chaos_experiment_completed +
 chaos_experiment_aborted + chaos_rollback_triggered).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -142,14 +143,10 @@ async def _step2_tenant_scoping(
 async def _step3_blast_radius_confirmation(experiment: ChaosExperiment) -> None:
     """Step 3 — confirm blast radius (owner-only ACK at frontend)."""
     if experiment["blast_radius"] == BLAST_RADIUS_L4:
-        logger.warning(
-            "chaos_game_day: single_region blast radius — owner-only ACK required"
-        )
+        logger.warning("chaos_game_day: single_region blast radius — owner-only ACK required")
 
 
-async def _step4_steady_state_baseline(
-    *, duration_seconds: int = 300
-) -> dict[str, float]:
+async def _step4_steady_state_baseline(*, duration_seconds: int = 300) -> dict[str, float]:
     """Step 4 — capture steady state baseline (5min)."""
     # Phase 8 wire 의 baseline capture pattern 미러. The actual capture
     # queries Prometheus / PostgreSQL pgbouncer stats — for Phase 9 wire
@@ -168,9 +165,7 @@ async def _step5_fault_injection(experiment: ChaosExperiment) -> dict[str, objec
     return {"experiment_id": experiment["experiment_id"], "injected": True}
 
 
-async def _step6_observation(
-    *, experiment_id: str, duration_seconds: int
-) -> dict[str, object]:
+async def _step6_observation(*, experiment_id: str, duration_seconds: int) -> dict[str, object]:
     """Step 6 — observe metrics via Phase 7 observability stack."""
     return {
         "experiment_id": experiment_id,

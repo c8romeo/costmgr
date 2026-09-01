@@ -46,6 +46,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -72,9 +73,9 @@ logger = logging.getLogger(__name__)
 # ── Cron expression map (KST pytz timezone('Asia/Seoul')) (AD-49 (e) verbatim) ──
 # All times in KST (UTC+9). apscheduler-compatible cron expression strings.
 _CRON_EXPRESSION_MAP: dict[str, str] = {
-    ReservedCapacityCadence.DAILY.value: "0 2 * * *",           # 02:00 KST daily
-    ReservedCapacityCadence.WEEKLY.value: "0 3 * * 1",          # Mon 03:00 KST
-    ReservedCapacityCadence.MONTHLY.value: "0 4 1 * *",         # 1st-day 04:00 KST
+    ReservedCapacityCadence.DAILY.value: "0 2 * * *",  # 02:00 KST daily
+    ReservedCapacityCadence.WEEKLY.value: "0 3 * * 1",  # Mon 03:00 KST
+    ReservedCapacityCadence.MONTHLY.value: "0 4 1 * *",  # 1st-day 04:00 KST
     ReservedCapacityCadence.QUARTERLY.value: "0 5 1 1,4,7,10 *",  # 1st-of-quarter 05:00 KST
 }
 
@@ -93,9 +94,7 @@ def _compute_dispatch_cache_key(
     period_key: str,
 ) -> str:
     """Compute SHA-256 cache key for ScheduledReservedCapacityDispatch."""
-    payload = (
-        f"{tenant_id}:{cadence}:{period_key}:reserved_capacity_dispatch"
-    )
+    payload = f"{tenant_id}:{cadence}:{period_key}:reserved_capacity_dispatch"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -232,9 +231,10 @@ def dispatch_reserved_capacity_orchestration(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{cadence}:{period_key}:dispatch".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(f"{tenant_id}:{cadence}:{period_key}:dispatch".encode()).hexdigest()[:32]
+    )
 
     cache_key = _compute_dispatch_cache_key(
         tenant_id=tenant_id,
@@ -248,6 +248,7 @@ def dispatch_reserved_capacity_orchestration(
             from apps.api.modules.finops.reserved_capacity.reserved_capacity_dispatch_query import (  # noqa: E501
                 query_scheduled_reserved_capacity_dispatch,
             )
+
             existing = query_scheduled_reserved_capacity_dispatch(
                 db_session=db_session,
                 tenant_id=tenant_id,
@@ -280,7 +281,8 @@ def dispatch_reserved_capacity_orchestration(
 
     # Cadence hours KST (AD-49 (e) verbatim).
     cadence_hours_kst = RESERVED_CAPACITY_CADENCE_HOURS_KST.get(
-        cadence, (0, 0),
+        cadence,
+        (0, 0),
     )
 
     dispatch = {
@@ -329,6 +331,7 @@ def dispatch_reserved_capacity_orchestration(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING,

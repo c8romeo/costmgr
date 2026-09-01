@@ -27,12 +27,13 @@ CR lessons applied:
 - AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import pytz
 
@@ -57,7 +58,7 @@ logger = logging.getLogger(__name__)
 KST = pytz.timezone("Asia/Seoul")
 
 # 4 cron expressions (PRD §F32.4-2 verbatim).
-DISPATCH_CRON_EXPRESSIONS: Dict[str, str] = {
+DISPATCH_CRON_EXPRESSIONS: dict[str, str] = {
     DispatchSchedule.WEEKLY.value: "0 9 * * 1",  # KST Monday 09:00
     DispatchSchedule.MONTHLY.value: "0 9 1 * *",  # KST 1st day of month 09:00
     DispatchSchedule.QUARTERLY.value: "0 9 1 1,4,7,10 *",  # KST 1st day of quarter
@@ -65,7 +66,7 @@ DISPATCH_CRON_EXPRESSIONS: Dict[str, str] = {
 }
 
 # Retry policy (PRD §F32.4-8 verbatim).
-RETRY_BACKOFF_MINUTES: List[int] = REPORTING_DEFAULTS["retry_backoff_minutes"]
+RETRY_BACKOFF_MINUTES: list[int] = REPORTING_DEFAULTS["retry_backoff_minutes"]
 MAX_RETRY_COUNT: int = REPORTING_DEFAULTS["max_retry_count"]
 
 
@@ -99,6 +100,7 @@ def _validate_cron_expression(cron_expression: str) -> bool:
     """Validate cron expression via apscheduler."""
     try:
         from apscheduler.triggers.cron import CronTrigger
+
         CronTrigger.from_crontab(cron_expression, timezone=KST)
         return True
     except Exception as exc:
@@ -111,7 +113,7 @@ def _check_idempotency(
     tenant_id: str,
     dispatch_schedule: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> bool:
     """Check dispatch idempotency (PRD §F32.4-7 verbatim).
 
@@ -132,7 +134,7 @@ def _check_idempotency(
 def _dispatch_slack(
     tenant_id: str,
     report_id: str,
-    recipients: Dict[str, Any],
+    recipients: dict[str, Any],
     dry_run: bool = False,
 ) -> bool:
     """Dispatch executive report to Slack (PRD §F32.4-4 verbatim).
@@ -159,7 +161,7 @@ def _dispatch_slack(
 def _dispatch_email(
     tenant_id: str,
     report_id: str,
-    recipients: Dict[str, Any],
+    recipients: dict[str, Any],
     dry_run: bool = False,
 ) -> bool:
     """Dispatch executive report via Email (PRD §F32.4-4 verbatim).
@@ -237,11 +239,11 @@ def schedule_executive_dispatch(
     dispatch_schedule: str = "monthly",
     cron_expression: str = "",
     recipient_strategy: str = "owner_only",
-    recipient_list: Optional[Dict[str, Any]] = None,
-    report_id: Optional[str] = None,
-    actor_id: Optional[str] = None,
+    recipient_list: dict[str, Any] | None = None,
+    report_id: str | None = None,
+    actor_id: str | None = None,
     trace_id: str = "",
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
     dry_run: bool = False,
 ) -> ScheduledDispatch:
     """Schedule executive dispatch (PRD §F32.4-1 verbatim).
@@ -267,9 +269,7 @@ def schedule_executive_dispatch(
         CronExpressionInvalidError, DispatchIdempotencyViolationError,
         RecipientResolverError, ScheduledDispatchError.
     """
-    effective_cron = cron_expression or DISPATCH_CRON_EXPRESSIONS.get(
-        dispatch_schedule, ""
-    )
+    effective_cron = cron_expression or DISPATCH_CRON_EXPRESSIONS.get(dispatch_schedule, "")
     _validate_inputs(tenant_id, dispatch_schedule, effective_cron, recipient_strategy)
     _validate_cron_expression(effective_cron)
 
@@ -295,6 +295,7 @@ def schedule_executive_dispatch(
     if not dry_run:
         try:
             from apps.api.core.audit_action import emit_audit_typed
+
             emit_audit_typed(
                 action="executive_scheduled_dispatch_evaluated",
                 tenant_id=tenant_id,
@@ -333,7 +334,7 @@ def schedule_executive_dispatch(
         "recipient_list": recipients,
         "report_id": report_id,
         "status": initial_status,
-        "scheduled_at": datetime.now(tz=timezone.utc),
+        "scheduled_at": datetime.now(tz=UTC),
         "trace_id": trace_id,
     }
 

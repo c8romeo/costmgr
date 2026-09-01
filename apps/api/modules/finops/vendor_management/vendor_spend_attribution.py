@@ -21,6 +21,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT.
 - D-FINOPS-14 honestly DEFER.
 """
+
 from __future__ import annotations
 
 import logging
@@ -107,9 +108,7 @@ def compute_vendor_spend_attribution(
     # Variance
     variance_amount = _bankers_round(budget_amount - actual_amount)
     variance_pct = (
-        _bankers_round((variance_amount / budget_amount) * 100.0)
-        if budget_amount > 0
-        else 0.0
+        _bankers_round((variance_amount / budget_amount) * 100.0) if budget_amount > 0 else 0.0
     )
     over_budget = actual_amount > budget_amount
 
@@ -229,9 +228,7 @@ def aggregate_vendor_spend_attribution(
 
     RLS via tenant_id selector.
     """
-    tenant_attributions = [
-        a for a in attributions if a.get("tenant_id") == tenant_id
-    ]
+    tenant_attributions = [a for a in attributions if a.get("tenant_id") == tenant_id]
 
     total_actual = 0.0
     total_budget = 0.0
@@ -248,9 +245,7 @@ def aggregate_vendor_spend_attribution(
 
     total_variance = _bankers_round(total_budget - total_actual)
     variance_pct = (
-        _bankers_round((total_variance / total_budget) * 100.0)
-        if total_budget > 0
-        else 0.0
+        _bankers_round((total_variance / total_budget) * 100.0) if total_budget > 0 else 0.0
     )
 
     return {

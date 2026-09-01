@@ -21,6 +21,7 @@ Routes wired in apps/api/main.py EXTENSION. PagerDuty integration is
 owner-only manual trigger (AD-22 RBAC + Epic 12 2FA 챌린지 보존 +
 require_role("owner") gate).
 """
+
 from __future__ import annotations
 
 import os
@@ -136,9 +137,7 @@ def validate_alert_webhook_payload(payload: dict[str, Any]) -> AlertRule:
         AlertWebhookPayloadInvalidError(400) on missing/malformed fields.
     """
     if not isinstance(payload, dict):
-        raise AlertWebhookPayloadInvalidError(
-            "alerting: webhook payload must be a JSON object"
-        )
+        raise AlertWebhookPayloadInvalidError("alerting: webhook payload must be a JSON object")
     required_top = ("alerts", "status", "receiver", "groupLabels")
     for field in required_top:
         if field not in payload:

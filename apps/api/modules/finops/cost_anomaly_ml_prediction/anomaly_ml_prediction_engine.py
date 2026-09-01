@@ -44,6 +44,7 @@ CR lessons applied:
 - AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory high-value.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -138,8 +139,7 @@ def _validate_model_type(model_type: str) -> None:
     """Validate model_type is one of the 5 supported ensemble models."""
     if model_type not in ML_FORECAST_WEIGHTS:
         raise ValueError(
-            f"model_type must be one of {list(ML_FORECAST_WEIGHTS.keys())}, "
-            f"got {model_type}"
+            f"model_type must be one of {list(ML_FORECAST_WEIGHTS.keys())}, " f"got {model_type}"
         )
 
 
@@ -242,9 +242,7 @@ def read_prediction(tenant_id: str, prediction_id: str) -> AnomalyMLPrediction:
         raise ValueError("prediction_id must be a non-empty string")
     # CR 12-5 D-14 typed exception envelope — would raise
     # AnomalyMLPredictionNotFoundError in production
-    raise NotImplementedError(
-        "read_prediction requires DB integration via anomaly_ml_scoring"
-    )
+    raise NotImplementedError("read_prediction requires DB integration via anomaly_ml_scoring")
 
 
 def update_prediction(
@@ -265,9 +263,7 @@ def update_prediction(
     _validate_tenant_id(tenant_id)
     if not prediction_id or not isinstance(prediction_id, str):
         raise ValueError("prediction_id must be a non-empty string")
-    raise NotImplementedError(
-        "update_prediction requires DB integration via anomaly_ml_scoring"
-    )
+    raise NotImplementedError("update_prediction requires DB integration via anomaly_ml_scoring")
 
 
 def retire_prediction(tenant_id: str, prediction_id: str) -> bool:

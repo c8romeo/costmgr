@@ -28,11 +28,12 @@ AD-22 owner-only RBAC — allocation rule update owner-only.
 Epic 12 2FA 챌린지 mandatory when audit_required + auto_approve_below_pct.
 NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import json
 import uuid
-from datetime import UTC, datetime, date
+from datetime import UTC, date, datetime
 from typing import Any, Final, TypedDict
 
 from apps.api.core.errors import (
@@ -241,7 +242,7 @@ def define_allocation_rule(
         ConditionalRuleParseError: invalid conditional rule.
     """
     # 1. tenant_id validation
-    if not isinstance(tenant_id, (str, uuid.UUID)):
+    if not isinstance(tenant_id, str | uuid.UUID):
         raise AllocationRuleInvalidError(
             message_ko=f"tenant_id must be str/UUID, got {type(tenant_id).__name__}",
             details={"tenant_id": str(tenant_id)},
@@ -311,12 +312,11 @@ def define_allocation_rule(
                 message_ko="tag_match rule must have 'tag_key' parameter",
                 details={"parameters": str(params)},
             )
-    elif rule_type == RULE_TYPE_FALLBACK:
-        if "default_allocation" not in params:
-            raise AllocationRuleInvalidError(
-                message_ko="fallback rule must have 'default_allocation' parameter",
-                details={"parameters": str(params)},
-            )
+    elif rule_type == RULE_TYPE_FALLBACK and "default_allocation" not in params:
+        raise AllocationRuleInvalidError(
+            message_ko="fallback rule must have 'default_allocation' parameter",
+            details={"parameters": str(params)},
+        )
 
     # 7. effective_date validation
     now_date = date.today().isoformat()

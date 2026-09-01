@@ -50,6 +50,7 @@ CR lessons applied (18종):
 - AD-45 FinOps Cloud Commitment Management 신규 (a)~(g) 7 sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.commitment.serializers import (

@@ -101,21 +101,15 @@ def _to_validation_state(
 
     cost_pool_msg: str | None = None
     if cost_pool is not None and not cost_pool.is_valid:
-        cost_pool_msg = (
-            f"{ABC_COST_POOL_INVALID_SUM_KO} (현재 {cost_pool.sum_pct}%)"
-        )
+        cost_pool_msg = f"{ABC_COST_POOL_INVALID_SUM_KO} (현재 {cost_pool.sum_pct}%)"
 
     activity_msg: str | None = None
     if activity is not None and not activity.is_valid:
-        activity_msg = (
-            f"{ABC_ACTIVITY_INVALID_SUM_KO} (현재 {activity.sum_pct}%)"
-        )
+        activity_msg = f"{ABC_ACTIVITY_INVALID_SUM_KO} (현재 {activity.sum_pct}%)"
 
     driver_msg: str | None = None
     if driver is not None and not driver.is_valid:
-        driver_msg = (
-            f"{ABC_DRIVER_INVALID_SUM_KO} (현재 {driver.sum_pct}%)"
-        )
+        driver_msg = f"{ABC_DRIVER_INVALID_SUM_KO} (현재 {driver.sum_pct}%)"
 
     return AbcValidationState(
         cost_pool=cost_pool,

@@ -148,9 +148,7 @@ class SnapshotNotFoundError(Exception):
         snapshot_id: uuid.UUID,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"snapshot {snapshot_id} not found for tenant {tenant_id}"
-        )
+        super().__init__(f"snapshot {snapshot_id} not found for tenant {tenant_id}")
         self.tenant_id = tenant_id
         self.snapshot_id = snapshot_id
         self.trace_id = trace_id

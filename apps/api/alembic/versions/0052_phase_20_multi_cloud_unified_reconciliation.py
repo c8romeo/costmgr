@@ -33,6 +33,7 @@ CR lessons applied:
 Phase 11~19 carry-over: phase_11_finops_* ~ phase_19_finops_* tables
 RLS 정합 보존.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -58,20 +59,38 @@ def upgrade() -> None:
         sa.Column("scope_id", sa.Text, nullable=False),
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
-        sa.Column("effective_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"),
-        sa.Column("rate_card_variance_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"),
+        sa.Column(
+            "effective_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "rate_card_variance_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+        ),
         sa.Column("rate_card_variance_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("rate_card_source_count", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("primary_rate_card_source", sa.Text, nullable=False, server_default="billing_api"),
+        sa.Column(
+            "primary_rate_card_source", sa.Text, nullable=False, server_default="billing_api"
+        ),
         sa.Column("cloud_provider_breakdown", JSONB, nullable=False, server_default="{}"),
         sa.Column("rate_card_source_breakdown", JSONB, nullable=False, server_default="{}"),
-        sa.Column("negotiation_recommendation_count", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("rate_card_savings_krw_per_year", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column(
+            "negotiation_recommendation_count", sa.Integer, nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "rate_card_savings_krw_per_year", sa.Numeric(20, 2), nullable=False, server_default="0"
+        ),
         sa.Column("cache_key", sa.Text, nullable=False),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
-            "tenant_id", "scope_type", "scope_id", "period_key",
+            "tenant_id",
+            "scope_type",
+            "scope_id",
+            "period_key",
             name="uq_phase_20_multi_cloud_rate_card_reconciliation_scope_period",
         ),
         sa.CheckConstraint(
@@ -105,8 +124,18 @@ def upgrade() -> None:
         sa.Column("primary_cost_source", sa.Text, nullable=False, server_default="billing_api"),
         sa.Column("cost_growth_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("cost_forecast_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("last_reconciled_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "last_reconciled_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "cloud_provider IN ('aws', 'azure', 'gcp', 'naver', 'kt')",
@@ -141,12 +170,24 @@ def upgrade() -> None:
         sa.Column("savings_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("confidence_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("risk_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
-        sa.Column("auto_trigger_eligible", sa.Boolean, nullable=False, server_default=sa.text("FALSE")),
-        sa.Column("recommendation_status", sa.Text, nullable=False, server_default="manual_review_required"),
+        sa.Column(
+            "auto_trigger_eligible", sa.Boolean, nullable=False, server_default=sa.text("FALSE")
+        ),
+        sa.Column(
+            "recommendation_status",
+            sa.Text,
+            nullable=False,
+            server_default="manual_review_required",
+        ),
         sa.Column("guard_check_passed", sa.Boolean, nullable=False, server_default=sa.text("TRUE")),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("triggered_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "cloud_provider IN ('aws', 'azure', 'gcp', 'naver', 'kt')",
@@ -184,15 +225,29 @@ def upgrade() -> None:
         sa.Column("cloud_provider", sa.Text, nullable=False),
         sa.Column("scope_type", sa.Text, nullable=False),
         sa.Column("scope_id", sa.Text, nullable=False),
-        sa.Column("blended_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"),
-        sa.Column("unblended_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"),
+        sa.Column(
+            "blended_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "unblended_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+        ),
         sa.Column("rate_diff_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"),
         sa.Column("rate_diff_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("service_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("resource_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("tracking_status", sa.Text, nullable=False, server_default="real_time"),
-        sa.Column("last_tracked_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "last_tracked_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "cloud_provider IN ('aws', 'azure', 'gcp', 'naver', 'kt')",
@@ -220,14 +275,28 @@ def upgrade() -> None:
         sa.Column("product_name", sa.Text, nullable=False),
         sa.Column("sku", sa.Text, nullable=False),
         sa.Column("list_price_krw_per_unit", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("negotiated_price_krw_per_unit", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("effective_price_krw_per_unit", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column(
+            "negotiated_price_krw_per_unit", sa.Numeric(20, 2), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "effective_price_krw_per_unit", sa.Numeric(20, 2), nullable=False, server_default="0"
+        ),
         sa.Column("unit", sa.Text, nullable=False, server_default="per_user"),
         sa.Column("saas_category", sa.Text, nullable=False, server_default="other"),
         sa.Column("pricing_model", sa.Text, nullable=False, server_default="subscription"),
         sa.Column("integration_status", sa.Text, nullable=False, server_default="active"),
-        sa.Column("last_synced_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "last_synced_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "marketplace_source IN ('aws_marketplace', 'azure_marketplace', 'gcp_marketplace', 'naver_marketplace', 'kt_marketplace')",
@@ -255,7 +324,12 @@ def upgrade() -> None:
         sa.Column("recipient_list", JSONB, nullable=False, server_default="{}"),
         sa.Column("report_id", UUID(as_uuid=True), nullable=True),
         sa.Column("status", sa.Text, nullable=False, server_default="scheduled"),
-        sa.Column("scheduled_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "scheduled_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("last_run_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("next_run_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
@@ -286,11 +360,17 @@ def upgrade() -> None:
         sa.Column("user_id", UUID(as_uuid=True), nullable=False),
         sa.Column("role", sa.Text, nullable=False, server_default="multi_cloud_viewer"),
         sa.Column("granted_by", UUID(as_uuid=True), nullable=True),
-        sa.Column("granted_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "granted_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.UniqueConstraint(
-            "tenant_id", "user_id",
+            "tenant_id",
+            "user_id",
             name="uq_phase_20_multi_cloud_viewer_tenant_user",
         ),
         sa.CheckConstraint(
@@ -313,7 +393,12 @@ def upgrade() -> None:
         sa.Column("monthly_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("daily_auto_trigger_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("expired_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "computed_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         sa.CheckConstraint(
             "trigger_type IN ('auto', 'manual', 'override')",
@@ -344,7 +429,12 @@ def upgrade() -> None:
             sa.Column("preview_type", sa.Text, nullable=False),
             sa.Column("period_key", sa.Text, nullable=False),
             sa.Column("preview_data", JSONB, nullable=False, server_default="{}"),
-            sa.Column("computed_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+            sa.Column(
+                "computed_at",
+                sa.TIMESTAMP(timezone=True),
+                nullable=False,
+                server_default=sa.text("NOW()"),
+            ),
             sa.Column("trace_id", sa.Text, nullable=False, server_default=""),
         )
 
@@ -363,9 +453,7 @@ def upgrade() -> None:
         "phase_20_marketplace_saas_pricing_preview",
         "phase_20_blended_unblended_diff_preview",
     ):
-        op.execute(
-            f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;"
-        )
+        op.execute(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY;")
         op.execute(
             f"CREATE POLICY tenant_isolation_{table_name} "
             f"ON {table_name} USING ("

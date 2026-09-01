@@ -29,20 +29,14 @@ from packages.cost_engine.budget_period_key import (
 # Korean messages for HTTP envelopes (CR 12-5 D-14 typed contract).
 # Module-level re-bindings to keep main.py handler imports flat.
 BUDGET_SCENARIO_NOT_FOUND_KO: str = "예산 시나리오를 찾을 수 없습니다"
-BUDGET_SCENARIO_LIMIT_EXCEEDED_KO: str = (
-    "1차 MVP는 시나리오 1개만 지원합니다 (2차 예정)"
-)
+BUDGET_SCENARIO_LIMIT_EXCEEDED_KO: str = "1차 MVP는 시나리오 1개만 지원합니다 (2차 예정)"
 BUDGET_INVALID_VIRTUAL_KEY_KO: str = "가상 예산 기간 키가 올바르지 않습니다"
 BUDGET_VARIANCE_NOT_FOUND_KO: str = "예산-실적 대조 데이터를 찾을 수 없습니다"
 BUDGET_INVALID_VARIANCE_PERIOD_KO: str = "예산-실적 대조 기간 키가 올바르지 않습니다"
 # Story 8.3 — Budget Pre-Standard Cost Preview envelopes.
 BUDGET_INVALID_PRE_STANDARD_INPUT_KO: str = "예산 사전 표준원가 입력이 올바르지 않습니다"
-BUDGET_PRE_STANDARD_SNAPSHOT_NOT_FOUND_KO: str = (
-    "예산 사전 표준원가 스냅샷을 찾을 수 없습니다"
-)
-BUDGET_PRE_STANDARD_ALREADY_EXISTS_KO: str = (
-    "동일 기간에 다른 예산 사전 표준원가 결과가 있습니다"
-)
+BUDGET_PRE_STANDARD_SNAPSHOT_NOT_FOUND_KO: str = "예산 사전 표준원가 스냅샷을 찾을 수 없습니다"
+BUDGET_PRE_STANDARD_ALREADY_EXISTS_KO: str = "동일 기간에 다른 예산 사전 표준원가 결과가 있습니다"
 BUDGET_VARIANCE_PDF_NOT_READY_KO: str = (
     "예산-실적 차이 명세서 PDF는 예측 실행 후 다운로드할 수 있습니다"
 )
@@ -84,9 +78,7 @@ class BudgetVarianceNotFoundError(Exception):
     ) -> None:
         self.period_key = period_key
         self.tenant_id = tenant_id
-        self.message = (
-            message or f"Budget variance not found: period_key={period_key}"
-        )
+        self.message = message or f"Budget variance not found: period_key={period_key}"
         super().__init__(self.message)
 
 
@@ -156,10 +148,7 @@ class PreStandardSnapshotNotFoundError(Exception):
     ) -> None:
         self.period_key = period_key
         self.tenant_id = tenant_id
-        self.message = (
-            message
-            or f"Pre-standard snapshot not found: period_key={period_key}"
-        )
+        self.message = message or f"Pre-standard snapshot not found: period_key={period_key}"
         super().__init__(self.message)
 
 
@@ -184,12 +173,8 @@ class PreStandardAlreadyExistsError(Exception):
         self.tenant_id = tenant_id
         self.existing_hash = existing_hash
         self.new_hash = new_hash
-        self.message = (
-            message
-            or (
-                f"Pre-standard snapshot already exists with different hash: "
-                f"period_key={period_key}"
-            )
+        self.message = message or (
+            f"Pre-standard snapshot already exists with different hash: " f"period_key={period_key}"
         )
         super().__init__(self.message)
 
@@ -212,12 +197,8 @@ class BudgetVariancePdfNotReadyError(Exception):
     ) -> None:
         self.period_key = period_key
         self.tenant_id = tenant_id
-        self.message = (
-            message
-            or (
-                f"Pre-standard snapshot not yet inserted: "
-                f"period_key={period_key}"
-            )
+        self.message = message or (
+            f"Pre-standard snapshot not yet inserted: " f"period_key={period_key}"
         )
         super().__init__(self.message)
 

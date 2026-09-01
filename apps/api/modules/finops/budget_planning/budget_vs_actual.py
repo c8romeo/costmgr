@@ -24,6 +24,7 @@ CR lessons applied:
 - AD-52 (d) budget_vs_actual + dashboard UI detail.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -73,17 +74,13 @@ def validate_budget_vs_actual(rows: list[BudgetVsActual]) -> bool:
 
 def _bankers_round_pct(pct: float) -> float:
     """CR 5-1 verbatim banker's rounding on percentage."""
-    d = Decimal(str(pct)).quantize(
-        BUDGET_VS_ACTUAL_PCT_QUANTUM, rounding=ROUND_HALF_EVEN
-    )
+    d = Decimal(str(pct)).quantize(BUDGET_VS_ACTUAL_PCT_QUANTUM, rounding=ROUND_HALF_EVEN)
     return float(d)
 
 
 def _bankers_round_amount(amount: float) -> float:
     """CR 5-1 verbatim banker's rounding on amount."""
-    d = Decimal(str(amount)).quantize(
-        BUDGET_VS_ACTUAL_AMOUNT_QUANTUM, rounding=ROUND_HALF_EVEN
-    )
+    d = Decimal(str(amount)).quantize(BUDGET_VS_ACTUAL_AMOUNT_QUANTUM, rounding=ROUND_HALF_EVEN)
     return float(d)
 
 
@@ -139,19 +136,14 @@ def compute_budget_vs_actual(
 
         variance_amount = budget_amount - actual_amount
         # Guard against zero budget
-        if budget_amount == 0:
-            variance_pct = 0.0
-        else:
-            variance_pct = (variance_amount / budget_amount) * 100.0
+        variance_pct = 0.0 if budget_amount == 0 else variance_amount / budget_amount * 100.0
 
         variance_pct = _bankers_round_pct(variance_pct)
         variance_amount = _bankers_round_amount(variance_amount)
         severity = _severity_from_pct(variance_pct)
         over_budget = severity != "ok"
 
-        variance_id = (
-            str(uuid.uuid7()) if hasattr(uuid, "uuid7") else str(uuid.uuid4())
-        )
+        variance_id = str(uuid.uuid7()) if hasattr(uuid, "uuid7") else str(uuid.uuid4())
 
         row: BudgetVsActual = {
             "variance_id": variance_id,
@@ -168,9 +160,7 @@ def compute_budget_vs_actual(
             "source_attribution": {
                 "phase_22_settlement_results_ref": True,
                 "phase_24_budget_plan_ref": True,
-                "derivation_model_version": BUDGET_PLANNING_DEFAULTS[
-                    "model_version"
-                ],
+                "derivation_model_version": BUDGET_PLANNING_DEFAULTS["model_version"],
             },
             "computed_at": now_iso,
             "over_budget": over_budget,

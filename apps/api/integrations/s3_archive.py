@@ -17,11 +17,11 @@ CR lessons applied:
 - AD-22 owner-only RBAC — owner-only archive upload + Epic 12 2FA 챌린지.
 - NFR4 PII minimization — report files contain business metrics only.
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +34,11 @@ PRESIGNED_URL_EXPIRY_DAYS = 7
 class ExecutiveReportArchiveError(RuntimeError):
     """Executive report archive failure (CR 12-5 D-14 envelope, 500)."""
 
-    def __init__(self, reason: str, tenant_id: Optional[str] = None) -> None:
+    def __init__(self, reason: str, tenant_id: str | None = None) -> None:
         self.reason = str(reason)
         self.tenant_id = tenant_id
         super().__init__(
-            f"Executive report archive failure: reason={self.reason} "
-            f"tenant_id={self.tenant_id}"
+            f"Executive report archive failure: reason={self.reason} " f"tenant_id={self.tenant_id}"
         )
 
 
@@ -58,7 +57,7 @@ def upload_executive_report(
     report_id: str,
     file_bytes: bytes,
     export_format: str,
-    boto3_client: Optional[object] = None,
+    boto3_client: object | None = None,
 ) -> str:
     """Upload executive report to S3 archive.
 
@@ -130,7 +129,7 @@ def upload_executive_report(
 
 def generate_presigned_url(
     s3_uri: str,
-    boto3_client: Optional[object] = None,
+    boto3_client: object | None = None,
     expiry_days: int = PRESIGNED_URL_EXPIRY_DAYS,
 ) -> str:
     """Generate presigned URL with 7-day expiry (AD-14 stack pin).
@@ -144,7 +143,7 @@ def generate_presigned_url(
     """
     if boto3_client is None:
         # Dry-run placeholder for tests + local dev.
-        expiry = datetime.now(tz=timezone.utc) + timedelta(days=expiry_days)
+        expiry = datetime.now(tz=UTC) + timedelta(days=expiry_days)
         return f"{s3_uri}?expires={expiry.isoformat()}&dry_run=true"
 
     bucket, key = _parse_s3_uri(s3_uri)
@@ -170,7 +169,7 @@ def _parse_s3_uri(s3_uri: str) -> tuple[str, str]:
         raise ExecutiveReportArchiveError(
             reason=f"invalid_s3_uri:{s3_uri}",
         )
-    path = s3_uri[len("s3://"):]
+    path = s3_uri[len("s3://") :]
     bucket, _, key = path.partition("/")
     return bucket, key
 
@@ -196,7 +195,7 @@ class MultiCloudReportArchiveError(RuntimeError):
     verbatim for multi-cloud cost unified reconciliation report archive.
     """
 
-    def __init__(self, reason: str, tenant_id: Optional[str] = None) -> None:
+    def __init__(self, reason: str, tenant_id: str | None = None) -> None:
         self.reason = str(reason)
         self.tenant_id = tenant_id
         super().__init__(
@@ -208,9 +207,7 @@ class MultiCloudReportArchiveError(RuntimeError):
 MULTI_CLOUD_S3_KEY_PREFIX = "multi-cloud-reports"
 
 
-def build_multi_cloud_s3_key(
-    tenant_id: str, period_key: str, report_id: str, ext: str
-) -> str:
+def build_multi_cloud_s3_key(tenant_id: str, period_key: str, report_id: str, ext: str) -> str:
     """Build S3 object key for a multi-cloud report.
 
     Phase 20 wire (cj-style 144번째) — convention
@@ -226,7 +223,7 @@ def upload_multi_cloud_report(
     file_bytes: bytes,
     export_format: str = "pdf",
     dry_run: bool = False,
-    boto3_client: Optional[object] = None,
+    boto3_client: object | None = None,
 ) -> str:
     """Upload multi-cloud cost unified reconciliation report to S3.
 

@@ -70,9 +70,8 @@ from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from apps.api.core.db import get_session
 from apps.api.core.errors import BaseError
 from apps.api.jobs.failover_orchestrator import (
-    FailoverOrchestrator,
-    FailoverTimeoutError,
     FailoverTargetUnhealthyError,
+    FailoverTimeoutError,
     orchestrator,
 )
 
@@ -265,9 +264,7 @@ async def _execute_drill_steps(
             RPO_SLA_SECONDS,
         )
         # We still record the drill result but mark error message.
-        error_message = (
-            f"RPO {rpo_baseline}s exceeds SLA {RPO_SLA_SECONDS}s"
-        )
+        error_message = f"RPO {rpo_baseline}s exceeds SLA {RPO_SLA_SECONDS}s"
     else:
         error_message = None
 

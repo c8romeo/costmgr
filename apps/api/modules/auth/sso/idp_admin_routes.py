@@ -321,7 +321,10 @@ async def create_tenant_idp(
         x509_cert = md["x509_cert_pem"]
         slo_url = md["slo_url"]
         name_id_format = md["name_id_format"]
-        acs_url = body.acs_url or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
+        acs_url = (
+            body.acs_url
+            or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
+        )
     else:
         # Direct field mode — all 4 required fields must be present.
         if not (body.idp_entity_id and body.idp_sso_url and body.idp_x509_cert_pem):
@@ -335,7 +338,10 @@ async def create_tenant_idp(
         x509_cert = body.idp_x509_cert_pem
         slo_url = body.idp_slo_url
         name_id_format = body.name_id_format
-        acs_url = body.acs_url or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
+        acs_url = (
+            body.acs_url
+            or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
+        )
 
     # Check for existing IdP (UNIQUE (tenant_id, idp_entity_id)).
     existing = (
@@ -451,7 +457,10 @@ async def update_tenant_idp(
         x509_cert = md["x509_cert_pem"]
         slo_url = md["slo_url"]
         name_id_format = md["name_id_format"]
-        acs_url = body.acs_url or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
+        acs_url = (
+            body.acs_url
+            or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
+        )
     else:
         if not (body.idp_entity_id and body.idp_sso_url and body.idp_x509_cert_pem):
             raise TenantIdPMetadataInvalidError(
@@ -464,7 +473,10 @@ async def update_tenant_idp(
         x509_cert = body.idp_x509_cert_pem
         slo_url = body.idp_slo_url
         name_id_format = body.name_id_format
-        acs_url = body.acs_url or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
+        acs_url = (
+            body.acs_url
+            or f"https://{_placeholder_acs_host()}/api/v1/auth/sso/acs?tenant={tenant_slug}"
+        )
 
     # Audit-first INSERT.
     await emit_audit_typed(
@@ -621,7 +633,12 @@ async def test_tenant_idp(
         return IdPTestResultResponse(
             passed=False,
             steps=[
-                IdPTestResultStep(step=1, name="metadata_xml_present", passed=False, detail="metadata_xml is required for /test endpoint"),
+                IdPTestResultStep(
+                    step=1,
+                    name="metadata_xml_present",
+                    passed=False,
+                    detail="metadata_xml is required for /test endpoint",
+                ),
             ],
             metadata=None,
         )

@@ -51,9 +51,7 @@ VARIANCE_HASH_PREFIX: Final[str] = "sha256:"
 
 # A×B×C×D gray badge placeholder (PRD §15 NON-GOAL #1 + §10 M8 (b) verbatim).
 ABCD_DISABLED_LABEL: Final[str] = "A×B×C×D 원가 차이 분석"
-ABCD_DISABLED_TOOLTIP: Final[str] = (
-    "2차 예정 — A×B×C×D 편성 엔진 미구현 (PRD §15 NON-GOAL #1)"
-)
+ABCD_DISABLED_TOOLTIP: Final[str] = "2차 예정 — A×B×C×D 편성 엔진 미구현 (PRD §15 NON-GOAL #1)"
 ABCD_DISABLED_NOTE: Final[str] = "[NON-GOAL for MVP: A×B×C×D 엔진 미구현]"
 
 # ABCD badge variant (variance / trend / sensitivity — 8-3 retrofit foundation).
@@ -133,13 +131,9 @@ def compute_variance(*, budget_value: Decimal, actual_value: Decimal) -> Varianc
     V8 determinism: 100회 동일 입력 → 100회 byte-identical 결과.
     """
     if not isinstance(budget_value, Decimal):
-        raise ValueError(
-            f"budget_value must be Decimal, got {type(budget_value).__name__}"
-        )
+        raise ValueError(f"budget_value must be Decimal, got {type(budget_value).__name__}")
     if not isinstance(actual_value, Decimal):
-        raise ValueError(
-            f"actual_value must be Decimal, got {type(actual_value).__name__}"
-        )
+        raise ValueError(f"actual_value must be Decimal, got {type(actual_value).__name__}")
     if budget_value < 0:
         raise ValueError("budget_value must be non-negative")
     if actual_value < 0:
@@ -152,9 +146,7 @@ def compute_variance(*, budget_value: Decimal, actual_value: Decimal) -> Varianc
     if budget_value == 0:
         # 0/0 → no variance, budget=0 AND actual>0 → +Infinity (excess)
         # actual<0 is already rejected above, so this is +Infinity only.
-        variance_pct = (
-            Decimal("0") if actual_value == 0 else Decimal("Infinity")
-        )
+        variance_pct = Decimal("0") if actual_value == 0 else Decimal("Infinity")
     else:
         # ROUND_HALF_EVEN 4 decimal places (PRD §F8.2 verbatim).
         variance_pct = (difference / budget_value * 100).quantize(
@@ -192,9 +184,7 @@ def compute_variance_color(*, variance_pct: Decimal) -> Color:
     Pure-Python, stdlib-only (AD-5 + AD-11).
     """
     if not isinstance(variance_pct, Decimal):
-        raise ValueError(
-            f"variance_pct must be Decimal, got {type(variance_pct).__name__}"
-        )
+        raise ValueError(f"variance_pct must be Decimal, got {type(variance_pct).__name__}")
     # Infinity/NaN → "gray" fallback (cannot compute color for infinite variance)
     if variance_pct.is_nan() or variance_pct.is_infinite():
         return "gray"
@@ -220,16 +210,12 @@ def compute_variance_hash(*, variance: Variance) -> str:
       `f"sha256:{64-char-hexdigest}"`.
     """
     if not isinstance(variance, Variance):
-        raise ValueError(
-            f"variance must be Variance, got {type(variance).__name__}"
-        )
+        raise ValueError(f"variance must be Variance, got {type(variance).__name__}")
     digest = hashlib.sha256(repr(variance).encode()).hexdigest()
     return f"{VARIANCE_HASH_PREFIX}{digest}"
 
 
-def compute_abcd_disabled_badge(
-    *, variant: ABCDVariant = "variance"
-) -> ABCDDisabledBadge:
+def compute_abcd_disabled_badge(*, variant: ABCDVariant = "variance") -> ABCDDisabledBadge:
     """PRD §15 NON-GOAL #1 + §10 M8 (b) verbatim A×B×C×D 회색 배지 placeholder.
 
     1차 MVP = placeholder 명시 (회색 배경 + "2차 예정" + disabled).
@@ -246,8 +232,7 @@ def compute_abcd_disabled_badge(
     """
     if variant not in ("variance", "trend", "sensitivity"):
         raise ValueError(
-            f"variant must be one of 'variance'/'trend'/'sensitivity', "
-            f"got {variant!r}"
+            f"variant must be one of 'variance'/'trend'/'sensitivity', " f"got {variant!r}"
         )
     return ABCDDisabledBadge(
         variant=variant,

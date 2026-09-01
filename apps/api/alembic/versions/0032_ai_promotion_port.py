@@ -65,9 +65,7 @@ def upgrade() -> None:
     # ── 1. input_drafts_state_check EXTENSION (3-state → 4-state) ─────
     # AD-17 verbatim: state machine EXTENSION draft → reviewed →
     # superseded → promoted. DROP existing + ADD with 'promoted'.
-    op.execute(
-        "ALTER TABLE input_drafts DROP CONSTRAINT IF EXISTS input_drafts_state_check"
-    )
+    op.execute("ALTER TABLE input_drafts DROP CONSTRAINT IF EXISTS input_drafts_state_check")
     op.execute(
         """
         ALTER TABLE input_drafts
@@ -182,27 +180,17 @@ def downgrade() -> None:
         "DROP TRIGGER IF EXISTS trg_monthly_input_promotions_insert_only "
         "ON monthly_input_promotions"
     )
-    op.execute(
-        "DROP FUNCTION IF EXISTS fn_monthly_input_promotions_insert_only()"
-    )
-    op.execute(
-        "DROP INDEX IF EXISTS idx_monthly_input_promotions_monthly_input_row"
-    )
-    op.execute(
-        "DROP INDEX IF EXISTS idx_monthly_input_promotions_idempotency_key"
-    )
-    op.execute(
-        "DROP INDEX IF EXISTS idx_monthly_input_promotions_tenant_period"
-    )
+    op.execute("DROP FUNCTION IF EXISTS fn_monthly_input_promotions_insert_only()")
+    op.execute("DROP INDEX IF EXISTS idx_monthly_input_promotions_monthly_input_row")
+    op.execute("DROP INDEX IF EXISTS idx_monthly_input_promotions_idempotency_key")
+    op.execute("DROP INDEX IF EXISTS idx_monthly_input_promotions_tenant_period")
     op.execute(
         "ALTER TABLE monthly_input_promotions "
         "DROP CONSTRAINT IF EXISTS uq_monthly_input_promotions_tenant_period_draft"
     )
     op.execute("DROP TABLE IF EXISTS monthly_input_promotions")
     # Restore input_drafts_state_check to 3-state (revert to pre-10-4 state).
-    op.execute(
-        "ALTER TABLE input_drafts DROP CONSTRAINT IF EXISTS input_drafts_state_check"
-    )
+    op.execute("ALTER TABLE input_drafts DROP CONSTRAINT IF EXISTS input_drafts_state_check")
     op.execute(
         """
         ALTER TABLE input_drafts

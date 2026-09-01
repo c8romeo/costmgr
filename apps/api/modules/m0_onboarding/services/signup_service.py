@@ -153,19 +153,13 @@ class SignupService:
         # 1. Validate inputs
         name_clean = tenant_name.strip()
         if not name_clean:
-            raise TenantNameValidationError(
-                reason="empty_after_trim", trace_id=self._trace_id
-            )
+            raise TenantNameValidationError(reason="empty_after_trim", trace_id=self._trace_id)
         if len(name_clean) > 200:
-            raise TenantNameValidationError(
-                reason="too_long", trace_id=self._trace_id
-            )
+            raise TenantNameValidationError(reason="too_long", trace_id=self._trace_id)
 
         # 2. Check the user is not already a member of any tenant.
         existing = await self._session.execute(
-            select(TenantMembership)
-            .where(TenantMembership.user_id == user_id)
-            .limit(1)
+            select(TenantMembership).where(TenantMembership.user_id == user_id).limit(1)
         )
         existing_membership = existing.scalar_one_or_none()
         if existing_membership is not None:
@@ -269,9 +263,7 @@ class SignupService:
         with role='owner' (default for fresh signups) and email from
         Supabase JWT (or a placeholder if unavailable — required NOT NULL).
         """
-        existing = await self._session.execute(
-            select(User).where(User.id == user_id)
-        )
+        existing = await self._session.execute(select(User).where(User.id == user_id))
         if existing.scalar_one_or_none() is not None:
             return  # already provisioned
 

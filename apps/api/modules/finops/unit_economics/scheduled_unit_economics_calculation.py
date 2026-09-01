@@ -35,6 +35,7 @@ CR lessons applied:
 - D-FINOPS-12 honestly DEFER (cost_per_customer CRM + multi-currency
   FX + real-time stream — all honestly DEFER to future Phase 23.x).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -88,9 +89,7 @@ ALL_UNIT_ECONOMICS_CADENCES: list[str] = list(UNIT_ECONOMICS_CADENCE_HOURS_KST.k
 
 def _round_to_krw(amount: float) -> float:
     """Banker's rounding to 0.01 KRW (CR 5-1)."""
-    return float(
-        Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
-    )
+    return float(Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN))
 
 
 def _compute_calculation_id(
@@ -99,9 +98,7 @@ def _compute_calculation_id(
     cadence: str,
 ) -> str:
     """Compute SHA-256 calculation ID."""
-    payload = (
-        f"{tenant_id}:{period_key}:{cadence}:unit_economics_calculation"
-    )
+    payload = f"{tenant_id}:{period_key}:{cadence}:unit_economics_calculation"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -275,9 +272,10 @@ def compute_unit_economics_period(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{period_key}:{cadence}:scheduled".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(f"{tenant_id}:{period_key}:{cadence}:scheduled".encode()).hexdigest()[:32]
+    )
 
     calculation_id = _compute_calculation_id(
         tenant_id=tenant_id,

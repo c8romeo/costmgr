@@ -59,6 +59,7 @@ AuditLogArchiveImmutableError(403) +
 AuditLogArchiveHashChainMismatchError(500) registered in
 apps/api/main.py exception handlers.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -264,9 +265,7 @@ def upgrade() -> None:
             "trace_id",
             sa.Text(),
             nullable=True,
-            comment=(
-                "UUID4 trace_id for observability (Sentry breadcrumb)."
-            ),
+            comment=("UUID4 trace_id for observability (Sentry breadcrumb)."),
         ),
     )
 
@@ -361,8 +360,12 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop triggers + tables + ALTER audit_logs archived_at column."""
     # Drop triggers on audit_log_archive.
-    op.execute("DROP TRIGGER IF EXISTS trg_audit_log_archive_immutable_update ON audit_log_archive;")
-    op.execute("DROP TRIGGER IF EXISTS trg_audit_log_archive_immutable_delete ON audit_log_archive;")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_audit_log_archive_immutable_update ON audit_log_archive;"
+    )
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_audit_log_archive_immutable_delete ON audit_log_archive;"
+    )
     op.execute("DROP FUNCTION IF EXISTS audit_log_archive_immutable_guard();")
     op.execute("DROP FUNCTION IF EXISTS archive_expired_audit_logs();")
 
@@ -375,8 +378,12 @@ def downgrade() -> None:
     op.drop_table("audit_log_archive")
 
     # Drop phase_6_audit_purge_log policies + table.
-    op.execute("DROP POLICY IF EXISTS phase_6_audit_purge_log_tenant_isolation ON phase_6_audit_purge_log;")
-    op.drop_index("idx_phase_6_audit_purge_log_tenant_purged_at", table_name="phase_6_audit_purge_log")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_6_audit_purge_log_tenant_isolation ON phase_6_audit_purge_log;"
+    )
+    op.drop_index(
+        "idx_phase_6_audit_purge_log_tenant_purged_at", table_name="phase_6_audit_purge_log"
+    )
     op.drop_table("phase_6_audit_purge_log")
 
     # Drop archived_at column from audit_logs.

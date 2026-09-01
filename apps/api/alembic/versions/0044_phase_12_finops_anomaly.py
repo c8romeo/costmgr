@@ -137,6 +137,7 @@ CR lessons applied:
    budget_threshold_exceeded + budget_alert_sent).
 - CR 0-2 RLS verbatim — all 6 tables have RLS policies.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -296,9 +297,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE phase_12_finops_anomaly ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_12_finops_anomaly ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_12_finops_anomaly_tenant_isolation
@@ -360,9 +359,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE anomaly_baseline ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE anomaly_baseline ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY anomaly_baseline_tenant_isolation
@@ -429,9 +426,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE anomaly_preview ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE anomaly_preview ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY anomaly_preview_tenant_isolation
@@ -562,9 +557,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE budget_consumption ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE budget_consumption ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY budget_consumption_tenant_isolation
@@ -630,9 +623,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE budget_preview ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE budget_preview ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY budget_preview_tenant_isolation
@@ -646,9 +637,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop 6 tables in reverse order."""
     # Drop in reverse order (FK dependencies)
-    op.execute(
-        "DROP POLICY IF EXISTS budget_preview_tenant_isolation ON budget_preview;"
-    )
+    op.execute("DROP POLICY IF EXISTS budget_preview_tenant_isolation ON budget_preview;")
     op.execute("ALTER TABLE budget_preview DISABLE ROW LEVEL SECURITY;")
     op.drop_constraint(
         "ck_budget_preview_alert_level",
@@ -661,9 +650,7 @@ def downgrade() -> None:
     )
     op.drop_table("budget_preview")
 
-    op.execute(
-        "DROP POLICY IF EXISTS budget_consumption_tenant_isolation ON budget_consumption;"
-    )
+    op.execute("DROP POLICY IF EXISTS budget_consumption_tenant_isolation ON budget_consumption;")
     op.execute("ALTER TABLE budget_consumption DISABLE ROW LEVEL SECURITY;")
     op.drop_index(
         "idx_budget_consumption_tenant_period",
@@ -676,42 +663,26 @@ def downgrade() -> None:
     op.drop_constraint("ck_budget_status", "budget", type_="check")
     op.drop_constraint("ck_budget_scope", "budget", type_="check")
     op.drop_constraint("ck_budget_period", "budget", type_="check")
-    op.drop_constraint(
-        "uq_budget_budget_id", "budget", type_="unique"
-    )
+    op.drop_constraint("uq_budget_budget_id", "budget", type_="unique")
     op.drop_index("idx_budget_tenant_period_scope", table_name="budget")
     op.drop_table("budget")
 
-    op.execute(
-        "DROP POLICY IF EXISTS anomaly_preview_tenant_isolation ON anomaly_preview;"
-    )
+    op.execute("DROP POLICY IF EXISTS anomaly_preview_tenant_isolation ON anomaly_preview;")
     op.execute("ALTER TABLE anomaly_preview DISABLE ROW LEVEL SECURITY;")
-    op.drop_constraint(
-        "ck_anomaly_preview_severity", "anomaly_preview", type_="check"
-    )
-    op.drop_constraint(
-        "uq_anomaly_preview_anomaly_id", "anomaly_preview", type_="unique"
-    )
+    op.drop_constraint("ck_anomaly_preview_severity", "anomaly_preview", type_="check")
+    op.drop_constraint("uq_anomaly_preview_anomaly_id", "anomaly_preview", type_="unique")
     op.drop_table("anomaly_preview")
 
-    op.execute(
-        "DROP POLICY IF EXISTS anomaly_baseline_tenant_isolation ON anomaly_baseline;"
-    )
+    op.execute("DROP POLICY IF EXISTS anomaly_baseline_tenant_isolation ON anomaly_baseline;")
     op.execute("ALTER TABLE anomaly_baseline DISABLE ROW LEVEL SECURITY;")
-    op.drop_constraint(
-        "ck_anomaly_baseline_window", "anomaly_baseline", type_="check"
-    )
-    op.drop_index(
-        "idx_anomaly_baseline_tenant_period", table_name="anomaly_baseline"
-    )
+    op.drop_constraint("ck_anomaly_baseline_window", "anomaly_baseline", type_="check")
+    op.drop_index("idx_anomaly_baseline_tenant_period", table_name="anomaly_baseline")
     op.drop_table("anomaly_baseline")
 
     op.execute(
         "DROP POLICY IF EXISTS phase_12_finops_anomaly_tenant_isolation ON phase_12_finops_anomaly;"
     )
-    op.execute(
-        "ALTER TABLE phase_12_finops_anomaly DISABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_12_finops_anomaly DISABLE ROW LEVEL SECURITY;")
     op.drop_constraint(
         "ck_phase_12_finops_anomaly_status",
         "phase_12_finops_anomaly",

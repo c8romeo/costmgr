@@ -42,6 +42,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import csv
@@ -79,9 +80,7 @@ PDF_MARGIN_PT = 36  # 0.5 inch
 
 def _round_to_krw(amount: float) -> float:
     """Banker's rounding to 0.01 KRW (CR 5-1)."""
-    return float(
-        Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
-    )
+    return float(Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN))
 
 
 def _compute_invoice_id(
@@ -265,7 +264,10 @@ def _generate_pdf_invoice(
     # Summary table
     summary_data = [
         ["항목", "값"],
-        ["총 정산 금액 (KRW)", f"{_round_to_krw(settlement_result.get('total_amount_krw', 0.0)):,}"],
+        [
+            "총 정산 금액 (KRW)",
+            f"{_round_to_krw(settlement_result.get('total_amount_krw', 0.0)):,}",
+        ],
         ["할당 라인 수", str(settlement_result.get("allocation_count", 0))],
         ["신뢰도 (%)", f"{settlement_result.get('confidence_pct', 0.0)}"],
         ["허용 오차 (KRW)", f"{_round_to_krw(settlement_result.get('tolerance_band_krw', 0.0)):,}"],
@@ -544,12 +546,8 @@ def _generate_csv_invoice(
     # Recipient routing block
     writer.writerow(["수신자 라우팅 (Recipient Routing)"])
     writer.writerow(["채널", "수신자"])
-    writer.writerow(
-        ["Slack", ", ".join(recipient_routing.get("slack_channels", [])) or "없음"]
-    )
-    writer.writerow(
-        ["Email", ", ".join(recipient_routing.get("email_recipients", [])) or "없음"]
-    )
+    writer.writerow(["Slack", ", ".join(recipient_routing.get("slack_channels", [])) or "없음"])
+    writer.writerow(["Email", ", ".join(recipient_routing.get("email_recipients", [])) or "없음"])
     writer.writerow(
         ["MS Teams", ", ".join(recipient_routing.get("ms_teams_channels", [])) or "없음"]
     )
@@ -655,9 +653,12 @@ def generate_invoice(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{result_id}:{period_key}:invoice:{invoice_format}".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{result_id}:{period_key}:invoice:{invoice_format}".encode()
+        ).hexdigest()[:32]
+    )
 
     invoice_id = _compute_invoice_id(
         tenant_id=tenant_id,
@@ -743,6 +744,7 @@ def generate_invoice(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_CHARGEBACK_SETTLEMENT,

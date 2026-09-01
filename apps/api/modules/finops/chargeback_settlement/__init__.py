@@ -34,6 +34,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.chargeback_settlement.allocation_engine import (

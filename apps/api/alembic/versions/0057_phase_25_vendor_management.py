@@ -64,6 +64,7 @@ CR lessons applied:
 Phase 11~24 carry-over: phase_11_finops_* ~ phase_24_budget_planning_*
 tables RLS 정합 보존.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -219,9 +220,7 @@ def upgrade() -> None:
     )
 
     # ── RLS policy (CR 0-2 verbatim) ─────────────────────────────────────
-    op.execute(
-        "ALTER TABLE phase_25_vendor_management_preview ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_25_vendor_management_preview ENABLE ROW LEVEL SECURITY;")
     op.execute(
         "CREATE POLICY tenant_isolation_phase_25_vendor_management_preview "
         "ON phase_25_vendor_management_preview USING ("
@@ -236,9 +235,7 @@ def downgrade() -> None:
         "DROP POLICY IF EXISTS tenant_isolation_phase_25_vendor_management_preview "
         "ON phase_25_vendor_management_preview;"
     )
-    op.execute(
-        "ALTER TABLE phase_25_vendor_management_preview DISABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_25_vendor_management_preview DISABLE ROW LEVEL SECURITY;")
     op.drop_index(
         "ix_phase_25_vendor_management_preview_tenant_period_type",
         table_name="phase_25_vendor_management_preview",

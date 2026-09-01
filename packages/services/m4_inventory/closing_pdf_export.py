@@ -382,8 +382,7 @@ def _build_tounicode_cmap(
     if len(codepoints) > 0xFFFF:
         raise ClosingPdfExportError(
             message=(
-                f"closing PDF export ToUnicode cmap size {len(codepoints)} "
-                f"exceeds 0xFFFF limit"
+                f"closing PDF export ToUnicode cmap size {len(codepoints)} " f"exceeds 0xFFFF limit"
             ),
             error_code="CLOSING_PDF_EXPORT_TOUCMAP_OVERFLOW",
         )
@@ -438,10 +437,9 @@ def _flush_bfrange(
     last_gid = chunk[-1][0]
     expected_first_cp = chunk[0][1]
     expected_last_cp = chunk[-1][1]
-    is_contiguous = (
-        (last_gid - first_gid + 1) == len(chunk)
-        and (expected_last_cp - expected_first_cp + 1) == len(chunk)
-    )
+    is_contiguous = (last_gid - first_gid + 1) == len(chunk) and (
+        expected_last_cp - expected_first_cp + 1
+    ) == len(chunk)
     if is_contiguous:
         lines.append(
             f"1 beginbfrange\n"
@@ -452,9 +450,7 @@ def _flush_bfrange(
         # Per-gid bfchar mapping.
         lines.append(f"{len(chunk)} beginbfchar\n".encode("ascii"))
         for gid, cp in chunk:
-            lines.append(
-                f"<{gid:04X}> <{cp:04X}>\n".encode("ascii")
-            )
+            lines.append(f"<{gid:04X}> <{cp:04X}>\n".encode("ascii"))
         lines.append(b"endbfchar\n")
 
 
@@ -535,9 +531,7 @@ def _build_closing_pdf_bytes(
         for section in page.sections:
             body_parts.append("/F2 14 Tf")
             title_literal = escape_pdf_literal(section.title_ko)
-            body_parts.append(
-                f"1 0 0 1 50 {A4_HEIGHT_PT - 50} Tm ({title_literal}) Tj"
-            )
+            body_parts.append(f"1 0 0 1 50 {A4_HEIGHT_PT - 50} Tm ({title_literal}) Tj")
             for block in section.blocks:
                 text_literal = escape_pdf_literal(block.text)
                 body_parts.append(
@@ -567,15 +561,12 @@ def _build_closing_pdf_bytes(
     objects: dict[int, bytes] = {}
 
     # Object 1 — catalog.
-    objects[1] = (
-        "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
-    ).encode("ascii")
+    objects[1] = ("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n").encode("ascii")
 
     # Object 2 — pages tree.
     kids = " ".join(f"{n} 0 R" for n in page_obj_numbers)
     objects[2] = (
-        f"2 0 obj\n<< /Type /Pages /Kids [{kids}] "
-        f"/Count {len(document.pages)} >>\nendobj\n"
+        f"2 0 obj\n<< /Type /Pages /Kids [{kids}] " f"/Count {len(document.pages)} >>\nendobj\n"
     ).encode("ascii")
 
     # Object 3 — info dict. Use hex-string for Title to avoid literal
@@ -643,21 +634,15 @@ def _build_closing_pdf_bytes(
 
     # CMap stream object (Identity-H).
     cmap_header = f"{identity_h_cmap_obj_num} 0 obj\n".encode("ascii")
-    cmap_body = (
-        f"<< /Length {len(identity_h_cmap)} /Filter /FlateDecode >>\n"
-        f"stream\n"
-    ).encode("ascii")
-    cmap_footer = b"\nendstream\nendobj\n"
-    objects[identity_h_cmap_obj_num] = (
-        cmap_header + cmap_body + identity_h_cmap + cmap_footer
+    cmap_body = (f"<< /Length {len(identity_h_cmap)} /Filter /FlateDecode >>\n" f"stream\n").encode(
+        "ascii"
     )
+    cmap_footer = b"\nendstream\nendobj\n"
+    objects[identity_h_cmap_obj_num] = cmap_header + cmap_body + identity_h_cmap + cmap_footer
 
     # ToUnicode CMap stream object.
     tounicode_header = f"{tounicode_cmap_obj_num} 0 obj\n".encode("ascii")
-    tounicode_body = (
-        f"<< /Length {len(tounicode_cmap)} >>\n"
-        f"stream\n"
-    ).encode("ascii")
+    tounicode_body = (f"<< /Length {len(tounicode_cmap)} >>\n" f"stream\n").encode("ascii")
     tounicode_footer = b"\nendstream\nendobj\n"
     objects[tounicode_cmap_obj_num] = (
         tounicode_header + tounicode_body + tounicode_cmap + tounicode_footer
@@ -682,22 +667,15 @@ def _build_closing_pdf_bytes(
         objects[page_obj_num] = page_body
 
         content_body = (
-            f"{content_obj_num} 0 obj\n"
-            f"<< /Length {len(content_bytes)} >>\n"
-            f"stream\n"
+            f"{content_obj_num} 0 obj\n" f"<< /Length {len(content_bytes)} >>\n" f"stream\n"
         ).encode("ascii")
-        objects[content_obj_num] = (
-            content_body + content_bytes + b"\nendstream\nendobj\n"
-        )
+        objects[content_obj_num] = content_body + content_bytes + b"\nendstream\nendobj\n"
 
     # ── Concatenate objects in numerical order, tracking offsets ──
     # Order: header → object 1, 2, 3, 4, 4+1, 4+2, 4+3 (cmap), 4+4
     # (tounicode), then per-page pairs.
     object_order = sorted(objects.keys())
-    header = (
-        f"%PDF-{PDF_VERSION}\n".encode("ascii")
-        + b"%\xe2\xe3\xcf\xd3\n"
-    )
+    header = f"%PDF-{PDF_VERSION}\n".encode("ascii") + b"%\xe2\xe3\xcf\xd3\n"
 
     offsets: dict[int, int] = {0: 0}  # object 0 is the free entry
     cursor = len(header)

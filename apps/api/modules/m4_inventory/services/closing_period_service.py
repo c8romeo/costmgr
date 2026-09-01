@@ -151,9 +151,7 @@ class ClosingPeriodEmptyPeriodError(Exception):
         period_key: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"closing_period empty for {period_key} (tenant {tenant_id})"
-        )
+        super().__init__(f"closing_period empty for {period_key} (tenant {tenant_id})")
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.trace_id = trace_id
@@ -233,9 +231,11 @@ class ClosingPeriodService:
         """
 
         # 5-2 wire SSOT — multi-product read.
-        closing_per_product, ledger_event_count, closing_snapshot_count = (
-            await self._query_closing_via_ledger(period_key)
-        )
+        (
+            closing_per_product,
+            ledger_event_count,
+            closing_snapshot_count,
+        ) = await self._query_closing_via_ledger(period_key)
 
         # Check if already closed (AD-6 fiscal-period close lock).
         is_already_closed = await self._is_period_closed(period_key)
@@ -307,10 +307,12 @@ class ClosingPeriodService:
         )
 
         period_row = await self.session.scalar(
-            select(MonthlyInputPeriod).where(
+            select(MonthlyInputPeriod)
+            .where(
                 MonthlyInputPeriod.tenant_id == self.tenant_id,
                 MonthlyInputPeriod.period_key == period_key,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
 
         # Idempotent no-op skip — already closed.
@@ -356,8 +358,7 @@ class ClosingPeriodService:
         if not result.allowed or result.status != CLOSING_PERIOD_STATUS_READY:
             raise ClosingPeriodPureError(
                 message=(
-                    f"closing_period unexpected status {result.status!r} "
-                    f"after guard checks"
+                    f"closing_period unexpected status {result.status!r} " f"after guard checks"
                 ),
                 error_code="UNEXPECTED_CLOSING_PERIOD_STATUS",
                 period_key=period_key,

@@ -40,6 +40,7 @@ PRD §9 #15 verbatim — 활동원가 내역서 (활동별 원가·동인 단가
 
 AD-18 single endpoint (GET /api/v1/reports/15 + POST /api/v1/reports/15/pdf).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -120,9 +121,7 @@ def _to_report15_state(
     # Pre-compute summary envelope message (PRD §9 #15 + §7.1 verbatim)
     summary_msg: str | None = None
     if not v7_verdict.is_balanced:
-        diff = v7_verdict.expected_sum - (
-            v7_verdict.breakdown_sum + v7_verdict.unused_cost
-        )
+        diff = v7_verdict.expected_sum - (v7_verdict.breakdown_sum + v7_verdict.unused_cost)
         summary_msg = (
             f"{REPORT15_NO_ACTIVITY_BREAKDOWN_KO} "
             f"(예상 {v7_verdict.expected_sum}원, "
@@ -297,12 +296,8 @@ class Report15Service:
         # USD totals — use placeholder Decimal("0") since USD conversion
         # requires tenant_settings.currency.exchange_rate (AD-23, future wire).
         # For 11-6 wire, we accumulate KRW directly + USD if present.
-        total_cost_krw = sum(
-            (r.total_cost_krw for r in activity_breakdown), Decimal("0")
-        )
-        total_cost_usd = sum(
-            (r.total_cost_usd for r in activity_breakdown), Decimal("0")
-        )
+        total_cost_krw = sum((r.total_cost_krw for r in activity_breakdown), Decimal("0"))
+        total_cost_usd = sum((r.total_cost_usd for r in activity_breakdown), Decimal("0"))
         summary = Report15Summary(
             activity_count=activity_count,
             total_cost_krw=total_cost_krw,

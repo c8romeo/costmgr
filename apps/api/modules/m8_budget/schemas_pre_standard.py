@@ -95,9 +95,7 @@ class BudgetPreStandardRequest(BaseModel):
         try:
             parse_virtual_budget_period_key(period_key=v)
         except ValueError as exc:
-            raise ValueError(
-                f"period_key must match YYYY-MM#B<n>: {v!r}"
-            ) from exc
+            raise ValueError(f"period_key must match YYYY-MM#B<n>: {v!r}") from exc
         return v
 
 
@@ -109,39 +107,17 @@ class BudgetPreStandardSnapshotSerialized(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    material_cost: str = Field(
-        ..., description="KRW 정수 (직접재료 합계, AD-8)"
-    )
-    labor_cost: str = Field(
-        ..., description="KRW 정수 (직접노무 합계, AD-8)"
-    )
-    overhead_cost: str = Field(
-        ..., description="KRW 정수 (제조경비 합계, AD-8)"
-    )
-    manufacturing_cost: str = Field(
-        ..., description="KRW 정수 (제조원가 합계, AD-8)"
-    )
-    period_key: str = Field(
-        ..., description="AD-24 virtual YYYY-MM#B<n>"
-    )
-    scenario_index: int = Field(
-        ..., ge=1, le=1, description="1차 MVP = 1 only"
-    )
-    engine_type: str = Field(
-        ..., description="Literal 'budget' (8-3 wire uniqueness)"
-    )
-    inventory_adjustment: int = Field(
-        ..., description="BigInteger (default 0 for pre-standard)"
-    )
-    result_hash: str = Field(
-        ..., description="V8 determinism sha256:64hex"
-    )
-    state: str = Field(
-        ..., description="Literal 'verified' | 'committed' | 'reversed'"
-    )
-    created_at_kst: str = Field(
-        ..., description="ISO 8601 KST timestamp"
-    )
+    material_cost: str = Field(..., description="KRW 정수 (직접재료 합계, AD-8)")
+    labor_cost: str = Field(..., description="KRW 정수 (직접노무 합계, AD-8)")
+    overhead_cost: str = Field(..., description="KRW 정수 (제조경비 합계, AD-8)")
+    manufacturing_cost: str = Field(..., description="KRW 정수 (제조원가 합계, AD-8)")
+    period_key: str = Field(..., description="AD-24 virtual YYYY-MM#B<n>")
+    scenario_index: int = Field(..., ge=1, le=1, description="1차 MVP = 1 only")
+    engine_type: str = Field(..., description="Literal 'budget' (8-3 wire uniqueness)")
+    inventory_adjustment: int = Field(..., description="BigInteger (default 0 for pre-standard)")
+    result_hash: str = Field(..., description="V8 determinism sha256:64hex")
+    state: str = Field(..., description="Literal 'verified' | 'committed' | 'reversed'")
+    created_at_kst: str = Field(..., description="ISO 8601 KST timestamp")
 
 
 class BudgetPreStandardResponse(BaseModel):

@@ -11,6 +11,7 @@ CR lessons applied:
   parity verification (verifiable via apps/web/lib/finops-optimization/
   finops-optimization-client.ts).
 """
+
 from __future__ import annotations
 
 from typing import Any

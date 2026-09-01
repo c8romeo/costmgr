@@ -58,6 +58,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -116,10 +117,7 @@ def _compute_cache_key(
     cadence: str,
 ) -> str:
     """Compute SHA-256 cache key for ReservedCapacityOrchestration."""
-    payload = (
-        f"{tenant_id}:{period_key}:{cadence}:"
-        f"reserved_capacity_orchestration"
-    )
+    payload = f"{tenant_id}:{period_key}:{cadence}:" f"reserved_capacity_orchestration"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -172,9 +170,7 @@ def _validate_inputs(
         raise ReservedCapacityOrchestratorStepError(
             step_index=3,
             step_name="commitment_recommendation",
-            reason=(
-                "commitment_recommendation_id_provided_without_capacity_plan_id"
-            ),
+            reason=("commitment_recommendation_id_provided_without_capacity_plan_id"),
             tenant_id=tenant_id,
         )
     if not isinstance(dry_run, bool):
@@ -192,9 +188,7 @@ def _is_valid_period_key(period_key: str) -> bool:
         return True
     if len(period_key) == 5 and period_key[2] == "-" and period_key[:2].isdigit():
         return True
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _build_composition_step_chain(
@@ -287,7 +281,10 @@ def _compute_next_run_at(
 
     if cadence == ReservedCapacityCadence.DAILY.value:
         next_run_kst = now_kst_naive.replace(
-            hour=hour_kst, minute=minute_kst, second=0, microsecond=0,
+            hour=hour_kst,
+            minute=minute_kst,
+            second=0,
+            microsecond=0,
         )
         if next_run_kst <= now_kst_naive:
             next_run_kst = next_run_kst + timedelta(days=1)
@@ -295,7 +292,10 @@ def _compute_next_run_at(
         # weekday(): Mon=0 ... Sun=6. Days until next Monday = (7 - now_wd) % 7.
         days_to_monday = (7 - now_kst_naive.weekday()) % 7
         candidate_kst = now_kst_naive.replace(
-            hour=hour_kst, minute=minute_kst, second=0, microsecond=0,
+            hour=hour_kst,
+            minute=minute_kst,
+            second=0,
+            microsecond=0,
         )
         if days_to_monday == 0 and candidate_kst <= now_kst_naive:
             days_to_monday = 7
@@ -312,7 +312,8 @@ def _compute_next_run_at(
             # Move to first day of next month.
             if next_run_kst.month == 12:
                 next_run_kst = next_run_kst.replace(
-                    year=next_run_kst.year + 1, month=1,
+                    year=next_run_kst.year + 1,
+                    month=1,
                 )
             else:
                 next_run_kst = next_run_kst.replace(
@@ -321,9 +322,7 @@ def _compute_next_run_at(
     elif cadence == ReservedCapacityCadence.QUARTERLY.value:
         # Quarter months: 1, 4, 7, 10. Find next quarter-start.
         quarter_starts = [1, 4, 7, 10]
-        current_quarter_start_month = max(
-            m for m in quarter_starts if m <= now_kst_naive.month
-        )
+        current_quarter_start_month = max(m for m in quarter_starts if m <= now_kst_naive.month)
         candidate_kst = now_kst_naive.replace(
             month=current_quarter_start_month,
             day=1,
@@ -424,7 +423,8 @@ def _check_idempotency(
             period_key=period_key,
             cadence=cadence,
             previous_orchestration_id=previous_orchestration.get(
-                "orchestration_id", "unknown",
+                "orchestration_id",
+                "unknown",
             ),
         )
 
@@ -505,9 +505,12 @@ def orchestrate_reserved_capacity(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{period_key}:{cadence}:orchestration".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(f"{tenant_id}:{period_key}:{cadence}:orchestration".encode()).hexdigest()[
+            :32
+        ]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -546,15 +549,12 @@ def orchestrate_reserved_capacity(
     )
 
     orchestration_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode()
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest()
     )
 
-    orchestration_status = (
-        ORCHESTRATION_STATUS_DRY_RUN if dry_run
-        else ORCHESTRATION_STATUS_PENDING
-    )
+    orchestration_status = ORCHESTRATION_STATUS_DRY_RUN if dry_run else ORCHESTRATION_STATUS_PENDING
 
     orchestration: ReservedCapacityOrchestration = {
         "orchestration_id": orchestration_id,
@@ -591,6 +591,7 @@ def orchestrate_reserved_capacity(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING,

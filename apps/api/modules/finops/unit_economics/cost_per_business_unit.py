@@ -55,6 +55,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT (finops_unit_economics.* namespace EXTENSION).
 - D-FINOPS-12 honestly DEFER (cost_per_customer CRM — no auto-import).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -122,10 +123,7 @@ def _compute_cache_key(
     business_unit: str,
 ) -> str:
     """Compute SHA-256 cache key for CostPerBusinessUnitBreakdown."""
-    payload = (
-        f"{tenant_id}:{unit_economics_id}:{business_unit}:"
-        f"cost_per_business_unit"
-    )
+    payload = f"{tenant_id}:{unit_economics_id}:{business_unit}:" f"cost_per_business_unit"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -252,9 +250,7 @@ def _compute_requires_2fa_challenge(
     """
     if allocated_cost_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR:
         return True
-    if is_override:
-        return True
-    return False
+    return bool(is_override)
 
 
 def _persist_breakdown(
@@ -341,9 +337,12 @@ def compute_cost_per_business_unit(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{unit_economics_id}:{business_unit}:compute".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{unit_economics_id}:{business_unit}:compute".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -360,9 +359,7 @@ def compute_cost_per_business_unit(
     )
 
     cost_per_unit_krw = (
-        _round_to_krw(allocated_cost_krw / transaction_count)
-        if transaction_count > 0
-        else 0.0
+        _round_to_krw(allocated_cost_krw / transaction_count) if transaction_count > 0 else 0.0
     )
 
     confidence_pct = min(100.0, transaction_count / 10.0)

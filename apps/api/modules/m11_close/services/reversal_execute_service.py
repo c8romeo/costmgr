@@ -298,9 +298,7 @@ class ReversalExecuteService:
             trace_id=self.trace_id,
             published_at=reversed_at.isoformat(),
         )
-        receipt_dicts = [
-            CacheInvalidationPublisher.receipt_to_dict(r) for r in receipts
-        ]
+        receipt_dicts = [CacheInvalidationPublisher.receipt_to_dict(r) for r in receipts]
 
         return ReversalExecuteResponse(
             snapshot_id=snapshot_id,

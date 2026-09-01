@@ -13,6 +13,7 @@ CR lessons applied:
 - AD-22 owner-only RBAC.
 - NFR18 ko-KR SSOT — Korean error messages.
 """
+
 from __future__ import annotations
 
 import argparse

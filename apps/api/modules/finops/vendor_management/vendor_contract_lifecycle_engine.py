@@ -30,6 +30,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT.
 - D-FINOPS-14 honestly DEFER.
 """
+
 from __future__ import annotations
 
 import logging
@@ -184,9 +185,7 @@ def check_auto_renewal_window(
             now = datetime.now(UTC)
             days_remaining = (expiry_dt - now).days
         except (ValueError, TypeError):
-            logger.warning(
-                "invalid expiry format: contract_expiry_iso=%s", contract_expiry_iso
-            )
+            logger.warning("invalid expiry format: contract_expiry_iso=%s", contract_expiry_iso)
             return False
 
     return 0 <= days_remaining <= AUTO_RENEWAL_WINDOW_DAYS
@@ -447,9 +446,7 @@ def approve_contract_step(
 
     new_step = step_index + 1
     new_lifecycle = (
-        VendorContractLifecycle.APPROVED.value
-        if new_step >= len(chain)
-        else contract["lifecycle"]
+        VendorContractLifecycle.APPROVED.value if new_step >= len(chain) else contract["lifecycle"]
     )
 
     updated: VendorContract = {
@@ -649,9 +646,7 @@ def aggregate_vendor_contract_lifecycle(
 
     RLS via tenant_id selector.
     """
-    tenant_contracts = [
-        c for c in contracts if c.get("tenant_id") == tenant_id
-    ]
+    tenant_contracts = [c for c in contracts if c.get("tenant_id") == tenant_id]
 
     lifecycle_counts: dict[str, int] = {}
     total_value = 0.0

@@ -29,17 +29,18 @@ AD-22 owner-only RBAC — export_chargeback_csv + export_chargeback_pdf
 owner-only.
 Epic 12 2FA 챌린지 mandatory.
 """
+
 from __future__ import annotations
 
 import io
 import uuid
-from typing import Any, Final, Iterator
+from collections.abc import Iterator
+from typing import Any, Final
 
 from apps.api.core.errors import (
     ChargebackExportError,
     ChargebackExportRateLimitedError,
 )
-
 
 # ── CSV columns (PRD §F27.5.2 verbatim, 13 columns) ──────────────
 CSV_COLUMNS: Final[tuple[str, ...]] = (
@@ -144,10 +145,10 @@ def export_chargeback_pdf(
             f"%PDF-1.4\n"
             f"% Chargeback Report - {tenant_slug} - {period_key}\n"
             f"% rows={len(rows)} title={title!r}\n"
-        ).encode("utf-8")
+        ).encode()
         buffer.write(header)
         for col in CSV_COLUMNS:
-            buffer.write(f"% {col}\n".encode("utf-8"))
+            buffer.write(f"% {col}\n".encode())
         buffer.write(b"%%EOF\n")
         return buffer.getvalue()
     except Exception as exc:  # noqa: BLE001 — typed envelope boundary

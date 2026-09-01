@@ -25,6 +25,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT (finops_vendor_management.* namespace EXTENSION).
 - D-FINOPS-14 honestly DEFER.
 """
+
 from __future__ import annotations
 
 import logging
@@ -149,9 +150,7 @@ def validate_vendor_scores(
     }
     for name, value in scores.items():
         if not (0.00 <= value <= score_version):
-            raise ValueError(
-                f"{name}={value} out of strict range [0.00, {score_version}]"
-            )
+            raise ValueError(f"{name}={value} out of strict range [0.00, {score_version}]")
     return True
 
 
@@ -218,9 +217,7 @@ def create_vendor(
     """
     # Validate category
     if vendor_category not in {c.value for c in VendorCategory}:
-        raise ValueError(
-            f"vendor_category={vendor_category!r} not in VendorCategory"
-        )
+        raise ValueError(f"vendor_category={vendor_category!r} not in VendorCategory")
 
     # Validate scores (CR 11-4 P-015 pure validator)
     validate_vendor_scores(
@@ -307,25 +304,11 @@ def update_vendor(
     existing values.
     """
     new_cost = cost_score if cost_score is not None else vendor["cost_score"]
-    new_perf = (
-        performance_score
-        if performance_score is not None
-        else vendor["performance_score"]
-    )
-    new_rel = (
-        reliability_score
-        if reliability_score is not None
-        else vendor["reliability_score"]
-    )
-    new_comp = (
-        compliance_score
-        if compliance_score is not None
-        else vendor["compliance_score"]
-    )
+    new_perf = performance_score if performance_score is not None else vendor["performance_score"]
+    new_rel = reliability_score if reliability_score is not None else vendor["reliability_score"]
+    new_comp = compliance_score if compliance_score is not None else vendor["compliance_score"]
     new_strat = (
-        strategic_fit_score
-        if strategic_fit_score is not None
-        else vendor["strategic_fit_score"]
+        strategic_fit_score if strategic_fit_score is not None else vendor["strategic_fit_score"]
     )
 
     # Validate (CR 11-4 P-015)
@@ -518,10 +501,16 @@ def blacklist_vendor(
         "tenant_id": vendor["tenant_id"],
         "reason": reason,
         "severity": severity,
-        "block_contract_approval": bool(VENDOR_BLACKLIST_GATE_FLAGS.get("block_contract_approval", True)),
+        "block_contract_approval": bool(
+            VENDOR_BLACKLIST_GATE_FLAGS.get("block_contract_approval", True)
+        ),
         "block_selection": bool(VENDOR_BLACKLIST_GATE_FLAGS.get("block_selection", True)),
-        "block_performance_evaluation": bool(VENDOR_BLACKLIST_GATE_FLAGS.get("block_performance_evaluation", True)),
-        "requires_owner_override": bool(VENDOR_BLACKLIST_GATE_FLAGS.get("require_owner_override", True)),
+        "block_performance_evaluation": bool(
+            VENDOR_BLACKLIST_GATE_FLAGS.get("block_performance_evaluation", True)
+        ),
+        "requires_owner_override": bool(
+            VENDOR_BLACKLIST_GATE_FLAGS.get("require_owner_override", True)
+        ),
         "created_at": now_iso,
     }
 
@@ -573,9 +562,7 @@ def aggregate_vendor_catalog(
     tenant_vendors = [v for v in vendors if v.get("tenant_id") == tenant_id]
 
     if category_filter:
-        tenant_vendors = [
-            v for v in tenant_vendors if v.get("vendor_category") == category_filter
-        ]
+        tenant_vendors = [v for v in tenant_vendors if v.get("vendor_category") == category_filter]
 
     if status_filter:
         tenant_vendors = [v for v in tenant_vendors if v.get("status") == status_filter]
@@ -604,9 +591,7 @@ def aggregate_vendor_catalog(
 
     # Average risk score
     risk_scores = [v.get("risk_score", 0.0) for v in tenant_vendors]
-    avg_risk = _bankers_round(
-        sum(risk_scores) / len(risk_scores) if risk_scores else 0.0
-    )
+    avg_risk = _bankers_round(sum(risk_scores) / len(risk_scores) if risk_scores else 0.0)
 
     return {
         "tenant_id": tenant_id,

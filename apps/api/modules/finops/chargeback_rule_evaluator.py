@@ -21,16 +21,16 @@ CR lessons applied:
   parity.
 - CR 12-5 D-GATE-01 — capability gate + owner-only RBAC.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, Final
+from typing import Final
 
 from apps.api.core.errors import (
     ChargebackCalculationError,
     ChargebackRuleInvalidError,
 )
-
 from apps.api.modules.finops.chargeback_engine import (
     ALLOWED_COST_ALLOCATION_METHODS,
     ALLOWED_RULE_TYPES,
@@ -40,7 +40,6 @@ from apps.api.modules.finops.chargeback_engine import (
     TAX_PCT_MIN,
     ChargebackRule,
 )
-
 
 # ── Tiered pricing constants (PRD §F27.2.2 verbatim) ────────────
 MAX_TIER_BREAKS: Final[int] = 5

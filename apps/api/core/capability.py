@@ -2256,8 +2256,7 @@ class M2OnlyUserError(Exception):
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"AD-17 M2-only denied: actual_role={actual_role!r}, "
-            f"required={M2_SERVICE_ROLE!r}"
+            f"AD-17 M2-only denied: actual_role={actual_role!r}, " f"required={M2_SERVICE_ROLE!r}"
         )
         self.tenant_id = tenant_id
         self.user_id = user_id

@@ -95,18 +95,10 @@ class ABCDDisabledBadgeSerialized(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    variant: str = Field(
-        ..., description="Literal 'variance' | 'trend' | 'sensitivity'"
-    )
-    label: str = Field(
-        ..., description="회색 배지 라벨 (ko-KR lock, NFR18)"
-    )
-    tooltip: str = Field(
-        ..., description="회색 배지 tooltip (PRD §F8.2 verbatim)"
-    )
-    disabled: bool = Field(
-        ..., description="always true (1차 MVP = disabled, 2차 engine 예정)"
-    )
+    variant: str = Field(..., description="Literal 'variance' | 'trend' | 'sensitivity'")
+    label: str = Field(..., description="회색 배지 라벨 (ko-KR lock, NFR18)")
+    tooltip: str = Field(..., description="회색 배지 tooltip (PRD §F8.2 verbatim)")
+    disabled: bool = Field(..., description="always true (1차 MVP = disabled, 2차 engine 예정)")
 
 
 class VarianceRowSerialized(BaseModel):
@@ -117,28 +109,16 @@ class VarianceRowSerialized(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    label: str = Field(
-        ..., description="항목명 (예: '직접재료', '직접노무', '제조경비')"
-    )
-    budget_value: str = Field(
-        ..., description="예산 (KRW integer, Decimal-as-string)"
-    )
-    actual_value: str = Field(
-        ..., description="실적 (KRW integer, Decimal-as-string)"
-    )
-    difference: str = Field(
-        ..., description="차액 = actual - budget (Decimal-as-string)"
-    )
-    variance_pct: str = Field(
-        ..., description="차이율 % = diff/budget*100 (4 decimal places)"
-    )
+    label: str = Field(..., description="항목명 (예: '직접재료', '직접노무', '제조경비')")
+    budget_value: str = Field(..., description="예산 (KRW integer, Decimal-as-string)")
+    actual_value: str = Field(..., description="실적 (KRW integer, Decimal-as-string)")
+    difference: str = Field(..., description="차액 = actual - budget (Decimal-as-string)")
+    variance_pct: str = Field(..., description="차이율 % = diff/budget*100 (4 decimal places)")
     severity: str = Field(
         ...,
         description="Literal 'normal' | 'warning' | 'critical' (PRD §F8.2)",
     )
-    color: str = Field(
-        ..., description="Literal 'gray' | 'yellow' | 'red' (PRD §F8.2)"
-    )
+    color: str = Field(..., description="Literal 'gray' | 'yellow' | 'red' (PRD §F8.2)")
 
 
 class VarianceTableResponse(BaseModel):
@@ -149,24 +129,14 @@ class VarianceTableResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    period_key: str = Field(
-        ..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)"
-    )
-    scenario_index: int = Field(
-        ..., ge=1, le=1, description="1차 MVP = 1 only"
-    )
-    rows: list[VarianceRowSerialized] = Field(
-        ..., description="예산-실적 대조 행 목록 (PRD §F8.2)"
-    )
-    total_row: VarianceRowSerialized = Field(
-        ..., description="합계 행 (테이블 하단, 항상 1행)"
-    )
+    period_key: str = Field(..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)")
+    scenario_index: int = Field(..., ge=1, le=1, description="1차 MVP = 1 only")
+    rows: list[VarianceRowSerialized] = Field(..., description="예산-실적 대조 행 목록 (PRD §F8.2)")
+    total_row: VarianceRowSerialized = Field(..., description="합계 행 (테이블 하단, 항상 1행)")
     abcd_disabled_badge: ABCDDisabledBadgeSerialized = Field(
         ..., description="A×B×C×D 회색 배지 placeholder (PRD §15 NON-GOAL)"
     )
-    abcd_disabled_note: str = Field(
-        ..., description="A×B×C×D 미구현 비고 (PRD §15 NON-GOAL)"
-    )
+    abcd_disabled_note: str = Field(..., description="A×B×C×D 미구현 비고 (PRD §15 NON-GOAL)")
     trace_id: str | None = None
 
 
@@ -178,12 +148,8 @@ class BudgetVariancePdfResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    period_key: str = Field(
-        ..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)"
-    )
-    scenario_index: int = Field(
-        ..., ge=1, le=1, description="1차 MVP = 1 only"
-    )
+    period_key: str = Field(..., description="AD-24 virtual YYYY-MM#B<n> (8-1 wire)")
+    scenario_index: int = Field(..., ge=1, le=1, description="1차 MVP = 1 only")
     pdf_bytes_b64: str = Field(
         ...,
         description="base64-encoded PDF (8-3 follow-up sprint, currently empty)",

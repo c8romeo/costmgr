@@ -310,10 +310,7 @@ def _is_balanced_safe(
     unused_cost: Decimal,
 ) -> bool:
     """V7 ABC 무결성 가드 (1-Won precision invariant)."""
-    return (
-        abs(breakdown_sum + unused_cost - department_cost)
-        <= ABC_PRECISION_KRW_TOLERANCE
-    )
+    return abs(breakdown_sum + unused_cost - department_cost) <= ABC_PRECISION_KRW_TOLERANCE
 
 
 # ── AbcAllocationService (M9 service layer — AD-21 CCRPort.compute 단일 소유) ─
@@ -625,9 +622,7 @@ async def compute_and_persist(
     baseline_revision = 1
 
     # ── Step 1: Load tenant_settings.abc.departments ─────────────
-    settings = await SettingsService(self.session).get_tenant_settings(
-        tenant_id=tenant_id
-    )
+    settings = await SettingsService(self.session).get_tenant_settings(tenant_id=tenant_id)
     abc_config = dict(settings.abc or {})
     departments: list[dict[str, Any]] = list(abc_config.get("departments") or [])
     department_ids = [str(d.get("department_id", "")) for d in departments]
@@ -646,9 +641,7 @@ async def compute_and_persist(
         ccr_results.append(ccr)
 
     # ── Step 4: aggregate_multi_department_ccr (kernel) ─────────
-    multi_dept: MultiDepartmentCcrResult = aggregate_multi_department_ccr(
-        ccr_results=ccr_results
-    )
+    multi_dept: MultiDepartmentCcrResult = aggregate_multi_department_ccr(ccr_results=ccr_results)
 
     # ── Step 5: Per-dept compute_allocation + verify_v7_balance ──
     per_dept: list[DepartmentAllocation] = []

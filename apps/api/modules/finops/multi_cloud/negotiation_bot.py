@@ -46,6 +46,7 @@ CR lessons applied:
 - AD-47 FinOps Multi-Cloud Cost Unified Reconciliation (a)~(g) 7 sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -63,7 +64,6 @@ from apps.api.modules.finops.multi_cloud.serializers import (
     ALL_NEGOTIATION_RISK_LEVELS,
     ALL_NEGOTIATION_STATUSES,
     ALL_NEGOTIATION_STRATEGIES,
-    MULTI_CLOUD_DEFAULTS,
     NegotiationRecommendation,
     NegotiationRiskLevel,
     NegotiationStatus,
@@ -102,10 +102,7 @@ def _compute_cache_key(
     period_key: str,
 ) -> str:
     """Compute SHA-256 cache key for NegotiationRecommendation."""
-    payload = (
-        f"{tenant_id}:negotiation:{cloud_provider}:{scope_type}:"
-        f"{scope_id}:{period_key}"
-    )
+    payload = f"{tenant_id}:negotiation:{cloud_provider}:{scope_type}:" f"{scope_id}:{period_key}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -201,9 +198,7 @@ def _compute_risk_score(
     PRD §F36.3-7 verbatim — output: low/medium/high.
     """
     savings_component = min(100.0, max(0.0, savings_pct)) * 0.4
-    term_component = (
-        60.0 if commitment_term == "3_year" else 30.0
-    ) * 0.3
+    term_component = (60.0 if commitment_term == "3_year" else 30.0) * 0.3
     flexibility_component = max(0.0, min(100.0, commitment_flexibility_score)) * 0.3
     total = savings_component + term_component + flexibility_component
     if total < 33.0:
@@ -287,9 +282,7 @@ def run_aws_edp_negotiation(
         (current_rate_krw_per_hour - recommended_rate) * 8760 * 12.0,
         2,
     )
-    payback_period_months = max(
-        1, round(12.0 / (discount_pct / 100.0), 1)
-    )
+    payback_period_months = max(1, round(12.0 / (discount_pct / 100.0), 1))
 
     confidence_score = _compute_confidence_score(
         utilization_stability_score=utilization_stability_score,
@@ -309,9 +302,7 @@ def run_aws_edp_negotiation(
         risk_score=risk_score,
     )
 
-    auto_negotiate_enabled = (
-        recommendation_status == NegotiationStatus.AUTO_NEGOTIATE_READY.value
-    )
+    auto_negotiate_enabled = recommendation_status == NegotiationStatus.AUTO_NEGOTIATE_READY.value
 
     return {
         "cloud_provider": "aws",
@@ -328,8 +319,9 @@ def run_aws_edp_negotiation(
         "negotiation_strategy": negotiation_strategy,
         "recommendation_status": recommendation_status,
         "auto_negotiate_enabled": auto_negotiate_enabled,
-        "trace_id": trace_id or hashlib.sha256(
-            f"{tenant_id}:aws_edp:{period_key}:{utilization_p95}".encode("utf-8")
+        "trace_id": trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:aws_edp:{period_key}:{utilization_p95}".encode()
         ).hexdigest()[:32],
     }
 
@@ -370,9 +362,7 @@ def run_azure_ea_reconciliation(
         current_tier_spend_krw - recommended_tier_spend_krw,
         2,
     )
-    estimated_savings_pct = round(
-        tier_change_pct if tier_change_pct > 0 else 0.0, 2
-    )
+    estimated_savings_pct = round(tier_change_pct if tier_change_pct > 0 else 0.0, 2)
 
     confidence_score = _compute_confidence_score(
         utilization_stability_score=utilization_stability_score,
@@ -407,8 +397,9 @@ def run_azure_ea_reconciliation(
         "risk_score": risk_score,
         "recommendation_status": recommendation_status,
         "auto_negotiate_enabled": auto_negotiate_enabled,
-        "trace_id": trace_id or hashlib.sha256(
-            f"{tenant_id}:azure_ea:{period_key}:{consumption_variance_pct}".encode("utf-8")
+        "trace_id": trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:azure_ea:{period_key}:{consumption_variance_pct}".encode()
         ).hexdigest()[:32],
     }
 
@@ -450,9 +441,7 @@ def run_gcp_cud_break_even(
         recommended_tier = "fixed_3y"
         discount_pct = 57.0
 
-    recommended_term = (
-        "3_year" if recommended_tier.endswith("3y") else "1_year"
-    )
+    recommended_term = "3_year" if recommended_tier.endswith("3y") else "1_year"
 
     recommended_rate = current_rate_krw_per_hour * (1.0 - discount_pct / 100.0)
     estimated_savings_pct = round(discount_pct, 2)
@@ -468,9 +457,7 @@ def run_gcp_cud_break_even(
     risk_score = _compute_risk_score(
         savings_pct=estimated_savings_pct,
         commitment_term=recommended_term,
-        commitment_flexibility_score=(
-            80.0 if recommended_tier.startswith("flexible") else 30.0
-        ),
+        commitment_flexibility_score=(80.0 if recommended_tier.startswith("flexible") else 30.0),
     )
     recommendation_status = _recommendation_status_decision(
         confidence_score=confidence_score,
@@ -481,9 +468,7 @@ def run_gcp_cud_break_even(
         risk_score=risk_score,
     )
 
-    auto_negotiate_enabled = (
-        recommendation_status == NegotiationStatus.AUTO_NEGOTIATE_READY.value
-    )
+    auto_negotiate_enabled = recommendation_status == NegotiationStatus.AUTO_NEGOTIATE_READY.value
 
     return {
         "cloud_provider": "gcp",
@@ -500,8 +485,9 @@ def run_gcp_cud_break_even(
         "negotiation_strategy": negotiation_strategy,
         "recommendation_status": recommendation_status,
         "auto_negotiate_enabled": auto_negotiate_enabled,
-        "trace_id": trace_id or hashlib.sha256(
-            f"{tenant_id}:gcp_cud:{period_key}:{p95_utilization_pct}".encode("utf-8")
+        "trace_id": trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:gcp_cud:{period_key}:{p95_utilization_pct}".encode()
         ).hexdigest()[:32],
     }
 
@@ -615,9 +601,7 @@ def run_negotiation_bot(
             historical_accuracy_score=historical_accuracy_score,
             trace_id=trace_id,
         )
-        recommended_term = (
-            "3_year" if result.get("cud_tier", "").endswith("3y") else "1_year"
-        )
+        recommended_term = "3_year" if result.get("cud_tier", "").endswith("3y") else "1_year"
     else:
         raise NegotiationBotError(
             reason=f"unsupported_cloud_provider:{cloud_provider}",
@@ -668,22 +652,18 @@ def run_negotiation_bot(
     now = datetime.now(UTC)
 
     negotiation: NegotiationRecommendation = {
-        "negotiation_recommendation_id": cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode("utf-8")
-        ).hexdigest(),
+        "negotiation_recommendation_id": cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest(),
         "tenant_id": tenant_id,
         "cloud_provider": cloud_provider,
         "scope_type": scope_type,
         "scope_id": scope_id,
         "current_rate_krw_per_hour": float(result["current_rate_krw_per_hour"]),
-        "recommended_rate_krw_per_hour": float(
-            result["recommended_rate_krw_per_hour"]
-        ),
+        "recommended_rate_krw_per_hour": float(result["recommended_rate_krw_per_hour"]),
         "recommended_commitment_term": recommended_term,
         "estimated_savings_pct": float(result["estimated_savings_pct"]),
-        "estimated_savings_krw_per_year": float(
-            result["estimated_savings_krw_per_year"]
-        ),
+        "estimated_savings_krw_per_year": float(result["estimated_savings_krw_per_year"]),
         "payback_period_months": int(result["payback_period_months"]),
         "break_even_utilization_pct": float(
             result.get("break_even_utilization_pct", utilization_p95)
@@ -706,18 +686,14 @@ def run_negotiation_bot(
     }
 
     persistence = _persist_negotiation_recommendation(
-        negotiation_recommendation_id=negotiation[
-            "negotiation_recommendation_id"
-        ],
+        negotiation_recommendation_id=negotiation["negotiation_recommendation_id"],
         tenant_id=tenant_id,
         negotiation=negotiation,
         idempotency_key=idempotency_key,
         dry_run=dry_run,
     )
 
-    negotiation["negotiation_recommendation_id"] = str(
-        negotiation["negotiation_recommendation_id"]
-    )
+    negotiation["negotiation_recommendation_id"] = str(negotiation["negotiation_recommendation_id"])
     # CR 1-1 audit-first INSERT log.
     if not dry_run:
         logger.info(

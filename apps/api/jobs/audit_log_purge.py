@@ -17,6 +17,7 @@ retention policies:
 
 Industry-agnostic (CR 12-1 L4 precedent) — all 4 industries get this.
 """
+
 from __future__ import annotations
 
 import logging
@@ -64,8 +65,7 @@ async def run_audit_log_purge_job(
 
     # audit-first INSERT (CR 1-1 verbatim) — emit BEFORE destructive op
     _LOGGER.info(
-        "audit_first_insert action=audit_log_purged dry_run=%s "
-        "trace_id=%s",
+        "audit_first_insert action=audit_log_purged dry_run=%s " "trace_id=%s",
         dry_run,
         final_trace,
     )
@@ -83,8 +83,7 @@ async def run_audit_log_purge_job(
             rows = result.scalar_one() or 0
             classes_purged[action_class] = int(rows)
             _LOGGER.info(
-                "audit_log_purge_dry_run action_class=%s days=%d "
-                "would_purge=%d trace_id=%s",
+                "audit_log_purge_dry_run action_class=%s days=%d " "would_purge=%d trace_id=%s",
                 action_class,
                 days,
                 int(rows),
@@ -111,8 +110,7 @@ async def run_audit_log_purge_job(
                     break
             classes_purged[action_class] = total_purged_for_class
             _LOGGER.info(
-                "audit_log_purge action_class=%s days=%d purged=%d "
-                "trace_id=%s",
+                "audit_log_purge action_class=%s days=%d purged=%d " "trace_id=%s",
                 action_class,
                 days,
                 total_purged_for_class,

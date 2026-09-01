@@ -43,6 +43,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT (finops_unit_economics.* namespace EXTENSION).
 - D-FINOPS-12 honestly DEFER (real-time stream — batch mode only).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -118,10 +119,7 @@ def _compute_cache_key(
     transaction_id: str,
 ) -> str:
     """Compute SHA-256 cache key for CostPerTransactionBreakdown."""
-    payload = (
-        f"{tenant_id}:{unit_economics_id}:{transaction_id}:"
-        f"cost_per_transaction"
-    )
+    payload = f"{tenant_id}:{unit_economics_id}:{transaction_id}:" f"cost_per_transaction"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -202,9 +200,7 @@ def _validate_inputs(
             reason="allocated_cost_krw_must_be_non_negative",
             tenant_id=tenant_id,
         )
-    if phase_22_settlement_tags is not None and not isinstance(
-        phase_22_settlement_tags, dict
-    ):
+    if phase_22_settlement_tags is not None and not isinstance(phase_22_settlement_tags, dict):
         raise UnitEconomicsTagFilterError(
             reason="phase_22_settlement_tags_must_be_dict",
         )
@@ -305,9 +301,12 @@ def compute_cost_per_transaction(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{unit_economics_id}:{transaction_id}:compute".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{unit_economics_id}:{transaction_id}:compute".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -441,9 +440,7 @@ def aggregate_cost_per_transaction(
     return {
         "total_cost_krw": total_cost,
         "transaction_count": len(transactions),
-        "tag_filter_dimensions": {
-            k: sorted(values) for k, values in tag_dimensions.items()
-        },
+        "tag_filter_dimensions": {k: sorted(values) for k, values in tag_dimensions.items()},
         "max_transactions_per_period": MAX_TRANSACTIONS_PER_PERIOD,
         "cost_per_x_metric_weight": COST_PER_X_METRIC_WEIGHTS["cost_per_transaction"],
         "model_version": UNIT_ECONOMICS_ENGINE_MODEL_VERSION,

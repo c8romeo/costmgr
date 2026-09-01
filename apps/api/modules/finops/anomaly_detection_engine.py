@@ -37,34 +37,24 @@ sklearn==1.4.0 AD-14 pin.
 Industry-agnostic per CR 12-1 L4 precedent. All 4 industries get
 FINOPS_ANOMALY_DETECTION capability.
 """
+
 from __future__ import annotations
 
 import uuid
-from typing import Any, Final, Literal, TypedDict
+from typing import Final, TypedDict
 
 from apps.api.core.errors import (
     AnomalyBaselineUnavailableError,
     AnomalyDetectionError,
-    ForecastAccuracyDegradedError,
 )
 from apps.api.modules.finops.anomaly_detection import (
-    ALL_DETECTION_METHODS,
-    ALL_DIMENSIONS,
     ANOMALY_THRESHOLD_DEFAULTS,
-    BASELINE_WINDOW_LAST_30D,
     DETECTION_METHOD_EWMA,
-    DETECTION_METHOD_ISOLATION_FOREST,
     DETECTION_METHOD_IQR,
+    DETECTION_METHOD_ISOLATION_FOREST,
     DETECTION_METHOD_ZSCORE,
     AnomalyDefinition,
 )
-from apps.api.modules.finops.forecast_accuracy import (
-    compute_mape,
-    compute_mae,
-    compute_rmse,
-    ForecastAccuracyMetrics,
-)
-
 
 # ── Severity enum (PRD §F28.3.4 verbatim) ───────────────────────
 SEVERITY_LOW: Final[str] = "low"
@@ -143,7 +133,7 @@ def _z_score_method(
         )
     mean = sum(baseline_history) / len(baseline_history)
     variance = sum((x - mean) ** 2 for x in baseline_history) / len(baseline_history)
-    std = variance ** 0.5
+    std = variance**0.5
     if std == 0:
         return False
     z = (observed - mean) / std
@@ -325,9 +315,7 @@ def run_anomaly_detection(
 
     # Calculate deviation
     baseline_cost = sum(baseline_history) / len(baseline_history)
-    deviation_pct = (
-        (observed_cost - baseline_cost) / baseline_cost if baseline_cost != 0 else 0.0
-    )
+    deviation_pct = (observed_cost - baseline_cost) / baseline_cost if baseline_cost != 0 else 0.0
 
     severity = _assign_severity(abs(deviation_pct))
     status = DETECTION_STATUS_CONFIRMED if is_anomaly else DETECTION_STATUS_FALSE_POSITIVE

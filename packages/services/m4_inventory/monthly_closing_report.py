@@ -276,36 +276,25 @@ def compute_usd_from_krw(
     """
     if not isinstance(amount_krw, Decimal):
         raise MonthlyClosingReportError(
-            message=(
-                f"amount_krw must be Decimal, got {type(amount_krw).__name__!r}"
-            ),
+            message=(f"amount_krw must be Decimal, got {type(amount_krw).__name__!r}"),
             error_code="AMOUNT_KRW_MUST_BE_DECIMAL",
         )
     if not isinstance(exchange_rate, Decimal):
         raise MonthlyClosingReportError(
-            message=(
-                f"exchange_rate must be Decimal, got "
-                f"{type(exchange_rate).__name__!r}"
-            ),
+            message=(f"exchange_rate must be Decimal, got " f"{type(exchange_rate).__name__!r}"),
             error_code="EXCHANGE_RATE_MUST_BE_DECIMAL",
         )
     if not exchange_rate.is_finite() or exchange_rate <= Decimal("0"):
         raise MonthlyClosingReportError(
-            message=(
-                f"exchange_rate must be > 0 and finite, got {exchange_rate!r}"
-            ),
+            message=(f"exchange_rate must be > 0 and finite, got {exchange_rate!r}"),
             error_code="INVALID_EXCHANGE_RATE",
         )
     if not amount_krw.is_finite():
         raise MonthlyClosingReportError(
-            message=(
-                f"amount_krw is non-finite {amount_krw!r}"
-            ),
+            message=(f"amount_krw is non-finite {amount_krw!r}"),
             error_code="NON_FINITE_AMOUNT_KRW",
         )
-    return (amount_krw / exchange_rate).quantize(
-        USD_QUANTUM, rounding=ROUND_HALF_EVEN
-    )
+    return (amount_krw / exchange_rate).quantize(USD_QUANTUM, rounding=ROUND_HALF_EVEN)
 
 
 # ── format_period_closing_krw_usd ─────────────────────────────
@@ -349,21 +338,15 @@ def format_period_closing_krw_usd(
     # with TS Decimal serialization.
     if not isinstance(amount_krw, Decimal):
         raise MonthlyClosingReportError(
-            message=(
-                f"amount_krw must be Decimal, got {type(amount_krw).__name__!r}"
-            ),
+            message=(f"amount_krw must be Decimal, got {type(amount_krw).__name__!r}"),
             error_code="AMOUNT_KRW_MUST_BE_DECIMAL",
         )
     if not amount_krw.is_finite():
         raise MonthlyClosingReportError(
-            message=(
-                f"amount_krw is non-finite {amount_krw!r}"
-            ),
+            message=(f"amount_krw is non-finite {amount_krw!r}"),
             error_code="NON_FINITE_AMOUNT_KRW",
         )
-    amount_krw_quantized = amount_krw.quantize(
-        QTY_QUANTUM, rounding=ROUND_HALF_EVEN
-    )
+    amount_krw_quantized = amount_krw.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
     amount_usd = compute_usd_from_krw(
         amount_krw_quantized,
         exchange_rate=currency_pair.rate,
@@ -409,9 +392,7 @@ def classify_report_view_mode(
     ):
         if value < 0:
             raise MonthlyClosingReportError(
-                message=(
-                    f"{name} must be >= 0, got {value!r}"
-                ),
+                message=(f"{name} must be >= 0, got {value!r}"),
                 error_code="NEGATIVE_SOURCE_COUNT",
             )
 
@@ -537,9 +518,7 @@ def aggregate_monthly_closing_report(
     """
     if not period_key or not isinstance(period_key, str):
         raise MonthlyClosingReportError(
-            message=(
-                f"period_key must be non-empty string, got {period_key!r}"
-            ),
+            message=(f"period_key must be non-empty string, got {period_key!r}"),
             error_code="INVALID_PERIOD_KEY",
             period_key=period_key,
         )
@@ -576,14 +555,13 @@ def aggregate_monthly_closing_report(
         if not snapshot.closing_qty.is_finite():
             raise MonthlyClosingReportError(
                 message=(
-                    f"closing_snapshot closing_qty is non-finite "
-                    f"{snapshot.closing_qty!r}"
+                    f"closing_snapshot closing_qty is non-finite " f"{snapshot.closing_qty!r}"
                 ),
                 error_code="NON_FINITE_QTY",
                 period_key=period_key,
             )
-        closing_qty_per_product[snapshot.product_id] = (
-            snapshot.closing_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
+        closing_qty_per_product[snapshot.product_id] = snapshot.closing_qty.quantize(
+            QTY_QUANTUM, rounding=ROUND_HALF_EVEN
         )
         finalized_at_per_product[snapshot.product_id] = snapshot.finalized_at
 
@@ -610,22 +588,20 @@ def aggregate_monthly_closing_report(
             )
         if not entry.opening_qty.is_finite():
             raise MonthlyClosingReportError(
-                message=(
-                    f"opening_inventory opening_qty is non-finite "
-                    f"{entry.opening_qty!r}"
-                ),
+                message=(f"opening_inventory opening_qty is non-finite " f"{entry.opening_qty!r}"),
                 error_code="NON_FINITE_QTY",
                 period_key=period_key,
             )
-        opening_qty_per_product[entry.product_id] = (
-            entry.opening_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
+        opening_qty_per_product[entry.product_id] = entry.opening_qty.quantize(
+            QTY_QUANTUM, rounding=ROUND_HALF_EVEN
         )
 
     # Master product_id set (union of all 4 sources).
-    all_product_ids: set[uuid.UUID] = set(closing_qty_per_product) | set(
-        ledger_event_count_per_product
-    ) | set(fiscal_period_snapshot_count_per_product) | set(
-        opening_qty_per_product
+    all_product_ids: set[uuid.UUID] = (
+        set(closing_qty_per_product)
+        | set(ledger_event_count_per_product)
+        | set(fiscal_period_snapshot_count_per_product)
+        | set(opening_qty_per_product)
     )
 
     # Build ClosingPerProductRow per product (KRW/USD dual display).

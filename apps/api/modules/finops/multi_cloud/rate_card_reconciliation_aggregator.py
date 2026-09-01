@@ -60,6 +60,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -159,9 +160,7 @@ def _is_valid_period_key(period_key: str) -> bool:
         return True
     if len(period_key) == 5 and period_key[2] == "-" and period_key[:2].isdigit():
         return True
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _collect_rate_card_sources(
@@ -428,9 +427,12 @@ def reconcile_multi_cloud_rate_cards(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{period_key}:{cloud_provider}:rate_card".encode("utf-8")
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{period_key}:{cloud_provider}:rate_card".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -484,9 +486,9 @@ def reconcile_multi_cloud_rate_cards(
     )
 
     rate_card_reconciliation_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode("utf-8")
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest()
     )
 
     now = datetime.now(UTC)
@@ -581,7 +583,7 @@ def validate_multi_cloud_rate_card_reconciliation(
             reason=f"invalid_primary_source:{rate_card.get('primary_source')}",
             tenant_id=str(rate_card.get("tenant_id", "")),
         )
-    if not isinstance(rate_card.get("reconciled_rate_krw_per_hour"), (int, float)):
+    if not isinstance(rate_card.get("reconciled_rate_krw_per_hour"), int | float):
         raise MultiCloudRateCardReconciliationError(
             reason="reconciled_rate_krw_per_hour_must_be_numeric",
             tenant_id=str(rate_card.get("tenant_id", "")),

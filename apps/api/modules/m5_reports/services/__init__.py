@@ -3,6 +3,7 @@
 Re-exports `Report21Service` + `Report15Service` for handler import convenience
 + JSON-safe serializer re-exports for envelope (CR 12-1 L3 + AD-15 §1 boundary).
 """
+
 from __future__ import annotations
 
 from apps.api.modules.m5_reports.services.report15_service import (

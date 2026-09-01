@@ -200,10 +200,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_phase_5_replication_lag_status",
         "phase_5_replication_lag",
-        sa.text(
-            "replication_status IN "
-            "('healthy', 'lagging', 'stalled', 'disconnected')"
-        ),
+        sa.text("replication_status IN " "('healthy', 'lagging', 'stalled', 'disconnected')"),
     )
 
     # NO RLS — system-only table (CR 0-2 verbatim Epic 13/14 pattern).
@@ -238,8 +235,7 @@ def upgrade() -> None:
             sa.Text(),
             nullable=False,
             comment=(
-                "Enum: 'passed' | 'failed' | 'in_progress' "
-                "(CHECK ck_phase_5_dr_drill_status)"
+                "Enum: 'passed' | 'failed' | 'in_progress' " "(CHECK ck_phase_5_dr_drill_status)"
             ),
         ),
         sa.Column(
@@ -301,9 +297,7 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_phase_5_dr_drill_quarter",
         "phase_5_dr_drill_results",
-        sa.text(
-            "drill_quarter ~ '^[0-9]{4}-Q[1-4]$'"
-        ),
+        sa.text("drill_quarter ~ '^[0-9]{4}-Q[1-4]$'"),
     )
     op.create_check_constraint(
         "ck_phase_5_dr_drill_status",

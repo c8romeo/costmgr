@@ -46,6 +46,7 @@ CR lessons applied:
 - CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION
   m24_finops_budget_planning (Phase 24 58th honest-DEFER cycle).
 """
+
 from __future__ import annotations
 
 import enum
@@ -191,9 +192,7 @@ class BudgetApprovalStepStatus(str, enum.Enum):
     SKIPPED = "skipped"
 
 
-ALL_BUDGET_APPROVAL_STEP_STATUSES = frozenset(
-    item.value for item in BudgetApprovalStepStatus
-)
+ALL_BUDGET_APPROVAL_STEP_STATUSES = frozenset(item.value for item in BudgetApprovalStepStatus)
 
 
 class BudgetAlertSeverity(str, enum.Enum):

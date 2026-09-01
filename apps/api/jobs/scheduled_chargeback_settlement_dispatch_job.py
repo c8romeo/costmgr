@@ -27,6 +27,7 @@ CR lessons applied:
 - AD-50 FinOps Chargeback Settlement (a)~(g) 7 sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -50,10 +51,10 @@ KST = pytz.timezone("Asia/Seoul")
 
 # 4 cron expressions (PRD §F38.4-2 verbatim).
 SETTLEMENT_DISPATCH_CRON_KST: dict[str, str] = {
-    "monthly": "0 4 1 * *",       # 1st-day 04:00 KST monthly
+    "monthly": "0 4 1 * *",  # 1st-day 04:00 KST monthly
     "quarterly": "0 5 1 1,4,7,10 *",  # 1st-day 05:00 KST quarterly
-    "semi_annual": "0 6 1 1,7 *",   # 1st-day 06:00 KST semi_annual
-    "annual": "0 7 1 1 *",          # Jan-1 07:00 KST annual
+    "semi_annual": "0 6 1 1,7 *",  # 1st-day 06:00 KST semi_annual
+    "annual": "0 7 1 1 *",  # Jan-1 07:00 KST annual
 }
 
 
@@ -130,9 +131,7 @@ async def run_scheduled_dispatch(
         "phase_20_multi_cloud": target_amount_krw * 0.15,
         "phase_21_reserved_capacity": target_amount_krw * 0.15,
     }
-    target_dimensions = [
-        "cost_center", "department", "business_unit", "tag", "tenant"
-    ]
+    target_dimensions = ["cost_center", "department", "business_unit", "tag", "tenant"]
 
     dispatch_meta = execute_dispatch(
         tenant_id=tenant_id,
@@ -169,9 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_cli_args(argv)
 
     # T7 dry-run CLI flag resolution
-    dry_run = bool(
-        args.finops_chargeback_settlement_dry_run or args.legacy_dry_run
-    )
+    dry_run = bool(args.finops_chargeback_settlement_dry_run or args.legacy_dry_run)
 
     logger.info(
         "scheduled_chargeback_settlement_dispatch_start cadence=%s tenant=%s "
@@ -202,7 +199,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[DRY-RUN] dispatch_id={result['dispatch']['dispatch_id']}")
         print(f"[DRY-RUN] period_key={result['dispatch']['period_key']}")
         print(f"[DRY-RUN] result_id={result['dispatch']['settlement_result']['result_id']}")
-        print(f"[DRY-RUN] allocation_count={result['dispatch']['settlement_result']['allocation_count']}")
+        print(
+            f"[DRY-RUN] allocation_count={result['dispatch']['settlement_result']['allocation_count']}"
+        )
     else:
         logger.info(
             "scheduled_chargeback_settlement_dispatch_executed "

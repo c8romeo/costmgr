@@ -27,6 +27,7 @@ A30 forward-lock SHARED PDF generator 결정 wire (9-3 handoff lock):
 Report #21 본 진입점 + Report #15 후속 = SHARED factory pattern.
 AD-18 single endpoint (GET /api/v1/reports/21 + POST /api/v1/reports/21/pdf).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -110,9 +111,7 @@ def _to_report21_state(
     # Pre-compute summary envelope message (PRD §9 #21 + §7.3 verbatim)
     summary_msg: str | None = None
     if not v7_verdict.is_balanced:
-        diff = v7_verdict.expected_sum - (
-            v7_verdict.breakdown_sum + v7_verdict.unused_cost
-        )
+        diff = v7_verdict.expected_sum - (v7_verdict.breakdown_sum + v7_verdict.unused_cost)
         summary_msg = (
             f"{REPORT21_NO_COST_OBJECT_BREAKDOWN_KO} "
             f"(예상 {v7_verdict.expected_sum}원, "
@@ -231,10 +230,7 @@ class Report21Service:
         unused_capacity_breakdown: list[UnusedCapacitySubRow] = []
 
         # Step 3 — service-layer pre-validation (CR 12-5 L3 3-layer defense)
-        if (
-            not cost_object_breakdown
-            and not unused_capacity_breakdown
-        ):
+        if not cost_object_breakdown and not unused_capacity_breakdown:
             # Build V7 verdict with zero deltas so compute_report21_hash envelope
             # can be assembled. Real compute_and_persist 11-step pipeline
             # entry point kicks in via follow-up.
@@ -340,24 +336,21 @@ class Report21Service:
         )
 
         # Step 2 — Build ReportPdfRequest (Discriminated union envelope)
-        payload = (
-            tuple(
-                {
-                    "product_id": r.product_id,
-                    "activity_id": r.activity_id,
-                    "driver_id": r.driver_id,
-                    "allocated_krw": str(r.allocated_krw),
-                }
-                for r in state.cost_object_breakdown
-            )
-            or (
-                {
-                    "product_id": "(none)",
-                    "activity_id": "(none)",
-                    "driver_id": "(none)",
-                    "allocated_krw": "0",
-                },
-            )
+        payload = tuple(
+            {
+                "product_id": r.product_id,
+                "activity_id": r.activity_id,
+                "driver_id": r.driver_id,
+                "allocated_krw": str(r.allocated_krw),
+            }
+            for r in state.cost_object_breakdown
+        ) or (
+            {
+                "product_id": "(none)",
+                "activity_id": "(none)",
+                "driver_id": "(none)",
+                "allocated_krw": "0",
+            },
         )
         metadata = (
             ("report_code", state.report_code),

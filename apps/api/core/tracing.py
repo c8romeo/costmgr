@@ -35,6 +35,7 @@ attributes (NFR4 PII minimization). The `tenant.id` attribute is bound
 to the REQUEST tenant only (CR 0-2 RLS auto-isolation — cross-tenant
 span attribute leakage prevention).
 """
+
 from __future__ import annotations
 
 import os
@@ -147,9 +148,7 @@ def init_tracing(*, app: Any = None) -> Any:
 
     # TracerProvider + OTLP HTTP exporter + batch processor
     provider = TracerProvider(resource=resource, sampler=sampler)
-    otlp_endpoint = os.environ.get(
-        "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318/v1/traces"
-    )
+    otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318/v1/traces")
     exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
     provider.add_span_processor(BatchSpanProcessor(exporter))
     trace.set_tracer_provider(provider)
@@ -282,12 +281,12 @@ class _NoopTracerProvider:
     works (so audit correlation is preserved even when SDK is off).
     """
 
-    def get_tracer(self, *args: Any, **kwargs: Any) -> "_NoopTracer":
+    def get_tracer(self, *args: Any, **kwargs: Any) -> _NoopTracer:
         return _NoopTracer()
 
 
 class _NoopTracer:
-    def start_span(self, *args: Any, **kwargs: Any) -> "_NoopSpan":
+    def start_span(self, *args: Any, **kwargs: Any) -> _NoopSpan:
         return _NoopSpan()
 
 

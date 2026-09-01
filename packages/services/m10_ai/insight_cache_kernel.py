@@ -113,8 +113,7 @@ class InsightCacheKeyShapeError(ValueError):
         self.value = value
         self.reason = reason
         super().__init__(
-            f"InsightCacheKey shape error on {component}: "
-            f"value='{value}' reason={reason}"
+            f"InsightCacheKey shape error on {component}: " f"value='{value}' reason={reason}"
         )
 
 
@@ -192,8 +191,7 @@ def compose_insight_cache_key(
         raise InsightCacheKeyShapeError(
             component="tenant_id",
             value=tenant_id,
-            reason="tenant_id must be uuid.UUID, got "
-            + type(tenant_id).__name__,
+            reason="tenant_id must be uuid.UUID, got " + type(tenant_id).__name__,
         )
 
     if not isinstance(period_key, str):

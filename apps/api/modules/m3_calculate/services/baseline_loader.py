@@ -219,7 +219,5 @@ class BaselineLoader:
         return bool(
             bool((criteria.get("direct_indirect") or {}).get("completed"))
             and bool((criteria.get("fixed_variable") or {}).get("completed"))
-            and bool(
-                (criteria.get("drivers") or criteria.get("driver") or {}).get("completed")
-            )
+            and bool((criteria.get("drivers") or criteria.get("driver") or {}).get("completed"))
         )

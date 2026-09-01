@@ -76,9 +76,7 @@ _ACME_X509_CERT_PLACEHOLDER = (
     "-----END CERTIFICATE-----"
 )
 _ACME_ACS_URL = "https://api.costmgr.example.com/api/v1/auth/sso/acs?tenant=acme"
-_ACME_NAME_ID_FORMAT = (
-    "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
-)
+_ACME_NAME_ID_FORMAT = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
 
 
 def upgrade() -> None:
@@ -109,8 +107,7 @@ def upgrade() -> None:
             sa.Text(),
             nullable=False,
             comment=(
-                "SAML 2.0 EntityID — unique per tenant "
-                "(UNIQUE (tenant_id, idp_entity_id))."
+                "SAML 2.0 EntityID — unique per tenant " "(UNIQUE (tenant_id, idp_entity_id))."
             ),
         ),
         sa.Column(
@@ -337,20 +334,12 @@ def downgrade() -> None:
     """Drop `tenant_idps` table + UNIQUE + indexes + RLS + trigger."""
     op.execute("DROP TRIGGER IF EXISTS updated_at_auto_update_trg ON public.tenant_idps")
     op.execute("DROP POLICY IF EXISTS tenant_idps_anon_block ON public.tenant_idps")
-    op.execute(
-        "DROP POLICY IF EXISTS tenant_idps_service_role_bypass ON public.tenant_idps"
-    )
+    op.execute("DROP POLICY IF EXISTS tenant_idps_service_role_bypass ON public.tenant_idps")
     op.execute("DROP POLICY IF EXISTS tenant_idps_tenant_isolation ON public.tenant_idps")
     op.execute("ALTER TABLE public.tenant_idps NO FORCE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE public.tenant_idps DISABLE ROW LEVEL SECURITY")
     op.drop_index("idx_tenant_idps_tenant_id", table_name="tenant_idps")
-    op.drop_constraint(
-        "ck_tenant_idps_x509_cert_pem", "tenant_idps", type_="check"
-    )
-    op.drop_constraint(
-        "ck_tenant_idps_sso_url_https", "tenant_idps", type_="check"
-    )
-    op.drop_constraint(
-        "ck_tenant_idps_entity_id_not_empty", "tenant_idps", type_="check"
-    )
+    op.drop_constraint("ck_tenant_idps_x509_cert_pem", "tenant_idps", type_="check")
+    op.drop_constraint("ck_tenant_idps_sso_url_https", "tenant_idps", type_="check")
+    op.drop_constraint("ck_tenant_idps_entity_id_not_empty", "tenant_idps", type_="check")
     op.drop_table("tenant_idps")

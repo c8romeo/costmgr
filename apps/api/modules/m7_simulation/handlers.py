@@ -127,13 +127,9 @@ def _result_kernel_to_serialized(result) -> CVPResultSerialized:
     """Kernel CVPResult → Pydantic CVPResultSerialized (4 nested results)."""
     return CVPResultSerialized(
         simulated_bep=_bep_kernel_to_serialized(result.simulated_bep),
-        simulated_target_profit=_target_kernel_to_serialized(
-            result.simulated_target_profit
-        ),
+        simulated_target_profit=_target_kernel_to_serialized(result.simulated_target_profit),
         baseline_bep=_bep_kernel_to_serialized(result.baseline_bep),
-        baseline_target_profit=_target_kernel_to_serialized(
-            result.baseline_target_profit
-        ),
+        baseline_target_profit=_target_kernel_to_serialized(result.baseline_target_profit),
         delta_summary={k: str(v) for k, v in result.delta_summary.items()},
     )
 
@@ -300,11 +296,7 @@ def _next_month_projection_to_serialized(
     ],
     responses={
         404: {"description": "Projection baseline not found"},
-        422: {
-            "description": (
-                "Invalid period_key / projection_month / 4종 projection inputs"
-            )
-        },
+        422: {"description": ("Invalid period_key / projection_month / 4종 projection inputs")},
         403: {"description": "Capability or role denied"},
     },
 )
@@ -363,9 +355,7 @@ async def compute_projection_simulation(
     ],
     responses={
         404: {"description": "Projection baseline not found"},
-        422: {
-            "description": "Invalid period_key / projection_month / chronological"
-        },
+        422: {"description": "Invalid period_key / projection_month / chronological"},
         403: {"description": "Capability or role denied"},
     },
 )
@@ -499,8 +489,7 @@ async def generate_projection_pdf(
     pdf_bytes = json.dumps(envelope, ensure_ascii=False).encode("utf-8")
 
     filename = (
-        f"cost-prediction-report-{request_body.period_key}-"
-        f"{request_body.projection_month}.pdf"
+        f"cost-prediction-report-{request_body.period_key}-" f"{request_body.projection_month}.pdf"
     )
 
     return Response(

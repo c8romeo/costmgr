@@ -13,6 +13,7 @@ Helpers:
 CR 0-2 RLS lesson: phase_9_chaos_experiments table RLS auto-applied
 via `tenant_id = current_setting('app.tenant_id')::uuid`.
 """
+
 from __future__ import annotations
 
 import uuid

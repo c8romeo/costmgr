@@ -49,6 +49,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -84,10 +85,7 @@ def _compute_cache_key(
     industry: str,
 ) -> str:
     """Compute SHA-256 cache key for ReservedCapacityDemandForecast."""
-    payload = (
-        f"{tenant_id}:{period_key}:{industry}:"
-        f"reserved_capacity_demand_forecast"
-    )
+    payload = f"{tenant_id}:{period_key}:{industry}:" f"reserved_capacity_demand_forecast"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -140,9 +138,7 @@ def _is_valid_period_key(period_key: str) -> bool:
         return True
     if len(period_key) == 5 and period_key[2] == "-" and period_key[:2].isdigit():
         return True
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _aggregate_5_module_attribution(
@@ -195,14 +191,62 @@ def _compute_seasonal_factor(
         return 1.0
 
     seasonal_map: dict[str, dict[int, float]] = {
-        "manufacturing": {1: 0.9, 2: 0.9, 3: 1.0, 4: 1.0, 5: 1.05, 6: 1.05,
-                          7: 1.05, 8: 1.0, 9: 1.0, 10: 1.05, 11: 1.1, 12: 1.1},
-        "service": {1: 1.0, 2: 1.0, 3: 1.05, 4: 1.05, 5: 1.1, 6: 1.1,
-                    7: 1.1, 8: 1.1, 9: 1.15, 10: 1.15, 11: 1.2, 12: 1.2},
-        "manufacturing_service": {1: 1.0, 2: 1.0, 3: 1.05, 4: 1.05, 5: 1.05, 6: 1.1,
-                                   7: 1.1, 8: 1.1, 9: 1.1, 10: 1.1, 11: 1.15, 12: 1.15},
-        "manufacturing_service_other": {1: 1.1, 2: 1.1, 3: 1.15, 4: 1.15, 5: 1.2, 6: 1.2,
-                                        7: 1.2, 8: 1.2, 9: 1.25, 10: 1.25, 11: 1.3, 12: 1.3},
+        "manufacturing": {
+            1: 0.9,
+            2: 0.9,
+            3: 1.0,
+            4: 1.0,
+            5: 1.05,
+            6: 1.05,
+            7: 1.05,
+            8: 1.0,
+            9: 1.0,
+            10: 1.05,
+            11: 1.1,
+            12: 1.1,
+        },
+        "service": {
+            1: 1.0,
+            2: 1.0,
+            3: 1.05,
+            4: 1.05,
+            5: 1.1,
+            6: 1.1,
+            7: 1.1,
+            8: 1.1,
+            9: 1.15,
+            10: 1.15,
+            11: 1.2,
+            12: 1.2,
+        },
+        "manufacturing_service": {
+            1: 1.0,
+            2: 1.0,
+            3: 1.05,
+            4: 1.05,
+            5: 1.05,
+            6: 1.1,
+            7: 1.1,
+            8: 1.1,
+            9: 1.1,
+            10: 1.1,
+            11: 1.15,
+            12: 1.15,
+        },
+        "manufacturing_service_other": {
+            1: 1.1,
+            2: 1.1,
+            3: 1.15,
+            4: 1.15,
+            5: 1.2,
+            6: 1.2,
+            7: 1.2,
+            8: 1.2,
+            9: 1.25,
+            10: 1.25,
+            11: 1.3,
+            12: 1.3,
+        },
     }
     return seasonal_map.get(industry, {}).get(month, 1.0)
 
@@ -314,9 +358,12 @@ def aggregate_demand_forecast(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{period_key}:{industry}:demand_forecast".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{period_key}:{industry}:demand_forecast".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -327,17 +374,13 @@ def aggregate_demand_forecast(
     five_module_attribution = _aggregate_5_module_attribution(
         five_module_inputs=five_module_inputs,
     )
-    base_forecasted_demand_krw = float(
-        five_module_attribution["weighted_total_krw"]
-    )
+    base_forecasted_demand_krw = float(five_module_attribution["weighted_total_krw"])
 
     seasonal_factor = _compute_seasonal_factor(
         period_key=period_key,
         industry=industry,
     )
-    forecasted_demand_krw = round(
-        base_forecasted_demand_krw * seasonal_factor, 2
-    )
+    forecasted_demand_krw = round(base_forecasted_demand_krw * seasonal_factor, 2)
 
     growth_rate_pct = _compute_growth_rate(
         industry=industry,
@@ -345,17 +388,15 @@ def aggregate_demand_forecast(
         previous_demand_krw=previous_demand_krw,
     )
 
-    confidence_interval_low_krw, confidence_interval_high_krw = (
-        _compute_confidence_interval(
-            forecasted_demand_krw=forecasted_demand_krw,
-            confidence_pct=confidence_pct,
-        )
+    confidence_interval_low_krw, confidence_interval_high_krw = _compute_confidence_interval(
+        forecasted_demand_krw=forecasted_demand_krw,
+        confidence_pct=confidence_pct,
     )
 
     demand_forecast_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode()
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest()
     )
 
     now = datetime.now(UTC)
@@ -401,6 +442,7 @@ def aggregate_demand_forecast(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING,

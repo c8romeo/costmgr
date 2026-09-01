@@ -203,8 +203,12 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop `external_identities` table + indexes + RLS policies."""
     op.execute("DROP POLICY IF EXISTS external_identities_anon_block ON public.external_identities")
-    op.execute("DROP POLICY IF EXISTS external_identities_service_role_bypass ON public.external_identities")
-    op.execute("DROP POLICY IF EXISTS external_identities_tenant_isolation ON public.external_identities")
+    op.execute(
+        "DROP POLICY IF EXISTS external_identities_service_role_bypass ON public.external_identities"
+    )
+    op.execute(
+        "DROP POLICY IF EXISTS external_identities_tenant_isolation ON public.external_identities"
+    )
     op.execute("ALTER TABLE public.external_identities NO FORCE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE public.external_identities DISABLE ROW LEVEL SECURITY")
     op.drop_index(

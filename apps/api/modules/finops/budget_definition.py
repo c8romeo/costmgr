@@ -40,18 +40,18 @@ AUDIT_LOG_VIEW Epic 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5
 wire pattern verbatim). All 4 industries get FINOPS_BUDGET_ALERT
 capability.
 """
+
 from __future__ import annotations
 
 import uuid
 from decimal import Decimal
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, TypedDict
 
 from apps.api.core.errors import (
     BudgetAmountInvalidError,
     BudgetDefinitionInvalidError,
     BudgetScopeInvalidError,
 )
-
 
 # ── Constants — budget_period enum (PRD §F28.2.2 verbatim) ──────
 BUDGET_PERIOD_MONTHLY: Final[str] = "monthly"

@@ -6,6 +6,7 @@ apps/api/modules/launch/smoke_routes.py — Smoke test trigger + backup status e
 - GET /api/v1/launch/backup-status — return backup drill status.
 - capability gate `LAUNCH_MONITORING` (v1.27).
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta

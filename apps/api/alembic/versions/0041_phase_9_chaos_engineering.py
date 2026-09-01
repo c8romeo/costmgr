@@ -59,6 +59,7 @@ Phase 8 wire + OBSERVABILITY_* Phase 7 wire + AUDIT_LOG_RETENTION
 Phase 6 wire pattern verbatim). All 4 industries get
 CHAOS_ENGINEERING capability.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -196,10 +197,7 @@ def upgrade() -> None:
             sa.Text(),
             nullable=False,
             server_default=sa.text("'pending'"),
-            comment=(
-                "Enum: 'pending' | 'running' | 'completed' | 'aborted' "
-                "| 'failed'."
-            ),
+            comment=("Enum: 'pending' | 'running' | 'completed' | 'aborted' " "| 'failed'."),
         ),
         sa.Column(
             "dry_run",

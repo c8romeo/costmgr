@@ -664,6 +664,12 @@ class InputPromotionDeniedError(BaseModel):
 # uses it for OpenAPI schema discrimination AND for runtime serialization
 # branch resolution.
 PromoteEnvelope = Annotated[
-    PromoteResponse | PromoteDraftImmutableError | PromoteSourceDraftNotFoundError | PromoteIdempotencyMismatchError | PromoteM2OnlyError | AiPipaConsentMissingError | InputPromotionDeniedError,
+    PromoteResponse
+    | PromoteDraftImmutableError
+    | PromoteSourceDraftNotFoundError
+    | PromoteIdempotencyMismatchError
+    | PromoteM2OnlyError
+    | AiPipaConsentMissingError
+    | InputPromotionDeniedError,
     Field(discriminator="status"),
 ]

@@ -79,9 +79,7 @@ def _make_adapter(channel: str) -> CacheInvalidationAdapter:
         return _M11ClosingSnapshotInvalidationAdapter()
     if channel == CROSS_TENANT_FANOUT_CHANNEL:
         return CrossTenantFanoutAdapter()
-    raise ValueError(
-        f"unknown channel {channel!r} (not in ALLOWED_CHANNELS)"
-    )
+    raise ValueError(f"unknown channel {channel!r} (not in ALLOWED_CHANNELS)")
 
 
 def build_default_adapter_factories() -> dict[str, Any]:
@@ -91,10 +89,7 @@ def build_default_adapter_factories() -> dict[str, Any]:
         Dict mapping channel name → adapter factory callable. The
         listener calls each factory to instantiate a fresh adapter.
     """
-    return {
-        channel: (lambda c=channel: _make_adapter(c))
-        for channel in ALLOWED_CHANNELS
-    }
+    return {channel: (lambda c=channel: _make_adapter(c)) for channel in ALLOWED_CHANNELS}
 
 
 # ── M10 AI cache invalidation adapter ────────────────────────
@@ -125,8 +120,7 @@ class _M10AIInvalidationAdapter:
         # routes by channel, but we re-verify here for defense-in-depth.
         if payload[PAYLOAD_KEY_CHANNEL] != "ai_cache":
             logger.warning(
-                "M10AIInvalidationAdapter received non-ai_cache payload "
-                "(channel=%s) — skipping",
+                "M10AIInvalidationAdapter received non-ai_cache payload " "(channel=%s) — skipping",
                 payload.get(PAYLOAD_KEY_CHANNEL),
             )
             return
@@ -158,9 +152,7 @@ class _M10AIInvalidationAdapter:
                 trace_id,
             )
         except Exception as exc:
-            logger.exception(
-                "M10AIInvalidationAdapter eviction failed: %s", exc
-            )
+            logger.exception("M10AIInvalidationAdapter eviction failed: %s", exc)
 
 
 # ── M3 cost engine invalidation adapter ──────────────────────
@@ -209,13 +201,10 @@ class _M3CostEngineInvalidationAdapter:
             # packages.cost_engine.lru_cache may not be available in
             # MVP test environments — log + skip (graceful degradation).
             logger.warning(
-                "M3CostEngineInvalidationAdapter: cost_engine.lru_cache "
-                "not available — skipping"
+                "M3CostEngineInvalidationAdapter: cost_engine.lru_cache " "not available — skipping"
             )
         except Exception as exc:
-            logger.exception(
-                "M3CostEngineInvalidationAdapter eviction failed: %s", exc
-            )
+            logger.exception("M3CostEngineInvalidationAdapter eviction failed: %s", exc)
 
 
 # ── M11 fiscal period invalidation adapter ───────────────────
@@ -252,9 +241,7 @@ class _M11FiscalPeriodInvalidationAdapter:
                 invalidate_fiscal_period_cache,
             )
 
-            invalidate_fiscal_period_cache(
-                tenant_id=tenant_id, period_key=period_key
-            )
+            invalidate_fiscal_period_cache(tenant_id=tenant_id, period_key=period_key)
             logger.info(
                 "M11FiscalPeriodInvalidationAdapter: evicted fiscal_period_cache "
                 "(tenant_id=%s, period_key=%s, trace_id=%s)",
@@ -268,9 +255,7 @@ class _M11FiscalPeriodInvalidationAdapter:
                 "not available — skipping"
             )
         except Exception as exc:
-            logger.exception(
-                "M11FiscalPeriodInvalidationAdapter eviction failed: %s", exc
-            )
+            logger.exception("M11FiscalPeriodInvalidationAdapter eviction failed: %s", exc)
 
 
 # ── M11 closing snapshot invalidation adapter ───────────────
@@ -307,9 +292,7 @@ class _M11ClosingSnapshotInvalidationAdapter:
                 invalidate_closing_snapshot_cache,
             )
 
-            invalidate_closing_snapshot_cache(
-                tenant_id=tenant_id, period_key=period_key
-            )
+            invalidate_closing_snapshot_cache(tenant_id=tenant_id, period_key=period_key)
             logger.info(
                 "M11ClosingSnapshotInvalidationAdapter: evicted closing_snapshot_cache "
                 "(tenant_id=%s, period_key=%s, trace_id=%s)",
@@ -323,9 +306,7 @@ class _M11ClosingSnapshotInvalidationAdapter:
                 "not available — skipping"
             )
         except Exception as exc:
-            logger.exception(
-                "M11ClosingSnapshotInvalidationAdapter eviction failed: %s", exc
-            )
+            logger.exception("M11ClosingSnapshotInvalidationAdapter eviction failed: %s", exc)
 
 
 # ── Cross-tenant fan-out adapter (Story 14.1 NEW) ──────────
@@ -414,6 +395,7 @@ class CrossTenantFanoutAdapter:
         # log for observability.
         try:
             from apps.api.core.capability import Capability
+
             # The Capability gate is enforced at the registration boundary
             # (T5 wire); here we only log a structured info row.
             try:
@@ -435,8 +417,7 @@ class CrossTenantFanoutAdapter:
         except ImportError:
             # Test environment without capability module — log + skip.
             logger.warning(
-                "CrossTenantFanoutAdapter: capability module not "
-                "available — skipping gate check"
+                "CrossTenantFanoutAdapter: capability module not " "available — skipping gate check"
             )
 
         # Audit-first INSERT 3-row (CR 1.1 verbatim).
@@ -474,13 +455,15 @@ class CrossTenantFanoutAdapter:
                     """,
                     source_tenant_id,
                     invalidation_id,
-                    json.dumps({
-                        "correction_group_id": correction_group_id,
-                        "invalidation_id": invalidation_id,
-                        "period_key": period_key,
-                        "target_tenant_ids": target_tenant_ids,
-                        "channel": CROSS_TENANT_FANOUT_CHANNEL,
-                    }),
+                    json.dumps(
+                        {
+                            "correction_group_id": correction_group_id,
+                            "invalidation_id": invalidation_id,
+                            "period_key": period_key,
+                            "target_tenant_ids": target_tenant_ids,
+                            "channel": CROSS_TENANT_FANOUT_CHANNEL,
+                        }
+                    ),
                     trace_id,
                 )
             logger.info(
@@ -531,8 +514,7 @@ class MultiProcessDispatchAdapter:
         # loop in CacheInvalidationListener.
         trace_id = payload.get(PAYLOAD_KEY_TRACE_ID, "")
         logger.info(
-            "MultiProcessDispatchAdapter: dispatch event observed "
-            "(trace_id=%s, channel=%s)",
+            "MultiProcessDispatchAdapter: dispatch event observed " "(trace_id=%s, channel=%s)",
             trace_id,
             payload.get(PAYLOAD_KEY_CHANNEL, "<unknown>"),
         )

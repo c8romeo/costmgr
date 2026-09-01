@@ -79,9 +79,7 @@ async def _check_database() -> str:
     try:
         engine = get_engine()
         async with engine.connect() as conn:
-            result = await asyncio.wait_for(
-                conn.execute(text("SELECT 1")), timeout=2.0
-            )
+            result = await asyncio.wait_for(conn.execute(text("SELECT 1")), timeout=2.0)
             row = result.scalar()
             return "connected" if row == 1 else "disconnected"
     except Exception:
@@ -146,9 +144,7 @@ async def _check_jwt_verification() -> str:
         return "disconnected"
 
 
-def _build_envelope(
-    *, database: str, redis: str, status_value: str = "healthy"
-) -> dict[str, Any]:
+def _build_envelope(*, database: str, redis: str, status_value: str = "healthy") -> dict[str, Any]:
     """Build the canonical health envelope (CR 12-5 D-14 verbatim)."""
     return {
         "status": status_value,
@@ -168,9 +164,7 @@ async def health_combined() -> dict[str, Any]:
     database is briefly disconnected. Use `/health/ready` for a
     strict readiness probe that returns 503 on degradation.
     """
-    db_status, redis_status = await asyncio.gather(
-        _check_database(), _check_redis()
-    )
+    db_status, redis_status = await asyncio.gather(_check_database(), _check_redis())
     return _build_envelope(
         database=db_status,
         redis=redis_status,
@@ -283,12 +277,8 @@ async def health_multi_region() -> dict[str, Any]:
         )
         rows = result.mappings().all()
 
-    primary_row = next(
-        (r for r in rows if r["region"] == "primary_seoul"), None
-    )
-    secondary_row = next(
-        (r for r in rows if r["region"] == "secondary_tokyo"), None
-    )
+    primary_row = next((r for r in rows if r["region"] == "primary_seoul"), None)
+    secondary_row = next((r for r in rows if r["region"] == "secondary_tokyo"), None)
 
     primary = {
         "region": "primary_seoul",
@@ -305,9 +295,7 @@ async def health_multi_region() -> dict[str, Any]:
     secondary = {
         "region": "secondary_tokyo",
         "replication_status": (
-            secondary_row["replication_status"]
-            if secondary_row
-            else "disconnected"
+            secondary_row["replication_status"] if secondary_row else "disconnected"
         ),
         "lag_seconds": int(secondary_row["lag_seconds"]) if secondary_row else 0,
         "last_wal_received_at": (

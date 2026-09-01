@@ -53,9 +53,7 @@ def _serialize_dataclass(obj: object) -> dict[str, str]:
     Slots-friendly: uses `dataclasses.fields()` introspection (NOT `vars()`).
     """
     if not is_dataclass(obj):
-        raise TypeError(
-            f"expected dataclass, got {type(obj).__name__}"
-        )
+        raise TypeError(f"expected dataclass, got {type(obj).__name__}")
     return {f.name: str(getattr(obj, f.name)) for f in fields(obj)}
 
 
@@ -66,13 +64,9 @@ def serialize_cvp_result(result: CVPResult) -> dict[str, object]:
     """
     return {
         "simulated_bep": _serialize_dataclass(result.simulated_bep),
-        "simulated_target_profit": _serialize_dataclass(
-            result.simulated_target_profit
-        ),
+        "simulated_target_profit": _serialize_dataclass(result.simulated_target_profit),
         "baseline_bep": _serialize_dataclass(result.baseline_bep),
-        "baseline_target_profit": _serialize_dataclass(
-            result.baseline_target_profit
-        ),
+        "baseline_target_profit": _serialize_dataclass(result.baseline_target_profit),
         "delta_summary": {k: str(v) for k, v in result.delta_summary.items()},
     }
 

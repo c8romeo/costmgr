@@ -69,6 +69,7 @@ CR lessons applied:
 - CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION
   m24_finops_budget_planning (Phase 24 58th honest-DEFER cycle).
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.budget_planning.budget_alert import (

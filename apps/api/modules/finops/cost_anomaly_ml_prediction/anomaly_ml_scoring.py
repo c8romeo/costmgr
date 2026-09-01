@@ -37,6 +37,7 @@ CR lessons applied:
   AnomalyMLComparisonError.
 - AD-22 owner-only RBAC.
 """
+
 from __future__ import annotations
 
 import time
@@ -126,15 +127,11 @@ def _build_anomaly_score_comparison(
         AnomalyScoreComparison dict with 12 fields.
     """
     ml_anomaly_detected = ml_ensemble_score >= ENSEMBLE_CONSENSUS_THRESHOLD
-    threshold_anomaly_detected = (
-        threshold_z_score >= 3.0
-        or threshold_isolation_forest_score >= 0.5
-    )
+    threshold_anomaly_detected = threshold_z_score >= 3.0 or threshold_isolation_forest_score >= 0.5
     consensus_detected = ml_anomaly_detected and threshold_anomaly_detected
     consensus_score = (
-        (ml_ensemble_score + max(threshold_z_score / 5.0, threshold_isolation_forest_score))
-        / 2.0
-    )
+        ml_ensemble_score + max(threshold_z_score / 5.0, threshold_isolation_forest_score)
+    ) / 2.0
 
     return {
         "tenant_id": tenant_id,
@@ -170,7 +167,7 @@ def predict_anomaly_score(
     _validate_tenant_id(tenant_id)
     _validate_period_key(period_key)
 
-    start_time = time.time()
+    time.time()
     # Placeholder: actual ML inference would happen here
     ml_ensemble_score = 0.5  # placeholder
     inference_latency_ms = _simulate_inference_latency()
@@ -217,9 +214,7 @@ def batch_predict_anomaly_scores(
     _validate_tenant_id(tenant_id)
     _validate_period_keys(period_keys)
     if not isinstance(batch_size, int) or batch_size < 1 or batch_size > ML_BATCH_SIZE_MAX:
-        raise ValueError(
-            f"batch_size must be between 1 and {ML_BATCH_SIZE_MAX}, got {batch_size}"
-        )
+        raise ValueError(f"batch_size must be between 1 and {ML_BATCH_SIZE_MAX}, got {batch_size}")
 
     results: list[AnomalyMLScoreResult] = []
     for period_key in period_keys:

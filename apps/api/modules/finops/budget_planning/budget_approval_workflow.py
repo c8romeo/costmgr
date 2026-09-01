@@ -30,6 +30,7 @@ CR lessons applied:
 - Epic 12 2FA 챌린지 mandatory high-value.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -71,9 +72,7 @@ def validate_approval_chain(steps: list[BudgetApprovalStep]) -> bool:
     if indices != list(range(len(steps))):
         return False
     # Max steps guard
-    if len(steps) > APPROVAL_CHAIN_MAX_STEPS:
-        return False
-    return True
+    return not len(steps) > APPROVAL_CHAIN_MAX_STEPS
 
 
 def _requires_2fa(plan_total_budget_amount: float) -> bool:
@@ -141,7 +140,7 @@ def submit_for_approval(
 
     requires_2fa = _requires_2fa(plan_total_budget_amount)
 
-    now_iso = datetime.now(UTC).isoformat()
+    datetime.now(UTC).isoformat()
     steps: list[BudgetApprovalStep] = []
 
     for idx, approver in enumerate(approval_chain):
@@ -282,12 +281,8 @@ def aggregate_approval_steps(
         status = step["status"]
         by_status[status] = by_status.get(status, 0) + 1
 
-    all_decided = all(
-        s["status"] != BudgetApprovalStepStatus.PENDING.value for s in steps
-    )
-    any_rejected = any(
-        s["status"] == BudgetApprovalStepStatus.REJECTED.value for s in steps
-    )
+    all_decided = all(s["status"] != BudgetApprovalStepStatus.PENDING.value for s in steps)
+    any_rejected = any(s["status"] == BudgetApprovalStepStatus.REJECTED.value for s in steps)
 
     return {
         "step_count": len(steps),

@@ -111,10 +111,7 @@ class V8RegressionRule:
             return VerificationItem(
                 code="V8",
                 status="passed",
-                message_ko=(
-                    "V8 엔진 대조 placeholder "
-                    "(runtime tenant_id ≠ fixture tenant_id)"
-                ),
+                message_ko=("V8 엔진 대조 placeholder " "(runtime tenant_id ≠ fixture tenant_id)"),
                 details={
                     "placeholder": True,
                     "tenant_id_mismatch": True,

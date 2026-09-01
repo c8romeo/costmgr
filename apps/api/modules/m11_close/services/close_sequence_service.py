@@ -101,9 +101,7 @@ class CloseSequenceAlreadyInitiatedError(Exception):
         period_key: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"close sequence already initiated for {period_key}"
-        )
+        super().__init__(f"close sequence already initiated for {period_key}")
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.trace_id = trace_id
@@ -127,9 +125,7 @@ class CloseSequenceNotInitiatedError(Exception):
         period_key: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"close sequence not initiated for {period_key}"
-        )
+        super().__init__(f"close sequence not initiated for {period_key}")
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.trace_id = trace_id
@@ -168,9 +164,7 @@ class CloseSequenceCapabilityDeniedError(Exception):
         industry: str | None,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"close sequence capability denied for industry={industry}"
-        )
+        super().__init__(f"close sequence capability denied for industry={industry}")
         self.tenant_id = tenant_id
         self.industry = industry
         self.trace_id = trace_id
@@ -187,9 +181,7 @@ class ClosingSequenceAlreadyConfirmedError(Exception):
         closed_at: str | None,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"close sequence already confirmed for {period_key}"
-        )
+        super().__init__(f"close sequence already confirmed for {period_key}")
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.closed_at = closed_at
@@ -248,10 +240,12 @@ class CloseSequenceService:
         """
         # SELECT FOR UPDATE on existing fiscal_periods row.
         existing = await self.session.scalar(
-            select(FiscalPeriod).where(
+            select(FiscalPeriod)
+            .where(
                 FiscalPeriod.tenant_id == self.tenant_id,
                 FiscalPeriod.period_key == period_key,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
         if existing is not None:
             raise CloseSequenceAlreadyInitiatedError(
@@ -336,10 +330,12 @@ class CloseSequenceService:
             )
 
         row = await self.session.scalar(
-            select(FiscalPeriod).where(
+            select(FiscalPeriod)
+            .where(
                 FiscalPeriod.tenant_id == self.tenant_id,
                 FiscalPeriod.period_key == period_key,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
         if row is None:
             # Story 11.2 3rd-sweep fix: raise NOT_INITIATED (not
@@ -469,10 +465,12 @@ class CloseSequenceService:
             CloseSequenceNotInitiatedError: no fiscal_periods row.
         """
         row = await self.session.scalar(
-            select(FiscalPeriod).where(
+            select(FiscalPeriod)
+            .where(
                 FiscalPeriod.tenant_id == self.tenant_id,
                 FiscalPeriod.period_key == period_key,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
         if row is None:
             # Story 11.2 3rd-sweep fix: raise NOT_INITIATED (not
@@ -551,9 +549,7 @@ class CloseSequenceService:
             # defense-in-depth. If this fires, the kernel has changed
             # and the close path is no longer safe.
             raise ClosingSequenceAuditEmitError(
-                message=(
-                    f"AD-6 guard rejected confirm path: {ad6_check.reject_reason_ko}"
-                ),
+                message=(f"AD-6 guard rejected confirm path: {ad6_check.reject_reason_ko}"),
                 trace_id=self.trace_id,
             )
         # current_state should be 'common' (4 stages done, not yet
@@ -633,9 +629,7 @@ class CloseSequenceService:
             "close_sequence_state": row.close_sequence_state,
             "status": row.status,
             "next_step": order_result.next_step,
-            "closed_at": (
-                row.closed_at.isoformat() if row.closed_at is not None else None
-            ),
+            "closed_at": (row.closed_at.isoformat() if row.closed_at is not None else None),
             "trace_id": self.trace_id,
         }
 
@@ -674,9 +668,7 @@ class CloseSequenceService:
             # SystemExit) — let those propagate.
             from sqlalchemy.exc import SQLAlchemyError
 
-            if isinstance(
-                exc, KeyboardInterrupt | SystemExit | asyncio.CancelledError
-            ):
+            if isinstance(exc, KeyboardInterrupt | SystemExit | asyncio.CancelledError):
                 raise
             if not isinstance(exc, SQLAlchemyError):
                 # Unknown non-DB exception — wrap defensively but don't

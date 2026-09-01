@@ -54,6 +54,7 @@ CR lessons applied:
 AD-22 owner-only RBAC — tag policy update owner-only.
 Epic 12 2FA 챌린지 mandatory when auto_remediate is enabled.
 """
+
 from __future__ import annotations
 
 import re
@@ -275,7 +276,7 @@ def define_tag_policy(
         TagEnforcementViolationError: invalid enforcement_level.
     """
     # 1. syntax + tenant_id validation
-    if not isinstance(tenant_id, (str, uuid.UUID)):
+    if not isinstance(tenant_id, str | uuid.UUID):
         raise TagPolicyScopeInvalidError(
             message_ko=f"tenant_id must be str/UUID, got {type(tenant_id).__name__}",
             details={"tenant_id": str(tenant_id)},
@@ -317,9 +318,9 @@ def define_tag_policy(
         )
 
     # 6. compliance_threshold_pct range
-    if not isinstance(compliance_threshold_pct, (int, float)):
+    if not isinstance(compliance_threshold_pct, int | float):
         raise TagPolicyInvalidError(
-            message_ko=f"compliance_threshold_pct must be numeric",
+            message_ko="compliance_threshold_pct must be numeric",
             details={"value": str(compliance_threshold_pct)},
         )
     if not (0.0 <= float(compliance_threshold_pct) <= 100.0):
@@ -416,9 +417,7 @@ def parse_tag_policy(policy_text: str, *, trace_id: str = "") -> TagPolicy:
         enforcement_level=enforcement_level,
         default_value=fields.get("default_value", "untagged"),
         compliance_threshold_pct=compliance_threshold_pct,
-        remediation_action=fields.get(
-            "remediation_action", REMEDIATION_ACTION_NOTIFY_ONLY
-        ),
+        remediation_action=fields.get("remediation_action", REMEDIATION_ACTION_NOTIFY_ONLY),
         status=fields.get("status", POLICY_STATUS_ACTIVE),
         trace_id=trace_id,
     )
@@ -492,7 +491,7 @@ def validate_tag_policy(
         TagPolicyInvalidError: invalid tag_key.
     """
     # 1. tenant_id validation
-    if not isinstance(tenant_id, (str, uuid.UUID)):
+    if not isinstance(tenant_id, str | uuid.UUID):
         raise TagPolicyScopeInvalidError(
             message_ko=f"tenant_id must be str/UUID, got {type(tenant_id).__name__}",
             details={"tenant_id": str(tenant_id)},

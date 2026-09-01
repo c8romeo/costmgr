@@ -52,6 +52,7 @@ CR lessons applied:
 - CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION
   m25_finops_vendor_management (Phase 25 64th honest-DEFER cycle).
 """
+
 from __future__ import annotations
 
 import enum
@@ -220,9 +221,7 @@ class VendorContractLifecycle(enum.StrEnum):
     TERMINATED = "terminated"
 
 
-ALL_VENDOR_CONTRACT_LIFECYCLES = frozenset(
-    item.value for item in VendorContractLifecycle
-)
+ALL_VENDOR_CONTRACT_LIFECYCLES = frozenset(item.value for item in VendorContractLifecycle)
 
 
 class VendorPerformanceSeverity(enum.StrEnum):
@@ -233,9 +232,7 @@ class VendorPerformanceSeverity(enum.StrEnum):
     CRITICAL = "critical"
 
 
-ALL_VENDOR_PERFORMANCE_SEVERITIES = frozenset(
-    item.value for item in VendorPerformanceSeverity
-)
+ALL_VENDOR_PERFORMANCE_SEVERITIES = frozenset(item.value for item in VendorPerformanceSeverity)
 
 
 class VendorSelectionMode(enum.StrEnum):
@@ -258,9 +255,7 @@ class VendorApprovalStepStatus(enum.StrEnum):
     SKIPPED = "skipped"
 
 
-ALL_VENDOR_APPROVAL_STEP_STATUSES = frozenset(
-    item.value for item in VendorApprovalStepStatus
-)
+ALL_VENDOR_APPROVAL_STEP_STATUSES = frozenset(item.value for item in VendorApprovalStepStatus)
 
 
 # ── TypedDicts ────────────────────────────────────────────────────────────

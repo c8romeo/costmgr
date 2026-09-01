@@ -29,6 +29,7 @@ that Phase 20 should have created but didn't.
 
 CR 0-2 RLS + AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
 """
+
 from __future__ import annotations
 
 import logging

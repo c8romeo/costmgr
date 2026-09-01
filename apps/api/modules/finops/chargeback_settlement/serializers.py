@@ -29,6 +29,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import enum
@@ -69,10 +70,10 @@ MAX_ALLOCATION_LINES = 10_000
 
 # 4 cadence schedule KST pytz (PRD §F38.4 + AD-50 (e))
 SETTLEMENT_CADENCE_HOURS_KST: dict[str, tuple[int, int]] = {
-    "monthly": (4, 0),      # 1st-day 04:00 KST monthly
-    "quarterly": (5, 0),    # 1st-day 05:00 KST quarterly
+    "monthly": (4, 0),  # 1st-day 04:00 KST monthly
+    "quarterly": (5, 0),  # 1st-day 05:00 KST quarterly
     "semi_annual": (6, 0),  # 1st-day 06:00 KST semi_annual
-    "annual": (7, 0),       # 1st-day 07:00 KST annual
+    "annual": (7, 0),  # 1st-day 07:00 KST annual
 }
 
 # Recipient strategy templates (PRD §F38.4 verbatim, extended)

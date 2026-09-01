@@ -48,6 +48,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import enum
@@ -182,9 +183,7 @@ class MultiCloudRateCardSource(str, enum.Enum):
     AUDIT = "audit"  # (5) recovered from past audit log
 
 
-ALL_MULTI_CLOUD_RATE_CARD_SOURCES: list[str] = [
-    s.value for s in MultiCloudRateCardSource
-]
+ALL_MULTI_CLOUD_RATE_CARD_SOURCES: list[str] = [s.value for s in MultiCloudRateCardSource]
 
 
 class MultiCloudCostSource(str, enum.Enum):
@@ -242,9 +241,7 @@ ALL_NEGOTIATION_STRATEGIES: list[str] = [s.value for s in NegotiationStrategy]
 # Phase 20.5 wire (cj-style 147번째) — ADD ALL_NEGOTIATION_COMMITMENT_TERMS
 # (Phase 20 wire `52dad7f` cj-style 144번째 의 honest deviation: NegotiationCommitmentTerm
 # enum 은 정의됐으나 ALL_* list constant 누락. Layer 1 P0 critical fix.)
-ALL_NEGOTIATION_COMMITMENT_TERMS: list[str] = [
-    t.value for t in NegotiationCommitmentTerm
-]
+ALL_NEGOTIATION_COMMITMENT_TERMS: list[str] = [t.value for t in NegotiationCommitmentTerm]
 
 
 class BlendedUnblendedTrackingStatus(str, enum.Enum):
@@ -339,9 +336,7 @@ class MarketplaceIntegrationStatus(str, enum.Enum):
     MANUAL = "manual"
 
 
-ALL_MARKETPLACE_INTEGRATION_STATUSES: list[str] = [
-    s.value for s in MarketplaceIntegrationStatus
-]
+ALL_MARKETPLACE_INTEGRATION_STATUSES: list[str] = [s.value for s in MarketplaceIntegrationStatus]
 
 
 class MultiCloudDispatchSchedule(str, enum.Enum):
@@ -353,9 +348,7 @@ class MultiCloudDispatchSchedule(str, enum.Enum):
     ANNUAL = "annual"
 
 
-ALL_MULTI_CLOUD_DISPATCH_SCHEDULES: list[str] = [
-    d.value for d in MultiCloudDispatchSchedule
-]
+ALL_MULTI_CLOUD_DISPATCH_SCHEDULES: list[str] = [d.value for d in MultiCloudDispatchSchedule]
 
 
 class MultiCloudDispatchRecipientStrategy(str, enum.Enum):
@@ -380,9 +373,7 @@ class MultiCloudKPIThresholdStatus(str, enum.Enum):
     CRITICAL = "critical"
 
 
-ALL_MULTI_CLOUD_KPI_THRESHOLD_STATUSES: list[str] = [
-    s.value for s in MultiCloudKPIThresholdStatus
-]
+ALL_MULTI_CLOUD_KPI_THRESHOLD_STATUSES: list[str] = [s.value for s in MultiCloudKPIThresholdStatus]
 
 
 class MultiCloudRateCardReconciliation(TypedDict, total=False):

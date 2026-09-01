@@ -28,6 +28,7 @@ CR lessons applied:
 AD-22 owner-only RBAC — detect_idle_resources owner-only.
 Epic 12 2FA 챌린지 mandatory when auto-terminate is enabled.
 """
+
 from __future__ import annotations
 
 import uuid

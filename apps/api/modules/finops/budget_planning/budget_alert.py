@@ -27,6 +27,7 @@ CR lessons applied:
 - Epic 12 2FA 챌린지 mandatory high-value.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -65,9 +66,7 @@ def validate_budget_alert(alert: BudgetAlert) -> bool:
         return False
     if not isinstance(alert["escalation_level"], int):
         return False
-    if not isinstance(alert["variance_pct"], (int, float)):
-        return False
-    return True
+    return isinstance(alert["variance_pct"], int | float)
 
 
 def _severity_from_pct(variance_pct: float) -> str:
@@ -134,9 +133,7 @@ def trigger_over_budget_alert(
     # Determine escalation level + channels
     if severity == BudgetAlertSeverity.CRITICAL.value:
         escalation_level = ESCALATION_LEVEL_CRITICAL
-        recipient_template = BUDGET_ALERT_RECIPIENT_TEMPLATES[
-            "critical_email_admin"
-        ]
+        recipient_template = BUDGET_ALERT_RECIPIENT_TEMPLATES["critical_email_admin"]
     elif severity == BudgetAlertSeverity.WARNING.value:
         escalation_level = ESCALATION_LEVEL_WARNING
         recipient_template = BUDGET_ALERT_RECIPIENT_TEMPLATES["warning_slack_dm"]

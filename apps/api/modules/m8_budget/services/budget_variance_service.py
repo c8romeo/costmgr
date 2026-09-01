@@ -48,9 +48,7 @@ from packages.services.m8_budget.budget_variance_serializers import (
 BUDGET_VARIANCE_INDUSTRY_AGNOSTIC: Final[bool] = True
 
 # Period key pattern (AD-24 virtual `YYYY-MM#B<n>` — 8-1 wire).
-VIRTUAL_BUDGET_PERIOD_KEY_PATTERN: Final[str] = (
-    r"^\d{4}-(0[1-9]|1[0-2])#B([1-9]\d*)$"
-)
+VIRTUAL_BUDGET_PERIOD_KEY_PATTERN: Final[str] = r"^\d{4}-(0[1-9]|1[0-2])#B([1-9]\d*)$"
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,10 +110,7 @@ def validate_variance_inputs(*, period_key: str) -> None:
         parse_virtual_budget_period_key(period_key=period_key)
     except ValueError as exc:
         raise InvalidVariancePeriodError(
-            (
-                f"period_key must match YYYY-MM#B<n> for variance: "
-                f"got {period_key!r}"
-            ),
+            (f"period_key must match YYYY-MM#B<n> for variance: " f"got {period_key!r}"),
             period_key=period_key,
             expected_pattern=VIRTUAL_BUDGET_PERIOD_KEY_PATTERN,
         ) from exc
@@ -144,9 +139,7 @@ class BudgetVarianceService:
         self.actor_id = actor_id
         self.trace_id = trace_id
 
-    async def fetch_variance_table(
-        self, *, period_key: str
-    ) -> list[VarianceRow]:
+    async def fetch_variance_table(self, *, period_key: str) -> list[VarianceRow]:
         """Fetch variance rows for the given period_key (PRD §F8.2).
 
         1. Delegate to `validate_variance_inputs(period_key)` (CR 12-5 L3
@@ -168,12 +161,9 @@ class BudgetVarianceService:
         validate_variance_inputs(period_key=period_key)
 
         # 2. DB read (budget scenario lookup).
-        stmt = (
-            select(BudgetScenario)
-            .where(
-                BudgetScenario.tenant_id == self.tenant_id,
-                BudgetScenario.period_key == period_key,
-            )
+        stmt = select(BudgetScenario).where(
+            BudgetScenario.tenant_id == self.tenant_id,
+            BudgetScenario.period_key == period_key,
         )
         result = await self.session.execute(stmt)
         scenario_row = result.scalar_one_or_none()
@@ -217,9 +207,7 @@ class BudgetVarianceService:
         # 8-2 atomic wire: empty aggregation (8-3 follow-up).
         return []
 
-    async def compute_variance_total(
-        self, *, rows: list[VarianceRow]
-    ) -> VarianceRow:
+    async def compute_variance_total(self, *, rows: list[VarianceRow]) -> VarianceRow:
         """Compute 합계 row from list of variance rows.
 
         1. sum of budget_value + actual_value across rows.
@@ -264,9 +252,7 @@ class BudgetVarianceService:
             color=total_color,
         )
 
-    async def fetch_abcd_disabled_badge(
-        self, *, variant: str = "variance"
-    ) -> dict[str, object]:
+    async def fetch_abcd_disabled_badge(self, *, variant: str = "variance") -> dict[str, object]:
         """Fetch A×B×C×D 회색 배지 placeholder (PRD §15 NON-GOAL #1 + §10 M8 (b)).
 
         1차 MVP: 회색 배지 disabled + "2차 예정" + "A×B×C×D 편성 엔진 미구현".
@@ -276,8 +262,7 @@ class BudgetVarianceService:
         """
         if variant not in ("variance", "trend", "sensitivity"):
             raise ValueError(
-                f"variant must be one of 'variance'/'trend'/'sensitivity', "
-                f"got {variant!r}"
+                f"variant must be one of 'variance'/'trend'/'sensitivity', " f"got {variant!r}"
             )
         badge = compute_abcd_disabled_badge(variant=variant)  # type: ignore[arg-type]
         return serialize_abcd_disabled_badge(badge)

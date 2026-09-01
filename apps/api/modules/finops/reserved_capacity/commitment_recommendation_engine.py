@@ -58,6 +58,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -131,8 +132,7 @@ def _compute_cache_key(
 ) -> str:
     """Compute SHA-256 cache key for CommitmentRecommendation."""
     payload = (
-        f"{tenant_id}:{capacity_plan_id}:{industry}:"
-        f"reserved_capacity_commitment_recommendation"
+        f"{tenant_id}:{capacity_plan_id}:{industry}:" f"reserved_capacity_commitment_recommendation"
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -212,9 +212,7 @@ def _is_valid_period_key(period_key: str) -> bool:
         return True
     if len(period_key) == 5 and period_key[2] == "-" and period_key[:2].isdigit():
         return True
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _compute_confidence_score(
@@ -241,8 +239,7 @@ def _compute_confidence_score(
             "input_pct": utilization_stability_pct,
             "weight": CONFIDENCE_SCORE_WEIGHTS["utilization_stability"],
             "weighted_contribution_pct": round(
-                utilization_stability_pct
-                * CONFIDENCE_SCORE_WEIGHTS["utilization_stability"],
+                utilization_stability_pct * CONFIDENCE_SCORE_WEIGHTS["utilization_stability"],
                 2,
             ),
         },
@@ -250,8 +247,7 @@ def _compute_confidence_score(
             "input_pct": historical_accuracy_pct,
             "weight": CONFIDENCE_SCORE_WEIGHTS["historical_accuracy"],
             "weighted_contribution_pct": round(
-                historical_accuracy_pct
-                * CONFIDENCE_SCORE_WEIGHTS["historical_accuracy"],
+                historical_accuracy_pct * CONFIDENCE_SCORE_WEIGHTS["historical_accuracy"],
                 2,
             ),
         },
@@ -319,8 +315,7 @@ def _compute_risk_score(
             "input_pct": commitment_flexibility_pct,
             "weight": RISK_SCORE_WEIGHTS["commitment_flexibility"],
             "weighted_contribution_pct": round(
-                commitment_flexibility_pct
-                * RISK_SCORE_WEIGHTS["commitment_flexibility"],
+                commitment_flexibility_pct * RISK_SCORE_WEIGHTS["commitment_flexibility"],
                 2,
             ),
         },
@@ -344,10 +339,7 @@ def _classify_execution_strategy(
 
     Returns one of ExecutionStrategy values.
     """
-    if (
-        confidence_score < LOW_CONFIDENCE_THRESHOLD
-        or risk_score > HIGH_RISK_THRESHOLD
-    ):
+    if confidence_score < LOW_CONFIDENCE_THRESHOLD or risk_score > HIGH_RISK_THRESHOLD:
         return ExecutionStrategy.LOW_CONFIDENCE.value
     if high_value_flag:
         return ExecutionStrategy.OWNER_APPROVAL_REQUIRED.value
@@ -375,8 +367,7 @@ def _requires_2fa_challenge(
     OWNER_APPROVAL_REQUIRED (PRD §F37.3-9 + AD-49 (g) verbatim).
     """
     return bool(
-        high_value_flag
-        and execution_strategy == ExecutionStrategy.OWNER_APPROVAL_REQUIRED.value
+        high_value_flag and execution_strategy == ExecutionStrategy.OWNER_APPROVAL_REQUIRED.value
     )
 
 
@@ -458,9 +449,12 @@ def generate_commitment_recommendation(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{capacity_plan_id}:{period_key}:commitment_recommendation".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{capacity_plan_id}:{period_key}:commitment_recommendation".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -480,9 +474,7 @@ def generate_commitment_recommendation(
     )
 
     # High-value flag: AD-49 (g) verbatim — ≥ 10M KRW/year savings.
-    high_value_flag = (
-        estimated_annual_savings_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR
-    )
+    high_value_flag = estimated_annual_savings_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR
 
     execution_strategy = _classify_execution_strategy(
         confidence_score=confidence_score,
@@ -496,9 +488,9 @@ def generate_commitment_recommendation(
     )
 
     commitment_recommendation_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode()
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest()
     )
 
     now = datetime.now(UTC)
@@ -537,6 +529,7 @@ def generate_commitment_recommendation(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING,
@@ -569,11 +562,7 @@ def generate_commitment_recommendation(
 
     # Surface 403 explicitly when 2FA required + caller not owner-approved
     # (mirrors Phase 12 budget threshold error envelope pattern).
-    if (
-        requires_2fa_challenge
-        and not dry_run
-        and persistence["persisted"]
-    ):
+    if requires_2fa_challenge and not dry_run and persistence["persisted"]:
         raise ReservedCapacityRecommendationApprovalError(
             reason="owner_approval_required_high_value",
             tenant_id=tenant_id,
@@ -583,11 +572,7 @@ def generate_commitment_recommendation(
 
     # Surface low-confidence error explicitly when caller requested
     # auto_execute_ready but confidence/risk too low.
-    if (
-        confidence_score < LOW_CONFIDENCE_THRESHOLD
-        and not dry_run
-        and persistence["persisted"]
-    ):
+    if confidence_score < LOW_CONFIDENCE_THRESHOLD and not dry_run and persistence["persisted"]:
         raise ReservedCapacityRecommendationConfidenceError(
             reason="confidence_below_low_confidence_threshold",
             tenant_id=tenant_id,
@@ -631,40 +616,25 @@ def validate_commitment_recommendation(
                 reason=f"missing_required_field:{field_name}",
                 tenant_id=str(commitment_recommendation.get("tenant_id", "")),
             )
-    if (
-        commitment_recommendation.get("industry")
-        not in ALL_ORCHESTRATION_SCOPES
-    ):
+    if commitment_recommendation.get("industry") not in ALL_ORCHESTRATION_SCOPES:
         raise ReservedCapacityRecommendationError(
             reason="invalid_industry",
             tenant_id=str(commitment_recommendation.get("tenant_id", "")),
             industry=str(commitment_recommendation.get("industry", "")),
         )
-    if (
-        commitment_recommendation.get("recommended_tier")
-        not in ALL_RESERVED_CAPACITY_TIERS
-    ):
+    if commitment_recommendation.get("recommended_tier") not in ALL_RESERVED_CAPACITY_TIERS:
         raise ReservedCapacityRecommendationExecutionError(
             reason="invalid_recommended_tier",
             tenant_id=str(commitment_recommendation.get("tenant_id", "")),
-            recommended_tier=str(
-                commitment_recommendation.get("recommended_tier", "")
-            ),
+            recommended_tier=str(commitment_recommendation.get("recommended_tier", "")),
         )
-    if (
-        commitment_recommendation.get("execution_strategy")
-        not in ALL_EXECUTION_STRATEGIES
-    ):
+    if commitment_recommendation.get("execution_strategy") not in ALL_EXECUTION_STRATEGIES:
         raise ReservedCapacityRecommendationExecutionError(
             reason="invalid_execution_strategy",
             tenant_id=str(commitment_recommendation.get("tenant_id", "")),
-            execution_strategy=str(
-                commitment_recommendation.get("execution_strategy", "")
-            ),
+            execution_strategy=str(commitment_recommendation.get("execution_strategy", "")),
         )
-    confidence = float(
-        commitment_recommendation.get("confidence_score", 0.0)
-    )
+    confidence = float(commitment_recommendation.get("confidence_score", 0.0))
     if not 0 <= confidence <= 100:
         raise ReservedCapacityRecommendationConfidenceError(
             reason="confidence_score_out_of_range",

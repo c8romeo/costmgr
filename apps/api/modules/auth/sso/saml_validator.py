@@ -25,6 +25,7 @@ import base64
 import binascii
 import logging
 from dataclasses import dataclass
+from datetime import UTC
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -235,9 +236,9 @@ def _structural_validate(
     conditions = assertion.find(f"{{{SAML_ASSERTION_NS}}}Conditions")
     if conditions is not None:
         # NotBefore / NotOnOrAfter.
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         not_before = conditions.attrib.get("NotBefore")
         not_on_or_after = conditions.attrib.get("NotOnOrAfter")
         if not_before:
@@ -258,13 +259,9 @@ def _structural_validate(
                 raise SAMLInvalidResponseError(reason="not_on_or_after_unparseable") from exc
 
         # AudienceRestriction.
-        audience_restriction = conditions.find(
-            f"{{{SAML_ASSERTION_NS}}}AudienceRestriction"
-        )
+        audience_restriction = conditions.find(f"{{{SAML_ASSERTION_NS}}}AudienceRestriction")
         if audience_restriction is not None:
-            audience = audience_restriction.find(
-                f"{{{SAML_ASSERTION_NS}}}Audience"
-            )
+            audience = audience_restriction.find(f"{{{SAML_ASSERTION_NS}}}Audience")
             if audience is None or (audience.text or "").strip() != ctx.expected_audience:
                 raise SAMLAudienceMismatchError()
 

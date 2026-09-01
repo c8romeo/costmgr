@@ -56,12 +56,12 @@ V4_RULE_CODE: Final[str] = "V4"
 
 # V4 skip reason (Korean SSOT for service-only tenant + empty aggregate).
 V4_SKIP_REASON_SERVICE_ONLY_KO: Final[str] = "service-only tenant은 inventory 의미 없음"
-V4_SKIP_REASON_EMPTY_AGGREGATE_KO: Final[str] = (
-    "기말재고 ledger aggregate 비어있음 — V4 SKIP"
-)
+V4_SKIP_REASON_EMPTY_AGGREGATE_KO: Final[str] = "기말재고 ledger aggregate 비어있음 — V4 SKIP"
 
 # V4 fail Korean message SSOT (AD-15 §11 parity with TS).
-V4_FAIL_MESSAGE_KO: Final[str] = "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"
+V4_FAIL_MESSAGE_KO: Final[str] = (
+    "마감 snapshot 불일치: 기말재고 ledger vs closing_snapshot 갱신 필요"
+)
 
 
 # ── TypedDict shapes ─────────────────────────────────────────

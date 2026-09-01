@@ -23,22 +23,21 @@ AD-22 owner-only RBAC — region weight map 변경 + override 모두 owner-only.
 
 Industry-agnostic per CR 12-1 L4 precedent.
 """
+
 from __future__ import annotations
 
 import logging
-import uuid
-from typing import Final, Literal, TypedDict
+from typing import Final, TypedDict
 
 from apps.api.modules.slo.slo_dsl import (
     AGGREGATION_ANY_FAILURE,
     AGGREGATION_MAX,
     AGGREGATION_MIN,
     AGGREGATION_WEIGHTED_AVG,
-    REGION_ALL,
     REGION_SEOUL,
     REGION_TOKYO,
-    TenantSloOverride,
     VALID_AGGREGATIONS,
+    TenantSloOverride,
 )
 
 logger = logging.getLogger(__name__)
@@ -219,9 +218,7 @@ def aggregate_multi_region(
         )
 
     # Step 1: detect replication lag adjustment
-    lag_adjusted = any(
-        lag["lag_mb"] > REPLICATION_LAG_THRESHOLD_MB for lag in replication_lags
-    )
+    lag_adjusted = any(lag["lag_mb"] > REPLICATION_LAG_THRESHOLD_MB for lag in replication_lags)
 
     # Step 2: aggregate per method
     if aggregation_method == AGGREGATION_WEIGHTED_AVG:

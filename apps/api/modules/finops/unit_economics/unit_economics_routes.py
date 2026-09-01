@@ -34,6 +34,7 @@ CR lessons applied:
 - D-FINOPS-12 honestly DEFER (cost_per_customer CRM + multi-currency
   FX + real-time stream — all honestly DEFER to future Phase 23.x).
 """
+
 from __future__ import annotations
 
 import logging
@@ -82,9 +83,7 @@ router = APIRouter(
 # ── Helper: extract tenant_id from request context ────────────────────────
 def _extract_tenant_id(request: Request) -> str:
     """Extract tenant_id from request context (CR 0-2 RLS verbatim)."""
-    tenant_id = getattr(request.state, "tenant_id", None) or request.headers.get(
-        "X-Tenant-Id"
-    )
+    tenant_id = getattr(request.state, "tenant_id", None) or request.headers.get("X-Tenant-Id")
     if not tenant_id:
         raise HTTPException(
             status_code=400,

@@ -45,6 +45,7 @@ CR lessons applied:
 - CR 11-3 ALLOWED_SERVICE_SUBMODULES 즉시 sweep EXTENSION
   m34_finops_cost_anomaly_ml_prediction.
 """
+
 from __future__ import annotations
 
 import enum

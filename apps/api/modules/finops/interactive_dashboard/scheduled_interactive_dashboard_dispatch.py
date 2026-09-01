@@ -44,6 +44,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT (finops_interactive_dashboard.* namespace).
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -218,9 +219,7 @@ def _validate_cadence(cadence: str) -> None:
         CADENCE_ON_DEMAND_INCREMENTAL_UPDATE,
     }
     if cadence not in allowed:
-        raise ValueError(
-            f"cadence must be one of {sorted(allowed)}, got {cadence!r}"
-        )
+        raise ValueError(f"cadence must be one of {sorted(allowed)}, got {cadence!r}")
 
 
 # ── Scheduled job pure functions ─────────────────────────────────────────
@@ -245,13 +244,9 @@ def scheduled_unified_kpi_refresh_job(
 
     started_at = _now_iso()
     # Number of phases refreshed = PHASE_LEDGER_MAX_PHASE - MIN + 1
-    affected_count = (
-        PHASE_LEDGER_MAX_PHASE - PHASE_LEDGER_MIN_PHASE + 1
-    )
+    affected_count = PHASE_LEDGER_MAX_PHASE - PHASE_LEDGER_MIN_PHASE + 1
     return ScheduledJobResult(
-        job_id=_generate_job_id(
-            CADENCE_DAILY_UNIFIED_KPI_REFRESH, period_key
-        ),
+        job_id=_generate_job_id(CADENCE_DAILY_UNIFIED_KPI_REFRESH, period_key),
         cadence=CADENCE_DAILY_UNIFIED_KPI_REFRESH,
         status=ScheduledJobStatus.SUCCESS,
         affected_count=affected_count,
@@ -281,9 +276,7 @@ def scheduled_export_cleanup_job(
 
     started_at = _now_iso()
     return ScheduledJobResult(
-        job_id=_generate_job_id(
-            CADENCE_WEEKLY_EXPORT_CLEANUP, period_key
-        ),
+        job_id=_generate_job_id(CADENCE_WEEKLY_EXPORT_CLEANUP, period_key),
         cadence=CADENCE_WEEKLY_EXPORT_CLEANUP,
         status=ScheduledJobStatus.SUCCESS,
         affected_count=0,
@@ -313,9 +306,7 @@ def scheduled_sharing_expiry_job(
 
     started_at = _now_iso()
     return ScheduledJobResult(
-        job_id=_generate_job_id(
-            CADENCE_MONTHLY_SHARING_EXPIRY, period_key
-        ),
+        job_id=_generate_job_id(CADENCE_MONTHLY_SHARING_EXPIRY, period_key),
         cadence=CADENCE_MONTHLY_SHARING_EXPIRY,
         status=ScheduledJobStatus.SUCCESS,
         affected_count=0,
@@ -347,18 +338,10 @@ def scheduled_unified_kpi_incremental_update_job(
     started_at = _now_iso()
     # Verify LISTEN/NOTIFY channels are subscribed
     is_subscribed = realtime_incremental_update_via_listen_notify()
-    status = (
-        ScheduledJobStatus.SUCCESS
-        if is_subscribed
-        else ScheduledJobStatus.FAILED
-    )
-    affected_count = (
-        len(UNIFIED_KPI_LISTEN_NOTIFY_CHANNELS) if is_subscribed else 0
-    )
+    status = ScheduledJobStatus.SUCCESS if is_subscribed else ScheduledJobStatus.FAILED
+    affected_count = len(UNIFIED_KPI_LISTEN_NOTIFY_CHANNELS) if is_subscribed else 0
     return ScheduledJobResult(
-        job_id=_generate_job_id(
-            CADENCE_ON_DEMAND_INCREMENTAL_UPDATE, period_key
-        ),
+        job_id=_generate_job_id(CADENCE_ON_DEMAND_INCREMENTAL_UPDATE, period_key),
         cadence=CADENCE_ON_DEMAND_INCREMENTAL_UPDATE,
         status=status,
         affected_count=affected_count,

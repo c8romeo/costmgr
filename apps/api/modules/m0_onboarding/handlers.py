@@ -96,9 +96,7 @@ signup_router = APIRouter(prefix="/api/v1/onboarding", tags=["m0-onboarding-sign
     responses={
         201: {"description": "Tenant created successfully."},
         401: {"description": "Invalid/expired JWT (TENANT_FORBIDDEN)."},
-        409: {
-            "description": "ALREADY_HAS_TENANT — user already has a tenant."
-        },
+        409: {"description": "ALREADY_HAS_TENANT — user already has a tenant."},
         422: {"description": "Invalid body (Pydantic) or tenant_name invalid."},
     },
 )

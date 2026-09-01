@@ -887,24 +887,16 @@ async def get_m2_entry_gate(
     requires_challenge = totp_enabled and not locked_out
     # Allowed = role allowed AND not locked out AND no setup pending.
     # All three gates are kernel-equivalent (enforce_role_gate + check_two_factor_required).
-    allowed = (
-        role_allowed
-        and not locked_out
-        and not requires_two_factor
-    )
+    allowed = role_allowed and not locked_out and not requires_two_factor
 
     # Message priority: setup missing > locked out > role denied > OK.
     # Mirrors kernel TWO_FACTOR_REQUIRED_KO "2FA 설정이 필요합니다 — [설정하기]".
     if requires_two_factor:
         message_ko = TWO_FACTOR_REQUIRED_KO  # "2FA 설정이 필요합니다 — [설정하기]"
     elif locked_out:
-        message_ko = (
-            f"2FA 잠금 상태입니다 — {lockout_until} 이후 재시도 가능"
-        )
+        message_ko = f"2FA 잠금 상태입니다 — {lockout_until} 이후 재시도 가능"
     elif not role_allowed:
-        message_ko = (
-            "권한이 없습니다 — owner/member role만 [월 입력] 화면 진입 가능"
-        )
+        message_ko = "권한이 없습니다 — owner/member role만 [월 입력] 화면 진입 가능"
     else:
         message_ko = "M2 진입 가능"
 
@@ -1001,7 +993,9 @@ def _metadata_to_list_item(m: BackupMetadata) -> BackupListItem:
     """Service BackupMetadata → Pydantic BackupListItem (boundary conversion)."""
     return BackupListItem(
         backup_id=str(m.backup_id),
-        backup_date=m.backup_date.isoformat() if hasattr(m.backup_date, "isoformat") else str(m.backup_date),
+        backup_date=m.backup_date.isoformat()
+        if hasattr(m.backup_date, "isoformat")
+        else str(m.backup_date),
         schema_version=m.schema_version,
         payload_sha256=m.payload_sha256,
         payload_size_bytes=m.payload_size_bytes,
@@ -1019,6 +1013,7 @@ def _build_backup_filename(backup_date_iso: str) -> str:
     If the value is not a valid YYYY-MM-DD, falls back to "unknown".
     """
     import re
+
     if not re.match(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$", backup_date_iso):
         return "backup-unknown.json"
     return f"backup-{backup_date_iso}.json"
@@ -1424,9 +1419,7 @@ async def cancel_account_deletion(
         tenant_id=result.tenant_id,
         status=result.status,
         deletion_scheduled_for=(
-            result.deletion_scheduled_for.isoformat()
-            if result.deletion_scheduled_for
-            else ""
+            result.deletion_scheduled_for.isoformat() if result.deletion_scheduled_for else ""
         ),
         trace_id=trace_id,
     )
@@ -1462,16 +1455,12 @@ async def get_account_deletion_status(
         tenant_id=status.tenant_id,
         status=status.status,
         deletion_requested_at=(
-            status.deletion_requested_at.isoformat()
-            if status.deletion_requested_at
-            else None
+            status.deletion_requested_at.isoformat() if status.deletion_requested_at else None
         ),
         deletion_requested_by_user_id=status.deletion_requested_by_user_id,
         deletion_consent_id=status.deletion_consent_id,
         deletion_scheduled_for=(
-            status.deletion_scheduled_for.isoformat()
-            if status.deletion_scheduled_for
-            else None
+            status.deletion_scheduled_for.isoformat() if status.deletion_scheduled_for else None
         ),
         trace_id=trace_id,
     )

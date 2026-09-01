@@ -48,6 +48,7 @@ def _get_active_key(key_id: str) -> bytes:
 
     return _get(key_id)
 
+
 # Default key_id (env-var overridable)
 DEFAULT_KEY_ID: Final[str] = "v1"
 
@@ -67,7 +68,9 @@ class DecryptionFailedError(CryptoError):
     - Tampering attempt
     """
 
-    def __init__(self, message: str = "Decryption failed — invalid key or tampered ciphertext") -> None:
+    def __init__(
+        self, message: str = "Decryption failed — invalid key or tampered ciphertext"
+    ) -> None:
         super().__init__(message)
 
 

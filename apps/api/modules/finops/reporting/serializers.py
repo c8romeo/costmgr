@@ -20,19 +20,20 @@ CR lessons applied:
 - AD-14 stack pin — Recharts 2.12.7 + reportlab==4.0.7 + openpyxl==3.1.2
   + apscheduler==3.10.4 + pytz==2024.1.
 """
+
 from __future__ import annotations
 
 import enum
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from typing_extensions import TypedDict
+from typing import Any
 
+from typing_extensions import TypedDict
 
 # Model version SSOT (Phase 15 EXTENSION pattern verbatim).
 REPORTING_ENGINE_MODEL_VERSION = "1.0.0"
 
 # Reporting defaults — Phase 16 NEW (CR 11-4 P-015 verbatim SSOT).
-REPORTING_DEFAULTS: Dict[str, Any] = {
+REPORTING_DEFAULTS: dict[str, Any] = {
     "default_scope_type": "tenant",
     "default_period_key_format": "YYYY-MM",
     "cache_ttl_hours": 24,
@@ -58,7 +59,7 @@ class ScopeType(str, enum.Enum):
     PRODUCT_LINE = "product_line"
 
 
-ALL_SCOPE_TYPES: List[str] = [s.value for s in ScopeType]
+ALL_SCOPE_TYPES: list[str] = [s.value for s in ScopeType]
 
 
 class Cadence(str, enum.Enum):
@@ -69,7 +70,7 @@ class Cadence(str, enum.Enum):
     ANNUAL = "annual"
 
 
-ALL_CADENCES: List[str] = [c.value for c in Cadence]
+ALL_CADENCES: list[str] = [c.value for c in Cadence]
 
 
 class ExportFormat(str, enum.Enum):
@@ -80,7 +81,7 @@ class ExportFormat(str, enum.Enum):
     EXCEL = "excel"
 
 
-ALL_EXPORT_FORMATS: List[str] = [e.value for e in ExportFormat]
+ALL_EXPORT_FORMATS: list[str] = [e.value for e in ExportFormat]
 
 
 class DispatchSchedule(str, enum.Enum):
@@ -92,7 +93,7 @@ class DispatchSchedule(str, enum.Enum):
     ANNUAL = "annual"
 
 
-ALL_DISPATCH_SCHEDULES: List[str] = [d.value for d in DispatchSchedule]
+ALL_DISPATCH_SCHEDULES: list[str] = [d.value for d in DispatchSchedule]
 
 
 class RecipientStrategy(str, enum.Enum):
@@ -104,7 +105,7 @@ class RecipientStrategy(str, enum.Enum):
     CUSTOM_RECIPIENTS = "custom_recipients"
 
 
-ALL_RECIPIENT_STRATEGIES: List[str] = [r.value for r in RecipientStrategy]
+ALL_RECIPIENT_STRATEGIES: list[str] = [r.value for r in RecipientStrategy]
 
 
 class KPIThresholdStatus(str, enum.Enum):
@@ -115,7 +116,7 @@ class KPIThresholdStatus(str, enum.Enum):
     CRITICAL = "critical"
 
 
-ALL_KPI_THRESHOLD_STATUSES: List[str] = [s.value for s in KPIThresholdStatus]
+ALL_KPI_THRESHOLD_STATUSES: list[str] = [s.value for s in KPIThresholdStatus]
 
 
 class ExecutiveRollup(TypedDict, total=False):
@@ -142,9 +143,9 @@ class ExecutiveRollup(TypedDict, total=False):
     optimization_savings_krw: float  # NUMERIC(20, 2) Phase 14
     tag_compliance_pct: float  # NUMERIC(8, 4) Phase 15
     idle_cost_krw: float  # NUMERIC(20, 2) Phase 14 idle_resource
-    department_breakdown: Dict[str, float]  # JSONB
-    cost_center_breakdown: Dict[str, float]  # JSONB
-    resource_type_breakdown: Dict[str, float]  # JSONB
+    department_breakdown: dict[str, float]  # JSONB
+    cost_center_breakdown: dict[str, float]  # JSONB
+    resource_type_breakdown: dict[str, float]  # JSONB
     generated_at: datetime  # TIMESTAMPTZ
     trace_id: str  # TEXT (CR 1-1 ContextVar)
 
@@ -162,7 +163,7 @@ class KPIMetric(TypedDict, total=False):
     kpi_name: str  # TEXT (one of 8 KPI names)
     kpi_value: float  # NUMERIC(20, 2)
     kpi_unit: str  # TEXT e.g. "KRW"/"pct"/"count"
-    kpi_delta: Optional[float]  # NUMERIC nullable
+    kpi_delta: float | None  # NUMERIC nullable
     kpi_trend: str  # TEXT up/down/flat
     kpi_threshold_status: str  # TEXT on_track/warning/critical
     kpi_computed_at: datetime  # TIMESTAMPTZ
@@ -201,15 +202,15 @@ class ScheduledDispatch(TypedDict, total=False):
     dispatch_schedule: str  # weekly/monthly/quarterly/annual
     cron_expression: str  # TEXT e.g. "0 9 1 * *"
     recipient_strategy: str  # owner_only/executive_team/...
-    recipient_list: Dict[str, Any]  # JSONB
-    report_id: Optional[str]  # UUID FK nullable
+    recipient_list: dict[str, Any]  # JSONB
+    report_id: str | None  # UUID FK nullable
     status: str  # scheduled/running/completed/failed/cancelled
     scheduled_at: datetime  # TIMESTAMPTZ
     trace_id: str  # TEXT
 
 
 # 8 NEW KPI names SSOT (PRD §F32.2 verbatim).
-ALL_KPI_NAMES: List[str] = [
+ALL_KPI_NAMES: list[str] = [
     "total_monthly_cost_krw",
     "monthly_cost_growth_pct",
     "cost_per_employee_krw",

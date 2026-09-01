@@ -129,10 +129,10 @@ CR lessons applied:
 - CR 11-4 P-015 — pure validator pattern (CHECK constraints enforce
   enum values).
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -157,8 +157,18 @@ def upgrade() -> None:
         sa.Column("remediation_action", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False),
         sa.Column("metadata", sa.dialects.postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
-        sa.Column("updated_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "created_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
@@ -191,9 +201,7 @@ def upgrade() -> None:
         "phase_15_finops_tag_policy",
         ["tenant_id"],
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_tag_policy ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_tag_policy ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_tag_policy_tenant_isolation
@@ -217,7 +225,12 @@ def upgrade() -> None:
         sa.Column("severity", sa.Text(), nullable=False),
         sa.Column("action_recommendation", sa.Text(), nullable=False),
         sa.Column("remediation_sla_hours", sa.Integer(), nullable=False),
-        sa.Column("detected_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "detected_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
@@ -250,9 +263,7 @@ def upgrade() -> None:
         "phase_15_finops_untagged_resource",
         ["tenant_id"],
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_untagged_resource ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_untagged_resource ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_untagged_resource_tenant_isolation
@@ -275,8 +286,18 @@ def upgrade() -> None:
         sa.Column("effective_to", sa.Date(), nullable=True),
         sa.Column("audit_required", sa.Boolean(), nullable=False, server_default=sa.text("TRUE")),
         sa.Column("status", sa.Text(), nullable=False),
-        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
-        sa.Column("updated_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "created_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
@@ -304,9 +325,7 @@ def upgrade() -> None:
         "phase_15_finops_allocation_rule",
         ["tenant_id", "precedence"],
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_allocation_rule ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_allocation_rule ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_allocation_rule_tenant_isolation
@@ -353,9 +372,7 @@ def upgrade() -> None:
         "phase_15_finops_compliance_report",
         ["tenant_id"],
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_compliance_report ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_compliance_report ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_compliance_report_tenant_isolation
@@ -374,7 +391,9 @@ def upgrade() -> None:
         sa.Column("period_start", sa.Date(), nullable=False),
         sa.Column("period_end", sa.Date(), nullable=False),
         sa.Column("chargeback_amount_usd", sa.dialects.postgresql.NUMERIC(20, 2), nullable=False),
-        sa.Column("tag_allocation_amount_usd", sa.dialects.postgresql.NUMERIC(20, 2), nullable=False),
+        sa.Column(
+            "tag_allocation_amount_usd", sa.dialects.postgresql.NUMERIC(20, 2), nullable=False
+        ),
         sa.Column("variance_amount_usd", sa.dialects.postgresql.NUMERIC(20, 2), nullable=False),
         sa.Column("variance_pct", sa.dialects.postgresql.NUMERIC(8, 4), nullable=False),
         sa.Column("delta_threshold_pct", sa.dialects.postgresql.NUMERIC(8, 4), nullable=False),
@@ -397,9 +416,7 @@ def upgrade() -> None:
         "phase_15_finops_chargeback_reconciliation",
         ["tenant_id"],
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_chargeback_reconciliation ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_chargeback_reconciliation ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_chargeback_reconciliation_tenant_isolation
@@ -420,7 +437,12 @@ def upgrade() -> None:
         sa.Column("actor_user_id", sa.dialects.postgresql.UUID(), nullable=True),
         sa.Column("audit_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
         sa.Column("retention_until", sa.Date(), nullable=False),
-        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "created_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.create_check_constraint(
@@ -438,9 +460,7 @@ def upgrade() -> None:
         "phase_15_finops_allocation_audit",
         ["tenant_id", "action"],
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_allocation_audit ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_allocation_audit ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_allocation_audit_tenant_isolation
@@ -460,12 +480,15 @@ def upgrade() -> None:
         sa.Column("tag_key", sa.Text(), nullable=False),
         sa.Column("enforcement_level", sa.Text(), nullable=False),
         sa.Column("preview_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "created_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text(), nullable=True),
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_tag_policy_preview ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_tag_policy_preview ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_tag_policy_preview_tenant_isolation
@@ -483,12 +506,15 @@ def upgrade() -> None:
         sa.Column("resource_type", sa.Text(), nullable=False),
         sa.Column("severity", sa.Text(), nullable=False),
         sa.Column("preview_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "created_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text(), nullable=True),
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_untagged_resource_preview ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_untagged_resource_preview ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_untagged_resource_preview_tenant_isolation
@@ -505,12 +531,15 @@ def upgrade() -> None:
         sa.Column("dry_run_id", sa.Text(), nullable=False, unique=True),
         sa.Column("rule_type", sa.Text(), nullable=False),
         sa.Column("preview_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "created_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text(), nullable=True),
     )
-    op.execute(
-        "ALTER TABLE phase_15_finops_allocation_rule_preview ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_15_finops_allocation_rule_preview ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_15_finops_allocation_rule_preview_tenant_isolation
@@ -527,7 +556,12 @@ def upgrade() -> None:
         sa.Column("dry_run_id", sa.Text(), nullable=False, unique=True),
         sa.Column("strategy", sa.Text(), nullable=False),
         sa.Column("preview_metadata", sa.dialects.postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.dialects.postgresql.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column(
+            "created_at",
+            sa.dialects.postgresql.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
         sa.Column("trace_id", sa.Text(), nullable=True),
     )
     op.execute(
@@ -544,25 +578,45 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Drop preview tables first (reverse order)
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_chargeback_reconciliation_preview_tenant_isolation ON phase_15_finops_chargeback_reconciliation_preview;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_chargeback_reconciliation_preview_tenant_isolation ON phase_15_finops_chargeback_reconciliation_preview;"
+    )
     op.drop_table("phase_15_finops_chargeback_reconciliation_preview")
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_allocation_rule_preview_tenant_isolation ON phase_15_finops_allocation_rule_preview;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_allocation_rule_preview_tenant_isolation ON phase_15_finops_allocation_rule_preview;"
+    )
     op.drop_table("phase_15_finops_allocation_rule_preview")
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_untagged_resource_preview_tenant_isolation ON phase_15_finops_untagged_resource_preview;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_untagged_resource_preview_tenant_isolation ON phase_15_finops_untagged_resource_preview;"
+    )
     op.drop_table("phase_15_finops_untagged_resource_preview")
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_tag_policy_preview_tenant_isolation ON phase_15_finops_tag_policy_preview;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_tag_policy_preview_tenant_isolation ON phase_15_finops_tag_policy_preview;"
+    )
     op.drop_table("phase_15_finops_tag_policy_preview")
 
     # Drop main tables (reverse order)
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_allocation_audit_tenant_isolation ON phase_15_finops_allocation_audit;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_allocation_audit_tenant_isolation ON phase_15_finops_allocation_audit;"
+    )
     op.drop_table("phase_15_finops_allocation_audit")
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_chargeback_reconciliation_tenant_isolation ON phase_15_finops_chargeback_reconciliation;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_chargeback_reconciliation_tenant_isolation ON phase_15_finops_chargeback_reconciliation;"
+    )
     op.drop_table("phase_15_finops_chargeback_reconciliation")
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_compliance_report_tenant_isolation ON phase_15_finops_compliance_report;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_compliance_report_tenant_isolation ON phase_15_finops_compliance_report;"
+    )
     op.drop_table("phase_15_finops_compliance_report")
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_allocation_rule_tenant_isolation ON phase_15_finops_allocation_rule;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_allocation_rule_tenant_isolation ON phase_15_finops_allocation_rule;"
+    )
     op.drop_table("phase_15_finops_allocation_rule")
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_untagged_resource_tenant_isolation ON phase_15_finops_untagged_resource;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_untagged_resource_tenant_isolation ON phase_15_finops_untagged_resource;"
+    )
     op.drop_table("phase_15_finops_untagged_resource")
-    op.execute("DROP POLICY IF EXISTS phase_15_finops_tag_policy_tenant_isolation ON phase_15_finops_tag_policy;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_15_finops_tag_policy_tenant_isolation ON phase_15_finops_tag_policy;"
+    )
     op.drop_table("phase_15_finops_tag_policy")

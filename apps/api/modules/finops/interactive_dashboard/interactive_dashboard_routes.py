@@ -44,6 +44,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT (finops_interactive_dashboard.* namespace).
 """
+
 from __future__ import annotations
 
 import logging
@@ -69,6 +70,7 @@ if TYPE_CHECKING:
 else:
     try:
         from fastapi import FastAPI as _FastAPI  # type: ignore[import-not-found]
+
         _FASTAPI_AVAILABLE = True
     except ImportError:
         _FastAPI = None  # type: ignore[assignment,misc]
@@ -78,6 +80,7 @@ else:
         from apscheduler.schedulers.background import (  # type: ignore[import-not-found]
             BackgroundScheduler as _BackgroundScheduler,
         )
+
         _APSCHEDULER_AVAILABLE = True
     except ImportError:
         _BackgroundScheduler = None  # type: ignore[assignment,misc]
@@ -104,13 +107,10 @@ def register_routes(app: Any) -> None:
         RuntimeError if FastAPI is not installed or router is None.
     """
     if not _FASTAPI_AVAILABLE or _FastAPI is None:
-        raise RuntimeError(
-            "FastAPI is not installed; cannot register_routes"
-        )
+        raise RuntimeError("FastAPI is not installed; cannot register_routes")
     if _dashboard_router is None:
         raise RuntimeError(
-            "dashboard_router failed to construct (FastAPI import ok "
-            "but router is None)"
+            "dashboard_router failed to construct (FastAPI import ok " "but router is None)"
         )
     app.include_router(_dashboard_router)
     _logger.info(
@@ -137,9 +137,7 @@ def register_scheduled_jobs(scheduler: Any) -> int:
         RuntimeError if apscheduler is not installed.
     """
     if not _APSCHEDULER_AVAILABLE or _BackgroundScheduler is None:
-        raise RuntimeError(
-            "apscheduler is not installed; cannot register_scheduled_jobs"
-        )
+        raise RuntimeError("apscheduler is not installed; cannot register_scheduled_jobs")
 
     # Daily 04:00 KST unified KPI refresh
     scheduler.add_job(

@@ -41,10 +41,10 @@ CR lessons applied:
 - NFR4 PII minimization — RBAC metadata contains only user_id + tenant_id
   + role + 2fa_verified (no PII).
 """
+
 from __future__ import annotations
 
 import enum
-from typing import Optional
 
 
 class Role(str, enum.Enum):
@@ -83,9 +83,7 @@ class ExecutiveRolePermissionError(PermissionError):
     def __init__(self, role: str, required_role: str) -> None:
         self.role = role
         self.required_role = required_role
-        super().__init__(
-            f"Executive role permission denied: has={role} required={required_role}"
-        )
+        super().__init__(f"Executive role permission denied: has={role} required={required_role}")
 
 
 class SustainabilityRolePermissionError(PermissionError):
@@ -115,9 +113,7 @@ class CommitmentRolePermissionError(PermissionError):
     def __init__(self, role: str, required_role: str) -> None:
         self.role = role
         self.required_role = required_role
-        super().__init__(
-            f"Commitment role permission denied: has={role} required={required_role}"
-        )
+        super().__init__(f"Commitment role permission denied: has={role} required={required_role}")
 
 
 class PricingRolePermissionError(PermissionError):
@@ -132,9 +128,7 @@ class PricingRolePermissionError(PermissionError):
     def __init__(self, role: str, required_role: str) -> None:
         self.role = role
         self.required_role = required_role
-        super().__init__(
-            f"Pricing role permission denied: has={role} required={required_role}"
-        )
+        super().__init__(f"Pricing role permission denied: has={role} required={required_role}")
 
 
 class MultiCloudRolePermissionError(PermissionError):
@@ -149,9 +143,7 @@ class MultiCloudRolePermissionError(PermissionError):
     def __init__(self, role: str, required_role: str) -> None:
         self.role = role
         self.required_role = required_role
-        super().__init__(
-            f"Multi-cloud role permission denied: has={role} required={required_role}"
-        )
+        super().__init__(f"Multi-cloud role permission denied: has={role} required={required_role}")
 
 
 class CapabilityGateViolationError(PermissionError):
@@ -166,11 +158,11 @@ class CapabilityGateViolationError(PermissionError):
 
 
 def require_executive_role(
-    user_role: Optional[Role],
-    tenant_settings_executive_viewers: Optional[list[str]] = None,
-    user_id: Optional[str] = None,
-    actor_tenant_id: Optional[str] = None,
-    requested_tenant_id: Optional[str] = None,
+    user_role: Role | None,
+    tenant_settings_executive_viewers: list[str] | None = None,
+    user_id: str | None = None,
+    actor_tenant_id: str | None = None,
+    requested_tenant_id: str | None = None,
 ) -> Role:
     """Validate that the actor has executive dashboard access.
 
@@ -234,11 +226,11 @@ def require_executive_role(
 
 
 def require_sustainability_role(
-    user_role: Optional[Role],
-    tenant_settings_sustainability_viewers: Optional[list[str]] = None,
-    user_id: Optional[str] = None,
-    actor_tenant_id: Optional[str] = None,
-    requested_tenant_id: Optional[str] = None,
+    user_role: Role | None,
+    tenant_settings_sustainability_viewers: list[str] | None = None,
+    user_id: str | None = None,
+    actor_tenant_id: str | None = None,
+    requested_tenant_id: str | None = None,
 ) -> Role:
     """Validate that the actor has sustainability dashboard access.
 
@@ -303,11 +295,11 @@ def require_sustainability_role(
 
 
 def require_commitment_role(
-    user_role: Optional[Role],
-    tenant_settings_commitment_viewers: Optional[list[str]] = None,
-    user_id: Optional[str] = None,
-    actor_tenant_id: Optional[str] = None,
-    requested_tenant_id: Optional[str] = None,
+    user_role: Role | None,
+    tenant_settings_commitment_viewers: list[str] | None = None,
+    user_id: str | None = None,
+    actor_tenant_id: str | None = None,
+    requested_tenant_id: str | None = None,
 ) -> Role:
     """Validate that the actor has commitment dashboard access.
 
@@ -373,11 +365,11 @@ def require_commitment_role(
 
 
 def require_pricing_role(
-    user_role: Optional[Role],
-    tenant_settings_pricing_viewers: Optional[list[str]] = None,
-    user_id: Optional[str] = None,
-    actor_tenant_id: Optional[str] = None,
-    requested_tenant_id: Optional[str] = None,
+    user_role: Role | None,
+    tenant_settings_pricing_viewers: list[str] | None = None,
+    user_id: str | None = None,
+    actor_tenant_id: str | None = None,
+    requested_tenant_id: str | None = None,
 ) -> Role:
     """Validate that the actor has pricing dashboard access.
 
@@ -398,9 +390,7 @@ def require_pricing_role(
     - AD-22 owner-only RBAC — OWNER + PRICING_VIEWER with explicit grant.
     """
     if user_role is None:
-        raise PricingRolePermissionError(
-            role="<anonymous>", required_role="owner|pricing_viewer"
-        )
+        raise PricingRolePermissionError(role="<anonymous>", required_role="owner|pricing_viewer")
 
     # OWNER bypasses tenant_settings check (AD-22 verbatim).
     if user_role == Role.OWNER:
@@ -444,11 +434,11 @@ def require_pricing_role(
 
 
 def require_multi_cloud_role(
-    user_role: Optional[Role],
-    tenant_settings_multi_cloud_viewers: Optional[list[str]] = None,
-    user_id: Optional[str] = None,
-    actor_tenant_id: Optional[str] = None,
-    requested_tenant_id: Optional[str] = None,
+    user_role: Role | None,
+    tenant_settings_multi_cloud_viewers: list[str] | None = None,
+    user_id: str | None = None,
+    actor_tenant_id: str | None = None,
+    requested_tenant_id: str | None = None,
 ) -> Role:
     """Validate that the actor has multi-cloud dashboard access.
 

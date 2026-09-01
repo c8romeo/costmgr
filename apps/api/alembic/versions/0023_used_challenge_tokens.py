@@ -57,13 +57,11 @@ def upgrade() -> None:
         """
     )
     op.execute(
-        "CREATE INDEX used_challenge_tokens_used_at_idx "
-        "ON used_challenge_tokens (used_at)"
+        "CREATE INDEX used_challenge_tokens_used_at_idx " "ON used_challenge_tokens (used_at)"
     )
     # tenant_id index helps per-tenant GC sweeps (DELETE WHERE tenant_id = ...).
     op.execute(
-        "CREATE INDEX used_challenge_tokens_tenant_id_idx "
-        "ON used_challenge_tokens (tenant_id)"
+        "CREATE INDEX used_challenge_tokens_tenant_id_idx " "ON used_challenge_tokens (tenant_id)"
     )
     op.execute(
         "COMMENT ON TABLE used_challenge_tokens IS "

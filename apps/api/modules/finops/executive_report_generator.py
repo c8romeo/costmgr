@@ -43,34 +43,32 @@ CR lessons applied:
 - AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import csv
 import io
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from apps.api.core.errors import (
-    ExecutiveReportGenerationError,
-    ExecutiveReportExportError,
     CronExpressionInvalidError,
+    ExecutiveReportExportError,
+    ExecutiveReportGenerationError,
 )
 from apps.api.integrations.s3_archive import (
-    build_s3_key,
-    upload_executive_report,
     generate_presigned_url,
+    upload_executive_report,
 )
 from apps.api.modules.finops.reporting.serializers import (
     ALL_CADENCES,
     ALL_EXPORT_FORMATS,
     ALL_RECIPIENT_STRATEGIES,
     ALL_SCOPE_TYPES,
-    REPORTING_DEFAULTS,
-    Cadence,
-    ExportFormat,
     ExecutiveReport,
+    ExportFormat,
     RecipientStrategy,
 )
 
@@ -110,8 +108,8 @@ def _validate_inputs(
 def _resolve_recipients(
     tenant_id: str,
     recipient_strategy: str,
-    db_session: Optional[Any] = None,
-) -> Dict[str, Any]:
+    db_session: Any | None = None,
+) -> dict[str, Any]:
     """Resolve recipients from tenant settings (4 strategies).
 
     Phase 16 wire — AD-22 owner-only RBAC verbatim 보존 + Epic 12 2FA 챌린지.
@@ -131,8 +129,8 @@ def _resolve_recipients(
 
 
 def _render_pdf(
-    rollup_data: Dict[str, Any],
-    kpis: Dict[str, Any],
+    rollup_data: dict[str, Any],
+    kpis: dict[str, Any],
     title: str = "Executive Cost Report",
 ) -> bytes:
     """Render PDF using reportlab==4.0.7 (AD-14 stack pin).
@@ -142,8 +140,8 @@ def _render_pdf(
     """
     try:
         from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -169,8 +167,8 @@ def _render_pdf(
 
 
 def _render_csv(
-    rollup_data: Dict[str, Any],
-    kpis: Dict[str, Any],
+    rollup_data: dict[str, Any],
+    kpis: dict[str, Any],
 ) -> bytes:
     """Render CSV with UTF-8 BOM (PRD §F32.3-5 verbatim)."""
     buffer = io.StringIO()
@@ -183,8 +181,8 @@ def _render_csv(
 
 
 def _render_excel(
-    rollup_data: Dict[str, Any],
-    kpis: Dict[str, Any],
+    rollup_data: dict[str, Any],
+    kpis: dict[str, Any],
 ) -> bytes:
     """Render Excel workbook with 5 sheets (PRD §F32.3-6 verbatim).
 
@@ -222,7 +220,7 @@ def _render_excel(
         # Sheet 5: AuditTrail.
         ws_at = wb.create_sheet("AuditTrail")
         ws_at.append(["Event", "Timestamp"])
-        ws_at.append(["Report Generated", datetime.now(tz=timezone.utc).isoformat()])
+        ws_at.append(["Report Generated", datetime.now(tz=UTC).isoformat()])
 
         wb.save(buffer)
         return buffer.getvalue()
@@ -239,11 +237,11 @@ def generate_executive_report(
     cadence: str = "monthly",
     export_format: str = "pdf",
     recipient_strategy: str = "owner_only",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
     trace_id: str = "",
-    rollup_data: Optional[Dict[str, Any]] = None,
-    kpis: Optional[Dict[str, Any]] = None,
-    db_session: Optional[Any] = None,
+    rollup_data: dict[str, Any] | None = None,
+    kpis: dict[str, Any] | None = None,
+    db_session: Any | None = None,
     dry_run: bool = False,
 ) -> ExecutiveReport:
     """Generate executive report (PRD §F32.3-1 verbatim).
@@ -298,13 +296,10 @@ def generate_executive_report(
     try:
         if export_format == ExportFormat.PDF.value:
             file_bytes = _render_pdf(rollup, kpi_data)
-            ext = "pdf"
         elif export_format == ExportFormat.CSV.value:
             file_bytes = _render_csv(rollup, kpi_data)
-            ext = "csv"
         elif export_format == ExportFormat.EXCEL.value:
             file_bytes = _render_excel(rollup, kpi_data)
-            ext = "xlsx"
         else:
             raise ExecutiveReportExportError(
                 reason=f"unknown_export_format:{export_format}",
@@ -392,7 +387,7 @@ def generate_executive_report(
         "export_format": export_format,
         "report_file_url": presigned_url or s3_uri,
         "report_size_bytes": len(file_bytes),
-        "report_generated_at": datetime.now(tz=timezone.utc),
+        "report_generated_at": datetime.now(tz=UTC),
         "generated_by": actor_id or "",
         "status": "completed" if not dry_run else "generating",
         "trace_id": trace_id,

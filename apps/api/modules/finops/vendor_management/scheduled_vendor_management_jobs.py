@@ -21,6 +21,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT.
 - D-FINOPS-14 honestly DEFER.
 """
+
 from __future__ import annotations
 
 import logging
@@ -220,10 +221,12 @@ def schedule_vendor_management_jobs() -> dict[str, Any]:
             id="phase_25_daily_vendor_lifecycle",
             replace_existing=True,
         )
-        registrations.append({
-            "job_id": "phase_25_daily_vendor_lifecycle",
-            "trigger": "cron(hour=4, minute=0, tz=Asia/Seoul)",
-        })
+        registrations.append(
+            {
+                "job_id": "phase_25_daily_vendor_lifecycle",
+                "trigger": "cron(hour=4, minute=0, tz=Asia/Seoul)",
+            }
+        )
 
         # Monthly 03:00 KST 1st-of-month
         scheduler.add_job(
@@ -232,10 +235,12 @@ def schedule_vendor_management_jobs() -> dict[str, Any]:
             id="phase_25_monthly_vendor_performance",
             replace_existing=True,
         )
-        registrations.append({
-            "job_id": "phase_25_monthly_vendor_performance",
-            "trigger": "cron(day=1, hour=3, minute=0, tz=Asia/Seoul)",
-        })
+        registrations.append(
+            {
+                "job_id": "phase_25_monthly_vendor_performance",
+                "trigger": "cron(day=1, hour=3, minute=0, tz=Asia/Seoul)",
+            }
+        )
 
         # Monthly 03:15 KST 1st-of-month
         scheduler.add_job(
@@ -244,10 +249,12 @@ def schedule_vendor_management_jobs() -> dict[str, Any]:
             id="phase_25_monthly_vendor_spend_attribution",
             replace_existing=True,
         )
-        registrations.append({
-            "job_id": "phase_25_monthly_vendor_spend_attribution",
-            "trigger": "cron(day=1, hour=3, minute=15, tz=Asia/Seoul)",
-        })
+        registrations.append(
+            {
+                "job_id": "phase_25_monthly_vendor_spend_attribution",
+                "trigger": "cron(day=1, hour=3, minute=15, tz=Asia/Seoul)",
+            }
+        )
 
         # Quarterly 03:30 KST 1st-of-quarter (Jan/Apr/Jul/Oct)
         scheduler.add_job(
@@ -256,10 +263,12 @@ def schedule_vendor_management_jobs() -> dict[str, Any]:
             id="phase_25_quarterly_vendor_review",
             replace_existing=True,
         )
-        registrations.append({
-            "job_id": "phase_25_quarterly_vendor_review",
-            "trigger": "cron(month='1,4,7,10', day=1, hour=3, minute=30, tz=Asia/Seoul)",
-        })
+        registrations.append(
+            {
+                "job_id": "phase_25_quarterly_vendor_review",
+                "trigger": "cron(month='1,4,7,10', day=1, hour=3, minute=30, tz=Asia/Seoul)",
+            }
+        )
 
         logger.info(
             "phase_25_vendor_management_jobs scheduled: %d jobs registered",
@@ -267,9 +276,7 @@ def schedule_vendor_management_jobs() -> dict[str, Any]:
         )
 
     except ImportError as exc:
-        logger.warning(
-            "apscheduler not available — registration deferred: %s", exc
-        )
+        logger.warning("apscheduler not available — registration deferred: %s", exc)
 
     return {
         "module": "m25_finops_vendor_management",

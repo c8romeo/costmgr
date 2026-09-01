@@ -54,6 +54,7 @@ Phase 16:
 
 Industry-agnostic (all 4 industries get these), CR 12-1 L4 precedent.
 """
+
 from __future__ import annotations
 
 from apps.api.core.capability import (
@@ -104,7 +105,6 @@ __all__ = [
     "require_finops_vendor_management",  # NEW — Phase 25 (FinOps Vendor Management)
     "require_finops_cost_anomaly_ml_prediction",  # NEW — Phase 26 (FinOps Cost Anomaly ML Prediction)
 ]
-
 
 
 require_launch_landing = require_capability(Capability.LAUNCH_LANDING)
@@ -370,9 +370,7 @@ require_finops_multi_cloud = require_capability(
 # commitment-recommendation + orchestrate + dispatches +
 # cadence-preview + dry-run). Drift detector lives at
 # tests/integration/test_capability_matrix_v1_47_drift.py.
-require_finops_reserved_capacity = require_capability(
-    Capability.FINOPS_RESERVED_CAPACITY_PLANNING
-)
+require_finops_reserved_capacity = require_capability(Capability.FINOPS_RESERVED_CAPACITY_PLANNING)
 
 # Phase 22 (cj-style 160번째 wire) — require_finops_chargeback_settlement
 # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_RESERVED_CAPACITY
@@ -392,9 +390,7 @@ require_finops_reserved_capacity = require_capability(
 # (settlement-rules CRUD + allocation compute + invoice generation +
 # reconciliation + dispatch + cadence-preview + dry-run). Drift detector
 # lives at tests/integration/test_capability_matrix_v1_48_drift.py.
-require_finops_chargeback_settlement = require_capability(
-    Capability.FINOPS_CHARGEBACK_SETTLEMENT
-)
+require_finops_chargeback_settlement = require_capability(Capability.FINOPS_CHARGEBACK_SETTLEMENT)
 
 # Phase 23 (cj-style 164번째 wire) — require_finops_unit_economics
 # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_CHARGEBACK_SETTLEMENT
@@ -420,9 +416,7 @@ require_finops_chargeback_settlement = require_capability(
 # compute-cost-per-transaction + execute-margin-analysis + dry-run +
 # trend + healthcheck + cadence-preview). Drift detector lives at
 # tests/integration/test_capability_matrix_v1_49_drift.py.
-require_finops_unit_economics = require_capability(
-    Capability.FINOPS_UNIT_ECONOMICS
-)
+require_finops_unit_economics = require_capability(Capability.FINOPS_UNIT_ECONOMICS)
 
 # Phase 24 (cj-style 169번째 wire) — require_finops_budget_planning
 # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_UNIT_ECONOMICS
@@ -452,9 +446,7 @@ require_finops_unit_economics = require_capability(
 # submit-approval + approve-step + vs-actual + alert-trigger). Drift
 # detector lives at
 # tests/integration/test_capability_matrix_v1_50_drift.py.
-require_finops_budget_planning = require_capability(
-    Capability.FINOPS_BUDGET_PLANNING
-)
+require_finops_budget_planning = require_capability(Capability.FINOPS_BUDGET_PLANNING)
 
 # Phase 25 (cj-style 174th follow-up wire) — require_finops_vendor_management
 # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_BUDGET_PLANNING
@@ -490,9 +482,7 @@ require_finops_budget_planning = require_capability(
 # + run-selection + create-contract + advance-contract + dry-run).
 # Drift detector lives at
 # tests/integration/test_capability_matrix_v1_51_drift.py.
-require_finops_vendor_management = require_capability(
-    Capability.FINOPS_VENDOR_MANAGEMENT
-)
+require_finops_vendor_management = require_capability(Capability.FINOPS_VENDOR_MANAGEMENT)
 
 # Phase 26 (cj-style 185번째 wire) — require_finops_cost_anomaly_ml_prediction
 # (industry-agnostic per CR 12-1 L4 precedent + FINOPS_VENDOR_MANAGEMENT
@@ -574,7 +564,4 @@ require_finops_cost_anomaly_ml_prediction = require_capability(
 # apps/api/modules/finops/interactive_dashboard/ (healthcheck + 4
 # saved_views + execute + unified-kpi + exports + sharing + templates).
 # Drift detector lives at tests/integration/test_capability_matrix_v1_53_drift.py.
-require_finops_interactive_dashboard = require_capability(
-    Capability.FINOPS_INTERACTIVE_DASHBOARD
-)
-
+require_finops_interactive_dashboard = require_capability(Capability.FINOPS_INTERACTIVE_DASHBOARD)

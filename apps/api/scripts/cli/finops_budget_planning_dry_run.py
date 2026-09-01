@@ -23,6 +23,7 @@ CR lessons applied:
 - AD-52 (a) dry-run mode detail.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,9 +50,7 @@ from apps.api.modules.finops.budget_planning.budget_vs_actual import (
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Phase 24 FinOps Budget Planning dry-run CLI"
-    )
+    parser = argparse.ArgumentParser(description="Phase 24 FinOps Budget Planning dry-run CLI")
     parser.add_argument(
         "--finops-budget-planning-dry-run",
         action="store_true",
@@ -133,8 +132,7 @@ async def run_dry_run(args: argparse.Namespace) -> int:
             plan_id=plan["plan_id"],
             total_budget_amount=args.total_budget_amount,
             dim_rows=[
-                {"dimension": dim, "dimension_value": f"default-{dim}"}
-                for dim in args.scope
+                {"dimension": dim, "dimension_value": f"default-{dim}"} for dim in args.scope
             ],
             dry_run=True,
             actor_id=args.actor_id,

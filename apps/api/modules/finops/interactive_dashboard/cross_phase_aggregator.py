@@ -64,6 +64,7 @@ CR lessons applied:
 - D-FINOPS-15 honestly DEFER (multi-modal + causal + LLM + auto-
   remediation + federated + marketplace + streaming + online learning).
 """
+
 from __future__ import annotations
 
 import contextvars
@@ -106,9 +107,7 @@ CROSS_PHASE_ROLLUP_DIMENSIONS: Final[tuple[str, ...]] = (
 )
 
 # Dimension set for O(1) membership check
-CROSS_PHASE_ROLLUP_DIMENSION_SET: Final[frozenset[str]] = frozenset(
-    CROSS_PHASE_ROLLUP_DIMENSIONS
-)
+CROSS_PHASE_ROLLUP_DIMENSION_SET: Final[frozenset[str]] = frozenset(CROSS_PHASE_ROLLUP_DIMENSIONS)
 
 # Trace identifier ContextVar (CR 1-1 FastAPI ContextVar propagation)
 trace_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
@@ -157,9 +156,7 @@ def _validate_modules(modules: list[int]) -> None:
         raise ValueError("modules must be non-empty")
     for module_n in modules:
         if not isinstance(module_n, int):
-            raise ValueError(
-                f"module phase must be int, got {type(module_n).__name__}"
-            )
+            raise ValueError(f"module phase must be int, got {type(module_n).__name__}")
         if module_n < PHASE_LEDGER_MIN_PHASE or module_n > PHASE_LEDGER_MAX_PHASE:
             raise ValueError(
                 f"module phase must be in "
@@ -172,8 +169,7 @@ def _validate_dimension(dimension: str) -> None:
     """Validate dimension is one of the 6-dim cross-rollup."""
     if dimension not in CROSS_PHASE_ROLLUP_DIMENSION_SET:
         raise ValueError(
-            f"dimension must be one of "
-            f"{list(CROSS_PHASE_ROLLUP_DIMENSIONS)}, got {dimension!r}"
+            f"dimension must be one of " f"{list(CROSS_PHASE_ROLLUP_DIMENSIONS)}, got {dimension!r}"
         )
 
 
@@ -187,15 +183,13 @@ def _validate_module_values(
         raise ValueError("module_values must be dict[int, float] or None")
     for phase_n, value in module_values.items():
         if not isinstance(phase_n, int):
-            raise ValueError(
-                f"module_values key must be int, got {type(phase_n).__name__}"
-            )
+            raise ValueError(f"module_values key must be int, got {type(phase_n).__name__}")
         if phase_n < PHASE_LEDGER_MIN_PHASE or phase_n > PHASE_LEDGER_MAX_PHASE:
             raise ValueError(
                 f"module_values key {phase_n} out of range "
                 f"[{PHASE_LEDGER_MIN_PHASE}, {PHASE_LEDGER_MAX_PHASE}]"
             )
-        if not isinstance(value, (int, float)):
+        if not isinstance(value, int | float):
             raise ValueError(
                 f"module_values value for phase {phase_n} must be numeric, "
                 f"got {type(value).__name__}"
@@ -229,10 +223,12 @@ def _weighted_dimension_score(scores: dict[str, float]) -> Decimal:
 
 def _build_unified_kpi_id(tenant_id: str, period_key: str, phase_n: int) -> str:
     """Build deterministic unified_kpi_id from tenant+period+phase (UUID v5)."""
-    return str(uuid.uuid5(
-        uuid.NAMESPACE_DNS,
-        f"{tenant_id}:{period_key}:{phase_n}",
-    ))
+    return str(
+        uuid.uuid5(
+            uuid.NAMESPACE_DNS,
+            f"{tenant_id}:{period_key}:{phase_n}",
+        )
+    )
 
 
 # ── Public functions (PRD §F43.1 + AD-56 (a)) ─────────────────────────────
@@ -292,9 +288,7 @@ def compute_unified_kpi(
     phase_to_value: dict[int, float] = {}
     for phase_n in modules:
         if module_values is not None and phase_n in module_values:
-            phase_to_value[phase_n] = _normalize_phase_metric(
-                phase_n, module_values[phase_n]
-            )
+            phase_to_value[phase_n] = _normalize_phase_metric(phase_n, module_values[phase_n])
         else:
             phase_to_value[phase_n] = 0.0
 
@@ -315,7 +309,7 @@ def compute_unified_kpi(
     budget_consumption_pct = phase_to_value.get(24, 0.0)
     vendor_spend_krw = phase_to_value.get(25, 0.0)
     anomaly_ml_score = phase_to_value.get(26, 0.0)
-    carry_over_metric = phase_to_value.get(27, 0.0)
+    phase_to_value.get(27, 0.0)
 
     # unified_kpi_total = sum of KRW metrics (currency aggregate)
     krw_metric_sum = (
@@ -405,9 +399,7 @@ def aggregate_cross_phase_breakdown(
             raw = 0.0
         elif raw > 1.0:
             raw = 1.0
-        normalized[dim_name] = float(
-            Decimal(str(raw)).quantize(Decimal("0.0001"))
-        )
+        normalized[dim_name] = float(Decimal(str(raw)).quantize(Decimal("0.0001")))
 
     cost_score = normalized["cost"]
     usage_score = normalized["usage"]

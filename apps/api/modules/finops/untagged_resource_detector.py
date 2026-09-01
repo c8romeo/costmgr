@@ -34,10 +34,11 @@ Epic 12 2FA 챌린지 mandatory when remediation_action == auto_remediate.
 NFR4 PII minimization PRESERVED — resource_id hashed.
 NFR18 ko-KR SSOT only invariant.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Final, TypedDict
 
 from apps.api.core.errors import (
@@ -207,7 +208,7 @@ def _detect_untagged_ec2(
             message_ko=f"untagged_threshold_pct {untagged_threshold_pct!r} out of 0-100 range",
             details={"value": str(untagged_threshold_pct)},
         )
-    now = datetime.now(UTC).isoformat()
+    datetime.now(UTC).isoformat()
     return []
 
 
@@ -361,7 +362,7 @@ def detect_untagged_resources(
         RemediationActionError: invalid remediation_action.
     """
     # 1. tenant_id validation
-    if not isinstance(tenant_id, (str, uuid.UUID)):
+    if not isinstance(tenant_id, str | uuid.UUID):
         raise UntaggedResourceDetectionError(
             message_ko=f"tenant_id must be str/UUID, got {type(tenant_id).__name__}",
             details={"tenant_id": str(tenant_id)},
@@ -407,9 +408,9 @@ def detect_untagged_resources(
         )
 
     # 6. untagged_threshold_pct validation
-    if not isinstance(untagged_threshold_pct, (int, float)):
+    if not isinstance(untagged_threshold_pct, int | float):
         raise UntaggedThresholdBreachError(
-            message_ko=f"untagged_threshold_pct must be numeric",
+            message_ko="untagged_threshold_pct must be numeric",
             details={"value": str(untagged_threshold_pct)},
         )
     if not (0.0 <= float(untagged_threshold_pct) <= 100.0):
@@ -435,13 +436,15 @@ def detect_untagged_resources(
         (DETECT_RESOURCE_TYPE_EKS, _detect_untagged_eks),
         (DETECT_RESOURCE_TYPE_VPC, _detect_untagged_vpc),
     ]
-    for resource_type, detector in detectors:
+    for _resource_type, detector in detectors:
         detected = detector(str(tenant_uuid), **common_kwargs)
         results.extend(detected)
 
     # 8. Severity classification + action recommendation
     severity = _classify_severity(len(results))
-    action = _determine_action(severity) if remediation_action == REMEDIATION_NOTIFY_ONLY else remediation_action
+    _determine_action(
+        severity
+    ) if remediation_action == REMEDIATION_NOTIFY_ONLY else remediation_action
 
     return results
 

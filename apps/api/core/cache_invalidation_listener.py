@@ -224,8 +224,7 @@ class ListenerStartFailedError(Exception):
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"CacheInvalidationListener.start() failed: {reason} "
-            f"(trace_id={trace_id!r})"
+            f"CacheInvalidationListener.start() failed: {reason} " f"(trace_id={trace_id!r})"
         )
         self.reason = reason
         self.trace_id = trace_id
@@ -241,8 +240,7 @@ class ListenerStopFailedError(Exception):
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"CacheInvalidationListener.stop() failed: {reason} "
-            f"(trace_id={trace_id!r})"
+            f"CacheInvalidationListener.stop() failed: {reason} " f"(trace_id={trace_id!r})"
         )
         self.reason = reason
         self.trace_id = trace_id
@@ -259,8 +257,7 @@ class ListenerPayloadInvalidError(ValueError):
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"listener payload invalid: {reason} "
-            f"(payload={payload!r}, trace_id={trace_id!r})"
+            f"listener payload invalid: {reason} " f"(payload={payload!r}, trace_id={trace_id!r})"
         )
         self.reason = reason
         self.payload = payload
@@ -281,9 +278,7 @@ class LeaderElectionFailedError(Exception):
         reason: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"leader election failed: {reason} (trace_id={trace_id!r})"
-        )
+        super().__init__(f"leader election failed: {reason} (trace_id={trace_id!r})")
         self.reason = reason
         self.trace_id = trace_id
 
@@ -301,9 +296,7 @@ class LeaderTakeoverFailedError(Exception):
         reason: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"leader takeover failed: {reason} (trace_id={trace_id!r})"
-        )
+        super().__init__(f"leader takeover failed: {reason} (trace_id={trace_id!r})")
         self.reason = reason
         self.trace_id = trace_id
 
@@ -477,10 +470,7 @@ def parse_payload(raw: str) -> CacheInvalidationPayload:
             uuid.UUID(correction_group_id)
         except (ValueError, KeyError) as exc:
             raise ListenerPayloadInvalidError(
-                reason=(
-                    f"{PAYLOAD_KEY_CORRECTION_GROUP_ID} is not a valid UUID: "
-                    f"{exc}"
-                ),
+                reason=(f"{PAYLOAD_KEY_CORRECTION_GROUP_ID} is not a valid UUID: " f"{exc}"),
                 payload=parsed,
                 trace_id="",
             ) from exc
@@ -512,10 +502,7 @@ def parse_payload(raw: str) -> CacheInvalidationPayload:
             uuid.UUID(source_tenant_id)
         except ValueError as exc:
             raise ListenerPayloadInvalidError(
-                reason=(
-                    f"{PAYLOAD_KEY_SOURCE_TENANT_ID} is not a valid UUID: "
-                    f"{exc}"
-                ),
+                reason=(f"{PAYLOAD_KEY_SOURCE_TENANT_ID} is not a valid UUID: " f"{exc}"),
                 payload=parsed,
                 trace_id="",
             ) from exc
@@ -546,8 +533,7 @@ def parse_payload(raw: str) -> CacheInvalidationPayload:
             except ValueError as exc:
                 raise ListenerPayloadInvalidError(
                     reason=(
-                        f"{PAYLOAD_KEY_TARGET_TENANT_IDS}[{idx}] is not a "
-                        f"valid UUID: {exc}"
+                        f"{PAYLOAD_KEY_TARGET_TENANT_IDS}[{idx}] is not a " f"valid UUID: {exc}"
                     ),
                     payload=parsed,
                     trace_id="",
@@ -569,10 +555,7 @@ def parse_payload(raw: str) -> CacheInvalidationPayload:
     tenant_id = parsed[PAYLOAD_KEY_TENANT_ID]
     if not isinstance(tenant_id, str):
         raise ListenerPayloadInvalidError(
-            reason=(
-                f"{PAYLOAD_KEY_TENANT_ID} must be str, "
-                f"got {type(tenant_id).__name__!r}"
-            ),
+            reason=(f"{PAYLOAD_KEY_TENANT_ID} must be str, " f"got {type(tenant_id).__name__!r}"),
             payload=parsed,
             trace_id="",
         )
@@ -606,7 +589,7 @@ def _compute_backoff_seconds(attempt: int) -> float:
     Returns:
         Backoff duration in seconds (always >= 0).
     """
-    raw = _BACKOFF_BASE_SECONDS * (_BACKOFF_FACTOR ** attempt)
+    raw = _BACKOFF_BASE_SECONDS * (_BACKOFF_FACTOR**attempt)
     capped = min(raw, _BACKOFF_MAX_SECONDS)
     jitter = capped * _BACKOFF_JITTER_RATIO
     # Symmetric jitter: capped ± jitter.
@@ -693,19 +676,14 @@ class CacheInvalidationListener:
         """
         if not isinstance(adapter_factories, dict):
             raise ValueError(
-                f"adapter_factories must be dict, got "
-                f"{type(adapter_factories).__name__!r}"
+                f"adapter_factories must be dict, got " f"{type(adapter_factories).__name__!r}"
             )
         missing = ALLOWED_CHANNELS - set(adapter_factories.keys())
         if missing:
-            raise ValueError(
-                f"adapter_factories missing channels: {sorted(missing)}"
-            )
+            raise ValueError(f"adapter_factories missing channels: {sorted(missing)}")
         extra = set(adapter_factories.keys()) - ALLOWED_CHANNELS
         if extra:
-            raise ValueError(
-                f"adapter_factories has unknown channels: {sorted(extra)}"
-            )
+            raise ValueError(f"adapter_factories has unknown channels: {sorted(extra)}")
 
         self._adapter_factories = adapter_factories
         self._conn_factory = conn_factory
@@ -762,9 +740,7 @@ class CacheInvalidationListener:
                     leader_exc,
                 )
         except Exception as exc:
-            logger.exception(
-                "CacheInvalidationListener.start() failed: %s", exc
-            )
+            logger.exception("CacheInvalidationListener.start() failed: %s", exc)
             raise ListenerStartFailedError(
                 reason=str(exc),
                 trace_id=trace_id,
@@ -783,8 +759,7 @@ class CacheInvalidationListener:
             )
         self._is_started = True
         logger.info(
-            "CacheInvalidationListener started (channel=%s, pod_id=%s, "
-            "is_leader=%s)",
+            "CacheInvalidationListener started (channel=%s, pod_id=%s, " "is_leader=%s)",
             NOTIFY_CHANNEL_NAME,
             self._pod_id,
             self._leader_state.is_leader,
@@ -828,16 +803,12 @@ class CacheInvalidationListener:
 
             if self._conn is not None:
                 try:
-                    await self._conn.execute(
-                        f"UNLISTEN {NOTIFY_CHANNEL_NAME}"
-                    )
+                    await self._conn.execute(f"UNLISTEN {NOTIFY_CHANNEL_NAME}")
                 finally:
                     await self._conn.close()
                     self._conn = None
         except Exception as exc:
-            logger.exception(
-                "CacheInvalidationListener.stop() failed: %s", exc
-            )
+            logger.exception("CacheInvalidationListener.stop() failed: %s", exc)
             raise ListenerStopFailedError(
                 reason=str(exc),
                 trace_id=trace_id,
@@ -893,8 +864,7 @@ class CacheInvalidationListener:
                     follower_pod_ids=(),
                 )
                 logger.info(
-                    "Leader election: this process is the LEADER "
-                    "(pod_id=%s, lock_id=%d)",
+                    "Leader election: this process is the LEADER " "(pod_id=%s, lock_id=%d)",
                     self._pod_id,
                     LISTEN_FANOUT_LOCK_ID,
                 )
@@ -905,8 +875,7 @@ class CacheInvalidationListener:
                     follower_pod_ids=(self._pod_id,),
                 )
                 logger.info(
-                    "Leader election: this process is a FOLLOWER "
-                    "(pod_id=%s)",
+                    "Leader election: this process is a FOLLOWER " "(pod_id=%s)",
                     self._pod_id,
                 )
         except Exception as exc:
@@ -962,7 +931,8 @@ class CacheInvalidationListener:
                 raise
             except Exception as exc:
                 logger.warning(
-                    "Leader election loop error: %s", exc,
+                    "Leader election loop error: %s",
+                    exc,
                 )
 
     async def _attempt_takeover(self) -> None:
@@ -1072,9 +1042,7 @@ class CacheInvalidationListener:
 
                 # Circuit breaker threshold.
                 if self._consecutive_failures >= _CIRCUIT_BREAKER_FAIL_THRESHOLD:
-                    self._circuit_open_until = (
-                        time.monotonic() + _CIRCUIT_BREAKER_COOLDOWN_SECONDS
-                    )
+                    self._circuit_open_until = time.monotonic() + _CIRCUIT_BREAKER_COOLDOWN_SECONDS
                     logger.warning(
                         "CacheInvalidationListener circuit breaker OPEN "
                         "for %ss (consecutive failures=%d)",

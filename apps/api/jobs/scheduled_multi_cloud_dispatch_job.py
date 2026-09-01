@@ -31,12 +31,13 @@ CR lessons applied:
 - AD-47 FinOps Multi-Cloud Cost Unified Reconciliation (a)~(g) 7 sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import pytz
 
@@ -53,15 +54,15 @@ logger = logging.getLogger(__name__)
 KST = pytz.timezone("Asia/Seoul")
 
 # 4 cron expressions (PRD §F36.6-2 verbatim).
-DISPATCH_CRON_EXPRESSIONS: Dict[str, str] = {
-    "weekly": "0 9 * * 1",        # KST Monday 09:00
-    "monthly": "0 9 1 * *",       # KST 1st day of month 09:00
+DISPATCH_CRON_EXPRESSIONS: dict[str, str] = {
+    "weekly": "0 9 * * 1",  # KST Monday 09:00
+    "monthly": "0 9 1 * *",  # KST 1st day of month 09:00
     "quarterly": "0 9 1 1,4,7,10 *",  # KST 1st day of quarter
-    "annual": "0 9 1 1 *",        # KST Jan 1 09:00
+    "annual": "0 9 1 1 *",  # KST Jan 1 09:00
 }
 
 # Retry policy (PRD §F36.6-8 verbatim).
-RETRY_BACKOFF_MINUTES: List[int] = [1, 5, 30]
+RETRY_BACKOFF_MINUTES: list[int] = [1, 5, 30]
 MAX_RETRY_COUNT: int = 3
 
 ALL_DISPATCH_SCHEDULES = tuple(DISPATCH_CRON_EXPRESSIONS.keys())
@@ -100,6 +101,7 @@ def _validate_cron_expression(cron_expression: str) -> bool:
     """Validate cron expression via apscheduler."""
     try:
         from apscheduler.triggers.cron import CronTrigger
+
         CronTrigger.from_crontab(cron_expression, timezone=KST)
         return True
     except Exception as exc:
@@ -112,7 +114,7 @@ def _check_idempotency(
     tenant_id: str,
     dispatch_schedule: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> bool:
     """Check dispatch idempotency (PRD §F36.6-7 verbatim).
 
@@ -134,7 +136,7 @@ def _check_idempotency(
 def _dispatch_slack(
     tenant_id: str,
     report_id: str,
-    recipients: Dict[str, Any],
+    recipients: dict[str, Any],
     dry_run: bool = False,
 ) -> bool:
     """Dispatch multi-cloud report to Slack (PRD §F36.6-4 verbatim).
@@ -161,7 +163,7 @@ def _dispatch_slack(
 def _dispatch_email(
     tenant_id: str,
     report_id: str,
-    recipients: Dict[str, Any],
+    recipients: dict[str, Any],
     dry_run: bool = False,
 ) -> bool:
     """Dispatch multi-cloud report via Email (PRD §F36.6-4 verbatim).
@@ -188,7 +190,7 @@ def _dispatch_email(
 def _dispatch_ms_teams(
     tenant_id: str,
     report_id: str,
-    recipients: Dict[str, Any],
+    recipients: dict[str, Any],
     dry_run: bool = False,
 ) -> bool:
     """Dispatch multi-cloud report via MS Teams (PRD §F36.6-4 verbatim).
@@ -266,13 +268,13 @@ def schedule_multi_cloud_dispatch(
     dispatch_schedule: str = "monthly",
     cron_expression: str = "",
     recipient_strategy: str = "owner_only",
-    recipient_list: Optional[Dict[str, Any]] = None,
-    report_id: Optional[str] = None,
-    actor_id: Optional[str] = None,
+    recipient_list: dict[str, Any] | None = None,
+    report_id: str | None = None,
+    actor_id: str | None = None,
     trace_id: str = "",
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
     dry_run: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Schedule multi-cloud dispatch (PRD §F36.6-1 verbatim).
 
     Phase 20 wire (cj-style 144번째) — main entry.
@@ -301,9 +303,7 @@ def schedule_multi_cloud_dispatch(
         MultiCloudCronExpressionInvalidError, MultiCloudDispatchIdempotencyViolationError,
         MultiCloudRecipientResolverError, ScheduledMultiCloudDispatchError.
     """
-    effective_cron = cron_expression or DISPATCH_CRON_EXPRESSIONS.get(
-        dispatch_schedule, ""
-    )
+    effective_cron = cron_expression or DISPATCH_CRON_EXPRESSIONS.get(dispatch_schedule, "")
     _validate_inputs(tenant_id, dispatch_schedule, effective_cron, recipient_strategy)
     _validate_cron_expression(effective_cron)
 
@@ -329,6 +329,7 @@ def schedule_multi_cloud_dispatch(
     if not dry_run:
         try:
             from apps.api.core.audit_action import emit_audit_typed
+
             emit_audit_typed(
                 action="multi_cloud_dashboard_viewed",
                 tenant_id=tenant_id,
@@ -358,7 +359,7 @@ def schedule_multi_cloud_dispatch(
         except ImportError:
             pass
 
-    dispatch: Dict[str, Any] = {
+    dispatch: dict[str, Any] = {
         "dispatch_id": dispatch_id,
         "tenant_id": tenant_id,
         "dispatch_schedule": dispatch_schedule,
@@ -367,8 +368,8 @@ def schedule_multi_cloud_dispatch(
         "recipient_list": recipients,
         "report_id": report_id,
         "status": initial_status,
-        "scheduled_at": datetime.now(tz=timezone.utc),
-        "computed_at": datetime.now(tz=timezone.utc),
+        "scheduled_at": datetime.now(tz=UTC),
+        "computed_at": datetime.now(tz=UTC),
         "trace_id": trace_id,
     }
 

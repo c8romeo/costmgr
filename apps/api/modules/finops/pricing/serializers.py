@@ -44,6 +44,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import enum
@@ -190,9 +191,7 @@ class PricingDispatchSchedule(str, enum.Enum):
     ANNUAL = "annual"
 
 
-ALL_PRICING_DISPATCH_SCHEDULES: list[str] = [
-    d.value for d in PricingDispatchSchedule
-]
+ALL_PRICING_DISPATCH_SCHEDULES: list[str] = [d.value for d in PricingDispatchSchedule]
 
 
 class PricingRecipientStrategy(str, enum.Enum):
@@ -204,9 +203,7 @@ class PricingRecipientStrategy(str, enum.Enum):
     CUSTOM_RECIPIENTS = "custom_recipients"
 
 
-ALL_PRICING_RECIPIENT_STRATEGIES: list[str] = [
-    r.value for r in PricingRecipientStrategy
-]
+ALL_PRICING_RECIPIENT_STRATEGIES: list[str] = [r.value for r in PricingRecipientStrategy]
 
 
 class PricingFramework(str, enum.Enum):
@@ -238,9 +235,7 @@ class PricingKPIThresholdStatus(str, enum.Enum):
     CRITICAL = "critical"
 
 
-ALL_PRICING_KPI_THRESHOLD_STATUSES: list[str] = [
-    s.value for s in PricingKPIThresholdStatus
-]
+ALL_PRICING_KPI_THRESHOLD_STATUSES: list[str] = [s.value for s in PricingKPIThresholdStatus]
 
 
 class RateCardInventory(TypedDict, total=False):

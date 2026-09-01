@@ -111,10 +111,7 @@ class MonthlyClosingReportEmptyError(Exception):
         period_key: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"monthly_closing_report empty for {period_key} "
-            f"(tenant {tenant_id})"
-        )
+        super().__init__(f"monthly_closing_report empty for {period_key} " f"(tenant {tenant_id})")
         self.tenant_id = tenant_id
         self.period_key = period_key
         self.trace_id = trace_id
@@ -136,8 +133,7 @@ class MonthlyClosingReportKrwUsdRateMissingError(Exception):
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"monthly_closing_report KRW/USD 환율 missing for {period_key} "
-            f"(tenant {tenant_id})"
+            f"monthly_closing_report KRW/USD 환율 missing for {period_key} " f"(tenant {tenant_id})"
         )
         self.tenant_id = tenant_id
         self.period_key = period_key
@@ -232,16 +228,10 @@ class MonthlyClosingReportService:
         """
         # Load 4 sources in parallel-friendly sequence (session-level
         # sequential awaits; service layer owns DB I/O).
-        closing_snapshot_events = await self._query_closing_snapshot_events(
-            period_key
-        )
+        closing_snapshot_events = await self._query_closing_snapshot_events(period_key)
         ledger_events = await self._query_ledger_events(period_key)
-        fiscal_period_snapshots = await self._query_fiscal_period_snapshots(
-            period_key
-        )
-        opening_inventory_entries = await self._query_opening_inventory(
-            period_key
-        )
+        fiscal_period_snapshots = await self._query_fiscal_period_snapshots(period_key)
+        opening_inventory_entries = await self._query_opening_inventory(period_key)
         product_code_lookup = await self._query_product_code_lookup(
             {e["product_id"] for e in ledger_events}
             | {e["product_id"] for e in closing_snapshot_events}
@@ -318,8 +308,7 @@ class MonthlyClosingReportService:
         try:
             _currency_q = await self.session.execute(
                 text(
-                    "SELECT onboarding->>'currency' "
-                    "FROM tenant_settings WHERE tenant_id = :tid"
+                    "SELECT onboarding->>'currency' " "FROM tenant_settings WHERE tenant_id = :tid"
                 ),
                 {"tid": str(self.tenant_id)},
             )
@@ -455,9 +444,7 @@ class MonthlyClosingReportService:
             - status='failed' if any per-product qty/cost mismatch.
         """
         # Load 4-source aggregates.
-        closing_snapshot_aggregate = await self._query_closing_snapshot_aggregate(
-            period_key
-        )
+        closing_snapshot_aggregate = await self._query_closing_snapshot_aggregate(period_key)
         ledger_aggregate = await self._query_ledger_aggregate(period_key)
         product_whitelist = await self._query_active_product_whitelist()
 
@@ -710,11 +697,7 @@ class MonthlyClosingReportService:
         if rate_raw is None:
             return None
         try:
-            rate = (
-                Decimal(str(rate_raw))
-                if not isinstance(rate_raw, Decimal)
-                else rate_raw
-            )
+            rate = Decimal(str(rate_raw)) if not isinstance(rate_raw, Decimal) else rate_raw
         except Exception:
             return None
         # M2: source_ko / rate_as_of 도 누락 시 None 반환 (silent

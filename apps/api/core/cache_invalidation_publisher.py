@@ -107,8 +107,7 @@ class CacheInvalidationEmptyChannelSetError(ValueError):
 
     def __init__(self, *, trace_id: str) -> None:
         super().__init__(
-            "publish_multi() requires at least one channel "
-            f"(trace_id={trace_id!r})"
+            "publish_multi() requires at least one channel " f"(trace_id={trace_id!r})"
         )
         self.trace_id = trace_id
 
@@ -175,30 +174,19 @@ class CacheInvalidationPublisher:
             ValueError: input shape violations.
         """
         if not isinstance(tenant_id, uuid.UUID):
-            raise ValueError(
-                f"tenant_id must be UUID, got {type(tenant_id).__name__!r}"
-            )
+            raise ValueError(f"tenant_id must be UUID, got {type(tenant_id).__name__!r}")
         if not isinstance(event_id, uuid.UUID):
-            raise ValueError(
-                f"event_id must be UUID, got {type(event_id).__name__!r}"
-            )
+            raise ValueError(f"event_id must be UUID, got {type(event_id).__name__!r}")
         if not isinstance(correction_group_id, uuid.UUID):
             raise ValueError(
-                f"correction_group_id must be UUID, got "
-                f"{type(correction_group_id).__name__!r}"
+                f"correction_group_id must be UUID, got " f"{type(correction_group_id).__name__!r}"
             )
         if not isinstance(trace_id, str):
-            raise ValueError(
-                f"trace_id must be str, got {type(trace_id).__name__!r}"
-            )
+            raise ValueError(f"trace_id must be str, got {type(trace_id).__name__!r}")
         if not isinstance(channel, str):
-            raise ValueError(
-                f"channel must be str, got {type(channel).__name__!r}"
-            )
+            raise ValueError(f"channel must be str, got {type(channel).__name__!r}")
         if channel not in ALLOWED_CHANNELS:
-            raise CacheInvalidationChannelInvalidError(
-                channel=channel, trace_id=trace_id
-            )
+            raise CacheInvalidationChannelInvalidError(channel=channel, trace_id=trace_id)
 
         # Defense-in-depth: trace_id non-empty.
         if not trace_id:
@@ -255,42 +243,28 @@ class CacheInvalidationPublisher:
             ValueError: input shape violations.
         """
         if not isinstance(channels, list | tuple):
-            raise ValueError(
-                f"channels must be list or tuple, got "
-                f"{type(channels).__name__!r}"
-            )
+            raise ValueError(f"channels must be list or tuple, got " f"{type(channels).__name__!r}")
         if not channels:
             raise CacheInvalidationEmptyChannelSetError(trace_id=trace_id)
 
         # Validate ALL channels first (fail-fast — report the first invalid).
         for ch in channels:
             if not isinstance(ch, str):
-                raise ValueError(
-                    f"channel must be str, got {type(ch).__name__!r}"
-                )
+                raise ValueError(f"channel must be str, got {type(ch).__name__!r}")
             if ch not in ALLOWED_CHANNELS:
-                raise CacheInvalidationChannelInvalidError(
-                    channel=ch, trace_id=trace_id
-                )
+                raise CacheInvalidationChannelInvalidError(channel=ch, trace_id=trace_id)
 
         # Validate the shared inputs ONCE (publish() would re-validate).
         if not isinstance(tenant_id, uuid.UUID):
-            raise ValueError(
-                f"tenant_id must be UUID, got {type(tenant_id).__name__!r}"
-            )
+            raise ValueError(f"tenant_id must be UUID, got {type(tenant_id).__name__!r}")
         if not isinstance(event_id, uuid.UUID):
-            raise ValueError(
-                f"event_id must be UUID, got {type(event_id).__name__!r}"
-            )
+            raise ValueError(f"event_id must be UUID, got {type(event_id).__name__!r}")
         if not isinstance(correction_group_id, uuid.UUID):
             raise ValueError(
-                f"correction_group_id must be UUID, got "
-                f"{type(correction_group_id).__name__!r}"
+                f"correction_group_id must be UUID, got " f"{type(correction_group_id).__name__!r}"
             )
         if not isinstance(trace_id, str):
-            raise ValueError(
-                f"trace_id must be str, got {type(trace_id).__name__!r}"
-            )
+            raise ValueError(f"trace_id must be str, got {type(trace_id).__name__!r}")
         if not trace_id:
             raise ValueError("trace_id must be non-empty")
 

@@ -38,24 +38,24 @@ CR lessons applied:
 - AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from apps.api.core.errors import (
-    ExecutiveRollupInvalidError,
-    ExecutiveRollupScopeError,
-    ExecutiveRollupPeriodError,
     ExecutiveRollupCrossModuleJoinError,
+    ExecutiveRollupInvalidError,
+    ExecutiveRollupPeriodError,
+    ExecutiveRollupScopeError,
 )
 from apps.api.modules.finops.reporting.serializers import (
     ALL_SCOPE_TYPES,
-    REPORTING_DEFAULTS,
-    ExecutiveRollup,
     REPORTING_ENGINE_MODEL_VERSION,
+    ExecutiveRollup,
 )
 
 logger = logging.getLogger(__name__)
@@ -117,15 +117,13 @@ def _is_valid_period_key(period_key: str) -> bool:
             return 1 <= quarter <= 4
         except ValueError:
             return False
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def compute_showback_total(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> float:
     """Extract showback_total_krw from Phase 11 module.
 
@@ -141,6 +139,7 @@ def compute_showback_total(
     try:
         # Real DB query path (Phase 11 wire EXTENSION).
         from apps.api.modules.finops.showback_query import query_showback_breakdown
+
         result = query_showback_breakdown(
             db_session=db_session,
             tenant_id=tenant_id,
@@ -157,7 +156,7 @@ def compute_showback_total(
 
 def compute_anomaly_count_30d(
     tenant_id: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> int:
     """Extract anomaly_count_30d from Phase 12 module.
 
@@ -171,7 +170,6 @@ def compute_anomaly_count_30d(
         )
         return 0
     try:
-        from apps.api.modules.finops.anomaly_detection import detect_anomaly
         # Phase 12 EXTENSION: count anomalies with severity in ('high', 'critical')
         # within last 30 days. Real query goes through anomaly_detection_engine.
         return 0  # default for dry-run path
@@ -186,7 +184,7 @@ def compute_anomaly_count_30d(
 def compute_forecast_projection(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> float:
     """Extract forecast_projection_krw from Phase 13 module.
 
@@ -200,7 +198,6 @@ def compute_forecast_projection(
         )
         return 0.0
     try:
-        from apps.api.modules.finops.forecast_engine import generate_forecast
         return 0.0  # default for dry-run path
     except Exception as exc:
         logger.warning(
@@ -213,7 +210,7 @@ def compute_forecast_projection(
 def compute_optimization_savings(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> float:
     """Extract optimization_savings_krw from Phase 14 module.
 
@@ -227,9 +224,6 @@ def compute_optimization_savings(
         )
         return 0.0
     try:
-        from apps.api.modules.finops.optimization_accuracy_tracker import (
-            check_accuracy_degradation,
-        )
         return 0.0  # default for dry-run path
     except Exception as exc:
         logger.warning(
@@ -242,7 +236,7 @@ def compute_optimization_savings(
 def compute_tag_compliance_pct(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> float:
     """Extract tag_compliance_pct from Phase 15 module.
 
@@ -256,7 +250,6 @@ def compute_tag_compliance_pct(
         )
         return 0.0
     try:
-        from apps.api.modules.finops.tag_policy_dsl import parse_tag_policy
         return 0.0  # default for dry-run path
     except Exception as exc:
         logger.warning(
@@ -269,7 +262,7 @@ def compute_tag_compliance_pct(
 def compute_idle_cost_krw(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> float:
     """Extract idle_cost_krw from Phase 14 idle resource detector.
 
@@ -283,9 +276,6 @@ def compute_idle_cost_krw(
         )
         return 0.0
     try:
-        from apps.api.modules.finops.idle_resource_detector import (
-            detect_idle_resources,
-        )
         return 0.0  # default for dry-run path
     except Exception as exc:
         logger.warning(
@@ -301,7 +291,7 @@ def aggregate_executive_dashboard(
     scope_id: str = "",
     period_key: str = "",
     trace_id: str = "",
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
     dry_run: bool = False,
 ) -> ExecutiveRollup:
     """Aggregate 5-module cross-join into ExecutiveRollup.
@@ -398,7 +388,7 @@ def aggregate_executive_dashboard(
         "department_breakdown": {},
         "cost_center_breakdown": {},
         "resource_type_breakdown": {},
-        "generated_at": datetime.now(tz=timezone.utc),
+        "generated_at": datetime.now(tz=UTC),
         "trace_id": trace_id,
     }
 

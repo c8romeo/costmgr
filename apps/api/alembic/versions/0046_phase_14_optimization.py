@@ -113,6 +113,7 @@ Plus 4 preview tables (F30.8.2 verbatim):
 - phase_14_finops_idle_resource_preview
 - phase_14_finops_commitment_preview
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -268,9 +269,7 @@ def upgrade() -> None:
         "phase_14_finops_optimization_definition",
         f"status IN {VALID_OPTIMIZATION_STATUSES!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_14_finops_optimization_definition ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_14_finops_optimization_definition ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_14_finops_optimization_definition_tenant_isolation
@@ -355,9 +354,7 @@ def upgrade() -> None:
         "phase_14_finops_rightsizing_recommendation",
         f"recommendation_severity IN {VALID_RECOMMENDATION_SEVERITIES!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_14_finops_rightsizing_recommendation ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_14_finops_rightsizing_recommendation ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_14_finops_rightsizing_recommendation_tenant_isolation
@@ -439,9 +436,7 @@ def upgrade() -> None:
         "phase_14_finops_idle_resource",
         f"detection_method IN {VALID_DETECTION_METHODS!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_14_finops_idle_resource ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_14_finops_idle_resource ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_14_finops_idle_resource_tenant_isolation
@@ -535,9 +530,7 @@ def upgrade() -> None:
         "phase_14_finops_commitment_recommendation",
         f"recommendation_severity IN {VALID_RECOMMENDATION_SEVERITIES!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_14_finops_commitment_recommendation ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_14_finops_commitment_recommendation ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_14_finops_commitment_recommendation_tenant_isolation
@@ -620,9 +613,7 @@ def upgrade() -> None:
         "phase_14_finops_optimization_accuracy",
         f"optimization_strategy IN {VALID_OPTIMIZATION_STRATEGIES!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_14_finops_optimization_accuracy ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_14_finops_optimization_accuracy ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_14_finops_optimization_accuracy_tenant_isolation
@@ -674,9 +665,7 @@ def upgrade() -> None:
         "phase_14_finops_optimization_preview",
         ["preview_id"],
     )
-    op.execute(
-        "ALTER TABLE phase_14_finops_optimization_preview ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_14_finops_optimization_preview ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_14_finops_optimization_preview_tenant_isolation
@@ -689,15 +678,27 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema — drop 6 tables in reverse order."""
-    op.execute("DROP POLICY IF EXISTS phase_14_finops_optimization_preview_tenant_isolation ON phase_14_finops_optimization_preview;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_14_finops_optimization_preview_tenant_isolation ON phase_14_finops_optimization_preview;"
+    )
     op.drop_table("phase_14_finops_optimization_preview")
-    op.execute("DROP POLICY IF EXISTS phase_14_finops_optimization_accuracy_tenant_isolation ON phase_14_finops_optimization_accuracy;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_14_finops_optimization_accuracy_tenant_isolation ON phase_14_finops_optimization_accuracy;"
+    )
     op.drop_table("phase_14_finops_optimization_accuracy")
-    op.execute("DROP POLICY IF EXISTS phase_14_finops_commitment_recommendation_tenant_isolation ON phase_14_finops_commitment_recommendation;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_14_finops_commitment_recommendation_tenant_isolation ON phase_14_finops_commitment_recommendation;"
+    )
     op.drop_table("phase_14_finops_commitment_recommendation")
-    op.execute("DROP POLICY IF EXISTS phase_14_finops_idle_resource_tenant_isolation ON phase_14_finops_idle_resource;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_14_finops_idle_resource_tenant_isolation ON phase_14_finops_idle_resource;"
+    )
     op.drop_table("phase_14_finops_idle_resource")
-    op.execute("DROP POLICY IF EXISTS phase_14_finops_rightsizing_recommendation_tenant_isolation ON phase_14_finops_rightsizing_recommendation;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_14_finops_rightsizing_recommendation_tenant_isolation ON phase_14_finops_rightsizing_recommendation;"
+    )
     op.drop_table("phase_14_finops_rightsizing_recommendation")
-    op.execute("DROP POLICY IF EXISTS phase_14_finops_optimization_definition_tenant_isolation ON phase_14_finops_optimization_definition;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_14_finops_optimization_definition_tenant_isolation ON phase_14_finops_optimization_definition;"
+    )
     op.drop_table("phase_14_finops_optimization_definition")

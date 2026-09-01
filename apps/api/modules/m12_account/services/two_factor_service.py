@@ -202,11 +202,7 @@ class TwoFactorService:
         """
         user = await self._load_user(user_id, tenant_id)
         if user.twofa_enabled:
-            enabled_at_iso = (
-                user.totp_enabled_at.isoformat()
-                if user.totp_enabled_at
-                else "unknown"
-            )
+            enabled_at_iso = user.totp_enabled_at.isoformat() if user.totp_enabled_at else "unknown"
             raise TwoFactorAlreadyEnabledError(
                 user_id=user_id,
                 enabled_at=enabled_at_iso,
@@ -322,7 +318,11 @@ class TwoFactorService:
         # Check lockout
         now = _now_utc()
         if lockout_status(_to_totp_state(user), now=int(now.timestamp())):
-            retry_after = user.totp_lockout_until - now if user.totp_lockout_until else LOCKOUT_DURATION_SECONDS
+            retry_after = (
+                user.totp_lockout_until - now
+                if user.totp_lockout_until
+                else LOCKOUT_DURATION_SECONDS
+            )
             raise TotpLockoutError(retry_after_seconds=int(retry_after.total_seconds()))
 
         # Verify code
@@ -404,7 +404,11 @@ class TwoFactorService:
         # Check lockout first
         now = _now_utc()
         if lockout_status(_to_totp_state(user), now=int(now.timestamp())):
-            retry_after = user.totp_lockout_until - now if user.totp_lockout_until else LOCKOUT_DURATION_SECONDS
+            retry_after = (
+                user.totp_lockout_until - now
+                if user.totp_lockout_until
+                else LOCKOUT_DURATION_SECONDS
+            )
             raise TotpLockoutError(retry_after_seconds=int(retry_after.total_seconds()))
 
         # Decrypt + verify
@@ -557,8 +561,7 @@ class TwoFactorService:
         # the same recovery code can be reused.
         now_iso = _now_utc().isoformat()
         new_hashes = [
-            {**h, "used_at": now_iso} if i == result.code_index else h
-            for i, h in enumerate(hashes)
+            {**h, "used_at": now_iso} if i == result.code_index else h for i, h in enumerate(hashes)
         ]
         user.totp_recovery_codes_hash = new_hashes
         user.totp_failed_attempts = 0
@@ -649,8 +652,7 @@ class TwoFactorService:
             if len(reason) < 20:
                 raise TwoFactorDisableUnauthorizedError(
                     user_id=user_id,
-                    reason=f"admin override reason too short "
-                    f"(len={len(reason)}, expected ≥20)",
+                    reason=f"admin override reason too short " f"(len={len(reason)}, expected ≥20)",
                     trace_id=str(uuid.uuid4()),
                 )
         else:
@@ -731,18 +733,12 @@ class TwoFactorService:
             "user_id": str(user.id),
             "tenant_id": str(user.tenant_id),
             "totp_enabled": bool(user.twofa_enabled),
-            "totp_enabled_at": (
-                user.totp_enabled_at.isoformat()
-                if user.totp_enabled_at
-                else None
-            ),
+            "totp_enabled_at": (user.totp_enabled_at.isoformat() if user.totp_enabled_at else None),
             "recovery_codes_remaining": remaining,
             "failed_attempts": user.totp_failed_attempts or 0,
             "locked_out": bool(locked),
             "lockout_until": (
-                user.totp_lockout_until.isoformat()
-                if user.totp_lockout_until
-                else None
+                user.totp_lockout_until.isoformat() if user.totp_lockout_until else None
             ),
             "trace_id": str(uuid.uuid4()),
         }
@@ -766,11 +762,7 @@ class TwoFactorService:
         Raises:
             TwoFactorUserNotFoundError: If user_id not found or wrong tenant.
         """
-        stmt = (
-            select(User)
-            .where(User.id == user_id)
-            .where(User.tenant_id == tenant_id)
-        )
+        stmt = select(User).where(User.id == user_id).where(User.tenant_id == tenant_id)
         if lock_for_update:
             stmt = stmt.with_for_update()
         result = await self.session.execute(stmt)
@@ -790,9 +782,7 @@ class TwoFactorService:
         """
         user.totp_failed_attempts = (user.totp_failed_attempts or 0) + 1
         if user.totp_failed_attempts >= MAX_FAILED_ATTEMPTS:
-            user.totp_lockout_until = _now_utc() + timedelta(
-                seconds=LOCKOUT_DURATION_SECONDS
-            )
+            user.totp_lockout_until = _now_utc() + timedelta(seconds=LOCKOUT_DURATION_SECONDS)
         await self.session.flush()
 
 

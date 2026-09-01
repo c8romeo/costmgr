@@ -56,6 +56,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT (finops_interactive_dashboard.* namespace).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -96,9 +97,7 @@ DRILL_DOWN_DIMENSIONS: Final[tuple[str, ...]] = (
     "cloud_provider",
     "service",
 )
-DRILL_DOWN_DIMENSION_SET: Final[frozenset[str]] = frozenset(
-    DRILL_DOWN_DIMENSIONS
-)
+DRILL_DOWN_DIMENSION_SET: Final[frozenset[str]] = frozenset(DRILL_DOWN_DIMENSIONS)
 
 # 7-dim granularity (PRD §F43.2 verbatim)
 GRANULARITIES: Final[tuple[str, ...]] = (
@@ -113,14 +112,16 @@ GRANULARITIES: Final[tuple[str, ...]] = (
 GRANULARITY_SET: Final[frozenset[str]] = frozenset(GRANULARITIES)
 
 # Allowed chart types (per Phase 28 spec §F43.2)
-ALLOWED_CHART_TYPES: Final[frozenset[str]] = frozenset({
-    "line",
-    "bar",
-    "area",
-    "pie",
-    "table",
-    "radar",
-})
+ALLOWED_CHART_TYPES: Final[frozenset[str]] = frozenset(
+    {
+        "line",
+        "bar",
+        "area",
+        "pie",
+        "table",
+        "radar",
+    }
+)
 
 # Module-level in-memory cache: (tenant_id, view_id) → (SavedView, cached_at)
 _VIEW_CACHE: dict[tuple[str, str], tuple[SavedView, datetime]] = {}
@@ -179,7 +180,7 @@ def _validate_filter_by(filter_by: dict[str, Any]) -> None:
         return
     if not isinstance(filter_by, dict):
         raise ValueError("filter_by must be dict or None")
-    for key, value in filter_by.items():
+    for key, _value in filter_by.items():
         if not isinstance(key, str):
             raise ValueError("filter_by keys must be str")
 
@@ -192,17 +193,14 @@ def _validate_group_by(group_by: list[str]) -> None:
         raise ValueError("group_by must be list[str] or None")
     for dim in group_by:
         if dim not in DRILL_DOWN_DIMENSION_SET:
-            raise ValueError(
-                f"group_by entry {dim!r} not in DRILL_DOWN_DIMENSIONS"
-            )
+            raise ValueError(f"group_by entry {dim!r} not in DRILL_DOWN_DIMENSIONS")
 
 
 def _validate_chart_type(chart_type: str) -> None:
     """Validate chart_type is one of ALLOWED_CHART_TYPES."""
     if chart_type not in ALLOWED_CHART_TYPES:
         raise ValueError(
-            f"chart_type must be one of "
-            f"{sorted(ALLOWED_CHART_TYPES)}, got {chart_type!r}"
+            f"chart_type must be one of " f"{sorted(ALLOWED_CHART_TYPES)}, got {chart_type!r}"
         )
 
 
@@ -212,8 +210,7 @@ def _validate_template_id(template_id: str | None) -> None:
         return
     if template_id not in PREDEFINED_VIEW_TEMPLATES:
         raise ValueError(
-            f"template_id must be one of "
-            f"{list(PREDEFINED_VIEW_TEMPLATES)}, got {template_id!r}"
+            f"template_id must be one of " f"{list(PREDEFINED_VIEW_TEMPLATES)}, got {template_id!r}"
         )
 
 
@@ -228,9 +225,7 @@ def _enforce_view_limit(tenant_id: str) -> None:
 
 
 # ── Cache helpers ─────────────────────────────────────────────────────────
-def _cache_get(
-    tenant_id: str, view_id: str
-) -> SavedView | None:
+def _cache_get(tenant_id: str, view_id: str) -> SavedView | None:
     """Read from in-memory cache with TTL check."""
     key = (tenant_id, view_id)
     entry = _VIEW_CACHE.get(key)
@@ -306,18 +301,11 @@ def create_saved_view(
     _validate_tenant_id(tenant_id)
     _validate_filter_by(view_config.get("filter_by"))
     _validate_group_by(view_config.get("group_by"))
-    _validate_chart_type(
-        view_config.get("chart_type", DEFAULT_VIEW_CHART_TYPE)
-    )
+    _validate_chart_type(view_config.get("chart_type", DEFAULT_VIEW_CHART_TYPE))
     _validate_template_id(template_id)
     _enforce_view_limit(tenant_id)
 
-    final_view_name = (
-        view_name
-        or template_id
-        or view_config.get("view_name")
-        or "Custom View"
-    )
+    final_view_name = view_name or template_id or view_config.get("view_name") or "Custom View"
     _validate_view_name(final_view_name)
 
     saved_view_id = _generate_id()
@@ -371,9 +359,7 @@ def read_saved_view(tenant_id: str, view_id: str) -> SavedView:
     tenant_views = _TENANT_VIEWS.get(tenant_id, {})
     saved_view = tenant_views.get(view_id)
     if saved_view is None:
-        raise ValueError(
-            f"saved_view not found: tenant_id={tenant_id}, view_id={view_id}"
-        )
+        raise ValueError(f"saved_view not found: tenant_id={tenant_id}, view_id={view_id}")
 
     _cache_put(saved_view)
     return saved_view
@@ -411,27 +397,13 @@ def update_saved_view(
     if view_config is not None:
         _validate_filter_by(view_config.get("filter_by", saved_view["filter_by"]))
         _validate_group_by(view_config.get("group_by", saved_view["group_by"]))
-        _validate_chart_type(
-            view_config.get("chart_type", saved_view["chart_type"])
-        )
-        saved_view["filter_by"] = dict(
-            view_config.get("filter_by", saved_view["filter_by"])
-        )
-        saved_view["group_by"] = list(
-            view_config.get("group_by", saved_view["group_by"])
-        )
-        saved_view["sort_by"] = view_config.get(
-            "sort_by", saved_view["sort_by"]
-        )
-        saved_view["chart_type"] = view_config.get(
-            "chart_type", saved_view["chart_type"]
-        )
-        saved_view["time_range"] = view_config.get(
-            "time_range", saved_view["time_range"]
-        )
-        saved_view["layout"] = view_config.get(
-            "layout", saved_view["layout"]
-        )
+        _validate_chart_type(view_config.get("chart_type", saved_view["chart_type"]))
+        saved_view["filter_by"] = dict(view_config.get("filter_by", saved_view["filter_by"]))
+        saved_view["group_by"] = list(view_config.get("group_by", saved_view["group_by"]))
+        saved_view["sort_by"] = view_config.get("sort_by", saved_view["sort_by"])
+        saved_view["chart_type"] = view_config.get("chart_type", saved_view["chart_type"])
+        saved_view["time_range"] = view_config.get("time_range", saved_view["time_range"])
+        saved_view["layout"] = view_config.get("layout", saved_view["layout"])
 
     if view_name is not None:
         _validate_view_name(view_name)
@@ -468,9 +440,7 @@ def delete_saved_view(tenant_id: str, view_id: str) -> bool:
 
     tenant_views = _TENANT_VIEWS.get(tenant_id, {})
     if view_id not in tenant_views:
-        raise ValueError(
-            f"saved_view not found: tenant_id={tenant_id}, view_id={view_id}"
-        )
+        raise ValueError(f"saved_view not found: tenant_id={tenant_id}, view_id={view_id}")
 
     del tenant_views[view_id]
     _cache_invalidate(tenant_id, view_id)
@@ -549,10 +519,7 @@ def list_saved_views(
     for view in tenant_views.values():
         if not include_shared and view["is_shared"]:
             continue
-        if (
-            filter_template_id is not None
-            and view["template_id"] != filter_template_id
-        ):
+        if filter_template_id is not None and view["template_id"] != filter_template_id:
             continue
         results.append(view)
 

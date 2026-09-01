@@ -21,6 +21,7 @@ Implements GDPR Article 17 right to erasure for audit log entries:
     - `AuditLogPiiErasureNotFoundError(404)`
     - `AuditLogPiiErasureForbiddenError(403)`
 """
+
 from __future__ import annotations
 
 import logging
@@ -55,7 +56,9 @@ class AuditLogPiiErasureForbiddenError(Exception):
         super().__init__(message_ko)
 
 
-def mask_pii_fields(payload_json: dict[str, Any], fields: list[str] | None = None) -> dict[str, Any]:
+def mask_pii_fields(
+    payload_json: dict[str, Any], fields: list[str] | None = None
+) -> dict[str, Any]:
     """AES-256-GCM NFR6 PII field masking — replace values with `[REDACTED]`.
 
     Default masked fields: ['actor_email', 'actor_phone', 'payload_json.user_data'].

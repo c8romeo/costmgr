@@ -30,6 +30,7 @@ CR lessons applied:
 AD-22 owner-only RBAC — recommend_commitments owner-only.
 Epic 12 2FA 챌린지 mandatory when auto-apply is enabled.
 """
+
 from __future__ import annotations
 
 import uuid

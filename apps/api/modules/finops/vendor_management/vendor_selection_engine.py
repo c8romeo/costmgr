@@ -23,6 +23,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT.
 - D-FINOPS-14 honestly DEFER.
 """
+
 from __future__ import annotations
 
 import logging
@@ -269,7 +270,8 @@ def aggregate_vendor_selection(
 
     # Sort by weighted_total_score descending; exclude those below threshold
     selected = [
-        (v, s) for v, s in scored
+        (v, s)
+        for v, s in scored
         if apply_vendor_selection_threshold(
             vendor=v, weighted_total_score=s["weighted_total_score"], threshold=threshold
         )

@@ -29,13 +29,13 @@ CR lessons applied:
 - D-FINOPS-12 honestly DEFER (cost_per_customer CRM + multi-currency
   FX + real-time stream — all honestly DEFER to future Phase 23.x).
 """
+
 from __future__ import annotations
 
 import argparse
 import asyncio
 import logging
 import sys
-from datetime import datetime
 from typing import Any
 
 import pytz
@@ -52,9 +52,9 @@ KST = pytz.timezone("Asia/Seoul")
 
 # 4 cron expressions (PRD §F39.1-2 verbatim).
 UNIT_ECONOMICS_CALCULATION_CRON_KST: dict[str, str] = {
-    "daily": "30 3 * * *",            # 03:30 KST daily
-    "weekly": "0 4 * * 1",            # 04:00 KST weekly Monday
-    "monthly": "30 4 1 * *",          # 04:30 KST monthly 1st-day
+    "daily": "30 3 * * *",  # 03:30 KST daily
+    "weekly": "0 4 * * 1",  # 04:00 KST weekly Monday
+    "monthly": "30 4 1 * *",  # 04:30 KST monthly 1st-day
     "quarterly": "0 5 1 1,4,7,10 *",  # 05:00 KST quarterly 1st-day
 }
 
@@ -179,8 +179,7 @@ async def run_scheduled_calculation(
     ]
 
     logger.info(
-        "scheduled_unit_economics_calculation_start cadence=%s tenant=%s "
-        "dry_run=%s cost=%.2f",
+        "scheduled_unit_economics_calculation_start cadence=%s tenant=%s " "dry_run=%s cost=%.2f",
         cadence,
         tenant_id,
         dry_run,
@@ -225,8 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     dry_run = args.finops_unit_economics_dry_run or args.legacy_dry_run
 
     logger.info(
-        "scheduled_unit_economics_calculation_cli cadence=%s tenant=%s "
-        "source=%s dry_run=%s",
+        "scheduled_unit_economics_calculation_cli cadence=%s tenant=%s " "source=%s dry_run=%s",
         args.cadence,
         args.tenant_id,
         args.source_settlement_id,
@@ -260,8 +258,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     except Exception as exc:
         logger.exception(
-            "scheduled_unit_economics_calculation_failed cadence=%s tenant=%s "
-            "err=%s",
+            "scheduled_unit_economics_calculation_failed cadence=%s tenant=%s " "err=%s",
             args.cadence,
             args.tenant_id,
             exc,

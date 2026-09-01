@@ -45,12 +45,12 @@ CR lessons applied:
 - AD-47 FinOps Multi-Cloud Cost Unified Reconciliation (a)~(g) 7 sub-decisions.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import hashlib
 import logging
 from datetime import UTC, datetime
-from datetime import timedelta
 from typing import Any
 
 from apps.api.core.errors import (
@@ -63,10 +63,8 @@ from apps.api.modules.finops.multi_cloud.serializers import (
     ALL_MARKETPLACE_SAAS_CATEGORIES,
     ALL_MARKETPLACE_SOURCES,
     ALL_MARKETPLACE_UNITS,
-    MULTI_CLOUD_DEFAULTS,
     MarketplaceIntegrationStatus,
     MarketplacePricingModel,
-    MarketplaceSaaSCategory,
     MarketplaceSaaSPricingRollup,
     MarketplaceSource,
     MarketplaceUnit,
@@ -119,9 +117,7 @@ def _validate_inputs(
         )
 
 
-def _fetch_aws_marketplace_pricing(
-    vendor_name: str, product_name: str
-) -> dict[str, Any]:
+def _fetch_aws_marketplace_pricing(vendor_name: str, product_name: str) -> dict[str, Any]:
     """AWS Marketplace adapter (PRD §F36.5-3 verbatim)."""
     return {
         "vendor_name": vendor_name,
@@ -135,9 +131,7 @@ def _fetch_aws_marketplace_pricing(
     }
 
 
-def _fetch_azure_marketplace_pricing(
-    vendor_name: str, product_name: str
-) -> dict[str, Any]:
+def _fetch_azure_marketplace_pricing(vendor_name: str, product_name: str) -> dict[str, Any]:
     """Azure Marketplace adapter (PRD §F36.5-3 verbatim)."""
     return {
         "vendor_name": vendor_name,
@@ -151,9 +145,7 @@ def _fetch_azure_marketplace_pricing(
     }
 
 
-def _fetch_gcp_marketplace_pricing(
-    vendor_name: str, product_name: str
-) -> dict[str, Any]:
+def _fetch_gcp_marketplace_pricing(vendor_name: str, product_name: str) -> dict[str, Any]:
     """GCP Marketplace adapter (PRD §F36.5-3 verbatim)."""
     return {
         "vendor_name": vendor_name,
@@ -167,9 +159,7 @@ def _fetch_gcp_marketplace_pricing(
     }
 
 
-def _fetch_naver_marketplace_pricing(
-    vendor_name: str, product_name: str
-) -> dict[str, Any]:
+def _fetch_naver_marketplace_pricing(vendor_name: str, product_name: str) -> dict[str, Any]:
     """Naver Marketplace adapter (PRD §F36.5-3 verbatim)."""
     return {
         "vendor_name": vendor_name,
@@ -183,9 +173,7 @@ def _fetch_naver_marketplace_pricing(
     }
 
 
-def _fetch_kt_marketplace_pricing(
-    vendor_name: str, product_name: str
-) -> dict[str, Any]:
+def _fetch_kt_marketplace_pricing(vendor_name: str, product_name: str) -> dict[str, Any]:
     """KT Marketplace adapter (PRD §F36.5-3 verbatim)."""
     return {
         "vendor_name": vendor_name,
@@ -271,7 +259,9 @@ def _suggest_alternatives(
         savings_pct = (current_effective_price - alt_price) / current_effective_price * 100.0
         if savings_pct > savings_threshold_pct:
             recommended_count += 1
-            savings_total_krw += (current_effective_price - alt_price) * 12.0  # 12 month savings baseline
+            savings_total_krw += (
+                current_effective_price - alt_price
+            ) * 12.0  # 12 month savings baseline
         elif savings_pct >= 5.0:
             manual_review_count += 1
             savings_total_krw += (current_effective_price - alt_price) * 12.0 * 0.5
@@ -299,12 +289,15 @@ def _persist_marketplace_pricing(
     if dry_run:
         logger.info(
             "marketplace_saas_pricing_dry_run tenant=%s source=%s",
-            tenant_id, marketplace_source,
+            tenant_id,
+            marketplace_source,
         )
         return {"persisted": False, "preview_id": marketplace_pricing_id}
     logger.info(
         "marketplace_saas_pricing_persisted pricing=%s tenant=%s source=%s",
-        marketplace_pricing_id, tenant_id, marketplace_source,
+        marketplace_pricing_id,
+        tenant_id,
+        marketplace_source,
     )
     return {
         "persisted": True,
@@ -379,9 +372,9 @@ def integrate_marketplace_saas_pricing(
     )
 
     marketplace_pricing_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode("utf-8")
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest()
     )
 
     now = datetime.now(UTC)
@@ -389,7 +382,8 @@ def integrate_marketplace_saas_pricing(
     last_synced_at = now
 
     freshness = _compute_marketplace_freshness(
-        last_synced_at=last_synced_at, now=now,
+        last_synced_at=last_synced_at,
+        now=now,
     )
     if freshness["is_stale"] and not dry_run:
         raise MarketplaceSaaSPricingFreshnessError(
@@ -402,9 +396,7 @@ def integrate_marketplace_saas_pricing(
     alternatives: dict[str, Any] = {"alternatives": [], "saas_category": saas_category}
     if candidate_pricing:
         alternatives = _suggest_alternatives(
-            current_effective_price=float(
-                normalized["effective_price_krw_per_unit"]
-            ),
+            current_effective_price=float(normalized["effective_price_krw_per_unit"]),
             candidate_pricing=candidate_pricing,
             saas_category=saas_category,
         )
@@ -418,21 +410,18 @@ def integrate_marketplace_saas_pricing(
         "product_name": normalized["product_name"],
         "sku": normalized["sku"],
         "list_price_krw_per_unit": float(normalized["list_price_krw_per_unit"]),
-        "negotiated_price_krw_per_unit": float(
-            normalized["negotiated_price_krw_per_unit"]
-        ),
-        "effective_price_krw_per_unit": float(
-            normalized["effective_price_krw_per_unit"]
-        ),
+        "negotiated_price_krw_per_unit": float(normalized["negotiated_price_krw_per_unit"]),
+        "effective_price_krw_per_unit": float(normalized["effective_price_krw_per_unit"]),
         "unit": normalized["unit"],
         "saas_category": saas_category,
         "pricing_model": normalized["pricing_model"],
         "integration_status": normalized["integration_status"],
         "last_synced_at": last_synced_at,
         "computed_at": now,
-        "trace_id": trace_id or hashlib.sha256(
+        "trace_id": trace_id
+        or hashlib.sha256(
             f"{tenant_id}:marketplace:{marketplace_source}:"
-            f"{vendor_name}:{product_name}".encode("utf-8")
+            f"{vendor_name}:{product_name}".encode()
         ).hexdigest()[:32],
     }
 
@@ -446,9 +435,10 @@ def integrate_marketplace_saas_pricing(
 
     if not dry_run:
         logger.info(
-            "marketplace_saas_pricing_integrated pricing=%s tenant=%s "
-            "source=%s alternatives=%s",
-            marketplace_pricing_id[:12], tenant_id, marketplace_source,
+            "marketplace_saas_pricing_integrated pricing=%s tenant=%s " "source=%s alternatives=%s",
+            marketplace_pricing_id[:12],
+            tenant_id,
+            marketplace_source,
             alternatives.get("recommended_count", 0),
         )
 

@@ -39,6 +39,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT (finops_interactive_dashboard.* namespace).
 """
+
 from __future__ import annotations
 
 # Phase 28 territory version

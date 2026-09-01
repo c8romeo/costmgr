@@ -43,6 +43,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -84,9 +85,7 @@ ALL_RECONCILIATION_STATUSES: list[str] = [
 
 def _round_to_krw(amount: float) -> float:
     """Banker's rounding to 0.01 KRW (CR 5-1)."""
-    return float(
-        Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
-    )
+    return float(Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN))
 
 
 def _compute_reconciliation_id(
@@ -95,9 +94,7 @@ def _compute_reconciliation_id(
     retry_attempt: int,
 ) -> str:
     """Compute SHA-256 reconciliation ID."""
-    payload = (
-        f"{tenant_id}:{result_id}:{retry_attempt}:chargeback_settlement_reconciliation"
-    )
+    payload = f"{tenant_id}:{result_id}:{retry_attempt}:chargeback_settlement_reconciliation"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -177,9 +174,7 @@ def _compute_variance(
             "ledger_variance_krw": _round_to_krw(ledger_amount_krw - allocation_amount_krw),
             "ledger_variance_pct": 0.0
             if allocation_amount_krw == 0
-            else (ledger_amount_krw - allocation_amount_krw)
-            / allocation_amount_krw
-            * 100,
+            else (ledger_amount_krw - allocation_amount_krw) / allocation_amount_krw * 100,
         }
     invoice_variance_krw = invoice_amount_krw - allocation_amount_krw
     invoice_variance_pct = invoice_variance_krw / allocation_amount_krw * 100
@@ -389,9 +384,12 @@ def reconcile_settlement(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{result_id}:{period_key}:reconcile".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(f"{tenant_id}:{result_id}:{period_key}:reconcile".encode()).hexdigest()[
+            :32
+        ]
+    )
 
     target_amount = target_amount_krw if target_amount_krw is not None else allocation_amount_krw
 
@@ -443,9 +441,7 @@ def reconcile_settlement(
                 # Simulate variance reduction by 50% per retry
                 current_variance_pct = current_variance_pct * 0.5
                 variance["variance_pct"] = round(current_variance_pct, 4)
-                variance["variance_krw"] = _round_to_krw(
-                    invoice_amount_krw - allocation_amount_krw
-                )
+                variance["variance_krw"] = _round_to_krw(invoice_amount_krw - allocation_amount_krw)
             else:
                 # retry_exhausted → break
                 break
@@ -514,6 +510,7 @@ def reconcile_settlement(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_CHARGEBACK_SETTLEMENT,

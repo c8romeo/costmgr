@@ -34,6 +34,7 @@ Epic 12 2FA 챌린지 mandatory when governance_required=True.
 Industry-agnostic per CR 12-1 L4 precedent. All 4 industries get
 FINOPS_BUDGET_ALERT capability.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -243,9 +244,7 @@ def route_budget_alert(
         )
 
     consumption_pct = float(consumption_decimal / budget_decimal)
-    alert_level = _determine_alert_level(
-        consumption_pct, budget["alert_thresholds"]
-    )
+    alert_level = _determine_alert_level(consumption_pct, budget["alert_thresholds"])
 
     if alert_level == "":
         return BudgetAlert(
@@ -257,9 +256,7 @@ def route_budget_alert(
             consumption_pct=consumption_pct,
             consumption_amount=str(consumption_decimal),
             budget_amount=budget["amount"],
-            routing=AlertRouting(
-                channels=[], recipients=[], retry_policy="none"
-            ),
+            routing=AlertRouting(channels=[], recipients=[], retry_policy="none"),
             status="below_threshold",
             created_at=datetime.now(UTC).isoformat(),
             trace_id=trace_id,
@@ -276,9 +273,7 @@ def route_budget_alert(
             consumption_pct=consumption_pct,
             consumption_amount=str(consumption_decimal),
             budget_amount=budget["amount"],
-            routing=AlertRouting(
-                channels=[], recipients=[], retry_policy="none"
-            ),
+            routing=AlertRouting(channels=[], recipients=[], retry_policy="none"),
             status=ALERT_STATUS_DEDUPLICATED,
             created_at=datetime.now(UTC).isoformat(),
             trace_id=trace_id,

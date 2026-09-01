@@ -127,17 +127,13 @@ async def sso_acs(
     relay_state_b64 = form.get("RelayState", "")
 
     if not saml_response_b64:
-        return _saml_error_response(
-            SAMLInvalidResponseError(reason="saml_response_missing")
-        )
+        return _saml_error_response(SAMLInvalidResponseError(reason="saml_response_missing"))
 
     # Tenant slug derived from the in-process request store.
     request_id = form.get("request_id", "")
     tenant_slug = _lookup_saml_request(request_id) if request_id else None
     if not tenant_slug:
-        return _saml_error_response(
-            SAMLInvalidResponseError(reason="request_id_unknown")
-        )
+        return _saml_error_response(SAMLInvalidResponseError(reason="request_id_unknown"))
 
     # Per-tenant IdP cert (Epic 16 T5: dynamic load from tenant_idps).
     # Falls back to the Epic 15 placeholder if no row exists for the
@@ -154,9 +150,7 @@ async def sso_acs(
             "-----END CERTIFICATE-----"
         )
     except TenantIdPDisabledError:
-        return _saml_error_response(
-            SAMLInvalidResponseError(reason="tenant_idp_disabled")
-        )
+        return _saml_error_response(SAMLInvalidResponseError(reason="tenant_idp_disabled"))
 
     ctx = SAMLValidationContext(
         acs_url=str(request.url),
@@ -229,8 +223,8 @@ async def sso_metadata(
         f'    <AssertionConsumerService index="0"'
         f' Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"\n'
         f'      Location="https://api.costmgr.example.com/api/v1/auth/sso/acs?tenant={tenant_slug}"/>\n'
-        '  </SPSSODescriptor>\n'
-        '</EntityDescriptor>\n'
+        "  </SPSSODescriptor>\n"
+        "</EntityDescriptor>\n"
     )
     return Response(content=xml, media_type="application/samlmetadata+xml")
 

@@ -45,9 +45,7 @@ REAL_PERIOD_KEY_PATTERN: Final[str] = r"^\d{4}-(0[1-9]|1[0-2])$"
 # AD-24 virtual budget period pattern (Story 8.1 신규 — M8 only).
 # Real fiscal key (`2026-07`) 는 invalid — virtual only.
 # group(1) = YYYY, group(2) = MM, group(3) = scenario_index
-VIRTUAL_BUDGET_PERIOD_KEY_PATTERN: Final[str] = (
-    r"^(\d{4})-(0[1-9]|1[0-2])#B([1-9]\d*)$"
-)
+VIRTUAL_BUDGET_PERIOD_KEY_PATTERN: Final[str] = r"^(\d{4})-(0[1-9]|1[0-2])#B([1-9]\d*)$"
 
 # 1차 MVP scenario 한도 (PRD §F8.1 verbatim + §15 NON-GOAL #2).
 # scenario_index=1 only (2nd scenario = `scenario_index=2` 는 honestly DEFER
@@ -57,12 +55,11 @@ MVP_MAX_SCENARIOS_PER_TENANT: Final[int] = 1
 
 # Scenario limit Korean message SSOT (PRD §F8.1 verbatim — CR 12-5 D-14 envelope).
 # main.py handler → HTTP 409 SCENARIO_LIMIT_EXCEEDED.
-SCENARIO_LIMIT_EXCEEDED_MESSAGE_KO: Final[str] = (
-    "1차 MVP는 시나리오 1개만 지원합니다 (2차 예정)"
-)
+SCENARIO_LIMIT_EXCEEDED_MESSAGE_KO: Final[str] = "1차 MVP는 시나리오 1개만 지원합니다 (2차 예정)"
 
 # Hash prefix for compute_budget_scenario_hash (V8 determinism trace).
 SCENARIO_HASH_PREFIX: Final[str] = "sha256:"
+
 
 # ── Frozen dataclasses ───────────────────────────────────────
 @dataclass(frozen=True, slots=True)
@@ -171,22 +168,16 @@ def derive_budget_period_key(
     V8 determinism: 100회 동일 입력 → 100회 byte-identical 문자열.
     """
     if not isinstance(real_period_key, str):
-        raise ValueError(
-            f"real_period_key must be str, got {type(real_period_key).__name__}"
-        )
+        raise ValueError(f"real_period_key must be str, got {type(real_period_key).__name__}")
     if not _REAL_PERIOD_KEY_RE.match(real_period_key):
         raise ValueError("real_period_key must match YYYY-MM")
     if not isinstance(scenario_index, int):
-        raise ValueError(
-            f"scenario_index must be int, got {type(scenario_index).__name__}"
-        )
+        raise ValueError(f"scenario_index must be int, got {type(scenario_index).__name__}")
     if scenario_index <= 0:
         raise ValueError("scenario_index must be >= 1")
     if scenario_index > MVP_SCENARIO_INDEX:
         # 1차 MVP 한도 — 2차 multi-scenario는 8-2 DEFER (b).
-        raise ValueError(
-            "MVP supports scenario_index=1 only; 2차 예정"
-        )
+        raise ValueError("MVP supports scenario_index=1 only; 2차 예정")
     return f"{real_period_key}#B{scenario_index}"
 
 
@@ -254,9 +245,7 @@ def validate_scenario_uniqueness(*, existing_count: int) -> None:
         envelope main.py handler → HTTP 409 SCENARIO_LIMIT_EXCEEDED).
     """
     if not isinstance(existing_count, int):
-        raise ValueError(
-            f"existing_count must be int, got {type(existing_count).__name__}"
-        )
+        raise ValueError(f"existing_count must be int, got {type(existing_count).__name__}")
     if existing_count < 0:
         raise ValueError("existing_count must be >= 0")
     if existing_count >= MVP_MAX_SCENARIOS_PER_TENANT:
@@ -281,8 +270,6 @@ def compute_budget_scenario_hash(*, scenario: BudgetScenario) -> str:
       `f"sha256:{32-char-hexdigest}"`.
     """
     if not isinstance(scenario, BudgetScenario):
-        raise ValueError(
-            f"scenario must be BudgetScenario, got {type(scenario).__name__}"
-        )
+        raise ValueError(f"scenario must be BudgetScenario, got {type(scenario).__name__}")
     digest = hashlib.sha256(repr(scenario).encode()).hexdigest()
     return f"{SCENARIO_HASH_PREFIX}{digest}"

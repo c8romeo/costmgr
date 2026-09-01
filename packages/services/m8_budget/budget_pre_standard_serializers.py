@@ -26,6 +26,7 @@ def serialize_abcd_disabled_badge_wrapper(
     from packages.services.m8_budget.budget_variance_serializers import (
         serialize_abcd_disabled_badge as _serialize,
     )
+
     return _serialize(badge)  # type: ignore[arg-type]
 
 

@@ -19,6 +19,7 @@ policy DSL:
 
 All values are class-scoped; cross-class dedup is the route layer's job.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -28,9 +29,7 @@ from typing import Any, Literal
 
 RetentionClass = Literal["admin", "auth", "data", "security"]
 
-VALID_RETENTION_CLASSES: frozenset[str] = frozenset(
-    {"admin", "auth", "data", "security"}
-)
+VALID_RETENTION_CLASSES: frozenset[str] = frozenset({"admin", "auth", "data", "security"})
 
 # ── Default retention days (verbatim carry-over) ───────────────────
 # admin    = 5 years (1825d)  — Epic 12 close-out retro §6 NFR4 (5년 audit_logs)

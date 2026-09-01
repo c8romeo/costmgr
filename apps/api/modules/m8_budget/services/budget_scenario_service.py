@@ -84,10 +84,7 @@ class BudgetScenarioService:
 
         RLS same-tenant filter (AD-3). Returns 0 or 1 (1차 MVP 한도).
         """
-        stmt = (
-            select(BudgetScenario)
-            .where(BudgetScenario.tenant_id == self.tenant_id)
-        )
+        stmt = select(BudgetScenario).where(BudgetScenario.tenant_id == self.tenant_id)
         result = await self.session.execute(stmt)
         rows = result.scalars().all()
         return len(rows)
@@ -113,9 +110,7 @@ class BudgetScenarioService:
             defense-in-depth — translate to ScenarioLimitExceededError).
         """
         # 1. Pure kernel derive (scenario_index=1 hard-coded — 1차 MVP 한도).
-        period_key = derive_budget_period_key(
-            real_period_key=real_period_key, scenario_index=1
-        )
+        period_key = derive_budget_period_key(real_period_key=real_period_key, scenario_index=1)
 
         # 2. Scenario lock — `existing_count >= 1` 시 ScenarioLimitExceededError.
         existing_count = await self.count_scenarios()
@@ -189,12 +184,9 @@ class BudgetScenarioService:
         parse_virtual_budget_period_key(period_key=period_key)
 
         # 2. DB read.
-        stmt = (
-            select(BudgetScenario)
-            .where(
-                BudgetScenario.tenant_id == self.tenant_id,
-                BudgetScenario.period_key == period_key,
-            )
+        stmt = select(BudgetScenario).where(
+            BudgetScenario.tenant_id == self.tenant_id,
+            BudgetScenario.period_key == period_key,
         )
         result = await self.session.execute(stmt)
         row = result.scalar_one_or_none()

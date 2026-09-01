@@ -47,6 +47,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -82,9 +83,7 @@ ALLOCATION_AMOUNT_QUANTUM = Decimal("0.01")  # KRW 1 jeon
 
 def _round_to_krw(amount: float) -> float:
     """Banker's rounding (CR 5-1 verbatim) to 0.01 KRW."""
-    return float(
-        Decimal(str(amount)).quantize(ALLOCATION_AMOUNT_QUANTUM, rounding=ROUND_HALF_EVEN)
-    )
+    return float(Decimal(str(amount)).quantize(ALLOCATION_AMOUNT_QUANTUM, rounding=ROUND_HALF_EVEN))
 
 
 def _compute_cache_key(
@@ -93,9 +92,7 @@ def _compute_cache_key(
     period_key: str,
 ) -> str:
     """Compute SHA-256 cache key for AllocationEngine result."""
-    payload = (
-        f"{tenant_id}:{result_id}:{period_key}:chargeback_settlement_allocation"
-    )
+    payload = f"{tenant_id}:{result_id}:{period_key}:chargeback_settlement_allocation"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -276,9 +273,11 @@ def _compute_confidence_pct(
     target_match_pct = (
         100.0 * sum(1 for d in target_dimensions if d in per_dim) / len(target_dimensions)
     )
-    ledger_present_pct = 100.0 * sum(
-        1 for d in target_dimensions if per_dim.get(d, {}).get("ledger_amount_krw", 0.0) > 0
-    ) / len(target_dimensions)
+    ledger_present_pct = (
+        100.0
+        * sum(1 for d in target_dimensions if per_dim.get(d, {}).get("ledger_amount_krw", 0.0) > 0)
+        / len(target_dimensions)
+    )
     # Weighted average: 50/50
     return round(0.5 * target_match_pct + 0.5 * ledger_present_pct, 2)
 
@@ -355,9 +354,12 @@ def compute_allocation(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{result_id}:{period_key}:allocation".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(f"{tenant_id}:{result_id}:{period_key}:allocation".encode()).hexdigest()[
+            :32
+        ]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -424,6 +426,7 @@ def compute_allocation(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_CHARGEBACK_SETTLEMENT,

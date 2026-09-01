@@ -175,23 +175,17 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_phase_4_backup_strategy_backup_type",
         "phase_4_backup_strategy",
-        sa.text(
-            "backup_type IN ('auto_pitr', 'manual_admin', 'manual_export')"
-        ),
+        sa.text("backup_type IN ('auto_pitr', 'manual_admin', 'manual_export')"),
     )
     op.create_check_constraint(
         "ck_phase_4_backup_strategy_status",
         "phase_4_backup_strategy",
-        sa.text(
-            "status IN ('in_progress', 'completed', 'failed')"
-        ),
+        sa.text("status IN ('in_progress', 'completed', 'failed')"),
     )
     op.create_check_constraint(
         "ck_phase_4_backup_strategy_completed_after_started",
         "phase_4_backup_strategy",
-        sa.text(
-            "completed_at IS NULL OR completed_at >= started_at"
-        ),
+        sa.text("completed_at IS NULL OR completed_at >= started_at"),
     )
 
 

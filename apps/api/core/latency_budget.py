@@ -37,6 +37,7 @@ Phase 7 wire + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW Epic
 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim).
 All 4 industries get PERFORMANCE_TESTING capability.
 """
+
 from __future__ import annotations
 
 import os
@@ -46,9 +47,7 @@ from contextvars import ContextVar
 from typing import Any, Final, TypedDict
 
 # ── ContextVar for request-scoped trace_id (CR 1-1 ContextVar verbatim) ──
-_current_trace_id: ContextVar[str | None] = ContextVar(
-    "latency_budget_trace_id", default=None
-)
+_current_trace_id: ContextVar[str | None] = ContextVar("latency_budget_trace_id", default=None)
 
 
 def set_current_trace_id(trace_id: str) -> None:
@@ -149,8 +148,7 @@ class LatencyRegressionThresholdExceededError(Exception):
         trace_id: str,
     ) -> None:
         super().__init__(
-            f"latency_budget: {endpoint!r} p99={actual_p99_ms}ms exceeded "
-            f"budget={budget_ms}ms"
+            f"latency_budget: {endpoint!r} p99={actual_p99_ms}ms exceeded " f"budget={budget_ms}ms"
         )
         self.endpoint = endpoint
         self.actual_p99_ms = actual_p99_ms
@@ -254,9 +252,7 @@ class LatencyBudgetMiddleware:
         # endpoint → deque[float] of observed p99 latency samples (ms)
         self._samples: dict[str, deque[float]] = {}
         # Dry-run override from env (Phase 7 OTEL_SDK_DISABLED pattern)
-        self._global_dry_run: bool = os.environ.get(
-            "LATENCY_BUDGET_GLOBAL_DRY_RUN", "0"
-        ) == "1"
+        self._global_dry_run: bool = os.environ.get("LATENCY_BUDGET_GLOBAL_DRY_RUN", "0") == "1"
 
     async def __call__(self, scope, receive, send) -> None:  # noqa: ANN001
         if scope["type"] != "http":

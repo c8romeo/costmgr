@@ -37,13 +37,13 @@ Phase 6 wire + AUDIT_LOG_VIEW Epic 17 wire + MULTI_REGION_BACKUP/
 FAILOVER Phase 5 wire pattern verbatim). All 4 industries get
 FINOPS_SHOWBACK capability.
 """
+
 from __future__ import annotations
 
 import uuid
-from typing import Any, Final, Literal, TypedDict
+from typing import Final, TypedDict
 
 from apps.api.core.errors import ShowbackDefinitionInvalidError
-
 
 # ── Constants — 5 group_by options (PRD §F27.1.1 verbatim) ─────
 GROUP_BY_DEPARTMENT: Final[str] = "department"
@@ -52,13 +52,15 @@ GROUP_BY_PRODUCT_LINE: Final[str] = "product_line"
 GROUP_BY_SERVICE: Final[str] = "service"
 GROUP_BY_CUSTOM_TAG: Final[str] = "custom_tag"
 
-ALLOWED_GROUP_BY: Final[frozenset[str]] = frozenset({
-    GROUP_BY_DEPARTMENT,
-    GROUP_BY_COST_CENTER,
-    GROUP_BY_PRODUCT_LINE,
-    GROUP_BY_SERVICE,
-    GROUP_BY_CUSTOM_TAG,
-})
+ALLOWED_GROUP_BY: Final[frozenset[str]] = frozenset(
+    {
+        GROUP_BY_DEPARTMENT,
+        GROUP_BY_COST_CENTER,
+        GROUP_BY_PRODUCT_LINE,
+        GROUP_BY_SERVICE,
+        GROUP_BY_CUSTOM_TAG,
+    }
+)
 
 
 # ── Constants — 6 period selector modes (PRD §F27.1.5 verbatim) ─
@@ -69,14 +71,16 @@ PERIOD_LAST_6_MONTHS: Final[str] = "last_6_months"
 PERIOD_YTD: Final[str] = "ytd"
 PERIOD_CUSTOM_RANGE: Final[str] = "custom_range"
 
-ALLOWED_PERIOD_MODES: Final[frozenset[str]] = frozenset({
-    PERIOD_CURRENT_MONTH,
-    PERIOD_PREVIOUS_MONTH,
-    PERIOD_LAST_3_MONTHS,
-    PERIOD_LAST_6_MONTHS,
-    PERIOD_YTD,
-    PERIOD_CUSTOM_RANGE,
-})
+ALLOWED_PERIOD_MODES: Final[frozenset[str]] = frozenset(
+    {
+        PERIOD_CURRENT_MONTH,
+        PERIOD_PREVIOUS_MONTH,
+        PERIOD_LAST_3_MONTHS,
+        PERIOD_LAST_6_MONTHS,
+        PERIOD_YTD,
+        PERIOD_CUSTOM_RANGE,
+    }
+)
 
 
 # ── Constants — 4 industries baseline (CR 12-1 L4 verbatim) ─────
@@ -85,12 +89,14 @@ INDUSTRY_SERVICE: Final[str] = "service"
 INDUSTRY_MANUFACTURING_SERVICE: Final[str] = "manufacturing_service"
 INDUSTRY_MANUFACTURING_SERVICE_OTHER: Final[str] = "manufacturing_service_other"
 
-ALLOWED_INDUSTRIES: Final[frozenset[str]] = frozenset({
-    INDUSTRY_MANUFACTURING,
-    INDUSTRY_SERVICE,
-    INDUSTRY_MANUFACTURING_SERVICE,
-    INDUSTRY_MANUFACTURING_SERVICE_OTHER,
-})
+ALLOWED_INDUSTRIES: Final[frozenset[str]] = frozenset(
+    {
+        INDUSTRY_MANUFACTURING,
+        INDUSTRY_SERVICE,
+        INDUSTRY_MANUFACTURING_SERVICE,
+        INDUSTRY_MANUFACTURING_SERVICE_OTHER,
+    }
+)
 
 
 # ── Constants — pagination defaults (PRD §F27.1.9 verbatim) ─────
@@ -105,13 +111,15 @@ COMPARISON_PREVIOUS_6_MONTHS: Final[str] = "previous_6_months"
 COMPARISON_PREVIOUS_YEAR_SAME_MONTH: Final[str] = "previous_year_same_month"
 COMPARISON_NONE: Final[str] = "none"
 
-ALLOWED_COMPARISON_PERIODS: Final[frozenset[str]] = frozenset({
-    COMPARISON_PREVIOUS_MONTH,
-    COMPARISON_PREVIOUS_3_MONTHS,
-    COMPARISON_PREVIOUS_6_MONTHS,
-    COMPARISON_PREVIOUS_YEAR_SAME_MONTH,
-    COMPARISON_NONE,
-})
+ALLOWED_COMPARISON_PERIODS: Final[frozenset[str]] = frozenset(
+    {
+        COMPARISON_PREVIOUS_MONTH,
+        COMPARISON_PREVIOUS_3_MONTHS,
+        COMPARISON_PREVIOUS_6_MONTHS,
+        COMPARISON_PREVIOUS_YEAR_SAME_MONTH,
+        COMPARISON_NONE,
+    }
+)
 
 
 # ── TypedDict — ShowbackDefinition (13 fields, PRD §F27.1.1) ────

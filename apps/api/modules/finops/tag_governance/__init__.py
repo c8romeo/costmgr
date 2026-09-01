@@ -31,6 +31,7 @@ AD-42 FinOps Tag Governance & Cost Allocation 신규 (Phase 15) —
 (g) L4 industry-agnostic capability FINOPS_TAG_GOVERNANCE with
     4-industry grants ✅/✅/✅/✅ (CR 12-1 verbatim pattern).
 """
+
 from __future__ import annotations
 
 from apps.api.modules.finops.tag_governance.serializers import (

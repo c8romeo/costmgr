@@ -64,15 +64,9 @@ ERROR_CODE_NON_UUID_TENANT: Final[str] = "NON_UUID_TENANT_ID"
 REOPEN_AUTHORIZE_OK_KO: Final[str] = "재오픈 승인 완료"
 REOPEN_REJECT_NOT_OWNER_KO: Final[str] = "소유자 역할이 아닙니다 — 재오픈 불가"
 REOPEN_REJECT_NO_CAPABILITY_KO: Final[str] = "재오픈 권한 미보유"
-REOPEN_REJECT_INVALID_OPERATOR_KO: Final[str] = (
-    "재오픈 사유 분류가 올바르지 않습니다"
-)
-REOPEN_REJECT_REASON_TOO_SHORT_KO: Final[str] = (
-    "재오픈 사유는 20자 이상이어야 합니다"
-)
-REOPEN_REJECT_REASON_TOO_LONG_KO: Final[str] = (
-    "재오픈 사유는 500자 이하여야 합니다"
-)
+REOPEN_REJECT_INVALID_OPERATOR_KO: Final[str] = "재오픈 사유 분류가 올바르지 않습니다"
+REOPEN_REJECT_REASON_TOO_SHORT_KO: Final[str] = "재오픈 사유는 20자 이상이어야 합니다"
+REOPEN_REJECT_REASON_TOO_LONG_KO: Final[str] = "재오픈 사유는 500자 이하여야 합니다"
 
 
 # ── Typed exception ──────────────────────────────────────────

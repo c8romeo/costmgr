@@ -66,9 +66,7 @@ V4_RULE_CODE: Final[str] = "V4"
 
 # V4 skip reason (Korean SSOT for service-only tenant + empty aggregate).
 V4_SKIP_REASON_SERVICE_ONLY_KO: Final[str] = "service-only tenant은 inventory 의미 없음"
-V4_SKIP_REASON_EMPTY_AGGREGATE_KO: Final[str] = (
-    "기말재고 ledger aggregate 비어있음 — V4 SKIP"
-)
+V4_SKIP_REASON_EMPTY_AGGREGATE_KO: Final[str] = "기말재고 ledger aggregate 비어있음 — V4 SKIP"
 
 # V4 fail Korean message SSOT (AD-15 §11 parity with TS).
 V4_FAIL_MESSAGE_KO: Final[str] = (
@@ -183,10 +181,7 @@ def verify_monthly_closing_report_consistency(
         )
 
     # V4 SKIP — all aggregates empty (no ledger events at all)
-    if (
-        not ledger_aggregate
-        and not closing_snapshot_aggregate
-    ):
+    if not ledger_aggregate and not closing_snapshot_aggregate:
         return _v4_skipped(
             reason_ko=V4_SKIP_REASON_EMPTY_AGGREGATE_KO,
             whitelist_size=len(product_whitelist),
@@ -200,9 +195,7 @@ def verify_monthly_closing_report_consistency(
     # When a product is in closing_snapshot but not in ledger aggregate,
     # default to 0 (no ledger entry) — and vice versa.
     all_product_ids: set[uuid.UUID] = (
-        set(ledger_aggregate)
-        | set(closing_snapshot_aggregate)
-        | set(product_whitelist)
+        set(ledger_aggregate) | set(closing_snapshot_aggregate) | set(product_whitelist)
     )
 
     for pid in sorted(all_product_ids, key=str):

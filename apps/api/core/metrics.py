@@ -31,6 +31,7 @@ leakage prevention (CR 0-2 RLS + NFR4 PII minimization).
 Drift detector: tests/api/core/test_phase_7_metrics.py enforces
 BusinessMetric enum ↔ Prometheus collector parity.
 """
+
 from __future__ import annotations
 
 import os
@@ -86,9 +87,7 @@ ALLOWED_INDUSTRIES: Final[frozenset[str]] = frozenset(
 )
 
 # Plan — from packages.services.m0_onboarding.plan_menu.Plan (CR 12-1 L4)
-ALLOWED_PLANS: Final[frozenset[str]] = frozenset(
-    {"free", "starter", "pro", "enterprise"}
-)
+ALLOWED_PLANS: Final[frozenset[str]] = frozenset({"free", "starter", "pro", "enterprise"})
 
 # Login method
 ALLOWED_LOGIN_METHODS: Final[frozenset[str]] = frozenset(
@@ -275,15 +274,13 @@ def set_active_tenants(count: int) -> None:
     business_active_tenants_gauge.set(count)
 
 
-def record_ai_extraction_duration(
-    *, model: str, outcome: str, duration_seconds: float
-) -> None:
+def record_ai_extraction_duration(*, model: str, outcome: str, duration_seconds: float) -> None:
     """Observe business_ai_extraction_duration_seconds{model, outcome}."""
     _validate_labels("model", model, ALLOWED_MODELS)
     _validate_labels("outcome", outcome, ALLOWED_OUTCOMES)
-    business_ai_extraction_duration_seconds.labels(
-        model=model, outcome=outcome
-    ).observe(duration_seconds)
+    business_ai_extraction_duration_seconds.labels(model=model, outcome=outcome).observe(
+        duration_seconds
+    )
 
 
 # ────────────────────────────────────────────────────────────

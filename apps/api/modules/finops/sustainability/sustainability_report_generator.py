@@ -38,6 +38,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -74,7 +75,9 @@ def _compute_report_cache_key(
     framework: str,
 ) -> str:
     """Compute SHA-256 cache key for SustainabilityReport."""
-    payload = f"{tenant_id}:{period_key}:{cadence}:{export_format}:{framework}:sustainability_report"
+    payload = (
+        f"{tenant_id}:{period_key}:{cadence}:{export_format}:{framework}:sustainability_report"
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -316,7 +319,9 @@ def render_excel_report(
         scope_sheet.write_row(1, 0, ["Scope 1", kpi_summary.get("scope1_emissions_kgco2e", 0.0)])
         scope_sheet.write_row(2, 0, ["Scope 2", kpi_summary.get("scope2_emissions_kgco2e", 0.0)])
         scope_sheet.write_row(3, 0, ["Scope 3", kpi_summary.get("scope3_emissions_kgco2e", 0.0)])
-        scope_sheet.write_row(4, 0, ["Offset (VCU+CER+KCU)", kpi_summary.get("carbon_offset_kgco2e", 0.0)])
+        scope_sheet.write_row(
+            4, 0, ["Offset (VCU+CER+KCU)", kpi_summary.get("carbon_offset_kgco2e", 0.0)]
+        )
 
         # Sheet 3: Compliance
         compliance_sheet = workbook.add_worksheet("Compliance")
@@ -360,7 +365,9 @@ def archive_report_to_s3(
             extra={"tenant_id": tenant_id, "report_id": report_id},
         )
         # Return synthetic URL for dry-run path.
-        return f"s3://costmgr-sustainability-reports/dry_run/{tenant_id}/{report_id}.{export_format}"
+        return (
+            f"s3://costmgr-sustainability-reports/dry_run/{tenant_id}/{report_id}.{export_format}"
+        )
 
     try:
         # Real S3 archive upload path (Phase 17 wire EXTENSION).
@@ -415,9 +422,7 @@ def generate_sustainability_report(
     """
     _validate_inputs(tenant_id, period_key, cadence, export_format, framework)
 
-    cache_key = _compute_report_cache_key(
-        tenant_id, period_key, cadence, export_format, framework
-    )
+    cache_key = _compute_report_cache_key(tenant_id, period_key, cadence, export_format, framework)
 
     # Compute KPI summary via Phase 17 sustainability KPI selector.
     try:

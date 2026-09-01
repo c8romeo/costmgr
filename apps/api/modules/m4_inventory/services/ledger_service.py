@@ -281,9 +281,7 @@ class LedgerService:
         # defensively convert. If parsing fails (e.g. middleware passes
         # a non-hex trace string), fall back to a fresh event_id UUID.
         try:
-            trace_id_uuid = (
-                uuid.UUID(self.trace_id) if self.trace_id else _mint_event_id()
-            )
+            trace_id_uuid = uuid.UUID(self.trace_id) if self.trace_id else _mint_event_id()
         except (TypeError, ValueError, AttributeError):
             trace_id_uuid = _mint_event_id()
         try:

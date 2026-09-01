@@ -68,17 +68,21 @@ def upgrade() -> None:
         "ALTER TABLE tenants ADD CONSTRAINT tenants_status_check "
         "CHECK (status IN ('active', 'pending_deletion', 'deleted'))"
     )
-    op.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMPTZ NULL")
+    op.execute(
+        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMPTZ NULL"
+    )
     op.execute(
         "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_requested_by_user_id "
         "UUID NULL REFERENCES users(id) ON DELETE SET NULL"
     )
-    op.execute(
-        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_consent_id UUID NULL"
-    )
+    op.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_consent_id UUID NULL")
     # FK to deletion_consents(consent_id) added AFTER deletion_consents table created below.
-    op.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_scheduled_for TIMESTAMPTZ NULL")
-    op.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_anonymized_at TIMESTAMPTZ NULL")
+    op.execute(
+        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_scheduled_for TIMESTAMPTZ NULL"
+    )
+    op.execute(
+        "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deletion_anonymized_at TIMESTAMPTZ NULL"
+    )
 
     # ── deletion_consents NEW TABLE ───────────────────────────────
     op.execute(
@@ -156,12 +160,12 @@ def upgrade() -> None:
         "'Story 12.3 — deletion consent forensic record (AES-256-GCM ciphertext + SHA-256 hash). "
         "AD-2 INSERT-only enforced by trigger. Plaintext consent text is NEVER stored. "
         "Cron: apps/api/jobs/tenant_hard_delete.py (KST 04:00, 30-day sweep after pending_deletion). "
-        "NFR4 2절: 5년 audit 보존; NFR6 AES-256-GCM distinct AAD b\"deletion_consent\".'"
+        'NFR4 2절: 5년 audit 보존; NFR6 AES-256-GCM distinct AAD b"deletion_consent".\''
     )
     op.execute(
         "COMMENT ON COLUMN deletion_consents.encrypted_consent_text IS "
         "'AES-256-GCM ciphertext (28-byte overhead: 12-nonce + ct + 16-tag). "
-        "Distinct AAD b\"deletion_consent\" per NFR6 column-level encryption. "
+        'Distinct AAD b"deletion_consent" per NFR6 column-level encryption. '
         "Plaintext consent text is reconstructed in-memory ONLY for the audit envelope dump.'"
     )
     op.execute(

@@ -508,6 +508,20 @@ app.include_router(executive_dashboard_router)
 # CRUD + allocation + invoice generation + reconciliation + cadence
 # dispatch + cadence-preview + healthcheck. ALLOWED_SERVICE_SUBMODULES
 # EXTENSION m30_finops_chargeback_settlement 신규 submodule 등록.
+# Phase 24 wire (cj-style 169번째) — FinOps Budget Planning
+# pre-allocation layer territory. CRITICAL: registered AFTER
+# unit_economics_router (Phase 23) because Phase 24 derives
+# budget_plan from Phase 22 allocation_lines + Phase 23
+# unit_economics_results ledger data. Capability gates
+# FINOPS_BUDGET_PLANNING (capability matrix v1.50 EXTENSION).
+# AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
+# 9 endpoints covering plan CRUD + allocate + submit-approval +
+# approve-step + vs-actual + alert-trigger + dry-run + healthcheck.
+# ALLOWED_SERVICE_SUBMODULES EXTENSION m24_finops_budget_planning
+# 신규 submodule 등록.
+from apps.api.modules.finops.budget_planning.budget_planning_routes import (
+    router as budget_planning_router,
+)
 from apps.api.modules.finops.chargeback_settlement.chargeback_settlement_routes import (
     router as chargeback_settlement_router,
 )
@@ -545,21 +559,6 @@ from apps.api.modules.finops.sustainability.sustainability_routes import (
 # m31_finops_unit_economics 신규 submodule 등록.
 from apps.api.modules.finops.unit_economics.unit_economics_routes import (
     router as unit_economics_router,
-)
-
-# Phase 24 wire (cj-style 169번째) — FinOps Budget Planning
-# pre-allocation layer territory. CRITICAL: registered AFTER
-# unit_economics_router (Phase 23) because Phase 24 derives
-# budget_plan from Phase 22 allocation_lines + Phase 23
-# unit_economics_results ledger data. Capability gates
-# FINOPS_BUDGET_PLANNING (capability matrix v1.50 EXTENSION).
-# AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
-# 9 endpoints covering plan CRUD + allocate + submit-approval +
-# approve-step + vs-actual + alert-trigger + dry-run + healthcheck.
-# ALLOWED_SERVICE_SUBMODULES EXTENSION m24_finops_budget_planning
-# 신규 submodule 등록.
-from apps.api.modules.finops.budget_planning.budget_planning_routes import (
-    router as budget_planning_router,
 )
 
 # Phase 25 wire (cj-style 174th follow-up) — FinOps Vendor Management
@@ -782,8 +781,7 @@ async def _audit_log_query_invalid_filter_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -798,8 +796,7 @@ async def _audit_log_entry_not_found_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -814,8 +811,7 @@ async def _audit_log_export_forbidden_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -830,8 +826,7 @@ async def _audit_log_export_too_large_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -851,8 +846,7 @@ async def _audit_log_retention_policy_invalid_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -867,8 +861,7 @@ async def _audit_log_pii_erasure_forbidden_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -883,8 +876,7 @@ async def _audit_log_pii_erasure_not_found_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -913,8 +905,7 @@ async def _m10_ai_pipa_consent_missing_handler(
         content={
             "code": "AI_PIPA_CONSENT_MISSING",
             "message_ko": (
-                "월간 AI 추출은 개인정보 처리 동의가 필요합니다. "
-                "설정에서 동의해 주세요."
+                "월간 AI 추출은 개인정보 처리 동의가 필요합니다. " "설정에서 동의해 주세요."
             ),
             "details": {"tenant_id": str(exc.tenant_id)},
             "trace_id": exc.trace_id,
@@ -1918,9 +1909,7 @@ async def _m4_closing_period_empty_period_handler(
         status_code=409,
         content={
             "code": "EMPTY_PERIOD",
-            "message_ko": (
-                "마감할 수 없습니다: 해당 기간에 입력된 데이터가 없습니다"
-            ),
+            "message_ko": ("마감할 수 없습니다: 해당 기간에 입력된 데이터가 없습니다"),
             "details": {
                 "tenant_id": str(exc.tenant_id),
                 "period_key": exc.period_key,
@@ -1944,9 +1933,7 @@ async def _m4_closing_period_snapshot_inconsistency_handler(
         status_code=409,
         content={
             "code": "CLOSING_PERIOD_SNAPSHOT_INCONSISTENCY",
-            "message_ko": (
-                "V4 검증 실패: ledger aggregate ≠ closing_snapshot aggregate"
-            ),
+            "message_ko": ("V4 검증 실패: ledger aggregate ≠ closing_snapshot aggregate"),
             "details": {
                 "tenant_id": str(exc.tenant_id),
                 "period_key": exc.period_key,
@@ -2275,9 +2262,7 @@ async def _m11_reversal_snapshot_mismatch_handler(
             "details": {
                 "tenant_id": str(exc.tenant_id),
                 "target_event_id": str(exc.target_event_id),
-                "snapshot_id": (
-                    str(exc.snapshot_id) if exc.snapshot_id else None
-                ),
+                "snapshot_id": (str(exc.snapshot_id) if exc.snapshot_id else None),
                 "current_state": exc.current_state,
             },
             "trace_id": exc.trace_id,
@@ -2503,9 +2488,7 @@ async def _m12_totp_invalid_code_handler(
 
 
 @app.exception_handler(TotpLockoutError)
-async def _m12_totp_lockout_handler(
-    request: Request, exc: TotpLockoutError
-) -> JSONResponse:
+async def _m12_totp_lockout_handler(request: Request, exc: TotpLockoutError) -> JSONResponse:
     """429 TOTP_LOCKOUT — 5 consecutive failures → 15-min lockout (Retry-After)."""
     response = JSONResponse(
         status_code=429,
@@ -2657,9 +2640,7 @@ async def _m12_two_factor_forbidden_role_handler(
 
 # ── Story 12.2 — 5 backup envelope handlers (CR 12-5 D-14) ─────
 @app.exception_handler(BackupNotFoundError)
-async def _backup_not_found_handler(
-    request: Request, exc: BackupNotFoundError
-) -> JSONResponse:
+async def _backup_not_found_handler(request: Request, exc: BackupNotFoundError) -> JSONResponse:
     """404 BACKUP_NOT_FOUND — backup_id does not resolve in tenant_backups."""
     return JSONResponse(
         status_code=404,
@@ -2670,8 +2651,7 @@ async def _backup_not_found_handler(
                 "backup_id": str(exc.backup_id),
                 "tenant_id": str(exc.tenant_id),
             },
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2690,8 +2670,7 @@ async def _backup_payload_too_large_handler(
                 "size_bytes": exc.size_bytes,
                 "max_bytes": exc.max_bytes,
             },
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2707,8 +2686,7 @@ async def _backup_retention_cutoff_invalid_handler(
             "code": "BACKUP_RETENTION_CUTOFF_INVALID",
             "message_ko": BACKUP_RETENTION_CUTOFF_INVALID_KO,
             "details": {"reason": exc.reason},
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2725,8 +2703,7 @@ async def _backup_service_audit_emit_handler(
             "code": "BACKUP_AUDIT_EMIT_FAILED",
             "message_ko": BACKUP_AUDIT_EMIT_FAILED_KO,
             "details": {"message": exc.message},
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2742,8 +2719,7 @@ async def _backup_export_service_error_handler(
             "code": "BACKUP_SERVICE_ERROR",
             "message_ko": BACKUP_SERVICE_ERROR_KO,
             "details": {"message": exc.message},
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2897,8 +2873,7 @@ async def _m8_budget_scenario_not_found_handler(
                 "period_key": exc.period_key,
                 "tenant_id": exc.tenant_id,
             },
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2921,8 +2896,7 @@ async def _m8_budget_scenario_limit_exceeded_handler(
                 "existing_count": exc.existing_count,
                 "max_scenarios": 1,
             },
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2944,8 +2918,7 @@ async def _m8_budget_invalid_virtual_key_handler(
                 "period_key": exc.period_key,
                 "expected_pattern": exc.expected_pattern,
             },
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2971,8 +2944,7 @@ async def _m8_budget_variance_not_found_handler(
                 "period_key": exc.period_key,
                 "tenant_id": exc.tenant_id,
             },
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -2996,8 +2968,7 @@ async def _m8_budget_invalid_variance_period_handler(
                 "period_key": exc.period_key,
                 "expected_pattern": exc.expected_pattern,
             },
-            "trace_id": getattr(exc, "trace_id", None)
-            or str(_uuid_mod.uuid4()),
+            "trace_id": getattr(exc, "trace_id", None) or str(_uuid_mod.uuid4()),
         },
     )
 
@@ -3206,9 +3177,7 @@ async def _m9_abc_validation_not_found_handler(
 #   - CcrComputeError           (422 CCR_INVALID_CAPACITY)
 #   - AllocationBalanceError    (422 ALLOCATION_BALANCE_ERROR)
 @app.exception_handler(CcrComputeError)
-async def _m9_abc_ccr_compute_error_handler(
-    request: Request, exc: CcrComputeError
-) -> JSONResponse:
+async def _m9_abc_ccr_compute_error_handler(request: Request, exc: CcrComputeError) -> JSONResponse:
     """422 CCR_INVALID_CAPACITY — PRD §F9.2 CCR compute 실패.
 
     Story 9.2 (PRD §F9.2 + AD-15) — practical_capacity_hours ≤ 0 또는
@@ -3588,6 +3557,7 @@ async def _start_cache_invalidation_listener() -> None:
     except ListenerStartFailedError as exc:
         # Logged but not raised — graceful degradation per F13.1.
         import logging
+
         logging.getLogger(__name__).warning(
             "CacheInvalidationListener start failed (graceful degradation): %s",
             exc,
@@ -3611,9 +3581,8 @@ async def _stop_cache_invalidation_listener() -> None:
         await listener.stop()
     except Exception as exc:
         import logging
-        logging.getLogger(__name__).warning(
-            "CacheInvalidationListener stop failed: %s", exc
-        )
+
+        logging.getLogger(__name__).warning("CacheInvalidationListener stop failed: %s", exc)
 
 
 # Story 14.1 — T3 wire: FastAPI lifespan EXTENSION (leader election wiring).
@@ -3639,6 +3608,7 @@ async def _start_leader_election() -> None:
         app.state.cache_invalidation_leader_state = leader_state
     except Exception as exc:
         import logging
+
         logging.getLogger(__name__).warning(
             "Leader election start failed (graceful degradation): %s",
             exc,
@@ -3657,17 +3627,17 @@ async def _stop_leader_election() -> None:
         pass
     except Exception as exc:
         import logging
+
         logging.getLogger(__name__).warning(
-            "Leader election stop failed: %s", exc,
+            "Leader election stop failed: %s",
+            exc,
         )
 
 
 # Story 13.1 — D-14 envelope for listener start/stop failures.
 # 503 LISTENER_START_FAILED / LISTENER_STOP_FAILED (CR 12-5 verbatim).
 @app.exception_handler(Exception)
-async def _listener_start_failed_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def _listener_start_failed_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all for listener failures (CR 12-5 + D-14 envelope).
 
     NOTE: this is a narrow handler that ONLY fires for the four
@@ -3732,9 +3702,7 @@ async def _listener_start_failed_handler(
 # exception handler (CR 12-5 D-14 typed exception envelope + AD-15
 # conventions.md §4 verbatim). Returns HTTP 422 with the canonical
 # error envelope. Industry-agnostic per CR 12-1 L4 precedent.
-@app.exception_handler(
-    LatencyRegressionThresholdExceededError
-)  # type: ignore[name-defined]
+@app.exception_handler(LatencyRegressionThresholdExceededError)  # type: ignore[name-defined]
 async def _latency_regression_handler(request, exc):  # noqa: ANN001
     from fastapi.responses import JSONResponse
 

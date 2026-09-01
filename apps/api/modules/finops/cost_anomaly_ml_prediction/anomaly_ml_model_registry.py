@@ -34,6 +34,7 @@ CR lessons applied:
   ModelArtifactSizeError.
 - AD-22 owner-only RBAC.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -88,7 +89,7 @@ def _compute_composite_score(
         ("f1", f1),
         ("auc_roc", auc_roc),
     ]:
-        if not isinstance(value, (int, float)) or value < 0.0 or value > 1.0:
+        if not isinstance(value, int | float) or value < 0.0 or value > 1.0:
             raise ValueError(f"{name} must be in [0.0, 1.0], got {value}")
     return (
         precision * MODEL_SCORING_WEIGHTS["precision"]
@@ -117,9 +118,7 @@ def _validate_status_transition(current_status: str, new_status: str) -> None:
     training → deploying → active → deprecated → retired
     """
     if new_status not in VALID_STATUSES:
-        raise ValueError(
-            f"new_status must be one of {sorted(VALID_STATUSES)}, got {new_status}"
-        )
+        raise ValueError(f"new_status must be one of {sorted(VALID_STATUSES)}, got {new_status}")
     allowed_transitions: dict[str, frozenset[str]] = {
         "training": frozenset({"deploying", "retired"}),
         "deploying": frozenset({"active", "retired"}),
@@ -128,9 +127,7 @@ def _validate_status_transition(current_status: str, new_status: str) -> None:
         "retired": frozenset(),
     }
     if new_status not in allowed_transitions.get(current_status, frozenset()):
-        raise ValueError(
-            f"Invalid status transition: {current_status} → {new_status}"
-        )
+        raise ValueError(f"Invalid status transition: {current_status} → {new_status}")
 
 
 def register_model(
@@ -160,7 +157,7 @@ def register_model(
     """
     _validate_tenant_id(tenant_id)
     _validate_model_name(model_name)
-    if not isinstance(model_artifact, (bytes, str)):
+    if not isinstance(model_artifact, bytes | str):
         raise ValueError("model_artifact must be bytes or str")
 
     artifact_bytes = (

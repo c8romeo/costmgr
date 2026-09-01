@@ -11,6 +11,7 @@ CR lessons applied:
   parity verification (verifiable via apps/web/lib/finops-tag-governance/
   finops-tag-governance-client.ts).
 """
+
 from __future__ import annotations
 
 from typing import Any

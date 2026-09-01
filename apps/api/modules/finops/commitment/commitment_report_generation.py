@@ -39,6 +39,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -331,16 +332,12 @@ def render_excel_report(
         # Sheet 2: Cloud Breakdown
         cloud_sheet = workbook.add_worksheet("Cloud Breakdown")
         cloud_sheet.write_row(0, 0, ["Cloud Provider", "Commitment Value (KRW)"])
-        for idx, provider in enumerate(
-            ["AWS", "Azure", "GCP", "Naver", "KT"], start=1
-        ):
+        for idx, provider in enumerate(["AWS", "Azure", "GCP", "Naver", "KT"], start=1):
             cloud_sheet.write_row(idx, 0, [provider, 0.0])
 
         # Sheet 3: Type Breakdown
         type_sheet = workbook.add_worksheet("Type Breakdown")
-        type_sheet.write_row(
-            0, 0, ["Commitment Type", "1-year", "3-year"]
-        )
+        type_sheet.write_row(0, 0, ["Commitment Type", "1-year", "3-year"])
         for idx, ctype in enumerate(
             [
                 "EC2 RI",
@@ -452,9 +449,7 @@ def generate_commitment_report(
     """
     _validate_inputs(tenant_id, period_key, cadence, export_format, framework)
 
-    cache_key = _compute_report_cache_key(
-        tenant_id, period_key, cadence, export_format, framework
-    )
+    cache_key = _compute_report_cache_key(tenant_id, period_key, cadence, export_format, framework)
 
     # Compute KPI summary via Phase 18 commitment KPI selector.
     try:

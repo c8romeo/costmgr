@@ -207,11 +207,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Story 10.3 — drop ai_insight_comments table + triggers."""
-    op.execute(
-        "DROP TRIGGER IF EXISTS trg_ai_insight_comments_update_block ON ai_insight_comments"
-    )
-    op.execute(
-        "DROP TRIGGER IF EXISTS trg_ai_insight_comments_delete_block ON ai_insight_comments"
-    )
+    op.execute("DROP TRIGGER IF EXISTS trg_ai_insight_comments_update_block ON ai_insight_comments")
+    op.execute("DROP TRIGGER IF EXISTS trg_ai_insight_comments_delete_block ON ai_insight_comments")
     op.execute("DROP FUNCTION IF EXISTS trg_ai_insight_comments_no_update_delete()")
     op.execute("DROP TABLE IF EXISTS ai_insight_comments")

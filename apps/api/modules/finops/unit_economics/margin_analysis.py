@@ -53,6 +53,7 @@ CR lessons applied:
 - D-FINOPS-12 honestly DEFER (multi-currency FX + tenant revenue
   auto-import — all honestly DEFER to future Phase 23.x).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -110,16 +111,12 @@ MARGIN_PCT_QUANTUM = Decimal("0.01")  # 0.01% precision
 
 def _round_to_krw(amount: float) -> float:
     """Banker's rounding (CR 5-1 verbatim) to 0.01 KRW."""
-    return float(
-        Decimal(str(amount)).quantize(MARGIN_AMOUNT_QUANTUM, rounding=ROUND_HALF_EVEN)
-    )
+    return float(Decimal(str(amount)).quantize(MARGIN_AMOUNT_QUANTUM, rounding=ROUND_HALF_EVEN))
 
 
 def _round_to_pct(pct: float) -> float:
     """Banker's rounding (CR 5-1 verbatim) to 0.01% precision."""
-    return float(
-        Decimal(str(pct)).quantize(MARGIN_PCT_QUANTUM, rounding=ROUND_HALF_EVEN)
-    )
+    return float(Decimal(str(pct)).quantize(MARGIN_PCT_QUANTUM, rounding=ROUND_HALF_EVEN))
 
 
 def _compute_cache_key(
@@ -128,9 +125,7 @@ def _compute_cache_key(
     business_unit: str,
 ) -> str:
     """Compute SHA-256 cache key for MarginAnalysisResult."""
-    payload = (
-        f"{tenant_id}:{unit_economics_id}:{business_unit}:margin_analysis"
-    )
+    payload = f"{tenant_id}:{unit_economics_id}:{business_unit}:margin_analysis"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -245,8 +240,7 @@ def _compute_margin_alerts(
                 severity=UnitEconomicsAlertSeverity.INFO.value,
                 alert_type="margin_warning",
                 alert_message=(
-                    f"Margin is WARNING ({margin_amount_krw:.2f} KRW). "
-                    "Monitor closely."
+                    f"Margin is WARNING ({margin_amount_krw:.2f} KRW). " "Monitor closely."
                 ),
                 requires_2fa_challenge=False,
             )
@@ -344,9 +338,7 @@ def _compute_requires_2fa_challenge(
     """
     if margin_status == MarginAnalysisStatus.NEGATIVE.value:
         return True
-    if margin_amount_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR:
-        return True
-    return False
+    return margin_amount_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR
 
 
 def _persist_margin_analysis(
@@ -433,9 +425,12 @@ def execute_margin_analysis(
         revenue_completeness_pct=revenue_completeness_pct,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{unit_economics_id}:{business_unit}:margin".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{unit_economics_id}:{business_unit}:margin".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -446,9 +441,7 @@ def execute_margin_analysis(
     # Compute margin (D-FINOPS-12 honestly DEFER if no revenue)
     if total_revenue_krw > 0 and revenue_sources:
         margin_amount_krw = _round_to_krw(total_revenue_krw - total_cost_krw)
-        margin_pct = _round_to_pct(
-            (margin_amount_krw / total_revenue_krw) * 100
-        )
+        margin_pct = _round_to_pct((margin_amount_krw / total_revenue_krw) * 100)
     else:
         margin_amount_krw = 0.0
         margin_pct = 0.0  # D-FINOPS-12 honestly DEFER

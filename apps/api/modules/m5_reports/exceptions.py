@@ -21,6 +21,7 @@ Story 11.6 EXTENSION (Epic 11 6번째 진입점 = cj-style 37번째 epic 연속)
 
 Pure re-export from kernel + service-layer extensions (AD-15 §4 envelope).
 """
+
 from __future__ import annotations
 
 # Pure kernel exceptions re-export (9-1 + 9-2 + 9-3 + 9-4 + 11-6 surfaces)
@@ -226,29 +227,15 @@ class Report15PdfGenerationError(Exception):
 # ── Korean SSOT envelope messages (CR 12-5 D-14) ─────────────────
 
 
-REPORT21_PERIOD_NOT_COMMITTED_KO: str = (
-    "리포트 #21 생성 전 회계기간이 커밋되지 않았습니다"
-)
-REPORT21_NO_COST_OBJECT_BREAKDOWN_KO: str = (
-    "리포트 #21: 원가대상별 배부 데이터가 없습니다"
-)
-REPORT21_BREAKDOWN_NOT_FOUND_KO: str = (
-    "리포트 #21: 원가대상별 원가 집계표를 찾을 수 없습니다"
-)
-REPORT_PDF_GENERATION_ERROR_KO: str = (
-    "리포트 PDF 생성 실패 — 서버 관리자에게 문의하세요"
-)
+REPORT21_PERIOD_NOT_COMMITTED_KO: str = "리포트 #21 생성 전 회계기간이 커밋되지 않았습니다"
+REPORT21_NO_COST_OBJECT_BREAKDOWN_KO: str = "리포트 #21: 원가대상별 배부 데이터가 없습니다"
+REPORT21_BREAKDOWN_NOT_FOUND_KO: str = "리포트 #21: 원가대상별 원가 집계표를 찾을 수 없습니다"
+REPORT_PDF_GENERATION_ERROR_KO: str = "리포트 PDF 생성 실패 — 서버 관리자에게 문의하세요"
 
 # 11-6 wire → Report #15 (활동원가 내역서) Korean SSOT (PRD §9 #15 verbatim):
-REPORT15_PERIOD_NOT_COMMITTED_KO: str = (
-    "리포트 #15 생성 전 회계기간이 커밋되지 않았습니다"
-)
-REPORT15_NO_ACTIVITY_BREAKDOWN_KO: str = (
-    "리포트 #15: 활동별 원가 데이터가 없습니다"
-)
-REPORT15_BREAKDOWN_NOT_FOUND_KO: str = (
-    "리포트 #15: 활동원가 내역서를 찾을 수 없습니다"
-)
+REPORT15_PERIOD_NOT_COMMITTED_KO: str = "리포트 #15 생성 전 회계기간이 커밋되지 않았습니다"
+REPORT15_NO_ACTIVITY_BREAKDOWN_KO: str = "리포트 #15: 활동별 원가 데이터가 없습니다"
+REPORT15_BREAKDOWN_NOT_FOUND_KO: str = "리포트 #15: 활동원가 내역서를 찾을 수 없습니다"
 
 
 __all__ = [

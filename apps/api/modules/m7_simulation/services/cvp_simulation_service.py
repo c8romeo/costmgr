@@ -59,9 +59,7 @@ class CVPSimulationService:
         self.actor_id = actor_id
         self.trace_id = trace_id
 
-    async def fetch_cvp_baseline(
-        self, *, period_key: str
-    ) -> tuple[CVPBaseline, str, str]:
+    async def fetch_cvp_baseline(self, *, period_key: str) -> tuple[CVPBaseline, str, str]:
         """Fetch CVP baseline from latest committed snapshot + products.
 
         Data source:
@@ -98,15 +96,12 @@ class CVPSimulationService:
             )
 
         # 2. Active products aggregation (unit_price baseline).
-        prod_stmt = (
-            select(
-                func.avg(Product.unit_cost_krw).label("avg_unit_price"),
-            )
-            .where(
-                Product.tenant_id == self.tenant_id,
-                Product.is_active.is_(True),
-                Product.unit_cost_krw.is_not(None),
-            )
+        prod_stmt = select(
+            func.avg(Product.unit_cost_krw).label("avg_unit_price"),
+        ).where(
+            Product.tenant_id == self.tenant_id,
+            Product.is_active.is_(True),
+            Product.unit_cost_krw.is_not(None),
         )
         prod_result = await self.session.execute(prod_stmt)
         row = prod_result.first()
@@ -169,9 +164,7 @@ class CVPSimulationService:
         Returns:
             (CVPBaseline, CVPResult, source_period_key) tuple.
         """
-        baseline, source_period_key, _state = await self.fetch_cvp_baseline(
-            period_key=period_key
-        )
+        baseline, source_period_key, _state = await self.fetch_cvp_baseline(period_key=period_key)
         result = await self.simulate_cvp(baseline=baseline, delta=delta)
         return baseline, result, source_period_key
 

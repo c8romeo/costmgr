@@ -71,26 +71,19 @@ def upgrade() -> None:
         "'AD-7 strict invariant discriminator (onboarding_inputs | monthly_inputs). "
         "confirmed_inputs EXPLICITLY EXCLUDED. NFR18 lock.'"
     )
-    op.execute(
-        "ALTER TABLE input_drafts "
-        "ADD COLUMN extraction_confidence NUMERIC(4,3)"
-    )
+    op.execute("ALTER TABLE input_drafts " "ADD COLUMN extraction_confidence NUMERIC(4,3)")
     op.execute(
         "COMMENT ON COLUMN input_drafts.extraction_confidence IS "
         "'AI confidence 0.000-1.000 (3 decimal precision matches kernel). NFR18 lock.'"
     )
     op.execute(
-        "ALTER TABLE input_drafts "
-        "ADD COLUMN extracted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+        "ALTER TABLE input_drafts " "ADD COLUMN extracted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
     )
     op.execute(
         "COMMENT ON COLUMN input_drafts.extracted_at IS "
         "'When M10 saw the document (DIFFERENT from requested_at which anchors user review). NFR18 lock.'"
     )
-    op.execute(
-        "ALTER TABLE input_drafts "
-        "ADD COLUMN period_key VARCHAR(32)"
-    )
+    op.execute("ALTER TABLE input_drafts " "ADD COLUMN period_key VARCHAR(32)")
     op.execute(
         "COMMENT ON COLUMN input_drafts.period_key IS "
         "'Monthly period attribution (e.g. 2026-08). NULL for onboarding_inputs rows. NFR18 lock.'"
@@ -160,9 +153,7 @@ def downgrade() -> None:
     op.execute(
         "ALTER TABLE input_drafts DROP CONSTRAINT IF EXISTS ck_input_drafts_period_key_consistency"
     )
-    op.execute(
-        "ALTER TABLE input_drafts DROP CONSTRAINT IF EXISTS ck_input_drafts_target_table"
-    )
+    op.execute("ALTER TABLE input_drafts DROP CONSTRAINT IF EXISTS ck_input_drafts_target_table")
     op.execute("ALTER TABLE input_drafts DROP COLUMN IF EXISTS period_key")
     op.execute("ALTER TABLE input_drafts DROP COLUMN IF EXISTS extracted_at")
     op.execute("ALTER TABLE input_drafts DROP COLUMN IF EXISTS extraction_confidence")

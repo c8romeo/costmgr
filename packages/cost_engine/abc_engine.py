@@ -385,8 +385,7 @@ def _validate_pct_list(
     for idx, value in enumerate(allocation_pcts):
         if not isinstance(value, Decimal):
             raise CostPoolValidationError(
-                f"{field_name}[{idx}] must be Decimal, got "
-                f"{type(value).__name__}",
+                f"{field_name}[{idx}] must be Decimal, got " f"{type(value).__name__}",
                 department_id=f"{field_name}[{idx}]",
                 sum_pct=Decimal("0"),
                 reason="type_mismatch",
@@ -645,10 +644,7 @@ def validate_100_percent_guard(
         state.is_valid
         for state in (cost_pool_state, activity_state, driver_state)
         if state is not None
-    ) and any(
-        state is not None
-        for state in (cost_pool_state, activity_state, driver_state)
-    )
+    ) and any(state is not None for state in (cost_pool_state, activity_state, driver_state))
 
     return {
         "cost_pool": cost_pool_state,
@@ -959,10 +955,7 @@ def compute_ccr_hash(*, ccr_result: CCRResult) -> str:
     Type-safe: accepts CCRResult ONLY.
     """
     if not isinstance(ccr_result, CCRResult):
-        raise ValueError(
-            f"ccr_result must be CCRResult, "
-            f"got {type(ccr_result).__name__}"
-        )
+        raise ValueError(f"ccr_result must be CCRResult, " f"got {type(ccr_result).__name__}")
     digest = hashlib.sha256(repr(ccr_result).encode()).hexdigest()
     return f"{CCR_HASH_PREFIX}{digest}"
 
@@ -1053,10 +1046,7 @@ def _is_allocation_balanced(
     1-Won precision invariant (Decimal-as-string, AD-8):
       `|breakdown_sum + unused_cost - department_cost| ≤ 0.01 KRW`
     """
-    return (
-        abs(breakdown_sum + unused_cost - department_cost)
-        <= ABC_PRECISION_KRW_TOLERANCE
-    )
+    return abs(breakdown_sum + unused_cost - department_cost) <= ABC_PRECISION_KRW_TOLERANCE
 
 
 def compute_allocation(
@@ -1146,8 +1136,7 @@ def compute_allocation_hash(*, allocation: AllocationResult) -> str:
     """
     if not isinstance(allocation, AllocationResult):
         raise ValueError(
-            f"allocation must be AllocationResult, "
-            f"got {type(allocation).__name__}"
+            f"allocation must be AllocationResult, " f"got {type(allocation).__name__}"
         )
     digest = hashlib.sha256(repr(allocation).encode()).hexdigest()
     return f"{CCR_HASH_PREFIX}{digest}"
@@ -1358,10 +1347,7 @@ def validate_department_count(
         )
     if len(department_ids) > max_count:
         raise TooManyDepartmentsError(
-            (
-                f"department_count ({len(department_ids)}) exceeds "
-                f"max_count ({max_count})"
-            ),
+            (f"department_count ({len(department_ids)}) exceeds " f"max_count ({max_count})"),
             department_count=len(department_ids),
             max_count=max_count,
             reason="exceeds_max",
@@ -1569,20 +1555,10 @@ def compute_abc_allocation_hash(
             f"multi_dept_ccr must be MultiDepartmentCcrResult, "
             f"got {type(multi_dept_ccr).__name__}"
         )
-    if not all(
-        isinstance(alloc, DepartmentAllocation)
-        for alloc in per_dept_allocations
-    ):
-        raise ValueError(
-            "per_dept_allocations must be list[DepartmentAllocation]"
-        )
-    if not all(
-        isinstance(row, UnusedCapacitySubRow)
-        for row in unused_capacity_breakdown
-    ):
-        raise ValueError(
-            "unused_capacity_breakdown must be list[UnusedCapacitySubRow]"
-        )
+    if not all(isinstance(alloc, DepartmentAllocation) for alloc in per_dept_allocations):
+        raise ValueError("per_dept_allocations must be list[DepartmentAllocation]")
+    if not all(isinstance(row, UnusedCapacitySubRow) for row in unused_capacity_breakdown):
+        raise ValueError("unused_capacity_breakdown must be list[UnusedCapacitySubRow]")
 
     aggregate = (
         multi_dept_ccr,
@@ -1690,29 +1666,17 @@ def compute_report21_hash(
             f"cost_object_breakdown must be list[CostObjectRow], "
             f"got {type(cost_object_breakdown).__name__}"
         )
-    if not all(
-        isinstance(row, CostObjectRow) for row in cost_object_breakdown
-    ):
-        raise ValueError(
-            "cost_object_breakdown items must be CostObjectRow"
-        )
+    if not all(isinstance(row, CostObjectRow) for row in cost_object_breakdown):
+        raise ValueError("cost_object_breakdown items must be CostObjectRow")
     if not isinstance(unused_capacity_breakdown, list):
         raise ValueError(
             f"unused_capacity_breakdown must be list[UnusedCapacitySubRow], "
             f"got {type(unused_capacity_breakdown).__name__}"
         )
-    if not all(
-        isinstance(row, UnusedCapacitySubRow)
-        for row in unused_capacity_breakdown
-    ):
-        raise ValueError(
-            "unused_capacity_breakdown items must be UnusedCapacitySubRow"
-        )
+    if not all(isinstance(row, UnusedCapacitySubRow) for row in unused_capacity_breakdown):
+        raise ValueError("unused_capacity_breakdown items must be UnusedCapacitySubRow")
     if not isinstance(v7_verdict, V7Verdict):
-        raise ValueError(
-            f"v7_verdict must be V7Verdict, "
-            f"got {type(v7_verdict).__name__}"
-        )
+        raise ValueError(f"v7_verdict must be V7Verdict, " f"got {type(v7_verdict).__name__}")
     if not period_key:
         raise Report21InconsistentStateError(
             "period_key must be non-empty for Report #21 build_report21",
@@ -1721,10 +1685,7 @@ def compute_report21_hash(
             actual_sum=v7_verdict.breakdown_sum + v7_verdict.unused_cost,
             reason="empty_period_key",
         )
-    if (
-        not cost_object_breakdown
-        and not unused_capacity_breakdown
-    ):
+    if not cost_object_breakdown and not unused_capacity_breakdown:
         raise Report21InconsistentStateError(
             "Report #21 requires cost_object_breakdown or unused_capacity_breakdown",
             period_key=period_key,
@@ -1766,10 +1727,7 @@ def compute_report_pdf_hash(*, pdf_bytes: bytes) -> str:
     V8 determinism: 동일 pdf_bytes → byte-identical hash.
     """
     if not isinstance(pdf_bytes, bytes):
-        raise ValueError(
-            f"pdf_bytes must be bytes, "
-            f"got {type(pdf_bytes).__name__}"
-        )
+        raise ValueError(f"pdf_bytes must be bytes, " f"got {type(pdf_bytes).__name__}")
     digest = hashlib.sha256(pdf_bytes).hexdigest()
     return f"{REPORT_PDF_HASH_PREFIX}{digest}"
 
@@ -1918,17 +1876,10 @@ def compute_report15_hash(
             f"activity_breakdown must be list[ActivityCostRow], "
             f"got {type(activity_breakdown).__name__}"
         )
-    if not all(
-        isinstance(row, ActivityCostRow) for row in activity_breakdown
-    ):
-        raise ValueError(
-            "activity_breakdown items must be ActivityCostRow"
-        )
+    if not all(isinstance(row, ActivityCostRow) for row in activity_breakdown):
+        raise ValueError("activity_breakdown items must be ActivityCostRow")
     if not isinstance(v7_verdict, V7Verdict):
-        raise ValueError(
-            f"v7_verdict must be V7Verdict, "
-            f"got {type(v7_verdict).__name__}"
-        )
+        raise ValueError(f"v7_verdict must be V7Verdict, " f"got {type(v7_verdict).__name__}")
     if not period_key:
         raise Report15InconsistentStateError(
             "period_key must be non-empty for Report #15 build_report15",

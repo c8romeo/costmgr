@@ -54,6 +54,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -88,12 +89,12 @@ logger = logging.getLogger(__name__)
 # 6 tiers × discount_pct = (1y vs 3y) × (no/partial/all upfront).
 # All discount values must satisfy MINIMUM_SAVINGS_PCT=5.0% threshold.
 TIER_DISCOUNT_PCT: dict[str, float] = {
-    ReservedCapacityTier.ONE_YEAR_NO_UPFRONT.value: 0.20,         # 20%
-    ReservedCapacityTier.ONE_YEAR_PARTIAL_UPFRONT.value: 0.30,    # 30%
-    ReservedCapacityTier.ONE_YEAR_ALL_UPFRONT.value: 0.40,        # 40%
-    ReservedCapacityTier.THREE_YEAR_NO_UPFRONT.value: 0.35,       # 35%
+    ReservedCapacityTier.ONE_YEAR_NO_UPFRONT.value: 0.20,  # 20%
+    ReservedCapacityTier.ONE_YEAR_PARTIAL_UPFRONT.value: 0.30,  # 30%
+    ReservedCapacityTier.ONE_YEAR_ALL_UPFRONT.value: 0.40,  # 40%
+    ReservedCapacityTier.THREE_YEAR_NO_UPFRONT.value: 0.35,  # 35%
     ReservedCapacityTier.THREE_YEAR_PARTIAL_UPFRONT.value: 0.50,  # 50%
-    ReservedCapacityTier.THREE_YEAR_ALL_UPFRONT.value: 0.60,      # 60%
+    ReservedCapacityTier.THREE_YEAR_ALL_UPFRONT.value: 0.60,  # 60%
 }
 
 # ── Tier break-even utilization thresholds (PRD §F37.2 verbatim) ────────
@@ -139,9 +140,9 @@ GROWTH_THRESHOLD_ALL_UPFRONT_PCT = 8.0
 # ── Industry capacity_headroom_pct adjustment (AD-49 (b) verbatim) ──────
 # Higher growth industries → more capacity headroom (10~20%).
 INDUSTRY_HEADROOM_BASE_PCT: dict[str, float] = {
-    "manufacturing": CAPACITY_HEADROOM_MIN_PCT,             # 10%
-    "service": 12.0,                                        # 12%
-    "manufacturing_service": 15.0,                          # 15%
+    "manufacturing": CAPACITY_HEADROOM_MIN_PCT,  # 10%
+    "service": 12.0,  # 12%
+    "manufacturing_service": 15.0,  # 15%
     "manufacturing_service_other": CAPACITY_HEADROOM_MAX_PCT,  # 20%
 }
 
@@ -158,10 +159,7 @@ def _compute_cache_key(
     industry: str,
 ) -> str:
     """Compute SHA-256 cache key for ReservedCapacityPlan."""
-    payload = (
-        f"{tenant_id}:{demand_forecast_id}:{industry}:"
-        f"reserved_capacity_plan"
-    )
+    payload = f"{tenant_id}:{demand_forecast_id}:{industry}:" f"reserved_capacity_plan"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -231,9 +229,7 @@ def _is_valid_period_key(period_key: str) -> bool:
         return True
     if len(period_key) == 5 and period_key[2] == "-" and period_key[:2].isdigit():
         return True
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _select_recommended_tier(
@@ -249,10 +245,7 @@ def _select_recommended_tier(
 
     Returns one of ALL_RESERVED_CAPACITY_TIERS values.
     """
-    if confidence_pct >= TIER_3Y_CONFIDENCE_THRESHOLD_PCT:
-        term = "3y"
-    else:
-        term = "1y"
+    term = "3y" if confidence_pct >= TIER_3Y_CONFIDENCE_THRESHOLD_PCT else "1y"
 
     if growth_rate_pct >= GROWTH_THRESHOLD_NO_UPFRONT_PCT:
         upfront = "no_upfront"
@@ -299,7 +292,8 @@ def _compute_capacity_headroom_pct(
       capped to MAX (20%).
     """
     baseline = INDUSTRY_HEADROOM_BASE_PCT.get(
-        industry, CAPACITY_HEADROOM_MIN_PCT,
+        industry,
+        CAPACITY_HEADROOM_MIN_PCT,
     )
     # Industry growth baselines (PRD §F37.1 verbatim) — use to compute delta.
     industry_growth_baseline = {
@@ -487,9 +481,12 @@ def plan_reserved_capacity(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{demand_forecast_id}:{period_key}:capacity_plan".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{demand_forecast_id}:{period_key}:capacity_plan".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -553,9 +550,9 @@ def plan_reserved_capacity(
     high_value_flag = estimated_savings_krw >= HIGH_VALUE_THRESHOLD_KRW_PER_YEAR
 
     capacity_plan_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}".encode()
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}".encode()).hexdigest()
     )
 
     now = datetime.now(UTC)
@@ -605,6 +602,7 @@ def plan_reserved_capacity(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_RESERVED_CAPACITY_PLANNING,
@@ -714,11 +712,7 @@ def validate_capacity_plan(
             minimum_break_even_utilization_pct=MINIMUM_BREAK_EVEN_UTILIZATION_PCT,
         )
     headroom = float(capacity_plan.get("capacity_headroom_pct", 0.0))
-    if not (
-        CAPACITY_HEADROOM_MIN_PCT
-        <= headroom
-        <= CAPACITY_HEADROOM_MAX_PCT
-    ):
+    if not (CAPACITY_HEADROOM_MIN_PCT <= headroom <= CAPACITY_HEADROOM_MAX_PCT):
         raise ReservedCapacityPlanningError(
             reason="capacity_headroom_out_of_range",
             tenant_id=str(capacity_plan.get("tenant_id", "")),

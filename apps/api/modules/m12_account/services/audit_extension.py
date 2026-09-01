@@ -73,9 +73,7 @@ ERROR_CODE_CHALLENGE_TOKEN_PURPOSE_MISMATCH: str = "CHALLENGE_TOKEN_PURPOSE_MISM
 
 # ── Story 12.2 backup export (CR 12-5 D-14 envelope) ───────
 BACKUP_SERVICE_ERROR_KO: str = "백업 서비스 오류가 발생했습니다"
-BACKUP_PAYLOAD_TOO_LARGE_KO: str = (
-    "백업 페이로드가 50MB 제한을 초과했습니다"
-)
+BACKUP_PAYLOAD_TOO_LARGE_KO: str = "백업 페이로드가 50MB 제한을 초과했습니다"
 BACKUP_NOT_FOUND_KO: str = "백업을 찾을 수 없습니다"
 BACKUP_RETENTION_CUTOFF_INVALID_KO: str = "잘못된 보관 기간 설정입니다"
 BACKUP_AUDIT_EMIT_FAILED_KO: str = "백업 감사 로그 저장에 실패했습니다"

@@ -23,6 +23,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import enum
@@ -81,7 +82,9 @@ class CloudProvider(str, enum.Enum):
     Naver Cloud + KT Cloud) per AD-45 (a) verbatim.
     """
 
-    AWS = "aws"  # Amazon Web Services (EC2/RDS/ElastiCache/Redshift RI + EC2/S3/Redshift/DynamoDB SP)
+    AWS = (
+        "aws"  # Amazon Web Services (EC2/RDS/ElastiCache/Redshift RI + EC2/S3/Redshift/DynamoDB SP)
+    )
     AZURE = "azure"  # Microsoft Azure (Reservations)
     GCP = "gcp"  # Google Cloud Platform (Committed Use Discounts)
     NAVER = "naver"  # Naver Cloud (commitment-based discount)
@@ -150,9 +153,7 @@ class CommitmentDispatchSchedule(str, enum.Enum):
     ANNUAL = "annual"
 
 
-ALL_COMMITMENT_DISPATCH_SCHEDULES: list[str] = [
-    d.value for d in CommitmentDispatchSchedule
-]
+ALL_COMMITMENT_DISPATCH_SCHEDULES: list[str] = [d.value for d in CommitmentDispatchSchedule]
 
 
 class CommitmentRecipientStrategy(str, enum.Enum):
@@ -164,9 +165,7 @@ class CommitmentRecipientStrategy(str, enum.Enum):
     CUSTOM_RECIPIENTS = "custom_recipients"
 
 
-ALL_COMMITMENT_RECIPIENT_STRATEGIES: list[str] = [
-    r.value for r in CommitmentRecipientStrategy
-]
+ALL_COMMITMENT_RECIPIENT_STRATEGIES: list[str] = [r.value for r in CommitmentRecipientStrategy]
 
 
 class CommitmentFramework(str, enum.Enum):
@@ -190,9 +189,7 @@ class CommitmentKPIThresholdStatus(str, enum.Enum):
     CRITICAL = "critical"
 
 
-ALL_COMMITMENT_KPI_THRESHOLD_STATUSES: list[str] = [
-    s.value for s in CommitmentKPIThresholdStatus
-]
+ALL_COMMITMENT_KPI_THRESHOLD_STATUSES: list[str] = [s.value for s in CommitmentKPIThresholdStatus]
 
 
 class CommitmentInventoryRollup(TypedDict, total=False):

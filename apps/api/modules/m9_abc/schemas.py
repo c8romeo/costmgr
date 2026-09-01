@@ -237,8 +237,12 @@ class CcrResultResponse(BaseModel):
 
     department_id: str = Field(..., description="부서 식별자.")
     department_cost: str = Field(..., description="부서 원가 (KRW 정수, Decimal-as-string).")
-    practical_capacity_hours: str = Field(..., description="실제 조업능력 시간 (Decimal-as-string).")
-    ccr_per_hour: str = Field(..., description="CCR 시간당 자원동인율 (KRW 정수, Decimal-as-string).")
+    practical_capacity_hours: str = Field(
+        ..., description="실제 조업능력 시간 (Decimal-as-string)."
+    )
+    ccr_per_hour: str = Field(
+        ..., description="CCR 시간당 자원동인율 (KRW 정수, Decimal-as-string)."
+    )
     hash: str = Field(..., description="V8 determinism hash (sha256:64-hex).")
     message_ko: str | None = Field(
         default=None,
@@ -266,8 +270,7 @@ class AllocationRequest(BaseModel):
     cost_object_breakdown: list[dict[str, str | int]] = Field(
         default_factory=list,
         description=(
-            "원가대상별 4컬럼 (product_id + activity_id + driver_id + "
-            "allocated_krw) 리스트."
+            "원가대상별 4컬럼 (product_id + activity_id + driver_id + " "allocated_krw) 리스트."
         ),
     )
 

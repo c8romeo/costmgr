@@ -36,16 +36,15 @@ Epic 12 2FA 챌린지 mandatory when governance_required=True.
 Industry-agnostic per CR 12-1 L4 precedent. All 4 industries get
 FINOPS_ANOMALY_DETECTION capability.
 """
+
 from __future__ import annotations
 
 import uuid
-from typing import Any, Final, Literal, TypedDict
+from typing import Final, TypedDict
 
 from apps.api.core.errors import (
-    ForecastAccuracyDegradedError,
     ForecastAccuracyInvalidError,
 )
-
 
 # ── Accuracy thresholds (PRD §F28.5.2 verbatim) ──────────────────
 HIGH_ACCURACY_MAPE_THRESHOLD: Final[float] = 0.10  # MAPE < 10% = high accuracy
@@ -130,7 +129,7 @@ def compute_mae(predicted: list[float], actual: list[float]) -> float:
             message_ko="predicted와 actual이 비어있습니다",
             details={},
         )
-    return sum(abs(a - p) for a, p in zip(actual, predicted)) / len(predicted)
+    return sum(abs(a - p) for a, p in zip(actual, predicted, strict=False)) / len(predicted)
 
 
 def compute_mape(predicted: list[float], actual: list[float]) -> float:
@@ -167,7 +166,7 @@ def compute_mape(predicted: list[float], actual: list[float]) -> float:
             message_ko="actual에 0이 포함되어 있어 MAPE 계산 불가",
             details={},
         )
-    return sum(abs(a - p) / a for a, p in zip(actual, predicted)) / len(predicted)
+    return sum(abs(a - p) / a for a, p in zip(actual, predicted, strict=False)) / len(predicted)
 
 
 def compute_rmse(predicted: list[float], actual: list[float]) -> float:
@@ -199,7 +198,7 @@ def compute_rmse(predicted: list[float], actual: list[float]) -> float:
             details={},
         )
     return (
-        sum((a - p) ** 2 for a, p in zip(actual, predicted)) / len(predicted)
+        sum((a - p) ** 2 for a, p in zip(actual, predicted, strict=False)) / len(predicted)
     ) ** 0.5
 
 

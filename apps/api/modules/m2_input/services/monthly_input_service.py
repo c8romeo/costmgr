@@ -1293,7 +1293,11 @@ class MonthlyInputService:
         # qty becomes the signed ledger qty.
         # `production` here emits `production_output_inbound` (POSITIVE)
         # — no negation. Only `sales` (outbound) is negated.
-        signed_qty = -new_row.qty if (event_type == "sales_outbound" and new_row.qty is not None) else new_row.qty
+        signed_qty = (
+            -new_row.qty
+            if (event_type == "sales_outbound" and new_row.qty is not None)
+            else new_row.qty
+        )
 
         ledger_svc = LedgerService(
             self.session,
@@ -1936,7 +1940,8 @@ class MonthlyInputService:
             # Audit-first: log the failure path with trace_id so support
             # can correlate. Do NOT silently fallback — surface as audit.
             await self._emit_closing_guard_evaluation_error_audit(
-                period_key=period_key, error=exc,
+                period_key=period_key,
+                error=exc,
             )
             invariant = None
 
@@ -1960,24 +1965,28 @@ class MonthlyInputService:
         from apps.api.core.db_models import AuditLog
 
         audit_rows = (
-            await self.session.execute(
-                select(AuditLog)
-                .where(
-                    AuditLog.tenant_id == self.tenant_id,
-                    AuditLog.target_table == ActionClass.CLOSING_GUARD.value,
-                    AuditLog.action.in_(
-                        [
-                            "closing_guard_violated",
-                            "closing_guard_passed",
-                            "v3_closing_invariant_verified",
-                        ]
-                    ),
-                    AuditLog.payload["period_key"].astext == period_key,
+            (
+                await self.session.execute(
+                    select(AuditLog)
+                    .where(
+                        AuditLog.tenant_id == self.tenant_id,
+                        AuditLog.target_table == ActionClass.CLOSING_GUARD.value,
+                        AuditLog.action.in_(
+                            [
+                                "closing_guard_violated",
+                                "closing_guard_passed",
+                                "v3_closing_invariant_verified",
+                            ]
+                        ),
+                        AuditLog.payload["period_key"].astext == period_key,
+                    )
+                    .order_by(AuditLog.occurred_at.desc())
+                    .limit(10)
                 )
-                .order_by(AuditLog.occurred_at.desc())
-                .limit(10)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         # P3-3rd-sweep P11: align envelope to TS `ClosingGuardAuditEntry`
         # (`{id, tenant_id, period_key, action, trace_id, created_at, payload}`).
         # `occurred_at` DB column → `created_at` wire field; trace_id from payload.
@@ -2018,8 +2027,7 @@ class MonthlyInputService:
                 "trace_id": self.trace_id,
             }
             for e in ledger_events
-            if e.event_type
-            in ("production_output_inbound", "production_material_consumption")
+            if e.event_type in ("production_output_inbound", "production_material_consumption")
         ]
 
         # V3 verdict (PASS/FAIL/SKIP) — best-effort, swallow errors.
@@ -2099,17 +2107,21 @@ class MonthlyInputService:
 
         # Audit trail (last 10 closing_period rows for this period_key).
         audit_rows = (
-            await self.session.execute(
-                select(AuditLog)
-                .where(
-                    AuditLog.tenant_id == self.tenant_id,
-                    AuditLog.target_table == ActionClass.CLOSING_PERIOD.value,
-                    AuditLog.payload["period_key"].astext == period_key,
+            (
+                await self.session.execute(
+                    select(AuditLog)
+                    .where(
+                        AuditLog.tenant_id == self.tenant_id,
+                        AuditLog.target_table == ActionClass.CLOSING_PERIOD.value,
+                        AuditLog.payload["period_key"].astext == period_key,
+                    )
+                    .order_by(AuditLog.occurred_at.desc())
+                    .limit(10)
                 )
-                .order_by(AuditLog.occurred_at.desc())
-                .limit(10)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         closing_period_audit_trail: list[dict[str, Any]] = [
             {
                 "id": str(r.id),
@@ -2142,7 +2154,10 @@ class MonthlyInputService:
         )
 
     async def _emit_closing_guard_evaluation_error_audit(
-        self, *, period_key: str, error: Exception,
+        self,
+        *,
+        period_key: str,
+        error: Exception,
     ) -> None:
         """P3-3rd-sweep P13: audit-first emit on closing-guard evaluation
         failure path (replaces bare `except Exception:` silent fallback).

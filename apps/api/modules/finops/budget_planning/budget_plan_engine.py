@@ -30,6 +30,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED — no employee names.
 - D-FINOPS-13 honestly DEFER — multi-currency FX + scenario A/B testing.
 """
+
 from __future__ import annotations
 
 import re
@@ -88,7 +89,7 @@ def validate_budget_plan(plan: BudgetPlan) -> bool:
         return False
     if plan["lifecycle"] not in ALL_BUDGET_PLAN_LIFECYCLE_VALUES:
         return False
-    if not isinstance(plan["total_budget_amount"], (int, float)):
+    if not isinstance(plan["total_budget_amount"], int | float):
         return False
     if plan["total_budget_amount"] < 0:
         return False
@@ -103,14 +104,10 @@ def validate_budget_plan(plan: BudgetPlan) -> bool:
         return False
     if pt == BudgetPlanPeriodType.QUARTERLY.value and not PERIOD_KEY_RE_QUARTERLY.match(pk):
         return False
-    if pt == BudgetPlanPeriodType.MONTHLY.value and not PERIOD_KEY_RE_MONTHLY.match(pk):
-        return False
-    return True
+    return not (pt == BudgetPlanPeriodType.MONTHLY.value and not PERIOD_KEY_RE_MONTHLY.match(pk))
 
 
-def _detect_period_overlap(
-    tenant_id: str, period_key: str, period_type: str
-) -> bool:
+def _detect_period_overlap(tenant_id: str, period_key: str, period_type: str) -> bool:
     """Detect overlap with existing plans for the same tenant+period."""
     # Phase 22 overlap detection pattern verbatim
     # In production: query budget_plans table for tenant_id + period_key overlap
@@ -171,9 +168,7 @@ def create_budget_plan(
 
     # Period overlap detection
     if _detect_period_overlap(tenant_id, period_key, period_type):
-        raise ValueError(
-            f"Period overlap detected for tenant={tenant_id} period_key={period_key}"
-        )
+        raise ValueError(f"Period overlap detected for tenant={tenant_id} period_key={period_key}")
 
     # Banker's rounding on amount (CR 5-1)
     total_budget_amount = _bankers_round(total_budget_amount)
@@ -199,9 +194,7 @@ def create_budget_plan(
             "derivation_model_version": UNIT_ECONOMICS_ENGINE_MODEL_VERSION,
             "phase_22_allocation_lines_ref": True,
             "phase_23_unit_economics_ref": True,
-            "phase_24_planning_model_version": BUDGET_PLANNING_DEFAULTS[
-                "model_version"
-            ],
+            "phase_24_planning_model_version": BUDGET_PLANNING_DEFAULTS["model_version"],
         },
         "created_at": now_iso,
         "updated_at": now_iso,

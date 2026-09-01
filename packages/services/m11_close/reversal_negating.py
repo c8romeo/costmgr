@@ -62,9 +62,7 @@ ERROR_CODE_QTY_SIGN_INCOHERENT: Final[str] = "QTY_SIGN_INCOHERENT"
 M11_AUTHORIZE_KO: Final[str] = "M11 모듈 권한 OK"
 M11_NEGATING_BUILT_KO: Final[str] = "역분개 부호 반전 row 생성 완료"
 M11_SELF_REVERSAL_REJECTED_KO: Final[str] = "이미 역분개된 행은 재역분개 불가"
-M11_TARGET_NOT_REVERSIBLE_KO: Final[str] = (
-    "이 이벤트 타입은 역분개 대상이 아닙니다"
-)
+M11_TARGET_NOT_REVERSIBLE_KO: Final[str] = "이 이벤트 타입은 역분개 대상이 아닙니다"
 
 # Reversible event_types — anything that carries a qty term and was
 # emitted from monthly input / carry chain / production / closing
@@ -194,8 +192,7 @@ def build_reversal_negating_event(
     if not isinstance(correction_group_id, uuid.UUID):
         raise ReversalNegatingBuildError(
             message=(
-                f"correction_group_id must be UUID, got "
-                f"{type(correction_group_id).__name__!r}"
+                f"correction_group_id must be UUID, got " f"{type(correction_group_id).__name__!r}"
             ),
             error_code=ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
         )
@@ -225,8 +222,7 @@ def build_reversal_negating_event(
     if not isinstance(target_event.qty, Decimal):
         raise ReversalNegatingBuildError(
             message=(
-                f"target_event.qty must be Decimal, got "
-                f"{type(target_event.qty).__name__!r}"
+                f"target_event.qty must be Decimal, got " f"{type(target_event.qty).__name__!r}"
             ),
             error_code=ERROR_CODE_QTY_MUST_BE_DECIMAL,
             target_event_id=target_event.event_id,
@@ -234,9 +230,7 @@ def build_reversal_negating_event(
 
     # Sign flip + banker's rounding to QTY_QUANTUM (NUMERIC(18,4)).
     # CR 0-4 lesson: banker's rounding parity TS/Python.
-    negating_qty = (-target_event.qty).quantize(
-        QTY_QUANTUM, rounding=ROUND_HALF_EVEN
-    )
+    negating_qty = (-target_event.qty).quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
 
     # Self-reversal prevention — defense-in-depth on top of the
     # REVERSIBLE_TARGET_EVENT_TYPES check.
@@ -256,8 +250,7 @@ def build_reversal_negating_event(
     # target.qty (or both zero). AD-22 sign-negating invariant.
     # Normalize -0.0000 → 0.0000 for sign check (banker's rounding quirk).
     if target_event.qty != Decimal("0") and (
-        (target_event.qty > 0 and negating_qty > 0)
-        or (target_event.qty < 0 and negating_qty < 0)
+        (target_event.qty > 0 and negating_qty > 0) or (target_event.qty < 0 and negating_qty < 0)
     ):
         raise ReversalNegatingBuildError(
             message=(

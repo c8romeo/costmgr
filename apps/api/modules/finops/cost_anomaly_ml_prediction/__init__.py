@@ -21,6 +21,7 @@ CR lessons applied:
     CR 12-5 D-14 typed exception envelope + AD-22 owner-only RBAC +
     AD-14 stack pin (apscheduler==3.10.4 + pytz==2024.1).
 """
+
 from __future__ import annotations
 
 # ── Module metadata ───────────────────────────────────────────────────────

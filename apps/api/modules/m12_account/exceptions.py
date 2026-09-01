@@ -147,8 +147,7 @@ class TwoFactorRecoveryExhaustedError(Exception):
 
     def __init__(self, *, user_id: uuid.UUID, trace_id: str) -> None:
         super().__init__(
-            f"all 8 recovery codes consumed for user {user_id}; "
-            f"admin re-setup required"
+            f"all 8 recovery codes consumed for user {user_id}; " f"admin re-setup required"
         )
         self.user_id = user_id
         self.trace_id = trace_id
@@ -173,9 +172,7 @@ class TwoFactorDisableUnauthorizedError(Exception):
         reason: str,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"2FA disable unauthorized for user {user_id}: {reason}"
-        )
+        super().__init__(f"2FA disable unauthorized for user {user_id}: {reason}")
         self.user_id = user_id
         self.reason = reason
         self.trace_id = trace_id
@@ -225,9 +222,7 @@ class BackupPayloadTooLargeError(BackupExportServiceError):
         trace_id: str,
     ) -> None:
         super().__init__(
-            message=(
-                f"backup payload {size_bytes} bytes exceeds {max_bytes} cap"
-            ),
+            message=(f"backup payload {size_bytes} bytes exceeds {max_bytes} cap"),
             trace_id=trace_id,
         )
         self.size_bytes = size_bytes

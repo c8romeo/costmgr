@@ -197,8 +197,7 @@ def compute_closing_snapshot(
         if not closing_qty.is_finite():
             raise ClosingPeriodError(
                 message=(
-                    f"closing_qty is non-finite {closing_qty!r} "
-                    f"for product_id={product_id}"
+                    f"closing_qty is non-finite {closing_qty!r} " f"for product_id={product_id}"
                 ),
                 error_code="NON_FINITE_QTY",
                 period_key=period_key,
@@ -254,9 +253,7 @@ def classify_closing_period_status(
     """
     if ledger_event_count < 0:
         raise ClosingPeriodError(
-            message=(
-                f"ledger_event_count must be >= 0, got {ledger_event_count!r}"
-            ),
+            message=(f"ledger_event_count must be >= 0, got {ledger_event_count!r}"),
             error_code="NEGATIVE_LEDGER_EVENT_COUNT",
         )
 

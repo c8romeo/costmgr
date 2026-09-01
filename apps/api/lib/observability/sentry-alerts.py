@@ -5,6 +5,7 @@ apps/api/lib/observability/sentry-alerts.py — Sentry alert wiring (backend).
 - Sentry alert wiring backend production 환경 결정 wire.
 - 5 alert rules: 5xx / tenant isolation / alembic / audit log / PITR drill.
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,7 +23,14 @@ ALERT_RULES: Final[tuple[str, ...]] = (
 )
 
 
-def capture_alert(rule: str, message: str, *, level: str = "error", tags: dict | None = None, extra: dict | None = None) -> None:
+def capture_alert(
+    rule: str,
+    message: str,
+    *,
+    level: str = "error",
+    tags: dict | None = None,
+    extra: dict | None = None,
+) -> None:
     """Capture a Sentry alert for a production environment violation.
 
     1st release launch 결정 wire — production environment alert wiring.

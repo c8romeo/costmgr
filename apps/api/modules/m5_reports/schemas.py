@@ -19,6 +19,7 @@ Pydantic v2 schemas for Report #15 (활동원가 내역서 — 활동별 원가�
 All schemas use `extra="forbid"` per AD-15 §1.
 PRD §9 #15 + §7.1 (활동·동인 매트릭스) verbatim wire 진입.
 """
+
 from __future__ import annotations
 
 from typing import Literal
@@ -89,7 +90,9 @@ class Report21Response(BaseModel):
     cost_object_breakdown: list[Report21CostObjectRow]
     unused_capacity_breakdown: list[Report21UnusedCapacityRow]
     v7_verdict_is_balanced: bool
-    generation_hash: str = Field(..., min_length=len("sha256:") + 64, max_length=len("sha256:") + 64)
+    generation_hash: str = Field(
+        ..., min_length=len("sha256:") + 64, max_length=len("sha256:") + 64
+    )
     report_code: Literal["COST_OBJECT_BREAKDOWN"] = "COST_OBJECT_BREAKDOWN"
 
 
@@ -122,7 +125,9 @@ class Report21PdfResponse(BaseModel):
     period_key: str
     pdf_base64: str = Field(..., min_length=1)
     size_bytes: int = Field(..., ge=0)
-    generation_hash: str = Field(..., min_length=len("sha256:") + 64, max_length=len("sha256:") + 64)
+    generation_hash: str = Field(
+        ..., min_length=len("sha256:") + 64, max_length=len("sha256:") + 64
+    )
     report_code: Literal["COST_OBJECT_BREAKDOWN"] = "COST_OBJECT_BREAKDOWN"
 
 
@@ -189,7 +194,9 @@ class Report15Response(BaseModel):
     period_key: str
     activity_breakdown: list[Report15ActivityCostRow]
     v7_verdict_is_balanced: bool
-    generation_hash: str = Field(..., min_length=len("sha256:") + 64, max_length=len("sha256:") + 64)
+    generation_hash: str = Field(
+        ..., min_length=len("sha256:") + 64, max_length=len("sha256:") + 64
+    )
     report_code: Literal["ACTIVITY_COST_DETAIL"] = "ACTIVITY_COST_DETAIL"
     activity_count: int = Field(..., ge=0)
     total_driver_count: int = Field(..., ge=0)
@@ -226,7 +233,9 @@ class Report15PdfResponse(BaseModel):
     period_key: str
     pdf_base64: str = Field(..., min_length=1)
     size_bytes: int = Field(..., ge=0)
-    generation_hash: str = Field(..., min_length=len("sha256:") + 64, max_length=len("sha256:") + 64)
+    generation_hash: str = Field(
+        ..., min_length=len("sha256:") + 64, max_length=len("sha256:") + 64
+    )
     report_code: Literal["ACTIVITY_COST_DETAIL"] = "ACTIVITY_COST_DETAIL"
 
 

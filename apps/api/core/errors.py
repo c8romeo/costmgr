@@ -7,6 +7,7 @@ shared by chaos (chaos_experiment + fault_injection + auto_rollback +
 tenant_scoping + game_day + continuous_chaos) and prior phases
 (dr_drill + failover_orchestrator).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -44,6 +45,7 @@ class BaseError(Exception):
 
 
 # ── HTTP error classes (typed exception envelope helpers) ──────
+
 
 class BadRequestError(BaseError):
     """HTTP 400 typed error."""
@@ -2000,8 +2002,7 @@ class MultiCloudRateCardScopeError(FinopsMultiCloudError):
         self.scope_type = scope_type
         self.allowed = allowed or []
         super().__init__(
-            f"Invalid multi-cloud rate card scope: {scope_type} "
-            f"(allowed: {self.allowed})",
+            f"Invalid multi-cloud rate card scope: {scope_type} " f"(allowed: {self.allowed})",
             **kwargs,
         )
 
@@ -2045,8 +2046,7 @@ class MultiCloudRateCardProviderError(FinopsMultiCloudError):
         self.cloud_provider = cloud_provider
         self.allowed = allowed or []
         super().__init__(
-            f"Multi-cloud rate card provider error: {cloud_provider} "
-            f"(allowed: {self.allowed})",
+            f"Multi-cloud rate card provider error: {cloud_provider} " f"(allowed: {self.allowed})",
             **kwargs,
         )
 
@@ -2067,8 +2067,7 @@ class MultiCloudCostReconciliationError(FinopsMultiCloudError):
         self.reason = reason
         self.tenant_id = tenant_id
         super().__init__(
-            f"Multi-cloud cost reconciliation failed: reason={reason} "
-            f"tenant_id={tenant_id}",
+            f"Multi-cloud cost reconciliation failed: reason={reason} " f"tenant_id={tenant_id}",
             **kwargs,
         )
 
@@ -2091,8 +2090,7 @@ class MultiCloudCostScopeError(FinopsMultiCloudError):
         self.scope_type = scope_type
         self.allowed = allowed or []
         super().__init__(
-            f"Invalid multi-cloud cost scope: {scope_type} "
-            f"(allowed: {self.allowed})",
+            f"Invalid multi-cloud cost scope: {scope_type} " f"(allowed: {self.allowed})",
             **kwargs,
         )
 
@@ -2129,8 +2127,7 @@ class MultiCloudCostProviderError(FinopsMultiCloudError):
         self.cloud_provider = cloud_provider
         self.allowed = allowed or []
         super().__init__(
-            f"Multi-cloud cost provider error: {cloud_provider} "
-            f"(allowed: {self.allowed})",
+            f"Multi-cloud cost provider error: {cloud_provider} " f"(allowed: {self.allowed})",
             **kwargs,
         )
 
@@ -2185,8 +2182,7 @@ class NegotiationBotGuardError(FinopsMultiCloudError):
         self.threshold = threshold
         self.actual = actual
         super().__init__(
-            f"Negotiation bot guard violation: {guard} "
-            f"threshold={threshold} actual={actual}",
+            f"Negotiation bot guard violation: {guard} " f"threshold={threshold} actual={actual}",
             **kwargs,
         )
 
@@ -2359,8 +2355,7 @@ class ScheduledMultiCloudDispatchError(FinopsMultiCloudError):
         self.reason = reason
         self.tenant_id = tenant_id
         super().__init__(
-            f"Scheduled multi-cloud dispatch failure: reason={reason} "
-            f"tenant_id={tenant_id}",
+            f"Scheduled multi-cloud dispatch failure: reason={reason} " f"tenant_id={tenant_id}",
             **kwargs,
         )
 
@@ -2384,8 +2379,7 @@ class MultiCloudCronExpressionInvalidError(FinopsMultiCloudError):
         self.reason = reason
         self.allowed = allowed or []
         super().__init__(
-            f"Invalid multi-cloud cron expression: reason={reason} "
-            f"allowed={allowed}",
+            f"Invalid multi-cloud cron expression: reason={reason} " f"allowed={allowed}",
             **kwargs,
         )
 
@@ -2429,8 +2423,7 @@ class MultiCloudRecipientResolverError(FinopsMultiCloudError):
         self.reason = reason
         self.allowed = allowed or []
         super().__init__(
-            f"Multi-cloud recipient resolver failure: reason={reason} "
-            f"allowed={allowed}",
+            f"Multi-cloud recipient resolver failure: reason={reason} " f"allowed={allowed}",
             **kwargs,
         )
 

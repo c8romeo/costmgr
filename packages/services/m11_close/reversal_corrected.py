@@ -54,9 +54,7 @@ ERROR_CODE_MISSING_CORRECTED_QTY: Final[str] = "MISSING_CORRECTED_QTY"
 ERROR_CODE_MISSING_CORRECTED_PERIOD_KEY: Final[str] = "MISSING_CORRECTED_PERIOD_KEY"
 
 # AD-24 typed period-key pattern.
-_PERIOD_KEY_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"^\d{4}-(0[1-9]|1[0-2])$"
-)
+_PERIOD_KEY_PATTERN: Final[re.Pattern[str]] = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 # Korean constants — AD-15 §11 SSOT.
 M11_CORRECTED_BUILT_KO: Final[str] = "역분개 정정 row 생성 완료"
@@ -168,17 +166,13 @@ def build_reversal_corrected_event(
         return None
     if corrected_qty is None:
         raise ReversalCorrectedBuildError(
-            message=(
-                "corrected_qty must be provided together with corrected_period_key"
-            ),
+            message=("corrected_qty must be provided together with corrected_period_key"),
             error_code=ERROR_CODE_MISSING_CORRECTED_QTY,
             target_event_id=target_event.event_id,
         )
     if corrected_period_key is None:
         raise ReversalCorrectedBuildError(
-            message=(
-                "corrected_period_key must be provided together with corrected_qty"
-            ),
+            message=("corrected_period_key must be provided together with corrected_qty"),
             error_code=ERROR_CODE_MISSING_CORRECTED_PERIOD_KEY,
             target_event_id=target_event.event_id,
         )
@@ -204,18 +198,14 @@ def build_reversal_corrected_event(
     if not isinstance(correction_group_id, uuid.UUID):
         raise ReversalCorrectedBuildError(
             message=(
-                f"correction_group_id must be UUID, got "
-                f"{type(correction_group_id).__name__!r}"
+                f"correction_group_id must be UUID, got " f"{type(correction_group_id).__name__!r}"
             ),
             error_code=ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
             target_event_id=target_event.event_id,
         )
     if not isinstance(corrected_qty, Decimal):
         raise ReversalCorrectedBuildError(
-            message=(
-                f"corrected_qty must be Decimal, got "
-                f"{type(corrected_qty).__name__!r}"
-            ),
+            message=(f"corrected_qty must be Decimal, got " f"{type(corrected_qty).__name__!r}"),
             error_code=ERROR_CODE_QTY_MUST_BE_DECIMAL,
             target_event_id=target_event.event_id,
         )
@@ -229,9 +219,7 @@ def build_reversal_corrected_event(
     )
 
     # Banker's rounding parity (CR 0-4).
-    quantized_corrected_qty = corrected_qty.quantize(
-        QTY_QUANTUM, rounding=ROUND_HALF_EVEN
-    )
+    quantized_corrected_qty = corrected_qty.quantize(QTY_QUANTUM, rounding=ROUND_HALF_EVEN)
 
     new_event_id = event_id if event_id is not None else uuid.uuid4()
 
@@ -294,8 +282,7 @@ def validate_reversal_corrected_constraints(
     if not isinstance(correction_group_id, uuid.UUID):
         raise ReversalCorrectedBuildError(
             message=(
-                f"correction_group_id must be UUID, got "
-                f"{type(correction_group_id).__name__!r}"
+                f"correction_group_id must be UUID, got " f"{type(correction_group_id).__name__!r}"
             ),
             error_code=ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
             target_event_id=target_event.event_id,
@@ -303,8 +290,7 @@ def validate_reversal_corrected_constraints(
     if not isinstance(corrected_period_key, str):
         raise ReversalCorrectedBuildError(
             message=(
-                f"corrected_period_key must be str, got "
-                f"{type(corrected_period_key).__name__!r}"
+                f"corrected_period_key must be str, got " f"{type(corrected_period_key).__name__!r}"
             ),
             error_code=ERROR_CODE_INCONSISTENT_CORRECTION_GROUP,
             target_event_id=target_event.event_id,
@@ -318,7 +304,10 @@ def validate_reversal_corrected_constraints(
             error_code=ERROR_CODE_INVALID_CORRECTION_GROUP_ID,
             target_event_id=target_event.event_id,
         )
-    if negating_correction_group_id is not None and correction_group_id != negating_correction_group_id:
+    if (
+        negating_correction_group_id is not None
+        and correction_group_id != negating_correction_group_id
+    ):
         raise ReversalCorrectedBuildError(
             message=(
                 f"corrected row's correction_group_id {correction_group_id!s} "

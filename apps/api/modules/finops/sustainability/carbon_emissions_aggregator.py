@@ -42,6 +42,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -121,9 +122,7 @@ def _is_valid_period_key(period_key: str) -> bool:
             return 1 <= quarter <= 4
         except ValueError:
             return False
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _get_industry_carbon_intensity_baseline(industry: str = "manufacturing") -> float:
@@ -173,6 +172,7 @@ def compute_showback_x_carbon_intensity(
     try:
         # Real DB query path (Phase 11 wire EXTENSION).
         from apps.api.modules.finops.showback_query import query_showback_breakdown
+
         result = query_showback_breakdown(
             db_session=db_session,
             tenant_id=tenant_id,
@@ -442,7 +442,9 @@ def aggregate_carbon_emissions(
         "phase_15_tag_compliance_pct": tag_compliance_pct,
         "phase_16_executive_rollup_total_krw": executive_rollup_total_krw,
         "industry": industry,
-        "carbon_intensity_baseline_kgco2e_per_krw": _get_industry_carbon_intensity_baseline(industry),
+        "carbon_intensity_baseline_kgco2e_per_krw": _get_industry_carbon_intensity_baseline(
+            industry
+        ),
     }
 
     rollup: CarbonEmissionsRollup = {

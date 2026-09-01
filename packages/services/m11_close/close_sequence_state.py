@@ -16,9 +16,7 @@ from datetime import datetime
 from typing import Final, Literal, NamedTuple
 
 # ── Constants ────────────────────────────────────────────────
-CloseSequenceState = Literal[
-    "divisions", "manufacturing", "abc", "common", "confirmed"
-]
+CloseSequenceState = Literal["divisions", "manufacturing", "abc", "common", "confirmed"]
 TargetTable = Literal[
     "monthly_input_periods",
     "monthly_input_rows",
@@ -154,10 +152,7 @@ def check_ad6_insert_allowed(
         "confirmed",
     ):
         raise CloseSequenceStateError(
-            message=(
-                f"close_sequence_state {close_sequence_state!r} is not "
-                f"a known state"
-            )
+            message=(f"close_sequence_state {close_sequence_state!r} is not " f"a known state")
         )
 
     # Non-confirmed state → allow (no lock active yet).

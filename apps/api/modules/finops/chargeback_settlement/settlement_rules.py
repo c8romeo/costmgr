@@ -51,6 +51,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -89,10 +90,7 @@ def _compute_cache_key(
     rule_name: str,
 ) -> str:
     """Compute SHA-256 cache key for SettlementRule."""
-    payload = (
-        f"{tenant_id}:{period_key}:{rule_type}:{rule_name}:"
-        f"chargeback_settlement_rule"
-    )
+    payload = f"{tenant_id}:{period_key}:{rule_type}:{rule_name}:" f"chargeback_settlement_rule"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -169,9 +167,7 @@ def _is_valid_period_key(period_key: str) -> bool:
         return True
     if len(period_key) == 5 and period_key[2] == "-" and period_key[:2].isdigit():
         return True
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _compute_five_module_attribution(
@@ -298,9 +294,12 @@ def create_settlement_rule(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{period_key}:{rule_type}:{rule_name}:create".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(
+            f"{tenant_id}:{period_key}:{rule_type}:{rule_name}:create".encode()
+        ).hexdigest()[:32]
+    )
 
     cache_key = _compute_cache_key(
         tenant_id=tenant_id,
@@ -322,9 +321,9 @@ def create_settlement_rule(
         requires_2fa_challenge = computed_requires_2fa
 
     settlement_id = (
-        cache_key if dry_run else hashlib.sha256(
-            f"{cache_key}:persisted:{period_key}:{rule_name}".encode()
-        ).hexdigest()
+        cache_key
+        if dry_run
+        else hashlib.sha256(f"{cache_key}:persisted:{period_key}:{rule_name}".encode()).hexdigest()
     )
 
     settlement_rule: SettlementRule = {
@@ -372,6 +371,7 @@ def create_settlement_rule(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             await_emit = emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_CHARGEBACK_SETTLEMENT,
@@ -429,9 +429,12 @@ def update_settlement_rule(
         dry_run=dry_run,
     )
 
-    trace_id = trace_id or hashlib.sha256(
-        f"{tenant_id}:{settlement_id}:update:{period_key}".encode()
-    ).hexdigest()[:32]
+    trace_id = (
+        trace_id
+        or hashlib.sha256(f"{tenant_id}:{settlement_id}:update:{period_key}".encode()).hexdigest()[
+            :32
+        ]
+    )
 
     five_module_attribution = _compute_five_module_attribution(
         five_module_inputs=five_module_inputs,
@@ -472,6 +475,7 @@ def update_settlement_rule(
     if db_session is not None and not dry_run:
         try:
             from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
             emit_audit_typed(
                 db_session,
                 action_class=ActionClass.FINOPS_CHARGEBACK_SETTLEMENT,

@@ -61,6 +61,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT (finops_interactive_dashboard.* namespace).
 """
+
 from __future__ import annotations
 
 import logging
@@ -98,6 +99,7 @@ if TYPE_CHECKING:
 else:
     try:
         from fastapi import APIRouter, Depends, HTTPException, status
+
         _FASTAPI_AVAILABLE = True
     except ImportError:
         _FASTAPI_AVAILABLE = False
@@ -124,8 +126,7 @@ async def _require_capability_finops_interactive_dashboard() -> dict[str, Any]:
         dependency (fail-closed 403 Forbidden for non-granted tenants).
     """
     _logger.info(
-        "phase_28_interactive_dashboard capability gate placeholder "
-        "(T5.3 will wire real gate)"
+        "phase_28_interactive_dashboard capability gate placeholder " "(T5.3 will wire real gate)"
     )
     return {"capability": "FINOPS_INTERACTIVE_DASHBOARD", "granted": True}
 
@@ -154,9 +155,7 @@ def _build_router() -> Any:
         RuntimeError if FastAPI is not installed.
     """
     if not _FASTAPI_AVAILABLE or APIRouter is None:
-        raise RuntimeError(
-            "FastAPI is not installed; cannot construct dashboard_router"
-        )
+        raise RuntimeError("FastAPI is not installed; cannot construct dashboard_router")
 
     router = APIRouter(
         prefix=DASHBOARD_ROUTER_PREFIX,
@@ -339,8 +338,8 @@ def _build_router() -> Any:
         """
         tenant_id = _require_tenant_id(payload)
         view_id = payload.get("view_id")
-        scope = payload.get("scope", DashboardSharingScope.TENANT.value)
-        granted_to_user_id = payload.get("granted_to_user_id", "")
+        payload.get("scope", DashboardSharingScope.TENANT.value)
+        payload.get("granted_to_user_id", "")
         try:
             # Mark is_shared=True on the saved view
             saved_view = update_saved_view(
@@ -367,9 +366,7 @@ if _FASTAPI_AVAILABLE:
     try:
         router = _build_router()
     except Exception as _exc:  # noqa: BLE001
-        _logger.warning(
-            "dashboard_router build failed: %s", _exc
-        )
+        _logger.warning("dashboard_router build failed: %s", _exc)
         router = None
 
 

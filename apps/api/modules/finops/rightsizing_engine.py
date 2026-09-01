@@ -39,6 +39,7 @@ Epic 12 2FA 챌린지 mandatory when governance_required=True.
 Industry-agnostic per CR 12-1 L4 precedent. All 4 industries get
 FINOPS_OPTIMIZATION capability.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -347,7 +348,8 @@ def _recommend_compute_rightsizing(
     # Estimate 50% cost reduction on downsize (per spec simplification).
     recommended_cost = current_cost_krw * 0.5
     projected_savings_pct, projected_savings_amount = _compute_projected_savings(
-        current_cost_krw, recommended_cost,
+        current_cost_krw,
+        recommended_cost,
     )
     confidence_score = 90.0  # Phase 13 forecast accuracy EXTENSION (placeholder)
     return RightsizingRecommendation(
@@ -399,7 +401,8 @@ def _recommend_storage_rightsizing(
         }
         recommended_cost = current_cost_krw * tier_multiplier[recommended_tier]
         savings_pct, savings_amount = _compute_projected_savings(
-            current_cost_krw, recommended_cost,
+            current_cost_krw,
+            recommended_cost,
         )
     confidence_score = 85.0
     return StorageRecommendation(
@@ -441,7 +444,8 @@ def _recommend_database_rightsizing(
     recommended_type = INSTANCE_TYPE_DOWNGRADE_MAP[current_instance_type]
     recommended_cost = current_cost_krw * 0.5
     projected_savings_pct, projected_savings_amount = _compute_projected_savings(
-        current_cost_krw, recommended_cost,
+        current_cost_krw,
+        recommended_cost,
     )
     confidence_score = 80.0
     return RightsizingRecommendation(
@@ -475,12 +479,21 @@ def _recommend_network_rightsizing(
     trace_id: str = "",
 ) -> RightsizingRecommendation:
     """Network rightsizing (PRD §F30.2.5 verbatim)."""
-    if resource_subtype == "eip" and eip_associated is False or resource_subtype == "nat" and nat_bytes_out_p95 == 0 or resource_subtype == "lb" and lb_request_count_p95 is not None and lb_request_count_p95 < 100:
+    if (
+        resource_subtype == "eip"
+        and eip_associated is False
+        or resource_subtype == "nat"
+        and nat_bytes_out_p95 == 0
+        or resource_subtype == "lb"
+        and lb_request_count_p95 is not None
+        and lb_request_count_p95 < 100
+    ):
         recommended_cost = 0.0
     else:
         recommended_cost = current_cost_krw * 0.5
     projected_savings_pct, projected_savings_amount = _compute_projected_savings(
-        current_cost_krw, recommended_cost,
+        current_cost_krw,
+        recommended_cost,
     )
     confidence_score = 88.0
     return RightsizingRecommendation(
@@ -518,7 +531,8 @@ def _recommend_container_rightsizing(
     else:
         recommended_cost = current_cost_krw
     projected_savings_pct, projected_savings_amount = _compute_projected_savings(
-        current_cost_krw, recommended_cost,
+        current_cost_krw,
+        recommended_cost,
     )
     confidence_score = 75.0
     if confidence_score < CONFIDENCE_LOW_THRESHOLD:

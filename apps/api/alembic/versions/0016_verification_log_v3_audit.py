@@ -162,6 +162,4 @@ def downgrade() -> None:
         "ALTER TABLE monthly_input_rows "
         "DROP CONSTRAINT IF EXISTS chk_opening_inventory_manual_reject"
     )
-    op.execute(
-        "ALTER TABLE monthly_input_rows " "DROP COLUMN IF EXISTS created_via"
-    )
+    op.execute("ALTER TABLE monthly_input_rows " "DROP COLUMN IF EXISTS created_via")

@@ -290,9 +290,7 @@ class DeletionService:
                 "TOTP not registered — issue_deletion_challenge_token requires 2FA setup"
             )
         # Decrypt TOTP secret (mirror two_factor_service.py: AAD = b"totp_secret")
-        secret_bytes = decrypt_at_rest(
-            user.totp_secret, key_id=DEFAULT_KEY_ID, aad=b"totp_secret"
-        )
+        secret_bytes = decrypt_at_rest(user.totp_secret, key_id=DEFAULT_KEY_ID, aad=b"totp_secret")
         # Verify code (Layer 2 — re-verify at service entry)
         passed = verify_totp_code(secret_bytes, current_code, timestamp=now_ts)
         if not passed:
@@ -375,13 +373,9 @@ class DeletionService:
                 aad=DELETION_CONSENT_AAD,
             )
         except Exception as exc:
-            raise DeletionConsentEncryptionError(
-                tenant_id=self.tenant_id, reason=str(exc)
-            ) from exc
+            raise DeletionConsentEncryptionError(tenant_id=self.tenant_id, reason=str(exc)) from exc
         consent_id = uuid.uuid4()
-        consent_hash = compute_consent_hash(
-            consent_text, salt=str(self.tenant_id)
-        )
+        consent_hash = compute_consent_hash(consent_text, salt=str(self.tenant_id))
         # ── Insert deletion_consents row (CR 11-3 audit rename — 2-row append) ──
         consent_row = DeletionConsent(
             consent_id=consent_id,
@@ -567,9 +561,7 @@ class DeletionService:
                 str(tenant.deletion_consent_id) if tenant.deletion_consent_id else ""
             ),
             deletion_scheduled_for=(
-                tenant.deletion_scheduled_for.isoformat()
-                if tenant.deletion_scheduled_for
-                else ""
+                tenant.deletion_scheduled_for.isoformat() if tenant.deletion_scheduled_for else ""
             ),
         )
 
@@ -579,18 +571,14 @@ class DeletionService:
         # used here because user_id is globally unique (PK) and tenant context
         # is enforced via the async session RLS listener (AD-3).
 
-        result = await self.session.execute(
-            select(User).where(User.id == uuid.UUID(user_id))
-        )
+        result = await self.session.execute(select(User).where(User.id == uuid.UUID(user_id)))
         user = result.scalar_one_or_none()
         if user is None:
             raise TotpInvalidCodeError(f"user not found (id={user_id})")
         return user
 
     async def _load_tenant(self, tenant_id: str) -> Tenant:
-        result = await self.session.execute(
-            select(Tenant).where(Tenant.id == uuid.UUID(tenant_id))
-        )
+        result = await self.session.execute(select(Tenant).where(Tenant.id == uuid.UUID(tenant_id)))
         tenant = result.scalar_one_or_none()
         if tenant is None:
             raise AccountDeletionNotOwnerError(actor_role="unknown")
@@ -648,16 +636,12 @@ class DeletionService:
         """Increment failed_attempts + lockout if threshold reached."""
         new_count = state.failed_attempts + 1
         await self.session.execute(
-            update(User)
-            .where(User.id == user.id)
-            .values(totp_failed_attempts=new_count)
+            update(User).where(User.id == user.id).values(totp_failed_attempts=new_count)
         )
         if new_count >= MAX_FAILED_ATTEMPTS:
             lockout_until = now + 900  # 15 min
             await self.session.execute(
-                update(User)
-                .where(User.id == user.id)
-                .values(totp_lockout_until=lockout_until)
+                update(User).where(User.id == user.id).values(totp_lockout_until=lockout_until)
             )
         await self.session.flush()
 

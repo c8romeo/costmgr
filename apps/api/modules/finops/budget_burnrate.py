@@ -30,6 +30,7 @@ CR lessons applied:
 
 AD-22 owner-only RBAC — project_budget_consumption owner-only.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -248,7 +249,10 @@ def project_budget_consumption(
         BudgetOverrunPredictionError: overrun prediction failure.
     """
     burn_rate_pct = _compute_burn_rate(
-        consumed_budget, total_budget, elapsed_days, remaining_days,
+        consumed_budget,
+        total_budget,
+        elapsed_days,
+        remaining_days,
     )
     severity = _classify_severity(burn_rate_pct)
     alert_required = severity != SEVERITY_NORMAL
@@ -260,7 +264,10 @@ def project_budget_consumption(
         horizon = "12m" if remaining_days > 90 else "3m"
         try:
             arima_result = _arima_predict(
-                spend_history, horizon, projection_id, SEMVER_DEFAULT_VERSION,
+                spend_history,
+                horizon,
+                projection_id,
+                SEMVER_DEFAULT_VERSION,
             )
             predicted_end_period_spend = sum(arima_result["predicted_values"])
         except Exception as exc:

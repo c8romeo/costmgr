@@ -24,6 +24,7 @@ All routes:
       - `audit_log_personal_data_erased` on GDPR erasure BEFORE PII mask
   - Typed exception envelope CR 12-5 D-14 verbatim.
 """
+
 from __future__ import annotations
 
 import logging
@@ -126,7 +127,12 @@ async def list_retention_policies(
     """List all retention policies for the current tenant (RLS-scoped)."""
     return {
         "policies": [
-            {"action_class": cls, "days": DEFAULT_RETENTION_DAYS[cls], "archive": True, "mask_pii": True}
+            {
+                "action_class": cls,
+                "days": DEFAULT_RETENTION_DAYS[cls],
+                "archive": True,
+                "mask_pii": True,
+            }
             for cls in ("admin", "auth", "data", "security")
         ],
         "trace_id": str(uuid.uuid4()),
@@ -254,6 +260,7 @@ async def gdpr_erase_audit_log(
     tenant_id = uuid.UUID(ctx.get("tenant_id", "00000000-0000-0000-0000-000000000000"))
 
     from apps.api.db.session import get_async_session
+
     async for db in get_async_session():
         return await request_audit_log_erasure(
             db,

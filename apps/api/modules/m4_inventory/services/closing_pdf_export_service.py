@@ -156,9 +156,7 @@ class ClosingPdfExportAuditEmitError(Exception):
         details: dict[str, Any],
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"closing_pdf_export audit emit failed for tenant {tenant_id}: {details}"
-        )
+        super().__init__(f"closing_pdf_export audit emit failed for tenant {tenant_id}: {details}")
         self.tenant_id = tenant_id
         self.details = details
         self.trace_id = trace_id
@@ -266,11 +264,7 @@ class ClosingPdfExportService:
         )
 
         # 4. Build ClosingPdfDocument + render byte stream.
-        title_ko = (
-            CLOSING_PDF_EXPORT_EMPTY_KO
-            if is_empty
-            else CLOSING_PDF_EXPORT_TITLE_KO
-        )
+        title_ko = CLOSING_PDF_EXPORT_EMPTY_KO if is_empty else CLOSING_PDF_EXPORT_TITLE_KO
 
         # Build summary section (always present — PRD §F6.3 cover page).
         summary_section = ClosingPdfSection(
@@ -431,18 +425,20 @@ class ClosingPdfExportService:
         tenant_id = self.tenant_id
         # 1) closing_snapshot events (5-2 InventoryLedger + event_type
         #    filter — matches 6-1/6-2 wire pattern).
-        cs_rows = (await self.session.execute(
-            text(
-                """
+        cs_rows = (
+            await self.session.execute(
+                text(
+                    """
                 SELECT product_id, qty, payload->>'finalized_at' AS finalized_at
                 FROM inventory_ledger
                 WHERE tenant_id = :tenant_id
                   AND period_key = :period_key
                   AND event_type = 'closing_snapshot'
                 """
-            ),
-            {"tenant_id": str(tenant_id), "period_key": period_key},
-        )).fetchall()
+                ),
+                {"tenant_id": str(tenant_id), "period_key": period_key},
+            )
+        ).fetchall()
         closing_snapshot_events: list[dict[str, Any]] = [
             {
                 "product_id": str(row[0]) if row[0] is not None else "",
@@ -453,18 +449,20 @@ class ClosingPdfExportService:
         ]
 
         # 2) inventory_ledger (전체 events).
-        il_rows = (await self.session.execute(
-            text(
-                """
+        il_rows = (
+            await self.session.execute(
+                text(
+                    """
                 SELECT event_id, product_id, qty, payload->>'occurred_at' AS occurred_at
                 FROM inventory_ledger
                 WHERE tenant_id = :tenant_id
                   AND period_key = :period_key
                 ORDER BY event_id
                 """
-            ),
-            {"tenant_id": str(tenant_id), "period_key": period_key},
-        )).fetchall()
+                ),
+                {"tenant_id": str(tenant_id), "period_key": period_key},
+            )
+        ).fetchall()
         ledger_events: list[dict[str, Any]] = [
             {
                 "id": str(row[0]) if row[0] is not None else "",
@@ -479,25 +477,25 @@ class ClosingPdfExportService:
         # Walking Skeleton (2026-08-16): `fiscal_period_snapshots` has
         # NO `payload` JSONB column — capture timestamp lives on
         # `created_at` (TIMESTAMPTZ). Column-name + table-shape fix.
-        fp_rows = (await self.session.execute(
-            text(
-                """
+        fp_rows = (
+            await self.session.execute(
+                text(
+                    """
                 SELECT snapshot_id, period_key, created_at
                 FROM fiscal_period_snapshots
                 WHERE tenant_id = :tenant_id
                   AND period_key = :period_key
                 ORDER BY snapshot_id
                 """
-            ),
-            {"tenant_id": str(tenant_id), "period_key": period_key},
-        )).fetchall()
+                ),
+                {"tenant_id": str(tenant_id), "period_key": period_key},
+            )
+        ).fetchall()
         fiscal_period_snapshots: list[dict[str, Any]] = [
             {
                 "id": str(row[0]) if row[0] is not None else "",
                 "period_key": str(row[1]) if row[1] is not None else "",
-                "captured_at": (
-                    row[2].isoformat() if row[2] is not None else ""
-                ),
+                "captured_at": (row[2].isoformat() if row[2] is not None else ""),
             }
             for row in fp_rows
         ]

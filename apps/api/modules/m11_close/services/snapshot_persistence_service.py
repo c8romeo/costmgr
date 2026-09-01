@@ -223,9 +223,7 @@ class SnapshotPersistenceService:
             trace_id=self.trace_id,
             published_at=committed_at.isoformat(),
         )
-        receipt_dicts = [
-            CacheInvalidationPublisher.receipt_to_dict(r) for r in receipts
-        ]
+        receipt_dicts = [CacheInvalidationPublisher.receipt_to_dict(r) for r in receipts]
 
         return CommitSnapshotPersistenceResponse(
             snapshot_id=snapshot_id,
@@ -268,9 +266,7 @@ class SnapshotPersistenceService:
             snapshot_id=snapshot.snapshot_id,
             state=snapshot.state,
             committed_at=(
-                snapshot.created_at.isoformat()
-                if snapshot.state == "committed"
-                else None
+                snapshot.created_at.isoformat() if snapshot.state == "committed" else None
             ),
             trace_id=self.trace_id,
         )

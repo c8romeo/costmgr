@@ -45,9 +45,7 @@ from packages.services.m10_ai.promoter_port import (
     PromotionResult,
 )
 
-__all__ = (
-    "DbPromoterAdapter",
-)
+__all__ = ("DbPromoterAdapter",)
 
 
 class DbPromoterAdapter:
@@ -76,9 +74,7 @@ class DbPromoterAdapter:
         # Lazy service construction — the PromoterService is created
         # per `promote()` call (rather than cached) so the trace_id
         # threading stays explicit. Cheap construction (no I/O).
-        self._service_factory = (
-            lambda: PromoterService(session, trace_id=trace_id)
-        )
+        self._service_factory = lambda: PromoterService(session, trace_id=trace_id)
 
     async def promote(self, request: PromotionRequest) -> PromotionResult:
         """Promote a single input_drafts row to monthly_input_rows.

@@ -265,9 +265,7 @@ def _compose_report21_pdf(
         f"{PDF_COMMON_PERIOD_LABEL_KO}: {request.period_key}",
     ]
     # Generated at — use period_key as proxy (pure-kernel NO clock AD-5).
-    title_lines.append(
-        f"{PDF_COMMON_DATE_LABEL_KO}: {request.period_key}-issued"
-    )
+    title_lines.append(f"{PDF_COMMON_DATE_LABEL_KO}: {request.period_key}-issued")
 
     # Body — render payload as rows
     body_lines: list[str] = ["--- 부서귀속명세 본문 ---", ""]
@@ -290,7 +288,7 @@ def _compose_report21_pdf(
     content_lines.append("72 770 Td")
     # Split text into 60-char chunks for safe Tj rendering
     for chunk_start in range(0, len(text_payload), 60):
-        chunk = text_payload[chunk_start:chunk_start + 60]
+        chunk = text_payload[chunk_start : chunk_start + 60]
         escaped = _escape_pdf_literal(chunk)
         content_lines.append(f"({escaped}) Tj")
         content_lines.append("0 -16 Td")
@@ -391,9 +389,7 @@ def _compose_report15_pdf(
         f"{PDF_COMMON_PERIOD_LABEL_KO}: {request.period_key}",
     ]
     # Generated at — use period_key as proxy (pure-kernel NO clock AD-5).
-    title_lines.append(
-        f"{PDF_COMMON_DATE_LABEL_KO}: {request.period_key}-issued"
-    )
+    title_lines.append(f"{PDF_COMMON_DATE_LABEL_KO}: {request.period_key}-issued")
 
     # Body — render payload as 활동별 행 (PRD §9 #15 verbatim)
     body_lines: list[str] = [
@@ -423,7 +419,7 @@ def _compose_report15_pdf(
     content_lines.append("72 770 Td")
     # Split text into 60-char chunks for safe Tj rendering
     for chunk_start in range(0, len(text_payload), 60):
-        chunk = text_payload[chunk_start:chunk_start + 60]
+        chunk = text_payload[chunk_start : chunk_start + 60]
         escaped = _escape_pdf_literal(chunk)
         content_lines.append(f"({escaped}) Tj")
         content_lines.append("0 -16 Td")

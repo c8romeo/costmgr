@@ -25,6 +25,7 @@ CR 1-1 audit-first: 1 NEW audit log row `audit_log_exported` INSERTed
 BEFORE the CSV byte stream flush (T5 verbatim).
 CR 12-5 D-14 typed exception envelope for all 4 NEW error classes.
 """
+
 from __future__ import annotations
 
 import csv
@@ -126,9 +127,7 @@ def _parse_filters(
         try:
             uuid.UUID(actor_id)
         except ValueError as exc:
-            raise AuditLogQueryInvalidFilterError(
-                f"actor_id must be a UUID: {actor_id}"
-            ) from exc
+            raise AuditLogQueryInvalidFilterError(f"actor_id must be a UUID: {actor_id}") from exc
         filters["actor_id"] = actor_id
     if action:
         filters["action"] = action
@@ -150,9 +149,7 @@ def _parse_filters(
         try:
             datetime.fromisoformat(end_date.replace("Z", "+00:00"))
         except ValueError as exc:
-            raise AuditLogQueryInvalidFilterError(
-                f"end_date must be ISO 8601: {end_date}"
-            ) from exc
+            raise AuditLogQueryInvalidFilterError(f"end_date must be ISO 8601: {end_date}") from exc
         filters["end_date"] = end_date
     if trace_id:
         filters["trace_id"] = trace_id
@@ -236,9 +233,7 @@ async def count_audit_log_endpoint(
         end_date=end_date,
         trace_id=trace_id,
     )
-    total = await count_audit_log(
-        session, tenant_id=ctx.tenant_id, filters=filters
-    )
+    total = await count_audit_log(session, tenant_id=ctx.tenant_id, filters=filters)
     return {"total": total}
 
 
@@ -258,9 +253,7 @@ async def get_audit_log_entry_endpoint(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Single audit log entry lookup (AuditLogDetailModal target)."""
-    return await get_audit_log_entry(
-        session, tenant_id=ctx.tenant_id, entry_id=entry_id
-    )
+    return await get_audit_log_entry(session, tenant_id=ctx.tenant_id, entry_id=entry_id)
 
 
 # ── GET /api/v1/activity ───────────────────────────────────────────────
@@ -286,9 +279,7 @@ async def get_activity_stream(
         raise AuditLogQueryInvalidFilterError(
             f"window_days must be one of 1, 7, 30, 90; got {window_days}"
         )
-    groups = await query_activity_stream(
-        session, tenant_id=ctx.tenant_id, window_days=window_days
-    )
+    groups = await query_activity_stream(session, tenant_id=ctx.tenant_id, window_days=window_days)
     return {"groups": groups, "window_days": window_days}
 
 
@@ -344,9 +335,7 @@ async def export_audit_log_csv(
     ).first()
     total_rows: int = int(count_row[0]) if count_row else 0
     if total_rows > MAX_EXPORT_ROWS:
-        raise AuditLogExportTooLargeError(
-            row_count=total_rows, max_rows=MAX_EXPORT_ROWS
-        )
+        raise AuditLogExportTooLargeError(row_count=total_rows, max_rows=MAX_EXPORT_ROWS)
 
     # audit-first INSERT `audit_log_exported` (CR 1-1 verbatim).
     try:

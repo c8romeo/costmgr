@@ -41,6 +41,7 @@ Phase 7 wire pattern + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW
 Epic 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern
 verbatim). All 4 industries get PERFORMANCE_TESTING capability.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -48,13 +49,11 @@ import hashlib
 import json
 import os
 import shutil
-import subprocess
 import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Final, TypedDict
-
 
 # ── K6 binary discovery ────────────────────────────────────────
 K6_VERSION: Final[str] = "0.45.0"  # AD-14 stack pin (Phase 8 wire)
@@ -189,9 +188,7 @@ class LoadTestRunnerExecutionError(Exception):
 
 
 # ── Synthetic dry-run summary (Phase 4 Sentry conditional init pattern) ──
-def _synthetic_dry_run_summary(
-    *, scenario: K6Scenario, tenant_id: uuid.UUID
-) -> LoadTestRunResult:
+def _synthetic_dry_run_summary(*, scenario: K6Scenario, tenant_id: uuid.UUID) -> LoadTestRunResult:
     """Synthesize a dry-run summary when dry_run=True (no actual k6 invocation).
 
     Mirrors Phase 7 OTEL_SDK_DISABLED no-op TracerProvider fallback —
@@ -223,8 +220,8 @@ def _synthetic_dry_run_summary(
         scenario=scenario.value,
         tenant_id=str(tenant_id),
         dry_run=True,
-        started_at=_dt.datetime.now(tz=_dt.timezone.utc).isoformat(),
-        completed_at=_dt.datetime.now(tz=_dt.timezone.utc).isoformat(),
+        started_at=_dt.datetime.now(tz=_dt.UTC).isoformat(),
+        completed_at=_dt.datetime.now(tz=_dt.UTC).isoformat(),
         metrics=LoadTestMetric(
             p95_ms=p95,
             p99_ms=p99,
@@ -290,9 +287,7 @@ async def run_k6_load_test(
     if request.dry_run:
         # dry-run path — synthesize summary, NO actual k6 invocation.
         # Mirrors Phase 7 OTEL_SDK_DISABLED no-op fallback pattern.
-        return _synthetic_dry_run_summary(
-            scenario=request.scenario, tenant_id=request.tenant_id
-        )
+        return _synthetic_dry_run_summary(scenario=request.scenario, tenant_id=request.tenant_id)
 
     scripts_root = scripts_dir or Path(__file__).parent.parent / "tests" / "load" / "k6"
     script_path = scripts_root / f"{request.scenario.value}.js"
@@ -402,8 +397,8 @@ def _parse_k6_summary(
         scenario=scenario.value,
         tenant_id=str(tenant_id),
         dry_run=False,
-        started_at=_dt.datetime.now(tz=_dt.timezone.utc).isoformat(),
-        completed_at=_dt.datetime.now(tz=_dt.timezone.utc).isoformat(),
+        started_at=_dt.datetime.now(tz=_dt.UTC).isoformat(),
+        completed_at=_dt.datetime.now(tz=_dt.UTC).isoformat(),
         metrics=LoadTestMetric(
             p95_ms=p95,
             p99_ms=p99,

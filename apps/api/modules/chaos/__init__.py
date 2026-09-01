@@ -35,6 +35,7 @@ Phase 8 wire + OBSERVABILITY_* Phase 7 wire + AUDIT_LOG_RETENTION
 Phase 6 wire pattern verbatim). All 4 industries get CHAOS_ENGINEERING
 capability (operational resilience baseline).
 """
+
 from __future__ import annotations
 
 __all__ = [

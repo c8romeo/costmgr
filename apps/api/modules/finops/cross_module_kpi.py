@@ -39,11 +39,12 @@ CR lessons applied:
 - AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from apps.api.core.errors import (
     ReportingAccuracyDegradationError,
@@ -52,9 +53,9 @@ from apps.api.core.errors import (
 from apps.api.modules.finops.reporting.serializers import (
     ALL_KPI_NAMES,
     ALL_SCOPE_TYPES,
-    KPIThresholdStatus,
     REPORTING_DEFAULTS,
     KPIMetric,
+    KPIThresholdStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,7 +83,7 @@ def _validate_inputs(
 def _classify_threshold(
     kpi_name: str,
     kpi_value: float,
-    threshold_config: Optional[Dict[str, Any]] = None,
+    threshold_config: dict[str, Any] | None = None,
 ) -> str:
     """Classify KPI into on_track / warning / critical.
 
@@ -126,7 +127,7 @@ def _classify_threshold(
 def _compute_total_monthly_cost_krw(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> KPIMetric:
     """KPI #1 total_monthly_cost_krw (PRD §F32.2-2 verbatim).
 
@@ -137,6 +138,7 @@ def _compute_total_monthly_cost_krw(
     if db_session is not None:
         try:
             from apps.api.modules.finops.showback_query import query_showback_breakdown
+
             result = query_showback_breakdown(
                 db_session=db_session,
                 tenant_id=tenant_id,
@@ -153,7 +155,7 @@ def _compute_total_monthly_cost_krw(
         kpi_delta=None,
         kpi_trend="flat",
         kpi_threshold_status=_classify_threshold("total_monthly_cost_krw", value),
-        kpi_computed_at=datetime.now(tz=timezone.utc),
+        kpi_computed_at=datetime.now(tz=UTC),
         trace_id="",
     )
 
@@ -161,7 +163,7 @@ def _compute_total_monthly_cost_krw(
 def _compute_monthly_cost_growth_pct(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> KPIMetric:
     """KPI #2 monthly_cost_growth_pct (PRD §F32.2-3 verbatim).
 
@@ -171,6 +173,7 @@ def _compute_monthly_cost_growth_pct(
     if db_session is not None:
         try:
             from apps.api.modules.finops.showback_query import query_showback_breakdown
+
             current = query_showback_breakdown(
                 db_session=db_session,
                 tenant_id=tenant_id,
@@ -188,7 +191,9 @@ def _compute_monthly_cost_growth_pct(
             if previous_value > 0:
                 growth_pct = (current_value - previous_value) / previous_value * 100.0
         except Exception as exc:
-            logger.warning("cross_module_kpi.monthly_cost_growth_pct failed", extra={"error": str(exc)})
+            logger.warning(
+                "cross_module_kpi.monthly_cost_growth_pct failed", extra={"error": str(exc)}
+            )
 
     return KPIMetric(
         kpi_name="monthly_cost_growth_pct",
@@ -197,7 +202,7 @@ def _compute_monthly_cost_growth_pct(
         kpi_delta=None,
         kpi_trend="up" if growth_pct > 0 else "down" if growth_pct < 0 else "flat",
         kpi_threshold_status=_classify_threshold("monthly_cost_growth_pct", growth_pct),
-        kpi_computed_at=datetime.now(tz=timezone.utc),
+        kpi_computed_at=datetime.now(tz=UTC),
         trace_id="",
     )
 
@@ -205,7 +210,7 @@ def _compute_monthly_cost_growth_pct(
 def _compute_cost_per_employee_krw(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> KPIMetric:
     """KPI #3 cost_per_employee_krw (PRD §F32.2-4 verbatim).
 
@@ -215,6 +220,7 @@ def _compute_cost_per_employee_krw(
     if db_session is not None:
         try:
             from apps.api.modules.finops.showback_query import query_showback_breakdown
+
             showback = query_showback_breakdown(
                 db_session=db_session,
                 tenant_id=tenant_id,
@@ -235,7 +241,7 @@ def _compute_cost_per_employee_krw(
         kpi_delta=None,
         kpi_trend="flat",
         kpi_threshold_status=_classify_threshold("cost_per_employee_krw", value),
-        kpi_computed_at=datetime.now(tz=timezone.utc),
+        kpi_computed_at=datetime.now(tz=UTC),
         trace_id="",
     )
 
@@ -243,7 +249,7 @@ def _compute_cost_per_employee_krw(
 def _compute_cost_anomaly_count_30d(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> KPIMetric:
     """KPI #4 cost_anomaly_count_30d (PRD §F32.2-5 verbatim).
 
@@ -253,11 +259,12 @@ def _compute_cost_anomaly_count_30d(
     count = 0
     if db_session is not None:
         try:
-            from apps.api.modules.finops.anomaly_detection import detect_anomaly
             # Real count: query anomalies with severity in (high, critical) within last 30d.
             count = 0  # dry-run default
         except Exception as exc:
-            logger.warning("cross_module_kpi.cost_anomaly_count_30d failed", extra={"error": str(exc)})
+            logger.warning(
+                "cross_module_kpi.cost_anomaly_count_30d failed", extra={"error": str(exc)}
+            )
 
     return KPIMetric(
         kpi_name="cost_anomaly_count_30d",
@@ -266,7 +273,7 @@ def _compute_cost_anomaly_count_30d(
         kpi_delta=None,
         kpi_trend="flat",
         kpi_threshold_status=_classify_threshold("cost_anomaly_count_30d", float(count)),
-        kpi_computed_at=datetime.now(tz=timezone.utc),
+        kpi_computed_at=datetime.now(tz=UTC),
         trace_id="",
     )
 
@@ -274,7 +281,7 @@ def _compute_cost_anomaly_count_30d(
 def _compute_forecast_deviation_pct(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> KPIMetric:
     """KPI #5 forecast_deviation_pct (PRD §F32.2-6 verbatim).
 
@@ -285,6 +292,7 @@ def _compute_forecast_deviation_pct(
     if db_session is not None:
         try:
             from apps.api.modules.finops.forecast_accuracy import evaluate_forecast_accuracy
+
             accuracy = evaluate_forecast_accuracy(
                 db_session=db_session,
                 tenant_id=tenant_id,
@@ -292,7 +300,9 @@ def _compute_forecast_deviation_pct(
             )
             deviation = float(accuracy.get("deviation_pct", 0.0))
         except Exception as exc:
-            logger.warning("cross_module_kpi.forecast_deviation_pct failed", extra={"error": str(exc)})
+            logger.warning(
+                "cross_module_kpi.forecast_deviation_pct failed", extra={"error": str(exc)}
+            )
 
     return KPIMetric(
         kpi_name="forecast_deviation_pct",
@@ -301,7 +311,7 @@ def _compute_forecast_deviation_pct(
         kpi_delta=None,
         kpi_trend="up" if deviation > 0 else "down" if deviation < 0 else "flat",
         kpi_threshold_status=_classify_threshold("forecast_deviation_pct", deviation),
-        kpi_computed_at=datetime.now(tz=timezone.utc),
+        kpi_computed_at=datetime.now(tz=UTC),
         trace_id="",
     )
 
@@ -309,7 +319,7 @@ def _compute_forecast_deviation_pct(
 def _compute_idle_cost_monthly_krw(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> KPIMetric:
     """KPI #6 idle_cost_monthly_krw (PRD §F32.2-7 verbatim).
 
@@ -323,14 +333,13 @@ def _compute_idle_cost_monthly_krw(
             from apps.api.modules.finops.idle_resource_detector import (
                 detect_idle_resources,
             )
+
             idle_resources = detect_idle_resources(
                 db_session=db_session,
                 tenant_id=tenant_id,
                 period_key=period_key,
             )
-            value = float(sum(
-                r.get("monthly_cost_krw", 0.0) for r in idle_resources
-            ))
+            value = float(sum(r.get("monthly_cost_krw", 0.0) for r in idle_resources))
         except Exception as exc:
             logger.warning("cross_module_kpi.idle_cost failed", extra={"error": str(exc)})
 
@@ -341,7 +350,7 @@ def _compute_idle_cost_monthly_krw(
         kpi_delta=None,
         kpi_trend="flat",
         kpi_threshold_status=_classify_threshold("idle_cost_monthly_krw", value),
-        kpi_computed_at=datetime.now(tz=timezone.utc),
+        kpi_computed_at=datetime.now(tz=UTC),
         trace_id="",
     )
 
@@ -349,7 +358,7 @@ def _compute_idle_cost_monthly_krw(
 def _compute_tag_compliance_pct(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> KPIMetric:
     """KPI #7 tag_compliance_pct (PRD §F32.2-8 verbatim).
 
@@ -359,7 +368,6 @@ def _compute_tag_compliance_pct(
     value = 0.0
     if db_session is not None:
         try:
-            from apps.api.modules.finops.tag_policy_dsl import parse_tag_policy
             # Real query: avg(compliance_pct) from compliance_report.
             value = 0.0  # dry-run default
         except Exception as exc:
@@ -372,7 +380,7 @@ def _compute_tag_compliance_pct(
         kpi_delta=None,
         kpi_trend="flat",
         kpi_threshold_status=_classify_threshold("tag_compliance_pct", value),
-        kpi_computed_at=datetime.now(tz=timezone.utc),
+        kpi_computed_at=datetime.now(tz=UTC),
         trace_id="",
     )
 
@@ -380,7 +388,7 @@ def _compute_tag_compliance_pct(
 def _compute_optimization_realized_savings_krw(
     tenant_id: str,
     period_key: str,
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
 ) -> KPIMetric:
     """KPI #8 optimization_realized_savings_krw (PRD §F32.2-9 verbatim).
 
@@ -390,13 +398,12 @@ def _compute_optimization_realized_savings_krw(
     value = 0.0
     if db_session is not None:
         try:
-            from apps.api.modules.finops.optimization_accuracy_tracker import (
-                check_accuracy_degradation,
-            )
             # Real query: sum(realized_savings_krw) where status='realized'.
             value = 0.0  # dry-run default
         except Exception as exc:
-            logger.warning("cross_module_kpi.optimization_realized_savings failed", extra={"error": str(exc)})
+            logger.warning(
+                "cross_module_kpi.optimization_realized_savings failed", extra={"error": str(exc)}
+            )
 
     return KPIMetric(
         kpi_name="optimization_realized_savings_krw",
@@ -405,7 +412,7 @@ def _compute_optimization_realized_savings_krw(
         kpi_delta=None,
         kpi_trend="flat",
         kpi_threshold_status=_classify_threshold("optimization_realized_savings_krw", value),
-        kpi_computed_at=datetime.now(tz=timezone.utc),
+        kpi_computed_at=datetime.now(tz=UTC),
         trace_id="",
     )
 
@@ -438,11 +445,11 @@ def select_cross_module_kpis(
     scope_type: str = "tenant",
     scope_id: str = "",
     period_key: str = "",
-    kpi_set: Optional[List[str]] = None,
+    kpi_set: list[str] | None = None,
     trace_id: str = "",
-    db_session: Optional[Any] = None,
+    db_session: Any | None = None,
     dry_run: bool = False,
-) -> Dict[str, KPIMetric]:
+) -> dict[str, KPIMetric]:
     """Select 8 NEW KPI metrics (PRD §F32.2-1 verbatim).
 
     Phase 16 wire (cj-style 127번째) — main entry.
@@ -478,7 +485,7 @@ def select_cross_module_kpis(
         "optimization_realized_savings_krw": _compute_optimization_realized_savings_krw,
     }
 
-    result: Dict[str, KPIMetric] = {}
+    result: dict[str, KPIMetric] = {}
     for kpi_name in requested_kpis:
         if kpi_name not in kpi_compute_fns:
             continue
@@ -528,7 +535,7 @@ def select_cross_module_kpis(
     return result
 
 
-def validate_kpi_accuracy(metrics: Dict[str, KPIMetric]) -> bool:
+def validate_kpi_accuracy(metrics: dict[str, KPIMetric]) -> bool:
     """Validate KPI accuracy + detect degradation.
 
     CR 11-4 P-015 verbatim. Raises ReportingAccuracyDegradationError when

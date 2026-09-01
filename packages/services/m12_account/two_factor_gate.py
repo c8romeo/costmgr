@@ -38,20 +38,14 @@ ERROR_CODE_TWO_FACTOR_REQUIRED: Final[str] = "TWO_FACTOR_REQUIRED"
 ERROR_CODE_FORBIDDEN_ROLE: Final[str] = "FORBIDDEN_ROLE"
 
 # Korean constants — AD-15 §11 SSOT
-TWO_FACTOR_REQUIRED_KO: Final[str] = (
-    "2FA 설정이 필요합니다 — [설정하기]"
-)
-TWO_FACTOR_REQUIRED_REASON_KO: Final[str] = (
-    "[월 입력] 화면은 2FA 등록 후에만 진입 가능합니다"
-)
+TWO_FACTOR_REQUIRED_KO: Final[str] = "2FA 설정이 필요합니다 — [설정하기]"
+TWO_FACTOR_REQUIRED_REASON_KO: Final[str] = "[월 입력] 화면은 2FA 등록 후에만 진입 가능합니다"
 FORBIDDEN_ROLE_KO: Final[str] = "권한이 없습니다 — owner/member role만 진입 가능합니다"
 FORBIDDEN_ROLE_VIEWER_KO: Final[str] = "viewer role은 [월 입력] 화면 진입 불가 — 읽기 전용"
 FORBIDDEN_ROLE_CONSULTANT_KO: Final[str] = (
     "consultant_proxy role은 [월 입력] 화면 진입 불가 — 읽기 전용"
 )
-LOCKOUT_ACTIVE_KO: Final[str] = (
-    f"5회 연속 실패 — {LOCKOUT_DURATION_SECONDS // 60}분간 잠금"
-)
+LOCKOUT_ACTIVE_KO: Final[str] = f"5회 연속 실패 — {LOCKOUT_DURATION_SECONDS // 60}분간 잠금"
 
 
 # ── Typed user / membership inputs ─────────────────────────────
@@ -194,9 +188,7 @@ def enforce_role_gate(
         if role == "viewer":
             raise ForbiddenRoleError(FORBIDDEN_ROLE_VIEWER_KO, role=role, target=target)
         if role == "consultant_proxy":
-            raise ForbiddenRoleError(
-                FORBIDDEN_ROLE_CONSULTANT_KO, role=role, target=target
-            )
+            raise ForbiddenRoleError(FORBIDDEN_ROLE_CONSULTANT_KO, role=role, target=target)
     if role not in ALLOWED_M2_ROLES:
         # Unknown role → fail-closed
         raise ForbiddenRoleError(FORBIDDEN_ROLE_KO, role=role, target=target)

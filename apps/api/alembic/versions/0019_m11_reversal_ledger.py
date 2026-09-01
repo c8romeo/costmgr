@@ -140,9 +140,7 @@ def downgrade() -> None:
     """Reverse all 11.1 schema changes."""
     op.execute("DROP TABLE IF EXISTS cache_invalidation_log")
     op.execute("DROP TABLE IF EXISTS reversal_log")
-    op.execute(
-        "DROP INDEX IF EXISTS uq_inventory_ledger_reverses_event_id"
-    )
+    op.execute("DROP INDEX IF EXISTS uq_inventory_ledger_reverses_event_id")
     op.execute(
         """
         ALTER TABLE inventory_ledger

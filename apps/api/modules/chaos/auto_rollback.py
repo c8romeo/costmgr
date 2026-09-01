@@ -21,6 +21,7 @@ CR 1-1 audit-first INSERT — emit_audit_typed() with action_class=
 ActionClass.CHAOS_ENGINEERING + action='chaos_rollback_triggered' BEFORE
 rollback execution.
 """
+
 from __future__ import annotations
 
 import logging

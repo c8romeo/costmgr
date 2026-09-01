@@ -100,6 +100,7 @@ Schema (PRD §F29.1~§F29.6 verbatim + AD-39 verbatim):
    - trace_id: TEXT
    - previewed_at: TIMESTAMPTZ DEFAULT NOW()
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -221,9 +222,7 @@ def upgrade() -> None:
         "phase_13_finops_forecast_definition",
         f"status IN {VALID_FORECAST_STATUSES!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_13_finops_forecast_definition ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_13_finops_forecast_definition ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_13_finops_forecast_definition_tenant_isolation
@@ -306,9 +305,7 @@ def upgrade() -> None:
         "phase_13_finops_forecast_result",
         f"model_type IN {VALID_MODEL_TYPES!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_13_finops_forecast_result ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_13_finops_forecast_result ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_13_finops_forecast_result_tenant_isolation
@@ -397,9 +394,7 @@ def upgrade() -> None:
         "phase_13_finops_capacity_headroom",
         f"saturation_level IN {VALID_SATURATION_LEVELS!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_13_finops_capacity_headroom ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_13_finops_capacity_headroom ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_13_finops_capacity_headroom_tenant_isolation
@@ -478,9 +473,7 @@ def upgrade() -> None:
         "phase_13_finops_budget_burnrate",
         f"severity IN {VALID_SEVERITY_LEVELS!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_13_finops_budget_burnrate ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_13_finops_budget_burnrate ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_13_finops_budget_burnrate_tenant_isolation
@@ -548,9 +541,7 @@ def upgrade() -> None:
         "phase_13_finops_forecast_preview",
         f"target_metric IN {VALID_TARGET_METRICS!r}",
     )
-    op.execute(
-        "ALTER TABLE phase_13_finops_forecast_preview ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_13_finops_forecast_preview ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_13_finops_forecast_preview_tenant_isolation
@@ -563,13 +554,23 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema — drop 5 tables in reverse order."""
-    op.execute("DROP POLICY IF EXISTS phase_13_finops_forecast_preview_tenant_isolation ON phase_13_finops_forecast_preview;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_13_finops_forecast_preview_tenant_isolation ON phase_13_finops_forecast_preview;"
+    )
     op.drop_table("phase_13_finops_forecast_preview")
-    op.execute("DROP POLICY IF EXISTS phase_13_finops_budget_burnrate_tenant_isolation ON phase_13_finops_budget_burnrate;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_13_finops_budget_burnrate_tenant_isolation ON phase_13_finops_budget_burnrate;"
+    )
     op.drop_table("phase_13_finops_budget_burnrate")
-    op.execute("DROP POLICY IF EXISTS phase_13_finops_capacity_headroom_tenant_isolation ON phase_13_finops_capacity_headroom;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_13_finops_capacity_headroom_tenant_isolation ON phase_13_finops_capacity_headroom;"
+    )
     op.drop_table("phase_13_finops_capacity_headroom")
-    op.execute("DROP POLICY IF EXISTS phase_13_finops_forecast_result_tenant_isolation ON phase_13_finops_forecast_result;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_13_finops_forecast_result_tenant_isolation ON phase_13_finops_forecast_result;"
+    )
     op.drop_table("phase_13_finops_forecast_result")
-    op.execute("DROP POLICY IF EXISTS phase_13_finops_forecast_definition_tenant_isolation ON phase_13_finops_forecast_definition;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_13_finops_forecast_definition_tenant_isolation ON phase_13_finops_forecast_definition;"
+    )
     op.drop_table("phase_13_finops_forecast_definition")

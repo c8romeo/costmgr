@@ -74,9 +74,7 @@ class ReversalTargetNotFoundError(Exception):
         target_event_id: uuid.UUID,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"target event_id={target_event_id} not found for tenant={tenant_id}"
-        )
+        super().__init__(f"target event_id={target_event_id} not found for tenant={tenant_id}")
         self.tenant_id = tenant_id
         self.target_event_id = target_event_id
         self.trace_id = trace_id
@@ -130,9 +128,7 @@ class ReversalDuplicateError(Exception):
         target_event_id: uuid.UUID,
         trace_id: str,
     ) -> None:
-        super().__init__(
-            f"event_id={target_event_id} has already been reversed"
-        )
+        super().__init__(f"event_id={target_event_id} has already been reversed")
         self.tenant_id = tenant_id
         self.target_event_id = target_event_id
         self.trace_id = trace_id
@@ -275,9 +271,7 @@ class ReversalService:
         # `fetch_target_event`), this prevents two concurrent reversal
         # requests from both passing the existence check and both
         # INSERTing a negating row.
-        await self.session.execute(
-            text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-        )
+        await self.session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
 
         # (1) SELECT target_event FROM inventory_ledger (RLS-scoped).
         target_event = await fetch_target_event(
@@ -376,8 +370,10 @@ class ReversalService:
         correction_group_id = mint_v7() if mint_v7 is not None else uuid.uuid4()
         negating_event_id = mint_v7() if mint_v7 is not None else uuid.uuid4()
         corrected_event_id = (
-            mint_v7() if mint_v7 is not None else uuid.uuid4()
-        ) if (corrected_qty is not None and corrected_period_key is not None) else None
+            (mint_v7() if mint_v7 is not None else uuid.uuid4())
+            if (corrected_qty is not None and corrected_period_key is not None)
+            else None
+        )
 
         # (5) sign-negating row INSERT (T1.1 pure kernel).
         negating_event = dispatch_build_reversal_negating(
@@ -589,9 +585,7 @@ class ReversalService:
             target_id=correction_group_id,
             payload={
                 "correction_group_id": str(correction_group_id),
-                "target_event_id": (
-                    str(target_event.event_id) if target_event else None
-                ),
+                "target_event_id": (str(target_event.event_id) if target_event else None),
                 "actor_id": str(actor_id),
                 "trace_id": self.trace_id,
                 "tenant_id": str(self.tenant_id),
@@ -688,9 +682,7 @@ class ReversalService:
                 "actor_id": str(actor_id),
                 "trace_id": self.trace_id,
                 "tenant_id": str(self.tenant_id),
-                "target_event_id": (
-                    str(target_event.event_id) if target_event else None
-                ),
+                "target_event_id": (str(target_event.event_id) if target_event else None),
             },
             tenant_id=self.tenant_id,
             flush=True,
@@ -869,9 +861,7 @@ class ReversalService:
                     str(row.reverses_event_id) if row.reverses_event_id else None
                 ),
                 "correction_group_id": (
-                    str(row.correction_group_id)
-                    if row.correction_group_id
-                    else None
+                    str(row.correction_group_id) if row.correction_group_id else None
                 ),
                 "reversal_of_period_key": row.reversal_of_period_key,
                 "trace_id": str(row.trace_id),

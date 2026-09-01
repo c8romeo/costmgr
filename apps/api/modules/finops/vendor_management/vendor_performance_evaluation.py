@@ -23,6 +23,7 @@ CR lessons applied:
 - NFR18 ko-KR SSOT.
 - D-FINOPS-14 honestly DEFER.
 """
+
 from __future__ import annotations
 
 import logging
@@ -267,9 +268,7 @@ def aggregate_vendor_performance(
 
     RLS via tenant_id selector.
     """
-    tenant_scorecards = [
-        s for s in scorecards if s.get("tenant_id") == tenant_id
-    ]
+    tenant_scorecards = [s for s in scorecards if s.get("tenant_id") == tenant_id]
 
     severity_counts: dict[str, int] = {}
     total_weighted = 0.0

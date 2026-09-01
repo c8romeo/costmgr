@@ -28,15 +28,11 @@ def clamp_delta(delta: CVPDelta) -> CVPDelta:
     Returns a NEW CVPDelta instance (frozen=True immutability).
     """
     return CVPDelta(
-        unit_price_delta_pct=_clamp(
-            delta.unit_price_delta_pct, PRICE_DELTA_PCT_BOUNDS
-        ),
+        unit_price_delta_pct=_clamp(delta.unit_price_delta_pct, PRICE_DELTA_PCT_BOUNDS),
         unit_variable_cost_delta_pct=_clamp(
             delta.unit_variable_cost_delta_pct, PRICE_DELTA_PCT_BOUNDS
         ),
-        fixed_cost_delta_pct=_clamp(
-            delta.fixed_cost_delta_pct, FIXED_COST_DELTA_PCT_BOUNDS
-        ),
+        fixed_cost_delta_pct=_clamp(delta.fixed_cost_delta_pct, FIXED_COST_DELTA_PCT_BOUNDS),
         operating_rate_delta_pct=_clamp(
             delta.operating_rate_delta_pct, OPERATING_RATE_DELTA_PCT_BOUNDS
         ),
@@ -60,20 +56,14 @@ def validate_delta_bounds(delta: CVPDelta) -> None:
         CVPInvalidDeltaError: if any field is out of bounds. Wraps
             `CVPInvalidInputError` with a typed `code` attribute.
     """
-    if not (
-        PRICE_DELTA_PCT_BOUNDS[0]
-        <= delta.unit_price_delta_pct
-        <= PRICE_DELTA_PCT_BOUNDS[1]
-    ):
+    if not (PRICE_DELTA_PCT_BOUNDS[0] <= delta.unit_price_delta_pct <= PRICE_DELTA_PCT_BOUNDS[1]):
         raise CVPInvalidDeltaError(
             field="unit_price_delta_pct",
             value=delta.unit_price_delta_pct,
             bounds=PRICE_DELTA_PCT_BOUNDS,
         )
     if not (
-        PRICE_DELTA_PCT_BOUNDS[0]
-        <= delta.unit_variable_cost_delta_pct
-        <= PRICE_DELTA_PCT_BOUNDS[1]
+        PRICE_DELTA_PCT_BOUNDS[0] <= delta.unit_variable_cost_delta_pct <= PRICE_DELTA_PCT_BOUNDS[1]
     ):
         raise CVPInvalidDeltaError(
             field="unit_variable_cost_delta_pct",
@@ -121,8 +111,7 @@ class CVPInvalidDeltaError(CVPInvalidInputError):
         self.bounds = bounds
         super().__init__(
             message=(
-                f"CVP delta field {field!r}={value} outside bounds "
-                f"[{bounds[0]}, {bounds[1]}]"
+                f"CVP delta field {field!r}={value} outside bounds " f"[{bounds[0]}, {bounds[1]}]"
             ),
             code="CVP_INVALID_DELTA",
             field=field,

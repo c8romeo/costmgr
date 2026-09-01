@@ -265,9 +265,7 @@ async def create_reversal_request(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.REVERSAL_REQUEST)
-    ),
+    _capability: None = Depends(require_capability(Capability.REVERSAL_REQUEST)),
     _role: None = Depends(require_role("owner")),
 ) -> ReversalCreateResponse:
     """Execute AD-22 9-step reversal sequence.
@@ -305,14 +303,10 @@ async def create_reversal_request(
         correction_group_id=str(response.correction_group_id),
         negating_event_id=str(response.negating_event_id),
         corrected_event_id=(
-            str(response.corrected_event_id)
-            if response.corrected_event_id
-            else None
+            str(response.corrected_event_id) if response.corrected_event_id else None
         ),
         target_event_id=str(response.target_event_id),
-        reversal_history=[
-            ReversalHistoryEntry(**entry) for entry in response.reversal_history
-        ],
+        reversal_history=[ReversalHistoryEntry(**entry) for entry in response.reversal_history],
         trace_id=response.trace_id,
         cache_invalidation_receipt=response.cache_invalidation_receipt,
     )
@@ -333,9 +327,7 @@ async def get_reversal_history(
     ),
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.REVERSAL_REQUEST)
-    ),
+    _capability: None = Depends(require_capability(Capability.REVERSAL_REQUEST)),
 ) -> ReversalHistoryResponse:
     """Observability read of the reversal pair.
 
@@ -348,9 +340,7 @@ async def get_reversal_history(
     )
     return ReversalHistoryResponse(
         correction_group_id=str(correction_group_id),
-        reversal_history=[
-            ReversalHistoryEntry(**entry) for entry in history
-        ],
+        reversal_history=[ReversalHistoryEntry(**entry) for entry in history],
         trace_id=_resolve_trace_id(ctx, request),
     )
 
@@ -367,9 +357,7 @@ async def publish_cache_invalidation(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.REVERSAL_REQUEST)
-    ),
+    _capability: None = Depends(require_capability(Capability.REVERSAL_REQUEST)),
     _role: None = Depends(require_role("owner")),
 ) -> CacheInvalidationPublishResponse:
     """AD-25 cache invalidation publish endpoint.
@@ -448,9 +436,7 @@ async def initiate_close_sequence_route(
     request: Request = None,  # type: ignore[assignment]
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.CLOSE_SEQUENCE_LOCK)
-    ),
+    _capability: None = Depends(require_capability(Capability.CLOSE_SEQUENCE_LOCK)),
     _role: None = Depends(require_role("owner")),
 ) -> dict[str, Any]:
     """Initiate the 4-stage close sequence for the current period.
@@ -481,9 +467,7 @@ async def step_complete_route(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.CLOSE_SEQUENCE_LOCK)
-    ),
+    _capability: None = Depends(require_capability(Capability.CLOSE_SEQUENCE_LOCK)),
     _role: None = Depends(require_role("owner")),
 ) -> dict[str, Any]:
     """Mark `step_name` as complete in the 4-stage sequence."""
@@ -506,9 +490,7 @@ async def get_close_sequence_state_route(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.CLOSE_SEQUENCE_LOCK)
-    ),
+    _capability: None = Depends(require_capability(Capability.CLOSE_SEQUENCE_LOCK)),
 ) -> dict[str, Any]:
     """Read-only check of close sequence progress."""
     seq_svc = _build_close_sequence_service(session, ctx, request)
@@ -530,9 +512,7 @@ async def confirm_close_sequence_route(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.CLOSE_SEQUENCE_LOCK)
-    ),
+    _capability: None = Depends(require_capability(Capability.CLOSE_SEQUENCE_LOCK)),
     _role: None = Depends(require_role("owner")),
 ) -> dict[str, Any]:
     """Confirm the 4-stage close sequence.
@@ -730,9 +710,7 @@ def _build_snapshot_persistence_service(
     )
 
 
-def _build_reversal_execute_service(
-    session: AsyncSession, ctx: TenantContext, request: Request
-):
+def _build_reversal_execute_service(session: AsyncSession, ctx: TenantContext, request: Request):
     """Construct `ReversalExecuteService` (T4 wire)."""
     from apps.api.modules.m11_close.services.reversal_execute_service import (
         ReversalExecuteService,
@@ -745,9 +723,7 @@ def _build_reversal_execute_service(
     )
 
 
-def _build_reopen_service(
-    session: AsyncSession, ctx: TenantContext, request: Request
-):
+def _build_reopen_service(session: AsyncSession, ctx: TenantContext, request: Request):
     """Construct `ReopenService` (T5 wire)."""
     from apps.api.modules.m11_close.services.reopen_service import ReopenService
 
@@ -764,8 +740,7 @@ def _build_reopen_service(
     response_model=SnapshotCommitResponse,
     status_code=200,
     summary=(
-        "AD-20 commit_snapshot_persistence (state='verified'→'committed') — "
-        "Story 11.3 PRIMARY"
+        "AD-20 commit_snapshot_persistence (state='verified'→'committed') — " "Story 11.3 PRIMARY"
     ),
 )
 async def commit_snapshot_route(
@@ -773,9 +748,7 @@ async def commit_snapshot_route(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.SNAPSHOT_PERSISTENCE)
-    ),
+    _capability: None = Depends(require_capability(Capability.SNAPSHOT_PERSISTENCE)),
     _role: None = Depends(require_role("owner")),
 ) -> SnapshotCommitResponse:
     """AD-20 commit_snapshot_persistence — state machine transition.
@@ -812,19 +785,14 @@ async def commit_snapshot_route(
     "/snapshot/reverse",
     response_model=SnapshotReverseResponse,
     status_code=200,
-    summary=(
-        "AD-22 reversal 영구화 (state='committed'→'reversed') — "
-        "Story 11.3 PRIMARY"
-    ),
+    summary=("AD-22 reversal 영구화 (state='committed'→'reversed') — " "Story 11.3 PRIMARY"),
 )
 async def reverse_snapshot_route(
     payload: SnapshotReverseRequest,
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.REVERSAL_EXECUTE)
-    ),
+    _capability: None = Depends(require_capability(Capability.REVERSAL_EXECUTE)),
     _role: None = Depends(require_role("owner")),
 ) -> SnapshotReverseResponse:
     """AD-22 reversal 영구화 — committed snapshot → reversed state.
@@ -878,9 +846,7 @@ async def reopen_close_sequence_route(
     request: Request,
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.REOPEN_OPERATOR)
-    ),
+    _capability: None = Depends(require_capability(Capability.REOPEN_OPERATOR)),
     _role: None = Depends(require_role("owner")),
 ) -> ReopenResponse:
     """W2 reopen flow — owner-only operator reopen.
@@ -935,9 +901,7 @@ async def get_snapshot_state_route(
     ),
     ctx: TenantContext = Depends(get_tenant_context),
     session: AsyncSession = Depends(get_session),
-    _capability: None = Depends(
-        require_capability(Capability.SNAPSHOT_PERSISTENCE)
-    ),
+    _capability: None = Depends(require_capability(Capability.SNAPSHOT_PERSISTENCE)),
 ) -> SnapshotStateResponse:
     """Read fiscal_period_snapshots state for the given period_key.
 

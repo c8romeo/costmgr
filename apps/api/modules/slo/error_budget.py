@@ -26,11 +26,12 @@ Epic 12 2FA 챌린지 mandatory.
 
 Industry-agnostic per CR 12-1 L4 precedent.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from typing import Final, Literal, TypedDict
+from typing import Final, TypedDict
 
 from apps.api.modules.slo.slo_dsl import (
     BUDGET_POLICY_FREEZE,
@@ -226,9 +227,7 @@ def predict_exhaustion_at(
     # So consumed_per_minute = (budget_total / window_minutes) * burn_rate_factor
     # If we assume the burn_rate applies over the WINDOW_30D_MINUTES window:
     window_minutes = WINDOW_30D_MINUTES
-    consumed_per_minute = (
-        budget_total_minutes / window_minutes
-    ) * burn_rate_factor
+    consumed_per_minute = (budget_total_minutes / window_minutes) * burn_rate_factor
 
     if consumed_per_minute <= 0:
         return None
@@ -310,9 +309,8 @@ def evaluate_error_budget(
 
     # Freeze decision
     freeze_now = previous_freeze_triggered
-    if not freeze_now:
-        if error_budget_policy == BUDGET_POLICY_FREEZE and remaining < 0:
-            freeze_now = True
+    if not freeze_now and error_budget_policy == BUDGET_POLICY_FREEZE and remaining < 0:
+        freeze_now = True
 
     # Exhaustion prediction
     predicted_at = predict_exhaustion_at(

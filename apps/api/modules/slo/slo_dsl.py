@@ -35,13 +35,13 @@ Phase 7 wire + AUDIT_LOG_RETENTION Phase 6 wire + AUDIT_LOG_VIEW
 Epic 17 wire + MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern
 verbatim). All 4 industries get SLO_ENGINEERING capability.
 """
+
 from __future__ import annotations
 
 import uuid
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, TypedDict
 
 from apps.api.core.errors import BaseError
-
 
 # ── Constants — 5 SLI types (PRD §F26.1.4 verbatim) ────────────
 SLI_TYPE_LATENCY: Final[str] = "latency"
@@ -368,13 +368,11 @@ def validate_slo_definition(slo: dict[str, Any]) -> None:
 
     window = slo.get("window")
     if window not in VALID_WINDOWS:
-        raise SloDefinitionInvalidError(
-            field="window", value=window, valid=list(VALID_WINDOWS)
-        )
+        raise SloDefinitionInvalidError(field="window", value=window, valid=list(VALID_WINDOWS))
 
     objective = slo.get("objective")
     if (
-        not isinstance(objective, (int, float))
+        not isinstance(objective, int | float)
         or objective < MIN_OBJECTIVE
         or objective > MAX_OBJECTIVE
     ):
@@ -386,7 +384,7 @@ def validate_slo_definition(slo: dict[str, Any]) -> None:
 
     burn_rate_threshold = slo.get("burn_rate_threshold")
     if (
-        not isinstance(burn_rate_threshold, (int, float))
+        not isinstance(burn_rate_threshold, int | float)
         or burn_rate_threshold < MIN_BURN_RATE_THRESHOLD
     ):
         raise SloDefinitionInvalidError(
@@ -405,9 +403,7 @@ def validate_slo_definition(slo: dict[str, Any]) -> None:
 
     region = slo.get("region")
     if region not in VALID_REGIONS:
-        raise SloDefinitionInvalidError(
-            field="region", value=region, valid=list(VALID_REGIONS)
-        )
+        raise SloDefinitionInvalidError(field="region", value=region, valid=list(VALID_REGIONS))
 
     multi_region_aggregation = slo.get("multi_region_aggregation")
     if multi_region_aggregation not in VALID_AGGREGATIONS:
@@ -420,9 +416,7 @@ def validate_slo_definition(slo: dict[str, Any]) -> None:
     for bool_field in ("freeze_enabled", "auto_rollback_trigger", "governance_required"):
         value = slo.get(bool_field)
         if not isinstance(value, bool):
-            raise SloDefinitionInvalidError(
-                field=bool_field, value=value, valid=["True", "False"]
-            )
+            raise SloDefinitionInvalidError(field=bool_field, value=value, valid=["True", "False"])
 
 
 def is_valid_state_transition(current_state: str, new_state: str) -> bool:

@@ -33,6 +33,7 @@ keep scope tight; full aggregator wiring will follow in a future sprint.
 CR 0-2 RLS lesson: tenant context auto-applied via `get_tenant_context`.
 AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory.
 """
+
 from __future__ import annotations
 
 import logging

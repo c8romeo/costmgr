@@ -37,25 +37,27 @@ AUDIT_LOG_RETENTION Phase 6 + AUDIT_LOG_VIEW Epic 17 +
 MULTI_REGION_BACKUP/FAILOVER Phase 5 wire pattern verbatim). All
 4 industries get FINOPS_CHARGEBACK capability.
 """
+
 from __future__ import annotations
 
 import uuid
 from decimal import ROUND_HALF_EVEN, Decimal
-from typing import Any, Final, Literal, TypedDict
+from typing import Any, Final, TypedDict
 
 from apps.api.core.errors import ChargebackCalculationError
-
 
 # ── Rule types (PRD §F27.2.2 verbatim) ──────────────────────────
 RULE_TYPE_FLAT_FEE: Final[str] = "flat_fee"
 RULE_TYPE_PROPORTIONAL_ALLOCATION: Final[str] = "proportional_allocation"
 RULE_TYPE_METERED: Final[str] = "metered"
 
-ALLOWED_RULE_TYPES: Final[frozenset[str]] = frozenset({
-    RULE_TYPE_FLAT_FEE,
-    RULE_TYPE_PROPORTIONAL_ALLOCATION,
-    RULE_TYPE_METERED,
-})
+ALLOWED_RULE_TYPES: Final[frozenset[str]] = frozenset(
+    {
+        RULE_TYPE_FLAT_FEE,
+        RULE_TYPE_PROPORTIONAL_ALLOCATION,
+        RULE_TYPE_METERED,
+    }
+)
 
 
 # ── Cost allocation methods (PRD §F27.2.5 verbatim) ─────────────
@@ -63,11 +65,13 @@ COST_ALLOCATION_DIRECT: Final[str] = "direct"
 COST_ALLOCATION_INDIRECT: Final[str] = "indirect"
 COST_ALLOCATION_SHARED: Final[str] = "shared"
 
-ALLOWED_COST_ALLOCATION_METHODS: Final[frozenset[str]] = frozenset({
-    COST_ALLOCATION_DIRECT,
-    COST_ALLOCATION_INDIRECT,
-    COST_ALLOCATION_SHARED,
-})
+ALLOWED_COST_ALLOCATION_METHODS: Final[frozenset[str]] = frozenset(
+    {
+        COST_ALLOCATION_DIRECT,
+        COST_ALLOCATION_INDIRECT,
+        COST_ALLOCATION_SHARED,
+    }
+)
 
 
 # ── Markup + tax bounds (PRD §F27.2.4 verbatim) ─────────────────
@@ -299,7 +303,8 @@ def compute_chargeback(
 
     # Apply cost_allocation_method weight (PRD §F27.2.5).
     weight = COST_ALLOCATION_DEFAULT_WEIGHT.get(
-        rule["cost_allocation_method"], Decimal("0"),
+        rule["cost_allocation_method"],
+        Decimal("0"),
     )
     base_amount = base_amount * weight
 

@@ -14,6 +14,7 @@ Sub-module map:
 Industry-agnostic (CR 12-1 L4 precedent) — all 4 industries get
 AUDIT_LOG_RETENTION capability, gating the routes here.
 """
+
 from __future__ import annotations
 
 from apps.api.modules.audit.retention.erasure import (  # noqa: F401

@@ -39,6 +39,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -202,14 +203,20 @@ def render_pdf_report(
         c.drawString(72, 780, "Section 3: Pricing by Cloud Provider")
         c.setFont("Helvetica", 10)
         c.drawString(72, 760, "AWS EDP + Azure EA + GCP CUD + Naver Volume Tier + KT Volume Tier")
-        c.drawString(72, 745, "Pricing models: on_demand + 1y_ri + 3y_ri + 1y_sp + 3y_sp + savings_plan")
+        c.drawString(
+            72, 745, "Pricing models: on_demand + 1y_ri + 3y_ri + 1y_sp + 3y_sp + savings_plan"
+        )
         c.showPage()
 
         # Section 4: TCO modeling breakdown by unit metric
         c.setFont("Helvetica-Bold", 14)
         c.drawString(72, 780, "Section 4: TCO Modeling by Unit Metric")
         c.setFont("Helvetica", 10)
-        c.drawString(72, 760, "Unit metrics: cost_per_user + cost_per_transaction + cost_per_request + cost_per_hour")
+        c.drawString(
+            72,
+            760,
+            "Unit metrics: cost_per_user + cost_per_transaction + cost_per_request + cost_per_hour",
+        )
         c.showPage()
 
         # Section 5: 1-year / 3-year commitment
@@ -346,15 +353,21 @@ def render_excel_report(
         # Sheet 2: Cloud Breakdown
         cloud_sheet = workbook.add_worksheet("Cloud Breakdown")
         cloud_sheet.write_row(0, 0, ["Cloud Provider", "Blended Rate (KRW/hour)"])
-        for idx, provider in enumerate(
-            ["AWS", "Azure", "GCP", "Naver", "KT"], start=1
-        ):
+        for idx, provider in enumerate(["AWS", "Azure", "GCP", "Naver", "KT"], start=1):
             cloud_sheet.write_row(idx, 0, [provider, 0.0])
 
         # Sheet 3: Pricing Model Breakdown
         model_sheet = workbook.add_worksheet("Pricing Model Breakdown")
         model_sheet.write_row(
-            0, 0, ["Pricing Model", "cost_per_user", "cost_per_transaction", "cost_per_request", "cost_per_hour"]
+            0,
+            0,
+            [
+                "Pricing Model",
+                "cost_per_user",
+                "cost_per_transaction",
+                "cost_per_request",
+                "cost_per_hour",
+            ],
         )
         for idx, model in enumerate(
             [
@@ -467,9 +480,7 @@ def generate_pricing_report(
     """
     _validate_inputs(tenant_id, period_key, cadence, export_format, framework)
 
-    cache_key = _compute_report_cache_key(
-        tenant_id, period_key, cadence, export_format, framework
-    )
+    cache_key = _compute_report_cache_key(tenant_id, period_key, cadence, export_format, framework)
 
     # Compute 8 NEW KPI summary via Phase 19 TCO modeling selector.
     try:

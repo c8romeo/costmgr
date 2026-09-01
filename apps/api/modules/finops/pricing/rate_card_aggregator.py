@@ -47,6 +47,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -61,10 +62,8 @@ from apps.api.core.errors import (
     PricingScopeError,
 )
 from apps.api.modules.finops.pricing.serializers import (
-    ALL_PRICING_CLOUD_PROVIDERS,
     ALL_PRICING_MODELS,
     ALL_PRICING_SCOPE_TYPES,
-    ALL_PRICING_UNIT_METRICS,
     PRICING_DEFAULTS,
     PRICING_ENGINE_MODEL_VERSION,
     RateCardInventory,
@@ -129,9 +128,7 @@ def _is_valid_period_key(period_key: str) -> bool:
             return 1 <= quarter <= 4
         except ValueError:
             return False
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _get_industry_unit_economics_baseline(industry: str = "manufacturing") -> float:
@@ -411,16 +408,12 @@ def aggregate_rate_card_inventory(
     _validate_inputs(tenant_id, scope_type, scope_id, period_key)
 
     # 1) blended rate (Phase 11)
-    blended_rate = compute_showback_blended_rate(
-        showback_total_krw, total_compute_hours
-    )
+    blended_rate = compute_showback_blended_rate(showback_total_krw, total_compute_hours)
 
     # 2) effective discount (Phase 14 + Phase 18 combined)
     effective_discount_pct = compute_optimization_effective_discount(
         optimization_savings_krw, on_demand_baseline_krw
-    ) + compute_commitment_discount_baseline(
-        commitment_savings_krw, on_demand_baseline_krw
-    )
+    ) + compute_commitment_discount_baseline(commitment_savings_krw, on_demand_baseline_krw)
 
     # 3) cloud provider breakdown (5 providers)
     cloud_provider_breakdown = compute_cloud_provider_breakdown(
@@ -432,25 +425,18 @@ def aggregate_rate_card_inventory(
         pricing_model_breakdown = {model: 0.0 for model in ALL_PRICING_MODELS}
     else:
         pricing_model_breakdown = {
-            model: float(pricing_model_costs.get(model, 0.0))
-            for model in ALL_PRICING_MODELS
+            model: float(pricing_model_costs.get(model, 0.0)) for model in ALL_PRICING_MODELS
         }
 
     # 5) unit metric breakdown (4 metrics)
-    cost_per_user_krw = compute_executive_unit_economics(
-        total_cost_krw, active_user_count
-    )
+    cost_per_user_krw = compute_executive_unit_economics(total_cost_krw, active_user_count)
     cost_per_transaction_krw = (
-        float(total_cost_krw) / float(transaction_count)
-        if transaction_count > 0 else 0.0
+        float(total_cost_krw) / float(transaction_count) if transaction_count > 0 else 0.0
     )
     cost_per_request_krw = (
-        float(total_cost_krw) / float(request_count)
-        if request_count > 0 else 0.0
+        float(total_cost_krw) / float(request_count) if request_count > 0 else 0.0
     )
-    cost_per_hour_krw = compute_showback_blended_rate(
-        showback_total_krw, total_compute_hours
-    )
+    cost_per_hour_krw = compute_showback_blended_rate(showback_total_krw, total_compute_hours)
     unit_metric_breakdown = compute_unit_metric_breakdown(
         cost_per_user_krw,
         cost_per_transaction_krw,

@@ -107,6 +107,7 @@ def _resolve_kst_tz() -> ZoneInfo:
         # Fall back to fixed-offset UTC+9 — KST has no DST, so the
         # offset is stable year-round.
         from datetime import timezone
+
         return timezone(timedelta(hours=9), name="KST")
 
 
@@ -284,9 +285,7 @@ class BackupExportService:
                     payload={
                         "backup_date": backup_date.isoformat(),
                         "retention_class": retention_class,
-                        "triggered_by": (
-                            "manual" if triggered_by_user_id else "cron"
-                        ),
+                        "triggered_by": ("manual" if triggered_by_user_id else "cron"),
                     },
                 )
             raise BackupRetentionCutoffInvalidError(
@@ -305,9 +304,7 @@ class BackupExportService:
                     payload={
                         "backup_date": backup_date.isoformat(),
                         "retention_class": retention_class,
-                        "triggered_by": (
-                            "manual" if triggered_by_user_id else "cron"
-                        ),
+                        "triggered_by": ("manual" if triggered_by_user_id else "cron"),
                     },
                 )
             raise BackupExportServiceError(
@@ -532,9 +529,7 @@ class BackupExportService:
             )
         # F-05: integrity check — recompute sha256 from payload bytes.
         actual_sha = hashlib.sha256(
-            _json.dumps(
-                row.payload, sort_keys=True, default=str
-            ).encode("utf-8")
+            _json.dumps(row.payload, sort_keys=True, default=str).encode("utf-8")
         ).hexdigest()
         if actual_sha != row.payload_sha256:
             raise BackupRetentionCutoffInvalidError(
@@ -569,9 +564,7 @@ class BackupExportService:
             select(TenantSettings).where(TenantSettings.tenant_id == self.tenant_id)
         )
         ts_row = ts_result.scalar_one_or_none()
-        tenant_settings_rows = (
-            [self._orm_to_dict(ts_row)] if ts_row else []
-        )
+        tenant_settings_rows = [self._orm_to_dict(ts_row)] if ts_row else []
 
         # 2. products
         prod_result = await self.session.execute(
@@ -594,9 +587,7 @@ class BackupExportService:
 
         # 4. monthly_input_periods
         mip_result = await self.session.execute(
-            select(MonthlyInputPeriod).where(
-                MonthlyInputPeriod.tenant_id == self.tenant_id
-            )
+            select(MonthlyInputPeriod).where(MonthlyInputPeriod.tenant_id == self.tenant_id)
         )
         mip_rows = [self._orm_to_dict(r) for r in mip_result.scalars().all()]
 
@@ -609,9 +600,7 @@ class BackupExportService:
         mip_ids = [row[0] for row in mip_ids_result.all()]
         if mip_ids:
             mir_result = await self.session.execute(
-                select(MonthlyInputRow).where(
-                    MonthlyInputRow.period_id.in_(mip_ids)
-                )
+                select(MonthlyInputRow).where(MonthlyInputRow.period_id.in_(mip_ids))
             )
             mir_rows = [self._orm_to_dict(r) for r in mir_result.scalars().all()]
         else:
@@ -619,9 +608,7 @@ class BackupExportService:
 
         # 6. fiscal_period_snapshots
         fps_result = await self.session.execute(
-            select(FiscalPeriodSnapshot).where(
-                FiscalPeriodSnapshot.tenant_id == self.tenant_id
-            )
+            select(FiscalPeriodSnapshot).where(FiscalPeriodSnapshot.tenant_id == self.tenant_id)
         )
         fps_rows = [self._orm_to_dict(r) for r in fps_result.scalars().all()]
 
@@ -697,9 +684,9 @@ class BackupExportService:
         import json as _json
 
         return len(
-            _json.dumps(
-                payload, default=str, ensure_ascii=False, separators=(",", ":")
-            ).encode("utf-8")
+            _json.dumps(payload, default=str, ensure_ascii=False, separators=(",", ":")).encode(
+                "utf-8"
+            )
         )
 
     async def _record_audit(

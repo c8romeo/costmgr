@@ -22,6 +22,7 @@ CR lessons applied:
 - AD-52 (a)~(g) 7 sub-decisions.
 - Epic 12 2FA 챌린지 mandatory high-value.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query

@@ -23,6 +23,7 @@ CR lessons applied:
 - AD-14 stack pin — apscheduler==3.10.4 + pytz==2024.1.
 - AD-22 owner-only RBAC.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -30,6 +31,7 @@ from typing import Any, Final
 
 try:
     import pytz  # type: ignore
+
     _HAS_PYTZ = True
 except ImportError:
     pytz = None  # type: ignore
@@ -38,6 +40,7 @@ except ImportError:
 try:
     from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
     from apscheduler.triggers.cron import CronTrigger  # type: ignore
+
     _HAS_APSCHEDULER = True
 except ImportError:
     BackgroundScheduler = None  # type: ignore
@@ -68,9 +71,7 @@ def _get_kst_now() -> datetime:
 
 def _log_cadence_execution(cadence_name: str) -> None:
     """Log cadence execution (placeholder for actual logger)."""
-    print(
-        f"[phase-26-cadence] {cadence_name} executed at {_get_kst_now().isoformat()}"
-    )
+    print(f"[phase-26-cadence] {cadence_name} executed at {_get_kst_now().isoformat()}")
 
 
 def weekly_scheduled_training_job() -> None:
@@ -118,8 +119,7 @@ def notify_listen_channels(
     """
     if channel_name not in LISTEN_NOTIFY_CHANNELS:
         raise ValueError(
-            f"channel_name must be one of {list(LISTEN_NOTIFY_CHANNELS)}, "
-            f"got {channel_name}"
+            f"channel_name must be one of {list(LISTEN_NOTIFY_CHANNELS)}, " f"got {channel_name}"
         )
     if not isinstance(payload, dict):
         raise ValueError("payload must be a dict")

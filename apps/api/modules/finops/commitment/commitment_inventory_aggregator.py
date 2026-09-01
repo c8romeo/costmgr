@@ -43,6 +43,7 @@ CR lessons applied:
 - NFR4 PII minimization PRESERVED.
 - NFR18 ko-KR SSOT.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -123,9 +124,7 @@ def _is_valid_period_key(period_key: str) -> bool:
             return 1 <= quarter <= 4
         except ValueError:
             return False
-    if len(period_key) == 4 and period_key.isdigit():
-        return True
-    return False
+    return bool(len(period_key) == 4 and period_key.isdigit())
 
 
 def _get_industry_utilization_pct_baseline(industry: str = "manufacturing") -> float:
@@ -171,6 +170,7 @@ def compute_showback_total_krw(
     try:
         # Real DB query path (Phase 11 wire EXTENSION).
         from apps.api.modules.finops.showback_query import query_showback_breakdown
+
         result = query_showback_breakdown(
             db_session=db_session,
             tenant_id=tenant_id,
@@ -340,6 +340,7 @@ def compute_carbon_intensity_kgco2e_per_krw(
         from apps.api.modules.finops.sustainability.carbon_emissions_aggregator import (
             aggregate_carbon_emissions,
         )
+
         carbon_rollup = aggregate_carbon_emissions(
             tenant_id=tenant_id,
             scope_type="tenant",
@@ -350,9 +351,8 @@ def compute_carbon_intensity_kgco2e_per_krw(
             db_session=db_session,
             dry_run=False,
         )
-        total_carbon = float(carbon_rollup.get("total_carbon_emissions_kgco2e", 0.0))
+        return float(carbon_rollup.get("total_carbon_emissions_kgco2e", 0.0))
         # carbon_intensity = total_carbon / total_on_demand_cost (default: 1.0 if no cost)
-        return total_carbon
     except Exception as exc:
         logger.warning(
             "commitment_inventory_aggregator.compute_carbon_intensity_kgco2e_per_krw failed",
@@ -678,9 +678,7 @@ def renewal_decision_score_default(
     utilization_weight = 0.5
     coverage_score = min(coverage_pct / COMMITMENT_DEFAULTS["coverage_target_pct"] * 100.0, 100.0)
     utilization_score = min(utilization_pct / (baseline * 100.0) * 100.0, 100.0)
-    return (
-        coverage_weight * coverage_score + utilization_weight * utilization_score
-    )
+    return coverage_weight * coverage_score + utilization_weight * utilization_score
 
 
 def validate_commitment_inventory_rollup(rollup: CommitmentInventoryRollup) -> bool:

@@ -72,9 +72,7 @@ class SignupCompleteResponse(BaseModel):
         ..., description="User's role in the new tenant (always 'owner' for signup)."
     )
     industry: Industry
-    settings_version: int = Field(
-        ..., description="Initial tenant_settings version (= 1)."
-    )
+    settings_version: int = Field(..., description="Initial tenant_settings version (= 1).")
     trace_id: str = Field(..., description="Server-generated UUID for audit correlation.")
 
 

@@ -209,10 +209,7 @@ def _validate_scenario_index(*, scenario_index: int) -> None:
     """
     if not isinstance(scenario_index, int):
         raise InvalidPreStandardInputError(
-            (
-                f"scenario_index must be int, "
-                f"got {type(scenario_index).__name__}"
-            ),
+            (f"scenario_index must be int, " f"got {type(scenario_index).__name__}"),
             field="scenario_index",
             reason="type_mismatch",
         )
@@ -271,19 +268,11 @@ def compute_pre_standard_cost(
     _validate_period_key(period_key=period_key)
 
     # 2. AD-8 monetary bounds 검증.
-    _validate_decimal_non_negative(
-        value=material_unit_cost, field="material_unit_cost"
-    )
-    _validate_decimal_non_negative(
-        value=labor_unit_cost, field="labor_unit_cost"
-    )
+    _validate_decimal_non_negative(value=material_unit_cost, field="material_unit_cost")
+    _validate_decimal_non_negative(value=labor_unit_cost, field="labor_unit_cost")
     _validate_overhead_rate(overhead_rate=overhead_rate)
-    _validate_decimal_non_negative(
-        value=material_qty, field="material_qty"
-    )
-    _validate_decimal_non_negative(
-        value=labor_hours, field="labor_hours"
-    )
+    _validate_decimal_non_negative(value=material_qty, field="material_qty")
+    _validate_decimal_non_negative(value=labor_hours, field="labor_hours")
 
     # 3. PRD §F8.1 scenario 한도 (8-1 wire lock).
     _validate_scenario_index(scenario_index=scenario_index)
@@ -327,8 +316,7 @@ def compute_pre_standard_hash(*, pre_standard_cost: PreStandardCost) -> str:
     """
     if not isinstance(pre_standard_cost, PreStandardCost):
         raise ValueError(
-            f"pre_standard_cost must be PreStandardCost, "
-            f"got {type(pre_standard_cost).__name__}"
+            f"pre_standard_cost must be PreStandardCost, " f"got {type(pre_standard_cost).__name__}"
         )
     digest = hashlib.sha256(repr(pre_standard_cost).encode()).hexdigest()
     return f"{PRE_STANDARD_HASH_PREFIX}{digest}"

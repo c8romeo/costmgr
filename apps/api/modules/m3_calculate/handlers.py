@@ -105,11 +105,7 @@ async def post_calc(
         #   - service-kind: ABC_CALCULATION (abc dual-route path)
         # Service-layer `_resolve_engine_type` further discriminates by
         # industry === 'service' for M9 dispatch (AD-19).
-        Depends(
-            require_any_capability(
-                Capability.COST_CALCULATION, Capability.ABC_CALCULATION
-            )
-        ),
+        Depends(require_any_capability(Capability.COST_CALCULATION, Capability.ABC_CALCULATION)),
     ],
 ) -> CalcResponse | CalcAbcResponse:
     """`POST /api/v1/calc` — §6.1 원가 계산 single entry point (AD-19).
@@ -157,7 +153,9 @@ async def post_calc(
         # row written by M9 AbcAllocationService.compute_and_persist.
         verdict_schema = _to_verdict_schema(outcome.verdict)
         # outcome.snapshot_id is a UUID-as-string (M9 service-layer contract)
-        snapshot_uuid = _uuid_mod.UUID(outcome.snapshot_id) if outcome.snapshot_id else _uuid_mod.uuid4()
+        snapshot_uuid = (
+            _uuid_mod.UUID(outcome.snapshot_id) if outcome.snapshot_id else _uuid_mod.uuid4()
+        )
         return CalcAbcResponse(
             tenant_id=ctx.tenant_id,
             period_key=body.period_key,

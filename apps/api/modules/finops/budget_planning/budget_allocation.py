@@ -26,6 +26,7 @@ CR lessons applied:
 - AD-52 (b) 5-dim weighted allocation detail.
 - NFR4 PII minimization PRESERVED.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -61,10 +62,10 @@ def validate_budget_allocation(lines: list[BudgetAllocationLine]) -> bool:
         if not all(field in line for field in required):
             return False
         weight = line["weight"]
-        if not isinstance(weight, (int, float)) or weight < 0 or weight > 1.0:
+        if not isinstance(weight, int | float) or weight < 0 or weight > 1.0:
             return False
         amount = line["allocated_amount"]
-        if not isinstance(amount, (int, float)):
+        if not isinstance(amount, int | float):
             return False
         # Zero/negative amount preservation: allow 0 but not negative
         if amount < 0:
@@ -74,15 +75,11 @@ def validate_budget_allocation(lines: list[BudgetAllocationLine]) -> bool:
 
 def _bankers_round(amount: float) -> float:
     """CR 5-1 verbatim banker's rounding Decimal precision."""
-    d = Decimal(str(amount)).quantize(
-        BUDGET_ALLOCATION_AMOUNT_QUANTUM, rounding=ROUND_HALF_EVEN
-    )
+    d = Decimal(str(amount)).quantize(BUDGET_ALLOCATION_AMOUNT_QUANTUM, rounding=ROUND_HALF_EVEN)
     return float(d)
 
 
-def _verify_total(
-    lines: list[BudgetAllocationLine], expected_total: float
-) -> bool:
+def _verify_total(lines: list[BudgetAllocationLine], expected_total: float) -> bool:
     """Total verification ±0.01 KRW tolerance (CR 5-1 verbatim)."""
     actual_total = sum(line["allocated_amount"] for line in lines)
     return abs(actual_total - expected_total) <= TOTAL_VERIFICATION_TOLERANCE_KRW
@@ -191,10 +188,8 @@ def allocate_budget(
             line["retry_count"] = retry
         # Auto-retry: redistribute last-row absorb
         if lines:
-            lines[-1]["allocated_amount"] = (
-                total_budget_amount - sum(
-                    l["allocated_amount"] for l in lines[:-1]
-                )
+            lines[-1]["allocated_amount"] = total_budget_amount - sum(
+                l["allocated_amount"] for l in lines[:-1]
             )
     else:
         # All retries exhausted → admin email alert

@@ -57,6 +57,7 @@ metrics + burn-rate (no PII).
 A19 cohesion pattern 9 surface EXTENSION PASS — SLO engineering surface
 NEW = F26.1~F26.7 territory.
 """
+
 from __future__ import annotations
 
 __all__ = []

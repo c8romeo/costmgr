@@ -1,4 +1,4 @@
-"""Story Phase 11 — phase_11 FinOps Showback / Chargeback tables.
+r"""Story Phase 11 — phase_11 FinOps Showback / Chargeback tables.
 
 Phase 11 (cj-style 107번째 wire) — AD-38 (b)(d)(e)(f) verbatim +
 §F27.1 + §F27.2 + §F27.3 + §F27.5.
@@ -99,6 +99,7 @@ CR lessons applied:
   chargeback_exported).
 - CR 0-2 RLS verbatim — all 3 tables have RLS policies.
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -206,9 +207,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE phase_11_finops_department_mapping ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_11_finops_department_mapping ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_11_finops_department_mapping_tenant_isolation
@@ -302,9 +301,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE phase_11_finops_showback ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_11_finops_showback ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_11_finops_showback_tenant_isolation
@@ -384,9 +381,7 @@ def upgrade() -> None:
     )
 
     # RLS policy (CR 0-2 verbatim)
-    op.execute(
-        "ALTER TABLE phase_11_finops_chargeback ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE phase_11_finops_chargeback ENABLE ROW LEVEL SECURITY;")
     op.execute(
         """
         CREATE POLICY phase_11_finops_chargeback_tenant_isolation
@@ -402,7 +397,9 @@ def downgrade() -> None:
     `phase_11_finops_department_mapping` 3 tables.
     """
     # Drop in reverse order (FK dependencies)
-    op.execute("DROP POLICY IF EXISTS phase_11_finops_chargeback_tenant_isolation ON phase_11_finops_chargeback;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_11_finops_chargeback_tenant_isolation ON phase_11_finops_chargeback;"
+    )
     op.execute("ALTER TABLE phase_11_finops_chargeback DISABLE ROW LEVEL SECURITY;")
     op.drop_constraint(
         "ck_phase_11_finops_chargeback_rule_type",
@@ -420,7 +417,9 @@ def downgrade() -> None:
     )
     op.drop_table("phase_11_finops_chargeback")
 
-    op.execute("DROP POLICY IF EXISTS phase_11_finops_showback_tenant_isolation ON phase_11_finops_showback;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_11_finops_showback_tenant_isolation ON phase_11_finops_showback;"
+    )
     op.execute("ALTER TABLE phase_11_finops_showback DISABLE ROW LEVEL SECURITY;")
     op.drop_constraint(
         "ck_phase_11_finops_showback_industry",
@@ -448,7 +447,9 @@ def downgrade() -> None:
     )
     op.drop_table("phase_11_finops_showback")
 
-    op.execute("DROP POLICY IF EXISTS phase_11_finops_department_mapping_tenant_isolation ON phase_11_finops_department_mapping;")
+    op.execute(
+        "DROP POLICY IF EXISTS phase_11_finops_department_mapping_tenant_isolation ON phase_11_finops_department_mapping;"
+    )
     op.execute("ALTER TABLE phase_11_finops_department_mapping DISABLE ROW LEVEL SECURITY;")
     op.drop_constraint(
         "ck_phase_11_finops_department_mapping_cost_center_id",
