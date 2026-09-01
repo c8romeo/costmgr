@@ -42,6 +42,7 @@ import logging
 from typing import Any
 
 from apps.api.core.cache_invalidation_listener import (
+    ALLOWED_CHANNELS,
     PAYLOAD_KEY_CHANNEL,
     PAYLOAD_KEY_CORRECTION_GROUP_ID,
     PAYLOAD_KEY_INVALIDATION_ID,
@@ -52,7 +53,6 @@ from apps.api.core.cache_invalidation_listener import (
     PAYLOAD_KEY_TRACE_ID,
     CacheInvalidationAdapter,
 )
-from apps.api.core.cache_invalidation_publisher import ALLOWED_CHANNELS
 
 logger = logging.getLogger(__name__)
 

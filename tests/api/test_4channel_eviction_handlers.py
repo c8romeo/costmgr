@@ -1,7 +1,11 @@
-"""Test 4-channel cache eviction handlers — M10/M3/M11.
+"""Test cache eviction handlers — M10/M3/M11 + cross_tenant_fanout.
 
 Story 13.1 (LISTEN/NOTIFY Consume Trigger EXTENSION, A39/A51/A52 결정 wire):
 T4 wire — 4-channel cache eviction handlers EXTENSION (M10/M3/M11).
+
+Story 14.1 EXTENSION: cross_tenant_fanout channel 추가 → 4 → 5 channels
+(see `test_cache_invalidation_listener_14_1.py` for cross_tenant_fanout
+listener-level tests — this file covers the 4 M10/M3/M11 ADAPTER classes).
 
 Per AD-25 (ARCHITECTURE-SPINE.md §142-148 verbatim):
   "M10 cache key is `(tenant_id, period_key, calculation_result_hash)`.
@@ -14,7 +18,7 @@ Tests:
 - M11 fiscal_period cache eviction (channel='fiscal_period_cache' filter)
 - M11 closing_snapshot cache eviction (channel='closing_snapshot_cache' filter)
 - Cross-channel contamination 거부 (each adapter rejects other channels)
-- Adapter factory wiring (build_default_adapter_factories returns 4 channels)
+- Adapter factory wiring (build_default_adapter_factories returns 5 channels)
 """
 
 from __future__ import annotations
@@ -29,17 +33,35 @@ import pytest
 
 # ── Test the adapter factory map ─────────────────────────────
 class TestBuildDefaultAdapterFactories:
-    """build_default_adapter_factories returns 4 channel → factory entries."""
+    """build_default_adapter_factories returns 5 channel → factory entries.
 
-    def test_returns_4_channels(self) -> None:
+    cj-style 249 (D-CI-FUNC-11 smoke-e2e): The adapter factories must
+    include the listener's full ALLOWED_CHANNELS (5 channels: 4
+    AD-25 + cross_tenant_fanout). Previously this test asserted 4
+    channels because the factories file imported ALLOWED_CHANNELS
+    from `cache_invalidation_publisher` (the publisher's 4-channel
+    whitelist), causing `build_default_adapter_factories()` to
+    return only 4 factories. At uvicorn startup, the listener's
+    constructor rejected the dict with
+    `ValueError: adapter_factories missing channels:
+    ['cross_tenant_fanout']`, breaking smoke-e2e.
+
+    Fix: the factory file now imports ALLOWED_CHANNELS from the
+    LISTENER module (the listener's 5-channel whitelist is the SSOT
+    for what adapters the listener requires — the publisher's
+    4-channel whitelist is a separate concern: what channels the
+    AD-25 publisher can emit, not what the listener must consume).
+    """
+
+    def test_returns_5_channels(self) -> None:
         from apps.api.core.cache_invalidation_listener_adapters import (
             build_default_adapter_factories,
         )
 
         factories = build_default_adapter_factories()
-        assert len(factories) == 4
+        assert len(factories) == 5
 
-    def test_returns_all_4_whitelist_channels(self) -> None:
+    def test_returns_all_5_whitelist_channels(self) -> None:
         from apps.api.core.cache_invalidation_listener_adapters import (
             build_default_adapter_factories,
         )
@@ -50,6 +72,7 @@ class TestBuildDefaultAdapterFactories:
             "cost_engine_cache",
             "fiscal_period_cache",
             "closing_snapshot_cache",
+            "cross_tenant_fanout",
         }
 
     def test_each_factory_is_callable(self) -> None:
