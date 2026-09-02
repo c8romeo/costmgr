@@ -13,16 +13,17 @@ import type { ReactNode } from "react";
 
 interface LayoutProps {
     children: ReactNode;
-    params: { locale: string };
+    params: Promise<{ locale: string }>;
 }
 
-export default function CostAnomalyMLPredictionLayout({
+export default async function CostAnomalyMLPredictionLayout({
     children,
     params,
-}: LayoutProps) {
+}: LayoutProps): Promise<React.ReactElement> {
+    const { locale } = await params;
     return (
         <div
-            data-locale={params.locale}
+            data-locale={locale}
             data-capability="finops_cost_anomaly_ml_prediction"
         >
             {children}

@@ -31,13 +31,14 @@ import type { ReactNode } from "react";
 
 type LocaleLayoutProps = {
   children: ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 };
 
 export default async function LocaleLayout({
   children,
   params: _params,
 }: LocaleLayoutProps) {
+  await _params; // satisfy Next 15+ Promise<params>
   const messages = await getMessages();
 
   return (

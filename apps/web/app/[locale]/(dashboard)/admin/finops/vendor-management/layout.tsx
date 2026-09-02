@@ -10,15 +10,16 @@ import type { ReactNode } from "react";
 
 interface LayoutProps {
     children: ReactNode;
-    params: { locale: string };
+    params: Promise<{ locale: string }>;
 }
 
-export default function VendorManagementLayout({
+export default async function VendorManagementLayout({
     children,
     params,
-}: LayoutProps) {
+}: LayoutProps): Promise<React.ReactElement> {
+    const { locale } = await params;
     return (
-        <div data-locale={params.locale} data-capability="finops_vendor_management">
+        <div data-locale={locale} data-capability="finops_vendor_management">
             {children}
         </div>
     );

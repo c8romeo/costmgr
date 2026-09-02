@@ -17,10 +17,11 @@ import { LandingPricing } from "@/components/landing/LandingPricing";
 export const dynamic = "force-dynamic";
 
 interface LandingPageProps {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }
 
-export default function LandingPage({ params: _params }: LandingPageProps) {
+export default async function LandingPage({ params: _params }: LandingPageProps) {
+  await _params; // satisfy Next 15+ Promise<params>
   return (
     <main
       style={{
