@@ -300,12 +300,12 @@ def upgrade() -> None:
         sa.Column("recommended_instance_type", sa.Text(), nullable=False),
         sa.Column(
             "current_cost_krw",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(
             "recommended_cost_krw",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(
@@ -315,7 +315,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "projected_savings_amount_krw",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(
@@ -385,12 +385,12 @@ def upgrade() -> None:
         sa.Column("idle_duration_days", sa.Integer(), nullable=False),
         sa.Column(
             "current_cost_krw_per_month",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(
             "potential_savings_krw_per_month",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column("idle_severity", sa.Text(), nullable=False),
@@ -466,12 +466,12 @@ def upgrade() -> None:
         sa.Column("resource_pattern", sa.Text(), nullable=False),
         sa.Column(
             "current_on_demand_cost_krw_per_month",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(
             "projected_commit_cost_krw_per_month",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(
@@ -481,12 +481,12 @@ def upgrade() -> None:
         ),
         sa.Column(
             "projected_savings_krw",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(
             "upfront_cost_krw",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column("break_even_months", sa.Integer(), nullable=False),
@@ -571,12 +571,12 @@ def upgrade() -> None:
         ),
         sa.Column(
             "realized_savings_krw",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(
             "projected_savings_krw",
-            sa.Numeric(precision=20, scale=2),
+            sa.BigInteger(),
             nullable=False,
         ),
         sa.Column(

@@ -422,12 +422,12 @@ def upgrade() -> None:
         sa.Column("budget_id", sa.Text(), nullable=False),
         sa.Column(
             "consumed_budget",
-            sa.Numeric(precision=20, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
             "total_budget",
-            sa.Numeric(precision=20, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column("elapsed_days", sa.Integer(), nullable=False),
@@ -446,7 +446,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "predicted_end_period_spend",
-            sa.Numeric(precision=20, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column("trace_id", sa.Text(), nullable=True),
