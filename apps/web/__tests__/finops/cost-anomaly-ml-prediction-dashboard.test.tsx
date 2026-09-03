@@ -17,7 +17,7 @@
  * apps/web/__tests__/finops/anomaly-dashboard.test.tsx pattern.
  */
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     AB_TEST_AUTO_PROMOTE_MARGIN,
@@ -27,6 +27,17 @@ import {
     ENSEMBLE_CONSENSUS_THRESHOLD,
     ML_MODEL_SCORING_WEIGHTS,
 } from "@/lib/finops/cost-anomaly-ml-prediction-types";
+
+// cj-266: `vi.doMock` registers a mock factory that applies to subsequent
+// `await import()` calls, but Vitest's ESM module cache returns the
+// previously-loaded module. `vi.resetModules()` clears the cache so the
+// next dynamic import actually fetches the mocked module. Without this,
+// tests 13/16/17/20/21/24/27 fail because the component re-uses the
+// cached (real) cost-anomaly-ml-prediction-client, fetches via MSW which
+// has no handler for those endpoints, and renders the error state.
+beforeEach(() => {
+    vi.resetModules();
+});
 
 // ---------------------------------------------------------------------------
 // Group 1: lib types/constants — 4 cases
@@ -540,10 +551,15 @@ describe("Phase 26 EnsembleConsensusScorePanel", () => {
         expect(screen.getByText("ARIMA")).toBeInTheDocument();
         expect(screen.getByText("Isolation Forest")).toBeInTheDocument();
         expect(screen.getByText("Autoencoder")).toBeInTheDocument();
-        // Threshold text uses ENSEMBLE_CONSENSUS_THRESHOLD (0.85)
+        // Threshold text uses ENSEMBLE_CONSENSUS_THRESHOLD (0.85).
+        // The <p> also contains " · Live scoring" suffix, so use a
+        // regex matcher for substring (cj-266 fix — exact getByText
+        // would not match the full text content).
         expect(
             screen.getByText(
-                `합의 임계값: ${ENSEMBLE_CONSENSUS_THRESHOLD.toFixed(2)}`,
+                new RegExp(
+                    `합의 임계값: ${ENSEMBLE_CONSENSUS_THRESHOLD.toFixed(2).replace(".", "\\.")}`,
+                ),
             ),
         ).toBeInTheDocument();
         vi.doUnmock("@/lib/finops/cost-anomaly-ml-prediction-client");

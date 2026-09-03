@@ -6,9 +6,29 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { afterAll, afterEach, beforeAll } from "vitest";
+import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
 import { server } from "../mocks/server";
+
+// cj-266: Disable OpenTelemetry Browser SDK in test env. The OTLP
+// exporter requires an absolute URL; tracing.test.ts exercises
+// initBrowserTracing() which would otherwise throw
+// "Configuration: Could not parse user-provided export URL".
+process.env.NEXT_PUBLIC_OTEL_SDK_DISABLED = "true";
+
+// cj-266: Provide a default useRouter mock for components that call
+// next/navigation APIs (SloDashboardPanel, etc.). Vitest does not mount
+// the App Router context, so `invariant expected app router to be
+// mounted` would otherwise throw on useRouter(). Tests that need a
+// different router behavior can override locally via vi.mock.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  redirect: vi.fn(),
+}));
 
 // HTMLDialogElement polyfill for jsdom.
 // jsdom does not implement HTMLDialogElement.showModal() / close()

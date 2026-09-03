@@ -61,7 +61,11 @@ let _tracer: Tracer | null = null;
 export function initBrowserTracing(otlpEndpoint?: string): Tracer {
   if (OTEL_SDK_DISABLED) {
     // No-op fallback (Phase 4 Sentry conditional init pattern mirror).
-    return _getNoopTracer();
+    // Cache the singleton so getBrowserTracer() returns the same Tracer
+    // across calls (cj-266 regression fix — without this, every call
+    // returns a fresh ProxyTracer and the singleton test fails).
+    _tracer = _getNoopTracer();
+    return _tracer;
   }
   if (_tracer !== null) {
     return _tracer;
