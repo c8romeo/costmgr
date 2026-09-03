@@ -512,7 +512,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: cd apps/web && pnpm lint:tsc
       - run: cd apps/web && pnpm lint:conventions
-      - run: cd apps/web && pnpm test --run
+      # cj-269: pnpm 9.15.4 의 `test` builtin 은 `--run` 옵션 미지원 (사용법: `pnpm test [-- <args>...]`).
+      # `pnpm test --run` 은 pnpm 자체가 파싱하다가 "Unknown option: 'run'" 즉시 실패 →
+      # web-test step 8 이 0초 만에 fail 했던 진짜 원인. `pnpm test` 만 호출하면
+      # package.json `"test": "vitest run"` 스크립트가 그대로 실행되어 의도대로 동작.
+      - run: cd apps/web && pnpm test
       - name: Upload vitest HTML report
         if: always()
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
