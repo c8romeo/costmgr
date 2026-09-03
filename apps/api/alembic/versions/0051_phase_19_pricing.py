@@ -59,17 +59,11 @@ def upgrade() -> None:
             "total_blended_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("effective_discount_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
-        sa.Column(
-            "tco_1year_commitment_krw", sa.BigInteger, nullable=False, server_default="0"
-        ),
-        sa.Column(
-            "tco_3year_commitment_krw", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("tco_1year_commitment_krw", sa.BigInteger, nullable=False, server_default="0"),
+        sa.Column("tco_3year_commitment_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("tco_on_demand_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("cost_per_user_krw", sa.BigInteger, nullable=False, server_default="0"),
-        sa.Column(
-            "cost_per_transaction_krw", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("cost_per_transaction_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("unit_economics_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("cloud_provider_breakdown", JSONB, nullable=False, server_default="{}"),
         sa.Column("pricing_model_breakdown", JSONB, nullable=False, server_default="{}"),

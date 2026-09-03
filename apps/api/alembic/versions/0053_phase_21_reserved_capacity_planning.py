@@ -65,9 +65,7 @@ def upgrade() -> None:
         sa.Column("industry", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
         sa.Column("forecasted_demand_krw", sa.BigInteger, nullable=False, server_default="0"),
-        sa.Column(
-            "confidence_interval_low_krw", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("confidence_interval_low_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column(
             "confidence_interval_high_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
@@ -329,9 +327,7 @@ def upgrade() -> None:
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("industry", sa.Text, nullable=False),
         sa.Column("total_reserved_capacity_units", sa.Integer, nullable=False, server_default="0"),
-        sa.Column(
-            "total_estimated_savings_krw", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("total_estimated_savings_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column(
             "average_break_even_utilization_pct",
             sa.Numeric(5, 2),

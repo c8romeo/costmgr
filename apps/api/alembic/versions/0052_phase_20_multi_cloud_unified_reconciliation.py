@@ -59,9 +59,7 @@ def upgrade() -> None:
         sa.Column("scope_id", sa.Text, nullable=False),
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
-        sa.Column(
-            "effective_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("effective_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column(
             "rate_card_variance_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
         ),
@@ -225,12 +223,8 @@ def upgrade() -> None:
         sa.Column("cloud_provider", sa.Text, nullable=False),
         sa.Column("scope_type", sa.Text, nullable=False),
         sa.Column("scope_id", sa.Text, nullable=False),
-        sa.Column(
-            "blended_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
-        ),
-        sa.Column(
-            "unblended_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("blended_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"),
+        sa.Column("unblended_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("rate_diff_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("rate_diff_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("service_count", sa.Integer, nullable=False, server_default="0"),

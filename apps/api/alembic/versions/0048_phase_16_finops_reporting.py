@@ -57,9 +57,7 @@ def upgrade() -> None:
         sa.Column("showback_total_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("anomaly_count_30d", sa.Integer, nullable=False, server_default="0"),
         sa.Column("forecast_projection_krw", sa.BigInteger, nullable=False, server_default="0"),
-        sa.Column(
-            "optimization_savings_krw", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("optimization_savings_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("tag_compliance_pct", sa.Numeric(8, 4), nullable=False, server_default="0"),
         sa.Column("idle_cost_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("department_breakdown", JSONB, nullable=False, server_default="{}"),

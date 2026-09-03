@@ -55,15 +55,11 @@ def upgrade() -> None:
         sa.Column("scope_id", sa.Text, nullable=False),
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
-        sa.Column(
-            "total_commitment_value_krw", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("total_commitment_value_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("coverage_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("utilization_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("expiring_commitments_30d", sa.Integer, nullable=False, server_default="0"),
-        sa.Column(
-            "recommended_purchase_krw", sa.BigInteger, nullable=False, server_default="0"
-        ),
+        sa.Column("recommended_purchase_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("savings_realized_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("idle_commitment_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("renewal_decision_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
