@@ -330,22 +330,22 @@ def upgrade() -> None:
         sa.Column("cost_center_id", sa.Text(), nullable=False),
         sa.Column(
             "base_amount",
-            sa.Numeric(precision=14, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
             "markup_amount",
-            sa.Numeric(precision=14, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
             "tax_amount",
-            sa.Numeric(precision=14, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
             "total_amount",
-            sa.Numeric(precision=14, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column("currency_code", sa.Text(), nullable=False),

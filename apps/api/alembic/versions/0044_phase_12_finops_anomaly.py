@@ -327,7 +327,7 @@ def upgrade() -> None:
         sa.Column("baseline_window", sa.Text(), nullable=False),
         sa.Column(
             "baseline_amount",
-            sa.Numeric(precision=20, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
@@ -389,12 +389,12 @@ def upgrade() -> None:
         sa.Column("dimension_value", sa.Text(), nullable=False),
         sa.Column(
             "observed_cost",
-            sa.Numeric(precision=20, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
             "baseline_cost",
-            sa.Numeric(precision=20, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
@@ -531,7 +531,7 @@ def upgrade() -> None:
         sa.Column("period_key", sa.Text(), nullable=False),
         sa.Column(
             "consumption_amount",
-            sa.Numeric(precision=20, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
@@ -595,7 +595,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "forecast_amount",
-            sa.Numeric(precision=20, scale=2),
+            sa.Numeric(precision=18, scale=2),
             nullable=False,
         ),
         sa.Column(
