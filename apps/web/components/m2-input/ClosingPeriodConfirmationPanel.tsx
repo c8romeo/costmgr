@@ -78,7 +78,7 @@ export function ClosingPeriodConfirmationPanel({
   }
 
   const allowed = isClosingPeriodAllowed(state.status);
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/naming-convention
   const is_blocked = state.status === "CLOSING_BLOCKED";
   // cj-246: removed dead `is_already_closed` + `is_empty` consts and their
   // stale `@typescript-eslint/no-unused-vars` disable directives. Only
@@ -131,7 +131,7 @@ export function ClosingPeriodConfirmationPanel({
     // eslint-disable-next-line camelcase
     description = finalized_at ? (
       <span>
-        // eslint-disable-next-line camelcase
+        {/* eslint-disable-next-line camelcase */}
         {t("finalized_at_label")}: {finalized_at}
       </span>
     ) : (

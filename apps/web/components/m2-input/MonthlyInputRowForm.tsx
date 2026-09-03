@@ -74,7 +74,7 @@ export function MonthlyInputRowForm({
         data-period-key={period_key}
       >
         <div className="text-sm text-muted-foreground">
-          // eslint-disable-next-line camelcase
+          {/* eslint-disable-next-line camelcase */}
           {period_key} 수불 입력
         </div>
         <button
@@ -84,7 +84,7 @@ export function MonthlyInputRowForm({
           // eslint-disable-next-line camelcase
           title={is_blocked ? NEGATIVE_CLOSING_INVENTORY_KO : undefined}
         >
-          // eslint-disable-next-line camelcase
+          {/* eslint-disable-next-line camelcase */}
           {is_blocked ? "마감 불가" : "저장"}
         </button>
       </form>

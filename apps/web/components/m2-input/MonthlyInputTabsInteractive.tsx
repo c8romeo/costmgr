@@ -79,6 +79,7 @@ export function MonthlyInputTabsInteractive(
   };
 
   const onClosingPeriodConfirm = async (
+    // eslint-disable-next-line camelcase
     period_key: string,
     // eslint-disable-next-line @typescript-eslint/no-restricted-types
   ): Promise<number> => {
@@ -92,7 +93,10 @@ export function MonthlyInputTabsInteractive(
           ? { Authorization: `Bearer ${props.accessToken}` }
           : {}),
       },
-      body: JSON.stringify({ period_key }),
+      body: JSON.stringify({
+        // eslint-disable-next-line camelcase
+        period_key,
+      }),
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as {

@@ -83,7 +83,7 @@ export function MonthlyClosingReportPanel({
   className,
 }: MonthlyClosingReportPanelProps): React.ReactElement | null {
   const t = useTranslations("monthly_closing_report");
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/naming-convention
   const t_pdf = useTranslations("closing_pdf_export");
 
   // A10 capability gate — service-only tenant → hidden entirely.
@@ -97,11 +97,11 @@ export function MonthlyClosingReportPanel({
     return null;
   }
 
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/naming-convention
   const is_ready = aggregate.view_mode === REPORT_VIEW_MODE_READY;
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/naming-convention
   const is_partial = aggregate.view_mode === REPORT_VIEW_MODE_PARTIAL;
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/naming-convention
   const is_empty = aggregate.view_mode === REPORT_VIEW_MODE_EMPTY;
 
   // OQ1 cj-style default — partial-path 시 sonner toast.info "잠시 후 갱신".
@@ -117,9 +117,9 @@ export function MonthlyClosingReportPanel({
   }, [aggregate.view_mode]);
 
   // OQ2 cj-style default — V4 fail 시 KPI FAIL 빨강 + audit-trail 표시.
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/naming-convention
   const v4_status = v4_verdict?.status ?? null;
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/naming-convention
   const v4_failure_count = v4_verdict?.failures.length ?? 0;
 
   // ── Variant + icon + title per view_mode code (AD-15 §11 SSOT) ──
@@ -247,12 +247,12 @@ export function MonthlyClosingReportPanel({
               v4_status === "PASS" && "text-green-700",
             )}
           >
-            // eslint-disable-next-line camelcase
+            {/* eslint-disable-next-line camelcase */}
             {v4_status ?? "—"}
-            // eslint-disable-next-line camelcase
+            {/* eslint-disable-next-line camelcase */}
             {v4_status === "FAIL" && (
               <span data-testid="v4-failure-count" className="ml-2 text-sm">
-                // eslint-disable-next-line camelcase
+                {/* eslint-disable-next-line camelcase */}
                 ({v4_failure_count})
               </span>
             )}
@@ -261,7 +261,7 @@ export function MonthlyClosingReportPanel({
       </div>
 
       {/* ── Closing per-product Table ── */}
-      // eslint-disable-next-line camelcase
+      {/* eslint-disable-next-line camelcase */}
       {is_ready && aggregate.closing_per_product.length > 0 && (
         <div
           data-testid="closing-per-product-table-container"
@@ -335,16 +335,16 @@ export function MonthlyClosingReportPanel({
       )}
 
       {/* ── V4 failures list (OQ2 default — KPI 빨강 + audit-trail 표시) ── */}
-      // eslint-disable-next-line camelcase
+      {/* eslint-disable-next-line camelcase */}
       {v4_verdict && v4_verdict.failures.length > 0 && (
         <div
           data-testid="v4-failures-list"
           className="rounded-md border border-red-500 bg-red-50 p-3"
         >
-          // eslint-disable-next-line camelcase
+          {/* eslint-disable-next-line camelcase */}
           <h3 className="font-medium text-red-700">V4 FAIL — {v4_failure_count}건</h3>
           <ul className="mt-2 space-y-1 text-sm">
-            // eslint-disable-next-line camelcase
+            {/* eslint-disable-next-line camelcase */}
             {v4_verdict.failures.map((f, idx) => (
               <li
                 key={`${f.product_id}-${idx}`}
@@ -359,7 +359,7 @@ export function MonthlyClosingReportPanel({
       )}
 
       {/* ── Audit trail list (CR 1.1 observability) ── */}
-      // eslint-disable-next-line camelcase
+      {/* eslint-disable-next-line camelcase */}
       {audit_trail && audit_trail.length > 0 && (
         <div
           data-testid="monthly-closing-report-audit-trail"
@@ -367,7 +367,7 @@ export function MonthlyClosingReportPanel({
         >
           <h3 className="font-medium">마감 보고서 검증 이력</h3>
           <ul className="mt-2 space-y-1">
-            // eslint-disable-next-line camelcase
+            {/* eslint-disable-next-line camelcase */}
             {audit_trail.map((entry) => (
               <li
                 key={entry.id}
