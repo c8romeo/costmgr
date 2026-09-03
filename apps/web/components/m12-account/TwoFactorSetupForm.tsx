@@ -291,7 +291,7 @@ export function TwoFactorSetupForm({
             className="grid grid-cols-2 gap-2"
             data-testid="setup-recovery-codes"
           >
-            // eslint-disable-next-line camelcase
+            {/* eslint-disable-next-line camelcase */}
             {recovery_codes.map((rc, idx) => (
               <div
                 key={`${rc}-${idx}`}

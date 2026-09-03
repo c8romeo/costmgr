@@ -137,8 +137,7 @@ export function parseVirtualBudgetPeriodKeyTS(
 export function deriveBudgetPeriodKeyTS(
   // eslint-disable-next-line camelcase
   real_period_key: string,
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/no-restricted-types
   scenario_index: number = MVP_SCENARIO_INDEX,
 ): string | null {
   if (!isValidRealPeriodKeyTS(real_period_key)) {
@@ -163,8 +162,7 @@ export function deriveBudgetPeriodKeyTS(
  * Mirrors Python `validate_scenario_uniqueness`.
  */
 export function validateScenarioUniquenessTS(
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  // eslint-disable-next-line camelcase
+  // eslint-disable-next-line camelcase, @typescript-eslint/no-restricted-types
   existing_count: number,
 ): string | null {
   // eslint-disable-next-line camelcase

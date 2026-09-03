@@ -191,8 +191,11 @@ export function SnapshotPersistencePanel({
         {t("panel_step_indicator")}
       </p>
       <div className="mb-4 text-sm text-slate-700">
-        // eslint-disable-next-line camelcase
-        <span className="font-mono">state: {current_state}</span>
+        <span className="font-mono">
+          state:{" "}
+          {/* eslint-disable-next-line camelcase */}
+          {current_state}
+        </span>
         <span className="ml-3 font-mono">
           result: {formatCommitResultKo(state)}
         </span>

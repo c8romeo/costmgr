@@ -63,13 +63,13 @@ export function BudgetVarianceTable({
       <section className="mt-6 rounded border p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">{t("panel_title")}</h2>
-          // eslint-disable-next-line camelcase
+          {/* eslint-disable-next-line camelcase */}
           <ABCDGrayBadge badge={abcd_disabled_badge} />
         </div>
         <p className="mt-2 text-sm text-gray-600">
           {t("panel_description")}
         </p>
-        // eslint-disable-next-line camelcase
+        {/* eslint-disable-next-line camelcase */}
         <p className="mt-1 text-xs text-gray-500">{abcd_disabled_note}</p>
 
         {rows.length === 0 ? (
@@ -98,7 +98,7 @@ export function BudgetVarianceTable({
                   // Use label+idx for the key — period_key is unique per scenario.
                   <VarianceRow key={`${r.label}-${idx}`} row={r} />
                 ))}
-                // eslint-disable-next-line camelcase
+                {/* eslint-disable-next-line camelcase */}
                 <VarianceSummary totalRow={total_row} />
               </tbody>
             </table>

@@ -133,7 +133,7 @@ export function ClosingPeriodConfirmDialog({
           data-testid="closing-period-snapshot-preview"
         >
           <div className="mb-2">
-            // eslint-disable-next-line camelcase
+            {/* eslint-disable-next-line camelcase */}
             period_key: <span className="font-mono">{period_key}</span>
           </div>
           <div className="mb-2">
