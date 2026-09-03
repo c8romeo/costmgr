@@ -56,16 +56,16 @@ def upgrade() -> None:
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
         sa.Column(
-            "total_commitment_value_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "total_commitment_value_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("coverage_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("utilization_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("expiring_commitments_30d", sa.Integer, nullable=False, server_default="0"),
         sa.Column(
-            "recommended_purchase_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "recommended_purchase_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
-        sa.Column("savings_realized_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("idle_commitment_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("savings_realized_krw", sa.BigInteger, nullable=False, server_default="0"),
+        sa.Column("idle_commitment_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("renewal_decision_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("cache_key", sa.Text, nullable=False),
         sa.Column(
@@ -267,7 +267,7 @@ def upgrade() -> None:
         sa.Column("commitment_type", sa.Text, nullable=False),
         sa.Column("commitment_term", sa.Text, nullable=False),
         sa.Column("cloud_provider", sa.Text, nullable=False),
-        sa.Column("order_value_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("order_value_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("order_status", sa.Text, nullable=False, server_default="pending"),
         sa.Column("renewal_decision_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("ordered_at", sa.TIMESTAMP(timezone=True), nullable=True),

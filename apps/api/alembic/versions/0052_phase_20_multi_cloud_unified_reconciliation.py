@@ -60,10 +60,10 @@ def upgrade() -> None:
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
         sa.Column(
-            "effective_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+            "effective_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column(
-            "rate_card_variance_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+            "rate_card_variance_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("rate_card_variance_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("rate_card_source_count", sa.Integer, nullable=False, server_default="0"),
@@ -76,7 +76,7 @@ def upgrade() -> None:
             "negotiation_recommendation_count", sa.Integer, nullable=False, server_default="0"
         ),
         sa.Column(
-            "rate_card_savings_krw_per_year", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "rate_card_savings_krw_per_year", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("cache_key", sa.Text, nullable=False),
         sa.Column(
@@ -116,14 +116,14 @@ def upgrade() -> None:
         sa.Column("cloud_provider", sa.Text, nullable=False),
         sa.Column("service_code", sa.Text, nullable=False, server_default="unknown"),
         sa.Column("region", sa.Text, nullable=False, server_default="default"),
-        sa.Column("blended_cost_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("unblended_cost_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("cost_variance_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("blended_cost_krw", sa.BigInteger, nullable=False, server_default="0"),
+        sa.Column("unblended_cost_krw", sa.BigInteger, nullable=False, server_default="0"),
+        sa.Column("cost_variance_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("cost_variance_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("cost_source_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("primary_cost_source", sa.Text, nullable=False, server_default="billing_api"),
         sa.Column("cost_growth_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
-        sa.Column("cost_forecast_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("cost_forecast_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column(
             "last_reconciled_at",
             sa.TIMESTAMP(timezone=True),
@@ -166,7 +166,7 @@ def upgrade() -> None:
         sa.Column("commitment_term", sa.Text, nullable=False),
         sa.Column("strategy", sa.Text, nullable=False, server_default="moderate"),
         sa.Column("discount_pct_target", sa.Numeric(5, 2), nullable=False, server_default="0"),
-        sa.Column("savings_krw_per_year", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("savings_krw_per_year", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("savings_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("confidence_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("risk_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
@@ -226,12 +226,12 @@ def upgrade() -> None:
         sa.Column("scope_type", sa.Text, nullable=False),
         sa.Column("scope_id", sa.Text, nullable=False),
         sa.Column(
-            "blended_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+            "blended_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column(
-            "unblended_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+            "unblended_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
         ),
-        sa.Column("rate_diff_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"),
+        sa.Column("rate_diff_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("rate_diff_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("service_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("resource_count", sa.Integer, nullable=False, server_default="0"),
@@ -274,12 +274,12 @@ def upgrade() -> None:
         sa.Column("vendor_name", sa.Text, nullable=False),
         sa.Column("product_name", sa.Text, nullable=False),
         sa.Column("sku", sa.Text, nullable=False),
-        sa.Column("list_price_krw_per_unit", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("list_price_krw_per_unit", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column(
-            "negotiated_price_krw_per_unit", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "negotiated_price_krw_per_unit", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column(
-            "effective_price_krw_per_unit", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "effective_price_krw_per_unit", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("unit", sa.Text, nullable=False, server_default="per_user"),
         sa.Column("saas_category", sa.Text, nullable=False, server_default="other"),
@@ -389,7 +389,7 @@ def upgrade() -> None:
         sa.Column("trigger_type", sa.Text, nullable=False, server_default="auto"),
         sa.Column("trigger_status", sa.Text, nullable=False, server_default="triggered"),
         sa.Column("dispatched_count", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("negotiation_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("negotiation_savings_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("monthly_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("daily_auto_trigger_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("expired_at", sa.TIMESTAMP(timezone=True), nullable=True),

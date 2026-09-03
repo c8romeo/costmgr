@@ -54,14 +54,14 @@ def upgrade() -> None:
         sa.Column("scope_type", sa.Text, nullable=False),
         sa.Column("scope_id", sa.Text, nullable=False),
         sa.Column("period_key", sa.Text, nullable=False),
-        sa.Column("showback_total_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("showback_total_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("anomaly_count_30d", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("forecast_projection_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("forecast_projection_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column(
-            "optimization_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "optimization_savings_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("tag_compliance_pct", sa.Numeric(8, 4), nullable=False, server_default="0"),
-        sa.Column("idle_cost_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("idle_cost_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("department_breakdown", JSONB, nullable=False, server_default="{}"),
         sa.Column("cost_center_breakdown", JSONB, nullable=False, server_default="{}"),
         sa.Column("resource_type_breakdown", JSONB, nullable=False, server_default="{}"),

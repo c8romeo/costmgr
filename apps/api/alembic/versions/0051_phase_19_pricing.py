@@ -56,19 +56,19 @@ def upgrade() -> None:
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
         sa.Column(
-            "total_blended_rate_krw_per_hour", sa.Numeric(20, 4), nullable=False, server_default="0"
+            "total_blended_rate_krw_per_hour", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("effective_discount_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column(
-            "tco_1year_commitment_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "tco_1year_commitment_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column(
-            "tco_3year_commitment_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "tco_3year_commitment_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
-        sa.Column("tco_on_demand_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("cost_per_user_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("tco_on_demand_krw", sa.BigInteger, nullable=False, server_default="0"),
+        sa.Column("cost_per_user_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column(
-            "cost_per_transaction_krw", sa.Numeric(20, 4), nullable=False, server_default="0"
+            "cost_per_transaction_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("unit_economics_score", sa.Numeric(5, 2), nullable=False, server_default="0"),
         sa.Column("cloud_provider_breakdown", JSONB, nullable=False, server_default="{}"),
@@ -269,8 +269,8 @@ def upgrade() -> None:
         sa.Column("pricing_model", sa.Text, nullable=False),
         sa.Column("cloud_provider", sa.Text, nullable=False),
         sa.Column("unit_metric", sa.Text, nullable=False),
-        sa.Column("upfront_cost_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
-        sa.Column("monthly_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("upfront_cost_krw", sa.BigInteger, nullable=False, server_default="0"),
+        sa.Column("monthly_savings_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("break_even_months", sa.Numeric(10, 2), nullable=False, server_default="0"),
         sa.Column("industry", sa.Text, nullable=False, server_default="manufacturing"),
         sa.Column(

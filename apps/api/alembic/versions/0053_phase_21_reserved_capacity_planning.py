@@ -64,12 +64,12 @@ def upgrade() -> None:
         sa.Column("period_key", sa.Text, nullable=False),
         sa.Column("industry", sa.Text, nullable=False),
         sa.Column("scope_chain", JSONB, nullable=False, server_default="{}"),
-        sa.Column("forecasted_demand_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("forecasted_demand_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column(
-            "confidence_interval_low_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "confidence_interval_low_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column(
-            "confidence_interval_high_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "confidence_interval_high_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column("seasonal_factor", sa.Numeric(5, 2), nullable=False, server_default="1.0"),
         sa.Column("growth_rate_pct", sa.Numeric(5, 2), nullable=False, server_default="0"),
@@ -120,11 +120,11 @@ def upgrade() -> None:
         ),
         sa.Column("capacity_headroom_pct", sa.Numeric(5, 2), nullable=False, server_default="15.0"),
         sa.Column("target_reserved_capacity_units", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("estimated_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("estimated_savings_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("estimated_savings_pct", sa.Numeric(5, 2), nullable=False, server_default="5.0"),
         sa.Column(
             "minimum_savings_krw_threshold",
-            sa.Numeric(20, 2),
+            sa.BigInteger,
             nullable=False,
             server_default="1000000",
         ),
@@ -186,7 +186,7 @@ def upgrade() -> None:
             "requires_2fa_challenge", sa.Boolean, nullable=False, server_default=sa.text("FALSE")
         ),
         sa.Column(
-            "estimated_annual_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "estimated_annual_savings_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column(
             "estimated_annual_savings_pct", sa.Numeric(5, 2), nullable=False, server_default="0"
@@ -330,7 +330,7 @@ def upgrade() -> None:
         sa.Column("industry", sa.Text, nullable=False),
         sa.Column("total_reserved_capacity_units", sa.Integer, nullable=False, server_default="0"),
         sa.Column(
-            "total_estimated_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"
+            "total_estimated_savings_krw", sa.BigInteger, nullable=False, server_default="0"
         ),
         sa.Column(
             "average_break_even_utilization_pct",
@@ -367,7 +367,7 @@ def upgrade() -> None:
         sa.Column("trigger_status", sa.Text, nullable=False, server_default="triggered"),
         sa.Column("execution_strategy", sa.Text, nullable=False),
         sa.Column("dispatched_count", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("commitment_savings_krw", sa.Numeric(20, 2), nullable=False, server_default="0"),
+        sa.Column("commitment_savings_krw", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("monthly_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column("expired_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
