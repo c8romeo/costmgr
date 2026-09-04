@@ -21,9 +21,11 @@ interface SSOLoginPageProps {
 export default async function SSOLoginPage({ params, searchParams }: SSOLoginPageProps) {
   // Encode the original path (searchParams.relay_state or /dashboard default)
   // as URL-safe base64 and forward to the backend SSO login route.
-  const { locale, tenant_slug } = await params;
-  const { relay_state } = await searchParams;
-  const original = relay_state ?? `/${locale}/dashboard`;
+  // cj-272 (D-CI-FUNC-4): URL contract (path [tenant_slug], query ?relay_state)
+  // 강결합 identifier → camelcase disable. cj-264 proven pattern.
+  const { locale, tenant_slug } = await params; // eslint-disable-line camelcase, @typescript-eslint/naming-convention
+  const { relay_state } = await searchParams; // eslint-disable-line camelcase, @typescript-eslint/naming-convention
+  const original = relay_state ?? `/${locale}/dashboard`; // eslint-disable-line camelcase
   const relayB64 = Buffer.from(original, "utf-8")
     .toString("base64")
     .replace(/=+$/, "")

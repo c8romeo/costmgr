@@ -33,14 +33,16 @@ export default async function InteractiveDashboardPage({
     searchParams,
 }: PageProps) {
     const { locale } = await params;
-    const { period_key } = await searchParams;
+    // cj-272 (D-CI-FUNC-4): URL contract (?period_key) 강결합 identifier →
+    // camelcase disable. cj-264 proven pattern.
+    const { period_key } = await searchParams; // eslint-disable-line camelcase, @typescript-eslint/naming-convention
     const cookieStore = await cookies();
     const accessToken = cookieStore.get("access_token")?.value;
     if (!accessToken) {
         redirect(`/${locale}/login`);
     }
 
-    const periodKey = period_key ?? "2026-08";
+    const periodKey = period_key ?? "2026-08"; // eslint-disable-line camelcase
 
     return (
         <div data-locale={locale} data-period-key={periodKey}>
