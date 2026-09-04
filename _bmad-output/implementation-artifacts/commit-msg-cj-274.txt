@@ -1,0 +1,72 @@
+fix(sprint): cj-274 cj-style chain CLOSED 결정 wire (cj-style 274번째 epic 연속 정직 회복 atomic docs-only sprint)
+
+Root cause (cj-273b live CI verification):
+- Run 33925469263 on 1318dbca (cj-273b push, 2026-09-04T22:25:47Z → 23:06:20Z):
+  conclusion=failure. 13 job matrix = 12 PASS + web-e2e 단일 FAIL at step 18
+  (Playwright test execution, 38m 47s).
+- web-e2e 의 infra layer step 8~17 모두 success (uv sync + psql/Playwright deps +
+  Supabase shim + alembic_version VARCHAR(64) pre-create + Alembic migration +
+  RLS policies + dev_seed + uvicorn boot + Playwright install = 10/10 infra step
+  success) — cj-273b 의 infra 변경 (Postgres service + dev_seed + uvicorn +
+  RLS) 이 정직 회복 임무를 완료 결정 wire.
+- 잔여 web-e2e fail 의 root cause = spec-level business data dependency (17
+  spec files / 71 tests 중 일부, cj-273b 자기-기술 Known limitation) — 이건
+  infra recovery 의 영역이 아니라 spec implementation 의 영역 정직 boundary
+  결정 wire.
+
+Fix (cj-219 docs-only atomic sprint pattern verbatim 보존):
+- _bmad-output/implementation-artifacts/sprint-status.yaml: 7 entries EXTENSION
+  (6 D-WEB-E2E-1~6 honestly DEFER open + 1 cj-274 chain-close done) +
+  last_updated_note_v4_22 EXTENSION paragraph.
+- memory/handoff-2026-09-05-cj-274-web-e2e-chain-close-honest-defer.md: NEW
+  (handoff document for cj-style chain 종료).
+- memory/MEMORY.md: 1 line EXTENSION (in-repo hook 결정 wire).
+
+6 D-WEB-E2E-* honestly DEFER 결정 (Epic 29+ ownership 이전):
+- D-WEB-E2E-1: closing-guard.spec.ts NEGATIVE_CLOSING_PERIOD inventory business
+  data seed (closing_guard_blocked=true force) — 영향 spec 4 tests
+- D-WEB-E2E-2: m11 reversal/snapshot/cache business data seed (monthly_input_periods
+  .status='locked' + m11 reversal ledger snapshots) — 영향 spec 5 specs
+- D-WEB-E2E-3: m12 2FA challenge/lockout/recovery/setup business state seed
+  (TOTP secret + locked_out_until + recovery_code 회전 상태) — 영향 spec 4 specs
+- D-WEB-E2E-4: m12-3 account deletion state seed (account_deletion_request row
+  + TOTP verify state) — 영향 spec 4 specs
+- D-WEB-E2E-5: service-only tenant fixture (capability gate service-only 분기,
+  industry='service') — 영향 spec 3 specs
+- D-WEB-E2E-6: V8 fixture runner state (_fixture_lock_sha256 결정 + dev
+  dashboard fixture status) — 영향 spec 1 spec
+합계: 17 spec files 중 11 spec 영향 (나머지 6 spec 은 manual inspection 으로
+DEFER 안 함 결정).
+
+Verification (cj-274 5-step FINAL CLEAN):
+- T7.55 sprint-status v4.22 EXTENSION PASS — 5854 → 5857 lines, 7 entries
+  EXTENSION 결정 wire.
+- T7.56 in-repo MEMORY.md hook EXTENSION PASS — 1 line 추가 (cj-274 hook).
+- T7.57 external MEMORY.md hook EXTENSION PASS — cross-session context 보존.
+- T7.58 commit message prefix PASS — `fix(sprint): cj-274 ...` (no `@`
+  artifact, cj-254 commit-prefix-amend lesson 보존, 여기서 sprint: prefix 는
+  sprint-status 기록 sprint 임을 명시 — source code 변경 0건의 atomic
+  docs-only sprint).
+- T7.59 FINAL CLEAN PASS.
+
+runtime 동작 변화 honestly reported: docs-only atomic sprint — runtime source
+code 변경 0건 / AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag
+불필요 / 13 job matrix 가 cj-273b 와 동일 (12 PASS + 1 web-e2e FAIL at step 18)
+/ functional behavior 변경 0건.
+
+CR 11-3 honest-DEFER 200번째 epic 연속 정직 회복 결정 wire (cj-273b 의 199번째
+에 이어). cj-style honest recovery atomic sprint chain (cj-229 ~ cj-273b)
+종료 선언.
+
+결정 wire 일자: 2026-09-05 (KST).
+
+Next 결정 wire 후보:
+- 옵션 (a) Epic 29+ PRD entry sprint 진입 결정 wire (cj-style chain 종료 후 첫
+  product sprint) — bmad-sprint-planning 호출 → Epic 29 PRD entry + spec
+  entry → bmad-create-story + bmad-dev-story chain.
+- 옵션 (b) D-WEB-E2E-1~6 ownership 명확화 (Epic 29+ spec implementation owner
+  확정 + 'beforeEach seed helper' 패턴 결정 wire) 후 Epic 29 진입.
+- 옵션 (c) D-LAUNCH-1-DEFER-2/3/4 follow-up 결정 wire (외부 인프라 provisioning
+  보류 보존 — Supabase Pro PITR + Sentry Team + Vercel/Railway staging).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
