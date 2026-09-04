@@ -531,6 +531,29 @@ jobs:
   web-e2e:
     needs: setup
     runs-on: ubuntu-latest
+    # cj-273b (D-CI-FUNC-5 web-e2e stage 1): mirror smoke-e2e Postgres +
+    # dev_seed + uvicorn infra pattern (ci.yml:596-700). Local diagnostic
+    # confirmed root cause: web-e2e job had no Postgres service → all
+    # /api/v1/inventory/closing-guard/evaluate calls returned 503 →
+    # closing-guard banner never visible → 4/4 closing-guard.spec.ts
+    # tests failing (and likely many others). This change wires the
+    # backend so Playwright tests run against a real FastAPI + Postgres
+    # stack. Stage 2 (cj-273b-stage2) will address data-state gaps that
+    # surface once the infra is in place.
+    services:
+      postgres:
+        image: postgres:15@sha256:74e110c41804365e3915fcc09d5e7a1eff50161aaa94d5da0e58e0cd75ae509c
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 54322:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       # cj-251 (D-CI-FUNC-5 PART 2): web-e2e job previously had no env block —
       # `pnpm dev` boots Next.js which calls `getSupabaseEnv()` and hard-throws
@@ -551,6 +574,16 @@ jobs:
       LOG_LEVEL: "WARNING"
       OTEL_SDK_DISABLED: "true"
       NEXT_TELEMETRY_DISABLED: "1"
+      # cj-273b (D-CI-FUNC-5): FastAPI backend env vars + base URL for
+      # Next.js server-side /api/v1/* proxy (lib/server-api.ts → uvicorn
+      # on 127.0.0.1:8765). Same DATABASE_URL/SUPABASE_JWT_SECRET contract
+      # as smoke-e2e (ci.yml:613-620).
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:54322/postgres"
+      SUPABASE_JWT_SECRET: "ci-only-jwt-secret-do-not-ship-1234567890"
+      JWT_LEEWAY_SEC: "30"
+      ENVIRONMENT: "ci"
+      PIPA_REVIEW_COMPLETED: "true"
+      NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8765"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -558,18 +591,71 @@ jobs:
       - name: Enable corepack (provides pnpm from packageManager field)
         run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - name: Install Playwright system dependencies
+      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+        with: { python-version-file: ".python-version" }
+      - run: pip install uv==0.11.32
+      # cj-style 223 (D-CI-FUNC-8 workspace sync fix): `uv sync --frozen`
+      # at root installs only root dev group, missing apps/api runtime
+      # deps (alembic, uvicorn). Without `--all-packages`, the
+      # `Apply Alembic migration` + `Boot uvicorn` steps fail with
+      # `Failed to spawn: alembic (os error 2)`. Same root cause as
+      # smoke-e2e (ci.yml:629-632) + rls-tests.
+      - run: uv sync --frozen --all-packages
+      - name: Install psql + Playwright system dependencies
         run: |
-          # cj-style 217 (D-CI-FUNC-5): split `--with-deps` into explicit sudo apt-get
-          # step + plain `playwright install chromium`. The previous combined command
-          # completed in <1s with FAIL conclusion (run_id 33235390055, job_id 10,
-          # step 6). Splitting surfaces whether apt-get or browser binary download
-          # is the actual failing stage.
+          # cj-style 217 (D-CI-FUNC-5): split `--with-deps` into explicit
+          # sudo apt-get step + plain `playwright install chromium` below.
+          # Combined: psql (for supabase_ci_shim + alembic_version +
+          # RLS policies) + Chromium native deps.
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
+            postgresql-client \
             libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
             libcups2 libxkbcommon0 libxcomposite1 libxdamage1 \
             libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64
+          psql --version
+      # cj-style 224 (D-CI-FUNC-8 alembic_version VARCHAR(32) blocker):
+      # alembic 1.18.5 hardcodes VARCHAR(32) for `alembic_version.
+      # version_num` (alembic/ddl/impl.py:173), but `0001_tenants_users_
+      # memberships_settings` (39 chars, first migration) exceeds 32
+      # chars → `INSERT INTO alembic_version` fails. Pre-create with
+      # VARCHAR(64) before `alembic upgrade head`. Same fix as
+      # smoke-e2e (ci.yml:656-661) + rls-tests.
+      - name: Apply Supabase CI shim (auth.jwt() stub + roles)
+        run: |
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0000_supabase_ci_shim.sql
+      - name: Pre-create alembic_version (VARCHAR(64))
+        run: |
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -c "CREATE TABLE IF NOT EXISTS alembic_version \
+                (version_num VARCHAR(64) NOT NULL PRIMARY KEY)"
+      - name: Apply Alembic migration
+        run: uv run alembic -c apps/api/alembic.ini upgrade head
+      - name: Apply RLS policies
+        run: |
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0001_rls_policies.sql
+      - name: Run dev seed (creates tenant + user + industry baseline)
+        run: uv run python scripts/dev_seed.py
+      - name: Boot uvicorn (background)
+        run: |
+          mkdir -p /tmp/web-e2e
+          nohup uv run uvicorn apps.api.main:app --host 127.0.0.1 --port 8765 \
+            > /tmp/web-e2e/uvicorn.log 2>&1 &
+          echo "uvicorn PID=$!"
+          # Wait for /health to return 200.
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8765/health >/dev/null; then
+              echo "uvicorn ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8765/health || (echo "uvicorn failed to start"; tail -50 /tmp/web-e2e/uvicorn.log; exit 1)
       # cj-style 219 (D-CI-FUNC-5 PARTIAL 잔여): `pnpm playwright install chromium` 는 pnpm shell
       # wrapper 를 경유하여 playwright binary 가 PATH 에서 발견 안 되는 경우 fail. `pnpm exec` 는
       # local node_modules/.bin 의 binary 를 직접 resolve 하므로 binary download 가 정상 진행.
@@ -582,6 +668,17 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/
           if-no-files-found: ignore
+      - name: Upload uvicorn log (debug aid)
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: web-e2e-uvicorn-log
+          path: /tmp/web-e2e/uvicorn.log
+          if-no-files-found: ignore
+      - name: Kill uvicorn
+        if: always()
+        run: |
+          pkill -f "uvicorn apps.api.main:app" || true
 
   # ─────────────────────────────────────────────────────────
   # 11. smoke-e2e (smoke-fix sprint 2026-08-18 — T6)
