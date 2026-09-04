@@ -18,14 +18,18 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  params: { locale: string };
-  searchParams: { email?: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ email?: string }>;
 }
 
 export default async function EmailVerificationPendingPage({
   params,
   searchParams,
 }: PageProps) {
+  const { locale } = await params;
+  const { email } = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -33,7 +37,7 @@ export default async function EmailVerificationPendingPage({
 
   // Already verified + signed in → skip ahead.
   if (user) {
-    redirect(`/${params.locale}/onboarding/industry`);
+    redirect(`/${locale}/onboarding/industry`);
   }
 
   return (
@@ -63,11 +67,11 @@ export default async function EmailVerificationPendingPage({
         </h1>
         <p style={{ color: "#475569", marginBottom: "1.5rem", fontSize: "0.875rem" }}>
           인증 메일을 보냈습니다. 메일의 링크를 클릭해 가입을 완료해 주세요.
-          {searchParams.email ? ` (${searchParams.email})` : null}
+          {email ? ` (${email})` : null}
         </p>
         <ResendVerificationButton
-          email={searchParams.email ?? ""}
-          locale={params.locale}
+          email={email ?? ""}
+          locale={locale}
         />
       </section>
     </main>

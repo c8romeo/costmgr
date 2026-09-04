@@ -15,15 +15,19 @@ import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
 export const dynamic = "force-dynamic";
 
 interface ResetPasswordPageProps {
-  params: { locale: string };
-  searchParams: { code?: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ code?: string }>;
 }
 
 export default async function ResetPasswordPage({
   params,
   searchParams,
 }: ResetPasswordPageProps) {
-  if (!searchParams.code) {
+  const { locale } = await params;
+  const { code } = await searchParams;
+  if (!code) {
     return (
       <main
         style={{
@@ -51,7 +55,7 @@ export default async function ResetPasswordPage({
             재설정 링크가 유효하지 않거나 만료되었습니다. 비밀번호 찾기에서 다시 요청해 주세요.
           </p>
           <a
-            href={`/${params.locale}/forgot-password`}
+            href={`/${locale}/forgot-password`}
             style={{
               display: "inline-block",
               padding: "0.5rem 1rem",
@@ -80,7 +84,7 @@ export default async function ResetPasswordPage({
         padding: "2rem 1rem",
       }}
     >
-      <ResetPasswordForm locale={params.locale} code={searchParams.code} />
+      <ResetPasswordForm locale={locale} code={code} />
     </main>
   );
 }

@@ -25,12 +25,15 @@ import { IndustrySelector } from "@/components/onboarding/IndustrySelector";
 export const dynamic = "force-dynamic";
 
 interface OnboardingIndustryPageProps {
-  params: { locale: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
 }
 
 export default async function OnboardingIndustryPage({
   params,
 }: OnboardingIndustryPageProps) {
+  const { locale } = await params;
   const cookieStore = await cookies();
   const hasSession = cookieStore.get("sb-access-token")?.value;
   // F-4: pass the accessToken STRING to the client component (was previously
@@ -39,7 +42,7 @@ export default async function OnboardingIndustryPage({
 
   if (!hasSession) {
     // Story 0.5 wires the real `supabase.auth.getUser()` check.
-    redirect(`/${params.locale}/login`);
+    redirect(`/${locale}/login`);
   }
 
   // Story 0.5 will replace this with a server-side `getTenantSettings()` call

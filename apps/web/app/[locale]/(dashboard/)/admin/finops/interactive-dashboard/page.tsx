@@ -22,24 +22,28 @@ import { FinopsInteractiveDashboardPanel } from "@/components/finops/FinopsInter
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-    params: { locale: string };
-    searchParams: { period_key?: string; tenant_id?: string };
+    // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+    // cj-258 패턴. `next build` 강제 type check surface.
+    params: Promise<{ locale: string }>;
+    searchParams: Promise<{ period_key?: string; tenant_id?: string }>;
 }
 
 export default async function InteractiveDashboardPage({
     params,
     searchParams,
 }: PageProps) {
+    const { locale } = await params;
+    const { period_key } = await searchParams;
     const cookieStore = await cookies();
     const accessToken = cookieStore.get("access_token")?.value;
     if (!accessToken) {
-        redirect(`/${params.locale}/login`);
+        redirect(`/${locale}/login`);
     }
 
-    const periodKey = searchParams.period_key ?? "2026-08";
+    const periodKey = period_key ?? "2026-08";
 
     return (
-        <div data-locale={params.locale} data-period-key={periodKey}>
+        <div data-locale={locale} data-period-key={periodKey}>
             <FinopsInteractiveDashboardPanel
                 periodKey={periodKey}
                 isOwner={true}

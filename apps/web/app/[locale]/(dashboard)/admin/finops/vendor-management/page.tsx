@@ -9,12 +9,15 @@
 import { FinopsVendorManagementDashboardPanel } from "@/components/finops/FinopsVendorManagementDashboardPanel";
 
 interface PageProps {
-    params: { locale: string };
+    // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+    // cj-258 패턴. `next build` 강제 type check surface.
+    params: Promise<{ locale: string }>;
 }
 
-export default function VendorManagementPage({ params }: PageProps) {
+export default async function VendorManagementPage({ params }: PageProps) {
+    const { locale } = await params;
     return (
-        <main lang={params.locale}>
+        <main lang={locale}>
             <FinopsVendorManagementDashboardPanel />
         </main>
     );

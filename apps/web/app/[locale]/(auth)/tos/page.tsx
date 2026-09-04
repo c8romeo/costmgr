@@ -12,10 +12,13 @@ import path from "node:path";
 export const dynamic = "force-dynamic";
 
 interface TosPageProps {
-  params: { locale: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
 }
 
 export default async function TosPage({ params: _params }: TosPageProps) {
+  await _params; // satisfy Next 15+ Promise<params>
   const filePath = path.join(process.cwd(), "docs", "terms-of-service.md");
   const content = await fs.readFile(filePath, "utf8").catch(() => "# 이용약관\n\n(약관을 불러올 수 없습니다)");
 

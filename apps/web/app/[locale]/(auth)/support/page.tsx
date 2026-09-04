@@ -12,10 +12,13 @@ import path from "node:path";
 export const dynamic = "force-dynamic";
 
 interface SupportPageProps {
-  params: { locale: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
 }
 
 export default async function SupportPage({ params: _params }: SupportPageProps) {
+  await _params; // satisfy Next 15+ Promise<params>
   const filePath = path.join(process.cwd(), "docs", "support.md");
   const content = await fs
     .readFile(filePath, "utf8")

@@ -12,14 +12,18 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 interface SSOLoginPageProps {
-  params: { locale: string; tenant_slug: string };
-  searchParams: { relay_state?: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string; tenant_slug: string }>;
+  searchParams: Promise<{ relay_state?: string }>;
 }
 
-export default function SSOLoginPage({ params, searchParams }: SSOLoginPageProps) {
+export default async function SSOLoginPage({ params, searchParams }: SSOLoginPageProps) {
   // Encode the original path (searchParams.relay_state or /dashboard default)
   // as URL-safe base64 and forward to the backend SSO login route.
-  const original = searchParams.relay_state ?? `/${params.locale}/dashboard`;
+  const { locale, tenant_slug } = await params;
+  const { relay_state } = await searchParams;
+  const original = relay_state ?? `/${locale}/dashboard`;
   const relayB64 = Buffer.from(original, "utf-8")
     .toString("base64")
     .replace(/=+$/, "")
@@ -27,7 +31,7 @@ export default function SSOLoginPage({ params, searchParams }: SSOLoginPageProps
     .replace(/\//g, "_");
 
   const ssoUrl = `/api/v1/auth/sso/login?tenant_slug=${encodeURIComponent(
-    params.tenant_slug,
+    tenant_slug,
   )}&relay_state=${encodeURIComponent(relayB64)}`;
 
   // The backend redirects to the IdP. We forward the browser via Next

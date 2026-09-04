@@ -12,10 +12,13 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 interface MagicLinkSentPageProps {
-  params: { locale: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
 }
 
-export default function MagicLinkSentPage({ params }: MagicLinkSentPageProps) {
+export default async function MagicLinkSentPage({ params }: MagicLinkSentPageProps) {
+  const { locale } = await params;
   return (
     <main
       style={{
@@ -71,7 +74,7 @@ export default function MagicLinkSentPage({ params }: MagicLinkSentPageProps) {
           }}
         >
           <Link
-            href={`/${params.locale}/login`}
+            href={`/${locale}/login`}
             style={{ color: "#0f172a", textDecoration: "underline" }}
           >
             로그인으로 돌아가기

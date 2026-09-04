@@ -14,11 +14,15 @@ import { MagicLinkForm } from "@/components/auth/MagicLinkForm";
 export const dynamic = "force-dynamic";
 
 interface MagicLinkPageProps {
-  params: { locale: string };
-  searchParams: { redirect?: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ redirect?: string }>;
 }
 
-export default function MagicLinkPage({ params, searchParams }: MagicLinkPageProps) {
+export default async function MagicLinkPage({ params, searchParams }: MagicLinkPageProps) {
+  const { locale } = await params;
+  const { redirect: redirectParam } = await searchParams;
   return (
     <main
       style={{
@@ -29,7 +33,7 @@ export default function MagicLinkPage({ params, searchParams }: MagicLinkPagePro
         padding: "2rem 1rem",
       }}
     >
-      <MagicLinkForm locale={params.locale} redirectTo={searchParams.redirect} />
+      <MagicLinkForm locale={locale} redirectTo={redirectParam} />
     </main>
   );
 }

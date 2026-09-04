@@ -14,17 +14,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 interface ForgotPasswordPageProps {
-  params: { locale: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
 }
 
 export default async function ForgotPasswordPage({ params }: ForgotPasswordPageProps) {
+  const { locale } = await params;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect(`/${params.locale}/dashboard`);
+    redirect(`/${locale}/dashboard`);
   }
 
   return (
@@ -37,7 +40,7 @@ export default async function ForgotPasswordPage({ params }: ForgotPasswordPageP
         padding: "2rem 1rem",
       }}
     >
-      <ForgotPasswordForm locale={params.locale} />
+      <ForgotPasswordForm locale={locale} />
     </main>
   );
 }

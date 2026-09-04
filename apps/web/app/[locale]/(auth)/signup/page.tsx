@@ -16,17 +16,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 interface SignupPageProps {
-  params: { locale: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
 }
 
 export default async function SignupPage({ params }: SignupPageProps) {
+  const { locale } = await params;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect(`/${params.locale}/dashboard`);
+    redirect(`/${locale}/dashboard`);
   }
 
   return (
@@ -39,7 +42,7 @@ export default async function SignupPage({ params }: SignupPageProps) {
         padding: "2rem 1rem",
       }}
     >
-      <SignupForm locale={params.locale} />
+      <SignupForm locale={locale} />
     </main>
   );
 }

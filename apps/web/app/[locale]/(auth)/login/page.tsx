@@ -30,14 +30,22 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 interface LoginPageProps {
-  params: { locale: string };
-  searchParams: { redirect?: string; reset?: string; error?: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환.
+  // cj-258 패턴. `next build` 강제 type check surface.
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ redirect?: string; reset?: string; error?: string }>;
 }
 
 export default async function LoginPage({
   params,
   searchParams,
 }: LoginPageProps) {
+  const { locale } = await params;
+  const {
+    redirect: redirectParam,
+    reset: resetParam,
+    error: errorFromQuery,
+  } = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -45,11 +53,9 @@ export default async function LoginPage({
 
   // If already signed in, redirect to dashboard (or ?redirect= target).
   if (user) {
-    const target = searchParams.redirect ?? `/${params.locale}/dashboard`;
+    const target = redirectParam ?? `/${locale}/dashboard`;
     redirect(target);
   }
-
-  const errorFromQuery = searchParams.error;
 
   return (
     <main
@@ -71,9 +77,9 @@ export default async function LoginPage({
         }}
       >
         <LoginForm
-          locale={params.locale}
-          redirectTo={searchParams.redirect}
-          resetSuccess={searchParams.reset === "success"}
+          locale={locale}
+          redirectTo={redirectParam}
+          resetSuccess={resetParam === "success"}
         />
 
         {errorFromQuery && (
@@ -99,7 +105,7 @@ export default async function LoginPage({
           </p>
         )}
 
-        <SocialAuthButtons locale={params.locale} />
+        <SocialAuthButtons locale={locale} />
 
         <div
           style={{
@@ -117,7 +123,7 @@ export default async function LoginPage({
         </div>
 
         <Link
-          href={`/${params.locale}/magic-link${searchParams.redirect ? `?redirect=${encodeURIComponent(searchParams.redirect)}` : ""}`}
+          href={`/${locale}/magic-link${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ""}`}
           style={{
             display: "block",
             textAlign: "center",
@@ -171,7 +177,7 @@ export default async function LoginPage({
               wordBreak: "break-all",
             }}
           >
-            /{params.locale}/sso/&lt;회사-슬러그&gt;/login
+            /{locale}/sso/&lt;회사-슬러그&gt;/login
           </p>
         </details>
       </div>

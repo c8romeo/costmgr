@@ -11,10 +11,15 @@ import path from "node:path";
 export const dynamic = "force-dynamic";
 
 interface AnnouncementsPageProps {
-  params: { locale: string };
+  // cj-271 (D-CI-FUNC-5 typedRoutes): Next.js 15 typedRoutes 호환 —
+  // `params: { locale: string }` (sync) → `Promise<{ locale: string }>` (async).
+  // `next dev` 는 type check skip 했으나 `next build` 는 강제 → step 8 FAIL
+  // surface 됨 (cj-258 와 동일 패턴, 1 file 누락).
+  params: Promise<{ locale: string }>;
 }
 
 export default async function AnnouncementsPage({ params: _params }: AnnouncementsPageProps) {
+  await _params; // satisfy Next 15+ Promise<params>
   const filePath = path.join(process.cwd(), "docs", "launch-announcement.md");
   const content = await fs
     .readFile(filePath, "utf8")
