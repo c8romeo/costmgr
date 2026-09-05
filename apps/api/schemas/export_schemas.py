@@ -16,6 +16,7 @@ Mirrors the canonical Pydantic schema pattern from `apps/api/schemas/audit_log_s
 (verbatim) for `BaseModel` + `Field` + `UUID4` + `Literal` typing. NFR18 ko-KR SSOT applies
 to error messages only (this schema is request-shape, not user-facing UI).
 """
+
 from __future__ import annotations
 
 import re
@@ -71,8 +72,7 @@ class CsvExportRequest(BaseModel):
         """
         if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", v):
             raise ValueError(
-                "period는 YYYY-MM 형식이어야 합니다 (예: 2026-08). "
-                "월은 01~12 범위."
+                "period는 YYYY-MM 형식이어야 합니다 (예: 2026-08). " "월은 01~12 범위."
             )
         return v
 
