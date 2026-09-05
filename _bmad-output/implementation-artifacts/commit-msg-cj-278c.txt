@@ -1,0 +1,37 @@
+fix(sprint): cj-278c Epic 29+ P1 m12-3 deletion dev_seed scenario EXTENSION atomic single sprint (cj-style 278c번째 epic 연속 정직 회복 source+docs)
+
+cj-278 plan (3-sprint 분할 4+4+4 = m11/2FA/deletion) 의 마지막 wire sprint.
+
+scripts/dev_seed.py 739 → 1169 lines (+430 lines EXTENSION) — 4 NEW scenario functions
+(_seed_deletion_consent + _seed_deletion_audit + _seed_deletion_restore +
+_seed_deletion_hard_delete) + 1 shared helper (_seed_pending_deletion_tenant —
+29.13/29.14 의 FK cycle 회피용 NULL-tenant-then-user-then-UPDATE 패턴) + 1 reset
+helper (_reset_tenant_to_active — 29.11/29.12 의 DEV_TENANT_ID 클린업 +
+cross-scenario 격리) + 11 NEW UUIDv5 deterministic IDs (DEV_TENANT_DELETION_*
++ DEV_USER_DELETION_* + DEV_MEMBERSHIP_DELETION_* + DEV_AUDIT_DEL_*) +
+argparse choices EXTENSION (14 choices + all) + main() dispatch EXTENSION
+(4 NEW conditional blocks).
+
+cj-274 의 D-WEB-E2E-4 (m12-3 deletion) ownership 결정 wire (cj-278 plan 보존).
+CJ-STYLE HONEST: append-only audit_logs (alembic 0001 trigger) 는 ON CONFLICT
+(id) DO NOTHING 사용 (NOT DO UPDATE — trigger fires RAISE). deletion_consents
+BYTEA AES-256-GCM cannot be seeded without COSTMGR_AT_REST_KEY_V1 →
+tenants.deletion_consent_id left NULL (cj-278b totp_secret limitation 와 동일
+패턴). 12 NEW spec drifts logged for cj-280 retro (29.11~29.14 schema / column
+명 / spec wording drift).
+
+sprint-status.yaml v4.42 → v4.43: cj-278c: backlog → done + 4 stories
+29-11/29-12/29-13/29-14: backlog → done + last_updated_note_v4_43 EXTENSION.
+
+ci.yml 변경 0건 (cj-277 의 --scenario all invocation 이 자동으로 14 scenarios
+wire 결정 wire). AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag
+불필요 / 13 job matrix 가 cj-273b~cj-278b 와 동일 패턴.
+
+scope honestly reported: docs + dev_seed.py source change ONLY, no live CI run
+executed in this sprint. CR 11-3 honest-DEFER 210번째 epic 연속 정직 회복.
+
+Related: cj-278a (m11 source+fix+close), cj-278b (2FA source+close),
+cj-278 plan (3-sprint 분할), cj-277 (OQ-3 --scenario all invocation wire),
+cj-276 (P0 minimum viable + --scenario flag), cj-275 (Epic 29+ PRD entry
+18 spec files), cj-274 (cj-style chain CLOSED + D-WEB-E2E-1~6 honestly DEFER
+ownership transfer), cj-273b (web-e2e Postgres + dev_seed + uvicorn infra).
