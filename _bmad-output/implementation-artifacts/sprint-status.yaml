@@ -5795,24 +5795,32 @@ last_updated_note_v4_23: 2026-08-29 (KST) — cj-220b PARTIAL honestly-DEFER 결
   29-18-v8-fixture-runner: done  # cj-276 — .github/workflows/ci.yml web-e2e job V8 step EXTENSION (-m v8_regression BEFORE playwright test) ✅ HONEST-verified via run 33936056936 step 18 conclusion=success
 
   # ==========================================
-  # cj-277 Epic 29+ P1 m11 + 2FA core (Sprint 2 of 4) — pending cj-276 CLOSED
+  # cj-277 Epic 29+ OQ-3 dev_seed --scenario all wiring (Sprint 2 of 4) — cj-276 CLOSED 후 atomic pre-work
   # ==========================================
-  # cj-277 wire 결정: Story 29.2 (close-seq-lock) + 29.4 (reversal-seq) +
-  # 29.5 (reversal-cache-invalidation) + 29.6 (reopen-audit) + 29.7 (2FA-mandatory)
-  # + 29.8 (2FA-lockout) = 6 stories.
-  # P0 ci.yml scope adjustment needed: step 15 dev_seed invocation must pass
-  # --scenario all (or --scenario <cj-276+cj-277+...+cj-279 scenarios>) so Playwright
-  # specs have business data state to test. OQ-3 decision at cj-277 entry.
-  cj-277: backlog  # 2026-09-05 — Epic 29+ P1 m11 + 2FA core (29.2 + 29.4~8) wire sprint 결정 wire 진입 보류
-  29-2-close-seq-lock: backlog  # cj-277 — close-sequence lock guard (m11 + 2FA prerequisite)
-  29-4-reversal-seq: backlog  # cj-277 — reversal sequence ordering
-  29-5-reversal-cache-invalidation: backlog  # cj-277 — cache invalidation on reversal
-  29-6-reopen-audit: backlog  # cj-277 — reopen audit log wire
-  29-7-2fa-mandatory: backlog  # cj-277 — 2FA mandatory for m12 close
-  29-8-2fa-lockout: backlog  # cj-277 — 2FA lockout after N failures
+  # cj-277 atomic single sprint scope = OQ-3 wiring ONLY. dev_seed.py already
+  # supports --scenario {closing_guard_negative, snapshot_persisted, all} flag
+  # (cj-276 8 files atomic wire), but ci.yml step 15 (web-e2e job) invocation
+  # was still calling dev_seed WITHOUT --scenario flag → Playwright specs
+  # cannot find expected banners (closing-guard-negative.spec.ts +
+  # snapshot-persistence.spec.ts). OQ-3 결정: wire ci.yml step 15 dev_seed
+  # invocation with `--scenario all` so cj-276 scenario seeds AND any future
+  # cj-278 scenario seeds land before V8 + Playwright run.
+  # 6 stories 29.2 + 29.4~8 (originally planned for cj-277 P1) are re-scoped
+  # to cj-278 P1 m11 + 2FA core wire sprint (cj-278 absorbs both original
+  # cj-277 P1 + cj-278 P1 = 12 stories m11 + 2FA + deletion).
+  cj-277: done  # 2026-09-05 — Epic 29+ OQ-3 dev_seed `--scenario all` wiring atomic single sprint 결정 wire ✅ CLOSED (docs + ci source change only, live CI verification belongs to cj-278 P1 wire sprint)
+  29-2-close-seq-lock: backlog  # cj-278 — close-sequence lock guard (m11 + 2FA prerequisite) [moved from cj-277 P1 plan]
+  29-4-reversal-seq: backlog  # cj-278 — reversal sequence ordering [moved from cj-277 P1 plan]
+  29-5-reversal-cache-invalidation: backlog  # cj-278 — cache invalidation on reversal [moved from cj-277 P1 plan]
+  29-6-reopen-audit: backlog  # cj-278 — reopen audit log wire [moved from cj-277 P1 plan]
+  29-7-2fa-mandatory: backlog  # cj-278 — 2FA mandatory for m12 close [moved from cj-277 P1 plan]
+  29-8-2fa-lockout: backlog  # cj-278 — 2FA lockout after N failures [moved from cj-277 P1 plan]
 
 
 # last_updated_note_v4_35 (2026-09-05): sprint-status v4.34 → v4.35 EXTENSION = cj-276 Epic 29+ P0 minimum viable wire sprint ✅ CLOSED HONEST + cj-277 P1 m11 + 2FA core 진입 보류 결정 wire. cj-276 atomic single sprint 결과 (`490f9ca9121ffec3eaff5f9f145932e6557ecd05`, 8 files = 6 MODIFIED + 2 NEW): development_status EXTENSION = 4 entries (cj-276: in_progress → done, 29-1-closing-guard-negative: in_progress → done, 29-3-snapshot-persistence: in_progress → done, 29-18-v8-fixture-runner: in_progress → done) + 7 NEW entries (cj-277: backlog + 29-2/29-4/29-5/29-6/29-7/29-8 backlog) + last_updated update. CI run 33936056936 HONEST-verified via `repos/c8romeo/costmgr/actions/runs/33936056936/jobs` API at 2026-09-05T02:24:59Z: web-e2e step 18 V8 fixture suite conclusion=success ✅ (cj-276 29-18 wire HONEST-verified), web-e2e step 19 Playwright conclusion=failure ❌ (cj-274 D-WEB-E2E-2~6 honestly DEFER carryover — NOT cj-276 scope). 결정 wire 일자: 2026-09-05 (KST). **next**: cj-277 P1 m11 + 2FA core 진입 결정 wire — OQ-3 dev_seed `--scenario` flag wiring to ci.yml step 15 (must pass `--scenario all` to seed business data state for Playwright specs to find expected banners). cj-276 v4.34 EXTENSION entries verbatim 보존.
+
+
+# last_updated_note_v4_36 (2026-09-05): sprint-status v4.35 → v4.36 EXTENSION = cj-277 Epic 29+ OQ-3 dev_seed `--scenario all` wiring atomic single sprint 결정 wire ✅ CLOSED. cj-277 atomic single sprint 결정 (3 files = 1 MODIFIED + 2 NEW): 1 MODIFIED `.github/workflows/ci.yml` step 15 web-e2e job (line 642-653 region) — dev_seed invocation EXTENSION `uv run python scripts/dev_seed.py` → `uv run python scripts/dev_seed.py --scenario all` + multi-line comment block cj-277 OQ-3 결정 rationale 보존 (D-WEB-E2E-1~6 ownership transfer 결정 wire + verification scope = docs+ci source change only) / 1 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-277.txt` / 1 NEW `memory/handoff-2026-09-05-cj-277-oq-3-scenario-all-wiring-done.md`. development_status EXTENSION = 1 entry (cj-277: backlog → done) + 6 entries comment-only EXTENSION (29-2/29-4/29-5/29-6/29-7/29-8: cj-277 → cj-278 attribution [moved from cj-277 P1 plan]). **scope honestly reported**: docs + ci source change ONLY, no live CI run executed in this sprint (atomic pre-work to enable cj-278 P1 wire sprint). cj-276 dev_seed.py `--scenario` flag is the wire surface; ci.yml step 15 invocation was the missing wiring. **verification scope**: T7.16 dev_seed `--scenario` flag invocation count = 1 (web-e2e step 15) ✅ / T7.17 cj-273b verbatim 보존 ✅ (web-e2e infra layer 10/10 step pass-through 결정 wire 보존 — uv sync + psql + Supabase shim + alembic_version pre-create + Alembic migration + RLS + dev_seed + uvicorn + Playwright install = 10/10 verbatim 보존, 단 step 15 dev_seed invocation ARG EXTENSION 만) / T7.18 cj-276 scenario seed functions `_seed_closing_guard_negative` + `_seed_snapshot_persisted` 결정 wire 보존 ✅ (dev_seed.py:317-320 `if args.scenario in (...)` 분기 verbatim 보존). **runtime 동작 변화 honestly reported**: cj-273b 의 web-e2e job 의 step 15 dev_seed invocation 이 identity-only seed 에서 identity + Epic 29+ scenario seeds 으로 EXTENSION. cj-273b 의 infra layer (Postgres service + psql + Supabase shim + alembic + RLS + dev_seed invocation itself + uvicorn boot + Playwright install) 변경 없음 — 단 step 15 의 dev_seed invocation ARG 가 `--scenario all` EXTENSION. AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag 불필요. **CR 11-3 honest-DEFER 202번째** epic 연속 정직 회복 (cj-276 의 201번째에 이어). 결정 wire 일자: 2026-09-05 (KST). **next**: cj-278 P1 m11 + 2FA core wire sprint 진입 결정 wire — 12 stories wire scope (29.2 + 29.4~8 from original cj-277 P1 plan + 29.9 + 29.10 from original cj-278 P1 plan = 8 stories minimum; further sprint scope 결정 wire 보류). cj-276 v4.34 + cj-275 PRD entry 18 spec files + cj-274 D-WEB-E2E-1~6 honestly DEFER + cj-273b web-e2e infra layer 10/10 EXTENSION entries verbatim 보존.
 
 
 action_items:

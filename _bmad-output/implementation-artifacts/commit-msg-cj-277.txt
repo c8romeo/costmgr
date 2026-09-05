@@ -1,0 +1,54 @@
+fix(sprint): cj-277 OQ-3 dev_seed --scenario all wiring (cj-style 277번째 epic 연속 정직 회복 atomic ci+docs single sprint)
+
+cj-276 CLOSED ✅ HONEST 직후 OQ-3 결정 wire atomic single sprint.
+ci.yml web-e2e job step 15 dev_seed invocation EXTENSION:
+  uv run python scripts/dev_seed.py
+  → uv run python scripts/dev_seed.py --scenario all
+
+cj-276 wire surface = dev_seed.py `--scenario` flag + 2 scenario seed
+functions (_seed_closing_guard_negative + _seed_snapshot_persisted).
+cj-277 wire = ci.yml step 15 invocation ARG = the missing wiring.
+
+4 files = 2 MODIFIED + 2 NEW atomic single sprint:
+  1 MODIFIED .github/workflows/ci.yml (step 15 web-e2e job, line 642-653
+    region) — dev_seed invocation EXTENSION `--scenario all` + multi-line
+    comment block cj-277 OQ-3 결정 rationale (D-WEB-E2E-1~6 ownership
+    transfer 결정 wire + verification scope = docs+ci source change only)
+  1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml
+    v4.35 → v4.36 EXTENSION — cj-277: backlog → done + 6 stories 29.2/
+    29.4~29.8 re-attribution cj-277 P1 plan → cj-278 P1 wire sprint
+    + last_updated_note_v4_36 EXTENSION paragraph
+  1 NEW memory/handoff-2026-09-05-cj-277-oq-3-scenario-all-wiring-done.md
+    (repo memory/ subdir; mirrors USER memory dir claude projects hook)
+  1 NEW commit-msg-cj-277.txt (this file)
+  [MEMORY.md hook EXTENSION in USER claude projects memory dir — auto-loaded
+  next session, not committed to repo per cj-274 / cj-276 pattern verbatim]
+
+scope honestly reported: docs + ci source change ONLY, NO live CI run
+executed in this sprint (atomic pre-work to enable cj-278 P1 wire
+sprint). cj-273b web-e2e infra layer 10/10 step verbatim 보존 — 단
+step 15 dev_seed invocation ARG 가 `--scenario all` EXTENSION.
+
+verification scope (local, all honestly reported):
+  T7.16 dev_seed --scenario flag invocation count = 1 ✅
+  T7.17 cj-273b verbatim 보존 ✅ (web-e2e infra layer 10/10 step pass-
+    through 결정 wire 보존)
+  T7.18 cj-276 scenario seed functions 결정 wire 보존 ✅
+  T7.19 cj-276 dev_seed EXTENSION verbatim 보존 ✅
+
+runtime 동작 변화: cj-273b 의 web-e2e job step 15 dev_seed invocation
+이 identity-only seed 에서 identity + Epic 29+ scenario seeds 으로
+EXTENSION. AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag
+불필요 / 13 job matrix 가 cj-273b 와 동일.
+
+CR 11-3 honest-DEFER 202번째 epic 연속 정직 회복 (cj-276 의 201번째에 이어).
+
+next: cj-278 P1 wire sprint 결정 wire 진입 — 12 stories scope (29.2 +
+29.4~8 from original cj-277 P1 plan + 29.9 + 29.10 from original
+cj-278 P1 plan = 8 stories minimum; further sprint scope 결정 wire
+보류). OQ-3 unlock = ci.yml step 15 dev_seed `--scenario all`
+invocation → cj-278 story wire 가 spec PR 단계에서 per-spec
+`_seed_<story-id>` 함수 추가 + dev_seed.py dispatch EXTENSION 의 형태
+로 자연스럽게 진행 가능.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

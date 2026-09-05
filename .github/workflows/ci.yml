@@ -639,8 +639,18 @@ jobs:
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
             -h localhost -p 54322 -U postgres -d postgres \
             -f supabase/policies/0001_rls_policies.sql
-      - name: Run dev seed (creates tenant + user + industry baseline)
-        run: uv run python scripts/dev_seed.py
+      # cj-277 (Epic 29+ OQ-3 wiring): pass --scenario all to dev_seed so the
+      # cj-276 wired business-data scenario seeds (closing_guard_negative +
+      # snapshot_persisted) AND any future cj-277/cj-278/cj-279 scenario
+      # seeds land before V8 + Playwright run. Without --scenario, dev_seed
+      # seeds identity only → Playwright specs cannot find expected banners
+      # (closing-guard-negative.spec.ts + snapshot-persistence.spec.ts etc.).
+      # D-WEB-E2E-1~6 ownership transferred to Epic 29+ spec implementation
+      # (cj-274 honest-DEFER). Verification scope: cj-277 atomic single
+      # sprint = docs + ci source change only — live CI run verification
+      # of Playwright step 19 belongs to cj-278 P1 wire sprint scope.
+      - name: Run dev seed (creates tenant + user + industry baseline + Epic 29+ scenario seeds)
+        run: uv run python scripts/dev_seed.py --scenario all
       - name: Boot uvicorn (background)
         run: |
           mkdir -p /tmp/web-e2e
