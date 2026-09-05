@@ -4,15 +4,20 @@
  * Story 5.3 T16.1 — AC #2 + AC #4 wire spec coverage. Run via
  * `pnpm playwright test apps/web/e2e/closing-guard.spec.ts --project=chromium`.
  *
- * Scenarios:
- *   1. test_clean_period_hides_banner — /m2-input/period/{periodKey} →
- *      ClosingGuardBanner NOT visible (CLOSING_OK state).
- *   2. test_negative_closing_shows_banner — DB seed forces
- *      closing_guard_blocked=true → banner visible + top 5 offenders list.
- *   3. test_close_button_disabled_when_blocked — [마감] button disabled
+ * Scenarios (all run against the NEGATIVE fixture period 2026-08):
+ *   1. test_negative_closing_shows_banner — dev_seed
+ *      `closing_guard_negative` forces closing_qty(PRD-NEG)=-5 →
+ *      banner visible + top 5 offenders list.
+ *   2. test_close_button_disabled_when_blocked — [마감] button disabled
  *      when closing_guard_invariant.code=NEGATIVE_CLOSING.
- *   4. test_opening_locked_disables_fieldset — opening_inventory fieldset
+ *   3. test_opening_locked_disables_fieldset — opening_inventory fieldset
  *      disabled + sonner toast on manual edit attempt.
+ *
+ * The former "clean period hides banner" scenario was removed: it
+ * asserted CLOSING_OK on 2026-08, which dev_seed deliberately seeds as
+ * the NEGATIVE fixture period, so it could never be green at the same
+ * time as closing-guard-negative.spec.ts. Clean-state coverage lives in
+ * the component test (__tests__/monthly-input-tabs.test.tsx).
  *
  * Story 0.5 wired the Playwright runner + Supabase test fixtures
  * (e2e/fixtures/supabase-test.ts). Uses rls_db fixture for tenant
@@ -24,8 +29,9 @@
  *   `/{locale}/m2-input/period/{periodKey}`).
  * - P5: Testids target m2-input component (`m2-closing-guard-banner`,
  *   `m2-closing-guard-gate`) — T11.3 dual-component spec intent.
- * - P8: Add `test.beforeEach` DB seed for negative closing (uses rls_db
- *   fixture from Story 0.5 AC #5).
+ * - P8: (withdrawn) an earlier note claimed `test.beforeEach` performed a
+ *   negative-closing DB write. It never did — the seed comes from
+ *   `scripts/dev_seed.py --scenario closing_guard_negative`.
  * - P18: Scope `getByRole('list')` to banner testid to avoid matching
  *   unrelated nav/audit lists.
  * - P19: Target form button via specific testid (`monthly-input-row-submit`)
@@ -39,25 +45,20 @@
 import { expect, test } from "@playwright/test";
 
 const TEST_LOCALE = "ko-KR";
-const TEST_PERIOD = "2026-08";
+// 2026-08 is the closing-guard NEGATIVE fixture period: dev_seed's
+// `closing_guard_negative` scenario writes an `adjustment_negative`
+// qty=-5 ledger event for PRD-NEG in this period, so the guard is
+// ACTIVE here. There is no carry-forward — `query_period_closing_events`
+// filters by `period_key` and the kernel plain-SUMs that period only.
 const NEGATIVE_CLOSING_PERIOD = "2026-08";
 
 test.describe("M4 inventory closing guard — UI flow", () => {
   test.beforeEach(async ({ page }) => {
-    // P3-3rd-sweep P8: rls_db fixture seed (Story 0.5 AC #5). Default
-    // period is clean (CLOSING_OK); negative-closing test overrides via
-    // tenant-state DB write before navigation.
-    await page.goto(`/${TEST_LOCALE}/m2-input/period/${TEST_PERIOD}`);
+    // Requires `uv run python scripts/dev_seed.py --scenario all` (what
+    // ci.yml web-e2e runs) — without it 2026-08 has no PRD-NEG event and
+    // every negative-closing assertion below fails locally.
+    await page.goto(`/${TEST_LOCALE}/m2-input/period/${NEGATIVE_CLOSING_PERIOD}`);
     await page.waitForLoadState("networkidle");
-  });
-
-  test("clean period hides closing-guard banner", async ({ page }) => {
-    // P3-3rd-sweep P4: phantom /dashboard/ removed.
-    // P5: m2-input testid (no page-level `<p>` banner; rely on tab-level
-    // M2ClosingGuardBanner via `m2-closing-guard-banner`).
-    await page.getByTestId("tab-close").click();
-    const banner = page.getByTestId("m2-closing-guard-banner");
-    await expect(banner).toHaveCount(0);
   });
 
   test("negative closing shows banner + top offenders", async ({ page }) => {
