@@ -40,6 +40,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import datetime as _dt
+import json
 import os
 import sys
 import uuid
@@ -76,6 +77,15 @@ DEV_LEDGER_EVT_001_ID = uuid.uuid5(_NS, "costmgr-dev-ledger-evt-001-2026-07")
 DEV_AI_INSIGHT_CACHE_2026_07_ID = uuid.uuid5(
     _NS, "costmgr-dev-ai-insight-cache-2026-07"
 )
+
+# cj-278b (Epic 29+ Stories 29.7/29.8/29.9/29.10): deterministic user
+# identities for the 4 m12-2FA scenario seeds (D-WEB-E2E-3 ownership
+# absorbed from cj-274 honest-DEFER). Each scenario requires a distinct
+# `users` row with the right `totp_*` column state per spec AC.
+DEV_USER_NO_2FA_ID = uuid.uuid5(_NS, "costmgr-dev-user-no-2fa")
+DEV_USER_LOCK_ID = uuid.uuid5(_NS, "costmgr-dev-user-lock")
+DEV_USER_REC_ID = uuid.uuid5(_NS, "costmgr-dev-user-rec")
+DEV_USER_SETUP_ID = uuid.uuid5(_NS, "costmgr-dev-user-setup")
 
 DEV_EMAIL = "dev@costmgr.local"
 DEV_ROLE = "owner"
@@ -469,6 +479,226 @@ async def _seed_reopen_audit(conn: asyncpg.Connection) -> None:
     )
 
 
+# ── Epic 29+ m12-2FA scenario seeds (cj-278b wire) ────────────
+async def _seed_two_factor_challenge(conn: asyncpg.Connection) -> None:
+    """Story 29.7 — seed users row with `totp_enabled_at IS NULL`
+    (i.e. NOT 2FA-enrolled) so that the M2 [월 입력] gate fires the
+    2FA setup modal per AD-10 + NFR7 2FA mandatory policy.
+
+    Spec drift: Story 29.7 AC references `totp_enabled=false` but the
+    actual schema (alembic 0022) uses `totp_enabled_at IS NULL` as
+    the authoritative 2FA-enrolled predicate (the legacy `twofa_enabled`
+    BOOLEAN column from alembic 0001 is kept in sync). cj-278b seeds
+    BOTH columns correctly: `totp_enabled_at = NULL` + `twofa_enabled =
+    FALSE`. cj-280 retro scope.
+
+    Idempotent: ON CONFLICT (id) DO UPDATE.
+    """
+    await conn.execute(
+        """
+        INSERT INTO users (
+            id, tenant_id, email, role,
+            twofa_enabled,
+            totp_secret, totp_enabled_at,
+            totp_failed_attempts, totp_lockout_until,
+            totp_recovery_codes_hash
+        )
+        VALUES (
+            $1, $2, 'no-2fa@costmgr.local', 'owner',
+            FALSE,
+            NULL, NULL,
+            0, NULL,
+            NULL
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            email = EXCLUDED.email,
+            role = EXCLUDED.role,
+            twofa_enabled = EXCLUDED.twofa_enabled,
+            totp_secret = EXCLUDED.totp_secret,
+            totp_enabled_at = EXCLUDED.totp_enabled_at,
+            totp_failed_attempts = EXCLUDED.totp_failed_attempts,
+            totp_lockout_until = EXCLUDED.totp_lockout_until,
+            totp_recovery_codes_hash = EXCLUDED.totp_recovery_codes_hash
+        """,
+        DEV_USER_NO_2FA_ID,
+        DEV_TENANT_ID,
+    )
+
+
+async def _seed_two_factor_lockout(conn: asyncpg.Connection) -> None:
+    """Story 29.8 — seed users row with `totp_enabled_at = NOW()`
+    (i.e. 2FA-enrolled) and `totp_failed_attempts = 4` so that ONE
+    more wrong TOTP code triggers the lockout policy per AD-10 +
+    NFR7 (MAX_FAILED_ATTEMPTS=5).
+
+    Spec drifts logged for cj-280 retro:
+      ① Story 29.8 AC references `recent_failures=4` but actual schema
+        column is `totp_failed_attempts` (alembic 0022). cj-278b seeds
+        the schema-accurate column name.
+      ② Story 29.8 AC references "30 minutes lockout" but actual backend
+        uses `LOCKOUT_DURATION_SECONDS=900s=15min` (packages/services/
+        m12_account/totp.py:45). cj-278b seeds `totp_lockout_until =
+        NULL` so the test exercises the live lockout transition on the
+        5th failure (which will set lockout to NOW()+15min, not 30min).
+      ③ `totp_secret` is NULL in cj-278b seed (not AES-256-GCM encrypted
+        test bytes). Reason: dev_seed.py runs in CI without
+        `COSTMGR_AT_REST_KEY_V1` env-var (verified via grep), so the
+        key_manager ephemeral-fallback generates a fresh key per
+        process → decrypt at API runtime would fail. cj-278b source
+        sprint honestly accepts this scope: the seed creates the
+        schema-correct `totp_failed_attempts=4` state; the actual
+        verify_totp_code decrypt path is a cj-280 retro scope (set
+        `COSTMGR_AT_REST_KEY_V1` in CI + dev env consistently).
+    """
+    await conn.execute(
+        """
+        INSERT INTO users (
+            id, tenant_id, email, role,
+            twofa_enabled,
+            totp_secret, totp_enabled_at,
+            totp_failed_attempts, totp_lockout_until,
+            totp_recovery_codes_hash
+        )
+        VALUES (
+            $1, $2, 'lock-2fa@costmgr.local', 'owner',
+            TRUE,
+            NULL, NOW(),
+            4, NULL,
+            NULL
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            email = EXCLUDED.email,
+            role = EXCLUDED.role,
+            twofa_enabled = EXCLUDED.twofa_enabled,
+            totp_secret = EXCLUDED.totp_secret,
+            totp_enabled_at = EXCLUDED.totp_enabled_at,
+            totp_failed_attempts = EXCLUDED.totp_failed_attempts,
+            totp_lockout_until = EXCLUDED.totp_lockout_until,
+            totp_recovery_codes_hash = EXCLUDED.totp_recovery_codes_hash
+        """,
+        DEV_USER_LOCK_ID,
+        DEV_TENANT_ID,
+    )
+
+
+async def _seed_two_factor_recovery(conn: asyncpg.Connection) -> None:
+    """Story 29.9 — seed users row with `totp_enabled_at = NOW()`
+    (2FA-enrolled) AND `totp_recovery_codes_hash` = JSONB array of
+    8 PBKDF2-HMAC-SHA256 entries with EXACTLY 3 unused (`used_at=''`)
+    and 5 used (`used_at='2026-09-04T10:00:00Z'`).
+
+    Salt + hash hex values are deterministic placeholder strings
+    (`a` * 64 for salt, `b` * 64 for hash). The test spec will need
+    to update one of the unused entries with a real PBKDF2 hash of a
+    known recovery code before exercising the recovery flow — that
+    real-hash update is a cj-278b close sprint scope (or cj-280 retro
+    if it requires COSTMGR_AT_REST_KEY_V1 env-var setup).
+
+    Spec drift: Story 29.9 AC references `recovery_codes_remaining=3`
+    (count of unused codes) but actual schema stores the full array
+    of 8 entries with per-entry `used_at` marker. cj-278b seeds with
+    3 unused + 5 used entries → `recovery_codes_remaining=3` per spec.
+
+    Idempotent: ON CONFLICT (id) DO UPDATE.
+    """
+    # JSONB array: 3 unused + 5 used entries, deterministic hex placeholders.
+    # Real recovery code hash verification requires replacing these with
+    # `apps.api.core.crypto`-encrypted + `hash_recovery_code()` PBKDF2
+    # blobs — cj-278b close sprint / cj-280 retro scope.
+    recovery_codes_json = json.dumps(
+        [
+            {"salt": "a" * 64, "hash": "b" * 64, "used_at": ""},
+            {"salt": "a" * 64, "hash": "b" * 64, "used_at": ""},
+            {"salt": "a" * 64, "hash": "b" * 64, "used_at": ""},
+            {"salt": "a" * 64, "hash": "b" * 64, "used_at": "2026-09-04T10:00:00Z"},
+            {"salt": "a" * 64, "hash": "b" * 64, "used_at": "2026-09-04T10:00:00Z"},
+            {"salt": "a" * 64, "hash": "b" * 64, "used_at": "2026-09-04T10:00:00Z"},
+            {"salt": "a" * 64, "hash": "b" * 64, "used_at": "2026-09-04T10:00:00Z"},
+            {"salt": "a" * 64, "hash": "b" * 64, "used_at": "2026-09-04T10:00:00Z"},
+        ]
+    )
+    await conn.execute(
+        """
+        INSERT INTO users (
+            id, tenant_id, email, role,
+            twofa_enabled,
+            totp_secret, totp_enabled_at,
+            totp_failed_attempts, totp_lockout_until,
+            totp_recovery_codes_hash
+        )
+        VALUES (
+            $1, $2, 'rec-2fa@costmgr.local', 'owner',
+            TRUE,
+            NULL, NOW(),
+            0, NULL,
+            $3::jsonb
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            email = EXCLUDED.email,
+            role = EXCLUDED.role,
+            twofa_enabled = EXCLUDED.twofa_enabled,
+            totp_secret = EXCLUDED.totp_secret,
+            totp_enabled_at = EXCLUDED.totp_enabled_at,
+            totp_failed_attempts = EXCLUDED.totp_failed_attempts,
+            totp_lockout_until = EXCLUDED.totp_lockout_until,
+            totp_recovery_codes_hash = EXCLUDED.totp_recovery_codes_hash
+        """,
+        DEV_USER_REC_ID,
+        DEV_TENANT_ID,
+        recovery_codes_json,
+    )
+
+
+async def _seed_two_factor_setup(conn: asyncpg.Connection) -> None:
+    """Story 29.10 — seed users row with `totp_enabled_at = NULL` +
+    `totp_secret = NULL` (i.e. NOT yet enrolled) so that the 2FA
+    setup wizard flow can be exercised end-to-end: (1) QR code
+    generated, (2) TOTP code verified, (3) `totp_enabled_at` flips to
+    NOW(), (4) audit log row appended.
+
+    The setup wizard itself generates the AES-256-GCM encrypted
+    `totp_secret` via `apps.api.core.crypto.encrypt_at_rest` (real
+    production path with COSTMGR_AT_REST_KEY_V1). cj-278b seeds only
+    the pre-state (no 2FA enrolled); the setup flow populates the
+    rest.
+
+    Idempotent: ON CONFLICT (id) DO UPDATE.
+    """
+    await conn.execute(
+        """
+        INSERT INTO users (
+            id, tenant_id, email, role,
+            twofa_enabled,
+            totp_secret, totp_enabled_at,
+            totp_failed_attempts, totp_lockout_until,
+            totp_recovery_codes_hash
+        )
+        VALUES (
+            $1, $2, 'setup-2fa@costmgr.local', 'owner',
+            FALSE,
+            NULL, NULL,
+            0, NULL,
+            NULL
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            email = EXCLUDED.email,
+            role = EXCLUDED.role,
+            twofa_enabled = EXCLUDED.twofa_enabled,
+            totp_secret = EXCLUDED.totp_secret,
+            totp_enabled_at = EXCLUDED.totp_enabled_at,
+            totp_failed_attempts = EXCLUDED.totp_failed_attempts,
+            totp_lockout_until = EXCLUDED.totp_lockout_until,
+            totp_recovery_codes_hash = EXCLUDED.totp_recovery_codes_hash
+        """,
+        DEV_USER_SETUP_ID,
+        DEV_TENANT_ID,
+    )
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Seed the local dev tenant.")
     parser.add_argument(
@@ -493,18 +723,28 @@ async def main() -> int:
             "reversal_input",
             "reversal_cache_invalidation",
             "reopen_audit",
+            "two_factor_challenge",
+            "two_factor_lockout",
+            "two_factor_recovery",
+            "two_factor_setup",
             "all",
         ],
         default=None,
         help=(
-            "cj-276 (Epic 29+ wire) + cj-278a (Epic 29+ P1 m11): optional "
-            "business-data scenario seed beyond identity. Use "
-            "'closing_guard_negative' for Story 29.1 NEGATIVE_CLOSING_PERIOD "
-            "fixture, 'snapshot_persisted' for Story 29.3 fiscal_period_snapshots "
-            "row, 'close_sequence_partial' for Story 29.2 partial close fixture, "
-            "'reversal_input' for Story 29.4 reversal seed, "
-            "'reversal_cache_invalidation' for Story 29.5 AD-25 cache seed, "
-            "'reopen_audit' for Story 29.6 reopen audit seed, or 'all' for all 6."
+            "cj-276 (Epic 29+ wire) + cj-278a (Epic 29+ P1 m11) + cj-278b "
+            "(Epic 29+ P1 m12-2FA): optional business-data scenario seed "
+            "beyond identity. Use 'closing_guard_negative' for Story 29.1 "
+            "NEGATIVE_CLOSING_PERIOD fixture, 'snapshot_persisted' for "
+            "Story 29.3 fiscal_period_snapshots row, 'close_sequence_partial' "
+            "for Story 29.2 partial close fixture, 'reversal_input' for "
+            "Story 29.4 reversal seed, 'reversal_cache_invalidation' for "
+            "Story 29.5 AD-25 cache seed, 'reopen_audit' for Story 29.6 "
+            "reopen audit seed, 'two_factor_challenge' for Story 29.7 2FA "
+            "challenge fixture (totp_enabled_at IS NULL), 'two_factor_lockout' "
+            "for Story 29.8 2FA lockout fixture (totp_failed_attempts=4), "
+            "'two_factor_recovery' for Story 29.9 2FA recovery fixture "
+            "(recovery_codes_remaining=3), 'two_factor_setup' for Story 29.10 "
+            "2FA setup fixture (totp_enabled_at IS NULL), or 'all' for all 10."
         ),
     )
     args = parser.parse_args()
@@ -540,6 +780,15 @@ async def main() -> int:
                 await _seed_reversal_cache_invalidation(conn)
             if args.scenario in ("reopen_audit", "all"):
                 await _seed_reopen_audit(conn)
+            # cj-278b (Epic 29+ P1 m12-2FA): 4 NEW m12-2FA scenario seeds.
+            if args.scenario in ("two_factor_challenge", "all"):
+                await _seed_two_factor_challenge(conn)
+            if args.scenario in ("two_factor_lockout", "all"):
+                await _seed_two_factor_lockout(conn)
+            if args.scenario in ("two_factor_recovery", "all"):
+                await _seed_two_factor_recovery(conn)
+            if args.scenario in ("two_factor_setup", "all"):
+                await _seed_two_factor_setup(conn)
         finally:
             await conn.close()
 

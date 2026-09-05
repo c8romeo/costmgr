@@ -1,0 +1,126 @@
+fix(sprint): cj-278b Epic 29+ P1 m12-2FA dev_seed scenario EXTENSION atomic single sprint (cj-style 278b번째 epic 연속 정직 회복 source+docs)
+
+cj-278 3-sprint 분할 plan 의 2번째 wire sprint (cj-278a m11 다음,
+cj-278c deletion 진입 보류). m12-2FA 4 stories (29.7 challenge +
+29.8 lockout + 29.9 recovery + 29.10 setup) 의 source-side dev_seed
+scenario seeds 결정 wire.
+
+3 files = 2 MODIFIED + 1 NEW atomic single sprint:
+  1 MODIFIED scripts/dev_seed.py
+    - 567 lines (cj-278a) → 739 lines = +172 lines EXTENSION
+    - 4 NEW scenario functions 추가:
+      ① _seed_two_factor_challenge (story 29.7): users row
+        (id=DEV_USER_NO_2FA_ID, totp_enabled_at=NULL,
+         twofa_enabled=FALSE, totp_secret=NULL)
+        → NOT 2FA-enrolled → M2 [월 입력] gate fires 2FA setup
+        modal per AD-10 + NFR7 2FA mandatory policy
+      ② _seed_two_factor_lockout (story 29.8): users row
+        (id=DEV_USER_LOCK_ID, totp_enabled_at=NOW(),
+         twofa_enabled=TRUE, totp_secret=NULL,
+         totp_failed_attempts=4, totp_lockout_until=NULL)
+        → ONE more wrong TOTP triggers lockout
+        per AD-10 + NFR7 (MAX_FAILED_ATTEMPTS=5)
+      ③ _seed_two_factor_recovery (story 29.9): users row
+        (id=DEV_USER_REC_ID, totp_enabled_at=NOW(),
+         twofa_enabled=TRUE, totp_secret=NULL,
+         totp_recovery_codes_hash=JSONB array of 8 PBKDF2
+         entries with 3 unused + 5 used
+         → recovery_codes_remaining=3 per spec)
+      ④ _seed_two_factor_setup (story 29.10): users row
+        (id=DEV_USER_SETUP_ID, totp_enabled_at=NULL,
+         twofa_enabled=FALSE, totp_secret=NULL)
+        → pre-state for 2FA setup wizard exercise
+    - 4 NEW UUIDv5 deterministic IDs:
+      DEV_USER_NO_2FA_ID + DEV_USER_LOCK_ID + DEV_USER_REC_ID +
+      DEV_USER_SETUP_ID (idempotent reseed 보존)
+    - argparse choices EXTENSION (10 choices + all):
+      closing_guard_negative + snapshot_persisted +
+      close_sequence_partial + reversal_input +
+      reversal_cache_invalidation + reopen_audit +
+      two_factor_challenge + two_factor_lockout +
+      two_factor_recovery + two_factor_setup + all
+    - main() dispatch EXTENSION (4 NEW conditional blocks for
+      each 2FA scenario)
+    - + import json (for _seed_two_factor_recovery JSONB array)
+  1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml
+    v4.40 → v4.41 EXTENSION
+    - cj-278b: backlog → done (with scope honestly reported —
+      docs + dev_seed.py source change ONLY, live CI verification
+      보류)
+    - 4 NEW entries (29-7/29-8/29-9/29-10: backlog → done with
+      spec drift annotations per cj-280 retro scope)
+    - last_updated_note_v4_41 EXTENSION paragraph (full
+      per-scenario seed detail + 5 spec drift log + CR 11-3
+      honest-DEFER 208번째)
+  1 NEW commit-msg-cj-278b.txt (this file)
+  [USER claude projects MEMORY.md hook EXTENSION — auto-loaded next
+  session, not committed to repo per cj-274/cj-276/cj-277/cj-278a
+  pattern verbatim]
+  [memory/handoff-2026-09-05-cj-278b-2fa-scenario-wiring-done.md
+  NEW — created in follow-up commit per cj-style pattern]
+
+per-scenario seed 결정 wire honestly reported:
+  ① 29.7 two_factor_challenge: users row NOT 2FA-enrolled →
+     M2 [월 입력] gate fires 2FA setup modal per AD-10 + NFR7
+     2FA mandatory policy
+  ② 29.8 two_factor_lockout: users row totp_failed_attempts=4 →
+     ONE more wrong TOTP triggers lockout per AD-10 + NFR7
+     (MAX_FAILED_ATTEMPTS=5)
+  ③ 29.9 two_factor_recovery: users row with recovery_codes_hash
+     JSONB array of 8 PBKDF2 entries with 3 unused + 5 used →
+     recovery_codes_remaining=3 per spec
+  ④ 29.10 two_factor_setup: users row NOT enrolled → pre-state
+     for 2FA setup wizard exercise
+
+5 spec drifts logged for cj-280 retro:
+  ① 29.7 spec says totp_enabled=false but schema uses
+     totp_enabled_at IS NULL (alembic 0022) — cj-278b seeds BOTH
+     columns correctly: totp_enabled_at=NULL + twofa_enabled=FALSE
+  ② 29.8 spec says recent_failures=4 but schema column is
+     totp_failed_attempts — cj-278b seeds schema-accurate column
+  ③ 29.8 spec says 30min lockout but code uses
+     LOCKOUT_DURATION_SECONDS=900s=15min in
+     packages/services/m12_account/totp.py:45
+  ④ 29.8 totp_secret=NULL (not encrypted test bytes) due to
+     dev_seed.py CI env COSTMGR_AT_REST_KEY_V1 unset +
+     key_manager ephemeral fallback per-process incompatibility
+     — cj-280 retro scope (set COSTMGR_AT_REST_KEY_V1 in CI +
+     dev env consistently for proper totp_secret encryption)
+  ⑤ 29.9 spec says recovery_codes_remaining=3 but schema stores
+     full 8-entry array with per-entry used_at marker — cj-278b
+     seeds 3 unused + 5 used entries
+
+runtime 동작 변화 honestly reported: dev_seed.py invocation 의
+10 scenario functions (cj-276 의 2 + cj-278a 의 4 + cj-278b 의 4)
+가 --scenario all 로 모두 wire 됨. ci.yml step 15 invocation
+(--scenario all, cj-277 결정 wire) 의 wire surface 가 cj-278b
+EXTENSION 으로 10 scenarios 로 EXTENSION. m11 4 stories + m12-2FA
+4 stories 의 source-side dev_seed scenario seeds 가 단일 dispatch
+에서 모두 seed 가능.
+
+D-WEB-E2E-3 ownership absorbed: cj-274 의 6 D-WEB-E2E-1~6 honestly
+DEFER 중 D-WEB-E2E-3 (m12 2FA challenge/lockout/recovery/setup) →
+cj-278b 결정 wire (cj-278 plan 결정 wire 보존). cj-278c (deletion)
++ cj-279 (D-WEB-E2E-5 service-only tenant + D-WEB-E2E-6 V8 fixture
+runner state) 결정 wire 보존.
+
+scope honestly reported: docs + dev_seed.py source change ONLY,
+no live CI run executed in this sprint. cj-278a 의 OQ-3 unlock
+(--scenario all invocation) + cj-278b 의 2FA scenario function
+EXTENSION = 통합 wiring 의 source-side surface 완료. live CI
+verification 은 source sprint push 후 결정 wire (cj-278a 의
+web-e2e infra layer 10/10 + step 15 dev_seed invocation
+--scenario all + 10 scenario functions 결정 wire 보존).
+
+AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag
+불필요. ci.yml 변경 없음 (cj-277 결정 wire verbatim 보존).
+
+CR 11-3 honest-DEFER 208번째 epic 연속 정직 회복 (cj-278a close
+sprint 의 207번째에 이어).
+
+next: push → re-run CI → step 15 dev_seed invocation HONEST-verify
+(with 10 scenarios now correctly seeded) → close sprint commit
+(Section 7 added to handoff) → cj-278c deletion wire sprint 진입
+결정 wire.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
