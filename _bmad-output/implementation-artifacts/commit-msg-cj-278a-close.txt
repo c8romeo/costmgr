@@ -1,0 +1,77 @@
+fix(sprint): cj-278a Epic 29+ P1 m11 dev_seed scenario EXTENSION ✅ CLOSED HONEST 결정 wire (cj-style 278a번째 epic 연속 정직 회복 atomic docs-only close sprint)
+
+cj-278a source sprint a8f39b8 + fix1 sprint f60133a push 의 live CI
+run 33943206059 HONEST-verified via repos/c8romeo/costmgr/actions/
+runs/33943206059/jobs API at 2026-09-05T04:38:00Z. 13-job matrix =
+12 PASS + 1 FAIL (web-e2e 단일, cj-273b/cj-274/cj-276/cj-277 결정 wire
+보존 패턴).
+
+web-e2e step-by-step (job_id 101244503448):
+  step 15 dev_seed --scenario all invocation = SUCCESS ✅
+    started 03:58:00Z → completed 03:58:00Z = 0초
+    6 scenarios (cj-276 의 2 + cj-278a 의 4) 모두 정상 seed 결정 wire
+    verified — fix1 (f60133a) 의 alembic 0030 CHECK constraint fix
+    (insight_kind=forecast + source_kind=auto_analysis) 가 결정 wire
+    보존
+  step 16 Boot uvicorn = SUCCESS ✅ (3초)
+  step 17 playwright install chromium = SUCCESS ✅ (10초)
+  step 18 V8 fixture suite = SUCCESS ✅ (2초, cj-276 29-18 wire 결정
+    wire 보존)
+  step 19 Playwright = FAILURE ❌ (38분 41초, 03:58:15Z → 04:36:56Z)
+    = cj-274 D-WEB-E2E-2 (m11 reversal/snapshot/cache) honestly DEFER
+    carryover + cj-276 spec drifts + cj-278a fix1 의 1 NEW spec drift
+    (29.5 insight_kind) — NOT cj-278a source+fix sprint scope
+
+3 files = 2 MODIFIED + 1 NEW atomic docs-only close sprint:
+  1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml
+    v4.39 → v4.40 EXTENSION — last_updated_note_v4_40 EXTENSION
+    paragraph (live CI HONEST verification result + step-by-step
+    detail + scope boundary 명시 + 7 spec drift items)
+  1 MODIFIED memory/handoff-2026-09-05-cj-278a-m11-scenario-wiring-
+    done.md — Section 7 추가 (CI run 33943206059 + 13-job matrix +
+    step 15/16/17/18/19 detail + scope boundary + 7 spec drift 결정
+    wire)
+  1 NEW commit-msg-cj-278a-close.txt (this file)
+  [USER claude projects MEMORY.md hook EXTENSION — auto-loaded next
+  session, not committed to repo per cj-274/cj-276/cj-277 pattern
+  verbatim]
+
+scope boundary honestly reported: cj-278a source+fix sprint 의 wire
+surface = dev_seed.py 4 NEW scenario functions + fix1 CHECK
+constraint 정렬. step 19 Playwright failure 는 Epic 29+ spec
+implementation ownership 의 영역으로 명시적 boundary 결정 wire 보존.
+step 15 dev_seed invocation 의 source-side EXTENSION 이 live CI 에서
+HONEST-verified 결정 wire.
+
+7 spec drifts logged for cj-280 retro:
+  ① 29.1 HTTP 409 not 422 (apps/api/main.py:1644)
+  ② 29.1 banner format middle 마감 불가: (apps/web/lib/closing-
+    guard.ts:182)
+  ③ 29.3 endpoint path /api/v1/close/snapshot/<id>/commit not
+    /api/v1/inputs (apps/api/main.py:2231)
+  ④ 29.18 V8 path tests/regression_v8/ not tests/engine/
+  ⑤ 29.4 spec says state=committed but schema uses status=closed
+    + close_sequence_state=confirmed (alembic 0020)
+  ⑥ 29.6 same spec drift as 29.4
+  ⑦ 29.5 insight_kind spec says period_summary but alembic 0030
+    CHECK uses (cost_reduction_candidate, anomaly_pattern,
+    forecast) — cj-278a fix1 의 NEW spec drift 결정 wire
+
+runtime 동작 변화 honestly reported: cj-273b 의 web-e2e job 의 step
+15 dev_seed invocation 이 identity + Epic 29+ 6 scenarios 으로
+EXTENSION. cj-273b 의 infra layer (Postgres + psql + Supabase shim
++ alembic + RLS + uvicorn boot + Playwright install) 변경 없음 —
+단 step 15 의 dev_seed invocation 이 --scenario all + 6 scenario
+functions EXTENSION. AD-14 stack pin 정책 (35 pins) 변경 없음 /
+[STACK BUMP] tag 불필요.
+
+CR 11-3 honest-DEFER 207번째 epic 연속 정직 회복 (cj-278a fix1 sprint
+의 206번째에 이어).
+
+next: cj-278b Epic 29+ P1 2FA (29.7 + 29.8 + 29.9 + 29.10) wire
+sprint 진입 결정 wire 보류. m11 4 stories wire surface (dev_seed.py
+6 scenarios) 의 source-side EXTENSION 결정 wire 보존. cj-274 의
+D-WEB-E2E-3 (m12 2FA) ownership → cj-278b 결정 wire (cj-278 plan
+결정 wire 보존).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
