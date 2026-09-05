@@ -331,7 +331,7 @@ jobs:
         run: uv run pytest tests/architecture tests/cost_engine -v
 
   # ─────────────────────────────────────────────────────────
-  # 6b. test-suite-measure (검증 신호 복구 — NON-BLOCKING 측정 job)
+  # 6b. test-suite-measure (BLOCKING GATE — PRD OQ-3 pilot gate)
   #
   # 배경: ci.yml 에는 `tests/api` (2,354) + `tests/services` (1,241) +
   # `tests/integration` (858) + `tests/core` (18) + `tests/web` (94) 를
@@ -340,20 +340,25 @@ jobs:
   # 에 대한 green 이었고, web-e2e 는 19/19 spec 이 describe.skip 되어
   # 74 tests 중 0개가 실행되고 있었다.
   #
-  # 로컬 실측 기준선 (2026-09-05, uv run python -m pytest):
-  #   4,985 passed / 173 failed / 129 skipped / 28 collection errors
-  #   → 통과율 96.6%, 소요 2분 41초
+  # 진화 (cj-style baseline-green effort 4 sprints):
+  #   - 1차 (commit 4ca3355): 비차단 측정 job 으로 신설 — 13/13 green
+  #     유지하면서 진짜 숫자 노출
+  #   - 2차 (commit 349d227): async convention 변환 — 4,985 → 5,089 passed,
+  #     173 → 69 failed (-104 회복)
+  #   - 3차 (commit 98baafa): MVP-scope 10건 triage (smoke_test 상수명 +
+  #     run_smoke_test 시그니처 + parity detector + PDF PRD §9 준수)
+  #   - 4차 (commit f006e6c): Epic 15 SSO test path doubling 픽스
+  #     — 5,089 → 5,112 passed, 69 → 45 failed (-14 회복)
   #
-  # 173 실패의 범위 분리:
-  #   - MVP 범위 (~55): m9_abc 34 + m7_simulation 10 + m3_calc 3 +
-  #     m5_reports pdf 1 + 1st_release_smoke 7  ← 우선 수정 대상
-  #   - 비-MVP (~118): SSO/audit/SLO/Phase 8·10·15·16·17 (FinOps
-  #     엔터프라이즈 — PRD §15 1차 로드맵 밖)  ← 별도 트랙
+  # 현재 기준선 (2026-09-06, uv run python -m pytest, Windows):
+  #   5,112 passed / 45 failed / 130 skipped / 28 collection errors
+  #   → MVP-scope 실패 = 0 (PRD §15 1차 로드맵 + 1st release launch 검증 완료)
+  #   → 잔여 45 = 비-MVP (Phase 5·8·9·10·26 enterprise SRE + capability
+  #     matrix drift + SDR/commit/label drift) — 별도 cj-style sprint 트랙
   #
-  # 정책: 지금은 `continue-on-error: true` 로 **비차단**. CI 를 빨갛게
-  # 만들지 않으면서 매 run 마다 진짜 숫자를 STEP SUMMARY 에 노출하는 것이
-  # 목적. MVP 범위 실패가 0 이 되는 시점에 `continue-on-error` 를 제거하여
-  # 차단 게이트로 승격한다 (그 시점 = PRD OQ-3 파일럿 게이트 판정 지점).
+  # 정책: **차단 게이트** (continue-on-error 제거됨). MVP-scope 회귀를
+  # CI 단계에서 즉시 표면화한다. 비-MVP 45 실패는 다음 PR 부터 빨간불로
+  # 가시화되며, 이 자체가 비-MVP 트랙 진입의 자연스러운 트리거.
   #
   # 범위 메모: `tests/cost_engine` 는 test-architecture 와 중복이지만
   # 위 실측 기준선과 정확히 재현 가능하도록 동일 집합을 유지한다.
@@ -362,7 +367,6 @@ jobs:
   test-suite-measure:
     needs: setup
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
@@ -370,7 +374,7 @@ jobs:
       - run: pip install uv==0.11.32
       # test-architecture 와 동일한 workspace sync 이유 (cj-style 245).
       - run: uv sync --frozen --all-packages
-      - name: Run full test suite (measurement only — does not gate)
+      - name: Run full test suite (BLOCKING — MVP gate; non-MVP 회귀 표면화)
         id: measure
         run: |
           set +e
@@ -382,18 +386,24 @@ jobs:
             --junitxml=pytest-full.xml \
             | tee /tmp/full-suite.log
           # `$?` 는 파이프 마지막 명령(tee)의 코드이므로 PIPESTATUS[0] 사용.
-          echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          # 게이트이므로 pytest exit code 를 step exit 로 그대로 전파.
+          PYTEST_EXIT=${PIPESTATUS[0]}
+          echo "exit=${PYTEST_EXIT}" >> "$GITHUB_OUTPUT"
+          exit "${PYTEST_EXIT}"
       - name: Publish measurement to job summary
         if: always()
         run: |
           {
-            echo "## 전체 테스트 스위트 측정 (비차단)"
+            echo "## 전체 테스트 스위트 (BLOCKING GATE)"
             echo ""
             echo '```'
             tail -1 /tmp/full-suite.log 2>/dev/null || echo "요약 라인 없음"
             echo '```'
             echo ""
-            echo "기준선 (2026-09-05): 4,985 passed / 173 failed / 28 errors — 통과율 96.6%"
+            echo "기준선 (2026-09-06): 5,112 passed / 45 failed / 28 errors — MVP-scope=0"
+            echo "기준선 (2026-09-05): 4,985 passed / 173 failed / 28 errors — gate 진입 직전"
+            echo ""
+            echo "잔여 45 실패는 비-MVP (Phase 5·8·9·10·26 enterprise SRE + capability matrix drift + SDR/commit drift) — 별도 cj-style sprint 트랙"
             echo ""
             echo "### 실패 영역 상위"
             echo '```'
