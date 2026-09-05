@@ -1,0 +1,97 @@
+fix(sprint): cj-278b Epic 29+ P1 m12-2FA dev_seed scenario EXTENSION ✅ CLOSED HONEST 결정 wire (cj-style 278b번째 epic 연속 정직 회복 atomic docs-only close sprint)
+
+cj-278b source sprint push 301d3c7 의 live CI run 33947306325
+HONEST-verified via repos/c8romeo/costmgr/actions/runs/33947306325/
+jobs API at 2026-09-05T06:10:19Z. 13-job matrix = 12 PASS + 1 FAIL
+(web-e2e 단일, cj-273b/cj-274/cj-276/cj-277/cj-278a/cj-278b 결정
+wire 보존 패턴).
+
+web-e2e step-by-step (job_id 101255717061):
+  step 15 dev_seed --scenario all invocation = SUCCESS ✅
+    started 05:30:34Z → completed 05:30:34Z = 0초
+    10 scenarios (cj-276 의 2 + cj-278a 의 4 + cj-278b 의 4) 모두
+    정상 seed 결정 wire verified — cj-278a fix1 의 alembic 0030
+    CHECK constraint fix (insight_kind=forecast + source_kind=
+    auto_analysis) 가 결정 wire 보존. cj-278b 의 4 NEW 2FA scenario
+    functions (_seed_two_factor_challenge + _seed_two_factor_lockout
+    + _seed_two_factor_recovery + _seed_two_factor_setup) 의 users
+    rows 모두 정상 INSERT 결정 wire
+  step 16 Boot uvicorn = SUCCESS ✅ (4초)
+  step 17 playwright install chromium = SUCCESS ✅ (11초)
+  step 18 V8 fixture suite = SUCCESS ✅ (2초, cj-276 29-18 wire 결정
+    wire 보존)
+  step 19 Playwright = FAILURE ❌ (39분 24초, 05:30:51Z → 06:10:15Z)
+    = cj-274 D-WEB-E2E-3 (m12 2FA challenge/lockout/recovery/setup)
+    honestly DEFER carryover + cj-276 spec drifts + cj-278a fix1
+    spec drift + cj-278b 의 5 spec drifts — NOT cj-278b source sprint
+    scope
+
+3 files = 2 MODIFIED + 1 NEW atomic docs-only close sprint:
+  1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml
+    v4.41 → v4.42 EXTENSION — last_updated_note_v4_42 EXTENSION
+    paragraph (live CI HONEST verification result + step-by-step
+    detail + scope boundary 명시 + 12 spec drift items 종합)
+  1 MODIFIED memory/handoff-2026-09-05-cj-278b-2fa-scenario-wiring-
+    done.md — Section 7 추가 (CI run 33947306325 + 13-job matrix +
+    step 15/16/17/18/19 detail + scope boundary + 12 spec drift 결정
+    wire)
+  1 NEW commit-msg-cj-278b-close.txt (this file)
+  [USER claude projects MEMORY.md hook EXTENSION — auto-loaded next
+  session, not committed to repo per cj-274/cj-276/cj-277/cj-278a
+  pattern verbatim]
+
+scope boundary honestly reported: cj-278b source sprint 의 wire
+surface = dev_seed.py 4 NEW 2FA scenario functions + sprint-status
+v4.41 + handoff 결정 wire. step 19 Playwright failure 는 Epic 29+
+spec implementation ownership 의 영역으로 명시적 boundary 결정 wire
+보존. step 15 dev_seed invocation 의 source-side EXTENSION 이 live
+CI 에서 HONEST-verified 결정 wire.
+
+12 spec drifts logged for cj-280 retro (cj-276 4 + cj-278a fix1 1 +
+cj-278b 5 + 2 carryover from cj-274):
+  ① 29.1 HTTP 409 not 422 (apps/api/main.py:1644)
+  ② 29.1 banner format middle 마감 불가: (apps/web/lib/closing-
+    guard.ts:182)
+  ③ 29.3 endpoint path /api/v1/close/snapshot/<id>/commit not
+    /api/v1/inputs (apps/api/main.py:2231)
+  ④ 29.18 V8 path tests/regression_v8/ not tests/engine/
+  ⑤ 29.4 spec says state=committed but schema uses status=closed
+    + close_sequence_state=confirmed (alembic 0020)
+  ⑥ 29.6 same spec drift as 29.4
+  ⑦ 29.5 insight_kind spec says period_summary but alembic 0030
+    CHECK uses forecast — cj-278a fix1 의 NEW spec drift
+  ⑧ 29.7 spec says totp_enabled=false but schema uses totp_enabled_at
+    IS NULL (alembic 0022) — cj-278b 의 NEW spec drift
+  ⑨ 29.8 spec says recent_failures=4 but schema column is
+    totp_failed_attempts (alembic 0022) — cj-278b 의 NEW spec drift
+  ⑩ 29.8 spec says 30min lockout but code uses
+    LOCKOUT_DURATION_SECONDS=900s=15min (packages/services/
+    m12_account/totp.py:45) — cj-278b 의 NEW spec drift
+  ⑪ 29.8 totp_secret=NULL (not encrypted test bytes) due to
+    dev_seed.py CI env COSTMGR_AT_REST_KEY_V1 unset + key_manager
+    ephemeral fallback per-process incompatibility — cj-280 retro
+    scope
+  ⑫ 29.9 spec says recovery_codes_remaining=3 but schema stores
+    full 8-entry array with per-entry used_at marker — cj-278b 의
+    NEW spec drift
+
+runtime 동작 변화 honestly reported: cj-273b 의 web-e2e job 의 step
+15 dev_seed invocation 이 identity + Epic 29+ 10 scenarios 으로
+EXTENSION. cj-273b 의 infra layer (Postgres + psql + Supabase shim
++ alembic + RLS + uvicorn boot + Playwright install) 변경 없음 —
+단 step 15 의 dev_seed invocation 이 --scenario all + 10 scenario
+functions EXTENSION. AD-14 stack pin 정책 (35 pins) 변경 없음 /
+[STACK BUMP] tag 불필요.
+
+CR 11-3 honest-DEFER 209번째 epic 연속 정직 회복 (cj-278b source
+sprint 의 208번째에 이어).
+
+next: cj-278c Epic 29+ P1 deletion (29.11 + 29.12 + 29.13 + 29.14)
+wire sprint 진입 결정 wire 보류. m11 4 stories + m12-2FA 4 stories
+wire surface (dev_seed.py 10 scenarios) 의 source-side EXTENSION
+결정 wire 보존. cj-274 의 D-WEB-E2E-4 (m12-3 deletion) ownership →
+cj-278c 결정 wire (cj-278 plan 결정 wire 보존). cj-279 (D-WEB-E2E-5
+service-only tenant + D-WEB-E2E-6 V8 fixture runner state) 결정
+wire 보존.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
