@@ -1,0 +1,87 @@
+fix(sprint): cj-279a Epic 29+ P2 service-only tenant wire sprint 결정 wire (cj-style 279a번째 epic 연속 정직 회복 source+docs single sprint)
+
+(cj-279 P2 2-sprint 분할 plan 의 첫 wire sprint 진입 결정 wire — cj-278a/b/c 의 source sprint pattern verbatim mirror)
+
+**3 files = 2 MODIFIED + 1 NEW atomic source+docs single sprint**:
+
+1 MODIFIED scripts/dev_seed.py (cj-278c 의 1169 lines → cj-279a 의 1485 lines = +316 lines EXTENSION):
+- 1 NEW shared helper `_seed_service_only_tenant` (svc_ prefix tenant + owner user + membership + settings, OQ-6 결정 wire verbatim 보존)
+- 3 NEW scenario functions:
+  - `_seed_service_only_calc` (Story 29.15 V1/V4 skip abc committed snapshot, period 2026-08, snapshot_id=DEV_SVC_SNAPSHOT_CALC_ID)
+  - `_seed_service_only_report_21` (Story 29.16 svc_ tenant + PRD-SVC product + Report #21 data source, period 2026-09, snapshot_id=DEV_SVC_SNAPSHOT_REPORT_ID)
+  - `_seed_service_only_ccr` (Story 29.17 cost_object_breakdown + unused_capacity_breakdown JSONB with 1 dept @ 10000 KRW/hr exact 1-won, period 2026-10, snapshot_id=DEV_SVC_SNAPSHOT_CCR_ID)
+- 7 NEW UUIDv5 deterministic IDs (cj-279 plan estimated 3 shared svc_ identity; actual EXTENSION = 7 IDs = 3 shared + 3 per-scenario snapshot + 1 svc_ product for Report #21 join):
+  - DEV_TENANT_SERVICE_ID (shared)
+  - DEV_USER_SERVICE_ID (shared)
+  - DEV_MEMBERSHIP_SERVICE_ID (shared)
+  - DEV_SVC_SNAPSHOT_CALC_ID (29.15)
+  - DEV_SVC_SNAPSHOT_REPORT_ID (29.16)
+  - DEV_SVC_SNAPSHOT_CCR_ID (29.17)
+  - DEV_PRODUCT_ID_SVC (29.16 PRD-SVC product)
+- argparse choices EXTENSION (14→17 choices + 'all') — service_only_calc + service_only_report_21 + service_only_ccr 추가
+- main() dispatch EXTENSION (3 NEW conditional blocks)
+
+1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml v4.45 → v4.46 EXTENSION:
+- cj-279a: backlog → in_progress
+- 3 NEW story entries: 29-15-service-only-tenant-calc: in_progress + 29-16-service-only-tenant-report-21: in_progress + 29-17-service-only-tenant-ccr: in_progress
+- cj-279b backlog 보존
+- last_updated_note_v4_46 EXTENSION paragraph 신규
+- 7 spec drifts per-scenario 결정 wire logged
+- 12 cumulative spec drifts (cj-279 plan 5 + cj-279a source 7) 결정 wire for cj-279a retro + cj-280 retro 종합
+
+1 NEW memory/handoff-2026-09-05-cj-279a-service-only-scenario-wiring-done.md (~+250 LOC cj-style handoff + per-scenario seed 결정 wire + 7 spec drifts + shared mechanics 7종 + 4 lessons)
+
+**3 NEW Playwright spec files honestly DEFER** (D-WEB-E2E-5 spec implementation ownership carryover — cj-274 의 6 D-WEB-E2E-1~6 honestly DEFER 의 마지막 잔여):
+- apps/web/e2e/service-only-tenant-calc.spec.ts (Story 29.15)
+- apps/web/e2e/service-only-tenant-report-21.spec.ts (Story 29.16)
+- apps/web/e2e/service-only-tenant-ccr.spec.ts (Story 29.17)
+
+cj-278a/b/c 의 3 sprints 가 dev_seed source sprint 만 완료 + spec implementation 은 carryover 한 패턴 verbatim 보존.
+
+**per-scenario seed 결정 wire honestly reported**:
+
+① 29.15 service_only_calc → svc_ tenant graph + fiscal_period_snapshots row (engine_type='abc', state='committed', period 2026-08)
+② 29.16 service_only_report_21 → svc_ tenant graph + committed snapshot (period 2026-09) + PRD-SVC product
+③ 29.17 service_only_ccr → svc_ tenant graph + snapshot (period 2026-10) + cost_object_breakdown JSONB (CCR = 10000000/1000 = 10000 KRW/hr exact 1-won integer division per AD-21) + unused_capacity_breakdown JSONB (1 row '미사용 능력')
+
+**shared mechanics**:
+① svc_ prefix tenant graph (3 shared IDs)
+② tenant FK cycle 미해당 (no deletion state)
+③ period_key distinct per scenario (2026-08/09/10) — unique key 충돌 회피
+④ industry = 'service' hardcoded (OQ-6 verbatim)
+⑤ DEV_PRODUCT_ID_SVC fresh UUID (svc_ tenant product graph 격리)
+⑥ CCR data sha256_hash placeholder (cj-280 retro scope)
+⑦ audit_logs append-only trigger 패턴 미해당 (deletion territory 만)
+
+**scope honestly reported**:
+- docs + dev_seed.py source change ONLY
+- ci.yml 변경 0건
+- 3 NEW Playwright spec files honestly DEFER (D-WEB-E2E-5 spec implementation ownership carryover)
+- AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag 불필요
+- live CI verification 은 cj-279a source sprint push 후 결정 wire 보류
+
+**Verification scope (local)**:
+- scripts/dev_seed.py Python syntax OK ✅
+- scripts/dev_seed.py line count 1169 → 1485 = +316 lines EXTENSION
+- argparse choices EXTENSION 검증 ✅ — 18 choices (17 scenarios + 'all') 결정 wire verified via --scenario invalid_choice → argparse error with valid choices list
+- DB seed 검증 ✗ (deferred to CI) — local Postgres 미가용, ci.yml step 15 dev_seed invocation 의 HONEST verification 은 cj-273b web-e2e infra layer 10/10 step pass-through 결정 wire 보존 (cj-278a close sprint 의 run 33943206059 step 15 SUCCESS 패턴 결정 wire)
+
+**12 NEW spec drifts logged** for cj-279a retro + cj-280 retro 종합 (cj-279 plan 5 + cj-279a source 7):
+① 29.15 [계산] button ko-KR vs English [Calc] testid (frontend NFR18)
+② 29.15 V1+V4 skip + V7+V8 run engine-side behavior (NOT dev_seed)
+③ 29.15 POST /api/v1/calc backend route (NOT dev_seed)
+④ 29.15 engine_type='abc' alembic 0020+ enum CHECK
+⑤ 29.16 Report #21 ko-KR title "원가대상별 원가 집계표" (frontend NFR18)
+⑥ 29.16 cost_pool/activity/driver/allocation columns report-rendering (NOT seeded)
+⑦ 29.16 KRW/USD F5.2 dual display (NOT seeded)
+⑧ 29.16 fresh PRD-SVC product (spec references existing products)
+⑨ 29.17 CCR 1-won precision vs Decimal precision (cj-222 banker's rounding)
+⑩ 29.17 spec "1 department" — schema NO departments table; per-dept JSONB per alembic 0028
+⑪ 29.17 spec 미사용 능력 "separate row" — schema NO row concept; JSONB array per Story 9.3
+⑫ 29.17 spec V8 regression verifies CCR — V8 = cj-276 wire surface
+
+**CR 11-3 honest-DEFER 213번째** epic 연속 정직 회복 (cj-279 plan 결정 wire 의 212번째에 이어)
+
+결정 wire 일자: 2026-09-05 (KST)
+
+next: cj-279a source sprint push → live CI verification (run + step 15 dev_seed --scenario all invocation with 17 scenarios HONEST-verified via GitHub REST API repos/c8romeo/costmgr/actions/runs/<id>/jobs + step 19 Playwright result) → cj-279a close sprint commit → cj-279b cj-280 Epic 29+ CLOSED retro entry sprint 진입 결정 wire

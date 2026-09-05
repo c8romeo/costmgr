@@ -125,6 +125,30 @@ DEV_AUDIT_DEL_EXPIRED_REQUESTED_ID = uuid.uuid5(
     _NS, "costmgr-dev-audit-deletion-expired-requested"
 )
 
+# cj-279a (Epic 29+ Stories 29.15/29.16/29.17): deterministic service-only
+# tenant + user + membership + snapshot + product identities for the 3 P2
+# service-only scenario seeds (D-WEB-E2E-5 ownership absorbed from cj-274
+# honest-DEFER). `svc_` prefix per OQ-6 (Epic 29+ PRD §4.5 가정) — isolates
+# service-only data state from the trad tenant graph (DEV_TENANT_ID).
+#
+# cj-279 plan estimated 3 NEW UUIDv5 IDs (shared svc_ identity graph).
+# Actual EXTENSION = 7 NEW UUIDv5 IDs (3 shared svc_ identity + 3 per-
+# scenario snapshot + 1 svc_ product for Report #21 join). Honest report
+# in cj-279a handoff Section 7.
+DEV_TENANT_SERVICE_ID = uuid.uuid5(_NS, "costmgr-dev-tenant-service")
+DEV_USER_SERVICE_ID = uuid.uuid5(_NS, "costmgr-dev-user-service")
+DEV_MEMBERSHIP_SERVICE_ID = uuid.uuid5(_NS, "costmgr-dev-membership-service")
+DEV_SVC_SNAPSHOT_CALC_ID = uuid.uuid5(
+    _NS, "costmgr-dev-svc-snapshot-calc-2026-08"
+)
+DEV_SVC_SNAPSHOT_REPORT_ID = uuid.uuid5(
+    _NS, "costmgr-dev-svc-snapshot-report-2026-09"
+)
+DEV_SVC_SNAPSHOT_CCR_ID = uuid.uuid5(
+    _NS, "costmgr-dev-svc-snapshot-ccr-2026-10"
+)
+DEV_PRODUCT_ID_SVC = uuid.uuid5(_NS, "costmgr-dev-product-prd-svc")
+
 # Audit `action` values quoted verbatim from
 # packages/services/m12_account/account_deletion.py:47-51. The Story
 # 29.12/29.13/29.14 ACs name *different* strings — see the spec-drift
@@ -1023,6 +1047,276 @@ async def _seed_deletion_hard_delete(conn: asyncpg.Connection) -> None:
     )
 
 
+# ── Epic 29+ P2 service-only tenant seeds (cj-279a wire) ──────
+async def _seed_service_only_tenant(conn: asyncpg.Connection) -> None:
+    """Shared helper for Stories 29.15/29.16/29.17 — insert the `svc_`
+    prefix tenant + owner user + membership + settings.
+
+    svc_ prefix per OQ-6 (Epic 29+ PRD §4.5): isolates service-only data
+    state from the trad tenant graph (DEV_TENANT_ID, owned by the dev
+    JWT in app_metadata). Industry is hard-coded to 'service' because
+    AD-12 service-only rule is the whole point of these fixtures — the
+    trad seed() inserts DEV_TENANT_ID with whatever --industry the
+    operator passes.
+
+    Spec drifts logged for cj-279a retro:
+      ① AC names the tenant `svc_TEN-001`. This seed uses a
+        UUIDv5-derived tenant_id with a `svc_` prefix name convention
+        ('개발용 서비스전용 테넌트 (svc_)'). The dev JWT's
+        `app_metadata.tenant_id` still points at DEV_TENANT_ID, so the
+        Playwright session cannot directly reach svc_TEN-001 — that is
+        the spec implementation surface (D-WEB-E2E-5 3 spec files), not
+        the dev_seed surface. dev_seed provides the data state; the
+        spec uses it.
+      ② AC says `industry='service'`. The schema CHECK constraint
+        accepts 'service' (alembic 0001: tenants.industry), so this is
+        a no-drift insertion.
+
+    Idempotent: ON CONFLICT DO UPDATE for tenants/users/memberships;
+    ON CONFLICT DO NOTHING for tenant_settings (settings wizard owns it).
+    """
+    await conn.execute(
+        """
+        INSERT INTO tenants (id, name, industry)
+        VALUES ($1, $2, 'service')
+        ON CONFLICT (id) DO UPDATE
+            SET name = EXCLUDED.name,
+                industry = EXCLUDED.industry,
+                deleted_at = NULL
+        """,
+        DEV_TENANT_SERVICE_ID,
+        "개발용 서비스전용 테넌트 (svc_)",
+    )
+
+    await conn.execute(
+        """
+        INSERT INTO users (id, tenant_id, email, role)
+        VALUES ($1, $2, $3, 'owner')
+        ON CONFLICT (id) DO UPDATE
+            SET tenant_id = EXCLUDED.tenant_id,
+                email = EXCLUDED.email,
+                role = EXCLUDED.role
+        """,
+        DEV_USER_SERVICE_ID,
+        DEV_TENANT_SERVICE_ID,
+        "dev-svc@costmgr.local",
+    )
+
+    await conn.execute(
+        """
+        INSERT INTO tenant_memberships (id, tenant_id, user_id, role)
+        VALUES ($1, $2, $3, 'owner')
+        ON CONFLICT (tenant_id, user_id) DO UPDATE
+            SET role = EXCLUDED.role
+        """,
+        DEV_MEMBERSHIP_SERVICE_ID,
+        DEV_TENANT_SERVICE_ID,
+        DEV_USER_SERVICE_ID,
+    )
+
+    await conn.execute(
+        """
+        INSERT INTO tenant_settings (tenant_id)
+        VALUES ($1)
+        ON CONFLICT (tenant_id) DO NOTHING
+        """,
+        DEV_TENANT_SERVICE_ID,
+    )
+
+
+async def _seed_service_only_calc(conn: asyncpg.Connection) -> None:
+    """Story 29.15 — service-only V1/V4 skip calc fixture.
+
+    AC: `fiscal_period_snapshots` row has `engine_type='abc'` (NOT
+    `traditional`), `state='committed'`. POST `/api/v1/calc` returns
+    HTTP 200 with committed result. V1+V4 are skipped, V7+V8 run per
+    AD-12 service-only rule.
+
+    Spec drifts logged for cj-279a retro:
+      ① AC says V1+V4 skipped + V7+V8 executed. These are engine-side
+        behaviors (apps/api/modules/m3_engine/) that dev_seed cannot
+        seed. dev_seed provides the committed snapshot data state only;
+        the calc-engine wiring (V-skip rule + engine_type='abc') is the
+        spec implementation surface, not the seed surface.
+      ② AC says the [계산] button is clicked — frontend surface
+        (apps/web/components/calc/), not seeded.
+      ③ AC says POST `/api/v1/calc` returns HTTP 200. Backend route
+        surface (apps/api/main.py), not seeded.
+
+    Period `2026-08` chosen to match cj-278a m11's current-period fixture
+    so a multi-scenario run (`--scenario all`) does not collide.
+
+    Idempotent: ON CONFLICT (tenant_id, period_key, baseline_revision,
+    engine_type) DO UPDATE on the unique key.
+    """
+    await _seed_service_only_tenant(conn)
+    await conn.execute(
+        """
+        INSERT INTO fiscal_period_snapshots (
+            snapshot_id, tenant_id, period_key, baseline_revision, engine_type,
+            material_cost, labor_cost, overhead_cost, manufacturing_cost,
+            inventory_adjustment, result_hash, state
+        )
+        VALUES (
+            $1, $2, '2026-08', 1, 'abc',
+            0, 0, 0, 0, 0, $3, 'committed'
+        )
+        ON CONFLICT (tenant_id, period_key, baseline_revision, engine_type)
+        DO UPDATE SET
+            state = EXCLUDED.state,
+            result_hash = EXCLUDED.result_hash
+        """,
+        DEV_SVC_SNAPSHOT_CALC_ID,
+        DEV_TENANT_SERVICE_ID,
+        "b" * 64,  # placeholder result_hash per AD-16 (real hash from engine)
+    )
+
+
+async def _seed_service_only_report_21(conn: asyncpg.Connection) -> None:
+    """Story 29.16 — service-only Report #21 fixture.
+
+    AC: Report #21 "원가대상별 원가 집계표" displays product_id rows +
+    cost_pool, activity, driver, allocation columns + KRW/USD dual
+    display (F5.2 per master PRD). Data source:
+    `fiscal_period_snapshots.state='committed'` row.
+
+    Spec drifts logged for cj-279a retro:
+      ① AC mentions cost_pool/activity/driver/allocation columns +
+        KRW/USD dual display — these are report-rendering concerns
+        (apps/web/components/reports/) that dev_seed cannot seed.
+        dev_seed provides the committed snapshot + 1 product row for
+        the Report #21 join (product_id is the sole cost-object
+        identifier per AD-18).
+      ② AC references existing products in the service tenant. This
+        seed inserts ONE product (PRD-SVC) with product_type='service'
+        (CHECK constraint accepts goods|service per alembic 0006);
+        DEV_PRODUCT_ID_SVC is a fresh UUID to keep the svc_ tenant's
+        product graph isolated from the trad tenant's
+        DEV_PRODUCT_ID_NEG.
+
+    Period `2026-09` chosen to be distinct from 29.15's `2026-08` so the
+    unique key (tenant_id, period_key, baseline_revision, engine_type)
+    does not collide under `--scenario all`.
+
+    Idempotent: ON CONFLICT DO UPDATE for snapshot;
+    ON CONFLICT DO NOTHING for product.
+    """
+    await _seed_service_only_tenant(conn)
+    await conn.execute(
+        """
+        INSERT INTO fiscal_period_snapshots (
+            snapshot_id, tenant_id, period_key, baseline_revision, engine_type,
+            material_cost, labor_cost, overhead_cost, manufacturing_cost,
+            inventory_adjustment, result_hash, state
+        )
+        VALUES (
+            $1, $2, '2026-09', 1, 'abc',
+            0, 0, 0, 0, 0, $3, 'committed'
+        )
+        ON CONFLICT (tenant_id, period_key, baseline_revision, engine_type)
+        DO UPDATE SET
+            state = EXCLUDED.state,
+            result_hash = EXCLUDED.result_hash
+        """,
+        DEV_SVC_SNAPSHOT_REPORT_ID,
+        DEV_TENANT_SERVICE_ID,
+        "c" * 64,  # placeholder result_hash per AD-16
+    )
+    await conn.execute(
+        """
+        INSERT INTO products (
+            id, tenant_id, product_type, code, name, unit,
+            unit_cost_krw, is_active
+        )
+        VALUES ($1, $2, 'service', 'PRD-SVC', 'PRD-SVC report #21 fixture', 'EA',
+                0, TRUE)
+        ON CONFLICT (id) DO NOTHING
+        """,
+        DEV_PRODUCT_ID_SVC,
+        DEV_TENANT_SERVICE_ID,
+    )
+
+
+async def _seed_service_only_ccr(conn: asyncpg.Connection) -> None:
+    """Story 29.17 — service-only CCR 1-won precision fixture.
+
+    AC: CCR = `department_indirect_cost / practical_capacity_hours`
+    at 1-won precision (no rounding error > 1 KRW). 미사용 능력
+    (unused capacity cost) displayed as separate row in report.
+    V8 regression suite verifies CCR computation matches expected
+    value exactly (1-won) per AD-5 + AD-21.
+
+    Spec drifts logged for cj-279a retro:
+      ① AC says "1 department with indirect_cost + practical_capacity_hours".
+        The schema has NO separate `departments` table; per-department
+        cost data lives in `fiscal_period_snapshots.cost_object_breakdown`
+        and `unused_capacity_breakdown` JSONB columns (alembic 0028,
+        Story 9.3 territory). dev_seed populates BOTH JSONB subdocuments
+        with 1 department row whose CCR = 10000000 / 1000 = 10000 KRW/hr
+        (exact 1-won integer division — no rounding error).
+      ② AC says 미사용 능력 displayed as separate row. Schema has no
+        separate row concept; the JSONB `unused_capacity_breakdown`
+        array is what Report 21's 미사용 능력 section reads from per
+        Story 9.3 verbatim. dev_seed populates that JSONB with
+        unused_hours=200 + unused_cost_krw=2000000 (200 hrs × 10000 KRW/hr).
+      ③ AC says "V8 regression suite verifies CCR computation matches
+        expected value exactly (1-won)". V8 is cj-276 wire surface (Epic
+        4 Story 4.4) — not dev_seed surface.
+
+    Period `2026-10` chosen to be distinct from 29.15 (2026-08) and
+    29.16 (2026-09) so the unique key does not collide under
+    `--scenario all`.
+
+    Idempotent: ON CONFLICT DO UPDATE on snapshot.
+    """
+    await _seed_service_only_tenant(conn)
+    await conn.execute(
+        """
+        INSERT INTO fiscal_period_snapshots (
+            snapshot_id, tenant_id, period_key, baseline_revision, engine_type,
+            material_cost, labor_cost, overhead_cost, manufacturing_cost,
+            inventory_adjustment, result_hash, state,
+            cost_object_breakdown, unused_capacity_breakdown
+        )
+        VALUES (
+            $1, $2, '2026-10', 1, 'abc',
+            0, 0, 0, 0, 0, $3, 'committed',
+            $4::jsonb, $5::jsonb
+        )
+        ON CONFLICT (tenant_id, period_key, baseline_revision, engine_type)
+        DO UPDATE SET
+            state = EXCLUDED.state,
+            result_hash = EXCLUDED.result_hash,
+            cost_object_breakdown = EXCLUDED.cost_object_breakdown,
+            unused_capacity_breakdown = EXCLUDED.unused_capacity_breakdown
+        """,
+        DEV_SVC_SNAPSHOT_CCR_ID,
+        DEV_TENANT_SERVICE_ID,
+        "d" * 64,  # placeholder result_hash per AD-16
+        json.dumps([
+            {
+                "department_id": "dept-svc-001",
+                "department_name": "서비스전용 부서 (CCR 1-won precision fixture)",
+                "indirect_cost_krw": 10000000,
+                "practical_capacity_hours": 1000,
+                "allocated_krw": 8000000,
+                "unused_hours": 200,
+                "unused_cost_krw": 2000000,
+                "sha256_hash": "e" * 64,
+            }
+        ]),
+        json.dumps([
+            {
+                "department_id": "dept-svc-001",
+                "department_name": "미사용 능력",
+                "unused_hours": 200,
+                "unused_cost_krw": 2000000,
+                "sha256_hash": "f" * 64,
+            }
+        ]),
+    )
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Seed the local dev tenant.")
     parser.add_argument(
@@ -1055,12 +1349,16 @@ async def main() -> int:
             "deletion_audit",
             "deletion_restore",
             "deletion_hard_delete",
+            "service_only_calc",
+            "service_only_report_21",
+            "service_only_ccr",
             "all",
         ],
         default=None,
         help=(
             "cj-276 (Epic 29+ wire) + cj-278a (Epic 29+ P1 m11) + cj-278b "
-            "(Epic 29+ P1 m12-2FA) + cj-278c (Epic 29+ P1 m12-3 deletion): "
+            "(Epic 29+ P1 m12-2FA) + cj-278c (Epic 29+ P1 m12-3 deletion) + "
+            "cj-279a (Epic 29+ P2 service-only tenant): "
             "optional business-data scenario seed "
             "beyond identity. Use 'closing_guard_negative' for Story 29.1 "
             "NEGATIVE_CLOSING_PERIOD fixture, 'snapshot_persisted' for "
@@ -1078,8 +1376,14 @@ async def main() -> int:
             "'deletion_audit' for Story 29.12 active-tenant audit fixture, "
             "'deletion_restore' for Story 29.13 pending_deletion fixture with "
             "15 grace days left, 'deletion_hard_delete' for Story 29.14 "
-            "pending_deletion fixture with 0 grace days left, or 'all' for "
-            "all 14."
+            "pending_deletion fixture with 0 grace days left, "
+            "'service_only_calc' for Story 29.15 service-only V1/V4 skip "
+            "calc fixture (engine_type='abc' committed snapshot), "
+            "'service_only_report_21' for Story 29.16 service-only Report "
+            "#21 fixture (svc_ tenant + PRD-SVC product), 'service_only_ccr' "
+            "for Story 29.17 service-only CCR 1-won precision fixture "
+            "(cost_object_breakdown + unused_capacity_breakdown JSONB), "
+            "or 'all' for all 17."
         ),
     )
     args = parser.parse_args()
@@ -1136,6 +1440,18 @@ async def main() -> int:
                 await _seed_deletion_restore(conn)
             if args.scenario in ("deletion_hard_delete", "all"):
                 await _seed_deletion_hard_delete(conn)
+            # cj-279a (Epic 29+ P2 service-only tenant): 3 NEW service-only
+            # scenario seeds. svc_ prefix tenant per OQ-6 — isolated from
+            # DEV_TENANT_ID (trad path). Each scenario seeds a distinct
+            # period_key (2026-08 / 2026-09 / 2026-10) so the unique key
+            # on (tenant_id, period_key, baseline_revision, engine_type)
+            # does not collide under `--scenario all`.
+            if args.scenario in ("service_only_calc", "all"):
+                await _seed_service_only_calc(conn)
+            if args.scenario in ("service_only_report_21", "all"):
+                await _seed_service_only_report_21(conn)
+            if args.scenario in ("service_only_ccr", "all"):
+                await _seed_service_only_ccr(conn)
         finally:
             await conn.close()
 
