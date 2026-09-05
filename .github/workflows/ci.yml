@@ -331,6 +331,86 @@ jobs:
         run: uv run pytest tests/architecture tests/cost_engine -v
 
   # ─────────────────────────────────────────────────────────
+  # 6b. test-suite-measure (검증 신호 복구 — NON-BLOCKING 측정 job)
+  #
+  # 배경: ci.yml 에는 `tests/api` (2,354) + `tests/services` (1,241) +
+  # `tests/integration` (858) + `tests/core` (18) + `tests/web` (94) 를
+  # 실행하는 job 이 한 번도 존재한 적이 없다 (`git log -S` 확인 — 제거된
+  # 것이 아니라 애초에 미연결). 그 결과 CI green 은 전체 테스트의 약 13%
+  # 에 대한 green 이었고, web-e2e 는 19/19 spec 이 describe.skip 되어
+  # 74 tests 중 0개가 실행되고 있었다.
+  #
+  # 로컬 실측 기준선 (2026-09-05, uv run python -m pytest):
+  #   4,985 passed / 173 failed / 129 skipped / 28 collection errors
+  #   → 통과율 96.6%, 소요 2분 41초
+  #
+  # 173 실패의 범위 분리:
+  #   - MVP 범위 (~55): m9_abc 34 + m7_simulation 10 + m3_calc 3 +
+  #     m5_reports pdf 1 + 1st_release_smoke 7  ← 우선 수정 대상
+  #   - 비-MVP (~118): SSO/audit/SLO/Phase 8·10·15·16·17 (FinOps
+  #     엔터프라이즈 — PRD §15 1차 로드맵 밖)  ← 별도 트랙
+  #
+  # 정책: 지금은 `continue-on-error: true` 로 **비차단**. CI 를 빨갛게
+  # 만들지 않으면서 매 run 마다 진짜 숫자를 STEP SUMMARY 에 노출하는 것이
+  # 목적. MVP 범위 실패가 0 이 되는 시점에 `continue-on-error` 를 제거하여
+  # 차단 게이트로 승격한다 (그 시점 = PRD OQ-3 파일럿 게이트 판정 지점).
+  #
+  # 범위 메모: `tests/cost_engine` 는 test-architecture 와 중복이지만
+  # 위 실측 기준선과 정확히 재현 가능하도록 동일 집합을 유지한다.
+  # `tests/rls` 는 Postgres 서비스가 필요하므로 rls-tests job 소관.
+  # ─────────────────────────────────────────────────────────
+  test-suite-measure:
+    needs: setup
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+        with: { python-version-file: ".python-version" }
+      - run: pip install uv==0.11.32
+      # test-architecture 와 동일한 workspace sync 이유 (cj-style 245).
+      - run: uv sync --frozen --all-packages
+      - name: Run full test suite (measurement only — does not gate)
+        id: measure
+        run: |
+          set +e
+          uv run python -m pytest \
+            tests/api tests/services tests/integration tests/core \
+            tests/cost_engine tests/regression_v8 tests/web \
+            -q --no-header --tb=no -p no:cacheprovider \
+            --continue-on-collection-errors \
+            --junitxml=pytest-full.xml \
+            | tee /tmp/full-suite.log
+          # `$?` 는 파이프 마지막 명령(tee)의 코드이므로 PIPESTATUS[0] 사용.
+          echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+      - name: Publish measurement to job summary
+        if: always()
+        run: |
+          {
+            echo "## 전체 테스트 스위트 측정 (비차단)"
+            echo ""
+            echo '```'
+            tail -1 /tmp/full-suite.log 2>/dev/null || echo "요약 라인 없음"
+            echo '```'
+            echo ""
+            echo "기준선 (2026-09-05): 4,985 passed / 173 failed / 28 errors — 통과율 96.6%"
+            echo ""
+            echo "### 실패 영역 상위"
+            echo '```'
+            grep -E "^FAILED" /tmp/full-suite.log 2>/dev/null \
+              | sed 's|FAILED ||' | cut -d: -f1 \
+              | sort | uniq -c | sort -rn | head -15 || echo "실패 없음"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload junit xml
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: pytest-full-results
+          path: pytest-full.xml
+          if-no-files-found: ignore
+
+  # ─────────────────────────────────────────────────────────
   # 6. test-service-role-guard (Story 0.2 — pure unit tests)
   # ─────────────────────────────────────────────────────────
   test-service-role-guard:
