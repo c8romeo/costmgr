@@ -1,0 +1,60 @@
+fix(sprint): cj-279 Epic 29+ P2 2-sprint 분할 plan 결정 wire (cj-style 279번째 epic 연속 정직 회복 entry plan docs-only sprint)
+
+(cj-278 P1 3-sprint 분할 plan 의 verbatim pattern mirror — cj-278a m11 + cj-278b 2FA + cj-278c deletion 모두 CLOSED HONEST 후속 = Epic 29+ P2 wire sprint 진입 결정 wire)
+
+**4 files = 2 MODIFIED + 2 NEW atomic docs-only entry plan sprint**:
+
+1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml v4.44 → v4.45 EXTENSION:
+- 36-line comment block (line ~5869-5910) — cj-279 2-sprint 분할 plan + cj-279a service-only wire scope + cj-279b retro entry scope + OQ-6 svc_ prefix 결정 + dev_seed CLI flag EXTENSION 결정 + D-WEB-E2E-5/6 ownership honestly 결정
+- 6 NEW development_status entries:
+  - cj-279: backlog  (Epic 29+ P2 entry plan 결정 wire)
+  - cj-279a: backlog  (D-WEB-E2E-5 service-only tenant wire sprint = 3 stories 29.15+29.16+29.17)
+  - cj-279b: backlog  (cj-280 Epic 29+ CLOSED retro entry sprint = docs-only)
+  - 29-15-service-only-tenant-calc: backlog
+  - 29-16-service-only-tenant-report-21: backlog
+  - 29-17-service-only-tenant-ccr: backlog
+- last_updated_note_v4_45 신규 paragraph (line 5939)
+
+1 MODIFIED memory/MEMORY.md hook EXTENSION:
+- cj-279 entry hook 추가 (cj-276 close sprint hook 직후)
+
+1 NEW memory/handoff-2026-09-05-cj-279-epic-29-plus-p2-plan-done.md (~+450 LOC):
+- Sprint scope, Why, How to apply
+- CRITICAL HONEST finding (D-WEB-E2E-6 already CLOSED in cj-276)
+- P2 2-sprint 분할 결정 wire (rationale 5종)
+- cj-279a wire scope detail
+- cj-279b retro entry scope detail
+- OQ-6 svc_ prefix 결정 (5 근거)
+- dev_seed CLI flag EXTENSION 결정
+- Spec naming 결정 wire 보존
+- Verification scope (5 spec drifts)
+- runtime 동작 변화 0건
+- CLOSED HONEST 결정 wire
+- Lessons (4종)
+- Section 7 — CRITICAL HONEST finding (D-WEB-E2E-6 boundary)
+
+**CRITICAL HONEST finding** (cj-style discipline 보존):
+D-WEB-E2E-6 (V8 fixture runner) was ALREADY CLOSED in cj-276 P0 — sprint-status v4.35+ 의 29-18-v8-fixture-runner: done # cj-276 보존. Story 29.18 spec file 의 wire_sprint: "cj-276 (Sprint 1, P0 minimum viable)" 보존. dev_seed_scenario: "N/A" + spec_file_path: "N/A (ci.yml EXTENSION, no spec file)" 보존. cj-279 P2 actual wire scope = D-WEB-E2E-5 service-only tenant fixture ONLY (3 stories 29.15/29.16/29.17).
+
+**OQ-6 결정** (cj-275 PRD OQ 보류 → cj-279 진입 시 결정):
+service-only tenant_id prefix = svc_ (5 근거 결정 wire: 격리 + spec 일치 + cross-contamination 회피 + audit 필터링 + engine_state 분리)
+
+**scope honestly reported**:
+docs-only entry plan 결정 wire — runtime source code 변경 0건.
+ci.yml 변경 0건.
+dev_seed.py 변경 0건.
+AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag 불필요.
+live CI verification 은 cj-279a source sprint push 후 결정 wire 보류.
+
+**5 spec drifts logged** for cj-279a retro:
+① 29.15 [계산] button ko-KR vs English [Calc] testid (frontend ko-KR SSOT NFR18 bind)
+② 29.15 engine_type='abc' vs schema enum column (alembic 0020+)
+③ 29.16 Report #21 ko-KR title vs shipped title (NFR18 bind)
+④ 29.17 CCR 1-won precision vs Decimal precision (cj-222 banker's rounding CR 5-1)
+⑤ 29.17 미사용 능력 row schema 없음 (reporting component 결정 wire 보류)
+
+**CR 11-3 honest-DEFER 212번째** epic 연속 정직 회복 (cj-278c close sprint 의 211번째에 이어)
+
+결정 wire 일자: 2026-09-05 (KST)
+
+next: cj-279a service-only wire sprint 진입 결정 wire — dev_seed.py EXTENSION 3 NEW scenarios + 3 NEW UUIDv5 IDs (svc_ prefix) + argparse choices EXTENSION (14→17 choices) + main() dispatch EXTENSION (3 NEW conditional blocks) + 3 NEW Playwright spec files + sprint-status v4.45 → v4.46 EXTENSION
