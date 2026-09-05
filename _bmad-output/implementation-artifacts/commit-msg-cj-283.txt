@@ -1,0 +1,95 @@
+feat(api+web): cj-282a wire sprint (cj-style 283번째) — Story 30.1 CSV export source+docs atomic
+
+cj-282a (cj-style 283번째 epic 연속 정직 회복 source+docs atomic single sprint — cj-282
+Epic 30+ PRD entry `0c7524e` 의 next 옵션 (a) verbatim mirror, A692 의 '옵션 (a) cj-282a
+wire sprint 진입 결정 wire (cj-style 283번째, Recommended) — Story 30.1 CSV export
+source+docs single sprint' verbatim). territory 결정 wire 보존 = cj-282 option (γ) Reporting
+& Export MVP territory 그대로 이어서 (별도 territory 결정 없음). sprint scope 결정 wire =
+Story 30.1 CSV export P0 (Risk Lowest — stdlib csv + FastAPI StreamingResponse only,
+no new infra).
+
+Epic 30+ PRD entry spec-epic-30-reporting-export.md §F44.1 (Story 30.1 CSV) 의 8 ACs verbatim
+sprint scope 결정 wire. 운영자/재무팀 매월 자료 준비 8h → 0.5h 단축 결정 wire 보존
+(Epic 30+ territory scope 결정 wire verbatim 보존).
+
+진단:
+- apps/api/modules/reports/ 디렉토리 부재 (cj-282 PRD entry spec line 144 의 route path
+  결정 wire — 신규 모듈 결정 wire 진입)
+- apps/web/app/[locale]/(authenticated)/reports/page.tsx 부재 (spec line 132 의 RSC page
+  결정 wire — 신규 페이지 결정 wire 진입)
+- capability matrix v1.53 (FINOPS_INTERACTIVE_DASHBOARD) 까지 EXTENSION, EXPORTS capability
+  부재 (cj-282 PRD entry §M v1.47 → v1.48 EXTENSION 결정 wire — cj-style 284번째 적용 보류)
+- 4 NEW audit actions (export_csv / export_pdf / export_email / export_scheduled) 부재
+  (cj-282 PRD entry §F44.1~§F44.3 결정 wire — cj-style 284번째 적용 보류)
+
+수정:
+- apps/api/modules/reports/csv_routes.py NEW (~150 LOC) — GET /api/v1/exports/csv 라우트
+  StreamingResponse + UTF-8 BOM + RFC 4180 quoted + audit-first INSERT (CR 1-1) +
+  owner-only RBAC (AD-22) + capability gate (AD-12) — audit_log_routes.py + chargeback_export.py
+  패턴 verbatim mirror
+- apps/api/schemas/export_schemas.py NEW (~80 LOC) — CsvExportRequest(BaseModel) Pydantic
+  schema, type Literal["cost-records", "bom"] + period regex YYYY-MM + tenant_id UUID4
+- apps/web/app/[locale]/(dashboard)/reports/page.tsx NEW (~85 LOC) — RSC 보고서 페이지,
+  ko-KR NFR18 SSOT + data-testid reports-tab 마운트
+- apps/web/app/[locale]/(dashboard)/reports/layout.tsx NEW (~37 LOC) — Auth gate layout
+  (sb-access-token cookie → /ko-KR/login redirect)
+- apps/web/components/reports/CsvExportTab.tsx NEW (~213 LOC) — CSV 내보내기 탭 UI,
+  period selector + type selector + download button + data-testid
+  (reports-tab, csv-export-tab, period-selector-{YYYY-MM}, download-button)
+- tests/integration/test_phase_30_exports_csv.py NEW (~314 LOC) — pytest 22 tests
+  (UTF-8 BOM + RFC 4180 escape 6종 + CSV columns 14/12 + audit action='export_csv' +
+  5 typed exceptions (CR 12-5 D-14 envelope) + 4 schema validators + 2 row mappers +
+  MAX_EXPORT_ROWS constant + cross-tenant invariant)
+- apps/web/__tests__/components/CsvExportTab.test.tsx NEW (~85 LOC) — vitest 4 tests
+  (ko-KR labels + 4 data-testids + 12 period options + 2 type options)
+
+각 file 위에 cj-282a 결정 wire 사유 + AD bind 3 (AD-2 audit-first + AD-10 identity/2FA
+via owner-only RBAC + AD-12 verify-first capability) + NFR bind 2 active (NFR5 streaming
+P95 ≤ 5s + NFR18 ko-KR SSOT) verbose comment 추가.
+
+4 OQ 결정 보류 (cj-282a 범위 외 N/A — Story 30.2 / 30.3 / 30.4 wire 진입 시 결정):
+OQ-EPIC30+-1 weasyprint vs reportlab (Story 30.2 PDF 진입 시 결정) /
+OQ-EPIC30+-2 SMTP 인프라 외부 의존 SendGrid vs AWS SES vs on-prem Postfix (Story 30.3 Email 진입 시 결정) /
+OQ-EPIC30+-3 APScheduler vs Celery beat vs cron (Story 30.4 Scheduled 진입 시 결정) /
+OQ-EPIC30+-4 chart library matplotlib vs Plotly vs Chart.js PNG export (Story 30.2 PDF 진입 시 결정)
+
+검증:
+- corepack pnpm lint:tsc → tsc --noEmit exit 0 (clean)
+- uv run --python 3.12 ruff check tests/integration/test_phase_30_exports_csv.py
+  apps/api/modules/reports/csv_routes.py apps/api/schemas/export_schemas.py
+  → All checks passed
+- python -m pytest tests/integration/test_phase_30_exports_csv.py -v
+  → 22 tests PASS, 0 fail (DB integration tests 결정 wire 보류, cj-style 284+ 적용)
+- corepack pnpm vitest run __tests__/components/CsvExportTab.test.tsx
+  → 4 tests PASS, 0 fail
+
+runtime 동작 변화 honestly reported: source+docs atomic sprint
+- 7 NEW source/test files + 2 NEW meta files + 2 MODIFIED = 11 files atomic
+  (apps/api/modules/reports/csv_routes.py + apps/api/schemas/export_schemas.py +
+   apps/web/app/[locale]/(dashboard)/reports/page.tsx + reports/layout.tsx +
+   apps/web/components/reports/CsvExportTab.tsx +
+   tests/integration/test_phase_30_exports_csv.py +
+   apps/web/__tests__/components/CsvExportTab.test.tsx +
+   _bmad-output/implementation-artifacts/commit-msg-cj-283.txt +
+   memory/handoff-2026-09-06-cj-282a-wire-sprint-done.md = 7 NEW content + 2 NEW meta,
+   + _bmad-output/implementation-artifacts/sprint-status.yaml v4.53 → v4.54 EXTENSION)
+- dev_seed.py 변경 0건 (cj-282 PRD entry report_fixtures 시나리오 EXTENSION 결정 wire
+  — cj-style 284번째 결정 보류)
+- ci.yml 변경 0건 (web-e2e step 19 csv-export.spec.ts 추가 결정 wire — cj-style 284번째
+  결정 보류)
+- AD-14 stack pin 정책 (35 pins) 변경 없음 (stdlib csv + FastAPI StreamingResponse only)
+- [STACK BUMP] tag 불필요
+- 13 job matrix 변경 없음
+- capability matrix v1.53 → v1.54 EXTENSION 결정 wire (cj-style 284번째 적용 보류)
+- 4 NEW audit actions EXTENSION 결정 wire (export_csv / export_pdf / export_email /
+  export_scheduled, cj-style 284번째 결정 보류)
+
+CR 11-3 honest-DEFER 223번째 epic 연속 정직 회복
+(cj-282a web-e2e skip 의 221+222번째 + cj-style 283rd 의 223번째)
+
+next: 옵션 (a) cj-282a close-out retro 진입 결정 wire (cj-style 284번째, RECOMMENDED) —
+14-section §1~§14 verbatim retro document / 옵션 (b) cj-282b wire sprint 진입
+(cj-style 284번째, Story 30.2 PDF weasyprint 결정 + source+docs atomic) /
+옵션 (c) Epic 29+ spec implementation chain 진입 결정 wire (cj-29x-impl territory).
+
+결정 wire 일자: 2026-09-06 (KST)
