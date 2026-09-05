@@ -3536,8 +3536,7 @@ async def _csv_export_invalid_request_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -3553,8 +3552,7 @@ async def _csv_export_forbidden_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -3570,8 +3568,7 @@ async def _csv_export_cross_tenant_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 
@@ -3587,8 +3584,7 @@ async def _csv_export_too_large_handler(
             "code": exc.code,
             "message_ko": exc.message_ko,
             "details": exc.details,
-            "trace_id": getattr(request.state, "trace_id", None)
-            or str(__import__("uuid").uuid4()),
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
 

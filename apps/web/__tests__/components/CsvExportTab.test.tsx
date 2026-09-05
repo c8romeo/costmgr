@@ -22,6 +22,11 @@ import { CsvExportTab } from "@/components/reports/CsvExportTab";
 
 const DEFAULT_PROPS = {
   accessToken: "test-token-abc",
+  // cj-287 wire — tenantId prop EXTENSION (was hardcoded empty in cj-282a).
+  // The CsvExportTab fetches /api/v1/exports/csv with tenant_id as a query
+  // param; tests render the component with a deterministic UUIDv5 placeholder
+  // matching the cj-286 EXTENSION report_fixtures tenant namespace.
+  tenantId: "00000000-0000-0000-0000-000000000000",
   initialPeriod: "2026-08",
   initialType: "cost-records" as const,
 };

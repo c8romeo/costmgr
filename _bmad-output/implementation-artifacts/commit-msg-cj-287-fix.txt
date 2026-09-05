@@ -1,0 +1,50 @@
+fix(api+web): cj-287 follow-up — ruff format main.py + vitest CsvExportTab tenantId
+
+Follow-up fixes for cj-287 wire sprint (commit 5c37446). The CI run
+33998878731 reported 2 regression failures honestly diagnosed as
+follow-up:
+
+1. **lint-conventions** (job 101394140356) — `apps/api/main.py` failed
+   `ruff format --check`. The 4 NEW exception handlers I added at
+   lines 3509-3588 used a multi-line `getattr(...) or str(...)`
+   pattern that doesn't match the project's `line-length=88`
+   formatter. Fixed by running `ruff format apps/api/main.py` which
+   collapsed the 4 trace_id expressions to single lines. CR 9-6 D5
+   prevention preserved: this is a single-line cosmetic format fix,
+   not a semantic change.
+
+2. **web-test** (job 101394140385) — TypeScript compile failed with
+   `Property 'tenantId' is missing in type ... but required in type
+   'CsvExportTabProps'`. The cj-287 wire made `tenantId` a required
+   prop on `CsvExportTabProps` (was hardcoded `""` in cj-282a), but
+   `apps/web/__tests__/components/CsvExportTab.test.tsx` was passing
+   only 3 props (accessToken + initialPeriod + initialType). Fixed
+   by adding `tenantId: "00000000-0000-0000-0000-000000000000"` to
+   `DEFAULT_PROPS` (deterministic placeholder matching the cj-286
+   report_fixtures UUIDv5 namespace convention; the tests are
+   render-only and don't issue real fetch calls).
+
+## 결정 wire 정합
+
+- **CR 9-6 atomic commit** — `git commit -F <file>` convention + commit-msg
+  file verbatim.
+- **CR 11-3 honest-DEFER 224+번째** — these are regression fixes from
+  cj-287 wire sprint, NOT new territory.
+
+## runtime 동작 변화 honestly reported
+
+- 2 files = 2 MODIFIED atomic single sprint.
+- `apps/api/main.py`: 4 trace_id line-wrappings collapsed to single
+  lines (semantic identical, format only).
+- `apps/web/__tests__/components/CsvExportTab.test.tsx`: added 1 prop
+  field to DEFAULT_PROPS (test render only).
+- ci.yml 변경 0 / dev_seed 변경 0 / alembic 변경 0 / AD-14 stack pin
+  정책 변경 없음 / [STACK BUMP] tag 불필요.
+
+## Next (cj-288+ 결정 wire 보류)
+
+cj-287 close-out retro sprint 진입 결정 wire (cj-style 288+번째) —
+14-section §1~§14 verbatim retro document 결정 wire 진입 + cj-288
+PDF export wire sprint 진입 결정 wire 진입.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
