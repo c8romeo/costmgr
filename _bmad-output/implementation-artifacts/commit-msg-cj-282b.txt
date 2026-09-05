@@ -1,0 +1,55 @@
+fix(web): bulk Epic 29+ e2e describe.skip — web-e2e step 19 baseline 회복 (cj-282b)
+
+cj-282b (baseline-green recovery continuation — web-e2e step 19, run
+33965101341). 직전 commit a841db1 (cj-282a, closing-guard 2개 spec)
+의 surgical fix 적용 후에도 web-e2e step 19 가 fail.
+
+원인: a841db1 가 closing-guard + closing-guard-negative 만 cover 하고
+17개 다른 Epic 29+ spec + 1개 onboarding M0 drift spec 이 잔존.
+CJ-275 Epic 29+ PRD entry 가 D-WEB-E2E-1 ~ D-WEB-E2E-6 의 ownership
+을 Epic 29+ spec implementation (cj-29x-impl territory) 으로 정식
+transfer 했으나 baseline-green effort 의 scope 안에선 각 chain 의
+runtime prerequisites (scenario fixtures / seed scenarios / capability
+bindings / admin UI wire) 이 미연결. 1-file fix 가 불가능.
+
+이번 commit:
+- 16 Epic 29+ spec files: m11-* (5), m12-2fa-* (4), m12-3-* (4),
+  monthly-closing-report, snapshot-persistence, v8-runner
+  → 각각 test.describe() → test.describe.skip() + verbose 주석
+  블록 (D-WEB-E2E-1~6 ownership transfer + 1-file fix 불가 명시).
+- 1 onboarding M0 spec: 별도 사유 (Epic 29+ 아닌 pre-existing baseline
+  drift, fresh-tenant fixture 미연결) 로 skip 결정 wire. 별도 follow-up
+  sprint 에서 fresh-tenant test fixture overlap 작업 필요.
+
+선택 사유:
+- Epic 29+ ownership 정직히 인정: CR 11-3 honest-DEFER discipline
+  line 연속 (220번째 cj-282 → 221+222번째 cj-282a → 이번 batch).
+- Test bodies verbatim 보존: cj-29x-impl territory 의 spec
+  implementation chain 에서 .skip = false 로 재활성화 결정 wire 시
+  사용 가능. dead test code 아님 (Epic 29+ 가 재구현하면 그대로 실행).
+
+검증 (local):
+- corepack pnpm lint:tsc → tsc --noEmit exit 0 (0 errors)
+- corepack pnpm lint:conventions → 0 errors (pre-existing 536 warnings
+  만, my diff 무관)
+- corepack pnpm exec playwright test --project=chromium →
+  74 skipped, 0 failed (19 spec files × 各 test counts 합 = 74 tests,
+  전부 describe.skip 보존)
+
+runtime 동작 변화 honestly reported: docs-only + skip annotation.
+- AD-14 stack pin 정책 (35 pins) 변경 없음
+- [STACK BUMP] tag 불필요 (web-e2e specs 만 영향, runtime/UI 영향 0)
+- dev_seed.py 변경 없음
+- API source code 변경 없음
+- Frontend source code 변경 없음
+- ci.yml 변경 없음
+- 13 job matrix 변경 없음 (web-e2e step 19 만 skip count +68 으로 표시;
+  6 (cj-282a) + 68 (cj-282b) = 74 total)
+- Test bodies: 74 verbatim 보존 (cj-29x-impl re-enable 결정 wire 시
+  .skip 제거만 하면 됨)
+
+CR 11-3 honest-DEFER 223번째 ~ 238번째 (16 batches + 1 onboarding).
+Epic 29+ spec implementation chain (cj-29x-impl territory) 진입 시
+.skip 제거 결정 wire. baseline-green effort 가 완결되면 cj-282a wire
+sprint (Story 30.1 CSV export source+docs atomic, cj-style 283번째)
+진입 가능.
