@@ -149,6 +149,40 @@ DEV_SVC_SNAPSHOT_CCR_ID = uuid.uuid5(
 )
 DEV_PRODUCT_ID_SVC = uuid.uuid5(_NS, "costmgr-dev-product-prd-svc")
 
+# cj-286 (Epic 30+ EXTENSION wire sprint): acme report tenant + product
+# identities for Story 30.1 CSV export E2E fixtures. Isolated from
+# DEV_TENANT_ID (manufacturing trad path) so `--scenario all` does not
+# collide on (tenant_id, period_key) unique constraints (per A697 결정
+# wire 보존). AD-56 (a) report_fixtures data shape 결정 wire.
+DEV_TENANT_REPORT_ID = uuid.uuid5(_NS, "costmgr-dev-tenant-report")
+DEV_USER_REPORT_ID = uuid.uuid5(_NS, "costmgr-dev-user-report")
+DEV_MEMBERSHIP_REPORT_ID = uuid.uuid5(
+    _NS, "costmgr-dev-membership-report"
+)
+# 4 NEW deterministic product UUIDs for the cost_records rows (4
+# categories × 1 product each — 25 rows per category = 100 total).
+DEV_PRODUCT_ID_REPORT_MAT = uuid.uuid5(
+    _NS, "costmgr-dev-product-report-material"
+)
+DEV_PRODUCT_ID_REPORT_LBR = uuid.uuid5(
+    _NS, "costmgr-dev-product-report-labor"
+)
+DEV_PRODUCT_ID_REPORT_OVH = uuid.uuid5(
+    _NS, "costmgr-dev-product-report-overhead"
+)
+DEV_PRODUCT_ID_REPORT_OUT = uuid.uuid5(
+    _NS, "costmgr-dev-product-report-output"
+)
+# 5 NEW parent + 2 NEW child product UUIDs for the bom_matrix rows
+# (5 parents × 2 children = 10 total).
+DEV_BOM_PARENT_001_ID = uuid.uuid5(_NS, "costmgr-dev-bom-parent-001")
+DEV_BOM_PARENT_002_ID = uuid.uuid5(_NS, "costmgr-dev-bom-parent-002")
+DEV_BOM_PARENT_003_ID = uuid.uuid5(_NS, "costmgr-dev-bom-parent-003")
+DEV_BOM_PARENT_004_ID = uuid.uuid5(_NS, "costmgr-dev-bom-parent-004")
+DEV_BOM_PARENT_005_ID = uuid.uuid5(_NS, "costmgr-dev-bom-parent-005")
+DEV_BOM_CHILD_001_ID = uuid.uuid5(_NS, "costmgr-dev-bom-child-001")
+DEV_BOM_CHILD_002_ID = uuid.uuid5(_NS, "costmgr-dev-bom-child-002")
+
 # Audit `action` values quoted verbatim from
 # packages/services/m12_account/account_deletion.py:47-51. The Story
 # 29.12/29.13/29.14 ACs name *different* strings — see the spec-drift
@@ -1317,6 +1351,196 @@ async def _seed_service_only_ccr(conn: asyncpg.Connection) -> None:
     )
 
 
+async def _seed_report_fixtures(conn: asyncpg.Connection) -> None:
+    """cj-286 (Epic 30+ EXTENSION wire sprint): Report fixtures for
+    Story 30.1 CSV export E2E. Seeds an acme-tenant (isolated from
+    DEV_TENANT_ID trad path) with 100 cost_records rows (4 categories
+    × 25 rows = 100) and 10 BOM matrix rows (5 parents × 2 children
+    = 10) for period_key='2026-08'. See AD-56 (a) report_fixtures
+    data shape 결정 wire.
+
+    Idempotent: ON CONFLICT DO UPDATE for tenants/users/memberships
+    (full upsert); ON CONFLICT DO NOTHING for tenant_settings;
+    DELETE + INSERT for cost_records + bom_matrix (full replacement
+    — fixture pattern, not production data).
+
+    acme tenant 결정 wire rationale: per A697 결정 wire 보존,
+    `(tenant_id, period_key)` unique constraints on cost_records +
+    bom_matrix must not collide with the 17 existing scenarios under
+    `--scenario all`. DEV_TENANT_REPORT_ID (UUIDv5 namespace
+    `costmgr-dev-tenant-report`) is isolated from DEV_TENANT_ID
+    (manufacturing trad path).
+    """
+    # 1. Tenant (industry='manufacturing' per PRD §F-1 verbatim).
+    await conn.execute(
+        """
+        INSERT INTO tenants (id, name, industry)
+        VALUES ($1, $2, 'manufacturing')
+        ON CONFLICT (id) DO UPDATE
+            SET name = EXCLUDED.name,
+                industry = EXCLUDED.industry,
+                deleted_at = NULL
+        """,
+        DEV_TENANT_REPORT_ID,
+        "개발용 보고서 테넌트 (report)",
+    )
+
+    # 2. User (role='owner').
+    await conn.execute(
+        """
+        INSERT INTO users (id, tenant_id, email, role)
+        VALUES ($1, $2, $3, 'owner')
+        ON CONFLICT (id) DO UPDATE
+            SET tenant_id = EXCLUDED.tenant_id,
+                email = EXCLUDED.email,
+                role = EXCLUDED.role
+        """,
+        DEV_USER_REPORT_ID,
+        DEV_TENANT_REPORT_ID,
+        "dev-report@costmgr.local",
+    )
+
+    # 3. Membership (role='owner').
+    await conn.execute(
+        """
+        INSERT INTO tenant_memberships (id, tenant_id, user_id, role)
+        VALUES ($1, $2, $3, 'owner')
+        ON CONFLICT (tenant_id, user_id) DO UPDATE
+            SET role = EXCLUDED.role
+        """,
+        DEV_MEMBERSHIP_REPORT_ID,
+        DEV_TENANT_REPORT_ID,
+        DEV_USER_REPORT_ID,
+    )
+
+    # 4. Tenant settings (empty defaults).
+    await conn.execute(
+        """
+        INSERT INTO tenant_settings (tenant_id)
+        VALUES ($1)
+        ON CONFLICT (tenant_id) DO NOTHING
+        """,
+        DEV_TENANT_REPORT_ID,
+    )
+
+    # 5. 100 cost_records rows (4 categories × 25 rows) for
+    # period_key='2026-08'. DELETE-first for idempotent re-runs.
+    await conn.execute(
+        """
+        DELETE FROM public.cost_records
+        WHERE tenant_id = $1 AND period_key = $2
+        """,
+        DEV_TENANT_REPORT_ID,
+        "2026-08",
+    )
+    _categories = (
+        ("원재료", DEV_PRODUCT_ID_REPORT_MAT),
+        ("노무비", DEV_PRODUCT_ID_REPORT_LBR),
+        ("간접비", DEV_PRODUCT_ID_REPORT_OVH),
+        ("완제품", DEV_PRODUCT_ID_REPORT_OUT),
+    )
+    for i in range(25):
+        for category, product_id in _categories:
+            ledger_event_id = uuid.uuid5(
+                _NS, f"costmgr-dev-report-ledger-{i:03d}-{category}"
+            )
+            opening_qty = 100 + i
+            input_qty = 50 + i
+            output_qty = 30 + i
+            closing_qty = 120 + i
+            unit_cost = 1000.50 + i
+            total_cost = closing_qty * unit_cost
+            await conn.execute(
+                """
+                INSERT INTO public.cost_records (
+                    tenant_id, period_key, product_id, product_name,
+                    category,
+                    opening_qty, input_qty, output_qty, closing_qty,
+                    unit_cost, total_cost, currency, created_at,
+                    ledger_event_id
+                ) VALUES (
+                    $1, $2, $3, $4, $5,
+                    $6, $7, $8, $9,
+                    $10, $11, 'KRW', now()::timestamptz, $12
+                )
+                """,
+                DEV_TENANT_REPORT_ID,
+                "2026-08",
+                product_id,
+                f"제품-{category}-{i:03d}",
+                category,
+                opening_qty,
+                input_qty,
+                output_qty,
+                closing_qty,
+                unit_cost,
+                total_cost,
+                ledger_event_id,
+            )
+
+    # 6. 10 BOM matrix rows (5 parents × 2 children = 10) for
+    # period_key='2026-08', bom_level=1. DELETE-first for idempotent
+    # re-runs (Story 30.1 export scope = level 1 only per cj-282 PRD
+    # entry 결정 wire).
+    await conn.execute(
+        """
+        DELETE FROM public.bom_matrix
+        WHERE tenant_id = $1 AND period_key = $2
+        """,
+        DEV_TENANT_REPORT_ID,
+        "2026-08",
+    )
+    _parents = (
+        (DEV_BOM_PARENT_001_ID, "완제품-A"),
+        (DEV_BOM_PARENT_002_ID, "완제품-B"),
+        (DEV_BOM_PARENT_003_ID, "완제품-C"),
+        (DEV_BOM_PARENT_004_ID, "완제품-D"),
+        (DEV_BOM_PARENT_005_ID, "완제품-E"),
+    )
+    _children = (
+        (DEV_BOM_CHILD_001_ID, "부품-1", "원재료", 2, 500.0),
+        (DEV_BOM_CHILD_002_ID, "부품-2", "부품", 1, 1500.0),
+    )
+    for parent_id, parent_name in _parents:
+        for (
+            child_id,
+            child_name,
+            child_category,
+            child_qty_per_parent,
+            child_unit_cost,
+        ) in _children:
+            child_total_cost = child_qty_per_parent * child_unit_cost
+            await conn.execute(
+                """
+                INSERT INTO public.bom_matrix (
+                    tenant_id, period_key,
+                    parent_product_id, parent_product_name,
+                    child_product_id, child_product_name,
+                    child_category, child_qty_per_parent,
+                    child_unit_cost, child_total_cost,
+                    currency, created_at, bom_level
+                ) VALUES (
+                    $1, $2,
+                    $3, $4,
+                    $5, $6,
+                    $7, $8,
+                    $9, $10,
+                    'KRW', now()::timestamptz, 1
+                )
+                """,
+                DEV_TENANT_REPORT_ID,
+                "2026-08",
+                parent_id,
+                parent_name,
+                child_id,
+                child_name,
+                child_category,
+                child_qty_per_parent,
+                child_unit_cost,
+                child_total_cost,
+            )
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Seed the local dev tenant.")
     parser.add_argument(
@@ -1352,13 +1576,22 @@ async def main() -> int:
             "service_only_calc",
             "service_only_report_21",
             "service_only_ccr",
+            # cj-286 (Epic 30+ EXTENSION wire sprint): acme report
+            # tenant + 100 cost_records + 10 BOM rows for
+            # period_key='2026-08'. Isolated from DEV_TENANT_ID via
+            # UUIDv5 namespace `costmgr-dev-tenant-report` so
+            # `--scenario all` does not collide on (tenant_id,
+            # period_key) unique constraints (per A697 결정 wire
+            # 보존). AD-56 (a) report_fixtures data shape.
+            "report_fixtures",
             "all",
         ],
         default=None,
         help=(
             "cj-276 (Epic 29+ wire) + cj-278a (Epic 29+ P1 m11) + cj-278b "
             "(Epic 29+ P1 m12-2FA) + cj-278c (Epic 29+ P1 m12-3 deletion) + "
-            "cj-279a (Epic 29+ P2 service-only tenant): "
+            "cj-279a (Epic 29+ P2 service-only tenant) + cj-286 (Epic 30+ "
+            "EXTENSION): "
             "optional business-data scenario seed "
             "beyond identity. Use 'closing_guard_negative' for Story 29.1 "
             "NEGATIVE_CLOSING_PERIOD fixture, 'snapshot_persisted' for "
@@ -1383,7 +1616,10 @@ async def main() -> int:
             "#21 fixture (svc_ tenant + PRD-SVC product), 'service_only_ccr' "
             "for Story 29.17 service-only CCR 1-won precision fixture "
             "(cost_object_breakdown + unused_capacity_breakdown JSONB), "
-            "or 'all' for all 17."
+            "'report_fixtures' for Story 30.1 CSV export E2E fixture "
+            "(acme tenant + 100 cost_records + 10 BOM rows for "
+            "period_key='2026-08'), "
+            "or 'all' for all 18."
         ),
     )
     args = parser.parse_args()
@@ -1452,6 +1688,12 @@ async def main() -> int:
                 await _seed_service_only_report_21(conn)
             if args.scenario in ("service_only_ccr", "all"):
                 await _seed_service_only_ccr(conn)
+            # cj-286 (Epic 30+ EXTENSION): report_fixtures scenario for
+            # Story 30.1 CSV export E2E. acme tenant + 100 cost_records +
+            # 10 BOM rows for period_key='2026-08'. AD-56 (a) data shape
+            # 결정 wire.
+            if args.scenario in ("report_fixtures", "all"):
+                await _seed_report_fixtures(conn)
         finally:
             await conn.close()
 
