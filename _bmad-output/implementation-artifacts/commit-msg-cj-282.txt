@@ -1,0 +1,58 @@
+fix(sprint): cj-282 Epic 30+ Reporting & Export MVP PRD entry sprint 결정 wire (cj-style 282번째 epic 연속 정직 회복 entry plan docs-only sprint)
+
+territory 결정 wire = option (γ) Reporting & Export MVP 선택
+(rationale 5종: ① cj-281 Epic 29+ chain FINAL CLOSED 직후 첫 NEW territory 진입
+② 3 옵션 비교 (α D-WEB-E2E-5 verification only user-facing value 0 / β Epic 29+
+18 spec UI 구현 risk 🚨🚨🚨 12 spec drifts + 18 stories × multi-sprint + web-e2e
+CI 38~42분/run fail + atomic 원칙 위반 / γ Reporting & Export MVP = greenfield +
+spec drift 0 + atomic 4-story 분할 가능 + Epic 29+ 의존 0)
+③ B2B SaaS 재무팀 #1 요청 기능 = export to Excel = 업계 표준, ROI 즉시
+④ cj-style atomic 4-sprint 분할 결정 wire (cj-282a/b/c/d)
+⑤ master PRD §M capability matrix v1.47 → v1.48 EXTENSION = 4 NEW capability row
+(EXPORT_CSV / EXPORT_PDF / EXPORT_EMAIL / EXPORT_SCHEDULED) 결정 wire)
+
+4 stories 분할 결정 wire:
+- Story 30.1 CSV export (FR-30-1) — GET /api/v1/exports/csv + StreamingResponse +
+  audit log INSERT + UTF-8 BOM for Excel ko-KR
+- Story 30.2 PDF export (FR-30-2) — GET /api/v1/exports/pdf + weasyprint HTML→PDF
+  + Jinja2 ko-KR template + matplotlib PNG embed 3 charts
+- Story 30.3 Email delivery (FR-30-3) — POST /api/v1/exports/email + SMTP wrapper
+  + retry 3회 + audit log + PII redaction
+- Story 30.4 Scheduled reports (FR-30-4) — APScheduler cron + tenants.finance_contact_email
+  NEW column + 99.9% uptime + recovery
+
+4 files = 2 NEW + 2 MODIFIED atomic docs-only single sprint 결정 wire 진입 완료:
+1 NEW _bmad-output/planning-artifacts/prds/prd-costmgr-2026-09-05/spec-epic-30-reporting-export.md
+  (~+340 LOC, 4 features × 4 FRs + capability matrix EXTENSION + AD bind 3 + NFR bind 7
+  + wire sprint 4-sprint 분할 + 4 OQ 결정 보류 + 부록 A/B)
+1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml v4.52 → v4.53 EXTENSION
+  (A692 신규 entry + last_updated_note_v4_53 신규 paragraph)
+1 NEW memory/handoff-2026-09-05-cj-282-epic-30-reporting-export-entry-done.md (~+250 LOC)
+1 MODIFIED memory/MEMORY.md hook EXTENSION
+
+4 OQ 결정 보류 (cj-282a wire sprint 진입 시 결정):
+OQ-EPIC30+-1 weasyprint vs reportlab / OQ-EPIC30+-2 SMTP 인프라 외부 의존
+(SendGrid vs AWS SES vs on-prem Postfix) / OQ-EPIC30+-3 APScheduler vs Celery beat
+vs cron / OQ-EPIC30+-4 chart library (matplotlib vs Plotly vs Chart.js PNG export)
+
+Epic 29+ spec implementation = 별도 future chain (cj-29x-impl territory, 보류 결정 wire)
+Epic 30+ territory 명확한 분리 결정 wire
+
+runtime 동작 변화 honestly reported: docs-only atomic sprint
+- runtime source code 변경 0건
+- dev_seed.py 변경 0건
+- ci.yml 변경 0건
+- AD-14 stack pin 정책 (35 pins) 변경 없음
+- [STACK BUMP] tag 불필요
+- capability matrix v1.47 → v1.48 EXTENSION 결정 wire (본 entry sprint 에서는
+  EXTENSION 결정만, 실제 cj-282a wire sprint 진입 시 적용)
+
+CR 11-3 honest-DEFER 220번째 epic 연속 정직 회복
+(cj-281 의 219번째 + cj-282 의 220번째)
+
+next: 옵션 (a) cj-282a wire sprint 진입 결정 wire (cj-style 283번째, RECOMMENDED) —
+Story 30.1 CSV export source+docs single sprint (Risk Lowest) / 옵션 (b) 4 OQ 결정
+wire 진입 후 cj-282a / 옵션 (c) Epic 29+ spec implementation chain 진입 결정 wire
+(cj-29x-impl territory)
+
+결정 wire 일자: 2026-09-05 (KST)
