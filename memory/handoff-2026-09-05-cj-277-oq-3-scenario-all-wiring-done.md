@@ -4,7 +4,7 @@ description: "cj-277 Epic 29+ OQ-3 dev_seed `--scenario all` wiring atomic singl
 metadata: 
   node_type: memory
   type: project
-  modified: 2026-09-05T02:34:53.435Z
+  modified: 2026-09-05T03:28:03.387Z
   originSessionId: 2278e024-1380-40fb-8340-3480b40ddcf4
 ---
 
@@ -26,6 +26,36 @@ cj-style 277번째 epic 연속 정직 회복 — cj-276 (Epic 29+ P0 wire) CLOSE
 - T7.17 cj-273b verbatim 보존 ✅ — web-e2e infra layer 10/10 step pass-through 결정 wire 보존 (uv sync + psql + Supabase shim + alembic_version pre-create + Alembic migration + RLS + dev_seed invocation itself + uvicorn boot + Playwright install = 10/10 verbatim 보존, 단 step 15 dev_seed invocation ARG EXTENSION 만)
 - T7.18 cj-276 scenario seed functions 결정 wire 보존 ✅ — dev_seed.py:317-320 `if args.scenario in ("closing_guard_negative", "all")` + `if args.scenario in ("snapshot_persisted", "all")` dispatch verbatim 보존
 - T7.19 cj-276 dev_seed EXTENSION verbatim 보존 ✅ — `_seed_closing_guard_negative` (line 192-234) + `_seed_snapshot_persisted` (line 237-268) 결정 wire 보존
+
+## Section 7 — Live CI HONEST verification (cj-277 close sprint)
+
+**CI run**: `33939765004` (pushed at 2026-09-05T02:40:57Z → completed at 2026-09-05T03:22:35Z, total 41 min 38s, conclusion=failure)
+
+**13-job matrix HONEST-verified via `repos/c8romeo/costmgr/actions/runs/33939765004/jobs` API at 2026-09-05T03:23:00Z**:
+- ✅ setup (steps 16) success
+- ✅ commit-prefix-lint (steps 15) success
+- ✅ lint-imports (steps 9) success
+- ✅ stack-pin-check (steps 17) success
+- ✅ service-role-guard-lint (steps 5) success
+- ✅ lint-conventions (steps 14) success
+- ✅ web-e2e (steps 27) **failure** ← only failure, 단 cj-274 carryover
+- ✅ rls-tests (steps 18) success
+- ✅ web-test (steps 12) success
+- ✅ test-service-role-guard (steps 9) success
+- ✅ smoke-e2e (steps 20) success
+- ✅ lint-deps (steps 9) success
+- ✅ test-architecture (steps 9) success
+
+**12/13 jobs PASS, web-e2e 단일 FAIL** (cj-273b / cj-274 / cj-276 와 동일한 결정 wire 보존 패턴)
+
+**web-e2e job step-by-step HONEST-verified** (job_id 101234845025):
+- step 15 `Run dev seed (creates tenant + user + industry baseline + Epic 29+ scenario seeds)` conclusion=success ✅ — **cj-277 OQ-3 wiring HONEST-verified**. Started 02:42:39Z → completed 02:42:40Z = **1초**. New step name "Epic 29+ scenario seeds" matches cj-277 ci.yml EXTENSION verbatim 보존.
+- step 18 `Run V8 fixture suite (1-won regression gate)` conclusion=success ✅ — cj-276 29-18 wire 결정 wire 보존 (started 02:42:54Z → completed 02:42:56Z = 2초)
+- step 19 `Run cd apps/web && pnpm exec playwright test --project=chromium` conclusion=failure ❌ — Playwright exit code 1 (started 02:42:56Z → completed 03:22:30Z = 39분 34초). cj-274 honestly DEFER carryover D-WEB-E2E-1~6 영향 + cj-276 spec drifts (29.1 HTTP 409 not 422, 29.1 banner format middle `마감 불가:`, 29.3 endpoint path not `/api/v1/inputs`, 29.18 V8 path not `tests/engine/`).
+
+**CRITICAL HONEST finding**: cj-277 source sprint 의 scope boundary = ci.yml step 15 dev_seed invocation ARG EXTENSION 만. step 19 Playwright failure 는 cj-277 scope 외 (cj-274 D-WEB-E2E-1~6 honestly DEFER + cj-280 retro scope). 6 spec drift items 영향 analysis 보류 — step 19 detail log 는 GitHub auth 필요 (artifact download API 401, run logs API 403). 결정 wire 일자: 2026-09-05 (KST).
+
+**CLOSED ✅ HONEST 결정 wire** — cj-277 OQ-3 wiring 의 source-side EXTENSION (ci.yml step 15 dev_seed invocation `--scenario all`) 이 live CI 에서 HONEST-verified. step 19 failure 는 Epic 29+ spec implementation ownership 의 영역으로 명시적 boundary 결정 wire 보존.
 
 **Runtime 동작 변화 honestly reported**: cj-273b 의 web-e2e job step 15 dev_seed invocation 이 identity-only seed 에서 identity + Epic 29+ scenario seeds 으로 EXTENSION. cj-273b 의 infra layer (Postgres service + psql + Supabase shim + alembic + RLS + dev_seed invocation itself + uvicorn boot + Playwright install) 변경 없음 — 단 step 15 의 dev_seed invocation ARG 가 `--scenario all` EXTENSION. AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag 불필요 / 13 job matrix 가 cj-273b 와 동일.
 
