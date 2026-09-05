@@ -1,0 +1,44 @@
+test: Epic 15 SSO routes 테스트 path doubling 버그 픽스 (cj-style baseline-green P2+)
+
+문제:
+tests/api/core/test_epic_15_sso_routes.py 가 Path(__file__).parents[2]
+로 REPO_ROOT 를 계산. __file__ 이 tests/api/core/ 하위이므로
+parents[2] 는 tests/ 디렉토리 (= 1단계 위). 결과적으로
+"tests/apps/api/modules/auth/audit_routes.py" 라는 잘못된 경로가
+되어 FileNotFoundError.
+
+근본 원인:
+test_1st_release_smoke_test.py:16 등 다른 테스트 파일들은 올바르게
+parents[3] 를 사용 (테스트가 tests/api/core/ 의 3단계 위 = repo root
+임을 인식). Epic 15 SSO 테스트만 1단계 부족.
+
+영향:
+14 건 실패 전체가 path doubling 증상:
+- 2 건 = MVP-scope (test_magic_link_audit + test_social_oauth_audit,
+  CR 1.1 audit-first INSERT 검증, AC #1.5 + AC #2.5)
+- 1 건 = MVP-adjacent (test_email_fingerprinting, NFR4 PII minimization)
+- 11 건 = SSO enterprise SAML territory (post-pilot enterprise tier)
+
+픽스:
+parents[2] → parents[3] (1줄, 1글자 변경).
+
+검증:
+14/14 PASS. 매니페스트 검증:
+- audit_routes.py line 60-105: /magic-link-sent + magic_link_sent
+  audit-first INSERT 명세 verbatim ✓
+- audit_routes.py line 91-105: /social-oauth-initiated +
+  social_oauth_initiated audit-first INSERT 명세 verbatim ✓
+- saml_routes.py: SSO enterprise SAML endpoints 전수 존재 ✓
+- auth/__init__.py: sso_router + auth_audit_router export ✓
+
+runtime 동작 변화: 0. 변경은 테스트 경로 계산 단 한 글자. product
+코드 변경 0, dev_seed 변경 0, ci.yml 변경 0, AD-14 pin 변경 0.
+
+영향 (전체 스위트):
+- P1 후: 5,089 passed / 69 failed
+- P2 (1차): 5,098 passed / 59 failed
+- P2+ (본 픽스): 5,112 passed / 45 failed (산정)
+- MVP-scope: 0 (Magic Link + Social OAuth audit-first MVP 검증
+  모두 통과, SSO enterprise territory 는 post-pilot 트랙)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
