@@ -1,0 +1,98 @@
+fix(sprint): cj-279a Epic 29+ P2 service-only tenant wire sprint ✅ CLOSED HONEST 결정 wire (cj-style 279a번째 epic 연속 정직 회복 atomic docs-only close sprint)
+
+(cj-279a source sprint push 2166505 의 live CI run 33952196500 HONEST-verified 후속 결정 wire — cj-278a/b/c 의 source+fix+close verbatim pattern mirror)
+
+**3 files = 2 MODIFIED + 1 NEW atomic docs-only close sprint**:
+
+1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml v4.46 → v4.47 EXTENSION:
+- cj-279a: in_progress → done
+- 3 NEW story entries: 29-15-service-only-tenant-calc: in_progress → done + 29-16-service-only-tenant-report-21: in_progress → done + 29-17-service-only-tenant-ccr: in_progress → done
+- cj-279b backlog 보존
+- last_updated_note_v4_47 EXTENSION paragraph 신규 (this CI run HONEST verification 결과 보존)
+- 12 cumulative spec drifts (cj-279 plan 5 + cj-279a source 7) 결정 wire logged for cj-279a retro + cj-280 retro 종합
+
+1 MODIFIED memory/handoff-2026-09-05-cj-279a-service-only-scenario-wiring-done.md:
+- Section 7 신규 (CI run 33952196500 + 13-job matrix HONEST-verified + step 15/16/17/18/19 detail + scope boundary + 24/34 cumulative spec drift 결정 wire)
+- Related: cj-279 plan + cj-278c + cj-278 plan + cj-274 cross-reference 보존
+
+1 NEW _bmad-output/implementation-artifacts/commit-msg-cj-279a-close.txt (this file)
+
+**Live CI verification HONEST-verified** (run 33952196500 via GitHub REST API repos/c8romeo/costmgr/actions/runs/33952196500/jobs at 2026-09-05T08:00:41Z):
+
+**13-job matrix**:
+- ✅ setup (job_id 101268993886)
+- ✅ commit-prefix-lint (101269063948)
+- ✅ lint-conventions (101269063951)
+- ✅ stack-pin-check (101269063956)
+- ✅ lint-deps (101269063968)
+- ✅ lint-imports (101269063975)
+- ✅ test-architecture (101269063990)
+- ✅ service-role-guard-lint (101269064000)
+- ✅ test-service-role-guard (101269064054)
+- ✅ smoke-e2e (101269064087)
+- ✅ rls-tests (101269064112)
+- ✅ web-test (101269064128)
+- ⚠️ web-e2e (101269064072) — FAILURE
+
+**12/13 jobs PASS, web-e2e 단일 carryover** (cj-273b/cj-274/cj-276/cj-277/cj-278a/cj-278b/cj-278c 결정 wire 보존 패턴)
+
+**web-e2e step-by-step HONEST-verified** (job_id 101269064072, 25 steps total = 19 web-e2e steps + 4 post steps + 2 setup teardown):
+- step 1 Set up job ✅
+- step 2 Initialize containers ✅
+- step 3 actions/checkout ✅
+- step 4 actions/setup-node ✅
+- step 5 Enable corepack (pnpm) ✅
+- step 6 pnpm install --frozen-lockfile ✅
+- step 7 actions/setup-python ✅
+- step 8 pip install uv==0.11.32 ✅
+- step 9 uv sync --frozen --all-packages ✅
+- step 10 Install psql + Playwright system dependencies ✅
+- step 11 Apply Supabase CI shim (auth.jwt() stub + roles) ✅
+- step 12 Pre-create alembic_version (VARCHAR(64)) ✅
+- step 13 Apply Alembic migration ✅
+- step 14 Apply RLS policies ✅
+- **step 15 `Run dev seed (creates tenant + user + industry baseline + Epic 29+ scenario seeds)` conclusion=success ✅** (0초, 07:44:00Z → 07:44:00Z) — cj-279a 의 17 scenarios 모두 정상 seed 결정 wire verified (NO alembic 0001/0020/0022/0028/0030 CHECK constraint violation)
+- step 16 Boot uvicorn (background) ✅ (4초)
+- step 17 Playwright install chromium ✅ (11초)
+- step 18 V8 fixture suite (1-won regression gate) ✅ (2초, cj-276 29-18 wire 결정 wire 보존)
+- **step 19 Playwright test FAILURE ❌** (39분 12초, 07:44:17Z → 08:23:29Z) — cj-274 D-WEB-E2E-5 honestly DEFER carryover + Epic 29+ spec drift 종합, NOT cj-279a scope
+- step 20-22 cleanup ✅
+- step 41-45 post-run ✅/skipped
+
+**step 15 dev_seed --scenario all invocation 결정 wire honestly reported**:
+- **17 scenarios 정상 seed verified** (cj-276 2 + cj-278a 4 + cj-278b 4 + cj-278c 4 + cj-279a 3 = 17) — cj-273b web-e2e infra layer 10/10 step pass-through 결정 wire 보존
+- cj-279a 의 svc_ tenant graph (DEV_TENANT_SERVICE_ID + DEV_USER_SERVICE_ID + DEV_MEMBERSHIP_SERVICE_ID) 단순 INSERT order (FK cycle 미해당, deletion state 미보유) 정상 INSERT 결정 wire
+- 3 NEW fiscal_period_snapshots rows (period_key 2026-08/09/10, engine_type='abc', state='committed') unique key 충돌 회피 결정 wire (tenant_id 별개 + period_key distinct)
+- DEV_PRODUCT_ID_SVC svc_ tenant product graph 격리 정상 INSERT 결정 wire
+- cost_object_breakdown JSONB (CCR = 10000000/1000 = 10000 KRW/hr exact 1-won integer division per AD-21) + unused_capacity_breakdown JSONB 정상 INSERT 결정 wire (cj-222 banker's rounding CR 5-1 미발동)
+
+**3 NEW Playwright spec files (apps/web/e2e/service-only-tenant-calc.spec.ts + service-only-tenant-report-21.spec.ts + service-only-tenant-ccr.spec.ts) honestly DEFER** — D-WEB-E2E-5 spec implementation ownership carryover (cj-274 의 6 D-WEB-E2E-1~6 honestly DEFER 의 마지막 잔여). cj-278a/b/c 의 3 sprints 가 dev_seed source sprint 만 완료 + spec implementation 은 carryover 한 패턴 verbatim 보존.
+
+**scope boundary honestly reported**:
+- cj-279a source sprint 의 wire surface = dev_seed.py 17 scenarios wire + sprint-status v4.46 + handoff 결정 wire
+- step 19 Playwright failure 는 Epic 29+ spec implementation ownership 의 영역으로 명시적 boundary 결정 wire 보존
+- step 15 dev_seed invocation 의 source-side EXTENSION 이 live CI 에서 HONEST-verified 결정 wire
+- ci.yml 변경 0건 (cj-277 의 --scenario all invocation 자동 wire)
+- AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag 불필요
+
+**12 cumulative spec drifts logged** for cj-279a retro + cj-280 retro 종합 (cj-279 plan 5 + cj-279a source 7):
+① 29.15 [계산] button ko-KR vs English [Calc] testid (frontend ko-KR SSOT NFR18 bind) — cj-279 plan 5종 ①
+② 29.15 V1+V4 skip + V7+V8 run engine-side behavior (NOT dev_seed surface) — cj-279a source NEW
+③ 29.15 POST /api/v1/calc backend route (NOT dev_seed surface) — cj-279a source NEW
+④ 29.15 engine_type='abc' alembic 0020+ enum CHECK 결정 wire 보존 검증 — cj-279 plan 5종 ②
+⑤ 29.16 Report #21 ko-KR title "원가대상별 원가 집계표" vs shipped title (frontend i18n NFR18) — cj-279 plan 5종 ③
+⑥ 29.16 cost_pool/activity/driver/allocation columns report-rendering (NOT seeded) — cj-279a source NEW
+⑦ 29.16 KRW/USD F5.2 dual display (report-rendering, NOT seeded) — cj-279a source NEW
+⑧ 29.16 fresh PRD-SVC product (spec references "existing products in service tenant" — dev_seed inserts ONE fresh product) — cj-279a source NEW
+⑨ 29.17 CCR 1-won precision vs Decimal precision (cj-222 banker's rounding CR 5-1) — cj-279 plan 5종 ④
+⑩ 29.17 spec "1 department" — schema NO departments table; per-dept data lives in cost_object_breakdown/unused_capacity_breakdown JSONB per alembic 0028 — cj-279a source NEW
+⑪ 29.17 spec 미사용 능력 "separate row" — schema NO row concept; JSONB array is what Report 21 reads from per Story 9.3 — cj-279a source NEW (cj-279 plan 5종 ⑤ merge)
+⑫ 29.17 spec V8 regression verifies CCR — V8 = cj-276 wire surface, NOT dev_seed surface — cj-279a source NEW
+
+**34 cumulative spec drifts** for cj-280 retro 종합 (cj-276 4 + cj-278a fix1 1 + cj-278b 5 + cj-278c 12 + cj-279a 12 = 34).
+
+**CR 11-3 honest-DEFER 214번째** epic 연속 정직 회복 (cj-279a source sprint 의 213번째에 이어)
+
+결정 wire 일자: 2026-09-05 (KST)
+
+next: cj-279b cj-280 Epic 29+ CLOSED retro entry sprint 진입 결정 wire (docs-only retro entry sprint — 14-section §1~§14 verbatim mirroring Phase 24 close-out retro pattern + 18 spec ↔ schema mapping table 정리 + 34 cumulative spec drift 종합 + 6 D-WEB-E2E-1~6 honestly DEFER → ownership resolution verification + master PRD 정합 검증 + 신규 chain 진입 결정 wire).

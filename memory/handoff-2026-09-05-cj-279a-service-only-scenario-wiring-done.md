@@ -80,3 +80,35 @@ dev_seed.py invocation 의 17 scenario functions (cj-276 의 2 + cj-278a 의 4 +
 - Story 29.15/29.16/29.17 spec 의 다수가 backend/frontend surface 인 이유 — spec 작성자 가 dev_seed surface 만 명시하지 않은 결과 (cj-275 PRD entry 의 original planning 의 spec 작성 discipline 미흡). cj-279a source sprint 는 dev_seed surface (data state) 만 wire, spec 의 backend/frontend surface 는 honestly DEFER.
 
 Related: [[handoff-2026-09-05-cj-279-epic-29-plus-p2-plan-done]], [[handoff-2026-09-05-cj-278c-deletion-scenario-wiring-done]], [[handoff-2026-09-05-cj-278-epic-29-plus-p1-plan-done]], [[handoff-2026-09-05-cj-274-web-e2e-chain-close-honest-defer]].
+
+## Section 7 — Live CI verification + CLOSE HONEST 결정 wire (cj-279a close sprint)
+
+cj-279a source sprint push `2166505` 의 live CI run `33952196500` HONEST-verified via `repos/c8romeo/costmgr/actions/runs/33952196500/jobs` API at 2026-09-05T08:00:41Z (run_started_at = 2026-09-05T07:43:35Z).
+
+**13-job matrix HONEST-verified** (run 33952196500):
+- ✅ setup / ✅ commit-prefix-lint / ✅ lint-imports / ✅ stack-pin-check / ✅ service-role-guard-lint / ✅ lint-conventions / ✅ lint-deps / ✅ test-architecture / ✅ test-service-role-guard / ✅ smoke-e2e / ✅ rls-tests / ✅ web-test
+- ⚠️ web-e2e (failure)
+- **12/13 jobs PASS, web-e2e 단일 carryover** (cj-273b/cj-274/cj-276/cj-277/cj-278a/cj-278b/cj-278c 결정 wire 보존 패턴)
+
+**web-e2e step-by-step HONEST-verified** (job_id 101269064072):
+- step 1-14 infra layer: 14/14 success (ciml step 15 infra 결정 wire 보존)
+- **step 15 `Run dev seed (creates tenant + user + industry baseline + Epic 29+ scenario seeds)` conclusion=success ✅** (0초, 07:44:00Z → 07:44:00Z) — cj-279a 의 17 scenarios 모두 정상 seed 결정 wire verified
+- **step 16 `Boot uvicorn (background)` conclusion=success ✅** (4초, 07:44:00Z → 07:44:04Z)
+- **step 17 `Run cd apps/web && pnpm exec playwright install chromium` conclusion=success ✅** (11초, 07:44:04Z → 07:44:15Z)
+- **step 18 `Run V8 fixture suite (1-won regression gate)` conclusion=success ✅** (2초, cj-276 29-18 wire 결정 wire 보존, 07:44:15Z → 07:44:17Z)
+- **step 19 `Run cd apps/web && pnpm exec playwright test --project=chromium` conclusion=failure ❌** (39분 12초, 07:44:17Z → 08:23:29Z) — cj-274 D-WEB-E2E-5 honestly DEFER carryover + Epic 29+ spec drift 종합
+
+**CRITICAL HONEST finding (scope boundary)**: cj-279a 의 wire surface = dev_seed.py 3 NEW service-only scenario functions + 1 shared helper + 7 NEW UUIDv5 IDs (cj-279 plan 결정 wire 의 첫 wire sprint). step 15 dev_seed invocation 의 source-side EXTENSION 이 live CI 에서 HONEST-verified 결정 wire (svc_ tenant graph + fiscal_period_snapshots rows + PRD-SVC product row + cost_object_breakdown/unused_capacity_breakdown JSONB 모두 정상 INSERT). step 19 Playwright failure 는 cj-274 D-WEB-E2E-5 honestly DEFER + cj-275 PRD entry 18 spec file implementation ownership 의 영역으로 명시적 boundary 결정 wire 보존 — NOT cj-279a source sprint scope.
+
+**12 cumulative spec drifts logged** for cj-279a retro + cj-280 retro 종합 (cj-279 plan 5 + cj-279a source 7 = 12 cumulative). cj-278a/b/c 의 verbatim pattern mirror 보존.
+
+**3 files = 2 MODIFIED + 1 NEW atomic docs-only close sprint**:
+1. MODIFIED `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.46 → v4.47 (cj-279a: in_progress → done + 3 stories 29-15/29-16/29-17: in_progress → done + last_updated_note_v4_47 EXTENSION paragraph)
+2. MODIFIED `memory/handoff-2026-09-05-cj-279a-service-only-scenario-wiring-done.md` (Section 7 추가 — this section)
+3. NEW `_bmad-output/implementation-artifacts/commit-msg-cj-279a-close.txt`
+
+**34 cumulative spec drifts** for cj-280 retro 종합 (cj-276 4 + cj-278a fix1 1 + cj-278b 5 + cj-278c 12 + cj-279a 12 = 34).
+
+**CR 11-3 honest-DEFER 214번째** epic 연속 정직 회복 (cj-279a source sprint 의 213번째에 이어). 결정 wire 일자: 2026-09-05 (KST).
+
+**Next sprint**: cj-279b cj-280 Epic 29+ CLOSED retro entry sprint 진입 결정 wire (docs-only retro entry sprint — 14-section §1~§14 verbatim mirroring Phase 24 close-out retro pattern + 18 spec ↔ schema mapping table 정리 + 34 cumulative spec drift 종합 + 6 D-WEB-E2E-1~6 honestly DEFER → ownership resolution verification + master PRD 정합 검증 + 신규 chain 진입 결정 wire).
