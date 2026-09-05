@@ -73,6 +73,10 @@ const TEST_TENANT = "manufacturing";
 // override): `DEV_TENANT_REPORT_ID=$R DEV_USER_REPORT_ID=$U
 // DEV_ACCESS_TOKEN=$T pnpm exec playwright test e2e/csv-export.spec.ts`.
 const DEV_TENANT_REPORT_ID = process.env.DEV_TENANT_REPORT_ID ?? "";
+// cj-287 wire — D-WEB-E2E-7 ownership. Reserved for future spec
+// extensions where the spec needs to assert user-scoped audit row
+// visibility; currently unused in the 3 baseline test cases.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DEV_USER_REPORT_ID = process.env.DEV_USER_REPORT_ID ?? "";
 const DEV_ACCESS_TOKEN = process.env.DEV_ACCESS_TOKEN ?? "";
 
@@ -133,7 +137,7 @@ test.describe("Story 30.1 — CSV export UI flow", () => {
 
   // ── Case 2: CSV response content-type ───────────────────────────────
   test("CSV response Content-Type is text/csv; charset=utf-8", async ({
-    page,
+    page: _page,
     request,
   }) => {
     // Direct API call (bypassing UI for content-type assertion) — the
@@ -163,7 +167,7 @@ test.describe("Story 30.1 — CSV export UI flow", () => {
 
   // ── Case 3: UTF-8 BOM for Excel ko-KR ───────────────────────────────
   test("CSV response first 3 bytes are UTF-8 BOM (0xEF 0xBB 0xBF)", async ({
-    page,
+    page: _page,
     request,
   }) => {
     // Same URL as Case 2 — direct API call for binary body inspection.

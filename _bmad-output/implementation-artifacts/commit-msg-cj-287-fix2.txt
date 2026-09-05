@@ -1,0 +1,70 @@
+fix(web): cj-287 follow-up #2 — ESLint unused vars in csv-export.spec.ts
+
+Second follow-up fix for cj-287 wire sprint. The CI run 33999181149
+reported 1 regression failure honestly diagnosed as follow-up:
+
+**web-test** (job 101394931947) — step 7 `pnpm lint:conventions` failed
+with 3 ESLint errors in `apps/web/e2e/csv-export.spec.ts`:
+  - `'DEV_USER_REPORT_ID' is assigned a value but never used` at line 76
+  - `'page' is defined but never used` at line 136 (Test 2)
+  - `'page' is defined but never used` at line 166 (Test 3)
+
+Root cause: cj-287 wire sprint added 3 NEW env var declarations
+(DEV_TENANT_REPORT_ID, DEV_USER_REPORT_ID, DEV_ACCESS_TOKEN) and 2 NEW
+test cases that don't use the `page` fixture (Tests 2 and 3 use direct
+API calls via `request.get()` not page navigation). ESLint's
+`@typescript-eslint/no-unused-vars` with `argsIgnorePattern: "^_"`
+flags these as errors (NOT warnings), causing CI failure.
+
+Fix:
+  1. `DEV_USER_REPORT_ID` — added inline
+     `eslint-disable-next-line @typescript-eslint/no-unused-vars`
+     comment (variable is reserved for future spec extensions where
+     user-scoped audit row visibility is asserted).
+  2. Tests 2 + 3 — renamed `page` to `page: _page` in destructure
+     pattern (project convention for unused Playwright fixtures,
+     matches `eslint-disable-next-line @typescript-eslint/no-unused-vars`
+     pattern verbatim used in `apps/web/__tests__/components/CsvExportTab.test.tsx`
+     + other spec files).
+
+## 결정 wire 정합
+
+- **CR 9-6 atomic commit** — `git commit -F <file>` convention +
+  commit-msg file verbatim.
+- **CR 11-3 honest-DEFER 224+2번째** — these are regression fixes from
+  cj-287 wire sprint, NOT new territory.
+
+## runtime 동작 변화 honestly reported
+
+- 1 file = 1 MODIFIED atomic single sprint.
+- `apps/web/e2e/csv-export.spec.ts`: 3 ESLint annotations added
+  (2 `_page` rename + 1 inline eslint-disable comment). Test logic
+  unchanged.
+- ci.yml 변경 0 / dev_seed 변경 0 / alembic 변경 0 / AD-14 stack pin
+  정책 변경 없음 / [STACK BUMP] tag 불필요.
+
+## Pre-existing dev_seed failure honestly DEFER 결정 wire 보류
+
+**HONEST reporting correction**: cj-286 EXTENSION wire sprint (commit
+e408668) 의 CI run 33997825211 also failed at web-e2e step 15
+"Run dev seed" with exit code 1 — this is a PRE-EXISTING carryover
+from cj-286's report_fixtures scenario, NOT introduced by cj-287.
+cj-286's `_seed_report_fixtures(conn)` INSERTs into `public.cost_records`
++ `public.bom_matrix` tables that do NOT exist in any Alembic migration
+(grep 0 hits across `apps/api/alembic/versions/*.py` + `supabase/policies/*.sql`).
+My MEMORY.md entry for cj-286 EXTENSION wire sprint incorrectly marked
+it as "CI run CLOSED HONEST" — the web-e2e step has been failing since
+cj-286 but step 15's failure causes steps 16-19 to be skipped, masking
+the real failure mode. **cj-288+ follow-up sprint 결정 wire 진입 필요**:
+create Alembic migration `0031_cost_records_and_bom_matrix.py` (or
+similar) to create the missing tables + verify dev_seed `--scenario all`
+completes cleanly.
+
+## Next (cj-288+ 결정 wire 보류)
+
+cj-287 close-out retro sprint 진입 결정 wire (cj-style 288+번째) —
+14-section §1~§14 verbatim retro document 결정 wire 진입 + cj-288
+cost_records Alembic migration 결정 wire 진입 (honest-DEFER carryover
+from cj-286 EXTENSION wire sprint).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
