@@ -37,6 +37,7 @@ and `test_monthly_input_warnings.py`.
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 
 # Skip if DB not provisioned — the suite stays green in CI shim mode.
@@ -112,7 +113,7 @@ def test_module_placeholder() -> None:
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_closing_guard_invariant_negative_closing() -> None:
+def test_get_state_closing_guard_invariant_negative_closing() -> None:
     """GET /state for a manufacturing tenant with 음수 기말재고
     → `closing_guard_invariant.code == 'NEGATIVE_CLOSING'` +
     `closing_guard_invariant.negative_products` non-empty list.
@@ -122,25 +123,31 @@ async def test_get_state_closing_guard_invariant_negative_closing() -> None:
     aggregates ledger_events per product and emits NEGATIVE_CLOSING when
     any product's signed sum < 0 (PRD §F4.2).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_closing_guard_invariant_closing_ok() -> None:
+def test_get_state_closing_guard_invariant_closing_ok() -> None:
     """GET /state for a manufacturing tenant with 정상 기말재고
     → `closing_guard_invariant.code == 'CLOSING_OK'` +
     `closing_guard_invariant.negative_products == []`.
 
     Closing ≥ 0 invariant holds → CLOSING_OK (V3 verification PASS path).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 # ── closing_guard_blocked: 1 case ────────────────────────────
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_closing_guard_blocked_true_when_negative() -> None:
+def test_get_state_closing_guard_blocked_true_when_negative() -> None:
     """GET /state → `closing_guard_blocked = True` when
     invariant.code == 'NEGATIVE_CLOSING' (PRD §F4.2 + §A11).
 
@@ -148,14 +155,17 @@ async def test_get_state_closing_guard_blocked_true_when_negative() -> None:
     frontend `<fieldset disabled>` gate (Story 5.3 P22) and the
     `attempt_close` POST endpoint (Story 5.3 AC #4).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 # ── closing_guard_audit_trail: 1 case ───────────────────────
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_closing_guard_audit_trail_capped_at_10() -> None:
+def test_get_state_closing_guard_audit_trail_capped_at_10() -> None:
     """GET /state → `closing_guard_audit_trail` = last 10 audit_logs rows
     where `action_class = 'closing_guard'` for the current period_key.
 
@@ -163,14 +173,17 @@ async def test_get_state_closing_guard_audit_trail_capped_at_10() -> None:
     `GET /api/v1/inventory/closing-guard/audit-trail?period_key=...` and
     mirrored in the state response (last 10 rows = operator overview).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 # ── production_consumption_events: 2 cases ──────────────────
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_production_consumption_events_includes_output() -> None:
+def test_get_state_production_consumption_events_includes_output() -> None:
     """GET /state for production stream tenant →
     `production_consumption_events` includes `production_output_inbound`
     ledger events (Story 5.3 W1 BOM-aware reconciliation).
@@ -179,11 +192,14 @@ async def test_get_state_production_consumption_events_includes_output() -> None
     emits production_output_inbound + production_material_consumption
     events to inventory_ledger (5-2 AD-2 append-only).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_production_consumption_events_includes_consumption() -> None:
+def test_get_state_production_consumption_events_includes_consumption() -> None:
     """GET /state for production stream tenant →
     `production_consumption_events` includes `production_material_consumption`
     ledger events (Story 5.3 W1 BOM-aware reconciliation).
@@ -191,14 +207,17 @@ async def test_get_state_production_consumption_events_includes_consumption() ->
     BOM ratio = Σ(child.qty × ratio / 100) per output event (banker's
     rounding parity per AD-15 §11).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 # ── v3_verdict: 2 cases ─────────────────────────────────────
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_v3_verdict_pass_when_closing_positive() -> None:
+def test_get_state_v3_verdict_pass_when_closing_positive() -> None:
     """GET /state for manufacturing tenant with closing ≥ 0 →
     `v3_verdict.status == 'passed'` (Story 5.3 V3 verification sync).
 
@@ -206,11 +225,14 @@ async def test_get_state_v3_verdict_pass_when_closing_positive() -> None:
     (`packages/cost_engine/closing_invariant_check.py::verify_closing_invariant`).
     Order: V1 → V4 → **V3** → V7 → V8 (AD-12 preserved).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_v3_verdict_skip_for_service_tenant() -> None:
+def test_get_state_v3_verdict_skip_for_service_tenant() -> None:
     """GET /state for service-only tenant →
     `v3_verdict.status == 'skipped'` (V3 SKIP semantic, service-only
     tenants have no inventory semantic).
@@ -219,4 +241,7 @@ async def test_get_state_v3_verdict_skip_for_service_tenant() -> None:
     in {SERVICE} → v3_verdict = {status: 'skipped', reason_ko: 'service-only
     tenant은 inventory 의미 없음'}.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())

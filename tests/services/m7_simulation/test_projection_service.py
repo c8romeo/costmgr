@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
@@ -194,140 +195,154 @@ def test_to_projection_inputs_missing_field_raises_service_error() -> None:
 
 
 # ── fetch_projection_baseline — format validation ──────────────
-@pytest.mark.asyncio
-async def test_fetch_projection_baseline_rejects_bad_period_key() -> None:
+def test_fetch_projection_baseline_rejects_bad_period_key() -> None:
     """period_key not YYYY-MM → InvalidProjectionMonthError."""
-    service = _make_service()
-    with pytest.raises(InvalidProjectionMonthError) as exc_info:
-        await service.fetch_projection_baseline(
-            period_key="25-01", projection_month="2025-02"
-        )
-    assert "format" in exc_info.value.reason.lower() or "must match" in exc_info.value.reason.lower()
+    async def _inner() -> None:
+        service = _make_service()
+        with pytest.raises(InvalidProjectionMonthError) as exc_info:
+            await service.fetch_projection_baseline(
+                period_key="25-01", projection_month="2025-02"
+            )
+        assert "format" in exc_info.value.reason.lower() or "must match" in exc_info.value.reason.lower()
+
+    asyncio.run(_inner())
 
 
-@pytest.mark.asyncio
-async def test_fetch_projection_baseline_rejects_bad_projection_month() -> None:
+def test_fetch_projection_baseline_rejects_bad_projection_month() -> None:
     """projection_month not YYYY-MM → InvalidProjectionMonthError."""
-    service = _make_service()
-    with pytest.raises(InvalidProjectionMonthError):
-        await service.fetch_projection_baseline(
-            period_key="2025-01", projection_month="bad-month"
-        )
+    async def _inner() -> None:
+        service = _make_service()
+        with pytest.raises(InvalidProjectionMonthError):
+            await service.fetch_projection_baseline(
+                period_key="2025-01", projection_month="bad-month"
+            )
+
+    asyncio.run(_inner())
 
 
 # ── fetch_projection_baseline — chronological invariant ───────
-@pytest.mark.asyncio
-async def test_fetch_projection_baseline_rejects_equal_month() -> None:
+def test_fetch_projection_baseline_rejects_equal_month() -> None:
     """projection_month == period_key → InvalidProjectionMonthError (strict >)."""
-    service = _make_service()
-    with pytest.raises(InvalidProjectionMonthError) as exc_info:
-        await service.fetch_projection_baseline(
-            period_key="2025-06", projection_month="2025-06"
-        )
-    assert "strictly after" in exc_info.value.reason.lower()
+    async def _inner() -> None:
+        service = _make_service()
+        with pytest.raises(InvalidProjectionMonthError) as exc_info:
+            await service.fetch_projection_baseline(
+                period_key="2025-06", projection_month="2025-06"
+            )
+        assert "strictly after" in exc_info.value.reason.lower()
+
+    asyncio.run(_inner())
 
 
-@pytest.mark.asyncio
-async def test_fetch_projection_baseline_rejects_earlier_month() -> None:
+def test_fetch_projection_baseline_rejects_earlier_month() -> None:
     """projection_month < period_key → InvalidProjectionMonthError."""
-    service = _make_service()
-    with pytest.raises(InvalidProjectionMonthError):
-        await service.fetch_projection_baseline(
-            period_key="2025-12", projection_month="2025-01"
-        )
+    async def _inner() -> None:
+        service = _make_service()
+        with pytest.raises(InvalidProjectionMonthError):
+            await service.fetch_projection_baseline(
+                period_key="2025-12", projection_month="2025-01"
+            )
+
+    asyncio.run(_inner())
 
 
 # ── fetch_projection_baseline — CVP wrap to Projection 404 ────
-@pytest.mark.asyncio
-async def test_fetch_projection_baseline_wraps_cvp_not_found() -> None:
+def test_fetch_projection_baseline_wraps_cvp_not_found() -> None:
     """CVPBaselineNotFoundError → ProjectionBaselineNotFoundError."""
-    import sys
+    async def _inner() -> None:
+        import sys
 
-    fake_instance = MagicMock()
-    fake_instance.fetch_cvp_baseline = AsyncMock(
-        side_effect=CVPBaselineNotFoundError(
-            tenant_id="00000000-0000-0000-0000-000000000000",
-            period_key="2025-06",
-        )
-    )
-
-    class FakeCVPService:
-        def __init__(self, session, **kwargs):
-            self.session = session
-            self.kwargs = kwargs
-
-        async def fetch_cvp_baseline(self, *, period_key):
-            return await fake_instance.fetch_cvp_baseline(period_key=period_key)
-
-    # Patch the lazy-import target via sys.modules so the
-    # `from apps.api.modules.m7_simulation.services.cvp_simulation_service import CVPSimulationService`
-    # inside `projection_service.fetch_projection_baseline` returns our fake.
-    cvp_svc_module_path = (
-        "apps.api.modules.m7_simulation.services.cvp_simulation_service"
-    )
-    original_module = sys.modules.get(cvp_svc_module_path)
-    sys.modules[cvp_svc_module_path] = MagicMock()
-    sys.modules[cvp_svc_module_path].CVPSimulationService = FakeCVPService
-    try:
-        service = _make_service()
-        with pytest.raises(ProjectionBaselineNotFoundError):
-            await service.fetch_projection_baseline(
-                period_key="2025-06", projection_month="2025-07"
+        fake_instance = MagicMock()
+        fake_instance.fetch_cvp_baseline = AsyncMock(
+            side_effect=CVPBaselineNotFoundError(
+                tenant_id="00000000-0000-0000-0000-000000000000",
+                period_key="2025-06",
             )
-    finally:
-        if original_module is not None:
-            sys.modules[cvp_svc_module_path] = original_module
-        else:
-            sys.modules.pop(cvp_svc_module_path, None)
+        )
+
+        class FakeCVPService:
+            def __init__(self, session, **kwargs):
+                self.session = session
+                self.kwargs = kwargs
+
+            async def fetch_cvp_baseline(self, *, period_key):
+                return await fake_instance.fetch_cvp_baseline(period_key=period_key)
+
+        # Patch the lazy-import target via sys.modules so the
+        # `from apps.api.modules.m7_simulation.services.cvp_simulation_service import CVPSimulationService`
+        # inside `projection_service.fetch_projection_baseline` returns our fake.
+        cvp_svc_module_path = (
+            "apps.api.modules.m7_simulation.services.cvp_simulation_service"
+        )
+        original_module = sys.modules.get(cvp_svc_module_path)
+        sys.modules[cvp_svc_module_path] = MagicMock()
+        sys.modules[cvp_svc_module_path].CVPSimulationService = FakeCVPService
+        try:
+            service = _make_service()
+            with pytest.raises(ProjectionBaselineNotFoundError):
+                await service.fetch_projection_baseline(
+                    period_key="2025-06", projection_month="2025-07"
+                )
+        finally:
+            if original_module is not None:
+                sys.modules[cvp_svc_module_path] = original_module
+            else:
+                sys.modules.pop(cvp_svc_module_path, None)
+
+    asyncio.run(_inner())
 
 
 # ── compute — happy path ──────────────────────────────────────
-@pytest.mark.asyncio
-async def test_compute_returns_baseline_and_projection() -> None:
+def test_compute_returns_baseline_and_projection() -> None:
     """Happy path: returns (CVPBaseline, NextMonthProjection) tuple."""
-    service = _make_service()
-    baseline = _make_baseline()
-    inputs = _make_inputs()
+    async def _inner() -> None:
+        service = _make_service()
+        baseline = _make_baseline()
+        inputs = _make_inputs()
 
-    # Patch fetch_projection_baseline to return our baseline.
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(
-            service,
-            "fetch_projection_baseline",
-            AsyncMock(return_value=baseline),
-        )
-        result_baseline, result_projection = await service.compute(
-            period_key="2025-06",
-            projection_month="2025-07",
-            projection_inputs=inputs,
-        )
-    assert isinstance(result_baseline, CVPBaseline)
-    assert isinstance(result_projection, NextMonthProjection)
-    assert result_projection.after_tax_income > Decimal("0")
+        # Patch fetch_projection_baseline to return our baseline.
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                service,
+                "fetch_projection_baseline",
+                AsyncMock(return_value=baseline),
+            )
+            result_baseline, result_projection = await service.compute(
+                period_key="2025-06",
+                projection_month="2025-07",
+                projection_inputs=inputs,
+            )
+        assert isinstance(result_baseline, CVPBaseline)
+        assert isinstance(result_projection, NextMonthProjection)
+        assert result_projection.after_tax_income > Decimal("0")
+
+    asyncio.run(_inner())
 
 
 # ── compute — ProjectionInputsInvalidError wrap ───────────────
-@pytest.mark.asyncio
-async def test_compute_wraps_kernel_invalid_input_error() -> None:
+def test_compute_wraps_kernel_invalid_input_error() -> None:
     """ProjectionInvalidInputError (kernel) → ProjectionInputsInvalidError (service)."""
-    service = _make_service()
-    baseline = _make_baseline()
-    # Negative loan_amount triggers kernel validation.
-    bad_inputs = _make_inputs(loan_amount="-1")
+    async def _inner() -> None:
+        service = _make_service()
+        baseline = _make_baseline()
+        # Negative loan_amount triggers kernel validation.
+        bad_inputs = _make_inputs(loan_amount="-1")
 
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(
-            service,
-            "fetch_projection_baseline",
-            AsyncMock(return_value=baseline),
-        )
-        with pytest.raises(ProjectionInputsInvalidError) as exc_info:
-            await service.compute(
-                period_key="2025-06",
-                projection_month="2025-07",
-                projection_inputs=bad_inputs,
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                service,
+                "fetch_projection_baseline",
+                AsyncMock(return_value=baseline),
             )
-    assert exc_info.value.reason
+            with pytest.raises(ProjectionInputsInvalidError) as exc_info:
+                await service.compute(
+                    period_key="2025-06",
+                    projection_month="2025-07",
+                    projection_inputs=bad_inputs,
+                )
+        assert exc_info.value.reason
+
+    asyncio.run(_inner())
 
 
 # ── Serializers — Decimal-as-string parity ─────────────────────

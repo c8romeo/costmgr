@@ -113,42 +113,46 @@ class TestM10AIAdapter:
         adapter = factories["ai_cache"]()
         assert adapter.channel == "ai_cache"
 
-    @pytest.mark.asyncio
-    async def test_on_invalidate_accepts_ai_cache_payload(self) -> None:
+    def test_on_invalidate_accepts_ai_cache_payload(self) -> None:
         """Adapter accepts payloads with channel='ai_cache' (no-op import errors)."""
-        from apps.api.core.cache_invalidation_listener_adapters import (
-            build_default_adapter_factories,
-        )
+        async def _inner() -> None:
+            from apps.api.core.cache_invalidation_listener_adapters import (
+                build_default_adapter_factories,
+            )
 
-        adapter = build_default_adapter_factories()["ai_cache"]()
-        payload = {
-            "channel": "ai_cache",
-            "correction_group_id": str(uuid.uuid4()),
-            "period_key": "2026-08",
-            "tenant_id": str(uuid.uuid4()),
-            "trace_id": "test-trace",
-        }
-        # Adapter should NOT raise (DB connection may fail in test env,
-        # but that's caught + logged inside the adapter).
-        await adapter.on_invalidate(payload)
+            adapter = build_default_adapter_factories()["ai_cache"]()
+            payload = {
+                "channel": "ai_cache",
+                "correction_group_id": str(uuid.uuid4()),
+                "period_key": "2026-08",
+                "tenant_id": str(uuid.uuid4()),
+                "trace_id": "test-trace",
+            }
+            # Adapter should NOT raise (DB connection may fail in test env,
+            # but that's caught + logged inside the adapter).
+            await adapter.on_invalidate(payload)
 
-    @pytest.mark.asyncio
-    async def test_on_invalidate_rejects_non_ai_cache_payload(self) -> None:
+        asyncio.run(_inner())
+
+    def test_on_invalidate_rejects_non_ai_cache_payload(self) -> None:
         """Adapter rejects payloads with channel != 'ai_cache' (cross-channel contamination)."""
-        from apps.api.core.cache_invalidation_listener_adapters import (
-            build_default_adapter_factories,
-        )
+        async def _inner() -> None:
+            from apps.api.core.cache_invalidation_listener_adapters import (
+                build_default_adapter_factories,
+            )
 
-        adapter = build_default_adapter_factories()["ai_cache"]()
-        payload = {
-            "channel": "cost_engine_cache",  # WRONG channel for M10
-            "correction_group_id": str(uuid.uuid4()),
-            "period_key": "2026-08",
-            "tenant_id": str(uuid.uuid4()),
-            "trace_id": "test-trace",
-        }
-        # Should not raise — just skip (graceful degradation).
-        await adapter.on_invalidate(payload)
+            adapter = build_default_adapter_factories()["ai_cache"]()
+            payload = {
+                "channel": "cost_engine_cache",  # WRONG channel for M10
+                "correction_group_id": str(uuid.uuid4()),
+                "period_key": "2026-08",
+                "tenant_id": str(uuid.uuid4()),
+                "trace_id": "test-trace",
+            }
+            # Should not raise — just skip (graceful degradation).
+            await adapter.on_invalidate(payload)
+
+        asyncio.run(_inner())
 
 
 # ── Test M3 cost engine adapter ──────────────────────────────
@@ -163,37 +167,41 @@ class TestM3CostEngineAdapter:
         adapter = build_default_adapter_factories()["cost_engine_cache"]()
         assert adapter.channel == "cost_engine_cache"
 
-    @pytest.mark.asyncio
-    async def test_on_invalidate_accepts_cost_engine_cache_payload(self) -> None:
-        from apps.api.core.cache_invalidation_listener_adapters import (
-            build_default_adapter_factories,
-        )
+    def test_on_invalidate_accepts_cost_engine_cache_payload(self) -> None:
+        async def _inner() -> None:
+            from apps.api.core.cache_invalidation_listener_adapters import (
+                build_default_adapter_factories,
+            )
 
-        adapter = build_default_adapter_factories()["cost_engine_cache"]()
-        payload = {
-            "channel": "cost_engine_cache",
-            "correction_group_id": str(uuid.uuid4()),
-            "period_key": "2026-08",
-            "tenant_id": str(uuid.uuid4()),
-            "trace_id": "test-trace",
-        }
-        await adapter.on_invalidate(payload)
+            adapter = build_default_adapter_factories()["cost_engine_cache"]()
+            payload = {
+                "channel": "cost_engine_cache",
+                "correction_group_id": str(uuid.uuid4()),
+                "period_key": "2026-08",
+                "tenant_id": str(uuid.uuid4()),
+                "trace_id": "test-trace",
+            }
+            await adapter.on_invalidate(payload)
 
-    @pytest.mark.asyncio
-    async def test_on_invalidate_rejects_non_cost_engine_cache_payload(self) -> None:
-        from apps.api.core.cache_invalidation_listener_adapters import (
-            build_default_adapter_factories,
-        )
+        asyncio.run(_inner())
 
-        adapter = build_default_adapter_factories()["cost_engine_cache"]()
-        payload = {
-            "channel": "ai_cache",  # WRONG channel for M3
-            "correction_group_id": str(uuid.uuid4()),
-            "period_key": "2026-08",
-            "tenant_id": str(uuid.uuid4()),
-            "trace_id": "test-trace",
-        }
-        await adapter.on_invalidate(payload)
+    def test_on_invalidate_rejects_non_cost_engine_cache_payload(self) -> None:
+        async def _inner() -> None:
+            from apps.api.core.cache_invalidation_listener_adapters import (
+                build_default_adapter_factories,
+            )
+
+            adapter = build_default_adapter_factories()["cost_engine_cache"]()
+            payload = {
+                "channel": "ai_cache",  # WRONG channel for M3
+                "correction_group_id": str(uuid.uuid4()),
+                "period_key": "2026-08",
+                "tenant_id": str(uuid.uuid4()),
+                "trace_id": "test-trace",
+            }
+            await adapter.on_invalidate(payload)
+
+        asyncio.run(_inner())
 
 
 # ── Test M11 fiscal_period adapter ───────────────────────────
@@ -208,21 +216,23 @@ class TestM11FiscalPeriodAdapter:
         adapter = build_default_adapter_factories()["fiscal_period_cache"]()
         assert adapter.channel == "fiscal_period_cache"
 
-    @pytest.mark.asyncio
-    async def test_on_invalidate_accepts_fiscal_period_cache_payload(self) -> None:
-        from apps.api.core.cache_invalidation_listener_adapters import (
-            build_default_adapter_factories,
-        )
+    def test_on_invalidate_accepts_fiscal_period_cache_payload(self) -> None:
+        async def _inner() -> None:
+            from apps.api.core.cache_invalidation_listener_adapters import (
+                build_default_adapter_factories,
+            )
 
-        adapter = build_default_adapter_factories()["fiscal_period_cache"]()
-        payload = {
-            "channel": "fiscal_period_cache",
-            "correction_group_id": str(uuid.uuid4()),
-            "period_key": "2026-08",
-            "tenant_id": str(uuid.uuid4()),
-            "trace_id": "test-trace",
-        }
-        await adapter.on_invalidate(payload)
+            adapter = build_default_adapter_factories()["fiscal_period_cache"]()
+            payload = {
+                "channel": "fiscal_period_cache",
+                "correction_group_id": str(uuid.uuid4()),
+                "period_key": "2026-08",
+                "tenant_id": str(uuid.uuid4()),
+                "trace_id": "test-trace",
+            }
+            await adapter.on_invalidate(payload)
+
+        asyncio.run(_inner())
 
 
 # ── Test M11 closing_snapshot adapter ────────────────────────
@@ -237,21 +247,23 @@ class TestM11ClosingSnapshotAdapter:
         adapter = build_default_adapter_factories()["closing_snapshot_cache"]()
         assert adapter.channel == "closing_snapshot_cache"
 
-    @pytest.mark.asyncio
-    async def test_on_invalidate_accepts_closing_snapshot_cache_payload(self) -> None:
-        from apps.api.core.cache_invalidation_listener_adapters import (
-            build_default_adapter_factories,
-        )
+    def test_on_invalidate_accepts_closing_snapshot_cache_payload(self) -> None:
+        async def _inner() -> None:
+            from apps.api.core.cache_invalidation_listener_adapters import (
+                build_default_adapter_factories,
+            )
 
-        adapter = build_default_adapter_factories()["closing_snapshot_cache"]()
-        payload = {
-            "channel": "closing_snapshot_cache",
-            "correction_group_id": str(uuid.uuid4()),
-            "period_key": "2026-08",
-            "tenant_id": str(uuid.uuid4()),
-            "trace_id": "test-trace",
-        }
-        await adapter.on_invalidate(payload)
+            adapter = build_default_adapter_factories()["closing_snapshot_cache"]()
+            payload = {
+                "channel": "closing_snapshot_cache",
+                "correction_group_id": str(uuid.uuid4()),
+                "period_key": "2026-08",
+                "tenant_id": str(uuid.uuid4()),
+                "trace_id": "test-trace",
+            }
+            await adapter.on_invalidate(payload)
+
+        asyncio.run(_inner())
 
 
 # ── Test cross-channel contamination ─────────────────────────
@@ -268,21 +280,24 @@ class TestCrossChannelContamination:
             ("closing_snapshot_cache", ["ai_cache", "cost_engine_cache", "fiscal_period_cache"]),
         ],
     )
-    async def test_adapter_rejects_other_channels(
+    def test_adapter_rejects_other_channels(
         self, adapter_channel: str, other_channels: list[str]
     ) -> None:
-        from apps.api.core.cache_invalidation_listener_adapters import (
-            build_default_adapter_factories,
-        )
+        async def _inner() -> None:
+            from apps.api.core.cache_invalidation_listener_adapters import (
+                build_default_adapter_factories,
+            )
 
-        adapter = build_default_adapter_factories()[adapter_channel]()
-        for other_channel in other_channels:
-            payload = {
-                "channel": other_channel,
-                "correction_group_id": str(uuid.uuid4()),
-                "period_key": "2026-08",
-                "tenant_id": str(uuid.uuid4()),
-                "trace_id": "test-trace",
-            }
-            # Should NOT raise — just skip + log (graceful degradation).
-            await adapter.on_invalidate(payload)
+            adapter = build_default_adapter_factories()[adapter_channel]()
+            for other_channel in other_channels:
+                payload = {
+                    "channel": other_channel,
+                    "correction_group_id": str(uuid.uuid4()),
+                    "period_key": "2026-08",
+                    "tenant_id": str(uuid.uuid4()),
+                    "trace_id": "test-trace",
+                }
+                # Should NOT raise — just skip + log (graceful degradation).
+                await adapter.on_invalidate(payload)
+
+        asyncio.run(_inner())

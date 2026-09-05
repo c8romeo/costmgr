@@ -7,6 +7,7 @@ Tests apps/api/modules/auth/sso/idp_admin_routes.py 5 CRUD routes
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -188,43 +189,49 @@ class TestMissingDirectFields:
 
 
 class TestResolveTenantIdFromSlug:
-    @pytest.mark.asyncio
-    async def test_matching_tenant_returns_id(self) -> None:
-        from apps.api.modules.auth.sso.idp_admin_routes import (
-            _resolve_tenant_id_from_slug,
-        )
+    def test_matching_tenant_returns_id(self) -> None:
+        async def _inner() -> None:
+            from apps.api.modules.auth.sso.idp_admin_routes import (
+                _resolve_tenant_id_from_slug,
+            )
 
-        session = _make_session(execute_return=(VALID_TENANT_ID,))
-        ctx = _make_ctx()
-        tenant_id = await _resolve_tenant_id_from_slug(
-            session, VALID_TENANT_SLUG, ctx
-        )
-        assert str(tenant_id) == VALID_TENANT_ID
+            session = _make_session(execute_return=(VALID_TENANT_ID,))
+            ctx = _make_ctx()
+            tenant_id = await _resolve_tenant_id_from_slug(
+                session, VALID_TENANT_SLUG, ctx
+            )
+            assert str(tenant_id) == VALID_TENANT_ID
 
-    @pytest.mark.asyncio
-    async def test_unknown_slug_raises_forbidden(self) -> None:
-        from apps.api.modules.auth.sso.idp_admin_routes import (
-            _resolve_tenant_id_from_slug,
-        )
+        asyncio.run(_inner())
 
-        session = _make_session(execute_return=None)
-        ctx = _make_ctx()
-        with pytest.raises(TenantIdPForbiddenError) as exc:
-            await _resolve_tenant_id_from_slug(session, "unknown", ctx)
-        assert exc.value.details["reason"] == "tenant_not_found"
+    def test_unknown_slug_raises_forbidden(self) -> None:
+        async def _inner() -> None:
+            from apps.api.modules.auth.sso.idp_admin_routes import (
+                _resolve_tenant_id_from_slug,
+            )
 
-    @pytest.mark.asyncio
-    async def test_cross_tenant_raises_forbidden(self) -> None:
-        from apps.api.modules.auth.sso.idp_admin_routes import (
-            _resolve_tenant_id_from_slug,
-        )
+            session = _make_session(execute_return=None)
+            ctx = _make_ctx()
+            with pytest.raises(TenantIdPForbiddenError) as exc:
+                await _resolve_tenant_id_from_slug(session, "unknown", ctx)
+            assert exc.value.details["reason"] == "tenant_not_found"
 
-        other_tenant_id = "99999999-9999-9999-9999-999999999999"
-        session = _make_session(execute_return=(other_tenant_id,))
-        ctx = _make_ctx()
-        with pytest.raises(TenantIdPForbiddenError) as exc:
-            await _resolve_tenant_id_from_slug(session, "other", ctx)
-        assert exc.value.details["reason"] == "CROSS_TENANT_ACCESS"
+        asyncio.run(_inner())
+
+    def test_cross_tenant_raises_forbidden(self) -> None:
+        async def _inner() -> None:
+            from apps.api.modules.auth.sso.idp_admin_routes import (
+                _resolve_tenant_id_from_slug,
+            )
+
+            other_tenant_id = "99999999-9999-9999-9999-999999999999"
+            session = _make_session(execute_return=(other_tenant_id,))
+            ctx = _make_ctx()
+            with pytest.raises(TenantIdPForbiddenError) as exc:
+                await _resolve_tenant_id_from_slug(session, "other", ctx)
+            assert exc.value.details["reason"] == "CROSS_TENANT_ACCESS"
+
+        asyncio.run(_inner())
 
 
 # ── Test: module exports ─────────────────────────────────────────────

@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from pathlib import Path
@@ -42,56 +43,62 @@ def test_k6_scenario_enum_has_five_values() -> None:
     assert actual == expected
 
 
-@pytest.mark.asyncio
-async def test_run_k6_load_test_dry_run_returns_synthetic_summary() -> None:
+def test_run_k6_load_test_dry_run_returns_synthetic_summary() -> None:
     """F24.1-12 — dry_run=True returns synthetic summary without invoking k6."""
-    req = LoadTestRunRequest(
-        scenario=K6Scenario.AUTH_LOGIN,
-        tenant_id=uuid.uuid4(),
-        trace_id="trace-dry-run",
-        dry_run=True,
-    )
-    result = await run_k6_load_test(req)
-    assert result["dry_run"] is True
-    assert result["scenario"] == "auth-login"
-    assert result["metrics"]["count"] == 0
-    assert result["rps"] == 0.0
-    assert result["error_rate"] == 0.0
-    assert len(result["result_hash"]) == 64  # sha256 hex digest
+    async def _inner() -> None:
+        req = LoadTestRunRequest(
+            scenario=K6Scenario.AUTH_LOGIN,
+            tenant_id=uuid.uuid4(),
+            trace_id="trace-dry-run",
+            dry_run=True,
+        )
+        result = await run_k6_load_test(req)
+        assert result["dry_run"] is True
+        assert result["scenario"] == "auth-login"
+        assert result["metrics"]["count"] == 0
+        assert result["rps"] == 0.0
+        assert result["error_rate"] == 0.0
+        assert len(result["result_hash"]) == 64  # sha256 hex digest
+
+    asyncio.run(_inner())
 
 
-@pytest.mark.asyncio
-async def test_run_k6_load_test_invalid_scenario_raises_typed_error(tmp_path: Path) -> None:
+def test_run_k6_load_test_invalid_scenario_raises_typed_error(tmp_path: Path) -> None:
     """CR 12-5 D-14 — invalid scenario name → LoadTestRunnerInvalidScenarioError."""
-    # Create empty scripts dir so we hit the file-not-found path.
-    req = LoadTestRunRequest(
-        scenario=K6Scenario.AUTH_LOGIN,
-        tenant_id=uuid.uuid4(),
-        trace_id="trace-invalid",
-        dry_run=False,
-    )
-    with pytest.raises(LoadTestRunnerInvalidScenarioError) as exc_info:
-        await run_k6_load_test(req, scripts_dir=tmp_path)
-    assert exc_info.value.scenario == "auth-login"
-    assert "auth-login" in exc_info.value.known
+    async def _inner() -> None:
+        # Create empty scripts dir so we hit the file-not-found path.
+        req = LoadTestRunRequest(
+            scenario=K6Scenario.AUTH_LOGIN,
+            tenant_id=uuid.uuid4(),
+            trace_id="trace-invalid",
+            dry_run=False,
+        )
+        with pytest.raises(LoadTestRunnerInvalidScenarioError) as exc_info:
+            await run_k6_load_test(req, scripts_dir=tmp_path)
+        assert exc_info.value.scenario == "auth-login"
+        assert "auth-login" in exc_info.value.known
+
+    asyncio.run(_inner())
 
 
-@pytest.mark.asyncio
-async def test_run_k6_load_test_k6_unavailable_raises(tmp_path: Path) -> None:
+def test_run_k6_load_test_k6_unavailable_raises(tmp_path: Path) -> None:
     """When k6 binary is missing and dry_run=False → FileNotFoundError."""
-    # Create the script file so we get past the script validation.
-    (tmp_path / "auth-login.js").write_text("// stub\n")
-    req = LoadTestRunRequest(
-        scenario=K6Scenario.AUTH_LOGIN,
-        tenant_id=uuid.uuid4(),
-        trace_id="trace-no-k6",
-        dry_run=False,
-    )
-    # If k6 happens to be on PATH, skip — we don't want a flaky test.
-    if is_k6_available():
-        pytest.skip("k6 binary available on this environment")
-    with pytest.raises(FileNotFoundError):
-        await run_k6_load_test(req, scripts_dir=tmp_path)
+    async def _inner() -> None:
+        # Create the script file so we get past the script validation.
+        (tmp_path / "auth-login.js").write_text("// stub\n")
+        req = LoadTestRunRequest(
+            scenario=K6Scenario.AUTH_LOGIN,
+            tenant_id=uuid.uuid4(),
+            trace_id="trace-no-k6",
+            dry_run=False,
+        )
+        # If k6 happens to be on PATH, skip — we don't want a flaky test.
+        if is_k6_available():
+            pytest.skip("k6 binary available on this environment")
+        with pytest.raises(FileNotFoundError):
+            await run_k6_load_test(req, scripts_dir=tmp_path)
+
+    asyncio.run(_inner())
 
 
 def test_k6_scenario_vu_defaults() -> None:

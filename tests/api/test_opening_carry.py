@@ -23,6 +23,7 @@ remains green in environments without a live DB.
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 
 # Skip if DB not provisioned — the suite stays green in CI shim mode.
@@ -63,48 +64,72 @@ def test_module_placeholder() -> None:
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_manual_carry_chain_200_with_audit_first() -> None:
+def test_manual_carry_chain_200_with_audit_first() -> None:
     """POST /opening-carry/{period_id} → 200 + carry chain applied + audit row."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_manual_carry_chain_404_unknown_period() -> None:
+def test_manual_carry_chain_404_unknown_period() -> None:
     """POST /opening-carry/{unknown_period_id} → 404 MONTHLY_INPUT_NOT_FOUND."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_manual_carry_chain_422_prev_period_not_found() -> None:
+def test_manual_carry_chain_422_prev_period_not_found() -> None:
     """POST /opening-carry/{period_id} with no prev period → 422 PREV_NOT_FOUND."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_manual_carry_chain_422_chain_depth_limit() -> None:
+def test_manual_carry_chain_422_chain_depth_limit() -> None:
     """POST /opening-carry/{period_id} with chain depth > 12 → 422 LIMIT."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_manual_carry_chain_idempotent_noop() -> None:
+def test_manual_carry_chain_idempotent_noop() -> None:
     """Re-trigger with same state → 200 + no audit row + no UPDATE."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_first_insert_locks_opening() -> None:
+def test_save_row_first_insert_locks_opening() -> None:
     """POST /rows first INSERT → opening_inventory._locked=true + audit row."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_stream_opening_inventory_rejected() -> None:
+def test_save_row_stream_opening_inventory_rejected() -> None:
     """POST /rows with stream='opening_inventory' → 400 OPENING_MANUAL_EDIT."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_auto_carry_idempotent() -> None:
+def test_get_state_auto_carry_idempotent() -> None:
     """GET /state with empty opening + prev period → carry applied; second GET no-op."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())

@@ -25,6 +25,7 @@ Test breakdown (~12 cases):
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 from fastapi import APIRouter
 
@@ -186,43 +187,55 @@ def test_monthly_extract_error_discriminated_codes() -> None:
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_extract_monthly_happy_path() -> None:
+def test_extract_monthly_happy_path() -> None:
     """POST /ai/extract-monthly → 200 + 6 drafts + status='success'.
 
     Reference: when a real DB is provisioned, this test will issue a POST
     request with valid base64-encoded PDF and assert the response carries
     6 monthly input field drafts with status='success'.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_extract_monthly_low_confidence() -> None:
+def test_extract_monthly_low_confidence() -> None:
     """All 6 fields confidence < 0.70 → status='low_confidence_warning'.
 
     Reference: when a real DB is provisioned, this test will inject a
     deterministic adapter returning low confidence values and assert the
     response status='low_confidence_warning'.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_extract_monthly_pipa_missing() -> None:
+def test_extract_monthly_pipa_missing() -> None:
     """PIPA consent not granted → 403 AI_PIPA_CONSENT_MISSING envelope.
 
     Reference: when a real DB is provisioned, this test will mock the
     tenant_settings row without pipa_consent.granted and assert the
     envelope is 403 with code='AI_PIPA_CONSENT_MISSING'.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_extract_monthly_invalid_field_value() -> None:
+def test_extract_monthly_invalid_field_value() -> None:
     """Unparseable raw_value → 422 INVALID_MONTHLY_FIELD_VALUE envelope.
 
     Reference: when a real DB is provisioned, this test will inject a
     document whose values cannot be parsed and assert the envelope is 422.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())

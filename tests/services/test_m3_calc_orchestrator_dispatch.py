@@ -15,6 +15,7 @@ CR 11-3 + CR 12-5: ~15 cases, AD-19 dual-route + AD-21 CCRPort.compute 단일 �
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
@@ -116,116 +117,122 @@ def test_resolve_engine_type_matches_kernel_dispatch() -> None:
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_dispatch_abc_path_happy_path_returns_calc_outcome_abc(monkeypatch) -> None:
+def test_dispatch_abc_path_happy_path_returns_calc_outcome_abc(monkeypatch) -> None:
     """A29 forward-lock: service industry → CalcOutcomeABC envelope (not CalcOutcome)."""
-    orch = CalcOrchestrator(
-        session=MagicMock(),  # type: ignore[arg-type]
-        trace_id="trace-007",
-    )
-    # Mock _load_tenant_industry to set industry='service'
-    orch._industry = "service"
-    orch._industry_enum = None
+    async def _inner() -> None:
+        orch = CalcOrchestrator(
+            session=MagicMock(),  # type: ignore[arg-type]
+            trace_id="trace-007",
+        )
+        # Mock _load_tenant_industry to set industry='service'
+        orch._industry = "service"
+        orch._industry_enum = None
 
-    # Mock the M9 service layer — AD-21 CCRPort.compute 단일 소유, M9 owns no public endpoint.
-    mock_outcome = {
-        "breakdown": [{"product_id": "p1", "allocated_krw": "13200000"}],
-        "unused_capacity": {"unused_cost_krw": "0"},
-        "v7_verdict": {"is_balanced": True},
-        "ccr": {"department_id": "dept-001", "ccr_per_hour": "33000"},
-        "is_balanced": True,
-        "snapshot_id": "11111111-2222-3333-4444-555555555555",
-        "result_hash": "a" * 64,
-    }
-    mock_service = MagicMock()
-    mock_service.compute_and_persist = AsyncMock(return_value=mock_outcome)
+        # Mock the M9 service layer — AD-21 CCRPort.compute 단일 소유, M9 owns no public endpoint.
+        mock_outcome = {
+            "breakdown": [{"product_id": "p1", "allocated_krw": "13200000"}],
+            "unused_capacity": {"unused_cost_krw": "0"},
+            "v7_verdict": {"is_balanced": True},
+            "ccr": {"department_id": "dept-001", "ccr_per_hour": "33000"},
+            "is_balanced": True,
+            "snapshot_id": "11111111-2222-3333-4444-555555555555",
+            "result_hash": "a" * 64,
+        }
+        mock_service = MagicMock()
+        mock_service.compute_and_persist = AsyncMock(return_value=mock_outcome)
 
-    # LAZY import happens inside _dispatch_abc_path; patch sys.modules.
-    import sys
+        # LAZY import happens inside _dispatch_abc_path; patch sys.modules.
+        import sys
 
-    monkeypatch.setitem(
-        sys.modules,
-        "apps.api.modules.m9_abc.services.abc_allocation_service",
-        MagicMock(AbcAllocationService=MagicMock(return_value=mock_service)),
-    )
+        monkeypatch.setitem(
+            sys.modules,
+            "apps.api.modules.m9_abc.services.abc_allocation_service",
+            MagicMock(AbcAllocationService=MagicMock(return_value=mock_service)),
+        )
 
-    result = await orch._dispatch_abc_path(
-        tenant_id=uuid.uuid4(),
-        period_key="2026-08",
-    )
+        result = await orch._dispatch_abc_path(
+            tenant_id=uuid.uuid4(),
+            period_key="2026-08",
+        )
 
-    assert isinstance(result, CalcOutcomeABC)
-    assert not isinstance(result, CalcOutcome)
-    assert result.engine_type == "abc"
-    assert result.snapshot_id == "11111111-2222-3333-4444-555555555555"
-    assert result.result_hash == "a" * 64
-    assert result.verdict.verification_status == "passed"
+        assert isinstance(result, CalcOutcomeABC)
+        assert not isinstance(result, CalcOutcome)
+        assert result.engine_type == "abc"
+        assert result.snapshot_id == "11111111-2222-3333-4444-555555555555"
+        assert result.result_hash == "a" * 64
+        assert result.verdict.verification_status == "passed"
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_dispatch_abc_path_industry_mismatch_raises_calc_service_error(monkeypatch) -> None:
+def test_dispatch_abc_path_industry_mismatch_raises_calc_service_error(monkeypatch) -> None:
     """Service-layer safety: industry != 'service' → CalcServiceError (industry_mismatch).
 
     Defensive guard. The capability gate already discriminates, but if
     a non-service industry somehow reaches this path we MUST raise
     before calling M9 service layer.
     """
-    orch = CalcOrchestrator(
-        session=MagicMock(),  # type: ignore[arg-type]
-        trace_id="trace-008",
-    )
-    orch._industry = "manufacturing"  # NOT 'service'
-    orch._industry_enum = None
-
-    with pytest.raises(CalcServiceError) as exc_info:
-        await orch._dispatch_abc_path(
-            tenant_id=uuid.uuid4(),
-            period_key="2026-08",
+    async def _inner() -> None:
+        orch = CalcOrchestrator(
+            session=MagicMock(),  # type: ignore[arg-type]
+            trace_id="trace-008",
         )
+        orch._industry = "manufacturing"  # NOT 'service'
+        orch._industry_enum = None
 
-    assert exc_info.value.reason == "industry_mismatch"
-    assert exc_info.value.details == {"expected": "service", "actual": "manufacturing"}
+        with pytest.raises(CalcServiceError) as exc_info:
+            await orch._dispatch_abc_path(
+                tenant_id=uuid.uuid4(),
+                period_key="2026-08",
+            )
+
+        assert exc_info.value.reason == "industry_mismatch"
+        assert exc_info.value.details == {"expected": "service", "actual": "manufacturing"}
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_dispatch_abc_path_m9_service_failure_wraps_in_calc_service_error(monkeypatch) -> None:
+def test_dispatch_abc_path_m9_service_failure_wraps_in_calc_service_error(monkeypatch) -> None:
     """M9 dispatch failure → CalcServiceError wrap (m9_dispatch_failed:*)."""
-    orch = CalcOrchestrator(
-        session=MagicMock(),  # type: ignore[arg-type]
-        trace_id="trace-009",
-    )
-    orch._industry = "service"
-    orch._industry_enum = None
+    async def _inner() -> None:
+        orch = CalcOrchestrator(
+            session=MagicMock(),  # type: ignore[arg-type]
+            trace_id="trace-009",
+        )
+        orch._industry = "service"
+        orch._industry_enum = None
 
-    mock_service = MagicMock()
-    mock_service.compute_and_persist = AsyncMock(
-        side_effect=RuntimeError("M9 service layer exploded")
-    )
-
-    # session.rollback() is awaited on the error path; MagicMock returns sync.
-    mock_session = MagicMock()
-    mock_session.rollback = AsyncMock()
-    orch._session = mock_session
-
-    import sys
-
-    monkeypatch.setitem(
-        sys.modules,
-        "apps.api.modules.m9_abc.services.abc_allocation_service",
-        MagicMock(AbcAllocationService=MagicMock(return_value=mock_service)),
-    )
-
-    with pytest.raises(CalcServiceError) as exc_info:
-        await orch._dispatch_abc_path(
-            tenant_id=uuid.uuid4(),
-            period_key="2026-08",
+        mock_service = MagicMock()
+        mock_service.compute_and_persist = AsyncMock(
+            side_effect=RuntimeError("M9 service layer exploded")
         )
 
-    assert exc_info.value.reason.startswith("m9_dispatch_failed:")
-    assert "RuntimeError" in exc_info.value.reason
-    assert "M9 service layer exploded" in exc_info.value.details["error"]
+        # session.rollback() is awaited on the error path; MagicMock returns sync.
+        mock_session = MagicMock()
+        mock_session.rollback = AsyncMock()
+        orch._session = mock_session
+
+        import sys
+
+        monkeypatch.setitem(
+            sys.modules,
+            "apps.api.modules.m9_abc.services.abc_allocation_service",
+            MagicMock(AbcAllocationService=MagicMock(return_value=mock_service)),
+        )
+
+        with pytest.raises(CalcServiceError) as exc_info:
+            await orch._dispatch_abc_path(
+                tenant_id=uuid.uuid4(),
+                period_key="2026-08",
+            )
+
+        assert exc_info.value.reason.startswith("m9_dispatch_failed:")
+        assert "RuntimeError" in exc_info.value.reason
+        assert "M9 service layer exploded" in exc_info.value.details["error"]
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine

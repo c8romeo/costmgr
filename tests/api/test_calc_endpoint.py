@@ -19,6 +19,7 @@ remains green in environments without a live DB.
 
 from __future__ import annotations
 
+import asyncio
 import uuid as _uuid_mod
 
 import pytest
@@ -79,60 +80,90 @@ def test_module_placeholder_schema() -> None:
 
 # ── Reference tests (DB-backed; enabled when CI shim is wired) ──
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_happy_path_200_verified_envelope() -> None:
+def test_post_calc_happy_path_200_verified_envelope() -> None:
     """POST /api/v1/calc with valid period_key → 200 + state='verified'."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_invalid_period_key_422() -> None:
+def test_post_calc_invalid_period_key_422() -> None:
     """POST with period_key='2026-13' → 422 INVALID_PAYLOAD (Pydantic)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_extra_field_422() -> None:
+def test_post_calc_extra_field_422() -> None:
     """POST with extra field → 422 INVALID_PAYLOAD (extra='forbid')."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_service_tenant_403() -> None:
+def test_post_calc_service_tenant_403() -> None:
     """Service tenant → 403 INDUSTRY_NOT_SUPPORTED (capability gate)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_blocked_period_409() -> None:
+def test_post_calc_blocked_period_409() -> None:
     """is_blocked=true → 409 MONTHLY_INPUT_BLOCKED."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_no_bom_422_baseline_not_ready() -> None:
+def test_post_calc_no_bom_422_baseline_not_ready() -> None:
     """BOM rows missing → 422 BASELINE_NOT_READY."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_same_hash_200_idempotent() -> None:
+def test_post_calc_same_hash_200_idempotent() -> None:
     """Re-call with same result_hash → 200 (no-op) + audit idempotent_skip."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_divergent_hash_409() -> None:
+def test_post_calc_divergent_hash_409() -> None:
     """Re-call with different result_hash → 409 FISCAL_PERIOD_SNAPSHOT_DIVERGED."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_internal_error_500() -> None:
+def test_post_calc_internal_error_500() -> None:
     """Engine ValueError not mapped → 500 INTERNAL_ERROR (CalcServiceError)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_post_calc_no_period_422() -> None:
+def test_post_calc_no_period_422() -> None:
     """No monthly_input_periods row → 422 BASELINE_NOT_READY (no_period_registered)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())

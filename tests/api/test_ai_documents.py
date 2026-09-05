@@ -20,6 +20,7 @@ remains green in environments without a live DB.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import uuid
 from decimal import Decimal
@@ -49,36 +50,54 @@ def test_module_placeholder() -> None:
 
 # ── Reference tests (kept for when DB is available) ────────
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_upload_document_happy_path() -> None:
+def test_upload_document_happy_path() -> None:
     """POST /ai-documents → 201 + 5 drafts."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_upload_document_idempotency_key() -> None:
+def test_upload_document_idempotency_key() -> None:
     """Duplicate POST with same Idempotency-Key → returns prior document."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_upload_document_oversized_returns_413() -> None:
+def test_upload_document_oversized_returns_413() -> None:
     """Payload > 8 MiB → 413 DOCUMENT_TOO_LARGE."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_upload_document_bad_mime_returns_415() -> None:
+def test_upload_document_bad_mime_returns_415() -> None:
     """MIME not in ALLOWED_MIME → 415 DOCUMENT_MIME_NOT_ALLOWED."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_patch_draft_confirm_sets_state_reviewed() -> None:
+def test_patch_draft_confirm_sets_state_reviewed() -> None:
     """PATCH confirm → draft.state='reviewed' + confirmed_value set."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_promote_writes_company_subblock() -> None:
+def test_promote_writes_company_subblock() -> None:
     """POST promote → tenant_settings.onboarding.company_subblock populated."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())

@@ -13,6 +13,7 @@ Phase 6 (cj-style 87번째 epic 연속 정직 회복 wire) — T7a tests — F22
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 from unittest.mock import AsyncMock
 
@@ -74,91 +75,103 @@ class TestRequestAuditLogErasure:
         db.commit = AsyncMock()
         return db
 
-    @pytest.mark.asyncio
-    async def test_rejects_non_owner_role(self) -> None:
-        with pytest.raises(AuditLogPiiErasureForbiddenError) as exc:
-            await request_audit_log_erasure(
-                self._mock_db(),
+    def test_rejects_non_owner_role(self) -> None:
+        async def _inner() -> None:
+            with pytest.raises(AuditLogPiiErasureForbiddenError) as exc:
+                await request_audit_log_erasure(
+                    self._mock_db(),
+                    self._tenant(),
+                    actor_id=self._actor(),
+                    scope="actor",
+                    reason="GDPR",
+                    requester_role="member",
+                )
+            assert exc.value.code == "AUDIT_LOG_PII_ERASURE_FORBIDDEN"
+
+        asyncio.run(_inner())
+
+    def test_rejects_empty_reason(self) -> None:
+        async def _inner() -> None:
+            with pytest.raises(AuditLogPiiErasureForbiddenError) as exc:
+                await request_audit_log_erasure(
+                    self._mock_db(),
+                    self._tenant(),
+                    actor_id=self._actor(),
+                    scope="actor",
+                    reason="   ",
+                    requester_role="owner",
+                )
+            assert exc.value.code == "AUDIT_LOG_PII_ERASURE_REASON_REQUIRED"
+
+        asyncio.run(_inner())
+
+    def test_rejects_invalid_scope(self) -> None:
+        async def _inner() -> None:
+            with pytest.raises(AuditLogPiiErasureForbiddenError) as exc:
+                await request_audit_log_erasure(
+                    self._mock_db(),
+                    self._tenant(),
+                    actor_id=self._actor(),
+                    scope="bogus",  # type: ignore[arg-type]
+                    reason="GDPR",
+                    requester_role="owner",
+                )
+            assert exc.value.code == "AUDIT_LOG_PII_ERASURE_INVALID_SCOPE"
+
+        asyncio.run(_inner())
+
+    def test_owner_with_valid_scope_returns_dict(self) -> None:
+        async def _inner() -> None:
+            db = self._mock_db()
+            result = await request_audit_log_erasure(
+                db,
                 self._tenant(),
                 actor_id=self._actor(),
                 scope="actor",
-                reason="GDPR",
-                requester_role="member",
-            )
-        assert exc.value.code == "AUDIT_LOG_PII_ERASURE_FORBIDDEN"
-
-    @pytest.mark.asyncio
-    async def test_rejects_empty_reason(self) -> None:
-        with pytest.raises(AuditLogPiiErasureForbiddenError) as exc:
-            await request_audit_log_erasure(
-                self._mock_db(),
-                self._tenant(),
-                actor_id=self._actor(),
-                scope="actor",
-                reason="   ",
+                reason="GDPR Article 17",
                 requester_role="owner",
             )
-        assert exc.value.code == "AUDIT_LOG_PII_ERASURE_REASON_REQUIRED"
+            assert result["erased_count"] >= 0
+            assert result["archived_preserved"] is True
+            assert result["scope"] == "actor"
+            assert result["actor_id"] == str(self._actor())
+            assert result["tenant_id"] == str(self._tenant())
 
-    @pytest.mark.asyncio
-    async def test_rejects_invalid_scope(self) -> None:
-        with pytest.raises(AuditLogPiiErasureForbiddenError) as exc:
-            await request_audit_log_erasure(
-                self._mock_db(),
+        asyncio.run(_inner())
+
+    def test_generates_trace_id_when_not_provided(self) -> None:
+        async def _inner() -> None:
+            db = self._mock_db()
+            result = await request_audit_log_erasure(
+                db,
                 self._tenant(),
                 actor_id=self._actor(),
-                scope="bogus",  # type: ignore[arg-type]
+                scope="tenant",
                 reason="GDPR",
                 requester_role="owner",
             )
-        assert exc.value.code == "AUDIT_LOG_PII_ERASURE_INVALID_SCOPE"
+            # generated trace_id is a valid UUID4
+            uuid.UUID(result["trace_id"])
+            assert result["scope"] == "tenant"
 
-    @pytest.mark.asyncio
-    async def test_owner_with_valid_scope_returns_dict(self) -> None:
-        db = self._mock_db()
-        result = await request_audit_log_erasure(
-            db,
-            self._tenant(),
-            actor_id=self._actor(),
-            scope="actor",
-            reason="GDPR Article 17",
-            requester_role="owner",
-        )
-        assert result["erased_count"] >= 0
-        assert result["archived_preserved"] is True
-        assert result["scope"] == "actor"
-        assert result["actor_id"] == str(self._actor())
-        assert result["tenant_id"] == str(self._tenant())
+        asyncio.run(_inner())
 
-    @pytest.mark.asyncio
-    async def test_generates_trace_id_when_not_provided(self) -> None:
-        db = self._mock_db()
-        result = await request_audit_log_erasure(
-            db,
-            self._tenant(),
-            actor_id=self._actor(),
-            scope="tenant",
-            reason="GDPR",
-            requester_role="owner",
-        )
-        # generated trace_id is a valid UUID4
-        uuid.UUID(result["trace_id"])
-        assert result["scope"] == "tenant"
+    def test_uses_caller_supplied_trace_id(self) -> None:
+        async def _inner() -> None:
+            db = self._mock_db()
+            explicit = "12345678-1234-5678-1234-567812345678"
+            result = await request_audit_log_erasure(
+                db,
+                self._tenant(),
+                actor_id=self._actor(),
+                scope="all",
+                reason="GDPR",
+                requester_role="owner",
+                trace_id=explicit,
+            )
+            assert result["trace_id"] == explicit
 
-    @pytest.mark.asyncio
-    async def test_uses_caller_supplied_trace_id(self) -> None:
-        db = self._mock_db()
-        explicit = "12345678-1234-5678-1234-567812345678"
-        result = await request_audit_log_erasure(
-            db,
-            self._tenant(),
-            actor_id=self._actor(),
-            scope="all",
-            reason="GDPR",
-            requester_role="owner",
-            trace_id=explicit,
-        )
-        assert result["trace_id"] == explicit
+        asyncio.run(_inner())
 
 
 class TestTypedExceptions:

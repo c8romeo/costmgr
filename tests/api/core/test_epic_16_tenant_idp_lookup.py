@@ -12,6 +12,7 @@ Tests apps/api/modules/auth/sso/tenant_idp_lookup.py:
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -139,78 +140,86 @@ class TestTenantIdPRow:
 
 
 class TestLoadTenantIdpSuccess:
-    @pytest.mark.asyncio
-    async def test_returns_full_row(self) -> None:
-        cert = _cert_pem()
-        session = _make_session(
-            [
-                (VALID_TENANT_ID,),  # tenants.slug → id
-                (  # tenant_idps row
-                    "https://idp.acme.example.com",
-                    "https://idp.acme.example.com/sso",
-                    "https://idp.acme.example.com/slo",
-                    cert,
-                    "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-                    "https://sp.acme.example.com/acs",
-                    True,
-                ),
-            ]
-        )
+    def test_returns_full_row(self) -> None:
+        async def _inner() -> None:
+            cert = _cert_pem()
+            session = _make_session(
+                [
+                    (VALID_TENANT_ID,),  # tenants.slug → id
+                    (  # tenant_idps row
+                        "https://idp.acme.example.com",
+                        "https://idp.acme.example.com/sso",
+                        "https://idp.acme.example.com/slo",
+                        cert,
+                        "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+                        "https://sp.acme.example.com/acs",
+                        True,
+                    ),
+                ]
+            )
 
-        row = await load_tenant_idp(session, "acme")
-        assert row.tenant_id == VALID_TENANT_ID
-        assert row.tenant_slug == "acme"
-        assert row.idp_entity_id == "https://idp.acme.example.com"
-        assert row.idp_sso_url == "https://idp.acme.example.com/sso"
-        assert row.idp_slo_url == "https://idp.acme.example.com/slo"
-        assert row.idp_x509_cert_pem == cert
-        assert row.name_id_format == "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
-        assert row.acs_url == "https://sp.acme.example.com/acs"
-        assert row.enabled is True
+            row = await load_tenant_idp(session, "acme")
+            assert row.tenant_id == VALID_TENANT_ID
+            assert row.tenant_slug == "acme"
+            assert row.idp_entity_id == "https://idp.acme.example.com"
+            assert row.idp_sso_url == "https://idp.acme.example.com/sso"
+            assert row.idp_slo_url == "https://idp.acme.example.com/slo"
+            assert row.idp_x509_cert_pem == cert
+            assert row.name_id_format == "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+            assert row.acs_url == "https://sp.acme.example.com/acs"
+            assert row.enabled is True
+
+        asyncio.run(_inner())
 
 
 # ── Test: load_tenant_idp() — error paths ────────────────────────────
 
 
 class TestLoadTenantIdpErrors:
-    @pytest.mark.asyncio
-    async def test_unknown_slug_raises_missing(self) -> None:
-        session = _make_session([None])  # tenants SELECT returns nothing
-        with pytest.raises(TenantIdPConfigMissingError) as exc:
-            await load_tenant_idp(session, "unknown")
-        assert "tenant_not_found" in str(exc.value)
+    def test_unknown_slug_raises_missing(self) -> None:
+        async def _inner() -> None:
+            session = _make_session([None])  # tenants SELECT returns nothing
+            with pytest.raises(TenantIdPConfigMissingError) as exc:
+                await load_tenant_idp(session, "unknown")
+            assert "tenant_not_found" in str(exc.value)
 
-    @pytest.mark.asyncio
-    async def test_missing_idp_row_raises_missing(self) -> None:
-        session = _make_session(
-            [
-                (VALID_TENANT_ID,),  # tenant found
-                None,                # but no tenant_idps row
-            ]
-        )
-        with pytest.raises(TenantIdPConfigMissingError) as exc:
-            await load_tenant_idp(session, "acme")
-        assert "idp_not_configured" in str(exc.value)
+        asyncio.run(_inner())
 
-    @pytest.mark.asyncio
-    async def test_disabled_idp_raises_disabled(self) -> None:
-        session = _make_session(
-            [
-                (VALID_TENANT_ID,),
-                (
-                    "https://idp.acme.example.com",
-                    "https://idp.acme.example.com/sso",
-                    None,
-                    _cert_pem(),
-                    None,
-                    None,
-                    False,  # enabled=FALSE
-                ),
-            ]
-        )
-        with pytest.raises(TenantIdPDisabledError) as exc:
-            await load_tenant_idp(session, "acme")
-        assert "idp_disabled" in str(exc.value)
+    def test_missing_idp_row_raises_missing(self) -> None:
+        async def _inner() -> None:
+            session = _make_session(
+                [
+                    (VALID_TENANT_ID,),  # tenant found
+                    None,                # but no tenant_idps row
+                ]
+            )
+            with pytest.raises(TenantIdPConfigMissingError) as exc:
+                await load_tenant_idp(session, "acme")
+            assert "idp_not_configured" in str(exc.value)
+
+        asyncio.run(_inner())
+
+    def test_disabled_idp_raises_disabled(self) -> None:
+        async def _inner() -> None:
+            session = _make_session(
+                [
+                    (VALID_TENANT_ID,),
+                    (
+                        "https://idp.acme.example.com",
+                        "https://idp.acme.example.com/sso",
+                        None,
+                        _cert_pem(),
+                        None,
+                        None,
+                        False,  # enabled=FALSE
+                    ),
+                ]
+            )
+            with pytest.raises(TenantIdPDisabledError) as exc:
+                await load_tenant_idp(session, "acme")
+            assert "idp_disabled" in str(exc.value)
+
+        asyncio.run(_inner())
 
 
 # ── Test: module exports ─────────────────────────────────────────────

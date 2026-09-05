@@ -15,6 +15,7 @@ Phase 6 (cj-style 87번째 epic 연속 정직 회복 wire) — T7a tests — F22
 """
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -67,61 +68,69 @@ class TestRunAuditLogPurgeJobDryRun:
 
         return db
 
-    @pytest.mark.asyncio
-    async def test_dry_run_returns_dry_run_true(self) -> None:
-        result = await run_audit_log_purge_job(self._mock_db(), dry_run=True)
-        assert result["dry_run"] is True
+    def test_dry_run_returns_dry_run_true(self) -> None:
+        async def _inner() -> None:
+            result = await run_audit_log_purge_job(self._mock_db(), dry_run=True)
+            assert result["dry_run"] is True
 
-    @pytest.mark.asyncio
-    async def test_dry_run_classes_purged_dict_has_four_keys(self) -> None:
-        result = await run_audit_log_purge_job(self._mock_db(), dry_run=True)
-        assert set(result["classes_purged"].keys()) == {
-            "admin",
-            "auth",
-            "data",
-            "security",
-        }
+        asyncio.run(_inner())
+
+    def test_dry_run_classes_purged_dict_has_four_keys(self) -> None:
+        async def _inner() -> None:
+            result = await run_audit_log_purge_job(self._mock_db(), dry_run=True)
+            assert set(result["classes_purged"].keys()) == {
+                "admin",
+                "auth",
+                "data",
+                "security",
+            }
+
+        asyncio.run(_inner())
 
 
 class TestRunAuditLogPurgeJobNonDryRun:
     """non-dry_run mode — 2 NEW cases."""
 
-    @pytest.mark.asyncio
-    async def test_returns_trace_id_and_total(self) -> None:
-        db = MagicMock()
+    def test_returns_trace_id_and_total(self) -> None:
+        async def _inner() -> None:
+            db = MagicMock()
 
-        async_result = MagicMock()
-        async_result.rowcount = 0
-        async_result.scalar_one = MagicMock(return_value=0)
+            async_result = MagicMock()
+            async_result.rowcount = 0
+            async_result.scalar_one = MagicMock(return_value=0)
 
-        async def fake_exec(*_args, **_kwargs):
-            return async_result
+            async def fake_exec(*_args, **_kwargs):
+                return async_result
 
-        db.execute = fake_exec
-        db.commit = AsyncMock()
+            db.execute = fake_exec
+            db.commit = AsyncMock()
 
-        result = await run_audit_log_purge_job(db, dry_run=False)
-        assert "purged_count" in result
-        assert "trace_id" in result
-        assert "ran_at" in result
+            result = await run_audit_log_purge_job(db, dry_run=False)
+            assert "purged_count" in result
+            assert "trace_id" in result
+            assert "ran_at" in result
 
-    @pytest.mark.asyncio
-    async def test_idempotency_empty_purge(self) -> None:
-        db = MagicMock()
+        asyncio.run(_inner())
 
-        async_result = MagicMock()
-        async_result.rowcount = 0
-        async_result.scalar_one = MagicMock(return_value=0)
+    def test_idempotency_empty_purge(self) -> None:
+        async def _inner() -> None:
+            db = MagicMock()
 
-        async def fake_exec(*_args, **_kwargs):
-            return async_result
+            async_result = MagicMock()
+            async_result.rowcount = 0
+            async_result.scalar_one = MagicMock(return_value=0)
 
-        db.execute = fake_exec
-        db.commit = AsyncMock()
+            async def fake_exec(*_args, **_kwargs):
+                return async_result
 
-        result = await run_audit_log_purge_job(db, dry_run=False)
-        # All classes have 0 rows to delete → purged_count=0
-        assert result["purged_count"] == 0
+            db.execute = fake_exec
+            db.commit = AsyncMock()
+
+            result = await run_audit_log_purge_job(db, dry_run=False)
+            # All classes have 0 rows to delete → purged_count=0
+            assert result["purged_count"] == 0
+
+        asyncio.run(_inner())
 
 
 class TestScheduleAuditLogPurgeCron:

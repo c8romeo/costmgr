@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from decimal import Decimal
 from unittest.mock import AsyncMock
@@ -185,143 +186,149 @@ def test_simulate_cvp_pure_kernel_delegation():
 
 
 # ── baseline fetch — RLS same-tenant ─────────────────────────
-@pytest.mark.asyncio
-async def test_fetch_cvp_baseline_rls_same_tenant():
+def test_fetch_cvp_baseline_rls_same_tenant():
     """Different tenant_id → 0 rows (AD-3 RLS).
 
     Uses a mock session to verify the service uses `tenant_id` filter.
     """
-    from apps.api.modules.m7_simulation.services.cvp_simulation_service import (
-        CVPSimulationService,
-    )
+    async def _inner() -> None:
+        from apps.api.modules.m7_simulation.services.cvp_simulation_service import (
+            CVPSimulationService,
+        )
 
-    tenant_b = uuid.uuid4()
+        tenant_b = uuid.uuid4()
 
-    # Mock session — returns None for tenant_b (simulating RLS).
-    mock_session = AsyncMock()
-    mock_result = AsyncMock()
-    mock_result.scalar_one_or_none = lambda: None
-    mock_session.execute = AsyncMock(return_value=mock_result)
+        # Mock session — returns None for tenant_b (simulating RLS).
+        mock_session = AsyncMock()
+        mock_result = AsyncMock()
+        mock_result.scalar_one_or_none = lambda: None
+        mock_session.execute = AsyncMock(return_value=mock_result)
 
-    service = CVPSimulationService(
-        session=mock_session,
-        tenant_id=tenant_b,
-        actor_id=uuid.uuid4(),
-        trace_id="trace-test-rls",
-    )
+        service = CVPSimulationService(
+            session=mock_session,
+            tenant_id=tenant_b,
+            actor_id=uuid.uuid4(),
+            trace_id="trace-test-rls",
+        )
 
-    from apps.api.modules.m7_simulation.exceptions import CVPBaselineNotFoundError
+        from apps.api.modules.m7_simulation.exceptions import CVPBaselineNotFoundError
 
-    with pytest.raises(CVPBaselineNotFoundError):
-        await service.fetch_cvp_baseline(period_key="2026-07")
+        with pytest.raises(CVPBaselineNotFoundError):
+            await service.fetch_cvp_baseline(period_key="2026-07")
+
+    asyncio.run(_inner())
 
 
-@pytest.mark.asyncio
-async def test_fetch_cvp_baseline_success_derives_fields():
+def test_fetch_cvp_baseline_success_derives_fields():
     """Successful fetch → CVPBaseline with derived fields from snapshot + products."""
-    from apps.api.modules.m7_simulation.services.cvp_simulation_service import (
-        CVPSimulationService,
-    )
+    async def _inner() -> None:
+        from apps.api.modules.m7_simulation.services.cvp_simulation_service import (
+            CVPSimulationService,
+        )
 
-    # Mock snapshot row.
-    mock_snapshot = type("Snap", (), {})()
-    mock_snapshot.overhead_cost = 5_000_000
-    mock_snapshot.material_cost = 3_000_000
-    mock_snapshot.period_key = "2026-07"
-    mock_snapshot.state = "committed"
-    mock_snapshot.created_at = None
+        # Mock snapshot row.
+        mock_snapshot = type("Snap", (), {})()
+        mock_snapshot.overhead_cost = 5_000_000
+        mock_snapshot.material_cost = 3_000_000
+        mock_snapshot.period_key = "2026-07"
+        mock_snapshot.state = "committed"
+        mock_snapshot.created_at = None
 
-    # Mock session — snapshot SELECT returns the row, products SELECT returns row.
-    mock_result_snap = AsyncMock()
-    mock_result_snap.scalar_one_or_none = lambda: mock_snapshot
+        # Mock session — snapshot SELECT returns the row, products SELECT returns row.
+        mock_result_snap = AsyncMock()
+        mock_result_snap.scalar_one_or_none = lambda: mock_snapshot
 
-    mock_result_prod = AsyncMock()
-    mock_result_prod.first = lambda: type("Row", (), {"avg_unit_price": 10000})()
+        mock_result_prod = AsyncMock()
+        mock_result_prod.first = lambda: type("Row", (), {"avg_unit_price": 10000})()
 
-    mock_session = AsyncMock()
+        mock_session = AsyncMock()
 
-    async def _execute(stmt):
-        # Distinguish between snapshot and product queries by inspecting the WHERE.
-        from sqlalchemy import Select
+        async def _execute(stmt):
+            # Distinguish between snapshot and product queries by inspecting the WHERE.
+            from sqlalchemy import Select
 
-        if isinstance(stmt, Select):
-            sql = str(stmt)
-            if "fiscal_period_snapshots" in sql:
-                return mock_result_snap
-            if "products" in sql:
-                return mock_result_prod
-        return mock_result_prod
+            if isinstance(stmt, Select):
+                sql = str(stmt)
+                if "fiscal_period_snapshots" in sql:
+                    return mock_result_snap
+                if "products" in sql:
+                    return mock_result_prod
+            return mock_result_prod
 
-    mock_session.execute = AsyncMock(side_effect=_execute)
+        mock_session.execute = AsyncMock(side_effect=_execute)
 
-    service = CVPSimulationService(
-        session=mock_session,
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-test-success",
-    )
+        service = CVPSimulationService(
+            session=mock_session,
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-test-success",
+        )
 
-    baseline, source_period_key, fiscal_period_state = await service.fetch_cvp_baseline(
-        period_key="2026-07"
-    )
+        baseline, source_period_key, fiscal_period_state = await service.fetch_cvp_baseline(
+            period_key="2026-07"
+        )
 
-    # fixed_cost = overhead_cost + material_cost = 5,000,000 + 3,000,000 = 8,000,000
-    assert baseline.fixed_cost == Decimal("8000000")
-    assert baseline.unit_price == Decimal("10000")
-    assert baseline.unit_variable_cost == Decimal("6000.0")
-    assert baseline.operating_rate == DEFAULT_OPERATING_RATE
-    assert baseline.target_profit == DEFAULT_TARGET_PROFIT
-    assert source_period_key == "2026-07"
-    assert fiscal_period_state == "committed"
+        # fixed_cost = overhead_cost + material_cost = 5,000,000 + 3,000,000 = 8,000,000
+        assert baseline.fixed_cost == Decimal("8000000")
+        assert baseline.unit_price == Decimal("10000")
+        assert baseline.unit_variable_cost == Decimal("6000.0")
+        assert baseline.operating_rate == DEFAULT_OPERATING_RATE
+        assert baseline.target_profit == DEFAULT_TARGET_PROFIT
+        assert source_period_key == "2026-07"
+        assert fiscal_period_state == "committed"
+
+    asyncio.run(_inner())
 
 
-@pytest.mark.asyncio
-async def test_compute_end_to_end():
+def test_compute_end_to_end():
     """compute() orchestration: fetch baseline + simulate."""
-    from apps.api.modules.m7_simulation.services.cvp_simulation_service import (
-        CVPSimulationService,
-    )
+    async def _inner() -> None:
+        from apps.api.modules.m7_simulation.services.cvp_simulation_service import (
+            CVPSimulationService,
+        )
 
-    mock_snapshot = type("Snap", (), {})()
-    mock_snapshot.overhead_cost = 5_000_000
-    mock_snapshot.material_cost = 3_000_000
-    mock_snapshot.period_key = "2026-07"
-    mock_snapshot.state = "committed"
-    mock_snapshot.created_at = None
+        mock_snapshot = type("Snap", (), {})()
+        mock_snapshot.overhead_cost = 5_000_000
+        mock_snapshot.material_cost = 3_000_000
+        mock_snapshot.period_key = "2026-07"
+        mock_snapshot.state = "committed"
+        mock_snapshot.created_at = None
 
-    mock_result_snap = AsyncMock()
-    mock_result_snap.scalar_one_or_none = lambda: mock_snapshot
+        mock_result_snap = AsyncMock()
+        mock_result_snap.scalar_one_or_none = lambda: mock_snapshot
 
-    mock_result_prod = AsyncMock()
-    mock_result_prod.first = lambda: type("Row", (), {"avg_unit_price": 10000})()
+        mock_result_prod = AsyncMock()
+        mock_result_prod.first = lambda: type("Row", (), {"avg_unit_price": 10000})()
 
-    mock_session = AsyncMock()
+        mock_session = AsyncMock()
 
-    async def _execute(stmt):
-        from sqlalchemy import Select
+        async def _execute(stmt):
+            from sqlalchemy import Select
 
-        if isinstance(stmt, Select):
-            sql = str(stmt)
-            if "fiscal_period_snapshots" in sql:
-                return mock_result_snap
-            if "products" in sql:
-                return mock_result_prod
-        return mock_result_prod
+            if isinstance(stmt, Select):
+                sql = str(stmt)
+                if "fiscal_period_snapshots" in sql:
+                    return mock_result_snap
+                if "products" in sql:
+                    return mock_result_prod
+            return mock_result_prod
 
-    mock_session.execute = AsyncMock(side_effect=_execute)
+        mock_session.execute = AsyncMock(side_effect=_execute)
 
-    service = CVPSimulationService(
-        session=mock_session,
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-test-compute",
-    )
+        service = CVPSimulationService(
+            session=mock_session,
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-test-compute",
+        )
 
-    baseline, result, source_period_key = await service.compute(
-        period_key="2026-07",
-        delta=CVPDelta(unit_price_delta_pct=Decimal("0.1")),
-    )
+        baseline, result, source_period_key = await service.compute(
+            period_key="2026-07",
+            delta=CVPDelta(unit_price_delta_pct=Decimal("0.1")),
+        )
 
-    assert baseline.fixed_cost == Decimal("8000000")
-    assert result.simulated_bep.bep_quantity != result.baseline_bep.bep_quantity
-    assert source_period_key == "2026-07"
+        assert baseline.fixed_cost == Decimal("8000000")
+        assert result.simulated_bep.bep_quantity != result.baseline_bep.bep_quantity
+        assert source_period_key == "2026-07"
+
+    asyncio.run(_inner())

@@ -21,6 +21,7 @@ CR 11-3 + CR 12-5: ~30 cases, AD-21 CCRPort.compute single ownership check.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from decimal import Decimal
 
@@ -58,407 +59,439 @@ from packages.services.m9_abc.abc_allocation_serializers import (
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_ccr_normal_range() -> None:
+def test_service_compute_ccr_normal_range() -> None:
     """PRD section F9.2 verbatim - 13,200,000 / 400 = 33,000 KRW/hour."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-001",
-    )
-    result = await svc.compute_ccr_for_department(
-        department_id="dept-001",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    assert isinstance(result, CCRResult)
-    assert result.ccr_per_hour == Decimal("33000")
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-001",
+        )
+        result = await svc.compute_ccr_for_department(
+            department_id="dept-001",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        assert isinstance(result, CCRResult)
+        assert result.ccr_per_hour == Decimal("33000")
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_ccr_zero_capacity_raises() -> None:
+def test_service_compute_ccr_zero_capacity_raises() -> None:
     """practical_capacity_hours = 0 -> CcrComputeError."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-002",
-    )
-    with pytest.raises(CcrComputeError) as exc_info:
-        await svc.compute_ccr_for_department(
-            department_id="dept-zero",
-            department_cost=Decimal("13200000"),
-            practical_capacity_hours=Decimal("0"),
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-002",
         )
-    assert exc_info.value.reason == "invalid_capacity"
+        with pytest.raises(CcrComputeError) as exc_info:
+            await svc.compute_ccr_for_department(
+                department_id="dept-zero",
+                department_cost=Decimal("13200000"),
+                practical_capacity_hours=Decimal("0"),
+            )
+        assert exc_info.value.reason == "invalid_capacity"
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_ccr_negative_capacity_raises() -> None:
+def test_service_compute_ccr_negative_capacity_raises() -> None:
     """practical_capacity_hours < 0 -> CcrComputeError."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-003",
-    )
-    with pytest.raises(CcrComputeError):
-        await svc.compute_ccr_for_department(
-            department_id="dept-neg",
-            department_cost=Decimal("13200000"),
-            practical_capacity_hours=Decimal("-50"),
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-003",
         )
+        with pytest.raises(CcrComputeError):
+            await svc.compute_ccr_for_department(
+                department_id="dept-neg",
+                department_cost=Decimal("13200000"),
+                practical_capacity_hours=Decimal("-50"),
+            )
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_ccr_negative_cost_raises() -> None:
+def test_service_compute_ccr_negative_cost_raises() -> None:
     """department_cost < 0 -> CcrComputeError(reason="negative_cost")."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-004",
-    )
-    with pytest.raises(CcrComputeError) as exc_info:
-        await svc.compute_ccr_for_department(
-            department_id="dept-negcost",
-            department_cost=Decimal("-100"),
-            practical_capacity_hours=Decimal("400"),
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-004",
         )
-    assert exc_info.value.reason == "negative_cost"
+        with pytest.raises(CcrComputeError) as exc_info:
+            await svc.compute_ccr_for_department(
+                department_id="dept-negcost",
+                department_cost=Decimal("-100"),
+                practical_capacity_hours=Decimal("400"),
+            )
+        assert exc_info.value.reason == "negative_cost"
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_ccr_type_mismatch_raises() -> None:
+def test_service_compute_ccr_type_mismatch_raises() -> None:
     """department_cost not Decimal -> CcrComputeError."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-005",
-    )
-    with pytest.raises(CcrComputeError) as exc_info:
-        # type: ignore[arg-type]
-        await svc.compute_ccr_for_department(
-            department_id="dept-typo",
-            department_cost="13200000",
-            practical_capacity_hours=Decimal("400"),
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-005",
         )
-    assert exc_info.value.reason == "type_mismatch"
+        with pytest.raises(CcrComputeError) as exc_info:
+            # type: ignore[arg-type]
+            await svc.compute_ccr_for_department(
+                department_id="dept-typo",
+                department_cost="13200000",
+                practical_capacity_hours=Decimal("400"),
+            )
+        assert exc_info.value.reason == "type_mismatch"
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_ccr_empty_id_raises() -> None:
+def test_service_compute_ccr_empty_id_raises() -> None:
     """department_id empty -> CcrComputeError(reason="empty_department_id")."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-006",
-    )
-    with pytest.raises(CcrComputeError) as exc_info:
-        await svc.compute_ccr_for_department(
-            department_id="",
-            department_cost=Decimal("13200000"),
-            practical_capacity_hours=Decimal("400"),
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-006",
         )
-    assert exc_info.value.reason == "empty_department_id"
+        with pytest.raises(CcrComputeError) as exc_info:
+            await svc.compute_ccr_for_department(
+                department_id="",
+                department_cost=Decimal("13200000"),
+                practical_capacity_hours=Decimal("400"),
+            )
+        assert exc_info.value.reason == "empty_department_id"
+
+    asyncio.run(_inner())
 
 
 # AbcAllocationService.produce_unused_capacity
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_produce_unused_capacity_normal_range() -> None:
+def test_service_produce_unused_capacity_normal_range() -> None:
     """PRD section A9 verbatim - unused 200h * 33,000 = 6,600,000 KRW."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-007",
-    )
-    ccr = compute_ccr(
-        department_id="dept-001",
-        department_cost=Decimal("19800000"),
-        practical_capacity_hours=Decimal("600"),
-    )
-    row = await svc.produce_unused_capacity(ccr=ccr, used_hours=Decimal("400"))
-    assert row.unused_hours == Decimal("200")
-    assert row.unused_cost_krw == Decimal("6600000")
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-007",
+        )
+        ccr = compute_ccr(
+            department_id="dept-001",
+            department_cost=Decimal("19800000"),
+            practical_capacity_hours=Decimal("600"),
+        )
+        row = await svc.produce_unused_capacity(ccr=ccr, used_hours=Decimal("400"))
+        assert row.unused_hours == Decimal("200")
+        assert row.unused_cost_krw == Decimal("6600000")
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_produce_unused_capacity_negative_raises() -> None:
+def test_service_produce_unused_capacity_negative_raises() -> None:
     """used_hours < 0 -> CcrComputeError."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-008",
-    )
-    ccr = compute_ccr(
-        department_id="dept-001",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    with pytest.raises(CcrComputeError) as exc_info:
-        await svc.produce_unused_capacity(ccr=ccr, used_hours=Decimal("-10"))
-    assert exc_info.value.reason == "negative_used_hours"
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-008",
+        )
+        ccr = compute_ccr(
+            department_id="dept-001",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        with pytest.raises(CcrComputeError) as exc_info:
+            await svc.produce_unused_capacity(ccr=ccr, used_hours=Decimal("-10"))
+        assert exc_info.value.reason == "negative_used_hours"
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_produce_unused_capacity_zero_used() -> None:
+def test_service_produce_unused_capacity_zero_used() -> None:
     """used_hours = 0 -> unused = practical_capacity_hours, normal."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-009",
-    )
-    ccr = compute_ccr(
-        department_id="dept-zero",
-        department_cost=Decimal("19800000"),
-        practical_capacity_hours=Decimal("600"),
-    )
-    row = await svc.produce_unused_capacity(ccr=ccr, used_hours=Decimal("0"))
-    assert row.unused_hours == Decimal("600")
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-009",
+        )
+        ccr = compute_ccr(
+            department_id="dept-zero",
+            department_cost=Decimal("19800000"),
+            practical_capacity_hours=Decimal("600"),
+        )
+        row = await svc.produce_unused_capacity(ccr=ccr, used_hours=Decimal("0"))
+        assert row.unused_hours == Decimal("600")
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_produce_unused_capacity_exceeds_raises() -> None:
+def test_service_produce_unused_capacity_exceeds_raises() -> None:
     """used_hours > capacity -> CcrComputeError(reason="exceeds_capacity")."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-010",
-    )
-    ccr = compute_ccr(
-        department_id="dept-001",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    with pytest.raises(CcrComputeError) as exc_info:
-        await svc.produce_unused_capacity(ccr=ccr, used_hours=Decimal("500"))
-    assert exc_info.value.reason == "exceeds_capacity"
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-010",
+        )
+        ccr = compute_ccr(
+            department_id="dept-001",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        with pytest.raises(CcrComputeError) as exc_info:
+            await svc.produce_unused_capacity(ccr=ccr, used_hours=Decimal("500"))
+        assert exc_info.value.reason == "exceeds_capacity"
+
+    asyncio.run(_inner())
 
 
 # AbcAllocationService.compute_allocation (V7 balance)
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_allocation_balanced() -> None:
+def test_service_compute_allocation_balanced() -> None:
     """PRD section V7 - sum breakdown + unused = sum department_cost -> is_balanced=True."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-011",
-    )
-    ccr = compute_ccr(
-        department_id="dept-001",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    activity_mappings = [
-        ActivityMapping(
-            activity_id="act-001",
-            hours=Decimal("400"),
-            ccr_amount_krw=Decimal("13200000"),
-        ),
-    ]
-    cost_object_breakdown = [
-        CostObjectRow(
-            product_id="prod-A",
-            activity_id="act-001",
-            driver_id="drv-001",
-            allocated_krw=Decimal("13200000"),
-        ),
-    ]
-    result = await svc.compute_allocation(
-        ccr=ccr,
-        activity_mappings=activity_mappings,
-        cost_object_breakdown=cost_object_breakdown,
-        used_hours=Decimal("400"),
-    )
-    assert result.is_balanced is True
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-011",
+        )
+        ccr = compute_ccr(
+            department_id="dept-001",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        activity_mappings = [
+            ActivityMapping(
+                activity_id="act-001",
+                hours=Decimal("400"),
+                ccr_amount_krw=Decimal("13200000"),
+            ),
+        ]
+        cost_object_breakdown = [
+            CostObjectRow(
+                product_id="prod-A",
+                activity_id="act-001",
+                driver_id="drv-001",
+                allocated_krw=Decimal("13200000"),
+            ),
+        ]
+        result = await svc.compute_allocation(
+            ccr=ccr,
+            activity_mappings=activity_mappings,
+            cost_object_breakdown=cost_object_breakdown,
+            used_hours=Decimal("400"),
+        )
+        assert result.is_balanced is True
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_allocation_unbalanced_returns_false() -> None:
+def test_service_compute_allocation_unbalanced_returns_false() -> None:
     """V7 unbalanced -> is_balanced=False (no raise)."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-012",
-    )
-    ccr = compute_ccr(
-        department_id="dept-unbalanced",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    cost_object_breakdown = [
-        CostObjectRow(
-            product_id="prod-A",
-            activity_id="act-001",
-            driver_id="drv-001",
-            allocated_krw=Decimal("10000000"),
-        ),
-    ]
-    result = await svc.compute_allocation(
-        ccr=ccr,
-        activity_mappings=[],
-        cost_object_breakdown=cost_object_breakdown,
-        used_hours=Decimal("400"),
-    )
-    assert result.is_balanced is False
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-012",
+        )
+        ccr = compute_ccr(
+            department_id="dept-unbalanced",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        cost_object_breakdown = [
+            CostObjectRow(
+                product_id="prod-A",
+                activity_id="act-001",
+                driver_id="drv-001",
+                allocated_krw=Decimal("10000000"),
+            ),
+        ]
+        result = await svc.compute_allocation(
+            ccr=ccr,
+            activity_mappings=[],
+            cost_object_breakdown=cost_object_breakdown,
+            used_hours=Decimal("400"),
+        )
+        assert result.is_balanced is False
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_allocation_default_used_hours() -> None:
+def test_service_compute_allocation_default_used_hours() -> None:
     """used_hours = None -> default = practical_capacity_hours (used all)."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-013",
-    )
-    ccr = compute_ccr(
-        department_id="dept-default",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    cost_object_breakdown = [
-        CostObjectRow(
-            product_id="prod-A",
-            activity_id="act-001",
-            driver_id="drv-001",
-            allocated_krw=Decimal("13200000"),
-        ),
-    ]
-    result = await svc.compute_allocation(
-        ccr=ccr,
-        activity_mappings=[],
-        cost_object_breakdown=cost_object_breakdown,
-        used_hours=None,
-    )
-    assert result.unused_capacity.unused_hours == Decimal("0")
-    assert result.is_balanced is True
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-013",
+        )
+        ccr = compute_ccr(
+            department_id="dept-default",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        cost_object_breakdown = [
+            CostObjectRow(
+                product_id="prod-A",
+                activity_id="act-001",
+                driver_id="drv-001",
+                allocated_krw=Decimal("13200000"),
+            ),
+        ]
+        result = await svc.compute_allocation(
+            ccr=ccr,
+            activity_mappings=[],
+            cost_object_breakdown=cost_object_breakdown,
+            used_hours=None,
+        )
+        assert result.unused_capacity.unused_hours == Decimal("0")
+        assert result.is_balanced is True
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_compute_allocation_empty_breakdown() -> None:
+def test_service_compute_allocation_empty_breakdown() -> None:
     """Empty cost_object_breakdown -> total=0, is_balanced=False."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-014",
-    )
-    ccr = compute_ccr(
-        department_id="dept-empty",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    result = await svc.compute_allocation(
-        ccr=ccr,
-        activity_mappings=[],
-        cost_object_breakdown=[],
-        used_hours=Decimal("400"),
-    )
-    assert result.total_breakdown_sum == Decimal("0")
-    assert result.is_balanced is False
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-014",
+        )
+        ccr = compute_ccr(
+            department_id="dept-empty",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        result = await svc.compute_allocation(
+            ccr=ccr,
+            activity_mappings=[],
+            cost_object_breakdown=[],
+            used_hours=Decimal("400"),
+        )
+        assert result.total_breakdown_sum == Decimal("0")
+        assert result.is_balanced is False
+
+    asyncio.run(_inner())
 
 
 # V7 ABC integrity check_v7_balance
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_check_v7_balance_balanced() -> None:
+def test_service_check_v7_balance_balanced() -> None:
     """V7 check - balanced -> True."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-015",
-    )
-    ccr = compute_ccr(
-        department_id="dept-001",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    activity_mappings = [
-        ActivityMapping(
-            activity_id="act-001",
-            hours=Decimal("400"),
-            ccr_amount_krw=Decimal("13200000"),
-        ),
-    ]
-    cost_object_breakdown = [
-        CostObjectRow(
-            product_id="prod-A",
-            activity_id="act-001",
-            driver_id="drv-001",
-            allocated_krw=Decimal("13200000"),
-        ),
-    ]
-    result = await svc.compute_allocation(
-        ccr=ccr,
-        activity_mappings=activity_mappings,
-        cost_object_breakdown=cost_object_breakdown,
-        used_hours=Decimal("400"),
-    )
-    balanced = await svc.check_v7_balance(allocation=result)
-    assert balanced is True
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-015",
+        )
+        ccr = compute_ccr(
+            department_id="dept-001",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        activity_mappings = [
+            ActivityMapping(
+                activity_id="act-001",
+                hours=Decimal("400"),
+                ccr_amount_krw=Decimal("13200000"),
+            ),
+        ]
+        cost_object_breakdown = [
+            CostObjectRow(
+                product_id="prod-A",
+                activity_id="act-001",
+                driver_id="drv-001",
+                allocated_krw=Decimal("13200000"),
+            ),
+        ]
+        result = await svc.compute_allocation(
+            ccr=ccr,
+            activity_mappings=activity_mappings,
+            cost_object_breakdown=cost_object_breakdown,
+            used_hours=Decimal("400"),
+        )
+        balanced = await svc.check_v7_balance(allocation=result)
+        assert balanced is True
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_check_v7_balance_unbalanced() -> None:
+def test_service_check_v7_balance_unbalanced() -> None:
     """V7 check - unbalanced -> False."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-016",
-    )
-    ccr = compute_ccr(
-        department_id="dept-unbalanced",
-        department_cost=Decimal("13200000"),
-        practical_capacity_hours=Decimal("400"),
-    )
-    cost_object_breakdown = [
-        CostObjectRow(
-            product_id="prod-A",
-            activity_id="act-001",
-            driver_id="drv-001",
-            allocated_krw=Decimal("10000000"),
-        ),
-    ]
-    result = await svc.compute_allocation(
-        ccr=ccr,
-        activity_mappings=[],
-        cost_object_breakdown=cost_object_breakdown,
-        used_hours=Decimal("400"),
-    )
-    balanced = await svc.check_v7_balance(allocation=result)
-    assert balanced is False
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-016",
+        )
+        ccr = compute_ccr(
+            department_id="dept-unbalanced",
+            department_cost=Decimal("13200000"),
+            practical_capacity_hours=Decimal("400"),
+        )
+        cost_object_breakdown = [
+            CostObjectRow(
+                product_id="prod-A",
+                activity_id="act-001",
+                driver_id="drv-001",
+                allocated_krw=Decimal("10000000"),
+            ),
+        ]
+        result = await svc.compute_allocation(
+            ccr=ccr,
+            activity_mappings=[],
+            cost_object_breakdown=cost_object_breakdown,
+            used_hours=Decimal("400"),
+        )
+        balanced = await svc.check_v7_balance(allocation=result)
+        assert balanced is False
+
+    asyncio.run(_inner())
 
 
 # ORM-to-kernel boundary helpers (CR 12-1 L3)
@@ -781,14 +814,16 @@ def test_service_compute_hash_for_state() -> None:
 
 
 @pytest.mark.engine
-@pytest.mark.asyncio
-async def test_service_fetch_tenant_abc_allocation_empty() -> None:
+def test_service_fetch_tenant_abc_allocation_empty() -> None:
     """9-2 wire - fetch_tenant_abc_allocation returns empty dict placeholder."""
-    svc = AbcAllocationService(
-        session=None,  # type: ignore[arg-type]
-        tenant_id=uuid.uuid4(),
-        actor_id=uuid.uuid4(),
-        trace_id="trace-fetch",
-    )
-    result = await svc.fetch_tenant_abc_allocation()
-    assert result == {}
+    async def _inner() -> None:
+        svc = AbcAllocationService(
+            session=None,  # type: ignore[arg-type]
+            tenant_id=uuid.uuid4(),
+            actor_id=uuid.uuid4(),
+            trace_id="trace-fetch",
+        )
+        result = await svc.fetch_tenant_abc_allocation()
+        assert result == {}
+
+    asyncio.run(_inner())

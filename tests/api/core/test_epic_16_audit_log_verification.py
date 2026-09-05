@@ -11,6 +11,7 @@ required by Epic 16:
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 
 from apps.api.core.audit_action import ActionClass
@@ -52,35 +53,37 @@ class TestEmitAuditTypedAcceptance:
     """
 
     @pytest.mark.parametrize("action", EXPECTED_NEW_AUTH_ACTIONS)
-    @pytest.mark.asyncio
-    async def test_emit_accepts_new_action(self, action: str) -> None:
-        from unittest.mock import AsyncMock, MagicMock
+    def test_emit_accepts_new_action(self, action: str) -> None:
+        async def _inner() -> None:
+            from unittest.mock import AsyncMock, MagicMock
 
-        from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import emit_audit_typed
 
-        session = AsyncMock()
-        session.execute = AsyncMock()
-        session.commit = AsyncMock()
+            session = AsyncMock()
+            session.execute = AsyncMock()
+            session.commit = AsyncMock()
 
-        ctx = MagicMock()
-        ctx.user_id = "test-user-id"
+            ctx = MagicMock()
+            ctx.user_id = "test-user-id"
 
-        # Just call it — should not raise a validation error for the
-        # action names that are in the AUTH registry.
-        try:
-            await emit_audit_typed(
-                session,
-                action_class=ActionClass.AUTH,
-                action=action,
-                actor_id=ctx.user_id,
-                target_id=None,
-                tenant_id=None,
-                payload={"test": True},
-            )
-        except (KeyError, ValueError) as exc:
-            pytest.fail(
-                f"emit_audit_typed raised for known-good action {action}: {exc}"
-            )
+            # Just call it — should not raise a validation error for the
+            # action names that are in the AUTH registry.
+            try:
+                await emit_audit_typed(
+                    session,
+                    action_class=ActionClass.AUTH,
+                    action=action,
+                    actor_id=ctx.user_id,
+                    target_id=None,
+                    tenant_id=None,
+                    payload={"test": True},
+                )
+            except (KeyError, ValueError) as exc:
+                pytest.fail(
+                    f"emit_audit_typed raised for known-good action {action}: {exc}"
+                )
+
+        asyncio.run(_inner())
 
 
 class TestAuditActionRegistryShape:
@@ -145,46 +148,50 @@ class TestTypoActionRejected:
             "tenant_idp_created ",  # trailing whitespace
         ],
     )
-    @pytest.mark.asyncio
-    async def test_typo_action_raises_value_error(self, typo_action: str) -> None:
-        from unittest.mock import AsyncMock
+    def test_typo_action_raises_value_error(self, typo_action: str) -> None:
+        async def _inner() -> None:
+            from unittest.mock import AsyncMock
 
-        from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import emit_audit_typed
 
-        session = AsyncMock()
+            session = AsyncMock()
 
-        with pytest.raises(ValueError, match="audit_action: action"):
-            await emit_audit_typed(
-                session,
-                action_class=ActionClass.AUTH,
-                action=typo_action,
-                actor_id=None,
-                target_id=None,
-                tenant_id=None,
-                payload={},
-            )
+            with pytest.raises(ValueError, match="audit_action: action"):
+                await emit_audit_typed(
+                    session,
+                    action_class=ActionClass.AUTH,
+                    action=typo_action,
+                    actor_id=None,
+                    target_id=None,
+                    tenant_id=None,
+                    payload={},
+                )
 
-    @pytest.mark.asyncio
-    async def test_unknown_action_class_raises_value_error(self) -> None:
+        asyncio.run(_inner())
+
+    def test_unknown_action_class_raises_value_error(self) -> None:
         """Unknown ActionClass must raise ValueError before any DB call."""
-        from unittest.mock import AsyncMock
+        async def _inner() -> None:
+            from unittest.mock import AsyncMock
 
-        from apps.api.core.audit_action import emit_audit_typed
+            from apps.api.core.audit_action import emit_audit_typed
 
-        session = AsyncMock()
+            session = AsyncMock()
 
-        class BogusClass(str):
-            """Test-only fake ActionClass that str-matches but isn't registered."""
+            class BogusClass(str):
+                """Test-only fake ActionClass that str-matches but isn't registered."""
 
-        bogus_class = BogusClass("bogus_value")
+            bogus_class = BogusClass("bogus_value")
 
-        with pytest.raises(ValueError, match="audit_action: unknown ActionClass"):
-            await emit_audit_typed(
-                session,
-                action_class=bogus_class,  # type: ignore[arg-type]
-                action="any_action",
-                actor_id=None,
-                target_id=None,
-                tenant_id=None,
-                payload={},
-            )
+            with pytest.raises(ValueError, match="audit_action: unknown ActionClass"):
+                await emit_audit_typed(
+                    session,
+                    action_class=bogus_class,  # type: ignore[arg-type]
+                    action="any_action",
+                    actor_id=None,
+                    target_id=None,
+                    tenant_id=None,
+                    payload={},
+                )
+
+        asyncio.run(_inner())

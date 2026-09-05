@@ -28,6 +28,7 @@ remains green in environments without a live DB.
 
 from __future__ import annotations
 
+import asyncio
 import uuid as _uuid_mod
 from decimal import Decimal
 
@@ -87,96 +88,144 @@ def test_module_placeholder_pure_engine() -> None:
 
 # ── Reference tests (DB-backed; enabled when CI shim is wired) ──
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_compute_happy_path_writes_snapshot_and_calc_log() -> None:
+def test_compute_happy_path_writes_snapshot_and_calc_log() -> None:
     """AC #1, #3 — full compute pipeline → fiscal_period_snapshots + calc_log INSERT."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_idempotent_skip_same_hash_no_new_snapshot() -> None:
+def test_idempotent_skip_same_hash_no_new_snapshot() -> None:
     """AC #4 — same (tenant, period, baseline, engine, hash) → no-op + audit idempotent_skip."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_divergence_different_hash_raises_409() -> None:
+def test_divergence_different_hash_raises_409() -> None:
     """AC #4 — same row exists with DIFFERENT result_hash → 409 FISCAL_PERIOD_SNAPSHOT_DIVERGED."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_close_time_hook_is_blocked_raises_409() -> None:
+def test_close_time_hook_is_blocked_raises_409() -> None:
     """AC #2 — monthly_input_periods.is_blocked=true → 409 MONTHLY_INPUT_BLOCKED."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_baseline_no_bom_raises_422() -> None:
+def test_baseline_no_bom_raises_422() -> None:
     """AC #5 — bom_ratio_validated=False (no BOM rows) → 422 BASELINE_NOT_READY."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_baseline_no_allocation_raises_422() -> None:
+def test_baseline_no_allocation_raises_422() -> None:
     """AC #5 — allocation_basis_set=False (none of 3 flags) → 422 BASELINE_NOT_READY."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_engine_negative_input_raises_calc_service_error() -> None:
+def test_engine_negative_input_raises_calc_service_error() -> None:
     """Engine reject: direct_material_krw < 0 → ValueError → CalcServiceError (500)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_no_period_registered_raises_baseline_not_ready() -> None:
+def test_no_period_registered_raises_baseline_not_ready() -> None:
     """No monthly_input_periods row for (tenant, period_key) → 422 BASELINE_NOT_READY."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_audit_first_calc_log_before_snapshot() -> None:
+def test_audit_first_calc_log_before_snapshot() -> None:
     """CR 1.1 — calc_log INSERT happens before fiscal_period_snapshots INSERT."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_engine_purity_no_db_import_in_orchestrator_path() -> None:
+def test_engine_purity_no_db_import_in_orchestrator_path() -> None:
     """AD-11 — orchestrator does not import packages.cost_engine.adapters."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_repeatable_read_isolation_set_on_session() -> None:
+def test_repeatable_read_isolation_set_on_session() -> None:
     """AC #3 — handler opens REPEATABLE READ transaction before orchestrator.compute()."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_aggregate_purchases_material_cost() -> None:
+def test_aggregate_purchases_material_cost() -> None:
     """monthly_input_aggregator: SUM(amount_krw WHERE stream='purchases') → direct_material_krw."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_aggregate_labor_breakdown_5_fields_sum() -> None:
+def test_aggregate_labor_breakdown_5_fields_sum() -> None:
     """Story 3.2: SUM(monthly_salary_basis + overtime + welfare + bonus + retirement_reserve)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_aggregate_expenses_indirect_cost() -> None:
+def test_aggregate_expenses_indirect_cost() -> None:
     """monthly_input_aggregator: SUM(amount_krw WHERE stream='expenses') → indirect_krw."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_aggregate_fte_monthly_pay_type() -> None:
+def test_aggregate_fte_monthly_pay_type() -> None:
     """Story 3.2: pay_type='monthly' → FTE = workers as Decimal."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_aggregate_fte_daily_pay_type() -> None:
+def test_aggregate_fte_daily_pay_type() -> None:
     """Story 3.2: pay_type='daily' → FTE = compute_fte_for_daily(workers, days_per_worker)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())

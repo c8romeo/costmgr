@@ -13,6 +13,7 @@ Drift detector enforces:
 """
 from __future__ import annotations
 
+import asyncio
 import pytest
 
 from apps.api.core.alerting import (
@@ -63,15 +64,17 @@ def test_validate_payload_unknown_alert_name() -> None:
         validate_alert_webhook_payload(payload)
 
 
-@pytest.mark.asyncio
-async def test_pagerduty_forbidden_for_non_owner() -> None:
+def test_pagerduty_forbidden_for_non_owner() -> None:
     """trigger_pagerduty_manually raises 403 for non-owner role."""
-    import uuid
+    async def _inner() -> None:
+        import uuid
 
-    with pytest.raises(PagerDutyManualTriggerForbiddenError, match="owner"):
-        await trigger_pagerduty_manually(
-            alert_name="HighErrorRate",
-            tenant_id=uuid.uuid4(),
-            actor_role="admin",  # not owner
-            trace_id=None,
-        )
+        with pytest.raises(PagerDutyManualTriggerForbiddenError, match="owner"):
+            await trigger_pagerduty_manually(
+                alert_name="HighErrorRate",
+                tenant_id=uuid.uuid4(),
+                actor_role="admin",  # not owner
+                trace_id=None,
+            )
+
+    asyncio.run(_inner())

@@ -20,6 +20,7 @@ remains green in environments without a live DB.
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 
 
@@ -53,135 +54,188 @@ def test_module_placeholder() -> None:
 
 # ── Reference tests (kept for when DB is available) ────────
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_returns_capability_mask_service_no_production() -> None:
+def test_get_state_returns_capability_mask_service_no_production() -> None:
     """GET /state for service tenant → capability_mask excludes 'production'."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_returns_capability_mask_manufacturing_with_production() -> None:
+def test_get_state_returns_capability_mask_manufacturing_with_production() -> None:
     """GET /state for manufacturing tenant → capability_mask includes 'production'."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_audit_first_writes_audit_before_row() -> None:
+def test_save_row_audit_first_writes_audit_before_row() -> None:
     """POST /rows → audit_logs row written BEFORE monthly_input_rows row (AD-2)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_idempotent_noop_no_audit_no_version() -> None:
+def test_save_row_idempotent_noop_no_audit_no_version() -> None:
     """POST /rows with identical values twice → second POST returns 200 + no audit row."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_production_403_for_service_industry() -> None:
+def test_save_row_production_403_for_service_industry() -> None:
     """POST /rows with stream='production' for service tenant → 403 INDUSTRY_NOT_SUPPORTED."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_orders_requires_product_id() -> None:
+def test_save_row_orders_requires_product_id() -> None:
     """POST /rows with stream='orders' + product_id=None → 400 INVALID_PAYLOAD."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_set_mode_daily_then_month_total_rolls_up_sum() -> None:
+def test_set_mode_daily_then_month_total_rolls_up_sum() -> None:
     """POST /mode?mode=daily → period.mode='daily'; then ?mode=month_total flips back."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_state_completion_yellow_dot_per_stream() -> None:
+def test_state_completion_yellow_dot_per_stream() -> None:
     """After saving 1 orders row, completion.orders=true; others still false."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_state_fte_display_for_labor_stream() -> None:
+def test_state_fte_display_for_labor_stream() -> None:
     """After saving 1 labor row, fte_display is populated with computed values."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_delete_row_writes_audit() -> None:
+def test_delete_row_writes_audit() -> None:
     """DELETE /rows/{id} → 204 + audit_logs row with action='monthly_input_row_deleted'."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 # ── Story 3.2 — DB-backed reference tests (Task 6.5) ─────────────
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_labor_pay_type_daily_201_with_fte_display() -> None:
+def test_save_row_labor_pay_type_daily_201_with_fte_display() -> None:
     """AC #1 — POST /rows with stream='labor', pay_type='daily',
     workers=3, days_per_worker=8, daily_wage_krw=150_000
     → 200 + state.fte_display.pay_type='daily',
     fte_headcount=Decimal("1.09"), fte_wage_krw=3_600_000.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_labor_pay_type_monthly_with_breakdown_201() -> None:
+def test_save_row_labor_pay_type_monthly_with_breakdown_201() -> None:
     """AC #2 — POST /rows with stream='labor', pay_type='monthly',
     workers=2, monthly_salary_basis_krw=2_500_000 (with breakdown)
     → 200 + state.fte_display.breakdown populated,
     fte_wage_krw = workers × breakdown.total_krw.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_labor_pay_type_none_rejected_400() -> None:
+def test_save_row_labor_pay_type_none_rejected_400() -> None:
     """AC #4 — POST /rows with stream='labor', pay_type=None
     → 400 MONTHLY_INPUT_INVALID_LABOR_SHAPE (Story 3.1's implicit
     None gate is gone — pay_type is now required on labor).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_labor_pay_type_daily_with_basis_rejected_400() -> None:
+def test_save_row_labor_pay_type_daily_with_basis_rejected_400() -> None:
     """AC #4 — pay_type='daily' + monthly_salary_basis_krw set
     → 400 MONTHLY_INPUT_PAY_TYPE_MISMATCH (daily mode doesn't use
     the basis 환산 field).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_save_row_invalid_company_burden_rate_rejected_422() -> None:
+def test_save_row_invalid_company_burden_rate_rejected_422() -> None:
     """AC — POST /rows with company_burden_rate=1.5
     → 422 MONTHLY_INPUT_COMPANY_BURDEN_RATE (Pydantic Field catches
     at the schema; service-side re-check is defense in depth).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_patch_fte_headcount_rejected_400_read_only() -> None:
+def test_patch_fte_headcount_rejected_400_read_only() -> None:
     """AC #5 — PATCH /rows/{id} with fte_headcount in body
     → 400 MONTHLY_INPUT_FTE_READ_ONLY (Pydantic `extra='forbid'`
     rejects the field before service sees it).
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_get_state_includes_payroll_settings() -> None:
+def test_get_state_includes_payroll_settings() -> None:
     """Story 3.2 §Task 3.3 — GET /state response includes
     payroll_settings (effective merge of override + defaults).
     Frontend echoes it back to the user.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_tenant_settings_payroll_override_changes_fte() -> None:
+def test_tenant_settings_payroll_override_changes_fte() -> None:
     """AC #3 — updating tenant_settings.payroll.workdays_in_month=20
     changes the labor row's FTE 환산 from 1.09 (22 workdays) to
     1.20 (20 workdays). Tests the per-tenant override hot-path.
     """
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+    asyncio.run(_inner())

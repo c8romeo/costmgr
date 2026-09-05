@@ -15,6 +15,7 @@ remains green in environments without a live DB.
 
 from __future__ import annotations
 
+import asyncio
 import pytest
 
 # Skip if DB not provisioned — the suite stays green in CI shim mode.
@@ -43,30 +44,45 @@ def test_module_placeholder_e2e_flow() -> None:
 
 # ── Reference tests (DB-backed; enabled when CI shim is wired) ──
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_e2e_full_flow_with_6_stream_inputs() -> None:
+def test_e2e_full_flow_with_6_stream_inputs() -> None:
     """Manufacturing tenant + 6 streams (orders, sales, purchases, expenses, labor, production) → 200."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_e2e_idempotent_replay_same_payload() -> None:
+def test_e2e_idempotent_replay_same_payload() -> None:
     """Same payload twice → second POST returns 200 idempotent (no new snapshot)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_e2e_blocked_period_flow() -> None:
+def test_e2e_blocked_period_flow() -> None:
     """Tenant blocks [마감] → POST returns 409 MONTHLY_INPUT_BLOCKED."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_e2e_service_tenant_blocked() -> None:
+def test_e2e_service_tenant_blocked() -> None:
     """Service tenant → POST returns 403 INDUSTRY_NOT_SUPPORTED."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
 
 
 @pytest.mark.skip(reason="DB-backed; enabled when CI shim is wired")
-async def test_e2e_rls_tenant_isolation() -> None:
+def test_e2e_rls_tenant_isolation() -> None:
     """Two tenants calc same period → both get isolated snapshots (RLS)."""
-    raise NotImplementedError
+    async def _inner() -> None:
+        raise NotImplementedError
+
+    asyncio.run(_inner())
