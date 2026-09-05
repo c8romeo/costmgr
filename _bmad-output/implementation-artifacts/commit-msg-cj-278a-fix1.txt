@@ -1,0 +1,66 @@
+fix(sprint): cj-278a dev_seed.py ai_insight_cache CHECK constraint fix (cj-style 278a번째 epic 연속 정직 회복 atomic source-only sprint)
+
+cj-278a source sprint push a8f39b8 의 live CI run 33942875114 step 15
+dev_seed invocation FAILED at 1 second. Root cause 결정 wire:
+_seed_reversal_cache_invalidation 의 ai_insight_cache INSERT 가 alembic
+0030 의 CHECK constraint 위반:
+
+  insight_kind CHECK IN ('cost_reduction_candidate', 'anomaly_pattern',
+                        'forecast')
+  source_kind CHECK IN ('auto_analysis', 'ai_reference')
+
+cj-278a 의 INSERT 는:
+  insight_kind='period_summary'  ← CHECK 위반
+  source_kind='m11_close'        ← CHECK 위반
+
+→ PostgreSQL 즉시 raise NOT NULL / check violation → step 15 fail 결정
+wire.
+
+1 file = 1 MODIFIED atomic source-only sprint:
+  1 MODIFIED scripts/dev_seed.py:
+    _seed_reversal_cache_invalidation 의 ai_insight_cache INSERT:
+      insight_kind 'period_summary' → 'forecast'
+        (alembic 0030 CHECK vocabulary 의 가장 가까운 m11 close summary
+         surface 결정 wire — cj-280 retro 에서 'period_summary' enum
+         value 추가 필요성 결정 wire 보류)
+      source_kind 'm11_close' → 'auto_analysis'
+        (alembic 0030 CHECK vocabulary 의 m11 close 자동 분석
+         source 결정 wire)
+
+    + inline comment block 추가:
+      "NOTE: insight_kind and source_kind must respect the alembic
+       0030 CHECK constraints (insight_kind IN
+       ('cost_reduction_candidate', 'anomaly_pattern', 'forecast');
+       source_kind IN ('auto_analysis', 'ai_reference')). Story
+       29.5 verification reuses 'forecast' as the closest m11 close
+       summary surface — cj-280 retro scope if Story 29.5 AC requires
+       a dedicated 'period_summary' enum value."
+
+runtime 동작 변화: ai_insight_cache seed row 의 enum values 가
+alembic 0030 CHECK constraint vocabulary 내로 정렬 결정 wire. AD-25
+cache key (tenant_id, period_key, calculation_result_hash) 와 UNIQUE
+constraint 변동 없음. AD-14 stack pin 정책 (35 pins) 변경 없음 /
+[STACK BUMP] tag 불필요.
+
+scope boundary honestly reported: cj-278a source sprint 의 wire
+surface 의 bug fix 결정 wire. 1-line fix 이지만 CHECK constraint
+위반이 production path (dev_seed.py CI invocation) 에서 즉시
+detection 됨 = HONEST reporting 보존. 다른 3 NEW scenario functions
+(_seed_close_sequence_partial + _seed_reversal_input +
+_seed_reopen_audit) 는 fiscal_periods columns 만 사용하고 CHECK
+violation 없음 결정 wire 보존.
+
+verification scope (local):
+  T-fix1.1 dev_seed.py syntax OK ✅ (ast.parse pass)
+  T-fix1.2 _seed_reversal_cache_invalidation module load OK ✅
+    (insight_kind/source_kind enum values now within CHECK vocabulary)
+  T-fix1.3 cj-276 + cj-277 + cj-278a verbatim 보존 ✅ (no other
+    function 변경, only the 2 enum literals + comment block)
+
+CR 11-3 honest-DEFER 206번째 epic 연속 정직 회복 (cj-278a source
+sprint 의 205번째에 이어).
+
+next: push → re-run CI → step 15 dev_seed invocation HONEST-verify
+(with 6 scenarios now correctly seeded) → close sprint commit.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

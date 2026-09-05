@@ -404,6 +404,12 @@ async def _seed_reversal_cache_invalidation(conn: asyncpg.Connection) -> None:
     )
 
     # 2. ai_insight_cache row populated
+    # NOTE: insight_kind and source_kind must respect the alembic 0030
+    # CHECK constraints (insight_kind IN ('cost_reduction_candidate',
+    # 'anomaly_pattern', 'forecast'); source_kind IN ('auto_analysis',
+    # 'ai_reference')). Story 29.5 verification reuses 'forecast' as the
+    # closest m11 close summary surface — cj-280 retro scope if Story
+    # 29.5 AC requires a dedicated 'period_summary' enum value.
     await conn.execute(
         """
         INSERT INTO ai_insight_cache (
@@ -413,7 +419,7 @@ async def _seed_reversal_cache_invalidation(conn: asyncpg.Connection) -> None:
         )
         VALUES (
             $1, $2, '2026-07',
-            $3, 'period_summary', 'm11_close',
+            $3, 'forecast', 'auto_analysis',
             '2026-07 기간 마감 요약', 'cached AI insight for AD-25 invalidation verification'
         )
         ON CONFLICT (tenant_id, period_key, insight_kind, calculation_result_hash)
