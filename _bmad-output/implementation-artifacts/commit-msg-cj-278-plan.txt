@@ -1,0 +1,86 @@
+fix(sprint): cj-278 Epic 29+ P1 3-sprint 분할 plan 결정 wire (cj-style 278번째 epic 연속 정직 회복 entry plan docs-only sprint)
+
+cj-277 close sprint 결정 wire (run 33936056936 step 19 Playwright
+FAIL = cj-274 D-WEB-E2E-1~6 honestly DEFER carryover) 후속 = cj-278
+wire sprint scope decision.
+
+3-sprint 분할 결정 wire: 12 stories 단일 sprint 는 cj-style atomic
+single sprint discipline 위반 (cj-276 = 3 stories magnitude) →
+domain 분할 결정 wire.
+
+cj-278a: m11 4 stories (29.2 + 29.4 + 29.5 + 29.6) =
+  close-sequence-lock + reversal-sequence +
+  reversal-cache-invalidation + reopen-audit
+  dev_seed.py EXTENSION: 4 NEW scenario functions
+    (_seed_close_sequence_partial + _seed_reversal_input +
+     _seed_reversal_cache_invalidation + _seed_reopen_audit)
+    + dispatch EXTENSION
+  backend surface: m11 reversal/snapshot/cache
+    (apps/api/modules/m11_close/services/)
+  Playwright spec surface: 기존 m11-reversal.spec.ts +
+    m11-reversal-execute.spec.ts +
+    m11-cache-invalidation-channels.spec.ts +
+    m11-reopen-operator.spec.ts 보존
+
+cj-278b: 2FA 4 stories (29.7 + 29.8 + 29.9 + 29.10) =
+  mandatory + lockout + recovery + setup
+  dev_seed.py EXTENSION: 4 NEW scenario functions
+    (_seed_two_factor_challenge + _seed_two_factor_lockout +
+     _seed_two_factor_recovery + _seed_two_factor_setup)
+  backend surface: m12 2FA (packages/services/m12_account/)
+  Playwright spec surface: 기존 m12-2fa-*.spec.ts 보존
+
+cj-278c: deletion 4 stories (29.11 + 29.12 + 29.13 + 29.14) =
+  consent + audit + restore + retention
+  dev_seed.py EXTENSION: 4 NEW scenario functions
+    (_seed_deletion_consent + _seed_deletion_audit +
+     _seed_deletion_restore + _seed_deletion_hard_delete)
+  backend surface: m12-3 deletion
+    (apps/api/modules/m12_account/services/account_deletion_service.py)
+  Playwright spec surface: 기존 m12-3-deletion-*.spec.ts 보존
+
+rationale 5종:
+  ① atomic 단위 = 4 stories (cj-276 의 3 stories 와 동일 magnitude)
+  ② domain cohesion (m11 / 2FA / deletion = 별도 feature module)
+  ③ per-sprint rollback 가능 (1 sprint = 1 commit = 1 rollback unit)
+  ④ per-sprint HONEST verification granularity (granular 진단 vs
+    12 stories mega sprint 의 monolithic 진단)
+  ⑤ dev_seed.py dispatch EXTENSION domain 단위 자연스러움
+    (cj-277 의 `--scenario all` invocation 이미 wire surface
+    EXTENSION 완료)
+
+Spec naming 결정 wire: Epic 29+ spec_file_path (예:
+close-sequence-lock.spec.ts) 가 기존 spec file (예:
+m11-reversal.spec.ts) 과 이름 mismatch → Option 2 결정 wire
+(Epic 29+ spec_file_path = ADR reference only, 기존 spec file
+names 그대로 보존 — git history 보존 + RENAME 의 CR 11-3 위반
+회피 + 신규 병행의 중복 spec 회피). cj-280 retro 에서 Epic 29+
+story_id ↔ existing spec file mapping table 결정 wire 보류.
+
+D-WEB-E2E-2~4 ownership absorbed: cj-274 의 6 D-WEB-E2E-1~6
+honestly DEFER 중 D-WEB-E2E-2 (m11 reversal/snapshot/cache) →
+cj-278a, D-WEB-E2E-3 (m12 2FA) → cj-278b, D-WEB-E2E-4
+(m12-3 deletion) → cj-278c. D-WEB-E2E-5 (service-only tenant
+fixture) → cj-279 + D-WEB-E2E-6 (V8 fixture runner state) →
+cj-279 결정 wire 보존.
+
+2 files = 1 MODIFIED + 1 NEW atomic docs-only plan 결정 wire:
+  1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml
+    v4.37 → v4.38 EXTENSION — 3 NEW entries (cj-278a + cj-278b +
+    cj-278c backlog) + 36 lines comment block (cj-278 3-sprint 분할
+    plan + per-sprint dev_seed scenario function list + backend
+    surface + Playwright spec surface mapping + D-WEB-E2E ownership
+    mapping) + last_updated_note_v4_38 EXTENSION paragraph
+  1 NEW commit-msg-cj-278-plan.txt (this file)
+
+CR 11-3 honest-DEFER 204번째 epic 연속 정직 회복 (cj-277 close
+sprint 의 203번째에 이어).
+
+runtime 동작 변화 honestly reported: docs-only entry plan 결정 wire
+— runtime source code 변경 0건. AD-14 stack pin 정책 (35 pins)
+변경 없음 / [STACK BUMP] tag 불필요.
+
+next: cj-278a m11 4 stories wire sprint 진입 결정 wire 보류
+(user 결정 scope = 3-sprint 분할 승인 후 첫 sprint cj-278a 시작).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
