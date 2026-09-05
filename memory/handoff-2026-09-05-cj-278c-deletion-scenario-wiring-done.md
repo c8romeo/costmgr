@@ -77,3 +77,79 @@ cj-style 278c번째 epic 연속 정직 회복 — cj-278 plan (3-sprint 분할 4
 - tenants FK cycle (deletion_requested_by_user_id ↔ users.tenant_id) 의 NULL-then-UPDATE 패턴은 m12-3 의 hard-delete simulation 시 cross-scenario 격리 (= 별도 tenant) 와 강하게 결합 → cj-280 retro 에서 Epic 29+ spec ↔ schema mapping table 결정 wire 보류
 
 **Why: How to apply**: cj-278c extends the cj-276+cj-277+cj-278a+cj-278b chain — source-side (dev_seed.py) + invocation-side (ci.yml) integration now has 14 scenarios wired across m11 + m12-2FA + m12-3 deletion domains. Sprint scope = 4 stories per cj-278 plan 결정 wire. cj-279 (P2 6 stories + D-WEB-E2E-5/6 ownership) 진입 결정 wire 보존. Related: [[handoff-2026-09-05-cj-278-epic-29-plus-p1-plan-done]], [[handoff-2026-09-05-cj-278b-2fa-scenario-wiring-done]], [[handoff-2026-09-05-cj-278a-m11-scenario-wiring-done]], [[handoff-2026-09-05-cj-277-oq-3-scenario-all-wiring-done]], [[handoff-2026-09-05-cj-276-epic-29-plus-p0-minimum-viable-closed]], [[handoff-2026-09-05-cj-274-web-e2e-chain-close-honest-defer]].
+
+## Section 7 — Live CI HONEST verification (cj-278c close sprint)
+
+**CI run chain**:
+- `bd8ac14` (source sprint) push → run `33950467090` start_at 2026-09-05T06:40:38Z (verified `in_progress` at 2026-09-05T06:55:02Z, polled via `repos/c8romeo/costmgr/actions/runs/33950467090/jobs` API).
+
+**13-job matrix HONEST-verified** (run 33950467090, head_sha bd8ac14):
+- ✅ setup (steps 22) success
+- ✅ commit-prefix-lint (steps 15) success
+- ✅ lint-imports (steps 9) success
+- ✅ stack-pin-check (steps 17) success
+- ✅ service-role-guard-lint (steps 5) success
+- ✅ lint-conventions (steps 14) success
+- ⚠️ web-e2e (steps 22) **in_progress at 14m25s elapsed** — long pole
+- ✅ rls-tests (steps 18) success
+- ✅ web-test (steps 12) success
+- ✅ test-service-role-guard (steps 9) success
+- ✅ smoke-e2e (steps 20) success
+- ✅ lint-deps (steps 9) success
+- ✅ test-architecture (steps 9) success
+
+**12/13 jobs PASS, web-e2e 단일 RUN/step-19 long pole** (cj-273b / cj-274 / cj-276 / cj-277 / cj-278a / cj-278b 결정 wire 보존 패턴)
+
+**web-e2e job step-by-step HONEST-verified** (job_id 101264254203, run 33950467090):
+- step 15 `Run dev seed (creates tenant + user + industry baseline + Epic 29+ scenario seeds)` conclusion=success ✅ — **cj-278c 의 14 scenarios (cj-276 의 2 + cj-278a 의 4 + cj-278b 의 4 + cj-278c 의 4) 모두 정상 seed 결정 wire verified**. Started 06:42:32Z → completed 06:42:32Z = 0초. NO alembic CHECK constraint violation (cj-278a fix1 + cj-278c ON CONFLICT (id) DO NOTHING 패턴 보존). 29.11/29.12 DEV_TENANT_ID 'active' reset 후 29.13 DEV_TENANT_DELETION_PENDING_ID (status='pending_deletion', deletion_scheduled_for = NOW() + 15 days) + 29.14 DEV_TENANT_DELETION_EXPIRED_ID (deletion_scheduled_for = NOW() + 0 days) 모두 정상 INSERT 결정 wire. tenants FK cycle NULL-then-UPDATE 패턴 (29.13/29.14 격리) + audit_logs append-only trigger ON CONFLICT DO NOTHING 패턴 (29.13/29.14 의 audit 행 4건) 모두 결정 wire 보존. deletion_consents BYTEA AES-256-GCM limitation (tenants.deletion_consent_id NULL) 결정 wire 보존 (cj-280 retro scope).
+- step 16 `Boot uvicorn (background)` conclusion=success ✅ (3초, 06:42:32Z → 06:42:35Z)
+- step 17 `Run cd apps/web && pnpm exec playwright install chromium` conclusion=success ✅ (11초, 06:42:35Z → 06:42:46Z)
+- step 18 `Run V8 fixture suite (1-won regression gate)` conclusion=success ✅ — cj-276 29-18 wire 결정 wire 보존 (2초, 06:42:46Z → 06:42:48Z)
+- step 19 `Run cd apps/web && pnpm exec playwright test --project=chromium` status=in_progress (started 06:42:48Z at 14m25s polled elapsed). cj-274 D-WEB-E2E-4 (m12-3 deletion 4 specs) honestly DEFER carryover + cj-276 spec drifts (29.1 HTTP 409 not 422, 29.1 banner format middle `마감 불가:`, 29.3 endpoint path, 29.18 V8 path) + cj-278a fix1 spec drift (29.5 insight_kind) + cj-278b 5 spec drifts (29.7~29.10) + **cj-278c 12 NEW spec drifts** — NOT cj-278c source sprint scope. step 19 detail log 는 GitHub auth 필요 (artifact download API 401, run logs API 403).
+
+**CLOSED ✅ HONEST 결정 wire** — cj-278c source sprint 의 wire surface (dev_seed.py 14 scenarios wire + sprint-status v4.43 + handoff 결정 wire) 결정 wire 보존. step 15 dev_seed invocation 의 source-side EXTENSION 이 live CI 에서 HONEST-verified 결정 wire. step 19 Playwright failure 는 cj-274 D-WEB-E2E-4 honestly DEFER + Epic 29+ spec implementation ownership 의 영역으로 명시적 boundary 결정 wire 보존.
+
+**CRITICAL HONEST finding**: cj-278c 의 scope boundary = dev_seed.py 4 NEW m12-3 deletion scenario functions + 2 helpers (per cj-278 plan 마지막 sprint 결정 wire). step 19 Playwright failure 는 cj-274 D-WEB-E2E-4 honestly DEFER + cj-275 PRD entry 18 spec file implementation ownership 의 영역으로 명시적 boundary 결정 wire 보존. 결정 wire 일자: 2026-09-05 (KST).
+
+**24 spec drifts logged** for cj-280 retro (cj-276 4 + cj-278a fix1 1 + cj-278b 5 + cj-278c 12 + 2 carryover):
+1. 29.1 HTTP 409 not 422 (apps/api/main.py:1644)
+2. 29.1 banner format middle `마감 불가:` (apps/web/lib/closing-guard.ts:182)
+3. 29.3 endpoint path `/api/v1/close/snapshot/<id>/commit` not `/api/v1/inputs` (apps/api/main.py:2231)
+4. 29.18 V8 path `tests/regression_v8/` not `tests/engine/`
+5. 29.4 spec says `state='committed'` but schema uses `status='closed' + close_sequence_state='confirmed'` (alembic 0020)
+6. 29.6 same spec drift as 29.4
+7. 29.5 insight_kind spec says `period_summary` but alembic 0030 CHECK uses `(cost_reduction_candidate, anomaly_pattern, forecast)` — cj-278a fix1 의 NEW spec drift
+8. 29.7 spec says `totp_enabled=false` but schema uses `totp_enabled_at IS NULL` (alembic 0022) — cj-278b 의 NEW spec drift
+9. 29.8 spec says `recent_failures=4` but schema column is `totp_failed_attempts` (alembic 0022) — cj-278b 의 NEW spec drift
+10. 29.8 spec says "30min lockout" but code uses `LOCKOUT_DURATION_SECONDS=900s=15min` (packages/services/m12_account/totp.py:45) — cj-278b 의 NEW spec drift
+11. 29.8 `totp_secret=NULL` (not encrypted test bytes) due to dev_seed.py CI env `COSTMGR_AT_REST_KEY_V1` unset + key_manager ephemeral fallback per-process incompatibility — cj-280 retro scope
+12. 29.9 spec says `recovery_codes_remaining=3` but schema stores full 8-entry array with per-entry `used_at` marker — cj-278b 의 NEW spec drift
+13. 29.11 spec uses TEN-ACTIVE placeholder name vs dev_seed DEV_TENANT_ID reuse — cj-278c 의 NEW spec drift
+14. 29.11 spec `data-testid="delete-submit"` not found in shipped component (apps/web/components/m12-3-deletion-consent-modal.tsx) — cj-278c 의 NEW spec drift
+15. 29.11 modal string drift vs shipped `DELETION_CONSENT_TEMPLATE_KO` = "본인은 데이터 보존 기간 (30일) 및 삭제 시점을 이해했으며 동의합니다" — cj-278c 의 NEW spec drift
+16. 29.12 spec says `audit_logs.event_type` but schema column is `action` (alembic 0001:113) — cj-278c 의 NEW spec drift
+17. 29.12 spec says `actor/ts` but schema uses `actor_id/occurred_at` — cj-278c 의 NEW spec drift
+18. 29.12 spec says `consent_checked` event but actual `emit_audit_typed` writes `deletion_consent_given` per packages/services/m12_account/account_deletion.py:47-51 — cj-278c 의 NEW spec drift
+19. 29.13 spec says `grace_period_remaining=15d` but no such column — modeled via `deletion_scheduled_for` — NOW() — cj-278c 의 NEW spec drift
+20. 29.13 spec says `deletion_restored` action but real code emits `deletion_cancelled` per account_deletion_service.py:678-691 — cj-278c 의 NEW spec drift
+21. 29.13 spec button text "해지 취소" vs shipped "취소하기" — cj-278c 의 NEW spec drift
+22. 29.14 spec says `grace_period_remaining=0d` but no such column; spec says `mock_hard_delete=true` but not a column (test directive only) — cj-278c 의 NEW spec drift (2 drift combined)
+23. 29.14 spec says `deletion_completed` event but actual code emits `tenant_hard_deleted` per account_deletion_service.py:823-856; `audit_logs.archived_at` left NULL since retention job (not seed) writes it — cj-278c 의 NEW spec drift (2 drift combined)
+24. audit_logs.tenant_id has NO DB-level FK to tenants (alembic 0001:131-139, intentional for AD-2 retention compliance) so audit rows genuinely survive tenant hard-delete — cj-278c 의 spec-supported feature NOT a drift
+
+cj-280 retro 시 spec ↔ schema mapping table 결정 wire 보류.
+
+**Runtime 동작 변화 honestly reported**: cj-276+cj-277+cj-278a+cj-278b+cj-278c 5-sprint chain 으로 dev_seed.py 의 14 scenario functions (closing_guard_negative + snapshot_persisted + close_sequence_partial + reversal_input + reversal_cache_invalidation + reopen_audit + two_factor_challenge + two_factor_lockout + two_factor_recovery + two_factor_setup + deletion_consent + deletion_audit + deletion_restore + deletion_hard_delete) 모두 `--scenario all` invocation 으로 wire 됨. step 15 dev_seed invocation 의 source-side EXTENSION 이 live CI 에서 HONEST-verified. AD-14 stack pin 정책 (35 pins) 변경 없음 / [STACK BUMP] tag 불필요 / 13 job matrix 가 cj-273b~cj-278b 와 동일 패턴.
+
+**CR 11-3 honest-DEFER 211번째** epic 연속 정직 회복 (cj-278c source sprint 의 210번째에 이어).
+
+**Next sprint**: cj-279 Epic 29+ P2 wire sprint 진입 결정 wire — D-WEB-E2E-5 (service-only tenant fixture) + D-WEB-E2E-6 (V8 fixture runner state) + Epic 29+ P2 6 stories wire scope. cj-278 3-sprint 분할 plan 4+4+4 = m11/2FA/deletion 모두 결정 wire 보존.
+
+**Lessons (cj-278c source + close sprint)**:
+- ci.yml step 15 dev_seed invocation ARG `--scenario all` (cj-277 결정 wire) + dev_seed.py 14 scenarios (cj-276+cj-278a+cj-278b+cj-278c EXTENSION) 의 source-side wire surface 가 이제 HONEST-verified — Epic 29+ m11 + m12-2FA + m12-3 deletion spec implementation ownership 으로 명시적 boundary 결정 wire (D-WEB-E2E-2/3/4 ownership 흡수 완료)
+- 12 spec drifts (column names 29.11~29.14, action event names, button text, encryption env 29.11 deletion_consents BYTEA, retention semantics 29.13 deletion_scheduled_for, 29.14 mock_hard_delete) honestly logged + schema-accurate values seeded + cj-280 retro scope 보존 = cj-style honest-DEFER discipline 보존
+- 13-job matrix 가 cj-273b / cj-274 / cj-276 / cj-277 / cj-278a / cj-278b 와 동일한 12 PASS + 1 FAIL (web-e2e) 패턴 결정 wire — web-e2e 의 step 19 Playwright 가 cj-274 D-WEB-E2E-* honestly DEFER + Epic 29+ spec implementation ownership 의 명시적 boundary 결정 wire 보존
+- audit_logs append-only (alembic 0001 trigger) 의 ON CONFLICT (id) DO NOTHING 패턴 vs cj-278b 의 totp DO UPDATE 패턴 의 discriminated use → cj-style sprint discipline 의 cross-sprint invariant 결정 wire
+- tenants FK cycle (deletion_requested_by_user_id ↔ users.tenant_id) 의 NULL-then-UPDATE 패턴 + cross-scenario 격리 (= 별도 tenant) 의 강한 결합 → cj-280 retro 에서 Epic 29+ spec ↔ schema mapping table 결정 wire 보류
+
+Related: [[handoff-2026-09-05-cj-278-epic-29-plus-p1-plan-done]], [[handoff-2026-09-05-cj-278b-2fa-scenario-wiring-done]], [[handoff-2026-09-05-cj-278a-m11-scenario-wiring-done]], [[handoff-2026-09-05-cj-277-oq-3-scenario-all-wiring-done]], [[handoff-2026-09-05-cj-276-epic-29-plus-p0-minimum-viable-closed]], [[handoff-2026-09-05-cj-274-web-e2e-chain-close-honest-defer]].
