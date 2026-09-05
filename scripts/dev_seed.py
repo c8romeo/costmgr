@@ -67,6 +67,16 @@ DEV_SNAPSHOT_COMMITTED_ID = uuid.uuid5(
 )
 DEV_RESULT_HASH_COMMITTED = "a" * 64  # 64-char hex SHA-256 placeholder
 
+# cj-278a (Epic 29+ Stories 29.2/29.4/29.5/29.6): deterministic
+# fiscal_periods + ledger event identities for the 4 m11 scenario seeds
+# (D-WEB-E2E-2 ownership absorbed from cj-274 honest-DEFER).
+DEV_FISCAL_PERIOD_2026_08_ID = uuid.uuid5(_NS, "costmgr-dev-fiscal-period-2026-08")
+DEV_FISCAL_PERIOD_2026_07_ID = uuid.uuid5(_NS, "costmgr-dev-fiscal-period-2026-07")
+DEV_LEDGER_EVT_001_ID = uuid.uuid5(_NS, "costmgr-dev-ledger-evt-001-2026-07")
+DEV_AI_INSIGHT_CACHE_2026_07_ID = uuid.uuid5(
+    _NS, "costmgr-dev-ai-insight-cache-2026-07"
+)
+
 DEV_EMAIL = "dev@costmgr.local"
 DEV_ROLE = "owner"
 DEV_TENANT_NAME = "개발용 테넌트"
@@ -268,6 +278,191 @@ async def _seed_snapshot_persisted(conn: asyncpg.Connection) -> None:
     )
 
 
+# ── Epic 29+ m11 scenario seeds (cj-278a wire) ──────────────
+async def _seed_close_sequence_partial(conn: asyncpg.Connection) -> None:
+    """Story 29.2 — seed fiscal_periods row with partial close sequence
+    state (제조·ABC·공동 단계 미완료) so that the [마감] button is
+    disabled and the banner displays the partial-close ko-KR string.
+
+    AD-6 close lock + AD-20 state machine:
+      - close_sequence_state='manufacturing' means divisions completed
+        but manufacturing / abc / common NOT yet completed.
+      - divisions_completed_at=NOW(), others NULL → defense-in-depth
+        CHECK constraint allows this state.
+      - status='closing' is the visible pre-close state.
+      - close_sequence_blocked_reason_ko carries the partial-close
+        banner string verbatim per Story 29.2 ko-KR spec.
+
+    Idempotent: ON CONFLICT (tenant_id, period_key) DO UPDATE.
+    """
+    await conn.execute(
+        """
+        INSERT INTO fiscal_periods (
+            id, tenant_id, period_key, status,
+            divisions_completed_at, manufacturing_completed_at,
+            abc_completed_at, common_completed_at,
+            close_sequence_state, close_sequence_blocked_reason_ko
+        )
+        VALUES (
+            $1, $2, '2026-08', 'closing',
+            NOW(), NULL, NULL, NULL,
+            'manufacturing',
+            '제조·ABC·공동 단계 미완료 — 전체 완료 후 마감 가능'
+        )
+        ON CONFLICT (tenant_id, period_key) DO UPDATE SET
+            status = EXCLUDED.status,
+            close_sequence_state = EXCLUDED.close_sequence_state,
+            close_sequence_blocked_reason_ko = EXCLUDED.close_sequence_blocked_reason_ko,
+            divisions_completed_at = EXCLUDED.divisions_completed_at,
+            manufacturing_completed_at = EXCLUDED.manufacturing_completed_at,
+            abc_completed_at = EXCLUDED.abc_completed_at,
+            common_completed_at = EXCLUDED.common_completed_at
+        """,
+        DEV_FISCAL_PERIOD_2026_08_ID,
+        DEV_TENANT_ID,
+    )
+
+
+async def _seed_reversal_input(conn: asyncpg.Connection) -> None:
+    """Story 29.4 — seed fiscal_periods row with status='closed' +
+    close_sequence_state='confirmed' (i.e. fully committed period)
+    so that operator can trigger [역분개] action against an existing
+    committed period.
+
+    Spec drift: Story 29.4 AC references `state='committed'` but the
+    actual fiscal_periods schema (alembic 0020) uses
+    `status='closed' AND close_sequence_state='confirmed'` to represent
+    a committed period. cj-280 retro scope.
+
+    Idempotent: ON CONFLICT (tenant_id, period_key) DO UPDATE.
+    """
+    await conn.execute(
+        """
+        INSERT INTO fiscal_periods (
+            id, tenant_id, period_key, status,
+            divisions_completed_at, manufacturing_completed_at,
+            abc_completed_at, common_completed_at,
+            close_sequence_state, closed_at, closed_by_actor_id
+        )
+        VALUES (
+            $1, $2, '2026-07', 'closed',
+            NOW(), NOW(), NOW(), NOW(),
+            'confirmed', NOW(), $3
+        )
+        ON CONFLICT (tenant_id, period_key) DO UPDATE SET
+            status = EXCLUDED.status,
+            close_sequence_state = EXCLUDED.close_sequence_state,
+            divisions_completed_at = EXCLUDED.divisions_completed_at,
+            manufacturing_completed_at = EXCLUDED.manufacturing_completed_at,
+            abc_completed_at = EXCLUDED.abc_completed_at,
+            common_completed_at = EXCLUDED.common_completed_at,
+            closed_at = EXCLUDED.closed_at,
+            closed_by_actor_id = EXCLUDED.closed_by_actor_id
+        """,
+        DEV_FISCAL_PERIOD_2026_07_ID,
+        DEV_TENANT_ID,
+        DEV_USER_ID,
+    )
+
+
+async def _seed_reversal_cache_invalidation(conn: asyncpg.Connection) -> None:
+    """Story 29.5 — seed fiscal_periods row (status='closed') +
+    populated ai_insight_cache row so that operator can trigger a
+    reversal INSERT (per Story 29.4 sequence) and then verify AD-25
+    cache invalidation + cold compute (≤ 30s, NFR11).
+
+    ai_insight_cache row is pre-populated with the verbatim
+    `calculation_result_hash` from cj-276 (`a` * 64) so the cache
+    key is deterministic across re-runs. Per AD-25 the cache key is
+    `(tenant_id, period_key, calculation_result_hash)`.
+
+    Idempotent: ON CONFLICT (tenant_id, period_key, insight_kind,
+    calculation_result_hash) DO UPDATE.
+    """
+    # 1. fiscal_periods row (same as reversal_input — idempotent)
+    await conn.execute(
+        """
+        INSERT INTO fiscal_periods (
+            id, tenant_id, period_key, status,
+            divisions_completed_at, manufacturing_completed_at,
+            abc_completed_at, common_completed_at,
+            close_sequence_state, closed_at, closed_by_actor_id
+        )
+        VALUES (
+            $1, $2, '2026-07', 'closed',
+            NOW(), NOW(), NOW(), NOW(),
+            'confirmed', NOW(), $3
+        )
+        ON CONFLICT (tenant_id, period_key) DO UPDATE SET
+            status = EXCLUDED.status,
+            close_sequence_state = EXCLUDED.close_sequence_state,
+            closed_at = EXCLUDED.closed_at
+        """,
+        DEV_FISCAL_PERIOD_2026_07_ID,
+        DEV_TENANT_ID,
+        DEV_USER_ID,
+    )
+
+    # 2. ai_insight_cache row populated
+    await conn.execute(
+        """
+        INSERT INTO ai_insight_cache (
+            insight_cache_id, tenant_id, period_key,
+            calculation_result_hash, insight_kind, source_kind,
+            question, answer
+        )
+        VALUES (
+            $1, $2, '2026-07',
+            $3, 'period_summary', 'm11_close',
+            '2026-07 기간 마감 요약', 'cached AI insight for AD-25 invalidation verification'
+        )
+        ON CONFLICT (tenant_id, period_key, insight_kind, calculation_result_hash)
+        DO UPDATE SET
+            answer = EXCLUDED.answer,
+            generated_at = NOW()
+        """,
+        DEV_AI_INSIGHT_CACHE_2026_07_ID,
+        DEV_TENANT_ID,
+        DEV_RESULT_HASH_COMMITTED,
+    )
+
+
+async def _seed_reopen_audit(conn: asyncpg.Connection) -> None:
+    """Story 29.6 — seed fiscal_periods row with status='closed' +
+    close_sequence_state='confirmed' (i.e. committed period) so that
+    operator can trigger reopen action with reason + audit_logs row
+    verification.
+
+    Spec drift: Story 29.6 AC references `state='committed'` but the
+    actual schema uses `status='closed' AND close_sequence_state='confirmed'`
+    — same drift as Story 29.4. cj-280 retro scope.
+
+    Idempotent: ON CONFLICT (tenant_id, period_key) DO UPDATE.
+    """
+    await conn.execute(
+        """
+        INSERT INTO fiscal_periods (
+            id, tenant_id, period_key, status,
+            divisions_completed_at, manufacturing_completed_at,
+            abc_completed_at, common_completed_at,
+            close_sequence_state, closed_at, closed_by_actor_id
+        )
+        VALUES (
+            $1, $2, '2026-07', 'closed',
+            NOW(), NOW(), NOW(), NOW(),
+            'confirmed', NOW(), $3
+        )
+        ON CONFLICT (tenant_id, period_key) DO UPDATE SET
+            status = EXCLUDED.status,
+            close_sequence_state = EXCLUDED.close_sequence_state,
+            closed_at = EXCLUDED.closed_at
+        """,
+        DEV_FISCAL_PERIOD_2026_07_ID,
+        DEV_TENANT_ID,
+        DEV_USER_ID,
+    )
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Seed the local dev tenant.")
     parser.add_argument(
@@ -285,13 +480,25 @@ async def main() -> int:
     )
     parser.add_argument(
         "--scenario",
-        choices=["closing_guard_negative", "snapshot_persisted", "all"],
+        choices=[
+            "closing_guard_negative",
+            "snapshot_persisted",
+            "close_sequence_partial",
+            "reversal_input",
+            "reversal_cache_invalidation",
+            "reopen_audit",
+            "all",
+        ],
         default=None,
         help=(
-            "cj-276 (Epic 29+ wire): optional business-data scenario seed "
-            "beyond identity. Use 'closing_guard_negative' for Story 29.1 "
-            "NEGATIVE_CLOSING_PERIOD fixture, 'snapshot_persisted' for "
-            "Story 29.3 fiscal_period_snapshots row, or 'all' for both."
+            "cj-276 (Epic 29+ wire) + cj-278a (Epic 29+ P1 m11): optional "
+            "business-data scenario seed beyond identity. Use "
+            "'closing_guard_negative' for Story 29.1 NEGATIVE_CLOSING_PERIOD "
+            "fixture, 'snapshot_persisted' for Story 29.3 fiscal_period_snapshots "
+            "row, 'close_sequence_partial' for Story 29.2 partial close fixture, "
+            "'reversal_input' for Story 29.4 reversal seed, "
+            "'reversal_cache_invalidation' for Story 29.5 AD-25 cache seed, "
+            "'reopen_audit' for Story 29.6 reopen audit seed, or 'all' for all 6."
         ),
     )
     args = parser.parse_args()
@@ -318,6 +525,15 @@ async def main() -> int:
                 await _seed_closing_guard_negative(conn)
             if args.scenario in ("snapshot_persisted", "all"):
                 await _seed_snapshot_persisted(conn)
+            # cj-278a (Epic 29+ P1 m11): 4 NEW m11 scenario seeds.
+            if args.scenario in ("close_sequence_partial", "all"):
+                await _seed_close_sequence_partial(conn)
+            if args.scenario in ("reversal_input", "all"):
+                await _seed_reversal_input(conn)
+            if args.scenario in ("reversal_cache_invalidation", "all"):
+                await _seed_reversal_cache_invalidation(conn)
+            if args.scenario in ("reopen_audit", "all"):
+                await _seed_reopen_audit(conn)
         finally:
             await conn.close()
 

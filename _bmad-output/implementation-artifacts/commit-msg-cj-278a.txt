@@ -1,0 +1,87 @@
+fix(sprint): cj-278a Epic 29+ P1 m11 dev_seed scenario EXTENSION (cj-style 278a번째 epic 연속 정직 회복 source+docs single sprint)
+
+cj-278 3-sprint 분할 plan 의 첫 wire sprint (m11 4 stories 29.2 +
+29.4 + 29.5 + 29.6). cj-276 의 dev_seed.py 351 lines 의 wire surface
+(cj-276 의 2 scenarios: closing_guard_negative + snapshot_persisted)
+에 cj-278a 의 4 NEW scenarios EXTENSION 결정 wire.
+
+cj-278a sprint scope = scripts/dev_seed.py 4 NEW scenario functions +
+backend schema-aware fiscal_periods/ai_insight_cache row seeding 결정
+wire. source+docs single sprint 결과:
+
+3 files = 2 MODIFIED + 1 NEW atomic single sprint:
+  1 MODIFIED scripts/dev_seed.py (cj-276 의 351 lines → cj-278a 의
+    546 lines = +195 lines EXTENSION):
+    - 4 NEW UUIDv5 deterministic IDs (DEV_FISCAL_PERIOD_2026_08_ID +
+      DEV_FISCAL_PERIOD_2026_07_ID + DEV_LEDGER_EVT_001_ID +
+      DEV_AI_INSIGHT_CACHE_2026_07_ID)
+    - 4 NEW scenario functions:
+      _seed_close_sequence_partial: fiscal_periods row
+        (period_key='2026-08', close_sequence_state='manufacturing',
+         divisions_completed_at=NOW(), status='closing',
+         close_sequence_blocked_reason_ko='제조·ABC·공동 단계 미완료
+         — 전체 완료 후 마감 가능' verbatim)
+      _seed_reversal_input: fiscal_periods row
+        (period_key='2026-07', status='closed',
+         close_sequence_state='confirmed')
+      _seed_reversal_cache_invalidation: fiscal_periods row +
+        ai_insight_cache row (calculation_result_hash='a'*64,
+        insight_kind='period_summary', source_kind='m11_close')
+        per AD-25 cache key
+      _seed_reopen_audit: fiscal_periods row
+        (period_key='2026-07', status='closed',
+         close_sequence_state='confirmed')
+    - argparse choices EXTENSION (closing_guard_negative +
+      snapshot_persisted + close_sequence_partial + reversal_input +
+      reversal_cache_invalidation + reopen_audit + all)
+    - main() dispatch EXTENSION (4 NEW conditional blocks for the
+      scenarios)
+  1 MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml
+    v4.38 → v4.39:
+    - cj-278a: backlog → done
+    - 29-2-close-sequence-lock: backlog → done
+    - 29-4-reversal-sequence: backlog → done
+    - 29-5-reversal-cache-invalidation: backlog → done
+    - 29-6-reopen-audit: backlog → done
+    - cj-278b/cj-278c backlog 보존 (cj-278b = 2FA, cj-278c = deletion)
+    - last_updated_note_v4_39 EXTENSION paragraph (per-scenario seed
+      detail + 2 spec drift decisions for cj-280 retro + D-WEB-E2E-2
+      ownership absorption)
+  1 NEW _bmad-output/implementation-artifacts/commit-msg-cj-278a.txt
+    (this file)
+  [USER claude projects MEMORY.md hook EXTENSION — auto-loaded next
+  session, not committed to repo per cj-274/cj-276/cj-277 pattern
+  verbatim]
+
+cj-274 의 6 D-WEB-E2E-1~6 honestly DEFER 중 D-WEB-E2E-2 (m11
+reversal/snapshot/cache) → cj-278a 결정 wire (cj-278 plan 결정 wire).
+cj-277 의 OQ-3 unlock (ci.yml step 15 dev_seed invocation
+`--scenario all`) + cj-278a 의 4 NEW scenario functions EXTENSION =
+통합 wiring 의 source-side surface 완료 (cj-276 의 2 scenarios +
+cj-278a 의 4 scenarios = 6 scenarios 가 `--scenario all` dispatch
+에서 모두 wire 가능 결정 wire).
+
+scope boundary honestly reported: cj-278a source sprint 의 wire surface
+= scripts/dev_seed.py 4 NEW scenario functions + dev_seed.py dispatch
+EXTENSION 결정 wire. cj-278 plan 결정 wire 의 12 stories scope 중
+cj-278a = m11 4 stories (cj-278b/cj-278c backlog 보존). runtime 동작
+변화: dev_seed.py 의 `--scenario` flag 가 cj-276 의 2 scenarios 에서
+cj-278a EXTENSION 으로 6 scenarios wire 됨. AD-14 stack pin 정책 (35
+pins) 변경 없음 / [STACK BUMP] tag 불필요.
+
+spec drift decisions (logged for cj-280 retro):
+  ① story 29.4 spec says 'state=committed' but actual schema uses
+    status='closed' + close_sequence_state='confirmed' — cj-278a
+    seeds with schema-accurate values, spec drift 보존
+  ② story 29.6 same spec drift as 29.4
+  cj-280 retro 에서 story_id ↔ schema field mapping table 결정 wire
+  보류.
+
+CR 11-3 honest-DEFER 205번째 epic 연속 정직 회복 (cj-278 plan 결정
+wire 의 204번째에 이어).
+
+next: live CI verification (cj-278a source sprint push → web-e2e step
+15 dev_seed invocation with 6 scenarios → step 19 Playwright result)
+→ close sprint commit → cj-278b 2FA wire sprint 진입 결정 wire.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
