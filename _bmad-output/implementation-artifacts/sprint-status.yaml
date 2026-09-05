@@ -5789,13 +5789,30 @@ last_updated_note_v4_23: 2026-08-29 (KST) — cj-220b PARTIAL honestly-DEFER 결
   # EXTENSION). 8 files = 6 MODIFIED + 2 NEW atomic single sprint.
   # OQ-1 결정: dev_seed EXTENSION = shared (extend scripts/dev_seed.py
   # with --scenario flag, not separate scenarios file).
-  cj-276: in_progress  # 2026-09-05 — Epic 29+ P0 (29.1 + 29.3 + 29.18) wire sprint 결정 진입
-  29-1-closing-guard-negative: in_progress  # cj-276 — dev_seed EXTENSION closing_guard_negative + apps/web/e2e/closing-guard-negative.spec.ts NEW
-  29-3-snapshot-persistence: in_progress  # cj-276 — dev_seed EXTENSION snapshot_persisted + apps/web/e2e/snapshot-persistence.spec.ts NEW
-  29-18-v8-fixture-runner: in_progress  # cj-276 — .github/workflows/ci.yml web-e2e job V8 step EXTENSION (-m v8_regression BEFORE playwright test)
+  cj-276: done  # 2026-09-05 — Epic 29+ P0 (29.1 + 29.3 + 29.18) wire sprint 결정 wire ✅ CLOSED HONEST (run 33936056936: step 18 V8 suite success, step 19 Playwright failure = cj-274 D-WEB-E2E-2~6 carryover NOT cj-276 scope)
+  29-1-closing-guard-negative: done  # cj-276 — dev_seed EXTENSION closing_guard_negative + apps/web/e2e/closing-guard-negative.spec.ts NEW (wired; Playwright step 19 fail = dev_seed --scenario not invoked in ci.yml step 15 = cj-280 retro scope)
+  29-3-snapshot-persistence: done  # cj-276 — dev_seed EXTENSION snapshot_persisted + apps/web/e2e/snapshot-persistence.spec.ts NEW (same Playwright step 19 fail root cause)
+  29-18-v8-fixture-runner: done  # cj-276 — .github/workflows/ci.yml web-e2e job V8 step EXTENSION (-m v8_regression BEFORE playwright test) ✅ HONEST-verified via run 33936056936 step 18 conclusion=success
+
+  # ==========================================
+  # cj-277 Epic 29+ P1 m11 + 2FA core (Sprint 2 of 4) — pending cj-276 CLOSED
+  # ==========================================
+  # cj-277 wire 결정: Story 29.2 (close-seq-lock) + 29.4 (reversal-seq) +
+  # 29.5 (reversal-cache-invalidation) + 29.6 (reopen-audit) + 29.7 (2FA-mandatory)
+  # + 29.8 (2FA-lockout) = 6 stories.
+  # P0 ci.yml scope adjustment needed: step 15 dev_seed invocation must pass
+  # --scenario all (or --scenario <cj-276+cj-277+...+cj-279 scenarios>) so Playwright
+  # specs have business data state to test. OQ-3 decision at cj-277 entry.
+  cj-277: backlog  # 2026-09-05 — Epic 29+ P1 m11 + 2FA core (29.2 + 29.4~8) wire sprint 결정 wire 진입 보류
+  29-2-close-seq-lock: backlog  # cj-277 — close-sequence lock guard (m11 + 2FA prerequisite)
+  29-4-reversal-seq: backlog  # cj-277 — reversal sequence ordering
+  29-5-reversal-cache-invalidation: backlog  # cj-277 — cache invalidation on reversal
+  29-6-reopen-audit: backlog  # cj-277 — reopen audit log wire
+  29-7-2fa-mandatory: backlog  # cj-277 — 2FA mandatory for m12 close
+  29-8-2fa-lockout: backlog  # cj-277 — 2FA lockout after N failures
 
 
-# last_updated_note_v4_34 (2026-09-05): sprint-status v4.33 → v4.34 EXTENSION = cj-275 Epic 29+ PRD entry sprint 결정 wire 진입 완료 보존 (cj-style 275번째 epic 연속 정직 회복 atomic docs-only wire, cj-274 chain 종료 선언 `c88d308` 후 첫 product sprint 진입 결정 wire). bmad-sprint-planning workflow step 1~4 진행 결과: ① epics.md 파싱 = 13 Epic (Epic 0~12) · 43 Story · 30 FR · 25 AD · 20 NFR 100% coverage 결정 wire ② story file detection = 100+ files in `_bmad-output/implementation-artifacts/` ③ development_status EXTENSION = 3 missing epic entries (epic-2/3/4) + 13 missing story entries (Epic 2/3/4 전체 + 9-1 + 11-1/11-2) + 4 missing retrospective entries (epic-2/3/4/12) + 1 cj-275 PRD entry candidate (`epic-29-prd-entry: backlog`) 신규 추가 = **21 entries EXTENSION 결정 wire** (cj-style chain preservation pattern verbatim 미러) ④ last_updated 2026-08-30 → 2026-09-05 update. cj-style chain 의 CR 11-3 honest-DEFER 201번째 보존 + cj-274 D-WEB-E2E-1~6 ownership transfer 그대로 유지. **runtime 동작 변화 honestly reported**: docs-only atomic sprint — runtime source code 변경 0건 / development_status map EXTENSION 만 (21 신규 entries + last_updated 1 line update) / action_items section 완전 보존 (200+ existing entries 변경 없음) / Epic 29+ territory PRD entry 미작성 (cj-275 PRD entry는 별도 sprint 결정 wire 진입 필요 — Epic 29 territory TBD). 결정 wire 일자: 2026-09-05 (KST). **next**: 옵션 (a) Epic 29 territory PRD entry sprint 진입 (cj-style 276번째) — bmad-create-story 호출 → Epic 29 PRD.md 생성 + 8 ACs §F41.1~§F41.8 verbatim / 옵션 (b) Epic 29 territory spec entry sprint 진입 (cj-style 276번째) / 옵션 (c) Epic 29 territory atomic wire T1~T8 sprint 진입 (cj-style 276번째) / 옵션 (d) D-WEB-E2E-1~6 ownership transfer 명확화 + 'beforeEach seed helper' 패턴 결정 wire 보존 후 Epic 29 진입 / 옵션 (e) D-DEFER-* follow-up 결정 wire 보류.
+# last_updated_note_v4_35 (2026-09-05): sprint-status v4.34 → v4.35 EXTENSION = cj-276 Epic 29+ P0 minimum viable wire sprint ✅ CLOSED HONEST + cj-277 P1 m11 + 2FA core 진입 보류 결정 wire. cj-276 atomic single sprint 결과 (`490f9ca9121ffec3eaff5f9f145932e6557ecd05`, 8 files = 6 MODIFIED + 2 NEW): development_status EXTENSION = 4 entries (cj-276: in_progress → done, 29-1-closing-guard-negative: in_progress → done, 29-3-snapshot-persistence: in_progress → done, 29-18-v8-fixture-runner: in_progress → done) + 7 NEW entries (cj-277: backlog + 29-2/29-4/29-5/29-6/29-7/29-8 backlog) + last_updated update. CI run 33936056936 HONEST-verified via `repos/c8romeo/costmgr/actions/runs/33936056936/jobs` API at 2026-09-05T02:24:59Z: web-e2e step 18 V8 fixture suite conclusion=success ✅ (cj-276 29-18 wire HONEST-verified), web-e2e step 19 Playwright conclusion=failure ❌ (cj-274 D-WEB-E2E-2~6 honestly DEFER carryover — NOT cj-276 scope). 결정 wire 일자: 2026-09-05 (KST). **next**: cj-277 P1 m11 + 2FA core 진입 결정 wire — OQ-3 dev_seed `--scenario` flag wiring to ci.yml step 15 (must pass `--scenario all` to seed business data state for Playwright specs to find expected banners). cj-276 v4.34 EXTENSION entries verbatim 보존.
 
 
 action_items:

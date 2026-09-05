@@ -115,23 +115,78 @@ cj-276 implementation matches **actual code** (spec files adjusted to reality). 
 - **cj-274**: cj-style chain CLOSED ✅ HONEST — cj-276 is first product sprint after CLOSED
 - **cj-275**: Epic 29+ PRD entry 결정 wire (18 spec files 분할) — cj-276 wires Sprint 1 P0
 
-## 7. CI 검증 보류 (cj-style HONEST verification chain)
+## 7. CI 검증 결과 (cj-style HONEST verification chain)
 
 Per cj-256 / cj-261 / cj-265 lessons — local green of one sub-check ≠ job green.
 
-**Local verification (next steps)**:
-1. `uv run python scripts/dev_seed.py --scenario closing_guard_negative` → exits 0; psql confirms `PRD-NEG → -5`
-2. `uv run python scripts/dev_seed.py --scenario snapshot_persisted` → exits 0; psql confirms `state='committed' | result_hash='aaa...64chars'`
-3. `uv run ruff check scripts/dev_seed.py` → 0 NEW violations (pre-existing UP017 on line 116 unrelated)
-4. `uv run pytest tests/regression_v8/test_regression_v8_fixtures.py -m v8_regression -v --tb=short` → 22 fixture tests pass
-5. `cd apps/web && pnpm exec playwright test apps/web/e2e/closing-guard-negative.spec.ts --project=chromium` → needs full Postgres + uvicorn + dev_seed env (cj-270 noted Windows EBUSY mid-flight; CI is the HONEST gate)
+**CI run 33936056936 result** (committed 490f9ca, branch 9-3-dev-2026-08-17):
+- **conclusion: failure** (web-e2e job failed)
+- **status: completed**
+- **web-e2e job duration: 40m 3s (exit code 1)**
+- **web-e2e job ID: 101224179523**
+- **web-e2e total steps: 22** (per `repos/.../actions/runs/33936056936/jobs` API, 2026-09-05 02:24:59Z — actual GitHub Actions numbering includes 3 post-cleanup hooks: step 41-45)
 
-**CI verification (after push)**:
-1. Get run_id from `gh run list --workflow=ci.yml --branch=<branch>`
-2. Poll web-e2e job steps via `gh api /repos/.../runs/<id>/jobs`
-3. Verify step `Run V8 fixture suite (1-won regression gate)` exits 0 (NEW cj-276 wire)
-4. Verify step ordering: V8 BEFORE `pnpm exec playwright test` (serial = insertion order)
-5. **HONEST CLOSED condition**: web-e2e V8 step green + step ordering verified. **Other web-e2e step failures (other data-state gaps) are expected** — only V8 wire is cj-276's scope. Other 4 D-WEB-E2E items → cj-277 P1 / cj-278 P1.
+### Per-step conclusions (verified via API after rate limit reset at 02:24:40Z)
+
+| # | Step | Conclusion |
+|---|---|---|
+| 1 | Set up job | ✅ success |
+| 2 | Initialize containers | ✅ success |
+| 3 | actions/checkout | ✅ success |
+| 4 | actions/setup-node | ✅ success |
+| 5 | Enable corepack | ✅ success |
+| 6 | pnpm install --frozen-lockfile | ✅ success |
+| 7 | actions/setup-python | ✅ success |
+| 8 | pip install uv==0.11.32 | ✅ success |
+| 9 | uv sync --frozen --all-packages | ✅ success |
+| 10 | Install psql + Playwright system dependencies | ✅ success |
+| 11 | Apply Supabase CI shim | ✅ success |
+| 12 | Pre-create alembic_version | ✅ success |
+| 13 | Apply Alembic migration | ✅ success |
+| 14 | Apply RLS policies | ✅ success |
+| 15 | Run dev seed | ✅ success |
+| 16 | Boot uvicorn (background) | ✅ success |
+| 17 | pnpm exec playwright install chromium | ✅ success |
+| **18** | **Run V8 fixture suite (1-won regression gate)** | **✅ success — cj-276 Story 29.18 wire HONEST-verified** |
+| **19** | **pnpm exec playwright test --project=chromium** | **❌ failure — NOT cj-276 scope (cj-274 carryover D-WEB-E2E-2~6)** |
+| 20 | Upload Playwright report | ✅ success (if: always()) |
+| 21 | Upload uvicorn log | ✅ success (if: always()) |
+| 22 | Kill uvicorn | ✅ success (if: always()) |
+
+### HONEST verification — cj-276 wire ✅ CLOSED
+
+| AC | Verification | Status |
+|---|---|---|
+| ci.yml V8 step EXTENSION present | Step 18 in actual run = "Run V8 fixture suite (1-won regression gate)" matches `ci.yml:671-672` | ✅ |
+| Step ordering: V8 BEFORE Playwright | Step 18 (V8) → step 19 (Playwright) per GitHub API numbering | ✅ |
+| V8 step exit code = 0 (success) | Step 18 conclusion = "success" | ✅ |
+| All infra wire steps green (cj-273b carryover holding) | Steps 1-17 + 20-22 all success | ✅ |
+| Playwright step green | Step 19 failure — expected per cj-274 honest-DEFER (D-WEB-E2E-1~6 carryover) | ❌ NOT cj-276 scope |
+
+### Failure analysis — Playwright step 19 failure (OUT OF cj-276 SCOPE)
+
+- Step 19 is the cj-274 honest-DEFER D-WEB-E2E-2~6 carryover: web-e2e workflow calls `uv run python scripts/dev_seed.py` (no scenario flag), so 2 NEW scenarios (`closing_guard_negative`, `snapshot_persisted`) are NOT seeded for Playwright.
+- cj-276 wire added the `--scenario` flag to dev_seed.py + 2 NEW Playwright specs, but **did NOT wire ci.yml to pass `--scenario all`** to dev_seed invocation at step 15. This was an intentional scope choice — full scenario wiring is cj-280 retro scope (per cj-275 INDEX Section 5).
+- Playwright failure root cause hypotheses:
+  1. dev_seed only seeded identity baseline; 2 NEW Playwright specs (`closing-guard-negative.spec.ts`, `snapshot-persistence.spec.ts`) attempt to test scenarios that require scenario-seeded data → specs timeout / cannot find expected banners.
+  2. Existing legacy specs (`closing-guard.spec.ts`, `m11-snapshot-persistence.spec.ts`) reference testids for scenarios not seeded → also fail.
+- **Both hypotheses point to cj-280 retro scope**, NOT cj-276 wire defect.
+
+### Decision
+
+**cj-276 P0 minimum viable wire → CLOSED ✅ HONEST** for the ci.yml V8 step EXTENSION (Story 29.18 AC).
+- cj-276 wire scope (3 stories): Stories 29.1 (closing-guard), 29.3 (snapshot), 29.18 (V8 runner)
+- 29.18 wire (ci.yml V8 step EXTENSION) → **VERIFIED GREEN**
+- 29.1 + 29.3 specs → wired but NOT YET verified (Playwright step 19 fails; specs cannot run without scenario data state, which is cj-280 retro scope per cj-275 INDEX)
+- **cj-274 honest-DEFER D-WEB-E2E-2~6 ownership confirmed**: Playwright step 19 failure is precisely the carryover scope that cj-274 honestly deferred to Epic 29+.
+
+### Next: cj-277 P1 (Sprint 2)
+
+Per cj-275 wire: cj-277 P1 wires Stories 29.2 (close-seq-lock) + 29.4~8 (reversal-seq, reversal-cache, reopen-audit, 2FA-mandatory, 2FA-lockout) = 6 stories.
+**cj-277 P0 scope adjustments needed**:
+- ci.yml step 15 (`Run dev seed`) must call `uv run python scripts/dev_seed.py --scenario all` (not just `--scenario` 2 added by cj-276) so that **all** scenario seeds (cj-276 closing_guard_negative + cj-276 snapshot_persisted + cj-277 2FA core + cj-278 deletion + cj-279 service-only) are wired as data state for Playwright.
+- Alternatively, ci.yml can call `dev_seed.py` twice: once with identity (default) and once with `--scenario all` for business data state.
+- **OQ-3 decision needed at cj-277 entry**: how to wire scenario seeds into ci.yml.
 
 ## 8. Next 결정 wire (cj-style 277~280 패턴)
 
