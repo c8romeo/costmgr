@@ -163,3 +163,65 @@ Drift: 3-way detector (`tests/integration/test_audit_action_consistency.py`)
 CHECK (Alembic 0020 fiscal_periods 5 CHECK + audit_logs CHECK via 5-1 wire) ↔
 call sites 4 NEW (close_sequence_service.emit_audit_typed()). **Task 7.3 / 7.4
 EXTENSION** 은 bmad-code-review carry-over sweep 대상.
+
+## 9. Epic 30+ EXTENSION — `ActionClass.REPORTS` 4 NEW values
+
+Epic 30+ (cj-style 285+ EXTENSION wire sprint — cj-282 PRD entry `0c7524e`
+Epic 30+ 결정 wire follow-up — cj-282a close-out retro `7403920` 결정 wire
+보류분 5종 중 4 audit actions EXTENSION 결정 wire apply) — 별도
+`ActionClass.REPORTS` frozenset에 4 NEW values fill:
+
+| Action | Value | Use case |
+|---|---|---|
+| `REPORTS_EXPORT_CSV` | `"export_csv"` | `GET /api/v1/exports/csv` succeeded — StreamingResponse + UTF-8 BOM for Excel ko-KR + audit-first INSERT |
+| `REPORTS_EXPORT_PDF` | `"export_pdf"` | `GET /api/v1/exports/pdf` succeeded — weasyprint HTML→PDF + Jinja2 ko-KR + matplotlib 3 charts + audit-first INSERT |
+| `REPORTS_EXPORT_EMAIL` | `"export_email"` | `POST /api/v1/exports/email` succeeded — SMTP retry 3회 + PII redaction + audit-first INSERT |
+| `REPORTS_EXPORT_SCHEDULED` | `"export_scheduled"` | APScheduler dispatch succeeded — `tenants.finance_contact_email` lookup + 99.9% uptime + audit-first INSERT |
+
+Wire contract: `apps/api/core/audit_action.py` `ActionClass.REPORTS`
+frozenset EXTENSION + `ReportsAction` Literal 4 NEW values +
+`_ActionRegistry._REGISTRY[ActionClass.REPORTS]` entry +
+`ReportsAction` added to `AuditAction` union type + `__all__` export
+addition 결정.
+
+Why 별도 `ActionClass.REPORTS` (NOT re-use `ActionClass.AUDIT`):
+
+- Epic 17 `ActionClass.AUDIT` = audit log viewer CSV export (운영자 감사
+  로그 viewer) territory — `audit_logs` 테이블 export 의미.
+- Epic 30+ `ActionClass.REPORTS` = financial / cost / closing report export
+  (사업 운영 보고서) territory — `fiscal_period_snapshots` / `cost_*` /
+  `monthly_closing_reports` 등 business table 기반 export 의미.
+- 2가지 export 는 (a) source table, (b) RBAC, (c) PII 민감도, (d) wire
+  endpoint (Epic 17 = `GET /api/v1/audit/logs` + Epic 30+ = `GET/POST
+  /api/v1/exports/*`) 가 본질적으로 다름.
+- Precedent: 각 Epic 는 own ActionClass 보유 (ActionClass.MONTHLY_CLOSING_REPORT,
+  ActionClass.CLOSING_PERIOD, ActionClass.MONTHLY_CLOSING, ActionClass.SNAPSHOT_PERSISTENCE,
+  ActionClass.REOPEN_OPERATOR etc). 30+ reports territory 도 own ActionClass.
+- Mixing "audit log viewer export" + "financial report export" 는 CR 1.1
+  verbatim "free-form string drift is forbidden" lesson 보존 측면 위험.
+
+AD bind 결정 wire (cj-282 Epic 30+ PRD entry `0c7524e` 3/25 AD-2 + AD-10 +
+AD-12 + AD-22 verbatim):
+- **AD-2 audit-first INSERT append-only** — 4 NEW audit actions 모두 audit
+  INSERT 패턴 (CR 1-1 verbatim + ActionClass.MONTHLY_CLOSING_REPORT 6-1
+  wire `eb5a8f9` verbatim precedent).
+- **AD-10 identity/2FA via owner-only RBAC** — high-value export operation
+  (CSV/PDF bulk download + Email delivery + Scheduled dispatch) 은 모두
+  Epic 12 2FA 챌린지 mandatory 결정 wire.
+- **AD-12 verify-first capability** — capability gate
+  `Capability.EXPORT_CSV` / `EXPORT_PDF` / `EXPORT_EMAIL` / `EXPORT_SCHEDULED`
+  prevent bypass at FastAPI route boundary (cj-style 285+ companion
+  capability matrix v1.54 EXTENSION 결정 wire 결정).
+
+NFR bind 결정 wire (cj-282 Epic 30+ PRD entry 7/20 active NFRs):
+- **NFR5 streaming P95 ≤ 5s** — CSV export StreamingResponse 적용.
+- **NFR18 ko-KR vocabulary SSOT** — 4 NEW audit actions 모두
+  `ko-KR.json` keys consistent across UI.
+
+Drift: 3-way detector (`tests/integration/test_audit_action_consistency.py`)
+4 NEW cases (export_csv / export_pdf / export_email / export_scheduled) —
+registry ↔ DB CHECK (audit_logs CHECK) ↔ call sites 4 NEW (csv_routes /
+pdf_routes / email_routes / scheduler_dispatch service-layer writers).
+
+**3 결정 wire 보류** (cj-286 territory): dev_seed report_fixtures +
+ci.yml csv-export.spec.ts + AD-56 Epic 30+ 결정 wire.

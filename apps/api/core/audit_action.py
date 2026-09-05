@@ -112,6 +112,7 @@ class ActionClass(str, __import__("enum").Enum):
     FINOPS_VENDOR_MANAGEMENT = "finops_vendor_management"  # Phase 25 (cj-style 174th follow-up wire — NEW — vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
     FINOPS_COST_ANOMALY_ML_PREDICTION = "finops_cost_anomaly_ml_prediction"  # Phase 26 (cj-style 183번째 wire — NEW — anomaly_ml_prediction_engine + anomaly_ml_model_registry + anomaly_ml_training_pipeline + anomaly_ml_scoring + anomaly_ml_ensemble_consensus + scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-55)
     FINOPS_INTERACTIVE_DASHBOARD = "finops_interactive_dashboard"  # Phase 28 (cj-style 193번째 wire — NEW — cross_phase_aggregator + saved_view_engine + export_pipeline + dashboard_sharing + scheduled_interactive_dashboard_dispatch + 1 NEW CLI flag + dry-run audit-first INSERT, AD-56)
+    REPORTS = "reports"  # Epic 30+ (cj-style 285+ EXTENSION wire sprint — NEW — Reporting & Export MVP territory — cj-282 PRD entry `0c7524e` Epic 30+ 결정 wire follow-up — 4 audit actions EXTENSION 결정 wire 보존 분 4종 apply: export_csv + export_pdf + export_email + export_scheduled. Audit-first INSERT append-only + AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory high-value wire + 4 audit_log destination rows mapping to `audit_logs` table per CR 1-1 verbatim pattern + ActionClass.MONTHLY_CLOSING_REPORT / ActionClass.CLOSING_PERIOD / ActionClass.MONTHLY_CLOSING / ActionClass.AUDIT verbatim precedent bind).
 
 
 # ────────────────────────────────────────────────────────────
@@ -1345,6 +1346,24 @@ InteractiveDashboardAction = Literal[
     "export_job_completed",  # §F43.3-1 — export job completed
     "dashboard_shared",  # §F43.7-1 — dashboard sharing grant created
 ]
+# Epic 30+ (cj-style 285+ EXTENSION wire sprint — NEW — Reporting &
+# Export MVP territory 4 audit actions EXTENSION. Each action maps to
+# a distinct user-visible operation in the export pipeline:
+#   export_csv → CSV streaming export via GET /api/v1/exports/csv
+#   export_pdf → PDF report generation via GET /api/v1/exports/pdf
+#   export_email → Email delivery via POST /api/v1/exports/email
+#   export_scheduled → Scheduled report dispatch via APScheduler
+# AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory high-value wire +
+# AD-2 audit-first INSERT append-only + NFR4 PII minimization (email
+# delivery path PII redaction). Audit destination = audit_logs table
+# (per CR 1.1 verbatim pattern; ActionClass.AUDIT Epic 17 wire `2ada2ec`
+# precedent verbatim bind).
+ReportsAction = Literal[
+    "export_csv",  # §F30.1-1 — Story 30.1 CSV export — FR-30-1 + GET /api/v1/exports/csv + StreamingResponse + UTF-8 BOM for Excel ko-KR
+    "export_pdf",  # §F30.2-1 — Story 30.2 PDF export — FR-30-2 + GET /api/v1/exports/pdf + weasyprint HTML→PDF + Jinja2 ko-KR + matplotlib 3 charts
+    "export_email",  # §F30.3-1 — Story 30.3 Email delivery — FR-30-3 + POST /api/v1/exports/email + SMTP retry 3회 + PII redaction
+    "export_scheduled",  # §F30.4-1 — Story 30.4 Scheduled reports — FR-30-4 + APScheduler + tenants.finance_contact_email NEW column + 99.9% uptime
+]
 
 
 # Union type for type checking
@@ -1398,6 +1417,7 @@ AuditAction = (
     | FinopsVendorManagementAction  # NEW — Phase 25 (vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
     | FinopsCostAnomalyMLPredictionAction  # NEW — Phase 26 (anomaly_ml_prediction_engine + anomaly_ml_model_registry + anomaly_ml_training_pipeline + anomaly_ml_scoring + anomaly_ml_ensemble_consensus + scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-55)
     | InteractiveDashboardAction  # NEW — Phase 28 (cross_phase_aggregator + saved_view_engine + export_pipeline + dashboard_sharing + scheduled_interactive_dashboard_dispatch + 1 NEW CLI flag + dry-run audit-first INSERT, AD-56)
+    | ReportsAction  # NEW — Epic 30+ (cj-style 285+ EXTENSION wire sprint — Reporting & Export MVP territory 4 audit actions EXTENSION: export_csv + export_pdf + export_email + export_scheduled. Audit-first INSERT append-only + AD-22 owner-only RBAC + Epic 12 2FA 챌린지 mandatory high-value wire + audit_logs destination mapping)
 )
 
 
@@ -2423,6 +2443,17 @@ class _ActionRegistry:
                 }
             ),
         ),
+        ActionClass.REPORTS: (
+            "audit_logs",
+            frozenset(
+                {
+                    "export_csv",  # §F30.1-1 — Story 30.1 CSV export — FR-30-1 + GET /api/v1/exports/csv + StreamingResponse + UTF-8 BOM for Excel ko-KR
+                    "export_pdf",  # §F30.2-1 — Story 30.2 PDF export — FR-30-2 + GET /api/v1/exports/pdf + weasyprint HTML→PDF + Jinja2 ko-KR + matplotlib 3 charts
+                    "export_email",  # §F30.3-1 — Story 30.3 Email delivery — FR-30-3 + POST /api/v1/exports/email + SMTP retry 3회 + PII redaction
+                    "export_scheduled",  # §F30.4-1 — Story 30.4 Scheduled reports — FR-30-4 + APScheduler + tenants.finance_contact_email NEW column + 99.9% uptime
+                }
+            ),
+        ),
     }
 
     @classmethod
@@ -2570,5 +2601,6 @@ __all__ = [
     "FinopsChargebackSettlementAction",  # NEW — Phase 22 (Settlement rules + allocation engine + invoice generation + reconciliation 3-way match + approval + dispatch + dry-run audit-first INSERT, AD-50)
     "FinopsVendorManagementAction",  # NEW — Phase 25 (vendor_catalog_engine + vendor_selection_engine + vendor_contract_lifecycle_engine + vendor_performance_evaluation + vendor_spend_attribution + scheduled_vendor_management_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-53)
     "FinopsCostAnomalyMLPredictionAction",  # NEW — Phase 26 (anomaly_ml_prediction_engine + anomaly_ml_model_registry + anomaly_ml_training_pipeline + anomaly_ml_scoring + anomaly_ml_ensemble_consensus + scheduled_cost_anomaly_ml_prediction_jobs + 1 NEW CLI flag + dry-run audit-first INSERT, AD-55)
+    "ReportsAction",  # NEW — Epic 30+ (cj-style 285+ EXTENSION wire sprint — Reporting & Export MVP territory 4 audit actions EXTENSION: export_csv + export_pdf + export_email + export_scheduled)
     "emit_audit_typed",
 ]

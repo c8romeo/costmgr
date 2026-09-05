@@ -810,6 +810,22 @@ class Capability(str, Enum):  # noqa: UP042 — preserve str/Enum combo (Pydanti
     # Phase 26 anomaly ML prediction ledger data reuse 최대화 →
     # 새 backend infra 불필요.
     FINOPS_INTERACTIVE_DASHBOARD = "finops_interactive_dashboard"
+    # Epic 30+ (cj-style 285+ EXTENSION wire sprint — NEW — Reporting &
+    # Export MVP territory — cj-282 PRD entry `0c7524e` Epic 30+ 결정 wire
+    # follow-up — capability matrix v1.54 EXTENSION 결정 wire 보존 분 4종
+    # apply. Industry-agnostic per CR 12-1 L4 precedent + FINOPS_INTERACTIVE_DASHBOARD
+    # Phase 28 wire + FINOPS_COST_ANOMALY_ML_PREDICTION Phase 26 wire +
+    # FINOPS_VENDOR_MANAGEMENT Phase 25 wire + FINOPS_BUDGET_PLANNING
+    # Phase 24 wire + Phase 23/22/21/20/19/18/17/16/15/14/13/12/11 carry-over
+    # chain verbatim). CSV / PDF / Email / Scheduled 4 streams 모두 4-industry
+    # ✅ grants (manufacturing + service + 겸영 + 겸영+other) — Epic 30+
+    # Reporting & Export MVP 의 4 Story 분할 (30.1 CSV / 30.2 PDF / 30.3 Email /
+    # 30.4 Scheduled) wire 진입 결정 wire 단계. AD-12 verify-first capability
+    # 게이트 prevent bypass at FastAPI route boundary.
+    EXPORT_CSV = "export_csv"
+    EXPORT_PDF = "export_pdf"
+    EXPORT_EMAIL = "export_email"
+    EXPORT_SCHEDULED = "export_scheduled"
 
 
 # ── Industry → Capability map (F-41-resolved) ────────────────
@@ -1148,6 +1164,17 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # ledger + Phase 26 anomaly ML prediction ledger data reuse
             # 최대화 → 새 backend infra 불필요.
             Capability.FINOPS_INTERACTIVE_DASHBOARD,
+            # Epic 30+ (cj-style 285+ EXTENSION wire sprint — NEW —
+            # Reporting & Export MVP territory 4 NEW capabilities:
+            # EXPORT_CSV / EXPORT_PDF / EXPORT_EMAIL / EXPORT_SCHEDULED.
+            # Industry-agnostic per CR 12-1 L4 precedent + FINOPS_INTERACTIVE_DASHBOARD
+            # Phase 28 wire pattern. CSV export (Story 30.1) + PDF export
+            # (Story 30.2) + Email delivery (Story 30.3) + Scheduled reports
+            # (Story 30.4) 4 streams 모두 manufacturing tenant grant.
+            Capability.EXPORT_CSV,
+            Capability.EXPORT_PDF,
+            Capability.EXPORT_EMAIL,
+            Capability.EXPORT_SCHEDULED,
         }
     ),
     Industry.SERVICE: frozenset(
@@ -1407,6 +1434,17 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             # ledger + Phase 26 anomaly ML prediction ledger data reuse
             # 최대화 → 새 backend infra 불필요.
             Capability.FINOPS_INTERACTIVE_DASHBOARD,
+            # Epic 30+ (cj-style 285+ EXTENSION wire sprint — NEW —
+            # Reporting & Export MVP territory 4 NEW capabilities:
+            # EXPORT_CSV / EXPORT_PDF / EXPORT_EMAIL / EXPORT_SCHEDULED.
+            # Industry-agnostic per CR 12-1 L4 precedent + FINOPS_INTERACTIVE_DASHBOARD
+            # Phase 28 wire pattern. CSV export (Story 30.1) + PDF export
+            # (Story 30.2) + Email delivery (Story 30.3) + Scheduled reports
+            # (Story 30.4) 4 streams 모두 service tenant grant.
+            Capability.EXPORT_CSV,
+            Capability.EXPORT_PDF,
+            Capability.EXPORT_EMAIL,
+            Capability.EXPORT_SCHEDULED,
         }
     ),
     Industry.MANUFACTURING_SERVICE: frozenset(
@@ -1664,6 +1702,17 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
             # Phase 28 — FINOPS_INTERACTIVE_DASHBOARD (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_INTERACTIVE_DASHBOARD,
+            # Epic 30+ (cj-style 285+ EXTENSION wire sprint — NEW —
+            # Reporting & Export MVP territory 4 NEW capabilities:
+            # EXPORT_CSV / EXPORT_PDF / EXPORT_EMAIL / EXPORT_SCHEDULED.
+            # Industry-agnostic per CR 12-1 L4 precedent + FINOPS_INTERACTIVE_DASHBOARD
+            # Phase 28 wire pattern. CSV export (Story 30.1) + PDF export
+            # (Story 30.2) + Email delivery (Story 30.3) + Scheduled reports
+            # (Story 30.4) 4 streams 모두 겸영 tenant grant.
+            Capability.EXPORT_CSV,
+            Capability.EXPORT_PDF,
+            Capability.EXPORT_EMAIL,
+            Capability.EXPORT_SCHEDULED,
         }
     ),
     Industry.MANUFACTURING_SERVICE_OTHER: frozenset(
@@ -1953,6 +2002,17 @@ _INDUSTRY_CAPABILITIES: Final[dict[Industry, frozenset[Capability]]] = {
             Capability.FINOPS_COST_ANOMALY_ML_PREDICTION,
             # Phase 28 — FINOPS_INTERACTIVE_DASHBOARD (industry-agnostic per CR 12-1 L4).
             Capability.FINOPS_INTERACTIVE_DASHBOARD,
+            # Epic 30+ (cj-style 285+ EXTENSION wire sprint — NEW —
+            # Reporting & Export MVP territory 4 NEW capabilities:
+            # EXPORT_CSV / EXPORT_PDF / EXPORT_EMAIL / EXPORT_SCHEDULED.
+            # Industry-agnostic per CR 12-1 L4 precedent + FINOPS_INTERACTIVE_DASHBOARD
+            # Phase 28 wire pattern. CSV export (Story 30.1) + PDF export
+            # (Story 30.2) + Email delivery (Story 30.3) + Scheduled reports
+            # (Story 30.4) 4 streams 모두 겸영+other tenant grant.
+            Capability.EXPORT_CSV,
+            Capability.EXPORT_PDF,
+            Capability.EXPORT_EMAIL,
+            Capability.EXPORT_SCHEDULED,
         }
     ),
 }

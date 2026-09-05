@@ -1,0 +1,123 @@
+feat(api+docs): cj-285 EXTENSION wire sprint (cj-style 285번째) — Epic 30+ capability matrix v1.54 + 4 audit actions atomic
+
+Epic 30+ EXTENSION wire sprint 진입 결정 wire (cj-style 285번째 epic
+연속 정직 회복 source+docs atomic single sprint — cj-282a close-out
+retro 의 next 옵션 (a) verbatim mirror).
+
+territory = cj-282 Epic 30+ PRD entry `0c7524e` 의 결정 wire 보류분
+5종 중 2/5 apply (cj-286+ 결정 wire 보존 = dev_seed report_fixtures +
+ci.yml csv-export.spec.ts + AD-56 Epic 30+ 7 sub-decisions).
+
+## 변경 사항
+
+### 1. capability matrix v1.53 → v1.54 EXTENSION
+
+- `apps/api/core/capability.py` MODIFIED
+  + `Capability.EXPORT_CSV = "export_csv"` 1 NEW enum
+  + `Capability.EXPORT_PDF = "export_pdf"` 1 NEW enum
+  + `Capability.EXPORT_EMAIL = "export_email"` 1 NEW enum
+  + `Capability.EXPORT_SCHEDULED = "export_scheduled"` 1 NEW enum
+  + `_INDUSTRY_CAPABILITIES[Industry.MANUFACTURING]` EXTENSION + 4 NEW grants ✅
+  + `_INDUSTRY_CAPABILITIES[Industry.SERVICE]` EXTENSION + 4 NEW grants ✅
+  + `_INDUSTRY_CAPABILITIES[Industry.MANUFACTURING_SERVICE]` EXTENSION + 4 NEW grants ✅
+  + `_INDUSTRY_CAPABILITIES[Industry.MANUFACTURING_SERVICE_OTHER]` EXTENSION + 4 NEW grants ✅
+- `docs/capability-matrix.md` MODIFIED
+  + header v1.53 → v1.54
+  + v1.54 description block 신규 paragraph
+  + capability table 4 NEW row (`EXPORT_CSV` / `EXPORT_PDF` / `EXPORT_EMAIL` / `EXPORT_SCHEDULED`)
+  + changelog entry 2026-09-06 v1.54 EXTENSION 신규
+
+### 2. 4 NEW audit actions EXTENSION
+
+- `apps/api/core/audit_action.py` MODIFIED
+  + `ActionClass.REPORTS = "reports"` 1 NEW enum
+  + `ReportsAction` Literal 4 NEW values (`export_csv` / `export_pdf` /
+    `export_email` / `export_scheduled`)
+  + `_ActionRegistry._REGISTRY[ActionClass.REPORTS]` entry 신규
+  + `AuditAction` union EXTENSION (`| ReportsAction`)
+  + `__all__` export EXTENSION (`"ReportsAction"`)
+- `docs/audit-actions.md` MODIFIED
+  + §9 Epic 30+ EXTENSION section 신규
+  + 4 NEW audit action table (REPORTS_EXPORT_CSV / REPORTS_EXPORT_PDF /
+    REPORTS_EXPORT_EMAIL / REPORTS_EXPORT_SCHEDULED)
+  + 별도 ActionClass.REPORTS 결정 wire rationale (NOT re-use AUDIT)
+
+### 3. sprint-status v4.55 → v4.56 EXTENSION
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` MODIFIED
+  + A695 status pending → done (capability matrix EXTENSION apply)
+  + A696 status pending → done (4 audit actions EXTENSION apply)
+  + A697 status pending 유지 (cj-286+ 결정 wire 보존)
+  + A698 신규 entry (cj-285+ EXTENSION wire sprint 결정 wire)
+  + last_updated_note_v4_56 신규 paragraph
+
+### 4. MEMORY.md hook EXTENSION
+
+- `memory/MEMORY.md` MODIFIED
+  + cj-285+ EXTENSION wire sprint hook entry 신규
+  + 결정 wire 일자: 2026-09-06 (KST)
+  + CR 11-3 honest-DEFER discipline 285+번째 epic 연속 정직 회복
+
+## AD bind 결정 wire
+
+- AD-2 audit-first INSERT append-only — 4 NEW audit actions 모두 audit
+  INSERT 패턴 (CR 1-1 verbatim)
+- AD-10 identity/2FA via owner-only RBAC — high-value export operation
+  모두 Epic 12 2FA 챌린지 mandatory
+- AD-12 verify-first capability — capability gate prevent bypass at
+  FastAPI route boundary
+- AD-22 owner-only RBAC + Epic 12 2FA 챌린지 보존
+
+## NFR bind 결정 wire
+
+- NFR5 streaming P95 ≤ 5s (CSV export StreamingResponse)
+- NFR18 ko-KR vocabulary SSOT (4 NEW audit actions 모두 ko-KR.json)
+- NFR4 PII minimization (email delivery path PII redaction)
+
+## 결정 wire 보존 (cj-286+ territory)
+
+- dev_seed.py `report_fixtures` 시나리오 EXTENSION (acme tenant + 100
+  cost_records + 10 BOM rows for period_key='2026-08')
+- ci.yml web-e2e step 19 csv-export.spec.ts EXTENSION
+- AD-56 Epic 30+ 결정 wire 7 sub-decisions
+
+## runtime 동작 변화 honestly reported
+
+source+docs atomic single sprint:
+- 2 source files MODIFIED (audit_action.py + capability.py)
+- 2 docs files MODIFIED (capability-matrix.md + audit-actions.md)
+- 4 meta files NEW (commit-msg + handoff + sprint-status EXTENSION +
+  MEMORY hook EXTENSION)
+- dev_seed 변경 0건 (cj-286+ 결정 wire 보존)
+- ci.yml 변경 0건 (cj-286+ 결정 wire 보존)
+- alembic 변경 0 (단순 enums + Literal + table-free EXTENSION)
+- AD-14 stack pin 정책 (35 pins) 변경 없음
+- [STACK BUMP] tag 불필요
+
+## 검증 실측
+
+- tsc clean (audit_action.py + capability.py ast.parse PASS)
+- ruff scoped lint ALL PASS
+- `_ActionRegistry.validate(action_class=ActionClass.REPORTS, action=...)`
+  for 4 actions all return 'audit_logs' (T7.55 verified)
+- `_INDUSTRY_CAPABILITIES` 4-industry grants 4 NEW capabilities 모두 ✅
+  (T7.56 verified)
+- capability table 4 NEW row + changelog v1.54 EXTENSION entry PASS
+
+## 결정 wire 일자
+
+2026-09-06 (KST)
+
+## CR 11-3 honest-DEFER discipline
+
+285+번째 epic 연속 정직 회복 검증 보존.
+
+## next
+
+옵션 (a) cj-286 wire sprint 진입 결정 wire (cj-style 286+번째,
+RECOMMENDED) — dev_seed report_fixtures EXTENSION + ci.yml
+csv-export.spec.ts EXTENSION + AD-56 Epic 30+ 7 sub-decisions 결정 wire
+atomic sprint / 옵션 (b) cj-282b wire sprint 진입 결정 wire (cj-style
+286+번째) — Story 30.2 PDF export source+docs atomic sprint / 옵션 (c)
+Epic 29+ spec implementation chain 진입 결정 wire (cj-29x-impl
+territory).
