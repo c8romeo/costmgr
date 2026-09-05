@@ -55,6 +55,18 @@ DEV_TENANT_ID = uuid.uuid5(_NS, "costmgr-dev-tenant")
 DEV_USER_ID = uuid.uuid5(_NS, "costmgr-dev-user")
 DEV_MEMBERSHIP_ID = uuid.uuid5(_NS, "costmgr-dev-membership")
 
+# cj-276 (Epic 29+ Story 29.1): deterministic PRD-NEG product for the
+# closing-guard NEGATIVE_CLOSING_PERIOD scenario seed. UUIDv5 keeps
+# re-runs idempotent across invocations.
+DEV_PRODUCT_ID_NEG = uuid.uuid5(_NS, "costmgr-dev-product-prd-neg")
+
+# cj-276 (Epic 29+ Story 29.3): deterministic fiscal_period_snapshots
+# row identity for the snapshot_persisted scenario seed.
+DEV_SNAPSHOT_COMMITTED_ID = uuid.uuid5(
+    _NS, "costmgr-dev-snapshot-committed-2026-07"
+)
+DEV_RESULT_HASH_COMMITTED = "a" * 64  # 64-char hex SHA-256 placeholder
+
 DEV_EMAIL = "dev@costmgr.local"
 DEV_ROLE = "owner"
 DEV_TENANT_NAME = "개발용 테넌트"
@@ -176,6 +188,86 @@ async def seed(conn: asyncpg.Connection, industry: str) -> None:
     )
 
 
+# ── Epic 29+ scenario seeds (cj-276 wire) ──────────────────
+async def _seed_closing_guard_negative(conn: asyncpg.Connection) -> None:
+    """Story 29.1 — seed PRD-NEG product + inventory_ledger events so
+    `closing_qty(PRD-NEG, 2026-08)` aggregates to -5.
+
+    Story 5.2 wire: `closing_qty` is **derived** from `inventory_ledger`
+    aggregate via `compute_closing_balance_per_product`. To force a
+    NEGATIVE_CLOSING invariant, we insert 1 `adjustment_negative` event
+    with qty=-5 (no opening_carried carry — period starts at 0).
+
+    Idempotent: ON CONFLICT DO NOTHING on `products(id)` and
+    `inventory_ledger(event_id)`. re-runs are safe.
+    """
+    # 1. product PRD-NEG (idempotent)
+    await conn.execute(
+        """
+        INSERT INTO products (
+            id, tenant_id, product_type, code, name, unit,
+            unit_cost_krw, is_active
+        )
+        VALUES ($1, $2, 'goods', 'PRD-NEG', 'PRD-NEG closing-guard fixture', 'EA',
+                0, TRUE)
+        ON CONFLICT (id) DO NOTHING
+        """,
+        DEV_PRODUCT_ID_NEG,
+        DEV_TENANT_ID,
+    )
+
+    # 2. inventory_ledger event (idempotent via deterministic event_id)
+    event_id = uuid.uuid5(_NS, "costmgr-dev-ledger-prd-neg-2026-08")
+    await conn.execute(
+        """
+        INSERT INTO inventory_ledger (
+            event_id, tenant_id, product_id, period_key,
+            event_type, qty, trace_id
+        )
+        VALUES ($1, $2, $3, '2026-08', 'adjustment_negative', -5, $4)
+        ON CONFLICT (event_id) DO NOTHING
+        """,
+        event_id,
+        DEV_TENANT_ID,
+        DEV_PRODUCT_ID_NEG,
+        DEV_USER_ID,  # trace_id uses UUID; reuse DEV_USER_ID as fixture
+    )
+
+
+async def _seed_snapshot_persisted(conn: asyncpg.Connection) -> None:
+    """Story 29.3 — seed 1 fiscal_period_snapshots row with
+    state='committed' for period '2026-07'.
+
+    cj-275 spec calls for deterministic `result_hash` (placeholder
+    accepted — actual hash comes from real engine run via Story 4.2).
+    5 KRW fields set to 0 (placeholder; spec AC is row existence +
+    state='committed' + result_hash, not exact KRW values).
+
+    Idempotent: ON CONFLICT DO UPDATE on the unique key
+    `(tenant_id, period_key, baseline_revision, engine_type)`.
+    """
+    await conn.execute(
+        """
+        INSERT INTO fiscal_period_snapshots (
+            snapshot_id, tenant_id, period_key, baseline_revision, engine_type,
+            material_cost, labor_cost, overhead_cost, manufacturing_cost,
+            inventory_adjustment, result_hash, state
+        )
+        VALUES (
+            $1, $2, '2026-07', 1, 'trad',
+            0, 0, 0, 0, 0, $3, 'committed'
+        )
+        ON CONFLICT (tenant_id, period_key, baseline_revision, engine_type)
+        DO UPDATE SET
+            state = EXCLUDED.state,
+            result_hash = EXCLUDED.result_hash
+        """,
+        DEV_SNAPSHOT_COMMITTED_ID,
+        DEV_TENANT_ID,
+        DEV_RESULT_HASH_COMMITTED,
+    )
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Seed the local dev tenant.")
     parser.add_argument(
@@ -190,6 +282,17 @@ async def main() -> int:
         "--token-only",
         action="store_true",
         help="Skip DB writes; just print a token for the existing dev tenant.",
+    )
+    parser.add_argument(
+        "--scenario",
+        choices=["closing_guard_negative", "snapshot_persisted", "all"],
+        default=None,
+        help=(
+            "cj-276 (Epic 29+ wire): optional business-data scenario seed "
+            "beyond identity. Use 'closing_guard_negative' for Story 29.1 "
+            "NEGATIVE_CLOSING_PERIOD fixture, 'snapshot_persisted' for "
+            "Story 29.3 fiscal_period_snapshots row, or 'all' for both."
+        ),
     )
     args = parser.parse_args()
 
@@ -211,6 +314,10 @@ async def main() -> int:
         conn = await asyncpg.connect(_sync_dsn(database_url))
         try:
             await seed(conn, args.industry)
+            if args.scenario in ("closing_guard_negative", "all"):
+                await _seed_closing_guard_negative(conn)
+            if args.scenario in ("snapshot_persisted", "all"):
+                await _seed_snapshot_persisted(conn)
         finally:
             await conn.close()
 

@@ -660,6 +660,16 @@ jobs:
       # wrapper 를 경유하여 playwright binary 가 PATH 에서 발견 안 되는 경우 fail. `pnpm exec` 는
       # local node_modules/.bin 의 binary 를 직접 resolve 하므로 binary download 가 정상 진행.
       - run: cd apps/web && pnpm exec playwright install chromium
+      # cj-276 (Epic 29+ Story 29.18): V8 1-won regression fixture runner.
+      # Runs V8 pytest suite BEFORE Playwright execution as the first
+      # regression gate (AD-5 engine purity + AD-16 snapshot contract).
+      # Spec drift: cj-275 spec 29.18 says `tests/engine/v8_*.py` but
+      # actual location is `tests/regression_v8/` (workspace root) with
+      # `@pytest.mark.v8_regression` marker registered in pyproject.toml.
+      # V8_FIXTURE_COUNT = 22 (12 V8 + 2 V3 + 4 V4/A11 + 4 11-3 reversal/
+      # snapshot/reopen) — `-m v8_regression` covers all 22.
+      - name: Run V8 fixture suite (1-won regression gate)
+        run: uv run pytest tests/regression_v8/test_regression_v8_fixtures.py -m v8_regression -v --tb=short
       - run: cd apps/web && pnpm exec playwright test --project=chromium
       - name: Upload Playwright report
         if: always()
