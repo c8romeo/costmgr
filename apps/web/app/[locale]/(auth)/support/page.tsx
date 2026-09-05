@@ -19,7 +19,7 @@ interface SupportPageProps {
 
 export default async function SupportPage({ params: _params }: SupportPageProps) {
   await _params; // satisfy Next 15+ Promise<params>
-  const filePath = path.join(process.cwd(), "docs", "support.md");
+  const filePath = path.join(process.cwd(), "..", "..", "docs", "support.md");
   const content = await fs
     .readFile(filePath, "utf8")
     .catch(() => "# 고객 지원\n\n(문서를 불러올 수 없습니다)");

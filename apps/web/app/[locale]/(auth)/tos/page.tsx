@@ -19,7 +19,7 @@ interface TosPageProps {
 
 export default async function TosPage({ params: _params }: TosPageProps) {
   await _params; // satisfy Next 15+ Promise<params>
-  const filePath = path.join(process.cwd(), "docs", "terms-of-service.md");
+  const filePath = path.join(process.cwd(), "..", "..", "docs", "terms-of-service.md");
   const content = await fs.readFile(filePath, "utf8").catch(() => "# 이용약관\n\n(약관을 불러올 수 없습니다)");
 
   return (

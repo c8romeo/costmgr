@@ -19,7 +19,7 @@ interface PrivacyPageProps {
 
 export default async function PrivacyPage({ params: _params }: PrivacyPageProps) {
   await _params; // satisfy Next 15+ Promise<params>
-  const filePath = path.join(process.cwd(), "docs", "privacy-policy.md");
+  const filePath = path.join(process.cwd(), "..", "..", "docs", "privacy-policy.md");
   const content = await fs
     .readFile(filePath, "utf8")
     .catch(() => "# 개인정보처리방침\n\n(약관을 불러올 수 없습니다)");
