@@ -14,7 +14,7 @@
 export const BACKUP_SCHEMA_VERSION = "1.0" as const;
 
 /** Mirrors `packages/services/m12_account/backup_export.py::MAX_PAYLOAD_BYTES`. */
-export const BACKUP_MAX_PAYLOAD_BYTES = 50 * 1024 * 1024;
+export const BACKUP_MAX_PAYLOAD_BYTES = 52_428_800 as const; // 50 * 1024 * 1024
 
 /** Mirrors `packages/services/m12_account/backup_export.py::AUDIT_LOG_WINDOW_DAYS`. */
 export const BACKUP_AUDIT_LOG_WINDOW_DAYS = 365 as const;

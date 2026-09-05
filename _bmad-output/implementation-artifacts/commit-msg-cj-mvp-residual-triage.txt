@@ -1,0 +1,69 @@
+test+web: P2 MVP-scope 잔여 실패 10건 해소 (cj-style baseline-green P2)
+
+문제:
+cj-style 직전 sprint (P1 async convention 변환, commit 349d227) 가
+104/173 실패를 해소했지만 잔여 69 중 MVP-scope ~10 건이 남았다.
+PRD §15 1차 로드맵 (M0~M12 + 1차 release) 의 검증 신호 복구 관점
+에서 이 10 건은 다음 3 파일에 집중되어 있다.
+
+1. tests/api/core/test_1st_release_smoke_test.py (7건)
+   원인: smoke_test.py 의 리팩터 (cj-style 66번째) 가
+   FLOWS → LAUNCH_FLOWS 로 상수명을 바꾸고 run_smoke_test() 의
+   시그니처를 (base_url, token) 로 변경했는데 테스트가 따라가지
+   못함. 5건 = FLOWS AttributeError, 1건 = 시그니처, 1건 = count.
+   픽스: 상수명 정정 + 카운트 >= 16 으로 갱신 + run_smoke_test
+   호출은 SMOKE_TEST_BASE_URL/TOKEN env 가 있을 때만 live-HTTP
+   호출, 없으면 skip (CI smoke-e2e job territory).
+   검증: 7 passed + 1 skipped in 0.18s
+
+2. apps/web/lib/m12-account-backup.ts (1건, 영향: 2 pytest)
+   원인: 같은 파일 내 다른 모든 BACKUP_* 상수 (SCHEMA_VERSION,
+   AUDIT_LOG_WINDOW_DAYS, DEFAULT_LIST_DAYS, RETENTION_DAYS,
+   MAX_LIST_DAYS) 는 `as const` 적용. BACKUP_MAX_PAYLOAD_BYTES 만
+   `= 50 * 1024 * 1024` 표현식 그대로 (as const 누락). parity
+   detector (test_max_payload_bytes_parity +
+   test_ts_mirror_covers_python_kernel_constants) 가 정규식으로
+   `as const` 접미사를 요구하므로 누락 시 fail.
+   픽스: 사전 계산된 리터럴 52_428_800 (= 50 * 1024 * 1024) + as const.
+   tsc --noEmit 0 NEW errors + parity 14/14 PASS.
+
+3. tests/services/m5_reports/test_pdf_generator.py (1건)
+   원인: 테스트명 `_payload_not_required` 와 어서션이 PRD §9 #15
+   verbatim ("Report #15 payload MUST be non-empty — 활동 1개 이상
+   필수") 과 정면 모순. 만약 통과된 상태로 출시되면 payload 누락
+   호출이 200 + 구조적으로 잘못된 PDF 를 반환.
+   픽스: 어서션 inversion — empty payload 가
+   ReportPdfGenerationError(reason="no_payload_for_report15") 를
+   raise 하는지 확인. 테스트 이름은 의도 보존 위해 유지하되
+   inversion note 주석으로 의도 변경 사유 기록.
+   검증: 30/30 PASS.
+
+영향:
+- 변경: 3 files (2 tests + 1 web TS)
+- runtime 동작 변화 honestly reported:
+    · test_1st_release_smoke_test: live-HTTP test 는 SMOKE_TEST_
+      BASE_URL/TOKEN env 가 있으면 호출, 없으면 skip — 기본값은
+      skip 이므로 기존 동작과 동일
+    · m12-account-backup.ts: 상수값 50 * 1024 * 1024 == 52_428_800
+      산술 동일, 타입 narrowing 만 변경 (number → 52428800 리터럴)
+    · test_pdf_generator: 어서션 inversion — PRD §9 #15 준수
+      방향으로의 정직 회복 (product 코드 변경 0)
+- 전체 스위트 실측 기준선 갱신 (재실측 후 확정):
+    · 변환 전: 4,985 passed / 173 failed / 28 errors (96.6%)
+    · P1 후: 5,089 passed / 69 failed / 28 errors
+    · P2 후: (재실측 결과로 확정)
+- AD-14 pin 정책 + [STACK BUMP] 태그: 변경 없음
+- lint-conventions: ruff scope = apps/api packages (tests/ 미포함)
+  → 영향 0. web TS 변경 1건은 ci.yml 별도 job 없음 (tsc 별도
+  검증은 로컬 실측으로 대체).
+
+Next:
+- 전체 스위트 재실측 완료 후 잔여 MVP-scope = 0 확인
+- 비-MVP ~59건 (Phase 5·8·9·10·26 capability matrix / governance /
+  SLO / SDR drift) 은 PRD §15 1차 로드맵 밖 — 별도 트랙 (cj-style
+  Epic 16+ / Phase 5+ 진입 시 결정 wire 보류)
+- MVP-scope = 0 확인되면 test-suite-measure job 의
+  continue-on-error 제거 → PRD OQ-3 파일럿 게이트 판정 지점
+  (cj-style P3)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

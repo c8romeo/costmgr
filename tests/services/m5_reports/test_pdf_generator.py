@@ -253,15 +253,26 @@ def test_generate_report_pdf_report15_distinct_from_report21() -> None:
 
 @pytest.mark.engine
 def test_generate_report_pdf_report15_payload_not_required() -> None:
-    """Report #15 wire — payload 비어도 정상 (wire 후속 진입점 결정)."""
+    """Report #15 — empty payload MUST be rejected (PRD §9 #15 verbatim).
+
+    Inversion note (cj-style baseline-green P2): the original test asserted
+    that empty payload succeeds. PRD §9 #15 verbatim mandates that Report
+    #15 payload MUST be non-empty (활동 1개 이상 필수), so the product
+    raises `ReportPdfGenerationError(reason="no_payload_for_report15")`
+    with a 422 envelope. This test now asserts that invariant — the prior
+    assertion contradicted PRD §9 and would have shipped a 200 with a
+    structurally invalid PDF if a downstream caller omitted the payload.
+    """
     request = ReportPdfRequest(
         tenant_id=uuid.UUID("00000000-0000-0000-0000-000000000099"),
         period_key="2026-Q1",
         report_id=15,
         payload=(),
     )
-    result = generate_report_pdf(request=request)
-    assert result.size_bytes > 0
+    with pytest.raises(ReportPdfGenerationError) as exc_info:
+        generate_report_pdf(request=request)
+    assert exc_info.value.report_id == 15
+    assert exc_info.value.reason == "no_payload_for_report15"
 
 
 # ── ReportPdfRequest + ReportPdfResult (3 cases) ────────────

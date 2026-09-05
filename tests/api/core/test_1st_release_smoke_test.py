@@ -37,8 +37,8 @@ def test_smoke_test_module_loads(smoke_test_module):
 
 
 def test_smoke_test_flo_includes_auth(smoke_test_module):
-    """FLOWS should include all 5 auth methods (Epic 15 wire)."""
-    flow_str = " ".join(smoke_test_module.FLOWS)
+    """LAUNCH_FLOWS should include all 5 auth methods (Epic 15 wire)."""
+    flow_str = " ".join(smoke_test_module.LAUNCH_FLOWS)
     assert "magic_link" in flow_str
     assert "oauth_google" in flow_str
     assert "oauth_naver" in flow_str
@@ -48,36 +48,52 @@ def test_smoke_test_flo_includes_auth(smoke_test_module):
 
 
 def test_smoke_test_flo_includes_abc(smoke_test_module):
-    """FLOWS should include ABC + TDABC engine (Epic 9 wire)."""
-    flow_str = " ".join(smoke_test_module.FLOWS)
+    """LAUNCH_FLOWS should include ABC + TDABC engine (Epic 9 wire)."""
+    flow_str = " ".join(smoke_test_module.LAUNCH_FLOWS)
     assert "abc" in flow_str
     assert "tdabc" in flow_str
 
 
 def test_smoke_test_flo_includes_ai(smoke_test_module):
-    """FLOWS should include AI 인사이트 (Epic 10 wire)."""
-    flow_str = " ".join(smoke_test_module.FLOWS)
+    """LAUNCH_FLOWS should include AI 인사이트 (Epic 10 wire)."""
+    flow_str = " ".join(smoke_test_module.LAUNCH_FLOWS)
     assert "ai_insight" in flow_str
 
 
 def test_smoke_test_flo_includes_listen_notify(smoke_test_module):
-    """FLOWS should include LISTEN/NOTIFY (Epic 13/14 wire)."""
-    flow_str = " ".join(smoke_test_module.FLOWS)
+    """LAUNCH_FLOWS should include LISTEN/NOTIFY (Epic 13/14 wire)."""
+    flow_str = " ".join(smoke_test_module.LAUNCH_FLOWS)
     assert "listen_notify" in flow_str
 
 
 def test_smoke_test_flo_includes_backup(smoke_test_module):
-    """FLOWS should include backup (Phase 4 wire)."""
-    flow_str = " ".join(smoke_test_module.FLOWS)
+    """LAUNCH_FLOWS should include backup (Phase 4 wire)."""
+    flow_str = " ".join(smoke_test_module.LAUNCH_FLOWS)
     assert "backup" in flow_str
 
 
 def test_smoke_test_run_returns_0(smoke_test_module):
-    """run_smoke_test() should return 0 (all flows PASS)."""
-    exit_code = smoke_test_module.run_smoke_test()
+    """run_smoke_test() requires a live server + token (base_url, token).
+
+    Local unit test cannot drive a real HTTP smoke flow. The structural
+    LAUNCH_FLOWS sweep above proves the test surface; the live-HTTP
+    invocation is exercised by CI's `smoke-e2e` job against a staged
+    environment. Skip here unless explicit smoke markers are exported.
+    """
+    import os
+
+    if not (os.environ.get("SMOKE_TEST_BASE_URL") and os.environ.get("SMOKE_TEST_TOKEN")):
+        pytest.skip(
+            "live-HTTP smoke flow requires SMOKE_TEST_BASE_URL + SMOKE_TEST_TOKEN "
+            "(CI smoke-e2e job territory)"
+        )
+    exit_code = smoke_test_module.run_smoke_test(
+        base_url=os.environ["SMOKE_TEST_BASE_URL"],
+        token=os.environ["SMOKE_TEST_TOKEN"],
+    )
     assert exit_code == 0
 
 
 def test_smoke_test_total_flows_count(smoke_test_module):
-    """FLOWS should have at least 13 entries (full Epic 1~15 sweep)."""
-    assert len(smoke_test_module.FLOWS) >= 13
+    """LAUNCH_FLOWS should have at least 16 entries (full Epic 1~15 sweep)."""
+    assert len(smoke_test_module.LAUNCH_FLOWS) >= 16
