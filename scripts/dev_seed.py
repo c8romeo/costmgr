@@ -1556,6 +1556,31 @@ async def main() -> int:
         action="store_true",
         help="Skip DB writes; just print a token for the existing dev tenant.",
     )
+    # cj-287 wire — token-only extensions for D-WEB-E2E-7 spec auth.
+    # When `--scenario report_fixtures` is used, the E2E spec needs a
+    # token bound to DEV_TENANT_REPORT_ID (NOT the trad DEV_TENANT_ID),
+    # because the acme report tenant owns the 100 cost_records + 10 BOM rows.
+    # Pattern: `python scripts/dev_seed.py --token-only --tenant-id $R
+    # --user-id $U --role owner` (where $R/$U = DEV_TENANT_REPORT_ID /
+    # DEV_USER_REPORT_ID from dev_seed.py:157-158).
+    parser.add_argument(
+        "--tenant-id",
+        type=str,
+        default=None,
+        help="Tenant UUID to mint the token for (overrides DEV_TENANT_ID).",
+    )
+    parser.add_argument(
+        "--user-id",
+        type=str,
+        default=None,
+        help="User UUID to mint the token for (overrides DEV_USER_ID).",
+    )
+    parser.add_argument(
+        "--role",
+        type=str,
+        default=None,
+        help="Role claim for the minted token (overrides DEV_ROLE).",
+    )
     parser.add_argument(
         "--scenario",
         choices=[
@@ -1697,21 +1722,27 @@ async def main() -> int:
         finally:
             await conn.close()
 
+    # cj-287 wire — honor --tenant-id/--user-id/--role overrides when
+    # --token-only is used with non-default tenant (e.g. DEV_TENANT_REPORT_ID
+    # for report_fixtures E2E). Defaults preserved for trad DEV_TENANT_ID path.
+    effective_tenant_id = args.tenant_id or DEV_TENANT_ID
+    effective_user_id = args.user_id or DEV_USER_ID
+    effective_role = args.role or DEV_ROLE
     token = mint_dev_token(
         secret=secret,
-        tenant_id=DEV_TENANT_ID,
-        user_id=DEV_USER_ID,
-        role=DEV_ROLE,
+        tenant_id=effective_tenant_id,
+        user_id=effective_user_id,
+        role=effective_role,
         industry=args.industry,
     )
 
     print("=" * 68)
     print("  costmgr dev seed complete")
     print("=" * 68)
-    print(f"  tenant_id : {DEV_TENANT_ID}")
-    print(f"  user_id   : {DEV_USER_ID}")
+    print(f"  tenant_id : {effective_tenant_id}")
+    print(f"  user_id   : {effective_user_id}")
     print(f"  email     : {DEV_EMAIL}")
-    print(f"  role      : {DEV_ROLE}")
+    print(f"  role      : {effective_role}")
     print(f"  industry  : {args.industry}")
     print("-" * 68)
     print("  Access token (Authorization: Bearer <token>):")

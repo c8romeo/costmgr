@@ -58,7 +58,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.audit_action import ActionClass, emit_audit_typed
-from apps.api.core.capability import require_any_role
+from apps.api.core.capability import Capability, require_any_role, require_capability
 from apps.api.core.db import get_session
 from apps.api.core.tenant_context import TenantContext, get_tenant_context
 from apps.api.schemas.export_schemas import CsvExportRequest
@@ -250,6 +250,7 @@ def _bom_row_to_csv(r: Any) -> list[str]:
     "/exports/csv",
     dependencies=[
         Depends(require_any_role("owner", "admin")),
+        Depends(require_capability(Capability.EXPORT_CSV)),  # cj-287 AD-56(c) wire
     ],
 )
 async def export_csv(
@@ -271,14 +272,16 @@ async def export_csv(
 ) -> StreamingResponse:
     """Story 30.1 CSV export streaming response (cj-282 PRD entry §F44.1 verbatim).
 
-    audit-first INSERT `export_csv` (CR 1-1 verbatim + ActionClass.AUDIT +
+    audit-first INSERT `export_csv` (CR 1-1 verbatim + ActionClass.REPORTS +
     action='export_csv') BEFORE the byte stream flush.
     Size limit MAX_EXPORT_ROWS = 100_000 (defense vs. giant exports, NFR5 결정 wire).
 
-    Capability gate require_exports_csv 결정 wire 보류:
-    - Capability.EXPORTS_CSV EXTENSION 결정 wire (cj-282 PRD entry §M v1.47 → v1.48 EXTENSION)
-      cj-style 284+ 적용 시 require_exports_csv dependency 추가 진입.
-    - 현재 sprint 는 owner/admin RBAC only 결정 wire (AD-22 verbatim).
+    Capability gate `require_capability(Capability.EXPORT_CSV)` 결정 wire 진입:
+    - Capability.EXPORT_CSV EXTENSION 결정 wire (cj-285 EXTENSION wire sprint — capability
+      matrix v1.53 → v1.54 EXTENSION).
+    - cj-287 wire sprint 진입: AD-56 (c) sub-decision verbatim 적용 —
+      route-level `Depends(require_capability(Capability.EXPORT_CSV))` dependency 추가.
+    - Owner/admin RBAC (AD-22 verbatim) + capability gate (AD-12 verify-first) 결정 wire.
     """
     # Cross-tenant 차단: 요청 tenant_id vs context tenant_id 일치 검증 (CR 0-2 RLS 결정 wire).
     if str(tenant_id) != str(ctx.tenant_id):
@@ -352,11 +355,11 @@ async def export_csv(
     if total_rows > MAX_EXPORT_ROWS:
         raise CsvExportTooLargeError(row_count=total_rows, max_rows=MAX_EXPORT_ROWS)
 
-    # audit-first INSERT `export_csv` (CR 1-1 verbatim).
+    # audit-first INSERT `export_csv` (CR 1-1 verbatim + ActionClass.REPORTS — cj-287 fix).
     try:
         await emit_audit_typed(
             session,
-            action_class=ActionClass.AUDIT,
+            action_class=ActionClass.REPORTS,  # cj-287 fix: REPORTS registry accepts export_csv (cj-285 EXTENSION)
             action="export_csv",
             actor_id=ctx.user_id,
             tenant_id=ctx.tenant_id,

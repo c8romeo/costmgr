@@ -586,6 +586,23 @@ app.include_router(budget_planning_router)
 app.include_router(vendor_management_router)
 
 
+# Epic 30+ (cj-style 287번째 wire) — Story 30.1 CSV export (FR-30-1).
+# cj-287 wire sprint — first D-WEB-E2E-* ownership activation in Epic 30+
+# territory. 1 NEW route mounted at /api/v1/:
+# - GET /api/v1/exports/csv?type=cost-records|bom&period=YYYY-MM&tenant_id={uuid}
+#   — StreamingResponse + UTF-8 BOM + audit-first INSERT `export_csv`
+#   (CR 1-1 verbatim + ActionClass.REPORTS verbatim cj-285 EXTENSION wire).
+# Capability gate EXPORT_CSV (capability matrix v1.54 EXTENSION preserve,
+# AD-12 verify-first). Owner/admin RBAC (AD-22 verbatim).
+# Dev seed: `python scripts/dev_seed.py --scenario report_fixtures`.
+# Spec: `apps/web/e2e/csv-export.spec.ts` (D-WEB-E2E-7 ownership wire ACTIVATED).
+from apps.api.modules.reports.csv_routes import (  # noqa: E402
+    router as csv_export_router,
+)
+
+app.include_router(csv_export_router)
+
+
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack
 # 강화 territory (PRD §F23 + AD-34 verbatim). 3 NEW routers mounted:
 # - /api/v1/metrics                  — Prometheus exposition format endpoint
@@ -3487,6 +3504,91 @@ async def _m7_simulation_projection_baseline_not_found_handler(
                 "period_key": getattr(exc, "period_key", None),
             },
             "trace_id": str(_uuid_mod.uuid4()),
+        },
+    )
+
+
+# ── Epic 30+ (cj-style 287번째 wire) — 4 NEW CSV export exception handlers
+# (CR 12-5 D-14 typed envelope verbatim `{code, message_ko, details, trace_id}`):
+#   - CsvExportInvalidRequestError → 400 CSV_EXPORT_INVALID_REQUEST_KO
+#   - CsvExportForbiddenError      → 403 CSV_EXPORT_FORBIDDEN_KO
+#   - CsvExportCrossTenantError    → 403 CSV_EXPORT_CROSS_TENANT_KO
+#   - CsvExportTooLargeError       → 413 CSV_EXPORT_TOO_LARGE_KO
+# Without these handlers, FastAPI returns HTTP 500 for typed CSV export
+# failures — violating the AD-15 envelope contract. Pattern verbatim
+# mirror of audit_log_* exception handlers at lines 774-831.
+from apps.api.modules.reports.csv_routes import (  # noqa: E402
+    CsvExportCrossTenantError,
+    CsvExportForbiddenError,
+    CsvExportInvalidRequestError,
+    CsvExportTooLargeError,
+)
+
+
+@app.exception_handler(CsvExportInvalidRequestError)
+async def _csv_export_invalid_request_handler(
+    request: Request, exc: CsvExportInvalidRequestError
+) -> JSONResponse:
+    """400 CSV_EXPORT_INVALID_REQUEST_KO — invalid type/period/tenant_id."""
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(CsvExportForbiddenError)
+async def _csv_export_forbidden_handler(
+    request: Request, exc: CsvExportForbiddenError
+) -> JSONResponse:
+    """403 CSV_EXPORT_FORBIDDEN_KO — caller is not owner/admin."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(CsvExportCrossTenantError)
+async def _csv_export_cross_tenant_handler(
+    request: Request, exc: CsvExportCrossTenantError
+) -> JSONResponse:
+    """403 CSV_EXPORT_CROSS_TENANT_KO — tenant_id mismatch with context (CR 0-2 RLS)."""
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(CsvExportTooLargeError)
+async def _csv_export_too_large_handler(
+    request: Request, exc: CsvExportTooLargeError
+) -> JSONResponse:
+    """413 CSV_EXPORT_TOO_LARGE_KO — export row count > MAX_EXPORT_ROWS (NFR5)."""
+    return JSONResponse(
+        status_code=413,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None)
+            or str(__import__("uuid").uuid4()),
         },
     )
 

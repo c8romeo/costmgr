@@ -67,6 +67,28 @@ export default async function ReportsPage({
     );
   }
 
+  // cj-287 wire — decode JWT payload for app_metadata.tenant_id.
+  // Supabase JWT shape: header.payload.signature (base64url-encoded).
+  // Payload structure: { app_metadata: { tenant_id: "<uuid>" }, sub: "<user_id>" }.
+  // The decoded tenant_id is passed to <CsvExportTab> so the download button
+  // sends the required tenant_id query param (csv_routes.py:265 UUID4 Query(...)).
+  let tenantId = "";
+  try {
+    const payloadB64 = accessToken.split(".")[1];
+    if (payloadB64) {
+      const payloadJson = Buffer.from(
+        payloadB64.replace(/-/g, "+").replace(/_/g, "/"),
+        "base64",
+      ).toString("utf8");
+      const payload = JSON.parse(payloadJson) as {
+        app_metadata?: { tenant_id?: string };
+      };
+      tenantId = payload.app_metadata?.tenant_id ?? "";
+    }
+  } catch {
+    // Malformed token — leave tenantId empty; backend will reject with 422.
+  }
+
   const sp = await searchParams;
   const initialPeriod = toStr(sp.period) ?? "2026-08";
   const initialType: "cost-records" | "bom" =
@@ -77,6 +99,7 @@ export default async function ReportsPage({
       <h1 className="text-2xl font-bold mb-4">보고서</h1>
       <CsvExportTab
         accessToken={accessToken}
+        tenantId={tenantId}
         initialPeriod={initialPeriod}
         initialType={initialType}
       />

@@ -39,13 +39,25 @@
  * Korean (ko-KR) locale + manufacturing tenant — same as Story 6.2
  * baseline pattern (verbatim from monthly-closing-report.spec.ts).
  *
- * cj-282a baseline-green recovery continuation — describe.skip():
- * csv-export UI는 cj-282a wire sprint에서 wire 완료되었으나, E2E spec이
- * dev_seed fixtures + capability gate + audit-first INSERT path의 다중
- * layer를 await하는 패턴은 baseline-green 회복을 위해 describe.skip()
- * 적용 보존 (cj-282a close-out retro `7403920` 의 결정 패턴 verbatim).
- * cj-287+ 에서 describe.skip 해제 결정 wire 진입 (test bodies verbatim
- * 보존). D-WEB-E2E-7 ownership 결정 wire 진입 시점에 activate 결정.
+ * cj-287 wire sprint (cj-style 287번째) — D-WEB-E2E-7 ownership wire ACTIVATED.
+ *
+ * First D-WEB-E2E-* ownership activation in Epic 30+ Reporting & Export MVP
+ * territory. The describe.skip baseline (cj-282a decide wire pattern) is
+ * RELEASED. Pre-conditions verified GREEN:
+ * 1. csv_routes.py line 359 ActionClass.AUDIT → ActionClass.REPORTS fix wired
+ *    (registry at audit_action.py:2446-2456 includes export_csv).
+ * 2. apps/api/modules/reports/__init__.py + csv_export_router mount wired in
+ *    apps/api/main.py (otherwise GET /api/v1/exports/csv → 404).
+ * 3. 4 CsvExportError exception handlers registered in main.py (otherwise → 500).
+ * 4. Capability.EXPORT_CSV gate wired in csv_routes.py (AD-12 verify-first +
+ *    AD-56(c) sub-decision).
+ * 5. CsvExportTab tenantId prop supplied via reports/page.tsx JWT decode of
+ *    app_metadata.tenant_id (otherwise → 422 missing query param).
+ * 6. dev_seed.py --tenant-id --user-id --role flags added to --token-only path.
+ * 7. CI auto-discovers via testDir: "./e2e" (ci.yml:742-773 GREEN).
+ *
+ * CR 11-3 honest-DEFER 224번째 epic 연속 정직 회복 — cj-282a 의 223번째
+ * skip 결정 패턴 보존 해제, D-WEB-E2E-7 ownership 진입 결정 wire 보존.
  */
 
 import { expect, test } from "@playwright/test";
@@ -55,7 +67,16 @@ const TEST_PERIOD = "2026-08";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TEST_TENANT = "manufacturing";
 
-test.describe.skip("Story 30.1 — CSV export UI flow", () => {
+// cj-287 wire — D-WEB-E2E-7 ownership variables. These env vars must be
+// supplied by the CI workflow (or local dev) before running this spec.
+// Example (after `make db-seed` + dev_seed --token-only with --tenant-id
+// override): `DEV_TENANT_REPORT_ID=$R DEV_USER_REPORT_ID=$U
+// DEV_ACCESS_TOKEN=$T pnpm exec playwright test e2e/csv-export.spec.ts`.
+const DEV_TENANT_REPORT_ID = process.env.DEV_TENANT_REPORT_ID ?? "";
+const DEV_USER_REPORT_ID = process.env.DEV_USER_REPORT_ID ?? "";
+const DEV_ACCESS_TOKEN = process.env.DEV_ACCESS_TOKEN ?? "";
+
+test.describe("Story 30.1 — CSV export UI flow", () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to /ko-KR/reports — CsvExportTab is mounted on this page.
     await page.goto(`/${TEST_LOCALE}/reports`);
@@ -121,12 +142,12 @@ test.describe.skip("Story 30.1 — CSV export UI flow", () => {
     //
     // We do NOT call this directly in the skipped baseline — but the
     // assertion shape is preserved verbatim for cj-287+ activation.
-    const tenantId = "00000000-0000-0000-0000-000000000000"; // placeholder
-    const url = `/api/v1/exports/csv?type=cost-records&period=${TEST_PERIOD}&tenant_id=${tenantId}`;
+    // cj-287 wire — real DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN (D-WEB-E2E-7).
+    const url = `/api/v1/exports/csv?type=cost-records&period=${TEST_PERIOD}&tenant_id=${DEV_TENANT_REPORT_ID}`;
 
     const response = await request.get(url, {
       headers: {
-        Authorization: "Bearer dev-token-placeholder",
+        Authorization: `Bearer ${DEV_ACCESS_TOKEN}`,
       },
     });
 
@@ -146,12 +167,12 @@ test.describe.skip("Story 30.1 — CSV export UI flow", () => {
     request,
   }) => {
     // Same URL as Case 2 — direct API call for binary body inspection.
-    const tenantId = "00000000-0000-0000-0000-000000000000"; // placeholder
-    const url = `/api/v1/exports/csv?type=cost-records&period=${TEST_PERIOD}&tenant_id=${tenantId}`;
+    // cj-287 wire — real DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN (D-WEB-E2E-7).
+    const url = `/api/v1/exports/csv?type=cost-records&period=${TEST_PERIOD}&tenant_id=${DEV_TENANT_REPORT_ID}`;
 
     const response = await request.get(url, {
       headers: {
-        Authorization: "Bearer dev-token-placeholder",
+        Authorization: `Bearer ${DEV_ACCESS_TOKEN}`,
       },
     });
 

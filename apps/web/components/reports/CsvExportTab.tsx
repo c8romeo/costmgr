@@ -38,12 +38,14 @@ import { useState } from "react";
 
 interface CsvExportTabProps {
   accessToken: string;
+  tenantId: string; // cj-287 wire — supplied by reports/page.tsx JWT decode
   initialPeriod: string;
   initialType: "cost-records" | "bom";
 }
 
 export function CsvExportTab({
   accessToken: _accessToken,
+  tenantId,
   initialPeriod,
   initialType,
 }: CsvExportTabProps): React.ReactElement {
@@ -53,10 +55,11 @@ export function CsvExportTab({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // TODO(cj-style 284+): tenant_id 는 session 에서 추출 결정 wire.
-  // 현재 sprint 는 SSR 에서 accessToken 만 전달 → tenant_id 결정 wire 보류.
-  // CR 11-3 honest-DEFER 223번째: 백엔드 route 의 tenant context 가 canonical.
-  const tenantId: string = ""; // 결정 wire 보류 (cj-style 284+ 적용)
+  // cj-287 wire — tenantId is supplied by reports/page.tsx via JWT decode
+  // of app_metadata.tenant_id. AD-56(c) route-level guard
+  // (Capability.EXPORT_CSV) + CR 0-2 RLS cross-tenant check enforced on backend.
+  // The query param is required (csv_routes.py:265 UUID4 Query(...)) — empty value
+  // would trigger 422 validation error.
 
   // TODO(cj-style 284+): ko-KR.json EXTENSION 결정 wire.
   // 현재 sprint 는 inline 한국어 strings 결정 wire 보존.

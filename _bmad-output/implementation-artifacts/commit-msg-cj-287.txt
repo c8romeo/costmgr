@@ -1,0 +1,153 @@
+feat(api+web+test+seed): cj-287 wire sprint (cj-style 287번째) — Epic 30+ CSV E2E activation + CR 1-1 audit fix atomic
+
+Epic 30+ Reporting & Export MVP wire sprint 진입 결정 wire (cj-style
+287번째 epic 연속 정직 회복 source+docs atomic single sprint — cj-286
+EXTENSION wire sprint `e408668` 의 next 옵션 (a) verbatim mirror).
+
+territory = cj-282 Epic 30+ PRD entry `0c7524e` 의 Story 30.1 CSV
+export territory. D-WEB-E2E-7 ownership wire ACTIVATED (cj-style 287번째
+= FIRST D-WEB-E2E-* ownership activation in Epic 30+ territory).
+
+## 변경 사항 (11 files = 1 NEW + 6 MODIFIED source + 2 NEW + 2 MODIFIED meta atomic)
+
+### 1. CR 1-1 audit-first INSERT bug fix (A700 done)
+
+- `apps/api/modules/reports/csv_routes.py:362` MODIFIED
+  + `action_class=ActionClass.AUDIT` → `action_class=ActionClass.REPORTS`
+    (CR 1-1 verbatim violation 정직 회복 — `ActionClass.AUDIT` registry
+    는 `audit_log_exported/purged/archived/pii_masked/cold_archived/
+    personal_data_erased` 만 허용; `_ActionRegistry.validate()` 가
+    ValueError raise → `except Exception` at lines 373-377 silently
+    swallow → 모든 CSV export operation 의 audit trail silently 누락).
+  + `ActionClass.REPORTS` (cj-285 EXTENSION wire sprint 결정 wire) 는
+    `export_csv/pdf/email/scheduled` 4 audit actions 수용 (verbatim
+    `audit_action.py:1350-1366` + `:2446-2456` registry).
+
+### 2. Capability gate `Capability.EXPORT_CSV` wire (A700 done)
+
+- `apps/api/modules/reports/csv_routes.py:61,253` MODIFIED
+  + Line 61: `from apps.api.core.capability import (Capability,
+    require_any_role, require_capability)` EXTENSION.
+  + Line 253: `Depends(require_capability(Capability.EXPORT_CSV))` 추가
+    to dependencies list — AD-56 (c) sub-decision verbatim 적용 진입
+    (capability matrix v1.54 EXTENSION preserved from cj-285 wire
+    sprint — 4-industry grants 결정 wire 보존).
+
+### 3. Backend mount: package marker + router + 4 exception handlers (A700 done)
+
+- `apps/api/modules/reports/__init__.py` NEW (~24 LOC)
+  + Package marker enabling `from apps.api.modules.reports.csv_routes
+    import router` import.
+- `apps/api/main.py:598-603` MODIFIED — `csv_export_router` import +
+  `app.include_router(csv_export_router)` mount block (after
+  `vendor_management_router` at line 586, before Phase 7 observability
+  comment).
+- `apps/api/main.py:3509-3588` MODIFIED — 4 NEW exception handlers
+  registered before `@app.get("/health")`:
+  + `CsvExportInvalidRequestError` → 400 `CSV_EXPORT_INVALID_REQUEST_KO`
+  + `CsvExportForbiddenError` → 403 `CSV_EXPORT_FORBIDDEN_KO`
+  + `CsvExportCrossTenantError` → 403 `CSV_EXPORT_CROSS_TENANT_KO`
+  + `CsvExportTooLargeError` → 413 `CSV_EXPORT_TOO_LARGE_KO`
+  + Pattern verbatim mirror of `audit_log_*` exception handlers at
+    lines 774-831 (CR 12-5 D-14 typed envelope verbatim).
+
+### 4. Frontend tenantId wire (A700 done)
+
+- `apps/web/components/reports/CsvExportTab.tsx:41,48,56-60` MODIFIED
+  + Line 41: `tenantId: string` EXTENSION to `CsvExportTabProps`
+    interface.
+  + Line 48: `tenantId` accepted in destructured props.
+  + Lines 56-60: replaced TODO comment + `const tenantId: string = ""`
+    placeholder with documented `tenantId` prop usage (lines 82-83
+    fetch URL build already uses `tenantId` variable — now correctly
+    populated from JWT decode).
+- `apps/web/app/[locale]/(dashboard)/reports/page.tsx:69-89,102` MODIFIED
+  + JWT decode block added after accessToken cookie check (lines 69-89):
+    base64url-decode payload → JSON.parse → `payload.app_metadata
+    .tenant_id` extraction. Try/catch around decode (malformed token →
+    empty tenantId → backend 422 typed envelope).
+  + Line 102: `tenantId={tenantId}` prop passed to `<CsvExportTab>`.
+
+### 5. dev_seed --token-only extension (A700 done)
+
+- `scripts/dev_seed.py:1559-1582,1725-1742` MODIFIED
+  + 3 NEW CLI flags added to `--token-only` mode: `--tenant-id`,
+    `--user-id`, `--role` (overrides `DEV_TENANT_ID`/`DEV_USER_ID`/
+    `DEV_ROLE` defaults).
+  + Token mint logic at lines 1728-1735: `effective_tenant_id =
+    args.tenant_id or DEV_TENANT_ID` 등 `effective_*` 변수 적용.
+  + Lines 1742-1745: token printout echoes `effective_*` values.
+  + Backward compatibility: defaults preserved for trad path.
+
+### 6. csv-export.spec.ts un-skip + D-WEB-E2E-7 ACTIVATED (A700 done)
+
+- `apps/web/e2e/csv-export.spec.ts:42-79,143-176` MODIFIED
+  + Lines 42-77: replaced deferral comment block + `test.describe.skip`
+    rationale with D-WEB-E2E-7 ownership wire ACTIVATED header +
+    3 NEW env var declarations (`DEV_TENANT_REPORT_ID`,
+    `DEV_USER_REPORT_ID`, `DEV_ACCESS_TOKEN`).
+  + Line 79: `test.describe.skip(...)` → `test.describe(...)` (D-WEB-E2E-7
+    ACTIVATION moment).
+  + Lines 145-150 (Test 2): replaced `00000000-...` placeholder
+    tenantId + `Bearer dev-token-placeholder` with
+    `DEV_TENANT_REPORT_ID` + `DEV_ACCESS_TOKEN`.
+  + Lines 170-175 (Test 3): same placeholder replacement.
+
+## 결정 wire 정합
+
+- **CR 11-3 honest-DEFER 224번째** — cj-282a 의 223번째 skip 결정 패턴
+  보존 해제, D-WEB-E2E-7 ownership 진입 결정 wire 보존.
+- **CR 1-1 audit-first INSERT verbatim 회복** — silent swallow bug 정직
+  회복 (CR 9-6 D5 prevention: commit message file convention verbatim).
+- **AD-56 (c) sub-decision verbatim 적용** — `Capability.EXPORT_CSV`
+  route-level guard (capability matrix v1.54 EXTENSION preserved).
+- **AD-12 verify-first capability gate** — 결정 wire 진입.
+- **AD-22 owner-only RBAC verbatim 보존** — `require_any_role("owner",
+  "admin")` 결정 wire unchanged.
+- **CR 0-2 RLS verbatim 보존** — `get_tenant_context` dep +
+  cross-tenant check at lines 285-289 unchanged.
+- **CR 12-5 D-14 typed envelope verbatim 적용** — 4 exception handlers
+  결정 wire 진입.
+
+## NFR bind 2/7 active
+
+- **NFR5** (page load P95 ≤ 5s for 10만 row) — StreamingResponse 결정
+  wire 보존.
+- **NFR18** (ko-KR vocabulary SSOT) — UTF-8 BOM (0xEF 0xBB 0xBF) 보존.
+
+## D-WEB-E2E-7 ownership wire ACTIVATED (cj-style 287번째)
+
+- Epic 30+ Reporting & Export MVP territory 의 FIRST D-WEB-E2E-*
+  ownership activation.
+- The describe.skip baseline (cj-282a close-out retro `7403920` 의
+  결정 패턴 verbatim) RELEASED.
+- D-WEB-E2E-8/9/10 queued for cj-288+/cj-290+/cj-292+ (PDF/Email/
+  Scheduled territory).
+
+## runtime 동작 변화 honestly reported
+
+- source+docs atomic — 1 NEW source + 6 MODIFIED source + 2 NEW meta +
+  2 MODIFIED meta = **11 files atomic single sprint** 결정 wire 진입.
+- dev_seed 변경 1 (MODIFIED) — `--token-only` mode 에 3 NEW flags
+  EXTENSION 결정 wire.
+- ci.yml 변경 0 — `apps/web/playwright.config.ts:15 testDir: "./e2e"`
+  auto-discovery 가 cj-287 spec 자연스럽게 pickup 결정 wire 보존.
+- AD-14 stack pin (35 pins) 변경 없음 / [STACK BUMP] tag 불필요.
+- 13 job matrix unchanged (cj-style baseline-green 보존).
+
+## Next (cj-288+ 결정 wire 보류)
+
+- 옵션 (a) cj-288 wire sprint (cj-style 288번째, RECOMMENDED next) —
+  Story 30.2 PDF export source+docs atomic (weasyprint vs reportlab
+  결정 + Jinja2 ko-KR template + matplotlib 3 charts 결정 wire 진입).
+- 옵션 (b) cj-287 close-out retro 결정 wire (cj-style 288번째) —
+  14-section §1~§14 verbatim retro document.
+- 옵션 (c) cj-289 wire sprint (cj-style 289번째) — Epic 30+ capability
+  matrix v1.54 EXTENSION 결정 wire 보완 + 4 audit actions sync (이미
+  cj-285 EXTENSION 에서 결정 wire, close-out retro only 결정).
+- 옵션 (d) Epic 29+ spec implementation chain 진입 결정 wire (cj-29x
+  territory).
+- 옵션 (e) Pilot 고객 유치 (PRD OQ-3 파일럿 게이트 1주 post M0-M6)
+  결정 wire 진입.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
