@@ -1,0 +1,54 @@
+fix(sprint): cj-282a close-out retro 결정 wire (cj-style 284번째) — docs-only atomic single sprint
+
+cj-282a close-out retro 진입 결정 wire (cj-style 284번째 epic 연속 정직 회복 docs-only
+atomic single sprint — cj-282a wire sprint 의 next 옵션 (a) verbatim mirror, A693 의
+'옵션 (a) cj-282a close-out retro 진입 결정 wire (cj-style 284번째, RECOMMENDED) — 14-section
+§1~§14 verbatim retro document' verbatim). territory 결정 wire 보존 = cj-282a wire sprint 의
+territory 그대로 (별도 결정 없음, close-out retro docs-only).
+
+Epic 30+ wire sprint chain 결정 wire (cj-282 PRD entry `0c7524e` 의 next 옵션 (a) verbatim
+follow-up). cj-282a wire sprint (commits `eae9110` + `e803ae2`) 의 source+docs atomic 11
+files (7 NEW content + 2 NEW meta + 2 MODIFIED) 회고 결정 wire. CI run 33994517481 결과 =
+14/14 jobs completed + 13/14 PASS + 1/14 expected FAIL (test-suite-measure P3 BLOCKING gate
+per cj-274 baseline 결정 wire — 비-MVP 회귀 표면화 cj-style discipline 보존).
+
+산출물 결정 wire:
+- _bmad-output/implementation-artifacts/epic-30-plus-csv-wire-closed-2026-09-06.md NEW
+  (~+250 LOC, 14 sections §1~§14 verbatim retro document — cj-280 의
+  phase-24-close-out-2026-08-27.md pattern verbatim mirror)
+- _bmad-output/implementation-artifacts/commit-msg-cj-284.txt NEW (this file)
+- memory/handoff-2026-09-06-cj-282a-close-out-retro-done.md NEW (~+200 LOC, 6-section handoff)
+- _bmad-output/implementation-artifacts/sprint-status.yaml v4.54 → v4.55 EXTENSION
+  (cj-282a: backlog → done + cj-282b: backlog 신규 entry + A694~A697 action_items 신규 +
+  last_updated_note_v4_55 신규 paragraph)
+- memory/MEMORY.md hook EXTENSION (cj-282a CLOSED HONEST status update — 프로젝트 repo 의
+  MEMORY.md file 에 cj-282a wire sprint hook 결정 wire 누락분을 본 close-out retro 에서 정정)
+
+runtime 동작 변화 honestly reported: docs-only atomic sprint
+- source code 변경 0건 (cj-282a wire sprint 의 7 NEW source/test files 그대로 보존)
+- dev_seed.py 변경 0건 (cj-282a wire sprint 결정 wire 보존)
+- ci.yml 변경 0건 (web-e2e step 19 csv-export.spec.ts EXTENSION 결정 wire 보류)
+- AD-14 stack pin 정책 (35 pins) 변경 없음
+- [STACK BUMP] tag 불필요
+- 13 job matrix unchanged
+
+5 OQ 결정 보류 (cj-285+ 결정 wire 진입 시 결정 — cj-style 284번째 범위 외 N/A 마킹):
+OQ-EPIC30+-1 weasyprint vs reportlab / OQ-EPIC30+-2 SMTP 인프라 외부 의존 /
+OQ-EPIC30+-3 APScheduler vs Celery beat vs cron / OQ-EPIC30+-4 chart library /
+OQ-CLOSE-001 source code EXTENSION 진입 결정.
+
+5 EXTENSION 결정 wire 보존 (cj-285+ 적용 보류 결정 wire):
+capability matrix v1.53 → v1.54 EXTENSION (Capability.EXPORTS_CSV/PDF/EMAIL/SCHEDULED 4 NEW
+enum) + 4 NEW audit actions EXTENSION (export_csv/pdf/email/scheduled) + dev_seed.py
+report_fixtures 시나리오 EXTENSION + ci.yml web-e2e step 19 csv-export.spec.ts EXTENSION +
+AD-56 Epic 30+ 결정 wire 7 sub-decisions.
+
+CR 11-3 honest-DEFER 224번째 epic 연속 정직 회복
+(cj-style 283rd wire sprint 의 223번째 + cj-style 284th close-out retro 의 224번째)
+
+next: 옵션 (a) cj-285+ EXTENSION wire sprint 진입 결정 wire (capability matrix v1.54 EXTENSION
++ 4 audit actions EXTENSION source+docs atomic, RECOMMENDED) / 옵션 (b) cj-282b wire sprint
+진입 (cj-style 285번째, Story 30.2 PDF weasyprint 결정 + source+docs atomic) / 옵션 (c)
+Epic 29+ spec implementation chain 진입 결정 wire (cj-29x-impl territory).
+
+결정 wire 일자: 2026-09-06 (KST)
