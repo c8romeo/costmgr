@@ -142,7 +142,9 @@ export function EmailExportTab({
       const result = (await response.json()) as {
         delivery_id: string;
         status: string;
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types -- counts (recipient_count / retry_count), not money
         recipient_count: number;
+        // eslint-disable-next-line @typescript-eslint/no-restricted-types -- counts (retry_count), not money
         retry_count: number;
         pii_redacted_fields: string[];
       };

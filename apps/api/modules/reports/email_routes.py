@@ -70,13 +70,13 @@ from apps.api.core.audit_action import ActionClass, emit_audit_typed
 from apps.api.core.capability import Capability, require_any_role, require_capability
 from apps.api.core.db import get_session
 from apps.api.core.email_provider import EmailDeliveryError, get_email_provider
+from apps.api.core.tenant_context import TenantContext, get_tenant_context
 from apps.api.modules.reports.email_service import (
     build_csv_bytes_for_email,
     generate_email_body,
     redact_pii,
     send_email_with_retry,
 )
-from apps.api.core.tenant_context import TenantContext, get_tenant_context
 from apps.api.schemas.email_schemas import EmailDeliveryResult, EmailExportRequest
 
 logger = logging.getLogger(__name__)
@@ -236,9 +236,7 @@ async def export_email(
     )
 
     # 3. Redact PII from email body (NFR4 PII minimization).
-    redacted_body, pii_redacted_fields = redact_pii(
-        raw_body, enabled=req.pii_redaction_enabled
-    )
+    redacted_body, pii_redacted_fields = redact_pii(raw_body, enabled=req.pii_redaction_enabled)
 
     # 4. Send via provider (Postmark default) with retry 3회.
     provider = get_email_provider()
@@ -256,9 +254,7 @@ async def export_email(
             exc.message,
             exc.code,
         )
-        raise EmailExportDeliveryFailedError(
-            reason=exc.message, retry_count=3
-        ) from exc
+        raise EmailExportDeliveryFailedError(reason=exc.message, retry_count=3) from exc
 
     # 5. Return EmailDeliveryResult envelope.
     return EmailDeliveryResult(

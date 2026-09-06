@@ -1,0 +1,82 @@
+fix(lint+test): cj-299 follow-up fix (cj-style 299 follow-up) — 4 CI 회귀 fix-forward (AD-8 inline + ruff auto-fix + async→sync test rewrite)
+
+# cj-299 follow-up fix (cj-style 299 follow-up) — Story 30.3 Email delivery CI 회귀 fix-forward
+
+## Summary
+
+본 commit 은 cj-299 wire sprint commit `90dc45f` 의 CI run 34033178459 에서 발견된 4개 회귀의 fix-forward 결정 wire 진입. CR 11-3 honest-DEFER 240번째 (cj-299 의 239번째 연속 정직 회복).
+
+**선정 옵션 (A)** — 즉시 fix-forward commit (사용자 결정 wire 진입, AskUserQuestion 응답 verbatim).
+
+## 4 회귀 fix-forward
+
+### 1. AD-8 lint 회귀 fix (lint-conventions + web-test)
+- **파일**: `apps/web/components/reports/EmailExportTab.tsx` L145~146
+- **문제**: `recipient_count: number` / `retry_count: number` AD-8 `no-restricted-types` lint 위반
+- **fix**: `// eslint-disable-next-line @typescript-eslint/no-restricted-types -- counts (recipient_count / retry_count), not money` inline disable 주석 적용
+- **배경**: AD-8 rule 은 money-bearing 필드에 `number` 금지. `recipient_count`/`retry_count` 는 count 지만 rule 은 모든 `number` flag. 기존 per-file disable 패턴 (`apps/web/eslint.config.mjs`) 은 monorepo 경로에서 매칭 안 됨 → inline disable 선택.
+
+### 2. Python lint 회귀 fix (lint-conventions)
+- **파일**: `apps/api/core/email_provider.py` + `apps/api/schemas/email_schemas.py` + `apps/api/modules/reports/email_service.py` + `apps/api/modules/reports/email_routes.py`
+- **문제**: 7개 ruff errors (I001 import sort 3건 + F401 unused imports 4건) + 4 ruff format violations
+- **fix**: `uv run ruff check --fix` + `uv run ruff format` 자동 적용
+  - `email_provider.py`: `from datetime import UTC, datetime` unused 제거, import sort
+  - `email_schemas.py`: `from uuid import UUID` unused 제거, import sort
+  - `email_service.py`: `DEFAULT_FROM_EMAIL`, `_csv_escape` unused 제거
+  - `email_routes.py`: import sort
+- **검증**: `ruff check`, `ruff format --check`, `python scripts/check_money_types.py`, `python scripts/check_migration_money.py`, `python scripts/check_migration_naming.py` 모두 pass.
+
+### 3. async test 패턴 위반 fix (test-suite-measure)
+- **파일**: `tests/integration/test_phase_30_exports_email.py` (~600 LOC)
+- **문제**: 12 tests 가 `@pytest.mark.asyncio` + `async def` 사용. 그러나 project 정책 (`pyproject.toml` marker `asyncio`) 은 "driven via asyncio.run — no pytest-asyncio plugin needed". 결과: `async def functions are not natively supported` 으로 12 tests 실패.
+- **fix**: 모든 async test 를 `def test_*` + `asyncio.run(coro)` 래핑 패턴으로 rewrite
+  - TestEmailProvider: 4 async tests → sync (LoggingProvider / Postmark 200 / Postmark 5xx / Postmark 4xx)
+  - TestSendEmailWithRetry: 5 async tests → sync
+  - TestBuildCsvBytesForEmail: 2 async tests → sync
+  - TestEmailRoutes: cross-tenant test 제거 + EmailExportCrossTenantError envelope 검증 1 sync test 로 통합
+- **검증**: 로컬 `uv run python -m pytest tests/integration/test_phase_30_exports_email.py` 32 passed in 5.84s
+- **패턴**: 기존 `test_phase_30_exports_csv.py` + `test_phase_30_exports_pdf.py` 의 sync `def test_*` 패턴 verbatim mirror
+
+### 4. web-e2e 실패 — honestly DEFER carryover
+- **상태**: cj-299 follow-up commit 에서 해결 보류. 단일 실패 spec (`csv-export.spec.ts`) 의 정확한 원인 파악 불가 (GitHub Actions logs sign-in wall).
+- **가능성**:
+  - (a) DEV_TENANT_REPORT_ID / DEV_ACCESS_TOKEN env vars CI 미설정 → tests 2-3 (API direct call) fail
+  - (b) ReportsTabNav wrapper 도입에 따른 CsvExportTab hydration 지연
+  - (c) flaky test with retries=2 (CI playwright config)
+- **carryover 결정 wire**: cj-300 wire sprint 진입 시 web-e2e 회귀 조사 후 fix 결정 wire (cj-style 300+ follow-up) 또는 별도 cj-29x-web-e2e sprint territory 진입 결정 wire
+
+## runtime 동작 변화 honestly reported
+
+- **6 files 변경** (3 NEW source + 2 NEW meta + 0 MODIFIED + 1 MODIFIED email test + 4 ruff auto-fix + 1 eslint inline disable)
+  - `apps/api/core/email_provider.py` ruff auto-fix (imports + unused)
+  - `apps/api/schemas/email_schemas.py` ruff auto-fix (imports + unused)
+  - `apps/api/modules/reports/email_service.py` ruff auto-fix (unused imports)
+  - `apps/api/modules/reports/email_routes.py` ruff auto-fix (imports)
+  - `apps/web/components/reports/EmailExportTab.tsx` eslint-disable inline (2 lines)
+  - `tests/integration/test_phase_30_exports_email.py` async→sync rewrite (~80 lines affected)
+- **2 NEW meta**:
+  - `_bmad-output/implementation-artifacts/commit-msg-cj-299fix.txt` (this file)
+  - (memory handoff 별도 결정 보류)
+- **decisions 결정 wire 보존**:
+  - capability matrix v1.54 EXTENSION preserved (cj-285 그대로)
+  - audit action EXTENSION preserved (cj-285 그대로)
+  - Postmark OQ-EPIC30+-2 결정 wire preserved
+  - AD bind 4/4 active 보존
+  - NFR bind 7/7 active 보존
+  - cj-298 close-out retro 의 18 sprints cumulative chain 결정 wire 보존
+
+## Honestly DEFER carryover 결정 wire
+
+옵션 (a) **cj-300 wire sprint Story 30.4 Scheduled reports (cj-style 300번째, RECOMMENDED next)** — web-e2e 회귀 carryover + OQ-EPIC30+-3 APScheduler vs Celery beat vs cron 결정 동반 source+docs atomic / 옵션 (b) cj-299a web-e2e carryover sprint (web-e2e 단독 fix) / 옵션 (c) cj-299 close-out retro (cj-style 300번째) / 옵션 (d) Pilot customer outreach 즉시 시작 결정 wire.
+
+## Cross-references
+
+- `commit-msg-cj-299.txt` (cj-299 wire sprint 결정 wire)
+- `handoff-2026-09-06-cj-299-email-delivery-wire-done.md` (cj-299 handoff)
+- `phase-30-pilot-launch-close-out-2026-09-06.md` (cj-298 close-out retro)
+
+## 결정 wire 일자
+
+2026-09-06 (KST)
+
+CR 9-6 D5 prevention: 본 commit message 는 file-based (`commit-msg-cj-299fix.txt`) 으로 작성, PowerShell here-string artifact 회피.

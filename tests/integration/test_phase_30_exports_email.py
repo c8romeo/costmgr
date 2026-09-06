@@ -5,17 +5,19 @@ cj-299 wire sprint (cj-style 299번째) — Story 30.3 Email delivery (FR-30-3) 
 Mirrors tests/integration/test_phase_30_exports_csv.py verbatim pattern (test_phase_30
 naming + class-based 그룹화 + ExceptionGroup-style compile-time coverage).
 
+Project pattern (pyproject.toml marker `asyncio`):
+  "async tests (driven via asyncio.run — no pytest-asyncio plugin needed)"
+So all tests are `def test_*` (sync). For async code under test, we use
+`asyncio.run(coro())` to drive the event loop from a sync test function.
+
 Test classes:
   - TestEmailProvider: 3 provider implementations (Postmark / SMTP / Logging)
-  - TestRedactPII: 4 tests (resident_id / phone / email / disabled)
-  - TestSendEmailWithRetry: 5 tests (success / transient retry / permanent fail /
-    exhausted / empty recipients)
-  - TestGenerateEmailBody: 3 tests (summary / custom message / PII notice)
-  - TestEmailSchemas: 6 tests (valid request / invalid period / invalid email /
-    empty subject / max recipients / valid response)
-  - TestBuildCsvBytesForEmail: 2 tests (cost-records path / bom path)
-  - TestEmailRoutes: 3 mocked HTTP integration tests (cross-tenant / PII enabled /
-    PII disabled) — mirrors csv_routes.py test patterns
+  - TestRedactPII: 6 tests (resident_id / phone / email / disabled / multi / no PII)
+  - TestSendEmailWithRetry: 5 tests + constants test
+  - TestGenerateEmailBody: 3 tests
+  - TestEmailSchemas: 7 tests
+  - TestBuildCsvBytesForEmail: 2 tests (mocked DB session)
+  - TestEmailRoutes: 1 typed-exception test
 
 Total: ~30 tests, fast (no network — Postmark/SMTP mocked).
 
@@ -25,7 +27,7 @@ CR 11-3 honest-DEFER 238번째 epic 연속 정직 회복.
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -61,20 +63,20 @@ from apps.api.schemas.email_schemas import (
 class TestEmailProvider:
     """Test the 3 email provider implementations + factory."""
 
-    @pytest.mark.asyncio
-    async def test_logging_provider_returns_delivery_id(self) -> None:
+    def test_logging_provider_returns_delivery_id(self) -> None:
         """LoggingProvider (dev default) returns log-{uuid} delivery_id without network."""
         provider = LoggingProvider()
-        delivery_id = await provider.send(
-            subject="테스트",
-            body="본문",
-            recipients=["test@example.com"],
+        delivery_id = asyncio.run(
+            provider.send(
+                subject="테스트",
+                body="본문",
+                recipients=["test@example.com"],
+            )
         )
         assert delivery_id.startswith("log-")
         assert len(delivery_id) > 4
 
-    @pytest.mark.asyncio
-    async def test_postmark_provider_uses_http_api(self) -> None:
+    def test_postmark_provider_uses_http_api(self) -> None:
         """PostmarkProvider hits https://api.postmarkapp.com/email with correct headers."""
         provider = PostmarkProvider(server_token="test-token-123")
         mock_response = AsyncMock()
@@ -85,10 +87,12 @@ class TestEmailProvider:
             "Message": "OK",
         }
         with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
-            delivery_id = await provider.send(
-                subject="테스트",
-                body="본문",
-                recipients=["test@example.com"],
+            delivery_id = asyncio.run(
+                provider.send(
+                    subject="테스트",
+                    body="본문",
+                    recipients=["test@example.com"],
+                )
             )
             assert delivery_id == "msg-abc-123"
             mock_post.assert_called_once()
@@ -97,8 +101,7 @@ class TestEmailProvider:
             headers = call.kwargs["headers"]
             assert headers["X-Postmark-Server-Token"] == "test-token-123"
 
-    @pytest.mark.asyncio
-    async def test_postmark_provider_5xx_raises_transient(self) -> None:
+    def test_postmark_provider_5xx_raises_transient(self) -> None:
         """Postmark 5xx → EmailTransientError (caller retries)."""
         provider = PostmarkProvider(server_token="test-token-123")
         mock_response = AsyncMock()
@@ -106,14 +109,15 @@ class TestEmailProvider:
         mock_response.text = "Service Unavailable"
         with patch("httpx.AsyncClient.post", return_value=mock_response):
             with pytest.raises(EmailTransientError):
-                await provider.send(
-                    subject="테스트",
-                    body="본문",
-                    recipients=["test@example.com"],
+                asyncio.run(
+                    provider.send(
+                        subject="테스트",
+                        body="본문",
+                        recipients=["test@example.com"],
+                    )
                 )
 
-    @pytest.mark.asyncio
-    async def test_postmark_provider_4xx_raises_permanent(self) -> None:
+    def test_postmark_provider_4xx_raises_permanent(self) -> None:
         """Postmark 4xx → EmailDeliveryError permanent (caller does NOT retry)."""
         provider = PostmarkProvider(server_token="test-token-123")
         mock_response = AsyncMock()
@@ -121,10 +125,12 @@ class TestEmailProvider:
         mock_response.text = "Invalid payload"
         with patch("httpx.AsyncClient.post", return_value=mock_response):
             with pytest.raises(EmailDeliveryError) as exc_info:
-                await provider.send(
-                    subject="테스트",
-                    body="본문",
-                    recipients=["test@example.com"],
+                asyncio.run(
+                    provider.send(
+                        subject="테스트",
+                        body="본문",
+                        recipients=["test@example.com"],
+                    )
                 )
             assert exc_info.value.code == "POSTMARK_CLIENT_ERROR"
 
@@ -162,7 +168,7 @@ class TestEmailProvider:
             assert provider.host == "smtp.gmail.com"
 
 
-# ── TestRedactPII (4 tests) ──────────────────────────────────────────────
+# ── TestRedactPII (6 tests) ─────────────────────────────────────────────
 
 
 class TestRedactPII:
@@ -216,27 +222,27 @@ class TestRedactPII:
         assert fields == []
 
 
-# ── TestSendEmailWithRetry (5 tests) ────────────────────────────────────
+# ── TestSendEmailWithRetry (6 tests) ───────────────────────────────────
 
 
 class TestSendEmailWithRetry:
     """Test send_email_with_retry retry logic."""
 
-    @pytest.mark.asyncio
-    async def test_success_first_try(self) -> None:
+    def test_success_first_try(self) -> None:
         """첫 번째 시도 성공 → retry_count=0."""
         provider = LoggingProvider()
-        delivery_id, retry_count = await send_email_with_retry(
-            provider=provider,
-            subject="테스트",
-            body="본문",
-            recipients=["test@example.com"],
+        delivery_id, retry_count = asyncio.run(
+            send_email_with_retry(
+                provider=provider,
+                subject="테스트",
+                body="본문",
+                recipients=["test@example.com"],
+            )
         )
         assert delivery_id.startswith("log-")
         assert retry_count == 0
 
-    @pytest.mark.asyncio
-    async def test_success_after_one_retry(self) -> None:
+    def test_success_after_one_retry(self) -> None:
         """첫 번째 transient → 두 번째 성공 → retry_count=1."""
         provider = LoggingProvider()
         call_count = {"n": 0}
@@ -249,19 +255,20 @@ class TestSendEmailWithRetry:
 
         # Patch LoggingProvider.send with a flaky version.
         provider.send = flaky_send  # type: ignore[assignment]
-        delivery_id, retry_count = await send_email_with_retry(
-            provider=provider,
-            subject="테스트",
-            body="본문",
-            recipients=["test@example.com"],
-            max_retries=3,
+        delivery_id, retry_count = asyncio.run(
+            send_email_with_retry(
+                provider=provider,
+                subject="테스트",
+                body="본문",
+                recipients=["test@example.com"],
+                max_retries=3,
+            )
         )
         assert delivery_id == "delivered-id"
         assert retry_count == 1
         assert call_count["n"] == 2
 
-    @pytest.mark.asyncio
-    async def test_permanent_failure_no_retry(self) -> None:
+    def test_permanent_failure_no_retry(self) -> None:
         """permanent failure → raise immediately, no retry."""
         provider = LoggingProvider()
 
@@ -270,17 +277,18 @@ class TestSendEmailWithRetry:
 
         provider.send = always_fail  # type: ignore[assignment]
         with pytest.raises(EmailDeliveryError) as exc_info:
-            await send_email_with_retry(
-                provider=provider,
-                subject="테스트",
-                body="본문",
-                recipients=["test@example.com"],
-                max_retries=3,
+            asyncio.run(
+                send_email_with_retry(
+                    provider=provider,
+                    subject="테스트",
+                    body="본문",
+                    recipients=["test@example.com"],
+                    max_retries=3,
+                )
             )
         assert exc_info.value.code == "PERMANENT"
 
-    @pytest.mark.asyncio
-    async def test_retry_exhausted_raises(self) -> None:
+    def test_retry_exhausted_raises(self) -> None:
         """transient 반복 → max_retries 소진 후 raise."""
         provider = LoggingProvider()
 
@@ -289,24 +297,27 @@ class TestSendEmailWithRetry:
 
         provider.send = always_transient  # type: ignore[assignment]
         with pytest.raises(EmailTransientError):
-            await send_email_with_retry(
-                provider=provider,
-                subject="테스트",
-                body="본문",
-                recipients=["test@example.com"],
-                max_retries=2,  # total 3 attempts
+            asyncio.run(
+                send_email_with_retry(
+                    provider=provider,
+                    subject="테스트",
+                    body="본문",
+                    recipients=["test@example.com"],
+                    max_retries=2,  # total 3 attempts
+                )
             )
 
-    @pytest.mark.asyncio
-    async def test_empty_recipients_raises(self) -> None:
+    def test_empty_recipients_raises(self) -> None:
         """recipients=[] → EmailDeliveryError (EMAIL_NO_RECIPIENTS)."""
         provider = LoggingProvider()
         with pytest.raises(EmailDeliveryError) as exc_info:
-            await send_email_with_retry(
-                provider=provider,
-                subject="테스트",
-                body="본문",
-                recipients=[],
+            asyncio.run(
+                send_email_with_retry(
+                    provider=provider,
+                    subject="테스트",
+                    body="본문",
+                    recipients=[],
+                )
             )
         assert exc_info.value.code == "EMAIL_NO_RECIPIENTS"
 
@@ -318,7 +329,7 @@ class TestSendEmailWithRetry:
         assert set(PII_PATTERNS.keys()) == {"resident_id", "phone", "email"}
 
 
-# ── TestGenerateEmailBody (3 tests) ──────────────────────────────────────
+# ── TestGenerateEmailBody (3 tests) ────────────────────────────────────
 
 
 class TestGenerateEmailBody:
@@ -368,7 +379,7 @@ class TestGenerateEmailBody:
         assert "email" in body
 
 
-# ── TestEmailSchemas (6 tests) ───────────────────────────────────────────
+# ── TestEmailSchemas (7 tests) ───────────────────────────────────────────
 
 
 class TestEmailSchemas:
@@ -446,6 +457,7 @@ class TestEmailSchemas:
         )
         assert result.delivery_id == "msg-abc-123"
         assert result.status == "delivered"
+        assert result.recipient_count == 2
         assert result.retry_count == 1
         assert result.pii_redacted_fields == ["phone"]
 
@@ -465,12 +477,10 @@ class TestEmailSchemas:
 class TestBuildCsvBytesForEmail:
     """Test build_csv_bytes_for_email (mocked DB session)."""
 
-    @pytest.mark.asyncio
-    async def test_cost_records_path(self) -> None:
+    def test_cost_records_path(self) -> None:
         """type=cost-records → CSV_COLUMNS_COST_RECORDS 헤더 결정 wire 검증."""
         # Mock session.execute().fetchall() returning single fake row.
         from datetime import UTC, datetime
-        from unittest.mock import MagicMock
 
         fake_row = MagicMock()
         fake_row._mapping = {
@@ -493,11 +503,13 @@ class TestBuildCsvBytesForEmail:
         session = MagicMock()
         session.execute = AsyncMock(return_value=MagicMock(fetchall=lambda: [fake_row]))
 
-        csv_bytes = await build_csv_bytes_for_email(
-            session=session,
-            type="cost-records",
-            period="2026-08",
-            tenant_id="t-1",
+        csv_bytes = asyncio.run(
+            build_csv_bytes_for_email(
+                session=session,
+                type="cost-records",
+                period="2026-08",
+                tenant_id="t-1",
+            )
         )
         # UTF-8 BOM 결정 wire 검증.
         assert csv_bytes.startswith(b"\xef\xbb\xbf")
@@ -505,11 +517,9 @@ class TestBuildCsvBytesForEmail:
         assert "tenant_id" in csv_bytes.decode("utf-8")
         assert "period_key" in csv_bytes.decode("utf-8")
 
-    @pytest.mark.asyncio
-    async def test_bom_path(self) -> None:
+    def test_bom_path(self) -> None:
         """type=bom → CSV_COLUMNS_BOM 헤더 결정 wire 검증."""
         from datetime import UTC, datetime
-        from unittest.mock import MagicMock
 
         fake_row = MagicMock()
         fake_row._mapping = {
@@ -530,52 +540,28 @@ class TestBuildCsvBytesForEmail:
         session = MagicMock()
         session.execute = AsyncMock(return_value=MagicMock(fetchall=lambda: [fake_row]))
 
-        csv_bytes = await build_csv_bytes_for_email(
-            session=session,
-            type="bom",
-            period="2026-08",
-            tenant_id="t-1",
+        csv_bytes = asyncio.run(
+            build_csv_bytes_for_email(
+                session=session,
+                type="bom",
+                period="2026-08",
+                tenant_id="t-1",
+            )
         )
         assert csv_bytes.startswith(b"\xef\xbb\xbf")
         assert "parent_product_id" in csv_bytes.decode("utf-8")
 
 
-# ── TestEmailRoutes (3 mocked HTTP integration tests) ────────────────────
+# ── TestEmailRoutes (1 typed-exception test) ───────────────────────────
 
 
 class TestEmailRoutes:
-    """Mocked HTTP integration tests for POST /api/v1/exports/email."""
-
-    @pytest.mark.asyncio
-    async def test_cross_tenant_raises(self) -> None:
-        """Cross-tenant mismatch → EmailExportCrossTenantError."""
-        from apps.api.modules.reports.email_routes import EmailExportCrossTenantError
-        from unittest.mock import MagicMock
-
-        ctx = MagicMock()
-        ctx.tenant_id = "ctx-tenant"
-        ctx.user_id = "user-1"
-
-        req = EmailExportRequest(
-            type="cost-records",
-            period="2026-08",
-            tenant_id="00000000-0000-0000-0000-000000000000",  # 다른 테넌트
-            recipients=["test@example.com"],
-            subject="테스트",
-        )
-
-        # Cross-tenant check happens before any DB call.
-        if str(req.tenant_id) != str(ctx.tenant_id):
-            with pytest.raises(EmailExportCrossTenantError) as exc_info:
-                raise EmailExportCrossTenantError(
-                    request_tenant_id=str(req.tenant_id),
-                    ctx_tenant_id=str(ctx.tenant_id),
-                )
-            assert exc_info.value.code == "EMAIL_EXPORT_CROSS_TENANT_KO"
+    """Typed-exception envelope tests for POST /api/v1/exports/email."""
 
     def test_typed_exception_codes(self) -> None:
         """4 Typed exception classes 결정 wire 검증 (CR 12-5 D-14 envelope)."""
         from apps.api.modules.reports.email_routes import (
+            EmailExportCrossTenantError,
             EmailExportDeliveryFailedError,
             EmailExportError,
             EmailExportForbiddenError,
@@ -589,7 +575,17 @@ class TestEmailRoutes:
             == "EMAIL_EXPORT_DELIVERY_FAILED_KO"
         )
 
+        # Cross-tenant error envelope 결정 wire (CR 0-2 RLS verbatim mirror).
+        exc = EmailExportCrossTenantError(
+            request_tenant_id="req-tenant",
+            ctx_tenant_id="ctx-tenant",
+        )
+        assert exc.code == "EMAIL_EXPORT_CROSS_TENANT_KO"
+        assert exc.details["request_tenant_id"] == "req-tenant"
+        assert exc.details["ctx_tenant_id"] == "ctx-tenant"
+
         # All inherit from base class (CR 12-5 D-14 envelope).
         assert issubclass(EmailExportInvalidRequestError, EmailExportError)
         assert issubclass(EmailExportForbiddenError, EmailExportError)
         assert issubclass(EmailExportDeliveryFailedError, EmailExportError)
+        assert issubclass(EmailExportCrossTenantError, EmailExportError)

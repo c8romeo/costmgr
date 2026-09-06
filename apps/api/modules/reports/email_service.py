@@ -43,7 +43,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.core.email_provider import (
-    DEFAULT_FROM_EMAIL,
     EmailDeliveryError,
     EmailProvider,
     EmailTransientError,
@@ -55,7 +54,6 @@ from apps.api.modules.reports.csv_routes import (
     UTF8_BOM,
     _bom_row_to_csv,
     _cost_record_row_to_csv,
-    _csv_escape,
 )
 
 logger = logging.getLogger(__name__)
@@ -178,9 +176,7 @@ def redact_pii(body: str, enabled: bool = True) -> tuple[str, list[str]]:
     redacted_fields: list[str] = []
     redacted_body = body
     for field_name, pattern in PII_PATTERNS.items():
-        new_body, n_subs = re.subn(
-            pattern, f"[REDACTED-{field_name}]", redacted_body
-        )
+        new_body, n_subs = re.subn(pattern, f"[REDACTED-{field_name}]", redacted_body)
         if n_subs > 0:
             redacted_fields.append(field_name)
             redacted_body = new_body
@@ -222,9 +218,7 @@ async def send_email_with_retry(
 
     for attempt in range(total_attempts):
         try:
-            delivery_id = await provider.send(
-                subject=subject, body=body, recipients=recipients
-            )
+            delivery_id = await provider.send(subject=subject, body=body, recipients=recipients)
             return delivery_id, attempt
         except EmailTransientError as exc:
             last_exc = exc

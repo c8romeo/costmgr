@@ -26,10 +26,8 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import Literal
-from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, UUID4, field_validator
-
+from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator
 
 # Email RFC 5322 simple regex (sufficient for SMTP delivery, not full RFC 5322).
 EMAIL_REGEX: str = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
@@ -107,9 +105,7 @@ class EmailExportRequest(BaseModel):
     def _validate_period_format(cls, v: str) -> str:
         """NFR18 ko-KR SSOT 결정 wire 보존 — period 정규식 추가 검증."""
         if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", v):
-            raise ValueError(
-                "period는 YYYY-MM 형식이어야 합니다 (예: 2026-08). 월은 01~12 범위."
-            )
+            raise ValueError("period는 YYYY-MM 형식이어야 합니다 (예: 2026-08). 월은 01~12 범위.")
         return v
 
     @field_validator("recipients")
@@ -118,9 +114,7 @@ class EmailExportRequest(BaseModel):
         """Email RFC 5322 simple regex 결정 wire (NFR18 ko-KR error message)."""
         for idx, email in enumerate(v):
             if not re.match(EMAIL_REGEX, email):
-                raise ValueError(
-                    f"잘못된 이메일 형식입니다 (index {idx}: {email!r})."
-                )
+                raise ValueError(f"잘못된 이메일 형식입니다 (index {idx}: {email!r}).")
         return v
 
     @field_validator("subject")

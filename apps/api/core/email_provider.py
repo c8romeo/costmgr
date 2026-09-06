@@ -122,9 +122,7 @@ class PostmarkProvider(EmailProvider):
         }
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    POSTMARK_API_URL, json=payload, headers=headers
-                )
+                response = await client.post(POSTMARK_API_URL, json=payload, headers=headers)
         except (httpx.RequestError, httpx.TimeoutException) as exc:
             raise EmailTransientError(
                 message=f"Postmark network error: {exc}", retry_after_seconds=2.0
@@ -249,7 +247,6 @@ class LoggingProvider(EmailProvider):
         recipients: list[str],
         sender: str = DEFAULT_FROM_EMAIL,
     ) -> str:
-        from datetime import UTC, datetime
         import uuid
 
         delivery_id = f"log-{uuid.uuid4().hex[:12]}"
@@ -284,7 +281,9 @@ def get_email_provider() -> EmailProvider:
     smtp_pass = os.getenv("SMTP_PASSWORD")
     if smtp_host and smtp_port and smtp_user and smtp_pass:
         use_tls = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
-        logger.info("Email provider: SMTP (host=%s port=%s user=%s)", smtp_host, smtp_port, smtp_user)
+        logger.info(
+            "Email provider: SMTP (host=%s port=%s user=%s)", smtp_host, smtp_port, smtp_user
+        )
         return SMTPProvider(
             host=smtp_host,
             port=int(smtp_port),
