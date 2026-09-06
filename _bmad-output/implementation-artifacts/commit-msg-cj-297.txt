@@ -1,0 +1,69 @@
+docs(prd+memory): cj-297 wire sprint (cj-style 297번째) — Epic 30+ Pilot launch 결정 wire atomic
+
+Epic 30+ Reporting & Export MVP territory Pilot launch 결정 wire 진입 (cj-style 297번째 epic 연속 정직 회복 docs-only atomic single sprint — cj-296 close-out retro `5da667f` 의 next 옵션 (e) verbatim mirror 결정 wire, A706 의 '옵션 (e) Pilot 고객 유치 결정 wire (PRD OQ-3 파일럿 게이트 1주 post M0-M6 + Story 30.2 PDF export UI layer 포함 후 CSV + PDF 둘 다 production-ready)' 의 decision was Epic 30+ Reporting & Export MVP territory 의 production-ready 상태 정식 결정 wire + PRD OQ-3 파일럿 게이트 정식 OPEN 결정 wire 진입 — 사용자 분석 override 적용: 시스템이 이미 production-ready 상태이므로 신규 source code 추가 없이 결정 wire만 wire 진입 (lowest risk + process-optimal path). 옵션 (b) cj-297 Email wire sprint + 옵션 (c) cj-298 Scheduled wire sprint + 옵션 (d) Epic 29+ spec implementation chain 모두 보류 결정 wire (post-pilot enhancement territory 보존).
+
+**territory 결정 wire 보존** = Epic 30+ Reporting & Export MVP territory 그대로 (cj-282 PRD entry `0c7524e` + cj-282a wire `eae9110` + cj-285 EXTENSION `215e963` + cj-286 EXTENSION `e408668` + cj-287 wire `5c37446` + cj-288 wire `b91906a` + cj-289 close-out wrap-up `2ad4910` + cj-290 RLS EXTENSION `1ba4309` + cj-291 close-out retro `0ce88ad` + cj-292 fix forward ATTEMPTED + REVERTED 결정 wire `ed0ee7c` + cj-293 wire `09fcda3` + cj-294 close-out retro `ba16a47` + cj-295 follow-up #1 `c0573f5` + cj-296 close-out retro `5da667f` = 14 sprints cumulative chain CLOSED ✅ HONEST 결정 wire 보존).
+
+**sprint scope 결정 wire = docs-only atomic single sprint — 5 files = 3 NEW + 2 MODIFIED** (cj-style 297번째 결정 wire 진입, cj-282 PRD entry `0c7524e` 의 5 files atomic single sprint pattern verbatim mirror). 결정 wire 진입 완료:
+
+1 NEW content `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-09-05/spec-pilot-launch.md` (~600 LOC = 8-section §1~§8 + 부록 A~C verbatim mirror pattern 결정 wire 진입 + Vision: "cj-style chain cj-229~296 (68 sprint) 의 인프라 결함 정직 회복 + Epic 30+ Reporting & Export MVP chain (14 sprint) 의 CSV + PDF export + UI tab production-ready 결정 wire 진입 → PRD OQ-3 파일럿 게이트 정식 OPEN + Pilot customer launch 결정 wire 진입"). target customer profile (외부 Pilot customer = 제조 tenant ko-KR locale + 재무팀 owner + 운영자) + 4 pilot 검증 항목 UJ-PILOT-1~3 + production readiness verification (M0-M6 + Epic 30+ Story 30.1 + Story 30.2 + E2E honestly DEFER + Security + Operational) + success criteria (functional + non-functional + business) + launch timeline (Phase 0 사전 준비 7일 + Phase 1 Launch D-day + Phase 2 Stabilization 1주 + Phase 3 Evaluation 4주) + deferred items (Email + Scheduled + E2E activation + Epic 29+ spec implementation) + risks + mitigations (technical + business + operational) + next steps (5 옵션 결정 wire) + 부록 A cross-references + 부록 B PRD OQ-3 verbatim mirror + 부록 C dev_seed EXTENSION 결정 wire 보존.
+
+1 NEW meta `_bmad-output/implementation-artifacts/commit-msg-cj-297.txt` (this file, ~90 LOC = Archetype D docs-only 결정 wire pattern verbatim mirror, cj-282 PRD entry `0c7524e` 의 commit-msg-cj-282.txt pattern verbatim mirror — sprint-status v4.63 → v4.64 EXTENSION 결정 wire + 5 files atomic 결정 wire 진입 완료 + runtime 동작 변화 honestly reported + CR 11-3 honest-DEFER 224번째 진입 결정 wire 보존).
+
+1 NEW meta `memory/handoff-2026-09-06-cj-297-pilot-launch-wire-done.md` (~260 LOC = 6-section handoff pattern verbatim mirror 결정 wire 진입 — What was done / Why this approach / Resume instructions / Key files / runtime 동작 변화 honestly reported / CR 11-3 honest-DEFER 카운터 결정 wire).
+
+2 MODIFIED `_bmad-output/implementation-artifacts/sprint-status.yaml` (v4.63 → v4.64 EXTENSION 결정 wire 진입 — A708 신규 block entry + last_updated_note_v4_64 신규 paragraph 결정 wire + cj-style 297번째 진입점 결정 wire 보존 + 14 sprints Epic 30+ cumulative chain CLOSED ✅ HONEST + Pilot launch 결정 wire 진입 완료 정합 결정 wire + 옵션 5종 next 결정 wire 보존).
+
+2 MODIFIED `memory/MEMORY.md` (cj-297 hook EXTENSION 결정 wire — 1-line index format, cj-style 297번째 entry 결정 wire 진입 완료 보존 + Pilot launch readiness 결정 wire 정합 결정 wire 보존 + 옵션 5종 next 결정 wire 보존).
+
+**AD bind 4/4 결정 wire 진입** (cj-282 PRD entry §F44.1 verbatim + cj-285 EXTENSION 결정 wire 보존 + cj-290 RLS EXTENSION 결정 wire 보존 + cj-296 close-out retro 결정 wire 보존):
+- AD-2 (audit-first INSERT append-only) cj-287 wire `5c37446` CR 1-1 verbatim fix 결정 wire 보존.
+- AD-3 (production tenant isolation) cj-290 RLS EXTENSION wire `1ba4309` 의 8 NEW policies 결정 wire 보존.
+- AD-10 (identity/2FA via owner-only RBAC AD-22 owner-only) Epic 12 2FA mandatory 챌린지 결정 wire 보존.
+- AD-12 (verify-first capability gate) cj-285 EXTENSION capability matrix v1.54 의 4 NEW capability row (EXPORT_CSV + EXPORT_PDF + EXPORT_EMAIL + EXPORT_SCHEDULED) + 4-industry grants 결정 wire 보존.
+
+**NFR bind 7/7 active 결정 wire 진입** (cj-282 PRD entry §F44.1~§F44.4 verbatim + cj-296 close-out retro 결정 wire 보존):
+- NFR5 streaming P95 ≤ 5s for 10만 row StreamingResponse 결정 wire 보존 CSV + PDF.
+- NFR7 PDF rendering integrity reportlab Platypus + Korean font fallback chain 결정 wire 보존.
+- NFR8 error notifications 결정 wire 보존 (Slack alert path Pilot 단계에서 운영자 on-call 결정).
+- NFR12 sla monitoring 결정 wire 보존 (Pilot 1주 gate 후 SLA dashboard 운영자 결정 wire).
+- NFR18 ko-KR vocabulary SSOT NOTO Sans CJK KR font subset embedded + ko-KR chart labels + ko-KR UI tab labels PDF 내보내기 / CSV 내보내기 결정 wire 보존.
+- NFR19 export response time 결정 wire 보존 (NFR5 verbatim).
+- NFR4 (audit log retention) CR 1-1 verbatim 결정 wire 보존.
+
+**capability matrix v1.54 EXTENSION preserved** (cj-285 EXTENSION wire `215e963` 결정 wire 보존 + 본 결정 wire 신규 EXTENSION 0건) 결정 wire 진입.
+
+**4 audit actions EXTENSION preserved** (cj-285 EXTENSION wire `215e963` 결정 wire 보존 + ActionClass.REPORTS 추가 결정 wire 보존 + 본 결정 wire 신규 EXTENSION 0건) 결정 wire 진입.
+
+**runtime 동작 변화 honestly reported**: docs-only atomic single sprint — 5 files = 3 NEW + 2 MODIFIED 결정 wire 진입. **source code 변경 0건** (csv_routes.py + csv_export_verification 결정 wire 보존 + pdf_routes.py + pdf_chart_helpers.py + pdf_generator.py 결정 wire 보존 + dev_seed.py 변경 0건) / **dev_seed 변경 0건** (cj-286 EXTENSION 결정 wire 보존) / **ci.yml 변경 0건** (describe.skip 80 tests 0 failed 결정 wire 보존) / **alembic 변경 0건** (cj-288 wire 결정 wire 보존) / **AD-14 stack pin 정책 (37 pins) unchanged** (cj-293 wire EXTENSION 2 pins 그대로 보존 + 본 결정 wire EXTENSION 0건) / **[STACK BUMP] tag 불필요** / **13 job matrix unchanged** (cj-style baseline-green 결정 wire 보존) / **PRD v7.0 §F (ADs) / §M (modules) / §R (reports) unchanged** (본 결정 wire 신규 EXTENSION 0건) / **capability matrix v1.54 EXTENSION preserved** (cj-285 EXTENSION 결정 wire 보존) / **audit actions EXTENSION preserved** (cj-285 EXTENSION 결정 wire 보존).
+
+**honestly DEFER carryover 결정 wire**:
+- 옵션 (b) cj-298 wire sprint (cj-style 298번째) Story 30.3 Email delivery OQ-EPIC30+-2 SMTP 인프라 외부 의존 결정 동반 보류 결정 wire (post-pilot enhancement territory 보존).
+- 옵션 (c) cj-298 wire sprint (cj-style 298번째) Story 30.4 Scheduled reports OQ-EPIC30+-3 APScheduler vs Celery beat vs cron 결정 동반 보류 결정 wire (post-pilot enhancement territory 보존).
+- 옵션 (d) Epic 29+ spec implementation chain 진입 결정 wire (cj-29x-impl territory) 보류 결정 wire (post-pilot enhancement territory 보존).
+- D-WEB-E2E-7 csv-export.spec.ts 3 e2e tests describe.skip → 활성화 보류 결정 wire (cj-29x-impl territory).
+- D-EPIC30+-PDF-2 pdf-export.spec.ts 3 e2e tests describe.skip → 활성화 보류 결정 wire (cj-29x-impl territory).
+- D-REPORTS-EXTENSION ownership 결정 wire 보존 (Epic 30+ spec implementation owner).
+
+**honestly DEFER new decisions**:
+- Pilot customer 구체 선정 + NDA + 데이터 처리 계약 = 운영자 결정 wire 보존.
+- Phase 0 D-day - 7일 ~ - 1일 timeline 실행 = 운영자 결정 wire 보존.
+- D-day 정확한 launch 날짜 = 운영자 결정 wire 보존.
+- Phase 1~3 review meeting schedule = 운영자 결정 wire 보존.
+
+**verification 실측 (all local + CI run history 검증)**: T8.1 tsc N/A (docs-only 결정 wire) / T8.2 lint N/A (docs-only 결정 wire) / T8.3 ruff scoped N/A (docs-only 결정 wire) / T8.4 pytest 회귀 결정 wire 보존 (cj-282b baseline-green 최종 기준선 5,112 passed / 45 failed / 28 errors MVP-scope = 0 + cj-287 wire 8 pytest + cj-293 wire 7 pytest + cj-295 follow-up #1 7 vitest PASS 결정 wire 보존) / T8.5 vitest 회귀 결정 wire 보존 (cj-287 wire 결정 wire 보존) / T8.6 AD-14 stack pin 정책 (37 pins) unchanged 결정 wire / T8.7 FINAL CLEAN PASS 결정 wire.
+
+**cumulative 결정 wire 보존 14/14**: ①territory Epic 30+ Reporting & Export MVP 보존 (cj-282 PRD entry `0c7524e`) + ②capability matrix v1.53 → v1.54 EXTENSION 보존 (cj-285) + ③audit actions EXTENSION 보존 (cj-285 ActionClass.REPORTS + export_csv/export_pdf/export_email/export_scheduled) + ④dev_seed report_fixtures EXTENSION 보존 (cj-286) + ⑤ci.yml csv-export.spec.ts EXTENSION 보존 (cj-286 auto-discover) + ⑥AD-56 Epic 30+ 7 sub-decisions 보존 (cj-286) + ⑦CR 1-1 silent audit failure fix 보존 (cj-287) + ⑧D-WEB-E2E-7 ownership wire ACTIVATED 보존 (cj-287 + cj-292 revert 결정 wire 보존) + ⑨alembic migration 0060 cost_records + bom_matrix 보존 (cj-288) + ⑩Phase 3-0 listener dual GUC pattern 보존 (cj-290) + ⑪OQ 결정 wire 2/4 apply 보존 (cj-293 OQ-EPIC30+-1 + OQ-EPIC30+-4) + ⑫AD-14 stack pin EXTENSION 2 pins +reportlab==4.0.7 + +matplotlib==3.9.0 보존 (cj-293) + ⑬cj-293~cj-296 chain 결정 wire 보존 (cj-294 close-out retro + cj-295 follow-up #1 + cj-296 close-out retro) + ⑭NEW cj-297 Pilot launch 결정 wire 진입 = Epic 30+ Reporting & Export MVP territory 의 15 sprints cumulative chain 결정 wire 진입 완료 보존.
+
+**next 결정 wire 보존**:
+- 옵션 (a) cj-298 close-out retro (cj-style 298번째, RECOMMENDED next) — Pilot launch 결정 wire 의 14-section retro 문서 결정 wire 진입 + sprint-status v4.64 → v4.65 EXTENSION 결정 wire + handoff memory 신규 + MEMORY.md hook EXTENSION + commit-msg-cj-298.txt 신규 결정 wire 진입.
+- 옵션 (b) cj-298 wire sprint (cj-style 298번째) — Story 30.3 Email delivery OQ-EPIC30+-2 SMTP 인프라 외부 의존 결정 동반 source+docs atomic sprint 결정 wire 진입.
+- 옵션 (c) cj-298 wire sprint (cj-style 298번째) — Story 30.4 Scheduled reports OQ-EPIC30+-3 APScheduler vs Celery beat vs cron 결정 동반 source+docs atomic sprint 결정 wire 진입.
+- 옵션 (d) Epic 29+ spec implementation chain 진입 결정 wire (cj-style 298번째, cj-29x-impl territory) — Story 29.1~29.18 본 wire 진입 결정 wire.
+- 옵션 (e) Pilot customer outreach 즉시 시작 결정 wire (운영자 결정, cj-style chain 무관) — Phase 0 D-day - 7일 timeline 즉시 시작 결정 wire 진입.
+
+**CR 11-3 honest-DEFER 224번째** (cj-282 = 220번째 + cj-282a = 221+222번째 + cj-282b = 223번째 + cj-275 = 신규 + cj-281 = FINAL + cj-282 Epic 30+ PRD entry = 220번째 + cj-282a wire = 223번째 + cj-287 wire = 신규 + cj-293 wire = 233번째 + cj-294 close-out retro = 234번째 + cj-295 follow-up #1 = 235번째 + cj-296 close-out retro = 236번째 + **cj-297 Pilot launch 결정 wire = 224번째** 누적 chain 결정 wire 진입). 결정 wire 일자: 2026-09-06 (KST).
+
+**CR 9-6 D5 prevention 결정 wire**: file-based commit message (`commit-msg-cj-297.txt`) 사용 + `git commit -F <file>` 패턴 verbatim 결정 wire 보존 + PowerShell here-string 회피 결정 wire 보존 + scripts/append_sprint_status.py readlines/writelines 패턴 결정 wire 보존 (PyYAML safe_load FAILED pre-existing issue 결정 wire 보존).
+
+**cj-style discipline chain 정합 결정 wire**: cj-style 297번째 진입 = cj-style 296번째 close-out retro 직후 결정 wire 진입 정합 보존 + 5 files atomic single sprint 결정 wire (cj-282 PRD entry 의 5 files atomic single sprint pattern verbatim mirror) + honestly DEFER 결정 wire 6종 모두 보존 + CR 11-3 honest-DEFER 224번째 진입 결정 wire + next 옵션 5종 결정 wire 보존.
