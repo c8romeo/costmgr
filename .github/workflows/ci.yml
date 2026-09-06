@@ -570,6 +570,9 @@ jobs:
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
             -h localhost -p 54322 -U postgres -d postgres \
             -f supabase/policies/0001_rls_policies.sql
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0060_cost_records_and_bom_matrix_rls.sql
       - name: RLS smoke test
         run: |
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
@@ -729,6 +732,9 @@ jobs:
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
             -h localhost -p 54322 -U postgres -d postgres \
             -f supabase/policies/0001_rls_policies.sql
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0060_cost_records_and_bom_matrix_rls.sql
       # cj-277 (Epic 29+ OQ-3 wiring): pass --scenario all to dev_seed so the
       # cj-276 wired business-data scenario seeds (closing_guard_negative +
       # snapshot_persisted) AND any future cj-277/cj-278/cj-279 scenario
@@ -873,6 +879,9 @@ jobs:
           PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
             -h localhost -p 54322 -U postgres -d postgres \
             -f supabase/policies/0001_rls_policies.sql
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 \
+            -h localhost -p 54322 -U postgres -d postgres \
+            -f supabase/policies/0060_cost_records_and_bom_matrix_rls.sql
       - name: Run dev seed (creates tenant + user + industry baseline)
         run: uv run python scripts/dev_seed.py
       - name: Boot uvicorn (background)

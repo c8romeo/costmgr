@@ -30,7 +30,18 @@ DECLARE
         ARRAY['public', 'audit_logs',         'tenant_isolation_select'],
         ARRAY['public', 'audit_logs',         'audit_log_insert'],
         ARRAY['public', 'users',              'tenant_admin_all_users'],
-        ARRAY['public', 'tenant_memberships', 'tenant_admin_all_memberships']
+        ARRAY['public', 'tenant_memberships', 'tenant_admin_all_memberships'],
+        -- cj-290 RLS EXTENSION wire sprint (commit pending) — Epic 30+
+        -- cost_records + bom_matrix 4-policy split per table = 8 NEW triples.
+        -- Companion file: supabase/policies/0060_cost_records_and_bom_matrix_rls.sql
+        ARRAY['public', 'cost_records',      'cost_records_select_same_tenant'],
+        ARRAY['public', 'cost_records',      'cost_records_insert_blocked'],
+        ARRAY['public', 'cost_records',      'cost_records_update_blocked'],
+        ARRAY['public', 'cost_records',      'cost_records_delete_blocked'],
+        ARRAY['public', 'bom_matrix',        'bom_matrix_select_same_tenant'],
+        ARRAY['public', 'bom_matrix',        'bom_matrix_insert_blocked'],
+        ARRAY['public', 'bom_matrix',        'bom_matrix_update_blocked'],
+        ARRAY['public', 'bom_matrix',        'bom_matrix_delete_blocked']
     ];
     p TEXT[];
     found_count INTEGER;
