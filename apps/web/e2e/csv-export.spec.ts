@@ -80,39 +80,8 @@ const DEV_TENANT_REPORT_ID = process.env.DEV_TENANT_REPORT_ID ?? "";
 const DEV_USER_REPORT_ID = process.env.DEV_USER_REPORT_ID ?? "";
 const DEV_ACCESS_TOKEN = process.env.DEV_ACCESS_TOKEN ?? "";
 
-// cj-292 fix forward — D-WEB-E2E-7 PRE-EXISTING carryover 정직 fix.
-// CI provides DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN via the
-// token-mint step in `.github/workflows/ci.yml` (web-e2e job, right
-// before `pnpm exec playwright test`). Local dev without --scenario
-// report_fixtures + --token-only mint → skip the 3 tests gracefully
-// (CR 11-3 honest-DEFER pattern — same as the original cj-282a baseline
-// describe.skip decision wire).
-const HAS_AUTH = Boolean(DEV_TENANT_REPORT_ID) && Boolean(DEV_ACCESS_TOKEN);
-
 test.describe("Story 30.1 — CSV export UI flow", () => {
-  test.beforeEach(async ({ context, page }) => {
-    // Skip when required env vars are not provided (local dev without
-    // the ci.yml token-mint step). CI always provides them.
-    test.skip(!HAS_AUTH, "DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN required (CI sets via token-mint step)");
-
-    // cj-292 fix forward — set the `sb-access-token` cookie so reports/page.tsx
-    // can decode JWT → app_metadata.tenant_id (= DEV_TENANT_REPORT_ID) and
-    // pass it to CsvExportTab. Without this cookie, Case 1 (UI flow)
-    // renders the "세션이 만료되었습니다" fallback (page.tsx:63-68) and
-    // the data-testid="reports-tab" root is absent → expect(reportsTab)
-    // fails immediately.
-    await context.addCookies([
-      {
-        name: "sb-access-token",
-        value: DEV_ACCESS_TOKEN,
-        domain: "localhost",
-        path: "/",
-        httpOnly: false,
-        secure: false,
-        sameSite: "Lax",
-      },
-    ]);
-
+  test.beforeEach(async ({ page }) => {
     // Navigate to /ko-KR/reports — CsvExportTab is mounted on this page.
     await page.goto(`/${TEST_LOCALE}/reports`);
     await page.waitForLoadState("networkidle");
