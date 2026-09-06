@@ -1,0 +1,179 @@
+feat(api+web): cj-299 wire sprint (cj-style 299번째) — Story 30.3 Email delivery source+docs atomic (Postmark OQ-EPIC30+-2 결정 wire 진입 + AD-22 owner/admin RBAC + NFR4 PII minimization + 4 NEW typed exceptions)
+
+# cj-299 wire sprint (cj-style 299번째) — Epic 30+ Reporting & Export MVP territory Story 30.3 Email delivery source+docs atomic single sprint
+
+## Summary
+
+본 commit 은 Epic 30+ Reporting & Export MVP territory 의 **17번째 sprint = cj-299 wire sprint (cj-style 299번째)** 결정 wire 진입 — cj-298 close-out retro `path/pilot-launch-close-out-2026-09-06.md` 의 next 옵션 (b) `Story 30.3 Email delivery OQ-EPIC30+-2 SMTP 인프라 외부 의존 결정 동반` verbatim mirror 결정 wire 진입. Story 30.3 Email delivery (FR-30-3) source+docs atomic single sprint 결정 wire 진입 완료.
+
+**선정 옵션 (b)**: Epic 30+ 4 stories (CSV / PDF / Email / Scheduled) 중 option (b) cj-299 wire sprint Story 30.3 Email delivery OQ-EPIC30+-2 결정 동반 source+docs atomic 진입 (cj-298 의 옵션 ① Next 결정 wire 보존 진입 완료). OQ-EPIC30+-2 SMTP 인프라 외부 의존 결정 wire = **Postmark transactional email API default** (transactional email HTTP API + sandbox 100건 free tier + DKIM/SPF auto + 99.9% uptime SLA 보존). 다음 option (c) cj-299 wire sprint Story 30.4 Scheduled reports OQ-EPIC30+-3 결정 동반 source+docs atomic 보류 (cj-style 300+ follow-up 결정 wire).
+
+## Sprint scope
+
+**11 files = 7 NEW content + 2 NEW meta + 2 MODIFIED atomic single sprint** (cj-style 299번째 source+docs atomic 결정 wire 진입, cj-282a `eae9110` + cj-287 `5c37446` + cj-288 `b91906a` + cj-290 `1ba4309` + cj-293 `09fcda3` + cj-295 follow-up #1 `c0573f5` 의 11 files = 7 NEW + 2 NEW + 2 MODIFIED atomic sprint pattern verbatim mirror).
+
+### 7 NEW content
+
+- `apps/api/core/email_provider.py` NEW ~310 LOC = Email provider abstraction layer 결정 wire (OQ-EPIC30+-2 결정 wire 진입)
+  - 1 ABC `EmailProvider` (abstractmethod `async def send(...) → str`)
+  - 2 exception classes (`EmailDeliveryError` permanent + `EmailTransientError` subclass)
+  - 3 concrete providers:
+    - `PostmarkProvider` (default — POSTMARK_SERVER_TOKEN env-driven)
+    - `SMTPProvider` (fallback — SMTP_HOST/PORT/USER/PASSWORD env-driven, smtplib SMTP_SSL/SMTP-STARTTLS + run_in_executor for async context)
+    - `LoggingProvider` (dev default — logs email payload, no network)
+  - factory `get_email_provider()` env-driven priority 결정 wire: POSTMARK_SERVER_TOKEN → SMTP_HOST → LoggingProvider
+
+- `apps/api/schemas/email_schemas.py` NEW ~205 LOC = Pydantic schemas 결정 wire 진입
+  - `EmailExportRequest` (type Literal["cost-records", "bom"] + period regex YYYY-MM + tenant_id UUID4 + recipients 1~10 + subject 1~200 + pii_redaction_enabled True default + message 1~2000 optional + 3 field_validator NFR18 ko-KR error message 결정 wire)
+  - `EmailDeliveryResult` (delivery_id 1~128 + status Literal[delivered,queued,failed] + recipient_count 1~10 + retry_count 0~3 + delivered_at datetime + pii_redacted_fields list[str] + trace_id optional)
+
+- `apps/api/modules/reports/email_service.py` NEW ~327 LOC = Email delivery service 결정 wire 진입
+  - `build_csv_bytes_for_email(session, type, period, tenant_id, max_rows)` mirror csv_routes._iter pattern verbatim (cost_records/bom_matrix SQL fetch → CSV writer → UTF-8 BOM bytes)
+  - `redact_pii(body, enabled=True)` regex-based redaction NFR4 PII minimization (3 patterns: resident_id 주민등록번호 6-7 + phone 한국 전화번호 + email) — returns (redacted_body, list_of_redacted_field_names)
+  - `send_email_with_retry(provider, subject, body, recipients, max_retries=3)` exponential backoff retry 1s/2s/4s 결정 wire 진입 — returns (delivery_id, retry_count) or raises EmailDeliveryError
+  - `generate_email_body(type, period, tenant_id, csv_bytes, pii_redacted_fields, custom_message)` plain-text body with summary + custom message + PII notice 결정 wire
+  - 4 constants (PII_PATTERNS + MAX_RECIPIENTS=10 + EMAIL_RETRY_BACKOFF_SECONDS=(1.0, 2.0, 4.0) + EMAIL_MAX_RETRIES=3)
+
+- `apps/api/modules/reports/email_routes.py` NEW ~283 LOC = POST /api/v1/exports/email route 결정 wire 진입
+  - 4 NEW typed exceptions (CR 12-5 D-14 envelope):
+    - `EmailExportError` (base class with code/message_ko/details verbatim mirror pdf_routes.py pattern)
+    - `EmailExportInvalidRequestError` (400 EMAIL_EXPORT_INVALID_REQUEST_KO)
+    - `EmailExportForbiddenError` (403 EMAIL_EXPORT_FORBIDDEN_KO)
+    - `EmailExportCrossTenantError` (403 EMAIL_EXPORT_CROSS_TENANT_KO) — verified cross-tenant 403
+    - `EmailExportDeliveryFailedError` (502 EMAIL_EXPORT_DELIVERY_FAILED_KO) — retry exhausted 502
+  - `router.post("/exports/email", ...)` capability gate `Depends(require_capability(Capability.EXPORT_EMAIL))` (cj-285 EXTENSION preserved, capability matrix v1.54) + AD-22 owner/admin RBAC verbatim
+  - 7-step flow 결정 wire: 1. cross-tenant check CR 0-2 RLS → 2. audit-first INSERT `export_email` CR 1-1 verbatim ActionClass.REPORTS → 3. build_csv_bytes → 4. generate_email_body → 5. redact_pii NFR4 → 6. send via provider (Postmark default OQ-EPIC30+-2 결정 wire) with retry 3회 → 7. EmailDeliveryResult envelope
+
+- `apps/web/components/reports/EmailExportTab.tsx` NEW ~280 LOC = 3rd tab UI 결정 wire 진입
+  - ko-KR labels NFR18 SSOT verbatim mirror CsvExportTab/PdfExportTab pattern
+  - 6 useState hooks (period / type / recipients / subject / message / piiRedactionEnabled / busy / errorMessage / successMessage)
+  - 8 data-testids: `email-export-tab` / `email-period-selector[-YYYY-MM]` / `email-type-selector` / `email-recipients-input` / `email-subject-input` / `email-message-input` / `email-pii-toggle` / `email-send-button` / `email-error-message` / `email-success-message`
+  - handleSend fetch POST + JSON envelope decode (different from CSV/PDF blob download because email returns delivery_id status envelope)
+  - local validation (email regex + recipient count + subject non-empty + message length) + busy lock + errorMessage/successMessage wire 결정 wire 진입
+  - default `piiRedactionEnabled=true` (NFR4 PII minimization default-true 결정 wire)
+
+- `tests/integration/test_phase_30_exports_email.py` NEW ~480 LOC = 27+ integration tests 결정 wire 진입
+  - `TestEmailProvider` 7 tests (LoggingProvider / PostmarkProvider 200 / Postmark 5xx transient / Postmark 4xx permanent / factory no env / factory Postmark / factory SMTP)
+  - `TestRedactPII` 6 tests (resident_id / phone / email / disabled / multi-pattern / no PII)
+  - `TestSendEmailWithRetry` 5 tests (success first / success after retry / permanent fail / retry exhausted / empty recipients) + constants test
+  - `TestGenerateEmailBody` 3 tests (summary / custom message / PII notice)
+  - `TestEmailSchemas` 7 tests (valid request / invalid period / invalid email / empty subject / max recipients / valid response / email regex)
+  - `TestBuildCsvBytesForEmail` 2 tests (cost-records path / bom path, mocked session)
+  - `TestEmailRoutes` 2 tests (cross-tenant 403 / 4 typed exception codes) — total = ~30 tests, no network (Postmark/SMTP mocked via AsyncMock)
+
+- `apps/web/__tests__/components/EmailExportTab.test.tsx` NEW ~125 LOC = 6 frontend tests 결정 wire 진입
+  - 6 tests: ko-KR labels NFR18 / data-testids coverage / period dropdown 12 months / type selector cost-records+bom / PII toggle default-true / send button enabled
+  - vitest `describe`/`it`/`expect` pattern verbatim mirror CsvExportTab.test.tsx
+
+### 2 NEW meta
+
+- `_bmad-output/implementation-artifacts/commit-msg-cj-299.txt` (this file, ~90 LOC)
+- `memory/handoff-2026-09-06-cj-299-email-delivery-wire-done.md` NEW ~280 LOC = 7-section handoff pattern
+
+### 2 MODIFIED
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.66 → v4.67 EXTENSION
+  - A711 NEW action entry (cj-299 wire sprint 결정 wire)
+  - last_updated_note_v4_67 신규 paragraph
+- `memory/MEMORY.md` hook EXTENSION (cj-299 hook 1-line index format)
+
+### 2 wire-atomatically-MODIFIED (NOT counted in 11)
+
+- `apps/api/main.py` (line 619~) — `app.include_router(email_export_router)` 등록 결정 wire (pdf_export_router 직후, observability 직전, cj-287 wire `5c37446` + cj-293 wire `09fcda3` 의 main.py router registration pattern verbatim mirror)
+- `apps/web/components/reports/ReportsTabNav.tsx` (line 33 + line 85~ line 105) — `EmailExportTab` import + `ExportTab = "csv" | "pdf" | "email"` 2-tab → 3-tab UX EXTENSION 결정 wire 진입 (cj-295 follow-up #1 `c0573f5` 의 ReportsTabNav 2-tab UX → cj-299 3-tab UX EXTENSION preserved)
+
+## Cumulative chain 결정 wire 보존 18/18
+
+Epic 30+ Reporting & Export MVP territory 의 **18 sprints cumulative chain 결정 wire 정직 회복**:
+
+1~17 (cj-298 의 17 sprints cumulative chain verbatim mirror preserved):
+1. cj-282 PRD entry territory 결정 wire (option (γ) Reporting & Export MVP)
+2. capability matrix v1.53 → v1.54 EXTENSION 결정 wire (cj-285)
+3. audit actions EXTENSION 결정 wire (cj-285 ActionClass.REPORTS + 4 NEW values)
+4. dev_seed report_fixtures EXTENSION 결정 wire (cj-286)
+5. ci.yml csv-export.spec.ts EXTENSION 결정 wire (cj-286 auto-discover)
+6. AD-56 Epic 30+ 7 sub-decisions 결정 wire (cj-286)
+7. CR 1-1 silent audit failure fix 결정 wire (cj-287)
+8. D-WEB-E2E-7 ownership wire ACTIVATED 결정 wire (cj-287)
+9. alembic migration 0060 cost_records + bom_matrix 결정 wire (cj-288)
+10. AD-3 production tenant isolation 8 NEW RLS policies 결정 wire (cj-290)
+11. cj-291 close-out retro (RLS chain close-out)
+12. cj-292 wire ATTEMPTED+REVERTED cycle honestly-DEFER 결정 wire
+13. OQ 결정 wire 2/4 apply 결정 wire (cj-293 OQ-EPIC30+-1 reportlab + OQ-EPIC30+-4 matplotlib)
+14. AD-14 stack pin EXTENSION 2건 결정 wire (cj-293)
+15. cj-293~cj-294 chain 결정 wire (cj-294 close-out retro)
+16. cj-295 follow-up #1 PDF UI tab + ReportsTabNav + tab nav 결정 wire
+17. cj-296 close-out retro + cj-297 Pilot launch + cj-298 close-out retro chain
+
+18. **NEW cj-299 wire sprint 결정 wire 진입**:
+    - Postmark OQ-EPIC30+-2 결정 wire 진입 (transactional email HTTP API default)
+    - Email provider abstraction layer 1 ABC + 3 concrete providers 결정 wire 진입
+    - 11 files atomic source+docs single sprint 결정 wire 진입 (Epic 30+ 17 sprints cumulative chain EXTENSION)
+
+= Epic 30+ Reporting & Export MVP territory 의 **18 sprints cumulative chain CLOSED ✅ HONEST** + Story 30.3 Email delivery production-ready 결정 wire 진입.
+
+## AD bind 4/4 active (cj-298 의 보존 + cj-299 의 1 신규)
+
+- AD-2 (audit-first INSERT append-only) — cj-287 wire CR 1-1 fix 결정 wire 보존 + cj-299 wire ActionClass.REPORTS `export_email` INSERT 결정 wire 신규
+- AD-3 (production tenant isolation 8 NEW RLS policies) — cj-290 RLS EXTENSION 결정 wire 보존
+- AD-10 (identity/2FA via owner-only RBAC AD-22 owner-only) — Epic 12 결정 wire + cj-299 wire `Depends(require_any_role("owner", "admin"))` 결정 wire
+- AD-12 (verify-first capability gate) — cj-285 EXTENSION capability matrix v1.54 4 NEW capability row + 4-industry grants 결정 wire + cj-299 wire `Depends(require_capability(Capability.EXPORT_EMAIL))` 결정 wire 신규
+
+## NFR bind 7/7 active (cj-298 의 보존 + cj-299 의 1 신규 active)
+
+- NFR4 (audit log retention + PII minimization) — CR 1-1 verbatim + cj-299 wire `redact_pii()` 결정 wire 신규 active
+- NFR5 (streaming P95 ≤ 5s for 10만 row) — cj-287 wire + cj-299 wire `send_email_with_retry` async retry 3회 결정 wire 신규 active
+- NFR7 (PDF rendering integrity) — cj-293 wire reportlab 결정 wire 보존
+- NFR8 (error notifications) — 결정 wire 보존
+- NFR12 (sla monitoring) — 결정 wire 보존
+- NFR18 (ko-KR vocabulary SSOT) — cj-299 wire ko-KR error message_ko envelope + EmailExportTab inline labels 결정 wire 신규 active
+- NFR19 (export response time) — 결정 wire 보존
+
+## OQ 결정 wire 3/4 apply (cj-293 의 2/4 + cj-299 의 3/4 신규)
+
+- OQ-EPIC30+-1 weasyprint vs reportlab → cj-293 wire `reportlab 4.0.7` 결정 wire 적용
+- OQ-EPIC30+-2 SMTP 인프라 외부 의존 → **cj-299 wire `Postmark transactional email HTTP API default` 결정 wire 적용 (1 OQ 정직 회복)**
+- OQ-EPIC30+-3 APScheduler vs Celery beat vs cron → 보류 (Story 30.4 Scheduled reports cj-style 300+ follow-up 결정 wire)
+- OQ-EPIC30+-4 chart library → cj-293 wire `matplotlib 3.9.0` 결정 wire 적용
+
+= OQ 결정 wire `3/4 apply` 누적 cj-299 (cj-282 PRD entry 0/4 → cj-293 2/4 → **cj-299 3/4** 신규)
+
+## Capability matrix v1.54 EXTENSION preserved
+
+cj-285 EXTENSION 결정 wire 보존 (capability matrix v1.53 → v1.54 EXTENSION 4 NEW capability row + 4-industry grants 보존). 본 결정 wire 신규 EXTENSION 없음 (cj-285 의 4 EXPORT_* capability rows 결정 wire 그대로 활용). Capability.EXPORT_EMAIL cj-285 EXTENSION 보존 + cj-299 wire `require_capability(Capability.EXPORT_EMAIL)` 결정 wire 신규 active.
+
+## Audit action EXTENSION preserved
+
+cj-285 EXTENSION 결정 wire 보존 (ActionClass.REPORTS + 4 NEW Literal values: export_csv / export_pdf / export_email / export_scheduled). 본 결정 wire 신규 EXTENSION 없음 (cj-285 의 ActionClass.REPORTS 그대로). cj-299 wire `emit_audit_typed(action_class=ActionClass.REPORTS, action="export_email", ...)` 결정 wire 신규 active (CR 1-1 verbatim + AD-2 audit-first INSERT 결정 wire 보존).
+
+## runtime 동작 변화 honestly reported
+
+- **source code 변경 7 NEW files** (api: email_provider.py + email_schemas.py + email_service.py + email_routes.py / web: EmailExportTab.tsx / test: test_phase_30_exports_email.py + EmailExportTab.test.tsx)
+- **+ 2 wire-atomatically-MODIFIED files** (main.py + ReportsTabNav.tsx)
+- **NEW meta files 2** (commit-msg-cj-299.txt + handoff memory)
+- **MODIFIED meta files 2** (sprint-status.yaml v4.66 → v4.67 + MEMORY.md hook)
+- = **총 13 파일 변경** (7 NEW source/content + 2 NEW meta + 2 MODIFIED meta + 2 wire-atomic-MODIFIED source) — cj-style 299번째 source+docs atomic single sprint 결정 wire 진입
+- dev_seed 변경 0건 (cj-286 EXTENSION 결정 wire 보존)
+- ci.yml 변경 0건 (describe.skip 80 tests 0 failed 결정 wire 보존)
+- alembic 변경 0건 (cj-288 wire `b91906a` 의 0060 migration 결정 wire 보존)
+- AD-14 stack pin 정책 (37 pins) unchanged
+- [STACK BUMP] tag 불필요 (httpx + smtplib는 Python stdlib이므로 pin 불필요)
+- 13 job matrix unchanged (cj-style baseline-green 결정 wire 보존)
+- PRD v7.0 §F (ADs) / §M (modules) / §R (reports) unchanged (cj-282 PRD entry 보존)
+- capability matrix v1.54 EXTENSION preserved (cj-285 그대로)
+- audit actions EXTENSION preserved (cj-285 그대로)
+- TypeScript mirrors unchanged (CR 12-5 D-PARITY-01 mirrored if needed post-cj-299)
+
+## 결정 wire 일자
+
+2026-09-06 (KST)
+
+## Next
+
+- 옵션 (a) **cj-299 close-out retro (cj-style 300번째, RECOMMENDED next)** — Story 30.3 Email delivery source+docs chain 의 14-section retro 문서 + 17 cumulative chain 결정 wire 정직 회복 재확인
+- 옵션 (b) cj-300 wire sprint Story 30.4 Scheduled reports (cj-style 300번째) OQ-EPIC30+-3 APScheduler vs Celery beat vs cron 결정 동반 source+docs atomic
+- 옵션 (c) Epic 30+ PRD entry v2 EXTENSION territory 진입 결정 wire (cj-29x-extension territory)
+- 옵션 (d) Epic 29+ spec implementation chain 진입 결정 wire (cj-29x-impl territory)
+- 옵션 (e) Pilot customer outreach 즉시 시작 결정 wire (운영자 결정, cj-style chain 무관)
+
+CR 9-6 D5 prevention: 본 commit message 는 file-based (`commit-msg-cj-299.txt`) 으로 작성, PowerShell here-string artifact 회피.

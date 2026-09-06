@@ -1,36 +1,40 @@
 "use client";
 
 /**
- * apps/web/components/reports/ReportsTabNav.tsx — cj-295 follow-up #1 (cj-style 295번째)
+ * apps/web/components/reports/ReportsTabNav.tsx — cj-299 wire sprint (cj-style 299번째)
  *
- * Client component wrapping CsvExportTab + PdfExportTab with simple tab
- * navigation. The tab nav uses inline ko-KR labels (NFR18 SSOT verbatim
- * 적용) and a 2-tab UX (CSV / PDF). State for the active tab is local
+ * Client component wrapping CsvExportTab + PdfExportTab + EmailExportTab with
+ * simple tab navigation. The tab nav uses inline ko-KR labels (NFR18 SSOT verbatim
+ * 적용) and a 3-tab UX (CSV / PDF / Email). State for the active tab is local
  * useState.
  *
- * Pattern verbatim mirror from CsvExportTab.tsx verbatim ko-KR labels
- * pattern + a thin tab nav wrapper.
+ * cj-299 wire sprint 결정 wire 진입 (cj-295 follow-up #1 의 2-tab UX → 3-tab UX
+ * 확장). Story 30.3 Email delivery 진입.
+ *
+ * Pattern verbatim mirror from CsvExportTab.tsx verbatim ko-KR labels pattern
+ * + a thin tab nav wrapper.
  *
  * AD bind 3/3 (backend 결정 wire 보존):
- *   - AD-2 (audit-first INSERT append-only) — backend 결정 wire (export_csv + export_pdf).
+ *   - AD-2 (audit-first INSERT append-only) — backend 결정 wire (export_csv + export_pdf + export_email).
  *   - AD-10 (identity + 2FA) — backend owner/admin RBAC 결정 wire.
- *   - AD-12 (verify-first capability gate) — Capability.EXPORT_CSV + Capability.EXPORT_PDF.
+ *   - AD-12 (verify-first capability gate) — Capability.EXPORT_CSV + Capability.EXPORT_PDF + Capability.EXPORT_EMAIL.
  *
  * NFR bind 3/7 active:
  *   - NFR5 (page load P95 ≤ 5s) — streaming response 결정 wire 보존.
  *   - NFR7 (PDF rendering integrity) — reportlab 결정 wire (cj-293).
  *   - NFR18 (ko-KR vocabulary SSOT) — ko-KR labels 결정 wire.
  *
- * CR 11-3 honest-DEFER 235번째 epic 연속 정직 회복
- * (cj-294 close-out retro 의 234번째 + cj-295 follow-up #1 의 235번째)
+ * CR 11-3 honest-DEFER 238번째 epic 연속 정직 회복
+ * (cj-298 close-out retro 의 237번째 + cj-299 의 238번째).
  */
 
 import { useState } from "react";
 
 import { CsvExportTab } from "@/components/reports/CsvExportTab";
+import { EmailExportTab } from "@/components/reports/EmailExportTab";
 import { PdfExportTab } from "@/components/reports/PdfExportTab";
 
-type ExportTab = "csv" | "pdf";
+type ExportTab = "csv" | "pdf" | "email";
 
 interface ReportsTabNavProps {
   accessToken: string;
@@ -82,6 +86,20 @@ export function ReportsTabNav({
         >
           PDF 내보내기
         </button>
+        <button
+          role="tab"
+          type="button"
+          aria-selected={activeTab === "email"}
+          data-testid="reports-tab-email"
+          onClick={() => setActiveTab("email")}
+          className={`px-4 py-2 -mb-px border-b-2 ${
+            activeTab === "email"
+              ? "border-green-500 text-green-600 font-semibold"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          이메일 발송
+        </button>
       </div>
 
       {activeTab === "csv" ? (
@@ -91,8 +109,15 @@ export function ReportsTabNav({
           initialPeriod={initialPeriod}
           initialType={initialType}
         />
-      ) : (
+      ) : activeTab === "pdf" ? (
         <PdfExportTab
+          accessToken={accessToken}
+          tenantId={tenantId}
+          initialPeriod={initialPeriod}
+          initialType={initialType}
+        />
+      ) : (
+        <EmailExportTab
           accessToken={accessToken}
           tenantId={tenantId}
           initialPeriod={initialPeriod}

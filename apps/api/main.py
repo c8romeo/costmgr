@@ -617,6 +617,23 @@ from apps.api.modules.reports.pdf_routes import (  # noqa: E402
 app.include_router(pdf_export_router)
 
 
+# cj-299 wire sprint (cj-style 299번째) — Story 30.3 Email delivery route mount.
+# Capability gate EXPORT_EMAIL (capability matrix v1.54 EXTENSION preserve,
+# AD-12 verify-first). Owner/admin RBAC (AD-22 verbatim).
+# OQ-EPIC30+-2 결정 wire = Postmark (transactional email HTTP API).
+# Email provider factory `get_email_provider()` env-driven priority:
+# POSTMARK_SERVER_TOKEN → SMTP_HOST → LoggingProvider (dev default).
+# 4 NEW typed exceptions (CR 12-5 D-14 envelope):
+# EmailExportInvalidRequestError / EmailExportForbiddenError /
+# EmailExportCrossTenantError / EmailExportDeliveryFailedError.
+# Spec: tests/integration/test_phase_30_exports_email.py.
+from apps.api.modules.reports.email_routes import (  # noqa: E402
+    router as email_export_router,
+)
+
+app.include_router(email_export_router)
+
+
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack
 # 강화 territory (PRD §F23 + AD-34 verbatim). 3 NEW routers mounted:
 # - /api/v1/metrics                  — Prometheus exposition format endpoint
