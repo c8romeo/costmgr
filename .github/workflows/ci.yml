@@ -776,6 +776,36 @@ jobs:
       # snapshot/reopen) — `-m v8_regression` covers all 22.
       - name: Run V8 fixture suite (1-won regression gate)
         run: uv run pytest tests/regression_v8/test_regression_v8_fixtures.py -m v8_regression -v --tb=short
+      # cj-292 fix forward (D-WEB-E2E-7 PRE-EXISTING carryover 정직 fix):
+      # csv-export.spec.ts (3 tests, ACTIVATED at cj-287) requires
+      # DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN env vars. mint them
+      # deterministically here so the playwright step sees the report
+      # tenant + a signed owner-role JWT. UUIDv5 namespace matches
+      # `scripts/dev_seed.py:53 _NS` constant (uuid.UUID(
+      # "11111111-2222-3333-4444-555555555555")). The acme tenant +
+      # 100 cost_records + 10 BOM rows are already seeded by the
+      # earlier `dev_seed.py --scenario all` step (cj-286 EXTENSION
+      # 보존 — `--scenario all` covers `report_fixtures` per
+      # dev_seed.py:1720-1721). 13 job matrix unchanged.
+      - name: Mint DEV_ACCESS_TOKEN for csv-export.spec.ts (cj-292 D-WEB-E2E-7 fix)
+        env:
+          _NS: "11111111-2222-3333-4444-555555555555"
+        run: |
+          set -euo pipefail
+          DEV_TENANT_REPORT_ID=$(uv run python -c "import uuid; ns=uuid.UUID('${_NS}'); print(uuid.uuid5(ns, 'costmgr-dev-tenant-report'))")
+          DEV_USER_REPORT_ID=$(uv run python -c "import uuid; ns=uuid.UUID('${_NS}'); print(uuid.uuid5(ns, 'costmgr-dev-user-report'))")
+          TOKEN=$(uv run python scripts/dev_seed.py --token-only \
+            --tenant-id "$DEV_TENANT_REPORT_ID" \
+            --user-id "$DEV_USER_REPORT_ID" \
+            --role owner \
+            | awk '/^[[:space:]]*Access token/{getline; gsub(/^[[:space:]]+|[[:space:]]+$/, ""); print}')
+          if [ -z "$TOKEN" ]; then
+            echo "::error::DEV_ACCESS_TOKEN mint failed — dev_seed.py did not print a token"
+            exit 1
+          fi
+          echo "DEV_TENANT_REPORT_ID=$DEV_TENANT_REPORT_ID" >> "$GITHUB_ENV"
+          echo "DEV_ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "Minted DEV_ACCESS_TOKEN (length=${#TOKEN}) for tenant=$DEV_TENANT_REPORT_ID"
       - run: cd apps/web && pnpm exec playwright test --project=chromium
       - name: Upload Playwright report
         if: always()
