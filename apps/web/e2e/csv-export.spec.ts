@@ -91,27 +91,21 @@ const HAS_AUTH = Boolean(DEV_TENANT_REPORT_ID) && Boolean(DEV_ACCESS_TOKEN);
 
 test.describe("Story 30.1 — CSV export UI flow", () => {
   test.beforeEach(async ({ context, page }) => {
-    // Skip when required env vars are not provided (local dev without
-    // the ci.yml token-mint step). CI always provides them.
-    test.skip(!HAS_AUTH, "DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN required (CI sets via token-mint step)");
-
     // cj-292 fix forward — set the `sb-access-token` cookie so reports/page.tsx
     // can decode JWT → app_metadata.tenant_id (= DEV_TENANT_REPORT_ID) and
     // pass it to CsvExportTab. Without this cookie, Case 1 (UI flow)
     // renders the "세션이 만료되었습니다" fallback (page.tsx:63-68) and
     // the data-testid="reports-tab" root is absent → expect(reportsTab)
     // fails immediately.
-    await context.addCookies([
-      {
-        name: "sb-access-token",
-        value: DEV_ACCESS_TOKEN,
-        domain: "localhost",
-        path: "/",
-        httpOnly: false,
-        secure: false,
-        sameSite: "Lax",
-      },
-    ]);
+    if (HAS_AUTH) {
+      await context.addCookies([
+        {
+          name: "sb-access-token",
+          value: DEV_ACCESS_TOKEN,
+          url: "http://localhost:3000",
+        },
+      ]);
+    }
 
     // Navigate to /ko-KR/reports — CsvExportTab is mounted on this page.
     await page.goto(`/${TEST_LOCALE}/reports`);
@@ -122,6 +116,8 @@ test.describe("Story 30.1 — CSV export UI flow", () => {
   test("CSV download button click triggers download (page stays)", async ({
     page,
   }) => {
+    // cj-292 fix forward — graceful skip when CI env vars absent (local dev).
+    test.skip(!HAS_AUTH, "DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN required");
     // CsvExportTab root panel visible.
     const reportsTab = page.getByTestId("reports-tab");
     await expect(reportsTab).toBeVisible();
@@ -171,6 +167,8 @@ test.describe("Story 30.1 — CSV export UI flow", () => {
     page: _page,
     request,
   }) => {
+    // cj-292 fix forward — graceful skip when CI env vars absent (local dev).
+    test.skip(!HAS_AUTH, "DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN required");
     // Direct API call (bypassing UI for content-type assertion) — the
     // route is `GET /api/v1/exports/csv?type=cost-records&period=2026-08
     // &tenant_id={uuid}` per csv_routes.py:249-419.
@@ -201,6 +199,8 @@ test.describe("Story 30.1 — CSV export UI flow", () => {
     page: _page,
     request,
   }) => {
+    // cj-292 fix forward — graceful skip when CI env vars absent (local dev).
+    test.skip(!HAS_AUTH, "DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN required");
     // Same URL as Case 2 — direct API call for binary body inspection.
     // cj-287 wire — real DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN (D-WEB-E2E-7).
     const url = `/api/v1/exports/csv?type=cost-records&period=${TEST_PERIOD}&tenant_id=${DEV_TENANT_REPORT_ID}`;
