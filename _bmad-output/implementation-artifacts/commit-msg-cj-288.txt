@@ -1,0 +1,175 @@
+feat(api): cj-288 wire sprint (cj-style 288번째) — Epic 30+ cost_records + bom_matrix alembic migration 결정 wire
+
+cj-287 follow-up #2 commit `d8d4df0` 의 PRE-EXISTING carryover 정직 회복
+honest-DEFER 224번째 atomic single source-only sprint — cj-287 close-out
+option (a) 진입 결정 wire.
+
+territory = cj-282 Epic 30+ PRD entry `0c7524e` 의 Story 30.1 CSV export
+territory (cj-282a wire sprint `eae9110` 의 pre-existing 결정 wire 보존).
+
+## 변경 사항 (1 file = 1 NEW source atomic single sprint)
+
+### 1. NEW alembic migration 0060_cost_records_and_bom_matrix.py (A701 done)
+
+- `apps/api/alembic/versions/0060_cost_records_and_bom_matrix.py` NEW
+  (~204 LOC):
+  + revision = "0060_cost_records_and_bom_matrix"
+  + down_revision = "0059_phase_28_interactive_dashboard"
+  + CREATE TABLE IF NOT EXISTS `cost_records` (14 columns verbatim from
+    `scripts/dev_seed.py:1455-1466` INSERT columns + `apps/api/modules/
+    reports/csv_routes.py:300-303` SELECT columns = csv_routes.py query
+    schema = dev_seed INSERT schema 1:1 match):
+    * id              UUID PK DEFAULT gen_random_uuid()
+    * tenant_id       UUID NOT NULL FK → tenants(id) ON DELETE CASCADE
+    * period_key      VARCHAR(32) NOT NULL  (AD-24 YYYY-MM format)
+    * product_id      UUID NOT NULL  (FK 부재: dev_seed ad-hoc UUIDv5
+                       namespace products — FK enforcement 시 dev_seed
+                       INSERT 가 FK violation fail 결정 wire)
+    * product_name    VARCHAR(255) NOT NULL
+    * category        VARCHAR(64) NOT NULL  (ko-KR: 원재료/노무비/간접비/
+                                                                       완제품)
+    * opening_qty/input_qty/output_qty/closing_qty NUMERIC(18,4)
+    * unit_cost/total_cost NUMERIC(18,2) (AD-8 monetary parity verbatim)
+    * currency VARCHAR(8) NOT NULL DEFAULT 'KRW'
+    * created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    * ledger_event_id UUID NOT NULL  (dev_seed-generated UUIDv5)
+  + CREATE INDEX `idx_cost_records_tenant_period` ON
+    (tenant_id, period_key) — csv_routes.py:303 PRIMARY path (NFR5
+    streaming P95 ≤ 5s 결정 wire 보존)
+  + CREATE TABLE IF NOT EXISTS `bom_matrix` (13 columns verbatim from
+    `scripts/dev_seed.py:1515-1522` INSERT columns + `csv_routes.py:
+    324-330` SELECT columns = csv_routes.py query schema = dev_seed
+    INSERT schema 1:1 match, bom_level = 1 dev_seed 결정 wire 보존):
+    * id UUID PK DEFAULT gen_random_uuid()
+    * tenant_id UUID NOT NULL FK → tenants(id) ON DELETE CASCADE
+    * period_key VARCHAR(32) NOT NULL
+    * parent_product_id / parent_product_name VARCHAR(255)
+    * child_product_id / child_product_name VARCHAR(255)
+    * child_category VARCHAR(64)
+    * child_qty_per_parent NUMERIC(18,4)
+    * child_unit_cost / child_total_cost NUMERIC(18,2)
+    * currency VARCHAR(8) DEFAULT 'KRW'
+    * created_at TIMESTAMPTZ DEFAULT NOW()
+    * bom_level INTEGER NOT NULL DEFAULT 1 CHECK >= 1
+  + CREATE INDEX `idx_bom_matrix_tenant_period` ON
+    (tenant_id, period_key) — csv_routes.py:330 PRIMARY path
+  + CREATE INDEX `idx_bom_matrix_tenant_period_level` ON
+    (tenant_id, period_key, bom_level) — csv_routes.py:333
+    WHERE ... AND bom_level = 1 filter path
+  + downgrade() — DROP INDEX/TABLE reverse order (FK dependents first)
+
+## CR 11-3 honest-DEFER 225번째 결정 wire 진입 — root cause 정직 회복
+
+CI run 33999439554 (head `d8d4df0` cj-287 follow-up #2) 의 web-e2e job
+27 steps 분석:
+- Step 15 "Run dev seed --scenario all" = FAILURE (exit code 1)
+- Steps 16~19 (uvicorn + playwright install + v8 fixture +
+  **playwright test --project=chromium**) = 모두 SKIPPED
+
+Effect: **step 19 csv-export.spec.ts 3/3 tests NEVER RAN** — D-WEB-E2E-7
+ownership wire 의 verification milestone 이 dev_seed step 15 fail 로
+masking 되어 silent RED 결정 wire 보존.
+
+Root cause 정직 회복:
+- cj-286 EXTENSION wire sprint `e408668` 의 `_seed_report_fixtures(conn)`
+  는 `public.cost_records` + `public.bom_matrix` 두 테이블에 INSERT.
+- 두 테이블 모두 어떤 alembic migration 에도 존재하지 않았음 (grep
+  0 hits across `apps/api/alembic/versions/*.py` + `supabase/policies/
+  *.sql`).
+- CI step 15 INSERT 시 `relation "public.cost_records" does not exist`
+  → exception → script exit 1 → step 16~19 SKIPPED 결정 wire.
+
+본 sprint 가 table 부재 fix → step 15 회복 → step 19 자연 unlock 결정
+wire 진입.
+
+## 결정 wire 정합 (cj-282 PRD entry AD/NFR bind verbatim)
+
+### AD bind 3/3 (cj-282 PRD entry §F44.1 verbatim)
+- **AD-2** (audit-first INSERT append-only) — 본 table 자체는 append-only
+  와 무관 (CSV export = read-only query). export event 자체는 audit_logs
+  에 INSERT (cj-287 wire sprint `5c37446` 의 csv_routes.py:362 fix 보존).
+- **AD-3** (RLS 정합) — tenant_id FK to tenants(id) + tenant_id+period_key
+  index 결정 wire 진입. RLS policies 는 별도 sprint
+  (supabase/policies/0060_cost_records_and_bom_matrix_rls.sql 결정 wire)
+  EXTENSION territory 보류 — dev_seed 는 postgres role (BYPASSRLS)
+  사용 → RLS 부재가 dev_seed step 15 회복에는 무관 결정 wire.
+- **AD-15** (SSOT) — id UUID DEFAULT gen_random_uuid() (CSV export spec
+  호환). tenant_id UUID v4 JWT-derived 결정 wire 보존.
+- **AD-22** (owner-only RBAC verbatim) — csv_routes.py 의 `require_any_
+  role("owner", "admin")` 결정 wire 보존 (cj-287 wire sprint 진입 완료).
+
+### NFR bind 2/7 active (cj-282 PRD entry §F44 NFR 매트릭스)
+- **NFR5** (streaming P95 ≤ 5s for 10만 row) — idx_cost_records_tenant_
+  period composite index 결정 wire 보존 + idx_bom_matrix_tenant_period
+  결정 wire 보존.
+- **NFR18** (ko-KR vocabulary SSOT) — comment ON TABLE 결정 wire 보존.
+
+### CR 결정 wire verbatim 보존
+- **CR 0-2 RLS** — tenant_id FK + index (RLS policies 별도 결정 wire).
+- **CR 1-1 audit-first INSERT** — cj-287 fix 보존 (csv_routes.py:362
+  ActionClass.REPORTS).
+- **CR 9-6 atomic commit** — `git commit -F <file>` convention 결정 wire
+  보존.
+- **CR 11-3 honest-DEFER 225번째** — 본 sprint 의 cj-287 carryover
+  정직 회복.
+- **CR 11-4 P-015 pure validator pattern** — csv_routes.py 의 `_iter()`
+  generator + `StreamingResponse` 결정 wire 보존.
+- **CR 12-5 D-14 typed exception envelope** — cj-287 wire sprint 의 4 NEW
+  exception handlers 보존.
+
+## runtime 동작 변화 honestly reported
+
+- source-only atomic single sprint — 1 file = 1 NEW alembic migration
+  결정 wire 진입.
+- apps/api/alembic/versions/0060_cost_records_and_bom_matrix.py: 204 LOC
+  결정 wire 진입 (CREATE TABLE 2 + CREATE INDEX 3 + COMMENT 2 + DROP
+  reverse order 5).
+- ci.yml 변경 0 결정 wire 보존.
+- dev_seed 변경 0 결정 wire 보존 (cj-286 EXTENSION 의 `_seed_report_
+  fixtures` 보존).
+- CSV export endpoint 변경 0 (csv_routes.py 보존).
+- AD-14 stack pin (35 pins) 변경 없음 / [STACK BUMP] tag 불필요 결정
+  wire 보존.
+- 13 job matrix unchanged (cj-style baseline-green 보존).
+- capability matrix v1.54 EXTENSION preserved from cj-285 EXTENSION wire
+  sprint 결정 wire 보존 (no change at v1.55).
+- audit action EXTENSION preserved from cj-285 EXTENSION wire sprint
+  결정 wire 보존 (no change at v1.55).
+
+## Pre-existing carryover 결정 wire 정직 회복
+
+**HONEST reporting correction**: cj-287 follow-up #2 commit `d8d4df0`
+본문 verbatim:
+> "cj-288+ follow-up sprint 결정 wire 진입 필요: create Alembic
+> migration `0031_cost_records_and_bom_matrix.py` (or similar) to
+> create the missing tables + verify dev_seed `--scenario all`
+> completes cleanly."
+
+본 sprint 가 cj-287 의 PRE-EXISTING carryover 정직 회복 결정 wire 진입.
+0031 alembic version conflict 결정 wire (0031_ai_insight_comments.py
+cj-style 32번째 Story 10.3 commit `ea025b1` 점유) → next available
+0060 사용 결정 wire 진입. Migration filename = 0060_cost_records_and_
+bom_matrix 결정 wire 보존.
+
+## Next (cj-289+ 결정 wire 보류)
+
+- 옵션 (a) cj-289 wire sprint (cj-style 289번째, RECOMMENDED next) —
+  Epic 30+ capability matrix v1.54 EXTENSION 결정 wire 보완 + 4 audit
+  actions sync (이미 cj-285 EXTENSION 결정 wire, close-out retro only
+  결정).
+- 옵션 (b) cj-288 close-out retro 결정 wire (cj-style 289번째) —
+  14-section §1~§14 verbatim retro document 진입 (Phase 23/24 close-out
+  retro `7875ac9`/`c14199b` verbatim pattern mirror).
+- 옵션 (c) Epic 30+ RLS EXTENSION wire sprint (cj-style 290번째) —
+  supabase/policies/0060_cost_records_and_bom_matrix_rls.sql 결정 wire
+  진입 (production tenant isolation 보장).
+- 옵션 (d) Epic 29+ spec implementation chain 진입 결정 wire (cj-29x
+  territory) — 18 spec drifts unresolved + 18 stories × multi-sprint.
+- 옵션 (e) Pilot 고객 유치 결정 wire 진입 (PRD OQ-3 파일럿 게이트 1주
+  post M0-M6).
+- 옵션 (f) cj-289 Story 30.2 PDF export wire sprint (cj-style 290번째)
+  결정 wire — weasyprint vs reportlab 결정 + Jinja2 ko-KR template +
+  matplotlib 3 charts 결정 wire 진입 (cj-282 PRD entry OQ-EPIC30+-1 +
+  OQ-EPIC30+-4 결정 보류 해소).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
