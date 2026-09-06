@@ -603,6 +603,20 @@ from apps.api.modules.reports.csv_routes import (  # noqa: E402
 app.include_router(csv_export_router)
 
 
+# cj-293 wire sprint (cj-style 293번째) — Story 30.2 PDF export route mount.
+# Capability gate EXPORT_PDF (capability matrix v1.54 EXTENSION preserve,
+# AD-12 verify-first). Owner/admin RBAC (AD-22 verbatim).
+# OQ-EPIC30+-1 결정 wire = reportlab (pure Python). OQ-EPIC30+-4 결정
+# wire = matplotlib (pure Python). AD-14 stack pin EXTENSION 결정 wire:
+# reportlab==4.0.7 + matplotlib==3.8.2.
+# Spec: tests/integration/test_phase_30_exports_pdf.py.
+from apps.api.modules.reports.pdf_routes import (  # noqa: E402
+    router as pdf_export_router,
+)
+
+app.include_router(pdf_export_router)
+
+
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack
 # 강화 territory (PRD §F23 + AD-34 verbatim). 3 NEW routers mounted:
 # - /api/v1/metrics                  — Prometheus exposition format endpoint

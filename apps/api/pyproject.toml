@@ -66,6 +66,16 @@ dependencies = [
     # tenant_settings.latency_budget JSONB override JSON-schema validation
     # (F24.3-7 — p99 latency budget per-tenant override).
     "jsonschema==4.23.0",
+    # Epic 30+ (cj-style 293번째 wire) — Story 30.2 PDF export.
+    # OQ-EPIC30+-1 결정 wire = reportlab (pure Python, no native deps;
+    # weasyprint 는 cairo/pango native libs 의존으로 [STACK BUMP] 회피).
+    # OQ-EPIC30+-4 결정 wire = matplotlib (pure Python, PDF 정적 차트 표준).
+    # AD-14 exact minor pin (F30.2-1 + F30.2-2 verbatim).
+    "reportlab==4.0.7",
+    # matplotlib 3.9.x required for numpy 2.0 compatibility
+    # (cost_engine pins numpy==2.0 per packages/cost_engine/pyproject.toml:14).
+    # matplotlib 3.8.x pins numpy<2.0 → unsatisfiable.
+    "matplotlib==3.9.0",
 ]
 
 [project.optional-dependencies]
