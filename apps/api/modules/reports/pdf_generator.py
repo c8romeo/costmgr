@@ -29,6 +29,7 @@ import io
 import logging
 import os
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from reportlab.lib import colors
@@ -74,8 +75,11 @@ DEFAULT_KOREAN_FONT_PATHS: tuple[str, ...] = (
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/System/Library/Fonts/AppleSDGothicNeo-Regular.ttc",
     "C:/Windows/Fonts/malgun.ttf",  # Korean Windows default
-    os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "static", "fonts", "NotoSansCJKkr-Regular.otf"
+    str(
+        Path(__file__).resolve().parent.parent.parent
+        / "static"
+        / "fonts"
+        / "NotoSansCJKkr-Regular.otf"
     ),
 )
 
@@ -145,7 +149,7 @@ def _register_korean_font() -> str:
 
     attempted: list[str] = []
     for path in candidates:
-        if os.path.exists(path):
+        if Path(path).exists():
             try:
                 pdfmetrics.registerFont(TTFont(KOREAN_FONT_NAME, path))
                 logger.info("Korean font registered: %s (path=%s)", KOREAN_FONT_NAME, path)
@@ -257,8 +261,7 @@ def _build_data_table(
 def _chart_image(png_bytes: bytes, width_cm: float = 16.0) -> Image:
     """Wrap PNG bytes in a reportlab Image flowable."""
     buf = io.BytesIO(png_bytes)
-    img = Image(buf, width=width_cm * cm, height=width_cm * 0.6 * cm)
-    return img
+    return Image(buf, width=width_cm * cm, height=width_cm * 0.6 * cm)
 
 
 # ── Public API: cost-records PDF ────────────────────────────────────

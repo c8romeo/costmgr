@@ -51,7 +51,6 @@ Table + Image flowables). Charts are generated via matplotlib
 
 from __future__ import annotations
 
-import io
 import logging
 from datetime import UTC, datetime
 from typing import Literal
@@ -77,8 +76,8 @@ from apps.api.modules.reports.pdf_generator import (
     PDF_PAGE_MARGIN_TOP,
     PDF_PAGE_SIZE_A4_LANDSCAPE,
     PdfExportSizeExceededError,
-    generate_cost_records_pdf,
     generate_bom_pdf,
+    generate_cost_records_pdf,
 )
 from apps.api.schemas.export_schemas import PdfExportRequest
 
@@ -96,9 +95,9 @@ MAX_PDF_ROWS: int = 100_000
 # PDF content-type (RFC 8118 + common convention).
 PDF_CONTENT_TYPE: str = "application/pdf"
 
-# Chart DPI for matplotlib PNG export. 150 = good balance between file size
-# and print quality for monthly closing reports (PRD §F30.2-2).
-MAX_CHART_DPI  # re-exported for module clarity (already imported from helpers).
+# Chart DPI for matplotlib PNG export — re-exported from pdf_generator via
+# the `from .pdf_generator import MAX_CHART_DPI` import above; this module
+# exposes it as part of the public surface for downstream test imports.
 
 
 # ── GET /api/v1/exports/pdf ───────────────────────────────────────────

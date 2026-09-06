@@ -127,9 +127,7 @@ class PdfExportRequest(BaseModel):
     def _validate_period_format(cls, v: str) -> str:
         """NFR18 ko-KR SSOT 결정 wire 보존 — period 정규식 추가 검증."""
         if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", v):
-            raise ValueError(
-                "period는 YYYY-MM 형식이어야 합니다 (예: 2026-08). 월은 01~12 범위."
-            )
+            raise ValueError("period는 YYYY-MM 형식이어야 합니다 (예: 2026-08). 월은 01~12 범위.")
         return v
 
 

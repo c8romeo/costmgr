@@ -45,15 +45,36 @@ fix(lint+test): cj-299 follow-up fix (cj-style 299 follow-up) — 4 CI 회귀 fi
   - (c) flaky test with retries=2 (CI playwright config)
 - **carryover 결정 wire**: cj-300 wire sprint 진입 시 web-e2e 회귀 조사 후 fix 결정 wire (cj-style 300+ follow-up) 또는 별도 cj-29x-web-e2e sprint territory 진입 결정 wire
 
+### 5. cj-293 inherited lint 회귀 fix (cj-299fix take-2)
+- **파일**: `apps/api/modules/reports/pdf_routes.py` + `apps/api/modules/reports/pdf_generator.py` + `apps/api/schemas/export_schemas.py`
+- **문제**: cj-293 wire sprint 의 PDF files 에 사전 존재하던 lint issues 가 cj-299 의 lint-conventions step 에서 누적 회귀 표면화:
+  - `pdf_routes.py` L100: `MAX_CHART_DPI  # re-exported...` standalone reference B018 (useless expression)
+  - `pdf_generator.py` L77-78: `os.path.join(os.path.dirname(...))` PTH118 + PTH120
+  - `pdf_generator.py` L148: `os.path.exists(path)` PTH110
+  - `pdf_generator.py` L261: `img = Image(...); return img` RET504
+  - `export_schemas.py`: ruff format violation
+- **근본 원인**: cj-293 wire sprint 진입 시 ruff B/PTH/RET 룰 신규 활성화 또는 `MAX_CHART_DPI` re-export 의 의도 보존 의도였으나 lint step 통과 못한 상태로 누적. baseline CI 33970363132 통과한 이유는 lint-conventions step 의 ruff 버전 또는 lint script 차이로 추정 (정확한 root cause 파악 보류).
+- **fix**:
+  - `pdf_routes.py`: `MAX_CHART_DPI` standalone reference 제거 + re-export 의미 보존하는 comment 로 대체
+  - `pdf_generator.py`: `import os` 보존 + `os.path.*` → `Path(...)` 변환 (os.environ.get 는 보존 위해 import 유지)
+  - `pdf_generator.py`: `img = Image(...); return img` → `return Image(...)` 직접 반환
+  - `export_schemas.py`: `uv run ruff format` 적용
+- **검증**: `uv run ruff check apps/api` All checks passed! + `uv run ruff format --check apps/api` 393 files already formatted + ESLint 0 errors 61 warnings (warnings 는 모두 cj-299 무관 사전 존재).
+
 ## runtime 동작 변화 honestly reported
 
-- **6 files 변경** (3 NEW source + 2 NEW meta + 0 MODIFIED + 1 MODIFIED email test + 4 ruff auto-fix + 1 eslint inline disable)
-  - `apps/api/core/email_provider.py` ruff auto-fix (imports + unused)
-  - `apps/api/schemas/email_schemas.py` ruff auto-fix (imports + unused)
-  - `apps/api/modules/reports/email_service.py` ruff auto-fix (unused imports)
-  - `apps/api/modules/reports/email_routes.py` ruff auto-fix (imports)
-  - `apps/web/components/reports/EmailExportTab.tsx` eslint-disable inline (2 lines)
-  - `tests/integration/test_phase_30_exports_email.py` async→sync rewrite (~80 lines affected)
+- **9 files 변경** (3 NEW source + 2 NEW meta + 0 MODIFIED + 1 MODIFIED email test + 4 ruff auto-fix + 1 eslint inline disable + 3 inherited lint fix)
+  - cj-299 직접:
+    - `apps/api/core/email_provider.py` ruff auto-fix (imports + unused)
+    - `apps/api/schemas/email_schemas.py` ruff auto-fix (imports + unused)
+    - `apps/api/modules/reports/email_service.py` ruff auto-fix (unused imports)
+    - `apps/api/modules/reports/email_routes.py` ruff auto-fix (imports)
+    - `apps/web/components/reports/EmailExportTab.tsx` eslint-disable inline (2 lines)
+    - `tests/integration/test_phase_30_exports_email.py` async→sync rewrite (~80 lines affected)
+  - cj-293 inherited (cj-299fix take-2):
+    - `apps/api/modules/reports/pdf_routes.py` L100 `MAX_CHART_DPI` standalone reference 제거 + re-export comment
+    - `apps/api/modules/reports/pdf_generator.py` Path 적용 (PTH118/120/110) + RET504 직접 반환
+    - `apps/api/schemas/export_schemas.py` ruff format 적용
 - **2 NEW meta**:
   - `_bmad-output/implementation-artifacts/commit-msg-cj-299fix.txt` (this file)
   - (memory handoff 별도 결정 보류)
