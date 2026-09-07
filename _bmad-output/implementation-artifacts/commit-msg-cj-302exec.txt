@@ -1,0 +1,30 @@
+docs(pilot-exec): cj-302 execution package (cj-style 304번째) — Action-oriented distillation of cj-301 prep + docs/deployment.md for W0 pilot outreach execution
+
+Pilot Gate 진입 (cj-297 PRD OQ-3 OPEN) — "Measure" 단계 첫 execution artifact.
+- 1 NEW content: phase-30-pilot-execution-package-2026-09-07.md (~405 LOC)
+  - §1 Current State Snapshot (10 ✅ READY items)
+  - §2 Hard Blockers (B-1~B-7, operator/user 제공 필요)
+  - §3 Priority Actions (P0/P1/P2/P3 — sequential unblock)
+  - §4 Deploy Runbook (pilot-specific subset, env vars + smoke test commands)
+  - §5 Candidate Scoring Matrix (fillable template, Tier 1/2/3)
+  - §6 Outreach Templates (per-recipient 검증 checklist 11 items)
+  - §7 Decision-Gate Flowchart (sequential unblock)
+  - §8 W0 Prep Checklist (current status 반영)
+  - §9~§12 honestly DEFER 보존 + CR 11-3 honest-DEFER 246번째
+- 결정 보류 (운전자/사용자): 8건 (cj-302 commit push 대기 + deploy auth + candidate list + email channel + tenant provisioning + Slack/Typeform setup + outreach per-recipient + pilot launch)
+- honestly DEFER 보존: 6건 (cj-301 territory)
+- runtime: 0 NEW source / 1 NEW docs / 0 MODIFIED = 1 file docs-only atomic / dev_seed 0 / ci.yml 0 / alembic 0 / 37 pins unchanged / 14 job matrix unchanged / PRD §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved
+- OQ 결정 wire 4/4 apply 보존: reportlab + Postmark + APScheduler + matplotlib
+- AD bind 4/4 active 보존: AD-2 + AD-3 + AD-10 + AD-12
+- NFR bind 7/7 active 보존: NFR4 + NFR5 + NFR7 + NFR8 + NFR12 + NFR18 + NFR19
+- 25/25 → 26/26 cumulative 결정 wire 보존 = Epic 30+ 24 sprints + cj-301 + cj-302
+- CR 11-3 honest-DEFER 246번째 (cj-301 의 245번째 → cj-302 의 246번째)
+- 외부 액션 0건 (real email 발송 0 / production deploy 0 / candidate list fabrication 0)
+- next: option (a) cj-302 commit push + production deploy 즉시 / option (b) operator candidate list 작성 먼저 / option (c) web-e2e csv-export MINIMAL fix (carryover 1건, pilot 회귀 검증용) / option (d) package 추가 검토/수정
+
+Why: 24 sprints Build 산출물을 Measure 단계로 전환. 사용자 메타 지시 (최종 결과물 + 시스템 구현 + 리스크 최소화 + 가장 합리적 효과적 것부터 실행) 정직 적용. cj-301 prep 의 action-oriented distillation 으로 W0 prep week 의 "what to do today/this week" 명시화. Per-action 승인 gate 유지.
+
+How to apply:
+- 사용자가 commit push 승인 시 push to origin/9-3-dev-2026-08-17
+- 이후 option (a)~(d) 중 사용자 결정 (production deploy + outreach 발송은 명시적 per-action 승인 필수)
+- 8주 pilot W1 (2026-09-14) 시작 후 feedback 기반 옵션 재평가 결정 wire 보존
