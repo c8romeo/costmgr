@@ -1,0 +1,45 @@
+fix(ci): cj-302 web-e2e csv-export MINIMAL fix (cj-style 304 follow-up) — D-WEB-E2E-7 carryover from cj-287 wire
+
+Option (c) MINIMAL subset (cj-301 §10 honestly DEFER 보존분 정직 회복).
+- 1 MODIFIED: .github/workflows/ci.yml (28 insertions, 0 deletions)
+  - web-e2e job env block: 3 NEW env vars
+    * DEV_TENANT_REPORT_ID = 58a64993-f796-584c-897d-8ff51250fe04 (UUIDv5 namespace 11111111-2222-3333-4444-555555555555 + name `costmgr-dev-tenant-report`, scripts/dev_seed.py:157)
+    * DEV_USER_REPORT_ID = 7ce19e24-8c52-56fc-9e2c-7a0b95f5a40e (UUIDv5, scripts/dev_seed.py:158)
+    * DEV_ACCESS_TOKEN = (minted dynamically, see new step)
+  - web-e2e job new step: "Mint dev access token for E2E specs (D-WEB-E2E-7)"
+    * `dev_seed.py --token-only --tenant-id ... --user-id ... --role owner` 로 JWT 생성
+    * awk parse 로 token 추출 (length ≥ 100 검증)
+    * $GITHUB_ENV export → Playwright step 자동 propagation
+- 0 NEW source / 0 MODIFIED source / 0 NEW test / 0 MODIFIED test
+- 0 NEW alembic / 0 MODIFIED alembic / 0 MODIFIED dev_seed.py / 0 MODIFIED package.json/pyproject.toml
+
+영향 범위:
+- web-e2e job 의 csv-export.spec.ts Case 2 (Content-Type=text/csv) + Case 3 (UTF-8 BOM 0xEF 0xBB 0xBF) flip expected: fail → pass
+- pdf-export.spec.ts 는 describe.skip 그대로 (cj-295 baseline 보존, 본 fix 범위 외)
+- 다른 specs (closing-guard 등) 영향 0 (해당 env vars 미사용)
+
+Risk profile (사용자 characterization):
+- low velocity / low risk
+- Reversibility: 1 git revert
+- 외부 액션 0 (real email 0 / production deploy 0)
+- Production 영향 0 (CI test env 만)
+
+검증:
+- 로컬 검증: dev_seed.py --token-only 정상 동작 확인 (400-char JWT 생성)
+- CI 검증: push 후 web-e2e job 자동 실행 → Case 2 + 3 flip 관찰
+- Rollback: `git revert <sha>` + push = 단일 명령
+
+Why: 24 sprints Build 산출물을 pilot 회귀 검증 가능 상태로 만들기 위함. cj-287 wire 의 D-WEB-E2E-7 ownership 활성화 후 carryover 로 남은 ci.yml env var 부재 정직 회복.
+
+How to apply:
+- 본 commit push to origin/9-3-dev-2026-08-17
+- CI 실행 후 web-e2e job 결과 관찰 (예상: 2 tests fail → pass)
+- pilot W1 (2026-09-14) 시작 전 회귀 검증 완료
+
+CR 11-3 honest-DEFER 247번째 (cj-302 docs 의 246번째 → cj-302 fix 의 247번째)
+- honestly DEFER 보존: 5건 (cj-301 territory)
+  1. test-suite-measure 6 collection errors — post-pilot fix 결정
+  2. pdf-export.spec.ts D-EPIC30+-PDF-2 honestly DEFER baseline — 보류 (cj-295 baseline)
+  3. 옵션 (d) Epic 30+ PRD entry v2 EXTENSION — pilot feedback 후 재평가
+  4. 옵션 (e) Epic 29+ spec implementation chain — pilot feedback 후 재평가
+  5. pricing 결정 wire — post-pilot 결정

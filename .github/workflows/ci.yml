@@ -677,6 +677,15 @@ jobs:
       ENVIRONMENT: "ci"
       PIPA_REVIEW_COMPLETED: "true"
       NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8765"
+      # cj-302 MINIMAL fix (D-WEB-E2E-7 carryover from cj-287 wire):
+      # csv-export.spec.ts tests 2-3 read DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN
+      # from env. Without these, tests degrade to empty string and fail.
+      # DEV_TENANT_REPORT_ID is a UUIDv5 derived from scripts/dev_seed.py:157
+      # namespace `11111111-2222-3333-4444-555555555555` + name
+      # `costmgr-dev-tenant-report` (deterministic — same value in any env).
+      DEV_TENANT_REPORT_ID: "58a64993-f796-584c-897d-8ff51250fe04"
+      DEV_USER_REPORT_ID: "7ce19e24-8c52-56fc-9e2c-7a0b95f5a40e"
+      # DEV_ACCESS_TOKEN is minted dynamically by the step below.
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -747,6 +756,25 @@ jobs:
       # of Playwright step 19 belongs to cj-278 P1 wire sprint scope.
       - name: Run dev seed (creates tenant + user + industry baseline + Epic 29+ scenario seeds)
         run: uv run python scripts/dev_seed.py --scenario all
+      # cj-302 MINIMAL fix (D-WEB-E2E-7): mint a JWT bound to
+      # DEV_TENANT_REPORT_ID + DEV_USER_REPORT_ID (NOT the trad DEV_TENANT_ID).
+      # The token is the Bearer credential used by csv-export.spec.ts tests 2-3
+      # to call GET /api/v1/exports/csv. The token is propagated to the
+      # Playwright step via $GITHUB_ENV.
+      - name: Mint dev access token for E2E specs (D-WEB-E2E-7)
+        run: |
+          set -euo pipefail
+          DEV_ACCESS_TOKEN=$(uv run python scripts/dev_seed.py --token-only \
+            --tenant-id "58a64993-f796-584c-897d-8ff51250fe04" \
+            --user-id "7ce19e24-8c52-56fc-9e2c-7a0b95f5a40e" \
+            --role owner 2>&1 \
+            | awk '/^  Access token/ {found=1; next} found && NF {print; exit}')
+          if [ "${#DEV_ACCESS_TOKEN}" -lt 100 ]; then
+            echo "ERROR: failed to mint DEV_ACCESS_TOKEN (length=${#DEV_ACCESS_TOKEN})"
+            exit 1
+          fi
+          echo "DEV_ACCESS_TOKEN length: ${#DEV_ACCESS_TOKEN}"
+          echo "DEV_ACCESS_TOKEN=${DEV_ACCESS_TOKEN}" >> "$GITHUB_ENV"
       - name: Boot uvicorn (background)
         run: |
           mkdir -p /tmp/web-e2e
