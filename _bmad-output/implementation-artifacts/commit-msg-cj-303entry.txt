@@ -1,0 +1,81 @@
+docs(deps): cj-303 uvicorn boot fix entry decision wire (cj-style 306번째) — AD-14 stack pin EXTENSION 결정 wire 진입
+
+Epic 30+ Pilot Gate (cj-297 PRD OQ-3 OPEN) → cj-302 carryover chain 정직 회복 (uvicorn boot
+PRE-EXISTING failure). 운전자 옵션 (a) 승인 → cj-303 sprint 진입.
+
+## scope (5 files = 3 NEW + 2 MODIFIED, docs-only atomic single sprint)
+
+### 3 NEW content
+
+- `_bmad-output/implementation-artifacts/phase-30-uvicorn-boot-fix-entry-2026-09-07.md` (~280 LOC)
+  - §1 의도 분석 — cj-302 MINIMAL fix effectiveness UNVERIFIED ⚠️ 정직 회복
+  - §2 Root cause — apps/api/jobs/scheduled_reports.py:54 `import pytz` → main.py:655 transitive → uvicorn boot crash
+  - §3 영향 범위 (Explore agent 검증 완료) — 7 pytz + 14 apscheduler files, 그 외 cj-299/300 추가 영역 ✅ clean
+  - §4 Fix scope 결정 wire — 4 files EXTENSION (pyproject.toml + STACK_PIN.yaml + check_stack_pin.py + uv.lock)
+  - §5 Risk profile — **LOW** (0 NEW source, 0 MODIFIED source, alembic graph 보존, ci.yml 무변경)
+  - §6 검증 계획 (cj-303 wire sprint 진입 시) — 5 step verify chain
+  - §7 carryover 회복 — PRE-EXISTING honestly DEFER 6건 중 uvicorn boot #6 ✅ 회복 (cj-303 wire 시)
+  - §8 결정 보류 5건 (운전자)
+  - §9 CR 11-3 honest-DEFER 248번째
+  - §10 Cross-references
+
+- `_bmad-output/implementation-artifacts/commit-msg-cj-303entry.txt` (~80 LOC, 본 파일)
+
+- `memory/handoff-2026-09-07-cj-303-uvicorn-boot-fix-entry-done.md` (~200 LOC)
+
+### 2 MODIFIED meta
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.71 → v4.72 EXTENSION
+  - 신규 A716 entry: cj-303 entry decision wire
+  - last_updated_note_v4_72 신규 paragraph
+
+- `memory/MEMORY.md` EXTENSION (cj-303 entry hook 1-line + Active sprint state EXTENSION)
+
+## 결정 wire 보존 (cj-301 territory 그대로)
+
+- OQ 결정 wire 4/4 apply 보존 (OQ-EPIC30+-1 reportlab + -2 Postmark + -3 APScheduler + -4 matplotlib)
+- AD bind 4/4 active 보존 (AD-2 + AD-3 + AD-10 + AD-12)
+- NFR bind 7/7 active 보존 (NFR4 + NFR5 + NFR7 + NFR8 + NFR12 + NFR18 + NFR19)
+- capability matrix v1.54 EXTENSION preserved (cj-285 EXTENSION 그대로, cj-303 신규 EXTENSION 0건)
+- audit actions EXTENSION preserved (cj-285 EXTENSION 그대로, cj-303 신규 EXTENSION 0건)
+
+## cj-300 의 "already pinned" claim 정직 회복 (CR 11-3 honest-DEFER 248번째)
+
+cj-300 wire handoff 의 claim:
+> "AD-14 stack pin — apscheduler==3.10.4 + pytz==2024.1 (already pinned, [STACK BUMP] tag 불필요)"
+
+**부 정확**: pyproject.toml + STACK_PIN.yaml + uv.lock 모두에 부재. declaration 없이 wire 만 작성.
+정직 회복: cj-303 wire sprint 에서 [STACK BUMP] tag 동반 EXTENSION.
+
+## runtime 동작 변화 (cj-303 entry 자체)
+
+docs-only atomic single sprint — 0 NEW source / 0 MODIFIED source / dev_seed 0 / ci.yml 0 / alembic 0
+/ 37 pins unchanged (cj-303 wire 시 EXTENSION 예정) / 14 job matrix unchanged / PRD §F/§M/§R unchanged /
+capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved.
+
+## 결정 보류 (운전자)
+
+① cj-303 wire sprint 실행 승인 (entry commit push 후)
+② cj-303 close-out retro sprint 실행 승인 (wire CI verify gate 통과 후)
+③ cj-300 의 stale docstring cleanup (slack-sdk + sendgrid) — post-pilot 결정 wire 보존
+④ 잔여 PRE-EXISTING carryover 5건 일괄 fix — cj-303 외 별도 sprint 결정 wire 보존
+
+## Why
+
+cj-302 MINIMAL fix effectiveness 가 uvicorn boot failure 로 인해 UNVERIFIED ⚠️ 보존. cj-300
+wire 의 "already pinned" claim 의 부 정확성을 정직 회복하면서 AD-14 stack pin EXTENSION 으로
+근본 fix. pilot W1 (2026-09-14 KST) 시작 전 회귀 검증 가능 상태 회복.
+
+## How to apply
+
+- 본 commit push to origin/9-3-dev-2026-08-17
+- cj-303 wire sprint 진입 시 4 files EXTENSION + [STACK BUMP] tag 동반 commit
+- CI 검증: smoke-e2e + web-e2e uvicorn boot step ✅ 회복 + Playwright step 활성화 → csv-export.spec.ts Case 2+3 verify gate 회복
+
+CR 11-3 honest-DEFER 248번째 (cj-302 fix 의 247번째 → cj-303 entry 의 248번째)
+- honestly DEFER carryover 보존: 5건 (cj-302 territory 그대로)
+  1. uvicorn boot failure — cj-303 wire 에서 ✅ 회복 예정
+  2. test-suite-measure 6 collection errors (cj-285 EXTENSION + Phase 10/16 drift + pytz 부재) — pytz 부재 부분은 cj-303 wire 시 회복
+  3. 옵션 (d) Epic 30+ PRD entry v2 EXTENSION — pilot feedback 후 재평가
+  4. 옵션 (e) Epic 29+ spec implementation chain — pilot feedback 후 재평가
+  5. pricing 결정 wire — post-pilot 결정
