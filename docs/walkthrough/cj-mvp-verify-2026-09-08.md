@@ -55,10 +55,30 @@
 
 - **결과**: uvicorn 미부팅 → CSV/PDF/Email Manual E2E 모두 보류.
 
-### 2.7 Final commit + handoff (~T+15min) — ⏳ 진행 중
+### 2.5b Docker daemon 부팅 (~T+25min) — ✅ SUCCESS (user action)
 
-- **의도**: walkthrough report (본 파일) + handoff memory + checkpoint commit
-- **결과**: 본 §3 업데이트로 진행. 다음 단계 = handoff 메모리 + commit.
+- **사용자 Docker Desktop 시작** → `docker ps` 10s 내 ready
+- **`docker compose up postgres -d`** → `costmgr-postgres` container `Up 13 seconds (healthy)` (port 54322)
+
+### 2.6 alembic migrate (~T+27min) — ⚠️ NEW BLOCKER (`role "anon" does not exist`)
+
+- **현상**: 
+  ```
+  sqlalchemy.exc.ProgrammingError: role "anon" does not exist
+  CREATE POLICY external_identities_anon_block ON public.external_identities
+  TO anon USING (false)
+  ```
+- **근본 원인**: cj-305 wire 의 RLS policies 가 **Supabase 전용 role** (`anon`, `authenticated`, `service_role`) 가정. vanilla postgres:15 image 는 해당 role 없음.
+- **docker-compose.yml 주석 해설**: 
+  > "RLS policies live in: supabase/policies/0001_rls_policies.sql (applied AFTER alembic upgrade)"
+  
+  원래 의도 = `make db-migrate` 가 alembic + 별도 supabase RLS 분리 적용. 현 self-host verify pipeline (= vanilla postgres) 은 Supabase role 부재.
+- **해결 옵션 (다음 세션 사용자 결정)**:
+  - (A) **psql 접속하여 anon/authenticated/service_role role 3개 생성** → migration 재시도 (RLS 가 실제로 enforce 안 될 위험)
+  - (B) **alembic 의 anon-related migrations 만 skip** → 별도 `alembic upgrade head --sql` 로 SQL 만 dump 후 psql exec 시 `role if not exists` 구문 추가
+  - (C) **Supabase CLI 로 local 에서 spinning up** (full Supabase stack = 30분+ setup)
+  - (D) **해당 migrate class 만 `if not exists` 로 wrap 한 patch PR** (source 변경 필요, cj-style sprint 진입)
+- **추천**: **(B) — alembic 의 anon-related 만 skip 후 나머지 migration 적용** (가장 적은 변경)
 
 ---
 
