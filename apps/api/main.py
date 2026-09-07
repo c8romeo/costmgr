@@ -634,6 +634,55 @@ from apps.api.modules.reports.email_routes import (  # noqa: E402
 app.include_router(email_export_router)
 
 
+# cj-300 wire sprint (cj-style 302번째) — Story 30.4 Scheduled reports route mount.
+# Capability gate EXPORT_SCHEDULED (capability matrix v1.54 EXTENSION preserve,
+# AD-12 verify-first). Owner/admin RBAC (AD-22 verbatim).
+# OQ-EPIC30+-3 결정 wire = APScheduler (default) — transactional
+# email HTTP API → scheduled job dispatcher.
+# 5 NEW endpoints: POST /exports/scheduled, POST /exports/scheduled/{job_id}/cancel,
+# GET /exports/scheduled/jobs, GET /exports/scheduled/history,
+# POST /exports/scheduled/dispatch-now.
+# 16 NEW typed exceptions (CR 12-5 D-14 envelope):
+# ScheduledReportCronInvalidError / ScheduledReportTenantNotFoundError /
+# ScheduledReportFinanceEmailNotFoundError / ScheduledReportLifecycleError /
+# ScheduledReportRetryExhaustedError / ScheduledReportPersistenceError /
+# ScheduledReportIdempotencyViolationError / ScheduledReportPermissionError /
+# ScheduledReportFinanceContactEmailError / ScheduledReportAlembicMigrationError /
+# ScheduledReportAsyncIOError / ScheduledReportPersistentJobStoreError /
+# ScheduledReportTimezoneError / ScheduledReportPeriodKeyError /
+# ScheduledReportDispatchError / ScheduledReportRecipientResolverError.
+# Spec: tests/integration/test_phase_30_scheduled_reports.py.
+from apps.api.modules.reports.scheduled_routes import (  # noqa: E402
+    router as scheduled_reports_router,
+)
+
+# cj-300 (cj-style 302번째) — 16 NEW typed exception imports (CR 12-5 D-14
+# envelope verbatim). Imports below ensure `@app.exception_handler` lookups
+# resolve the symbol table at startup (FastAPI inspects the module namespace).
+from apps.api.jobs.errors import (  # noqa: E402
+    ScheduledReportAlembicMigrationError,
+    ScheduledReportAsyncIOError,
+    ScheduledReportCronInvalidError,
+    ScheduledReportDispatchError,
+    ScheduledReportFinanceContactEmailError,
+    ScheduledReportFinanceEmailNotFoundError,
+    ScheduledReportIdempotencyViolationError,
+    ScheduledReportLifecycleError,
+    ScheduledReportPeriodKeyError,
+    ScheduledReportPermissionError,
+    ScheduledReportPersistentJobStoreError,
+    ScheduledReportRecipientResolverError,
+    ScheduledReportRetryExhaustedError,
+    ScheduledReportTenantNotFoundError,
+    ScheduledReportTimezoneError,
+    # ScheduledReportPersistenceError  # F401: imported below for handler.
+)
+
+from apps.api.jobs.errors import ScheduledReportPersistenceError  # noqa: E402,F401
+
+app.include_router(scheduled_reports_router)
+
+
 # Phase 7 (cj-style 91번째 epic 연속 정직 회복 wire) — Observability Stack
 # 강화 territory (PRD §F23 + AD-34 verbatim). 3 NEW routers mounted:
 # - /api/v1/metrics                  — Prometheus exposition format endpoint
@@ -3846,5 +3895,234 @@ async def _latency_regression_handler(request, exc):  # noqa: ANN001
                 "budget_ms": exc.budget_ms,
             },
             "trace_id": exc.trace_id,
+        },
+    )
+
+
+# cj-300 wire sprint (cj-style 302번째) — Story 30.4 Scheduled reports 16 NEW
+# typed exception handlers (CR 12-5 D-14 envelope verbatim). Without these
+# handlers, FastAPI returns HTTP 500 for typed exceptions — violating the
+# `{code, message_ko, details, trace_id}` contract.
+# Spec: tests/integration/test_phase_30_scheduled_reports.py + PRD §F30.4.
+@app.exception_handler(ScheduledReportCronInvalidError)  # type: ignore[name-defined]
+async def _scheduled_report_cron_invalid_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportTenantNotFoundError)  # type: ignore[name-defined]
+async def _scheduled_report_tenant_not_found_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportFinanceEmailNotFoundError)  # type: ignore[name-defined]
+async def _scheduled_report_finance_email_not_found_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportLifecycleError)  # type: ignore[name-defined]
+async def _scheduled_report_lifecycle_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportRetryExhaustedError)  # type: ignore[name-defined]
+async def _scheduled_report_retry_exhausted_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportPersistenceError)  # type: ignore[name-defined]
+async def _scheduled_report_persistence_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportIdempotencyViolationError)  # type: ignore[name-defined]
+async def _scheduled_report_idempotency_violation_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=409,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportPermissionError)  # type: ignore[name-defined]
+async def _scheduled_report_permission_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=403,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportFinanceContactEmailError)  # type: ignore[name-defined]
+async def _scheduled_report_finance_contact_email_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportAlembicMigrationError)  # type: ignore[name-defined]
+async def _scheduled_report_alembic_migration_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportAsyncIOError)  # type: ignore[name-defined]
+async def _scheduled_report_asyncio_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportPersistentJobStoreError)  # type: ignore[name-defined]
+async def _scheduled_report_persistent_job_store_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportTimezoneError)  # type: ignore[name-defined]
+async def _scheduled_report_timezone_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportPeriodKeyError)  # type: ignore[name-defined]
+async def _scheduled_report_period_key_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportDispatchError)  # type: ignore[name-defined]
+async def _scheduled_report_dispatch_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
+        },
+    )
+
+
+@app.exception_handler(ScheduledReportRecipientResolverError)  # type: ignore[name-defined]
+async def _scheduled_report_recipient_resolver_handler(request, exc):  # noqa: ANN001
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": exc.code,
+            "message_ko": exc.message_ko,
+            "details": exc.details,
+            "trace_id": getattr(request.state, "trace_id", None) or str(__import__("uuid").uuid4()),
         },
     )
