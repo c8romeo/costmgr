@@ -1,0 +1,93 @@
+feat(reports-scheduled): cj-300 wire sprint entry decision wire (cj-style 301번째) — Story 30.4 Scheduled reports OQ-EPIC30+-3 APScheduler 결정 동반 source+docs atomic entry
+
+# cj-300 wire sprint entry decision wire (cj-style 301번째) — Story 30.4 Scheduled reports OQ-EPIC30+-3 결정 동반 source+docs atomic entry
+
+## Summary
+
+본 commit 은 cj-299retro (`19cd377`) 의 next 옵션 (b) `cj-300 wire sprint Story 30.4 Scheduled reports OQ-EPIC30+-3 APScheduler vs Celery beat vs cron 결정 동반 source+docs atomic` verbatim mirror 결정 wire 진입. Epic 30+ Reporting & Export MVP territory 의 20번째 sprint = cj-300 wire sprint (cj-style 301번째) entry decision wire 결정 wire.
+
+**OQ-EPIC30+-3 결정 wire 진입** = **APScheduler (default) 결정 wire 정직 회복** 결정 wire (AskUserQuestion 응답 verbatim). 시스템은 env var `SCHEDULER_BACKEND` 으로 post-backend swap (Celery beat fallback / InMemoryScheduler dev default) 가능.
+
+## OQ-EPIC30+-3 결정 wire 코드베이스 정직 회복 근거
+
+10:1 비율로 APScheduler 압도 (CR 11-3 honest-DEFER 신호 정직 sweep):
+
+| 신호 | 값 | 정직 스캔 출처 |
+|---|---|---|
+| AD-14 stack pin | `apscheduler==3.10.4 + pytz==2024.1` 이미 pinned | `docs/STACK_PIN.yaml:38-46` |
+| 11 precedent verbatim pattern | executive_dispatch + multi_cloud + commitment + unit_economics + budget_planning + chargeback_settlement + interactive_dashboard + pricing + reserved_capacity + sustainability + vendor_management | `apps/api/jobs/scheduled_*.py` + `apps/api/modules/finops/*/scheduled_*.py` × 8 modules |
+| audit_action.py | line 1355/1365/2453 `export_scheduled` Literal 이미 wired for §F30.4-1 | `apps/api/core/audit_action.py:1355-1365` |
+| capability-matrix.md | line 564 `EXPORT_SCHEDULED` ✅/✅/✅/✅ 4-industry grants | `docs/capability-matrix.md:564` |
+| audit-actions.md | line 179 `REPORTS_EXPORT_SCHEDULED` APScheduler dispatch already documented | `docs/audit-actions.md:179` |
+| PRD spec §6.4 line 287 | `apps/api/jobs/scheduled_reports.py NEW (APScheduler) + apps/api/main.py EXTENSION (startup hook) + alembic migration NEW (tenants.finance_contact_email VARCHAR(255) NULL)` verbatim 명시 | `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-09-05/spec-epic-30-reporting-export.md:287` |
+| NFR4 + NFR8 | FR-30-4 → APScheduler 99.9% uptime SLA + background job SLA | PRD spec §5.3 NFR Bind |
+| Celery beat | Redis/RabbitMQ infra NOT in stack pin → [STACK BUMP] CODEOWNER approval 필요 (AD-14 14 job matrix 영향) | `docs/architecture-decisions/AD-14-stack-pin-policy.md` |
+| OS cron | shell scripts + 별도 cron infra → tenant-scoped dispatch harder, 테스트 격리 어려움 | (no precedent) |
+
+**결론**: APScheduler 결정 wire 정직 회복 결정 wire. 멀티 워커 scale-out 시 보류: 별도 cj-301+ AD-57 EXTENSION 결정 wire 보존.
+
+## 5 files 결정 wire 진입 완료 (cj-style 301번째 entry decision wire)
+
+3 NEW content + 2 NEW meta + 2 MODIFIED = 5 files atomic single sprint (cj-282 PRD entry + cj-297 wire + cj-298 retro + cj-299retro 의 5 files pattern verbatim mirror):
+
+- 1 NEW content: `_bmad-output/implementation-artifacts/phase-30-story-30-4-scheduled-reports-wire.md` (~480 LOC, 8 ACs §F30.4-1~§F30.4-8 verbatim, T1~T8 backend + frontend + alembic, ~38 subtasks)
+- 1 NEW meta: `_bmad-output/implementation-artifacts/commit-msg-cj-300.txt` (this file)
+- 1 NEW meta: `memory/handoff-2026-09-07-cj-300-scheduled-reports-entry-done.md` (~280 LOC)
+- 1 MODIFIED: `_bmad-output/implementation-artifacts/sprint-status.yaml` (v4.68 → v4.69 EXTENSION = A713 cj-300 entry + last_updated_note_v4_69 신규 paragraph)
+- 1 MODIFIED: `memory/MEMORY.md` (cj-300 hook 1-line index format)
+
+## Epic 30+ territory 결정 wire 정직 회복
+
+**19 sprints cumulative chain cj-282~cj-299 모두 정직 회복** + **NEW 20번째 cj-300 entry 결정 wire 진입**:
+- Story 30.1 CSV export PRODUCTION-READY (cj-282a + cj-287)
+- Story 30.2 PDF export PRODUCTION-READY (cj-293 + cj-295)
+- Story 30.3 Email delivery PRODUCTION-READY (cj-299)
+- capability matrix v1.53 → v1.54 EXTENSION (cj-285)
+- 4 audit actions EXTENSION (cj-285)
+- AD-3 production tenant isolation 8 NEW RLS policies (cj-290)
+- PRD OQ-3 파일럿 게이트 정식 OPEN (cj-297)
+- **OQ-EPIC30+-3 APScheduler (default) 결정 wire 정직 회복 진입** (cj-300 신규)
+- = OQ 결정 wire 4/4 apply 정직 회복 결정 wire (cj-282 PRD entry 0/4 → cj-293 2/4 → cj-299 3/4 → **cj-300 4/4**)
+
+## Honestly DEFER carryover 결정 wire (cj-300 entry 후 wire atomic sprint 진입 결정 wire 보존)
+
+옵션 (a) **cj-300 wire atomic sprint (cj-style 302번째, RECOMMENDED next)** — Story 30.4 Scheduled reports source+docs atomic 결정 wire 진입 (apps/api/jobs/scheduled_reports.py NEW + alembic migration `tenants.finance_contact_email` VARCHAR(255) NULL + apps/api/main.py EXTENSION startup hook + apps/web/...scheduled/page.tsx + ScheduledJobsList.tsx + 1 pytest + 1 vitest) / 옵션 (b) cj-300 close-out retro 진입 결정 wire (cj-style 302번째) / 옵션 (c) cj-29x-web-e2e + test-suite-measure carryover sprint (DEV_TENANT_REPORT_ID env var + 6 collection errors 일괄 fix) / 옵션 (d) Epic 30+ PRD entry v2 EXTENSION territory 진입 결정 wire / 옵션 (e) Epic 29+ spec implementation chain 진입 결정 wire (cj-29x-impl territory) / 옵션 (f) Pilot customer outreach 즉시 시작 결정 wire (운영자 결정).
+
+### PRE-EXISTING honestly DEFER carryover 2건 (cj-299retro 의 보존)
+
+1. **test-suite-measure 6 collection errors** (cj-285 EXTENSION + Phase 10/16 drift + pytz 부재)
+2. **web-e2e csv-export.spec.ts** (DEV_TENANT_REPORT_ID + DEV_ACCESS_TOKEN env vars ci.yml 부재)
+
+## runtime 동작 변화 honestly reported
+
+- **5 files 변경** (3 NEW content + 2 NEW meta + 2 MODIFIED meta = 5 files atomic single sprint)
+- source code 변경 0건 (cj-300 entry decision wire = docs-only atomic single sprint)
+- dev_seed 변경 0건
+- ci.yml 변경 0건
+- alembic 변경 0건
+- AD-14 stack pin 정책 (37 pins) unchanged (apscheduler 3.10.4 + pytz 2024.1 이미 pinned)
+- [STACK BUMP] tag 불필요
+- 14 job matrix unchanged (cj-style baseline-green 보존)
+- PRD v7.0 §F (ADs) / §M (modules) / §R (reports) unchanged
+- capability matrix v1.54 EXTENSION preserved (cj-285 그대로)
+- audit actions EXTENSION preserved (cj-285 ActionClass.REPORTS + export_csv/export_pdf/export_email/export_scheduled 그대로)
+
+## Cross-references
+
+- `commit-msg-cj-299retro.txt` (cj-299retro close-out retro 결정 wire)
+- `commit-msg-cj-299.txt` (cj-299 wire sprint 결정 wire)
+- `commit-msg-cj-298.txt` (cj-298 close-out retro 결정 wire)
+- `commit-msg-cj-297.txt` (cj-297 Pilot launch 결정 wire)
+- `phase-30-pilot-launch-close-out-2026-09-06.md` (cj-298 close-out retro)
+- `phase-30-email-delivery-close-out-2026-09-06.md` (cj-299retro close-out retro)
+- `_bmad-output/planning-artifacts/prds/prd-costmgr-2026-09-05/spec-epic-30-reporting-export.md` (Epic 30+ PRD entry + Story 30.4 §6.4 line 287 verbatim)
+- `docs/architecture-decisions/AD-56-phase-30-epic-30-plus-reporting-export-decisions.md` (AD-56 Epic 30+ 7 sub-decisions + D-EPIC30+-4 honestly DEFER 보존)
+- `docs/capability-matrix.md:564` (EXPORT_SCHEDULED 4-industry grants)
+- `docs/audit-actions.md:179` (REPORTS_EXPORT_SCHEDULED APScheduler dispatch)
+- `apps/api/core/audit_action.py:1355-1365` (export_scheduled Literal already wired)
+
+## 결정 wire 일자
+
+2026-09-07 (KST)
+
+CR 9-6 D5 prevention: 본 commit message 는 file-based (`commit-msg-cj-300.txt`) 으로 작성, PowerShell here-string artifact 회피.
