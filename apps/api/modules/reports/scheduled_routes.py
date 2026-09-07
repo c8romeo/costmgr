@@ -79,7 +79,6 @@ from apps.api.jobs.errors import (
 from apps.api.jobs.scheduled_reports import (
     ALL_DISPATCH_SCHEDULES,
     ALL_RECIPIENT_STRATEGIES,
-    ALL_REPORT_TYPES,
     SCHEDULED_REPORTS_CRON_EXPRESSIONS,
     schedule_report,
     _compute_period_key,
@@ -87,6 +86,7 @@ from apps.api.jobs.scheduled_reports import (
     _redact_finance_email_for_audit,
 )
 from apps.api.modules.reports.scheduled_serializers import (
+    ALL_REPORT_TYPES,
     ALL_STATUSES,
     ScheduledDispatchNow,
     ScheduledJobCancel,

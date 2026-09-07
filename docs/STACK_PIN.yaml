@@ -47,6 +47,9 @@ stack_pin:
   pydantic_settings: "2.6.1"
   uvicorn: "0.32.0"
   httpx: "0.27.0"
+  # cj-303 wire sprint — AD-14 stack pin EXTENSION.
+  apscheduler: "3.10.4"
+  pytz: "2024.1"
 
   # ── Cost engine (packages/cost_engine) ──
   pytest: "9.1.1"

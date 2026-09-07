@@ -76,6 +76,14 @@ dependencies = [
     # (cost_engine pins numpy==2.0 per packages/cost_engine/pyproject.toml:14).
     # matplotlib 3.8.x pins numpy<2.0 → unsatisfiable.
     "matplotlib==3.9.0",
+    # cj-303 wire sprint (cj-style 307번째 wire) — AD-14 stack pin EXTENSION.
+    # 결정 wire: pytz + apscheduler — apps/api/jobs/scheduled_reports.py:54 의
+    # top-level `import pytz` 가 uvicorn boot 시 transitive crash 유발
+    # (cj-300 wire 의 "already pinned" claim 은 부 정확 — 정직 회복).
+    # cj-300 docstring 의 11 precedent scheduled_*.py files + 14 apscheduler.*
+    # files 모두 동일 deps 사용. [STACK BUMP] tag 동반 (신규 pin EXTENSION).
+    "apscheduler==3.10.4",
+    "pytz==2024.1",
 ]
 
 [project.optional-dependencies]

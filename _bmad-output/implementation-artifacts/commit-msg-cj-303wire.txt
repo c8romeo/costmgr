@@ -1,0 +1,112 @@
+feat(api+deps): cj-303 wire sprint (cj-style 307번째 wire) — uvicorn boot fix (AD-14 stack pin EXTENSION)
+
+[STACK BUMP] apscheduler==3.10.4 + pytz==2024.1 — apps/api/jobs/scheduled_reports.py:54 의
+top-level `import pytz` 가 uvicorn boot 시 transitive crash (cj-300 wire 의 "already pinned"
+claim 정직 회복). apps/api/pyproject.toml + docs/STACK_PIN.yaml + scripts/check_stack_pin.py
+EXTENSION + uv.lock regen + cj-300 wire 의 ALL_REPORT_TYPES import path 정정.
+
+## scope (5 files = 4 MODIFIED source/docs + 1 MODIFIED meta, source+docs atomic)
+
+### 3 MODIFIED source/docs (AD-14 stack pin EXTENSION)
+
+- `apps/api/pyproject.toml` (line 78~closing) — dependencies block EXTENSION:
+  - `apscheduler==3.10.4` — cj-300 scheduled_reports.py line 212 + 14 precedent scheduled_*.py files 의 CronTrigger + AsyncIOScheduler import 모두 해결
+  - `pytz==2024.1` — cj-303 root cause (`scheduled_reports.py:54` top-level) + 6 precedent scheduled_*.py files 의 top-level import 모두 해결
+
+- `docs/STACK_PIN.yaml` (line 49~51) — Backend section EXTENSION:
+  - `apscheduler: "3.10.4"` — STACK_PIN single source of truth EXTENSION
+  - `pytz: "2024.1"` — STACK_PIN single source of truth EXTENSION
+
+- `scripts/check_stack_pin.py` (line 203-213) — hard-coded package list EXTENSION:
+  - `("apscheduler", "apscheduler")` + `("pytz", "pytz")` — drift 재발 방지 자동 검증
+
+### 1 MODIFIED source (cj-300 wire 의 stale import path 정정)
+
+- `apps/api/modules/reports/scheduled_routes.py` (line 79-96) — import block 정정:
+  - `ALL_REPORT_TYPES` 가 `apps.api.modules.reports.scheduled_serializers:50` 에 정의되어 있으나 cj-300 wire 의 `scheduled_routes.py:82` 가 잘못된 path `apps.api.jobs.scheduled_reports` 에서 import → ImportError
+  - fix: `ALL_REPORT_TYPES` 를 `scheduled_serializers` import block (line 89-96) 로 이동
+  - 0 lines changed semantics, import path 만 정정
+
+### 1 MODIFIED meta
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.72 → v4.73 EXTENSION
+- `memory/MEMORY.md` hook EXTENSION (cj-303 wire hook 1-line + Active sprint state EXTENSION)
+
+### Auto-regenerated (직접 작성 X)
+
+- `uv.lock` — `uv lock` 으로 자동 재생성. apscheduler + pytz + transitive deps (`tzdata==2026.3` + `tzlocal==5.4.4`) 자동 resolve. Resolved 107 packages.
+
+## 결정 wire 보존
+
+- **OQ 결정 wire 4/4 apply 보존** (cj-303 entry 의 보존 그대로): reportlab + Postmark + APScheduler + matplotlib
+- **AD bind 4/4 active 보존**: AD-2 + AD-3 + AD-10 + AD-12
+- **NFR bind 7/7 active 보존**: NFR4 + NFR5 + NFR7 + NFR8 + NFR12 + NFR18 + NFR19
+- **capability matrix v1.54 EXTENSION preserved** (cj-285 EXTENSION 그대로, cj-303 신규 EXTENSION 0건)
+- **audit actions EXTENSION preserved** (cj-285 EXTENSION 그대로, cj-303 신규 EXTENSION 0건)
+
+## verify gate 결과 (로컬 검증)
+
+- `uv lock` → "Resolved 107 packages in 1.77s — Added apscheduler v3.10.4 + pytz v2024.1 + tzdata v2026.3 + tzlocal v5.4.4" ✅
+- `uv sync --all-packages` → apscheduler + pytz + tzdata + tzlocal installed ✅
+- `uv run python -c "from apps.api.main import app; print('OK app loaded:', type(app).__name__)"` → "OK app loaded: FastAPI" ✅ (cj-303 root cause 회복)
+- `uv run python -c "..."` → app.routes 41 routes loaded ✅
+- `uv run python scripts/check_stack_pin.py` → "OK all 37 pins match" ✅
+
+## CI verify gate 예측 (push 후)
+
+- `smoke-e2e` job 의 "Boot uvicorn (background)" step → ✅ success (cj-303 의 핵심 verify)
+- `web-e2e` job 의 "Boot uvicorn (background)" step → ✅ success
+- `web-e2e` job 의 Playwright step → cj-302 MINIMAL fix 의 verify gate (csv-export.spec.ts Case 2+3) 회복
+- `stack-pin-check` job → 기존 통과 상태 유지 (cj-303 EXTENSION 후 `uv lock --frozen` 동일 hash 보존)
+- 기준선 (cj-302 fix run 34120876777) 대비 regressions 0건 예상
+
+## carryover 회복 (cj-303 wire 후)
+
+PRE-EXISTING honestly DEFER carryover 6건 중:
+- **#5 smoke-e2e uvicorn boot** ✅ 회복
+- **#6 web-e2e uvicorn boot** ✅ 회복 + Playwright step 활성화 → csv-export.spec.ts Case 2+3 verify gate 회복
+- **#4 test-suite-measure pytz 부재 부분** 회복 (28 errors 중 pytz-related 0건)
+
+잔여 5건 (test-architecture + lint-conventions + web-test + test-suite-measure 잔여 + smoke-e2e 의 source-side drift) 보존.
+
+## CR 11-3 honest-DEFER 249번째
+
+cj-300 wire 의 "already pinned" claim 부 정확성 정직 회복 + cj-300 wire 의 stale `ALL_REPORT_TYPES` import path 정직 회복 (cj-303 boot 시 ImportError 로 surface 화).
+
+```
+cj-style chain (CR 11-3 honest-DEFER count):
+cj-282 (220번째) → ... → cj-303 entry (248번째) → cj-303 wire (249번째)
+```
+
+## runtime 동작 변화 (cj-303 wire)
+
+- source+docs atomic — 4 MODIFIED source/docs + 1 MODIFIED meta + 1 auto-regen (uv.lock)
+- source code 변경 4 files (pyproject.toml + STACK_PIN.yaml + check_stack_pin.py + scheduled_routes.py)
+- 0 NEW source / 0 MODIFIED runtime API surface / 0 alembic 변경 / 0 dev_seed 변경
+- ci.yml 무변경 (cj-303 의 fix 가 코드 변경 없이 stack pin EXTENSION 만)
+- 37 pins → **39 pins** (apscheduler + pytz 추가, [STACK BUMP] tag 동반 — CR 2026-07-25 PIN-1 정책 준수)
+- 14 job matrix unchanged (cj-style baseline-green 보존)
+- PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved
+
+## 결정 보류 (운전자)
+
+① cj-303 close-out retro sprint 실행 승인 (CI verify gate 통과 후)
+② cj-300 stale docstring cleanup (slack-sdk + sendgrid) post-pilot
+③ 잔여 PRE-EXISTING carryover 5건 일괄 fix 별도 sprint
+④ production deployment authorization (B-2)
+⑤ pilot candidate list 5-10곳 (B-1, operator 결정)
+⑥ outreach 발송
+⑦ pilot launch W1 (2026-09-14 KST)
+
+## Why
+
+cj-302 MINIMAL fix effectiveness 가 uvicorn boot failure 로 인해 UNVERIFIED ⚠️ 보존. cj-300 wire 의 'already pinned' claim 의 부 정확성 + stale `ALL_REPORT_TYPES` import path 정직 회복. AD-14 stack pin EXTENSION 으로 근본 fix 후 CI 의 smoke-e2e + web-e2e uvicorn boot step 회복 + cj-302 MINIMAL fix verify gate 회복. pilot W1 (2026-09-14 KST) 시작 전 회귀 검증 가능 상태 회복.
+
+## How to apply
+
+- 본 commit push to origin/9-3-dev-2026-08-17 (commit message 첫 줄 [STACK BUMP] tag 동반)
+- CI 자동 실행 → smoke-e2e + web-e2e uvicorn boot step ✅ 회복 확인
+- Playwright step 활성화 → csv-export.spec.ts Case 2+3 회귀 검증
+- pilot W1 시작 전 회귀 검증 완료
+
+CR 11-3 honest-DEFER 249번째 (cj-303 entry 의 248번째 → cj-303 wire 의 249번째)

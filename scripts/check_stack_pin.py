@@ -210,6 +210,9 @@ def main() -> int:
             ("fastapi", "fastapi"),
             ("uvicorn", "uvicorn"),
             ("httpx", "httpx"),
+            # cj-303 wire sprint — AD-14 stack pin EXTENSION.
+            ("apscheduler", "apscheduler"),
+            ("pytz", "pytz"),
         ]:
             if pin_key in pin:
                 actual = get_pin(all_api, pkg)
