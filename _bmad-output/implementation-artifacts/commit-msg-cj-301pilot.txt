@@ -1,0 +1,95 @@
+docs(pilot-prep): cj-301 pilot outreach preparation (cj-style 303번째) — Pilot program 8-week launch prep
+
+Epic 30+ Reporting & Export MVP territory → PRD OQ-3 Pilot Gate (cj-297 OPEN)
+actual exercise 진입 결정 wire — Build-Measure-Learn 루프의 "Measure" 단계 진입.
+
+## scope (5 files = 3 NEW + 2 MODIFIED, docs-only atomic single sprint)
+
+### 3 NEW content
+
+- `_bmad-output/implementation-artifacts/phase-30-pilot-outreach-prep-2026-09-07.md` (~580 LOC) — cj-301 main prep doc:
+  - Part 1: cj-300 LIGHTWEIGHT close-out retro (customer-facing summary — 4 stories PRODUCTION-READY + OQ 4/4 + AD 4/4 + NFR 7/7 + 5-bullet pilot customer summary)
+  - Part 2: Pilot outreach preparation (operational artifacts)
+    - Pilot program scope (8 weeks, 2026-09-14 ~ 2026-11-09 KST, 5-10 customers, 무료)
+    - Candidate selection criteria (Tier 1 ideal + Tier 2 fallback + Tier 3 wait-list)
+    - 3 outreach email templates (ko-KR) — Direct cold / Warm intro / Follow-up
+    - KPI / success metrics framework (Activation 100% + Engagement 80% + Value 70% + NPS 50+ + Retention 80%)
+    - Risk register (8 risks — 데이터 leak / Email deliverability / 지원 부담 / Feature gap / 조기 churn / Deploy 장애 / Carryover / Compliance)
+    - Pre-flight deployment checklist (Phase 0-4, 30+ items)
+    - Feedback collection mechanism (Slack + Typeform + post-pilot survey)
+    - Pilot timeline (W0 prep ~ W8 close)
+    - honestly DEFER carryover (cj-300 + cj-301 territory)
+    - honestly DEFER 결정 wire (c/d/e + PDF-3 + pricing)
+    - CR 11-3 honest-DEFER 245번째
+
+### 2 NEW meta
+
+- `_bmad-output/implementation-artifacts/commit-msg-cj-301pilot.txt` (this file)
+- `memory/handoff-2026-09-07-cj-301-pilot-prep-done.md` (handoff)
+
+### 2 MODIFIED
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — v4.70 → v4.71 EXTENSION + A715 entry + last_updated_note_v4_71
+- `memory/MEMORY.md` — cj-301 hook + Active sprint state post cj-301 EXTENSION
+
+## 전략 의도 분석 (cj-301 결정 wire)
+
+### 5개 옵션 의 최종 목적 대비 정렬
+
+| 옵션 | 목적과의 거리 | 리스크 | 결정 wire |
+|---|---|---|---|
+| (b) close-out retro | ★☆☆ internal | 낮음 | LIGHTWEIGHT subset (Part 1) |
+| (c) carryover fix | ★★☆ CI observability | 낮음 | MINIMAL subset (cj-301 종료 후 결정) |
+| (d) PRD v2 EXTENSION | ✗ 역행 (검증 전 확장) | **높음** | **pilot feedback 받은 후 재평가** |
+| (e) Epic 29+ impl | ★☆☆ internal | 중간 | **pilot feedback 받은 후 재평가** |
+| (f) Pilot outreach | ★★★ **목적 자체** | 중간 | **RECOMMENDED — cj-301 진입** |
+
+### Build-Measure-Learn 루프 24 sprints 동안 "Build" 만 누적
+
+- Build: cj-282~cj-300 wire chain = 24 sprints production-ready features
+- Measure: 0회 — PRD OQ-3 pilot gate (cj-297 OPEN) actual exercise 0회
+- Learn: 0건
+
+cj-301 = 첫 번째 "Measure" 단계 진입 결정 wire.
+
+### Lean startup 원칙상 validation < feature expansion
+
+- (d) PRD v2 EXTENSION — 검증 전 확장 anti-pattern
+- (e) Epic 29+ impl — internal scaffolding, customer value 0
+- → 둘 다 pilot feedback 후 재평가 결정 wire 보존
+
+## 결정 wire 보존
+
+- **OQ 결정 wire 4/4 apply** (cj-300 wire 의 4/4 그대로 보존): OQ-EPIC30+-1 reportlab + OQ-EPIC30+-2 Postmark + OQ-EPIC30+-3 APScheduler + OQ-EPIC30+-4 matplotlib
+- **AD bind 4/4 active + 보존**: AD-2 + AD-3 + AD-10 + AD-12
+- **NFR bind 7/7 active + 보존**: NFR4 + NFR5 + NFR7 + NFR8 + NFR12 + NFR18 + NFR19
+- **capability matrix v1.54 EXTENSION preserved** + **audit actions EXTENSION preserved**
+- **25/25 cumulative 결정 wire 보존** = Epic 30+ 24 sprints + cj-301 pilot prep
+- **CR 11-3 honest-DEFER 245번째**
+
+## runtime 동작 변화 honestly reported
+
+- docs-only atomic single sprint — 5 files = 3 NEW + 2 MODIFIED
+- source code 변경 0건 / dev_seed 변경 0건 / ci.yml 변경 0건 / alembic 변경 0건 / 37 pins unchanged / 14 job matrix unchanged / PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved
+
+## 결정 보류 (운전자 결정)
+
+① commit push (cj-301 + 4d1088d) — **사용자 승인 대기**
+② production deployment authorization — **사용자 승인 대기**
+③ pilot candidate list (5-10곳, Tier 1 + Tier 2) — **운영자 결정**
+④ outreach 발송 — **사용자 승인 대기**
+⑤ pilot launch (W1 onboarding 시작, 2026-09-14 KST) — **사용자 결정**
+
+## honestly DEFER carryover 결정 wire
+
+① 옵션 (c) MINIMAL subset — web-e2e csv-export.spec.ts tests 2-3 fix (cj-301 종료 후 결정)
+② 옵션 (d) Epic 30+ PRD entry v2 EXTENSION territory — **pilot feedback 받은 후** 재평가
+③ 옵션 (e) Epic 29+ spec implementation chain — **pilot feedback 받은 후** 재평가
+④ D-EPIC30+-PDF-3 PDF header/footer EXTENSION post-pilot enhancement 보존
+⑤ D-REPORTS-EXTENSION ownership 결정 wire 보존
+⑥ pricing 결정 wire (PRD §F pricing) — **post-pilot 결정**
+
+결정 wire 일자: 2026-09-07 (KST)
+CR 11-3 honest-DEFER 245번째 epic 연속 정직 회복.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
