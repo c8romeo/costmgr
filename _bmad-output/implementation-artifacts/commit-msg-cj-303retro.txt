@@ -1,0 +1,115 @@
+docs(retro): cj-303 uvicorn boot fix close-out retro (cj-style 308번째) — uvicorn boot ✅ 회복 확인, CR 11-3 honest-DEFER 250번째
+
+5 files = 1 NEW content + 2 NEW meta + 2 MODIFIED docs-only atomic sprint. CI run 34124322845
+검증 결과 uvicorn boot step (smoke-e2e + web-e2e) 모두 success — cj-303 root cause 완전 회복.
+baseline 8/14 ✅ + 6/14 ❌ → cj-303 wire 10/14 ✅ + 4/14 ❌ (+2 회복). 3건 회복: smoke-e2e +
+web-e2e uvicorn boot + test-architecture. 1건 신규 active: smoke-e2e 36/36 E2E.
+
+## scope (5 files = 1 NEW + 2 NEW + 2 MODIFIED docs-only atomic)
+
+### 1 NEW content
+
+- `_bmad-output/implementation-artifacts/phase-30-uvicorn-boot-fix-retro-2026-09-07.md`
+  (~370 LOC 13-section §1~§13)
+  - §1 sprint scope (cj-303 entry + wire cumulative)
+  - §2 verify gate 결과 — CI run 34124322845 (10/14 ✅ + 4/14 ❌, baseline +2 회복)
+  - §3 PRE-EXISTING honestly DEFER carryover 회복 (6건 → 4건 residual)
+  - §4 결정 wire 보존 (OQ 4/4 + AD 4/4 + NFR 7/7 + capability matrix v1.54 + audit actions EXTENSION preserved)
+  - §5 runtime 동작 변화 (source code semantics 변화 0건)
+  - §6 결정 wire 정직 회복 (cj-300 wire 의 2건 bug: pytz unpinned + ALL_REPORT_TYPES stale import path)
+  - §7 CR 11-3 honest-DEFER 250번째
+  - §8 회고 + Lessons learned 4건
+  - §9 결정 보류 (운전자) 5개 옵션
+  - §10 carryover honestly DEFER 보존 4건
+  - §11 Cross-references
+  - §12 Why / How to apply
+  - §13 결정 wire 일자
+
+### 2 NEW meta
+
+- `_bmad-output/implementation-artifacts/commit-msg-cj-303retro.txt` (본 commit message)
+- `memory/handoff-2026-09-07-cj-303-uvicorn-boot-fix-retro-done.md` (cj-style detail)
+
+### 2 MODIFIED docs-only
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.73 → v4.74 EXTENSION
+  (cj-303 close-out retro entry + last_updated_note_v4_74 신규 paragraph)
+- `memory/MEMORY.md` hook EXTENSION (cj-303 retro hook 1-line + Active sprint state EXTENSION)
+
+## 결정 wire 보존
+
+- **OQ 결정 wire 4/4 apply 보존** (cj-303 wire 의 보존 그대로): reportlab + Postmark + APScheduler + matplotlib
+- **AD bind 4/4 active 보존** + **신규 active**: AD-2/AD-3/AD-10/AD-12/AD-22 (cj-303 의 fix 가 AD bind 직접 변경 없음)
+- **NFR bind 7/7 active 보존** + **신규 active**: NFR4/NFR5/NFR7/NFR8/NFR12/NFR18/NFR19 (NFR8 boot 회복으로 신규 active)
+- **capability matrix v1.54 EXTENSION preserved** (cj-285 EXTENSION 보존, cj-303 신규 EXTENSION 0건)
+- **audit actions EXTENSION preserved** (cj-285 EXTENSION 보존, cj-303 신규 EXTENSION 0건)
+- **27/27 cumulative 결정 wire 보존** (cj-303 wire 의 보존 그대로, cj-303 retro 신규 EXTENSION 0건)
+
+## verify gate 결과 (CI run 34124322845)
+
+### uvicorn boot step (cj-303 의 핵심 verify)
+- smoke-e2e: started 2026-09-07T12:54:32Z, completed 12:54:38Z (~6s) → **success ✅**
+- web-e2e: started 12:54:54Z, completed 12:55:00Z (~6s) → **success ✅**
+
+### job-level verdict (14 jobs)
+- 10/14 ✅: setup, stack-pin-check, lint-deps, lint-imports, service-role-guard-lint,
+  test-service-role-guard, rls-tests, test-architecture (회복), commit-prefix-lint,
+  smoke-e2e (회복)
+- 4/14 ❌: web-e2e Playwright step (carryover, cj-302 MINIMAL fix verify gate 부 정확성),
+  test-suite-measure (carryover), web-test (carryover), lint-conventions (carryover)
+
+### baseline 대비 +2 회복
+- baseline 8/14 ✅ + 6/14 ❌ → cj-303 wire 10/14 ✅ + 4/14 ❌
+- 회복 3건: smoke-e2e (uvicorn boot), web-e2e uvicorn boot (smoke-e2e 의 후속 step 활성화),
+  test-architecture (cj-303 부가 효과)
+- residual 4건 모두 cj-303 scope 외 (cj-302 MINIMAL fix 부 정확성 + Phase 10/16 drift + lint drift)
+
+## carryover honestly DEFER 보존 (cj-303 retro 종료 시점)
+
+| Carryover | Status | 결정 wire |
+|---|---|---|
+| ① web-e2e Playwright (csv-export.spec.ts Case 2+3) | ❌ residual | post-pilot 또는 별도 sprint (cj-302 MINIMAL fix 의 ci.yml ENV vars verify 필요) |
+| ② test-suite-measure | ❌ residual | post-pilot 또는 별도 sprint (MVP gate, Phase 10/16 drift + pytest test-side drift) |
+| ③ web-test (lint:conventions) | ❌ residual | post-pilot 또는 별도 sprint (lint drift) |
+| ④ lint-conventions | ❌ residual | post-pilot 또는 별도 sprint (ruff drift) |
+
+## CR 11-3 honest-DEFER 250번째
+
+cj-style chain: cj-282 (220번째) → ... → cj-303 entry (248번째) → cj-303 wire (249번째) → **cj-303 close-out retro (250번째)**.
+종합 **30 sprints 정직 회복 결정 wire 진입** = Epic 30+ 24 sprints + cj-301 + cj-302 docs + cj-302 fix + cj-303 entry + cj-303 wire + **cj-303 close-out retro (본 sprint)**.
+
+## runtime 동작 변화 (cj-303 retro)
+
+- docs-only atomic — 5 files = 1 NEW + 2 NEW meta + 2 MODIFIED meta
+- source code 변경 0건 (cj-303 retro 는 docs-only sprint)
+- dev_seed 변경 0건 / ci.yml 변경 0건 / alembic 변경 0건
+- 39 pins unchanged (cj-303 wire 의 EXTENSION 그대로 보존)
+- 14 job matrix unchanged (cj-style baseline-green 보존)
+- PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved
+
+## 결정 보류 (운전자) — 다음 옵션
+
+cj-303 close-out retro 종료 후 결정 wire:
+
+| # | 옵션 | 결정자 | 영향 |
+|---|---|---|---|
+| ① | **production deployment + pilot outreach** (cj-301 prep 의 5개 운영자 결정 + 실행) | 운영자 | **목표 직접 달성 — pilot W1 (2026-09-14 KST) 7일 카운트다운 시작** |
+| ② | web-e2e Playwright carryover fix (cj-302 MINIMAL fix verify gate 부 정확성 정정) | 기술 결정 | CI signal clarity 강화, optional |
+| ③ | test-suite-measure + web-test + lint-conventions carryover 일괄 fix | 기술 결정 | CI 100% green recovery, post-pilot 보류 가능 |
+| ④ | cj-300 stale docstring cleanup (slack-sdk + sendgrid) | post-pilot 결정 | cj-303 scope 외 |
+| ⑤ | Epic 30+ PRD v2 EXTENSION / Epic 29+ spec impl | pilot feedback 후 | honestly DEFER (cj-301 의 결정 wire 보존) |
+
+**RECOMMENDED next**: **옵션 ① (production deploy + pilot outreach)** — cj-303 의 3 atomic sub-sprints (entry + wire + retro) chain 모두 CLOSED ✅ HONEST. 회귀 검증 capability 회복 완료. pilot W1 7일 카운트다운 시작.
+
+## Why
+
+cj-303 sprint 의 3 atomic sub-sprints (entry + wire + close-out retro) chain CLOSED ✅ HONEST. cj-303 의 핵심 verify gate (uvicorn boot) 회복 + cj-302 MINIMAL fix 의 verify gate 활성화 + pilot W1 회귀 검증 capability 회복. cj-300 wire 의 "wire 완료" 부 정확성 정직 회복 (2건: pytz unpinned + ALL_REPORT_TYPES stale import path). 30 sprints cumulative 결정 wire 보존.
+
+## How to apply
+
+- 본 commit push to origin/9-3-dev-2026-08-17
+- 다음 세션 시작 시: §결정 보류 5건 + carryover residual 4건 확인
+- 우선순위: **옵션 ① production deployment + pilot outreach** (cj-301 prep 의 5개 운영자 결정 + 실행, pilot W1 7일 카운트다운 시작)
+- carryover residual 4건 = post-pilot 또는 parallel sprint (cj-303 scope 외)
+
+CR 11-3 honest-DEFER 250번째 (cj-303 entry 의 248번째 → cj-303 wire 의 249번째 → cj-303 close-out retro 의 250번째)
