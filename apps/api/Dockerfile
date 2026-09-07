@@ -66,7 +66,11 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PORT=8000
+    PORT=8000 \
+    # cj-304 wire sprint — cj-300 OQ-EPIC30+-3 APScheduler 결정 wire.
+    # TZ=Asia/Seoul KST timezone (Railway 기본 UTC → 24h cron 오프셋 방지).
+    # Railway env var TZ 가 있으면 이 값을 override 함.
+    TZ=Asia/Seoul
 
 USER app
 EXPOSE 8000

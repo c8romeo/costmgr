@@ -156,6 +156,53 @@ curl https://<your-app>.vercel.app/api/health
 3. Update `NEXT_PUBLIC_API_BASE_URL` in Vercel to point to the Railway domain.
 4. Configure SSL via Vercel's automatic Let's Encrypt integration.
 
+### Step 5 — Pilot tenant provisioning (cj-304 wire 결정 wire)
+
+For the 8-week pilot program (2026-09-14 ~ 2026-11-09 KST, 5-10 SaaS 제조 스타트업), each customer tenant must be onboarded with isolated context + admin user + capability grants. Use the CLI script:
+
+```bash
+# Dry-run (mandatory default for safety):
+uv run python apps/api/scripts/cli/pilot_tenant_provision.py \
+  --tenant-id="$(uuidgen)" \
+  --industry="saas_manufacturing" \
+  --admin-email="cfo@customer.com" \
+  --admin-display-name="Customer Admin" \
+  --finance-contact-email="finance@customer.com" \
+  --dry-run
+
+# Apply (only after dry-run output reviewed):
+uv run python apps/api/scripts/cli/pilot_tenant_provision.py \
+  --tenant-id="$(uuidgen)" \
+  --industry="saas_manufacturing" \
+  --admin-email="cfo@customer.com" \
+  --admin-display-name="Customer Admin" \
+  --finance-contact-email="finance@customer.com"
+```
+
+The CLI:
+1. Creates a `tenants` row (idempotent — re-runs are safe).
+2. Creates an owner user with `TWO_FACTOR_AUTH` capability (AD-22 verbatim).
+3. Grants 4 capabilities: `EXPORT_CSV` + `EXPORT_PDF` + `EXPORT_EMAIL` + `EXPORT_SCHEDULED`.
+4. Inserts an audit log row `pilot_tenant_provisioned` (AD-2 verbatim + ActionClass.REPORTS).
+
+### Step 6 — Production initial seed (platform admin + default cron)
+
+After Step 5 (or before, depending on operator preference), initialize the platform:
+
+```sql
+-- 1. Insert platform owner user (manual — only once)
+INSERT INTO users (id, email, role, two_factor_enabled, ...)
+VALUES ('<platform-admin-uuid>', 'admin@costmgr.com', 'owner', true, ...);
+
+-- 2. Insert capability grants (EXPORT_*) — already handled by alembic 0061
+-- Verify: SELECT * FROM capability_grants WHERE industry IN ('saas_manufacturing', ...);
+
+-- 3. Verify scheduled reports cron expressions — apps/api/jobs/scheduled_reports.py SCHEDULED_REPORTS_CRON_EXPRESSIONS
+-- No DB seed needed — cron expressions are hardcoded in source code.
+```
+
+**Note**: For production, prefer operating via the pilot CLI (Step 5) per-tenant over a global seed script — this keeps the audit log per-action attributable to a specific operator.
+
 ## 5. Environment Variables SSOT
 
 ### Backend (Railway)
@@ -168,6 +215,10 @@ curl https://<your-app>.vercel.app/api/health
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase | Service role key (admin) |
 | `SUPABASE_JWT_SECRET` | ✅ | Supabase | JWT secret (Settings → API) |
 | `SENTRY_DSN` | ✅ | Sentry | Server-side DSN |
+| `POSTMARK_SERVER_TOKEN` | ✅ | Postmark | **cj-299 OQ-EPIC30+-2 결정 wire** — Story 30.3 Email delivery. Production REQUIRES (없으면 LoggingProvider fallback → stdout 로그만). Postmark Sandbox: 100건/month free at <https://postmarkapp.com>. |
+| `POSTMARK_FROM_EMAIL` | ❌ | Manual | Default `noreply@costmgr.bizup.io`. 운영자 override 가능. |
+| `TZ` | ✅ | Manual | **cj-300 OQ-EPIC30+-3 결정 wire** — `Asia/Seoul` mandatory. Railway 기본 UTC → 24h cron 오프셋 방지. |
+| `RETRY_BACKOFF_MINUTES` | ❌ | Manual | Default `1,5,30`. Exponential backoff for scheduled report failures. |
 | `ENVIRONMENT` | ✅ | Manual | `production` |
 | `PORT` | ❌ | Default | Railway auto-provides |
 
@@ -270,6 +321,34 @@ curl -fsSL https://app.costmgr.com/api/health
 
 # 4. Critical user flow: signup → industry select → login
 # Verify the 2-mint sequence (Phase 3-0 wire) works end-to-end
+
+# 5. Email delivery verification (cj-304 wire EXTENSION — cj-299 Postmark 결정 wire)
+# Create a test tenant via pilot CLI, then trigger a CSV export email:
+curl -fsSL -X POST https://api.costmgr.com/api/v1/exports/email \
+  -H "Authorization: Bearer $TEST_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"report_type": "cost-records", "period_key": "2026-09", "recipients": ["verify@costmgr.com"]}'
+# Expected: 200 OK + { "message_id": "<postmark-message-id>", "status": "queued" }
+# Verify in Postmark dashboard (https://postmarkapp.com) that the email was sent.
+
+# 6. Scheduled reports timezone verification (cj-304 wire EXTENSION — cj-300 APScheduler 결정 wire)
+# Verify TZ env var is set to Asia/Seoul:
+curl -fsSL https://api.costmgr.com/api/v1/health | jq '.timezone'
+# Expected: "Asia/Seoul"
+# Verify cron expressions are loaded:
+uv run python -c "from apps.api.jobs.scheduled_reports import SCHEDULED_REPORTS_CRON_EXPRESSIONS; print(SCHEDULED_REPORTS_CRON_EXPRESSIONS)"
+# Expected: { "weekly": "0 9 * * 1", "monthly": "0 9 1 * *", ... }
+
+# 7. Pilot tenant provisioning verification (cj-304 wire EXTENSION)
+# Run the pilot CLI in dry-run mode for a new test tenant:
+uv run python apps/api/scripts/cli/pilot_tenant_provision.py \
+  --tenant-id="00000000-0000-0000-0000-000000000001" \
+  --industry="saas_manufacturing" \
+  --admin-email="smoke-test@costmgr.com" \
+  --admin-display-name="Smoke Test" \
+  --finance-contact-email="finance-smoke@costmgr.com" \
+  --dry-run
+# Expected: prints planned SQL + capability grants + audit log action, no DB mutation
 ```
 
 CR 12-5 D-PARITY-01 inversion: the smoke test must use the same `NEXT_PUBLIC_API_BASE_URL` that the frontend uses, NOT a different staging URL. This catches parity bugs early.

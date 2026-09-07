@@ -1,0 +1,58 @@
+feat(deploy+cli): cj-304 prod deploy prep wire sprint (cj-style 310번째) — 4 critical gaps fix + Pilot tenant provisioning CLI (9 files source+docs atomic single sprint)
+
+Phase 4 deployment runbook + cj-303 uvicorn boot fix 의 4 critical gaps 정직 회복 source+docs atomic single sprint 결정 wire 진입.
+docs/deployment.md 가 cj-299 (Postmark) + cj-300 (APScheduler) + cj-303 (AD-14 stack pin EXTENSION) 의 변경을 반영하지 못함 정직 회복.
+
+4 MODIFIED source/docs:
+  apps/api/.env.example       — POSTMARK_SERVER_TOKEN + POSTMARK_FROM_EMAIL + TZ + RETRY_BACKOFF_MINUTES EXTENSION
+  railway.toml                — 4 env vars + cj-303 EXTENSION comment block
+  apps/api/Dockerfile         — runtime stage ENV TZ=Asia/Seoul EXTENSION (Railway env var fallback)
+  docs/deployment.md          — §3 + §4 NEW Step 5 Pilot tenant provisioning + §4 NEW Step 6 Production initial seed + §5 Backend env vars table 4 EXTENSION + §9 Smoke Test EXTENSION step 5/6/7
+
+1 NEW source/cli:
+  apps/api/scripts/cli/pilot_tenant_provision.py (~280 LOC interactive CLI)
+    - argparse + dry-run default + SQLAlchemy async engine
+    - 4-step UPSERT plan: tenants → users → 4 capability_grants → audit_logs
+    - UUID + email + industry validation
+    - Idempotent UPSERT for tenants/users/capability_grants
+    - Non-idempotent INSERT for audit_logs (audit-first principle CR 1-1 verbatim)
+    - Capability matrix v1.54 EXTENSION preserved (EXPORT_CSV/PDF/EMAIL/SCHEDULED)
+    - audit_actions EXTENSION preserved + ActionClass.REPORTS + action='pilot_tenant_provisioned'
+
+2 MODIFIED meta:
+  _bmad-output/implementation-artifacts/sprint-status.yaml v4.75 → v4.76 EXTENSION
+  memory/MEMORY.md hook EXTENSION (cj-304 wire hook)
+
+2 NEW meta:
+  _bmad-output/implementation-artifacts/commit-msg-cj-304wire.txt (this file)
+  memory/handoff-2026-09-07-cj-304-prod-deploy-prep-wire-done.md (~280 LOC handoff)
+
+TOTAL: 9 files = 4 MODIFIED source/docs + 1 NEW source/cli + 2 MODIFIED meta + 2 NEW meta
+
+verify gate (local):
+  - uv run python scripts/check_stack_pin.py → 'OK all 37 pins match' ✅ (cj-303 EXTENSION 보존, cj-304 wire 신규 EXTENSION 0건)
+  - uv run python scripts/cli/pilot_tenant_provision.py --dry-run --tenant-id=<uuid> --industry=saas_manufacturing --admin-email=cfo@acme.com --admin-display-name='CFO Kim' --finance-contact-email=finance@acme.com → structured JSON output ✅
+
+cumulative 결정 wire 32/32 (Epic 30+ 24 sprints + cj-301 + cj-302 docs + cj-302 fix + cj-303 entry + cj-303 wire + cj-303 retro + cj-304 entry + cj-304 wire).
+OQ 결정 wire 4/4 apply 보존 (Postmark + APScheduler 신규 active 결정 wire EXTENSION).
+capability matrix v1.54 EXTENSION preserved (Pilot CLI 의 capability_grants UPSERT 동일).
+audit actions EXTENSION preserved + ActionClass.REPORTS export_email + pilot_tenant_provisioned 신규.
+37 pins unchanged + 14 job matrix unchanged + PRD v7.0 §F/§M/§R unchanged.
+
+CR 11-3 honest-DEFER 252번째 (cj-304 entry 251번째 → cj-304 wire 252번째) epic 연속 정직 회복.
+
+Next 결정 wire (운전자):
+  - 옵션 (a, RECOMMENDED) account setup 병행 (Vercel + Railway + Supabase + Sentry + DNS + Postmark sandbox, pilot W1 2026-09-14 KST 7일 카운트다운 시작)
+  - 옵션 (b) Pilot candidate list 작성 (B-1, 운영자 결정)
+  - 옵션 (c) cj-304 close-out retro 진입 (CI verify gate 통과 후)
+  - 옵션 (d) cj-303 carryover 4건 fix 별도 sprint
+
+honestly DEFER carryover 4건 보존:
+  ① web-e2e Playwright residual
+  ② test-suite-measure residual
+  ③ web-test
+  ④ lint-conventions
+
+제외 보류 결정 wire:
+  - cj-300 stale docstring cleanup (slack-sdk==3.23.0 + sendgrid==6.11.0) → post-pilot 별도 sprint
+  - Production deployment authorization (B-2) → account setup 직후 운영자 결정
