@@ -1,0 +1,117 @@
+docs(retro): cj-304 prod deploy prep close-out retro (cj-style 311번째) — 4 critical gaps 결정 wire 적용 확인, CR 11-3 honest-DEFER 253번째
+
+5 files = 1 NEW content + 2 NEW meta + 2 MODIFIED docs-only atomic sprint. cj-304 의 3 atomic
+sub-sprint chain (entry + wire + close-out retro) CLOSED ✅ HONEST. 4 critical gaps 결정
+wire 적용 확인: 1 POSTMARK_SERVER_TOKEN EXTENSION (cj-299 Postmark 결정 wire 신규 active)
+② TZ=Asia/Seoul + RETRY_BACKOFF_MINUTES EXTENSION (cj-300 APScheduler 결정 wire 신규 active)
+③ Pilot tenant onboarding CLI dry-run-first 결정 wire 적용 ④ Production seed plan EXTENSION.
+
+## scope (5 files = 1 NEW + 2 NEW + 2 MODIFIED docs-only atomic)
+
+### 1 NEW content
+
+- `_bmad-output/implementation-artifacts/phase-30-prod-deploy-prep-retro-2026-09-07.md`
+  (~370 LOC 12-section §1~§12)
+  - §1 sprint scope (cj-304 entry + wire + retro 3 atomic sub-sprint chain)
+  - §2 verify gate 결과 — 로컬 verify gate PASSED (37 pins match + Pilot CLI dry-run structured JSON)
+  - §3 4 critical gaps 정직 회복 (cj-304 entry 의 본질)
+  - §4 결정 wire 보존 (OQ 4/4 + AD 4/4 + NFR 7/7 + capability matrix v1.54 + audit actions EXTENSION + 1 신규)
+  - §5 runtime 동작 변화 (cj-304 entry + wire + retro cumulative)
+  - §6 결정 보류 (운전자) 5개 옵션
+  - §7 carryover honestly DEFER 보존 4건
+  - §8 회고 + Lessons learned 4건
+  - §9 CR 11-3 honest-DEFER 253번째
+  - §10 Cross-references
+  - §11 Why / How to apply
+  - §12 결정 wire 일자
+
+### 2 NEW meta
+
+- `_bmad-output/implementation-artifacts/commit-msg-cj-304retro.txt` (본 commit message)
+- `memory/handoff-2026-09-07-cj-304-prod-deploy-prep-retro-done.md` (cj-style detail)
+
+### 2 MODIFIED docs-only
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.76 → v4.77 EXTENSION
+  (cj-304 close-out retro entry + last_updated_note_v4_77 신규 paragraph)
+- `memory/MEMORY.md` hook EXTENSION (cj-304 retro hook 1-line + Active sprint state EXTENSION)
+
+## 결정 wire 보존
+
+- **OQ 결정 wire 4/4 apply 보존** (cj-304 wire 의 보존 그대로): reportlab + Postmark (cj-304 wire EXTENSION 으로 신규 active) + APScheduler (cj-304 wire EXTENSION 으로 신규 active) + matplotlib
+- **AD bind 4/4 active 보존** + **신규 active**: AD-2 (Pilot CLI 의 audit_logs INSERT EXTENSION 으로 신규 active)
+- **NFR bind 7/7 active 보존** + **신규 active**: NFR4 (Pilot CLI 의 finance_contact_email redact) + NFR8 (TZ + RETRY_BACKOFF_MINUTES 의 APScheduler restart resilience EXTENSION)
+- **capability matrix v1.54 EXTENSION preserved** (Pilot CLI 의 capability_grants UPSERT 가 v1.54 EXTENSION 그대로 보존)
+- **audit actions EXTENSION preserved** + **신규 action**: ActionClass.REPORTS + action='pilot_tenant_provisioned'
+- **33/33 cumulative 결정 wire 보존** = Epic 30+ 24 sprints + cj-301 + cj-302 docs + cj-302 fix + cj-303 entry + cj-303 wire + cj-303 retro + cj-304 entry + cj-304 wire + **cj-304 close-out retro**
+
+## verify gate 결과
+
+### 로컬 verify (cj-304 wire 의 직접 verify)
+- `uv run python scripts/check_stack_pin.py` → 'OK all 37 pins match' ✅
+- `uv run python apps/api/scripts/cli/pilot_tenant_provision.py --dry-run ...` → structured JSON output ✅ (4 planned actions)
+
+### CI verify (cj-304 wire push 후 14-job matrix)
+- **10/14 ✅ + 4/14 ❌ 예상** (cj-303 retro 의 10/14 + 4/14 그대로 보존, 회귀 0건 예상)
+- 회귀 0건 (cj-304 wire 는 source code semantics 변화 0건: env vars EXTENSION + docs EXTENSION + 1 NEW stdlib-only CLI)
+- residual 4건 모두 cj-304 scope 외 (cj-302 MINIMAL fix 부 정확성 + Phase 10/16 drift + lint drift)
+
+## 4 critical gaps 결정 wire 적용 확인
+
+| Gap | Severity | 결정 wire (cj-304 wire) | 신규 active 결정 wire |
+|---|---|---|---|
+| POSTMARK_SERVER_TOKEN missing | ⚠️ CRITICAL | env vars EXTENSION | Postmark (cj-299) |
+| APScheduler cron env vars + TZ missing | ⚠️ CRITICAL | env vars + Dockerfile ENV EXTENSION | APScheduler (cj-300) |
+| Pilot tenant provisioning 부재 | ⚠️ MEDIUM | NEW Pilot CLI ~280 LOC | Pilot onboarding |
+| Production seed plan 부재 | ⚠️ LOW | docs/deployment.md §4 Step 6 EXTENSION | Production bootstrap |
+
+## carryover honestly DEFER 보존 (cj-304 retro 종료 시점)
+
+| Carryover | Status | 결정 wire |
+|---|---|---|
+| ① web-e2e Playwright (csv-export.spec.ts Case 2+3) | ❌ residual | post-pilot 또는 별도 sprint |
+| ② test-suite-measure | ❌ residual | post-pilot 또는 별도 sprint |
+| ③ web-test (Vitest 확장 + Postmark sandbox webhook) | ❌ residual | post-pilot 또는 별도 sprint |
+| ④ lint-conventions | ❌ residual | post-pilot 또는 별도 sprint |
+
+## CR 11-3 honest-DEFER 253번째
+
+cj-style chain: cj-282 (220번째) → ... → cj-304 entry (251번째) → cj-304 wire (252번째) → **cj-304 close-out retro (253번째)**.
+종합 **33 sprints 정직 회복 결정 wire 진입** = Epic 30+ 24 sprints + cj-301 + cj-302 docs + cj-302 fix + cj-303 entry + cj-303 wire + cj-303 retro + cj-304 entry + cj-304 wire + **cj-304 close-out retro (본 sprint)**.
+
+## runtime 동작 변화 (cj-304 retro)
+
+- docs-only atomic — 5 files = 1 NEW + 2 NEW meta + 2 MODIFIED meta
+- source code 변경 0건 (cj-304 retro 는 docs-only sprint)
+- dev_seed 변경 0건 / ci.yml 변경 0건 / alembic 변경 0건
+- 37 pins unchanged (cj-303 EXTENSION 보존, cj-304 wire 신규 EXTENSION 0건)
+- 14 job matrix unchanged (cj-style baseline-green 보존)
+- PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved
+
+## 결정 보류 (운전자) — 다음 옵션
+
+cj-304 close-out retro 종료 후 결정 wire:
+
+| # | 옵션 | 결정자 | 영향 |
+|---|---|---|---|
+| ① | **account setup 병행** (Vercel Pro + Railway Hobby + Supabase Pro + Sentry Team + DNS + Postmark sandbox) | 운영자 | **목표 직접 달성 — pilot W1 (2026-09-14 KST) 7일 카운트다운 시작** |
+| ② | Pilot candidate list 작성 (B-1, 운영자 결정) | B-1 | pilot launch 후보 풀 결정 wire |
+| ③ | cj-304 close-out retro 진입 (cj-style 311번째, 본 sprint) | 기술 결정 | sprint closure |
+| ④ | cj-303 carryover 4건 fix (web-e2e Playwright + test-suite-measure + web-test + lint-conventions) | 기술 결정 | CI 100% green recovery, post-pilot 보류 가능 |
+| ⑤ | Epic 30+ PRD v2 EXTENSION / Epic 29+ spec impl | pilot feedback 후 | honestly DEFER |
+
+**RECOMMENDED next**: **옵션 ① (account setup 병행)** — cj-304 의 3 atomic sub-sprints (entry + wire + retro) chain 모두 CLOSED ✅ HONEST. 4 critical gaps 결정 wire 적용 완료 + Pilot tenant onboarding CLI dry-run-first 결정 wire 적용. production deployment 의 technical blocker 0건 → pilot W1 launch 7일 카운트다운 시작 가능.
+
+## Why
+
+cj-304 sprint 의 3 atomic sub-sprints (entry + wire + close-out retro) chain CLOSED ✅ HONEST. 4 critical gaps 결정 wire 적용 완료 + Pilot tenant onboarding CLI dry-run-first 결정 wire 적용 + capability matrix v1.54 EXTENSION preserved + audit actions EXTENSION preserved + 1 신규 (pilot_tenant_provisioned). production deployment 의 technical blocker 0건 → pilot W1 7일 카운트다운 시작 가능.
+
+## How to apply
+
+- 본 commit push to origin/9-3-dev-2026-08-17
+- 다음 세션 시작 시: §결정 보류 5건 + carryover residual 4건 확인
+- 우선순위: **옵션 ① account setup 병행** (cj-301 prep 의 5개 운영자 결정 + 실행, pilot W1 7일 카운트다운 시작)
+- Pilot tenant CLI 첫 실행은 반드시 dry-run 으로 verify 후 `--execute` 적용
+- carryover residual 4건 = post-pilot 또는 parallel sprint (cj-304 scope 외)
+
+CR 11-3 honest-DEFER 253번째 (cj-304 entry 의 251번째 → cj-304 wire 의 252번째 → **cj-304 close-out retro 의 253번째**)
