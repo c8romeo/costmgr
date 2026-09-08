@@ -1,0 +1,40 @@
+docs(pilot-w1-d5): cj-308 Pilot W1 D-5 critical path 결정 wire entry (cj-style 263번째) — 옵션 (a) Resend+Supabase signup 즉시 시작 결정 wire 진입 (CR 11-3 honest-DEFER 263번째)
+
+cj-307 auth-callback aal1 minimum fix (`a1cb7ad`) + cj-305b Resend migration wire (`53b8bbf`) + cj-305b retroactive correction (`c69dea5`) 직후 결정 보류 4건 (a)~(d) 중 **옵션 (a) Resend + Supabase signup 즉시 시작 결정 wire 진입** (memory/MEMORY.md "Active sprint state" verbatim). D-day 2026-09-14 KST 까지 5일 (D-5) countdown 의 first unblock step.
+
+**rationale 5종**:
+1. **D-day critical path 1순위** = 신규 사용자 signup 가능 상태. (a) 없이는 (b) 발송해도 candidate 가 login 불가.
+2. **cj-307 + cj-305b 직결** = auth-callback aal1 fix + Resend migration 의 검증 단계가 곧 (a). wire 만 했지 live verify 안 함.
+3. **operator 액션 위주 (low risk)** = code 변경 0건. Web `.env.local` + Railway API env + Supabase Auth dashboard 3-step.
+4. **(b)(c)(d) blocker 해소** = (b) 발송은 candidate 가 signup 가능해야 의미 있고, (c)(d) 는 post-W1 가능.
+5. **cj-style discipline 보존** = cj-307 직후 자연스러운 cj-308 entry. 263번째 cj-style 연속 정직 회복 atomic single sprint.
+
+**sprint scope = docs-only atomic single sprint (operator action 결정 wire)** — 5 files = 1 NEW content + 1 NEW meta + 1 NEW meta + 2 MODIFIED meta atomic single sprint:
+- 1 NEW `_bmad-output/implementation-artifacts/phase-30-pilot-w1-d5-critical-path-entry-2026-09-09.md` ~200 LOC 9-section §1~§9
+- 1 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-308.txt` (this file)
+- 1 NEW `memory/handoff-2026-09-09-cj-308-pilot-w1-d5-critical-path-entry-done.md` ~200 LOC
+- 1 MODIFIED `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.79 → **v4.80 EXTENSION** (A724~A726 신규 block + last_updated_note_v4_80 신규 paragraph)
+- 1 MODIFIED `memory/MEMORY.md` hook EXTENSION (cj-308 entry hook 1-line + Active sprint state EXTENSION)
+
+**operator action checklist 5-step (운전자 실행)**:
+- Step 1 (10min): RESEND_API_KEY 캡처 (Resend dashboard → Web `.env.local` + Railway API env)
+- Step 2 (5min): SUPABASE_JWT_SECRET 캡처 (Supabase dashboard → Railway API env)
+- Step 3 (15min): Supabase Auth dashboard live verify (Email provider enabled, URL Configuration, MFA TOTP)
+- Step 4 (30min): Live signup smoke test (magic-link → /auth/callback → aal1 → dashboard + Resend 200)
+- Step 5 (10min): Handoff 검증 (4 critical gaps + Resend + auth-callback aal1 + cj-308 live verify 모두 DONE)
+
+**carryover 보존 (post-W1 honestly DEFER)**:
+- cj-307 carryover 32 test failures + 22 errors + 3 collection errors + FastAPI @app.on_event deprecation
+- cj-303 carryover 4건
+- PRE-EXISTING honestly DEFER 6건 (web-e2e Playwright + test-suite-measure 잔여 + web-test + lint-conventions + Sentry + custom DNS)
+
+**CR 11-3 honest-DEFER 263번째**:
+- cj-307 의 "Pilot W1 blocker 해결" headline 의 한계 명시 = code fix 만 했지 live verify 안 함. cj-308 에서 live verify 결정 wire 진입.
+- cj-305b 의 "Resend migration wire CLOSED ✅ HONEST" headline 의 한계 명시 = email delivery layer swap 만, auth flow live verify 안 함. cj-308 에서 통합 verify.
+- MEMORY.md "Active sprint state" 의 "옵션 (a, RECOMMENDED next)" 의 결정 wire 진입.
+
+**next (cj-309)**: 옵션 (a-1) live verify wire OR 옵션 (a-2) Pilot candidate list (B-1) 작성 — 운전자 결정 보류.
+
+**결정 wire 일자**: 2026-09-09 (KST, D-5).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
