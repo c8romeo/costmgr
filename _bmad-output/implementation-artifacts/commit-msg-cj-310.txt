@@ -1,0 +1,64 @@
+docs(pilot-w1-d5): cj-310 cj-309 close-out retro entry (cj-style 266번째) — 4 verify gate result capture protocol + W1~W8 launch tracking framework (CR 11-3 honest-DEFER 266번째)
+
+cj-309b wire (`3c9bdbf`) 의 "next" 옵션 (a) / (b) **cj-310 = cj-309 close-out retro** 결정 wire 진입 (cj-style 266th). cj-309 의 4 verify gate (GV-1~GV-4) 결과 종합 + W1 launch tracking framework + 결정 wire.
+
+**honest-DEFER pre-close 결정 wire** (cj-style 311th retro 의 pre-close pattern mirror):
+- 4 verify gate 결과 (GV-1 RESEND_API_KEY / GV-2 SUPABASE_JWT_SECRET / GV-3 Supabase Auth dashboard / GV-4 Live signup smoke test) = **operator out-of-session 실행** (work hours)
+- 본 entry 는 **결과 capture protocol + W1 launch tracking framework** 결정 wire (실제 결과 = cj-310 close-out 시 wire)
+- cj-309 close-out retro 의 3 atomic sub-sprint chain (entry + close-out + follow-up) 의 1번째 단계 진입
+
+**sprint scope = docs-only atomic single sprint (entry)** — 4 files = 1 NEW content + 1 NEW meta + 2 MODIFIED meta atomic:
+- 1 NEW `_bmad-output/implementation-artifacts/phase-30-pilot-w1-d5-cj-309-close-out-retro-2026-09-09.md` ~150 LOC 8-section §1~§8
+- 1 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-310.txt` (this file)
+- 1 MODIFIED `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.82 → **v4.83 EXTENSION** (A727 cj-310 + last_updated_note_v4_83 신규 paragraph)
+- 1 MODIFIED `memory/MEMORY.md` hook EXTENSION (cj-310 hook 1-line + Active sprint state post cj-310 EXTENSION)
+
+**4 Verify Gate Result Capture Protocol (YAML format 결정 wire)**:
+- **GV-1 RESEND_API_KEY**: captured / web_env_local / railway_api_env_production / railway_api_env_preview / captured_at / pass
+- **GV-2 SUPABASE_JWT_SECRET**: captured / railway_api_env_production / captured_at / pass
+- **GV-3 Supabase Auth dashboard**: email_provider_enabled / confirm_email_off / site_url / redirect_urls_count (target 2+) / mfa_totp_enabled / pass
+- **GV-4 Live signup smoke test**: magic_link_sent/received/clicked + auth_callback_loaded + aal1_redirected_to_dashboard (cj-307 fix) + mfa_list_factors_verified_empty (cj-307 aal1 skip) + skip_auth_2fa + resend_api_200 + audit_log_insert / pass
+
+**4 Verify Gate 종합 결정 wire (cj-310 close-out 시)**:
+- 4/4 PASS = cj-310 close-out retro 의 "Phase 30 Pilot W1 Live Verify ✅ HONEST" 결정 wire (cj-style 267th follow-up)
+- 1+ FAIL = cj-310b fix-forward sprint (honest-DEFER 보류)
+
+**W1 Launch Tracking Framework (D-0 → W8)**:
+- **W1 (2026-09-14~09-20) Onboarding**: Pilot launch + W1 1:1 미팅 + tenant provisioning + 첫 invoice/budget audit log verify + Resend welcome email
+- **W2-W3 (2026-09-21~10-04) Adoption**: Daily active tenant count + feature usage + 이슈 리포트 + 2차 follow-up
+- **W4 (2026-10-05~10-11) Evaluation**: W4 evaluation 미팅 + NPS survey + Tier 3 wait-list activation 결정 wire
+- **W5-W7 (2026-10-12~11-01) Stabilization**: Bug fix sprint + quick wins + Pricing 결정 wire
+- **W8 (2026-11-02~11-09) Close-out**: W8 close-out 미팅 + Tier 별 expansion + Pilot close-out retro + PRD v2 EXTENSION
+
+**risk profile (cj-310 close-out 시점)**: **LOW** (cj-309 entry 의 5-step 모두 reversible). 단, **4/4 PASS 후에만** risk LOW — 1+ FAIL 시 fix-forward sprint 진입.
+
+**verify gate 결과 (cj-310 entry 의 본질)**: docs-only atomic, source code EXTENSION 0건. 4 verify gate 실제 결과 = operator out-of-session (work hours 수행).
+
+**OQ 결정 wire 4/4 apply 보존** (cj-309b 의 보존 그대로, cj-310 신규 EXTENSION 0건): reportlab + Resend (cj-305b swap 신규 active) + APScheduler + matplotlib.
+
+**AD bind 4/4 active 보존** + **NFR bind 7/7 active 보존** + **capability matrix v1.54 EXTENSION preserved** + **audit actions EXTENSION preserved** (cj-310 entry 신규 EXTENSION 0건, docs-only).
+
+**39/39 cumulative 결정 wire 보존** (cj-309b 의 38 + **NEW 39번째 cj-310 close-out retro entry 결정 wire 진입**).
+
+**runtime**: source code 변경 0건 / dev_seed 변경 0건 / ci.yml 변경 0건 / alembic 변경 0건 / 37 pins unchanged / 14 job matrix unchanged / PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved.
+
+**CR 11-3 honest-DEFER 266번째** chain cj-282 (220번째) → ... → cj-309b Pilot candidate list (B-1) 작성 wire (265번째) → **cj-310 cj-309 close-out retro entry (266번째)** 종합 39 sprints 정직 회복.
+
+**honest-DEFER 결정 wire 보존**:
+- 4 verify gate 결과 wire = cj-310 close-out retro 진입 시 (다음 세션, operator Steps 1-4 완료 후)
+- 4/4 PASS = cj-310 close-out retro 의 "Phase 30 Pilot W1 Live Verify ✅ HONEST" 결정 wire (cj-style 267th follow-up)
+- 1+ FAIL = cj-310b fix-forward sprint (honest-DEFER 보류)
+- W1~W8 tracking = cj-310 close-out retro 부터 weekly follow-up 결정 wire
+- cj-303 carryover 4건 + cj-307 carryover + 6 PRE-EXISTING honestly DEFER = W1~W8 honestly DEFER 보존
+
+**next 결정 wire 보류**:
+- (a) operator Steps 1-4 즉시 실행 → cj-310 close-out retro 결과 wire
+- (b) cj-310 close-out retro 진입 (4 verify gate 결과 종합)
+- (c) cj-310b fix-forward sprint (1+ FAIL 시)
+- (d) W1~W8 weekly follow-up (cj-310 close-out retro 부터)
+- (e) cj-303 carryover 4건 fix (post-W1)
+- (f) PRD v2 EXTENSION / Epic 29+ spec impl (post-W1)
+
+**결정 wire 일자**: 2026-09-09 (KST, D-5).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
