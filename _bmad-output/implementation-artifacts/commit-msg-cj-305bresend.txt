@@ -1,0 +1,36 @@
+feat(email): cj-305b Resend migration wire sprint (cj-style 256번째) — Postmark → Resend swap 결정 wire v2 (OQ-EPIC30+-2 v2, 7 files = 4 MODIFIED source + 1 MODIFIED docs + 2 NEW meta source+docs atomic)
+
+cj-305b Resend migration wire sprint (cj-style 256번째, 2026-09-08 KST) — cj-305 production deploy day-1 wire 의 option (a) signup 진행 중 Postmark 의 public-domain-email (Gmail) 가입 차단 이슈 정직 회복 결정 wire. **OQ-EPIC30+-2 결정 wire v1 Postmark → v2 Resend swap** 결정 wire 진입 (Postmark 결정 wire 의 abstraction layer swap 으로 code change 최소 정직 회복).
+
+**rationale 3종 for Resend swap 결정 wire**:
+1. **Postmark 의 결정적 blocker**: Postmark 가 public-domain-email (Gmail, Yahoo) 가입 차단 ("Sorry, we don't allow email addresses on public domains such as Gmail and Yahoo. Please use your work email on a private domain."). Pilot W1 운영자 (kjw) 의 Gmail 사용 정직 인정.
+2. **Resend 의 우위**: public email (GitHub OAuth 또는 email signup) 허용 + W1 free tier **3,000 emails/month** (Postmark sandbox 100/mo 대비 30×) + 100/day rate limit + cleanest Bearer API + httpx 와의 seamless integration.
+3. **abstraction layer 의 swap 결정 wire**: `EmailProvider` ABC 의 `send(subject, body, recipients, sender) -> str` 인터페이스 보존 → `PostmarkProvider` → `ResendProvider` swap 만으로 email_service.py / email_routes.py / schemas 변경 0건 결정 wire.
+
+**7 files = 4 MODIFIED source + 1 MODIFIED docs + 2 NEW meta source+docs atomic single sprint**:
+
+1. `apps/api/core/email_provider.py` **MODIFIED** (~150 LOC 변경 — PostmarkProvider 클래스 → ResendProvider 클래스 신규 active, HTTP API endpoint swap `https://api.postmarkapp.com/email` → `https://api.resend.com/emails`, headers swap `X-Postmark-Server-Token` → `Authorization: Bearer {RESEND_API_KEY}`, body shape swap `{From, To comma-string, TextBody, MessageStream: outbound}` → `{from, to list, text}`, response handling swap `ErrorCode == 0` → HTTP status 200/201 + `id` field, error code swap `POSTMARK_LOGICAL_ERROR`/`POSTMARK_CLIENT_ERROR` → `RESEND_LOGICAL_ERROR`/`RESEND_CLIENT_ERROR`, DEFAULT_FROM_EMAIL swap `noreply@costmgr.bizup.io` → `onboarding@resend.dev` (Resend sandbox default), factory env var swap `POSTMARK_SERVER_TOKEN`/`POSTMARK_FROM_EMAIL` → `RESEND_API_KEY`/`RESEND_FROM_EMAIL`, factory `__all__` swap `PostmarkProvider` → `ResendProvider`, module docstring `cj-305b Resend migration wire sprint 결정 wire` reference EXTENSION)
+2. `apps/api/modules/reports/email_routes.py` **MODIFIED** (4 comments EXTENSION 결정 wire — module docstring Postmark references → Resend references, `Postmark MessageID` → `Resend email id`, `EmailExportDeliveryFailedError` docstring `SMTP/Postmark` → `SMTP/Resend`, route docstring `Postmark default` → `Resend default`, `OQ-EPIC30+-2 결정 wire = Postmark` → `OQ-EPIC30+-2 결정 wire v2 = Resend (cj-305b migration)`, inline comment `Send via provider (Postmark default)` → `Resend default`)
+3. `apps/api/main.py` **MODIFIED** (1 comment EXTENSION — email router mount block 의 `cj-305b Resend migration wire sprint 결정 wire` + `OQ-EPIC30+-2 결정 wire v2 = Resend` + `RESEND_API_KEY → SMTP_HOST → LoggingProvider`)
+4. `apps/api/.env.example` **MODIFIED** (Email delivery section 6 lines EXTENSION — section header + comments + env var names + default values 모두 Postmark → Resend swap 결정 wire)
+5. `docs/deployment-account-setup.md` **MODIFIED** (~12 references EXTENSION — top blockquote cj-305b reference + §2 service table + §3 signup order + §4.1 entire Postmark section → Resend section + §4.2 Cloudflare DNS Postmark sender signature → Resend + §4.4 Railway env vars table + §5 Day 1/3/5 checklists + §6 결정 wire + §7 Smoke Test 4 + §9 risks table + §10 cross-references + §11 결정 wire 일자 + footer options + 추천 option 모두 Resend 결정 wire v2 정직 반영)
+6. `_bmad-output/implementation-artifacts/commit-msg-cj-305bresend.txt` **NEW** (본 파일)
+7. `_bmad-output/implementation-artifacts/handoff-2026-09-08-cj-305b-resend-migration-done.md` **NEW**
+
+meta — `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.78 → **v4.79 EXTENSION** = A723 cj-305bresend + last_updated_note_v4_79 신규 paragraph + `memory/MEMORY.md` hook EXTENSION = cj-305b hook 1-line + Active sprint state post cj-305b EXTENSION.
+
+**verify gate 결과 (로컬 검증)**: `uv run python scripts/check_stack_pin.py` → 'OK all 37 pins match' ✅ (cj-303 EXTENSION 보존, cj-305b 신규 EXTENSION 0건 — Resend 는 stdlib httpx 사용, AD-14 stack pin 신규 EXTENSION 불필요). `uv run python apps/api/scripts/cli/pilot_tenant_provision.py --dry-run ...` → structured JSON output ✅ (cj-304 wire 보존 그대로). Resend HTTP API endpoint 의 connectivity smoke test 는 Resend signup 완료 후 RESEND_API_KEY 확보 시 별도 verify gate EXTENSION 결정 (cj-305b sprint scope 외, 운전자 결정 보류).
+
+**OQ 결정 wire v1 Postmark → v2 Resend swap 결정 wire** + **AD bind 4/4 active 보존** + **NFR bind 7/7 active 보존** + **capability matrix v1.54 EXTENSION preserved** + **audit actions EXTENSION preserved**.
+
+**35/35 cumulative 결정 wire 보존** = Epic 30+ 24 sprints + cj-301 + cj-302 docs + cj-302 fix + cj-303 entry + cj-303 wire + cj-303 retro + cj-304 entry + cj-304 wire + cj-304 retro + cj-305 production deploy day-1 wire + **cj-305b Resend migration wire**.
+
+**PRE-EXISTING honestly DEFER carryover 보존**: 4건 그대로 (web-e2e Playwright + test-suite-measure 잔여 + web-test + lint-conventions, cj-305b scope 외) + Sentry + custom DNS 추가 defer (cj-305b 의 4-service minimal viable 결정 wire 그대로 보존).
+
+**CR 11-3 honest-DEFER 256번째** chain cj-282 (220번째) → ... → cj-305 production deploy day-1 wire (254번째) → cj-305 wire memory follow-up (255번째) → **cj-305b Resend migration wire (256번째)** 종합 35 sprints 정직 회복.
+
+**runtime 동작 변화**: source+docs atomic 7 files = 4 MODIFIED source + 1 MODIFIED docs + 2 NEW meta. **4 MODIFIED source EXTENSION** = email_provider.py ResendProvider 결정 wire + email_routes.py comments 결정 wire + main.py comments 결정 wire + .env.example 결정 wire. **0 alembic 변경 / 0 dev_seed 변경 / 0 ci.yml 변경 / 37 pins unchanged (cj-303 EXTENSION 보존, cj-305b 신규 EXTENSION 0건) / 14 job matrix unchanged / PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved**.
+
+**결정 보류 (운전자)**: ① 옵션 (a, RECOMMENDED next) **cj-305b sprint commit 즉시 + Resend + Supabase signup 즉시 시작** (D-6 오늘 2026-09-08 KST, 병렬, ~2-3h, Resend 의 public email 허용으로 blocker 해소) ② 옵션 (b) Pilot candidate list (B-1) 먼저 작성 (cj-305 task #10, D-2 2026-09-12 KST 까지 발송 필수) ③ 옵션 (c) cj-303 carryover 4건 fix (post-pilot 또는 별도 sprint) ④ 옵션 (d) PRD v2 EXTENSION / Epic 29+ spec impl (pilot feedback 후). **honestly DEFER 결정 wire**: ① 옵션 (a, RECOMMENDED next) commit+signup 즉시 (Resend 결정 wire v2) ② 옵션 (b) candidate list ③ 옵션 (c) carryover fix ④ 옵션 (d) PRD v2 EXTENSION ⑤ 옵션 (e) Epic 29+ spec impl ⑥ 옵션 (f) Pilot outreach 즉시.
+
+결정 wire 일자: 2026-09-08 (KST).

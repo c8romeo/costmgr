@@ -618,11 +618,12 @@ app.include_router(pdf_export_router)
 
 
 # cj-299 wire sprint (cj-style 299번째) — Story 30.3 Email delivery route mount.
-# Capability gate EXPORT_EMAIL (capability matrix v1.54 EXTENSION preserve,
-# AD-12 verify-first). Owner/admin RBAC (AD-22 verbatim).
-# OQ-EPIC30+-2 결정 wire = Postmark (transactional email HTTP API).
+# cj-305b Resend migration wire sprint (cj-style 256번째, 2026-09-08 KST) —
+# OQ-EPIC30+-2 결정 wire v2 = Resend (Postmark → Resend swap, public-domain-email
+# 가입 차단 이슈). Capability gate EXPORT_EMAIL (capability matrix v1.54 EXTENSION
+# preserve, AD-12 verify-first). Owner/admin RBAC (AD-22 verbatim).
 # Email provider factory `get_email_provider()` env-driven priority:
-# POSTMARK_SERVER_TOKEN → SMTP_HOST → LoggingProvider (dev default).
+# RESEND_API_KEY → SMTP_HOST → LoggingProvider (dev default).
 # 4 NEW typed exceptions (CR 12-5 D-14 envelope):
 # EmailExportInvalidRequestError / EmailExportForbiddenError /
 # EmailExportCrossTenantError / EmailExportDeliveryFailedError.

@@ -3,6 +3,11 @@
 cj-299 wire sprint (cj-style 299번째 epic 연속 정직 회복 source+docs atomic single
 sprint) — Story 30.3 Email delivery (FR-30-3).
 
+cj-305b Resend migration wire sprint (cj-style 256번째, 2026-09-08 KST) —
+Postmark 의 public-domain-email 가입 차단 이슈로 OQ-EPIC30+-2 결정 wire v2 = Resend
+으로 migration. Source code 의 Postmark references 주석 정직 회복
+(core/email_provider.py 의 ResendProvider 결정 wire 그대로, 본 파일은 주석만).
+
 1 route (mounted at `/api/v1/`):
   1. POST /api/v1/exports/email
      Body (EmailExportRequest JSON):
@@ -17,7 +22,7 @@ sprint) — Story 30.3 Email delivery (FR-30-3).
        }
      Response (EmailDeliveryResult JSON):
        {
-         "delivery_id": "Postmark MessageID | SMTP correlation | log-{uuid}",
+         "delivery_id": "Resend email id | SMTP correlation | log-{uuid}",
          "status": "delivered" | "queued" | "failed",
          "recipient_count": 2,
          "retry_count": 0,                            // 0~3
@@ -139,7 +144,7 @@ class EmailExportCrossTenantError(EmailExportError):
 
 
 class EmailExportDeliveryFailedError(EmailExportError):
-    """502 EMAIL_EXPORT_DELIVERY_FAILED_KO — SMTP/Postmark retry exhausted."""
+    """502 EMAIL_EXPORT_DELIVERY_FAILED_KO — SMTP/Resend retry exhausted."""
 
     def __init__(self, reason: str, retry_count: int) -> None:
         super().__init__(
@@ -174,7 +179,7 @@ async def export_email(
       3. Build CSV bytes from DB (mirror csv_routes._iter pattern).
       4. Generate email body (summary + custom message).
       5. Redact PII (NFR4 PII minimization — if enabled).
-      6. Send via provider (Postmark default) with retry 3회 + exponential backoff.
+      6. Send via provider (Resend default) with retry 3회 + exponential backoff.
       7. Return EmailDeliveryResult envelope.
 
     Capability gate `require_capability(Capability.EXPORT_EMAIL)` 결정 wire 진입:
@@ -182,8 +187,8 @@ async def export_email(
         matrix v1.54 EXTENSION).
       - Owner/admin RBAC (AD-22 verbatim) + capability gate (AD-12 verify-first).
 
-    OQ-EPIC30+-2 결정 wire = Postmark (apps/api/core/email_provider.py). Fallback
-    chain: Postmark → SMTP → LoggingProvider (dev default).
+    OQ-EPIC30+-2 결정 wire v2 = Resend (cj-305b migration, apps/api/core/email_provider.py). Fallback
+    chain: Resend → SMTP → LoggingProvider (dev default).
     """
     # Cross-tenant 차단 (CR 0-2 RLS 결정 wire).
     if str(req.tenant_id) != str(ctx.tenant_id):
@@ -238,7 +243,7 @@ async def export_email(
     # 3. Redact PII from email body (NFR4 PII minimization).
     redacted_body, pii_redacted_fields = redact_pii(raw_body, enabled=req.pii_redaction_enabled)
 
-    # 4. Send via provider (Postmark default) with retry 3회.
+    # 4. Send via provider (Resend default) with retry 3회.
     provider = get_email_provider()
     try:
         delivery_id, retry_count = await send_email_with_retry(

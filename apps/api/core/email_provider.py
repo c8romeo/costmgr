@@ -6,14 +6,19 @@ OQ-EPIC30+-2 결정 wire = Postmark (transactional email API + sandbox 100건
 free + HTTP API 단순 + DKIM/SPF 자동). The abstraction layer here allows
 future migration to SendGrid / SES / Gmail via env flag swap (no code change).
 
+cj-305b Resend migration wire sprint (cj-style 256번째, 2026-09-08 KST) —
+Postmark 의 public-domain-email 가입 차단 (Gmail reject) 이슈로
+**OQ-EPIC30+-2 결정 wire v2 = Resend** 으로 migration 결정 wire 진입.
+Postmark 결정 wire 의 abstraction layer 의 swap 으로 code change 최소 정직 회복.
+
 1 ABC + 2 concrete providers:
   - `EmailProvider` — abstract base class (send(subject, body, recipients, sender))
-  - `PostmarkProvider` — default (POSTMARK_SERVER_TOKEN env var)
+  - `ResendProvider` — default (RESEND_API_KEY env var, cj-305b 결정 wire)
   - `SMTPProvider` — fallback (SMTP_HOST/PORT/USER/PASSWORD env vars)
   - `LoggingProvider` — dev/local default (logs email payload, no network)
 
 Factory: `get_email_provider()` reads env vars and returns the right provider.
-Priority: POSTMARK_SERVER_TOKEN → SMTP_HOST → LoggingProvider.
+Priority: RESEND_API_KEY → SMTP_HOST → LoggingProvider.
 
 AD bind:
   - AD-2 (audit-first INSERT append-only) — caller is email_service.py,
@@ -23,6 +28,7 @@ AD bind:
 
 CR 11-3 honest-DEFER 238번째 epic 연속 정직 회복
 (cj-298 close-out retro 의 237번째 + cj-299 의 238번째).
+cj-305b 의 256번째 추가.
 """
 
 from __future__ import annotations
@@ -36,12 +42,13 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Postmark API endpoint (transactional email). Verbatim from Postmark HTTP API docs.
-POSTMARK_API_URL: Final[str] = "https://api.postmarkapp.com/email"
+# Resend API endpoint (transactional email). Verbatim from Resend HTTP API docs.
+RESEND_API_URL: Final[str] = "https://api.resend.com/emails"
 
 # Default sender email (Pilot launch 시 tenant-specific 발신자 결정 wire 보류).
-# 운영자 override 가능 (POSTMARK_FROM_EMAIL env var).
-DEFAULT_FROM_EMAIL: Final[str] = "noreply@costmgr.bizup.io"
+# 운영자 override 가능 (RESEND_FROM_EMAIL env var).
+# Resend sandbox: `onboarding@resend.dev` 가 default sender (custom domain 등록 시 user 도메인 가능).
+DEFAULT_FROM_EMAIL: Final[str] = "onboarding@resend.dev"
 
 
 class EmailProvider(ABC):
@@ -55,7 +62,7 @@ class EmailProvider(ABC):
         recipients: list[str],
         sender: str = DEFAULT_FROM_EMAIL,
     ) -> str:
-        """Send email via the provider. Returns Postmark MessageID or SMTP correlation ID.
+        """Send email via the provider. Returns Resend email ID or SMTP correlation ID.
 
         Raises:
             EmailDeliveryError: on permanent failure (after retry exhausted).
@@ -81,20 +88,24 @@ class EmailTransientError(EmailDeliveryError):
         self.retry_after_seconds = retry_after_seconds
 
 
-class PostmarkProvider(EmailProvider):
-    """Postmark transactional email HTTP API (OQ-EPIC30+-2 default).
+class ResendProvider(EmailProvider):
+    """Resend transactional email HTTP API (OQ-EPIC30+-2 v2 default, cj-305b wire 결정 wire).
 
-    POST {POSTMARK_API_URL} with headers:
-      - Accept: application/json
+    cj-305b Resend migration 결정 wire 적용 (cj-style 256번째):
+    - Postmark 는 public-domain-email 가입 차단 (Gmail reject) 이슈 → Resend 로 swap.
+    - Postmark 대비 W1 free tier 3000 emails/month (100/day), public email 가입 가능.
+
+    POST {RESEND_API_URL} with headers:
+      - Authorization: Bearer {RESEND_API_KEY}
       - Content-Type: application/json
-      - X-Postmark-Server-Token: {POSTMARK_SERVER_TOKEN}
-    Body: {"From": ..., "To": ..., "Subject": ..., "TextBody": ..., "MessageStream": "outbound"}
+    Body: {"from": ..., "to": [...], "subject": "...", "text": "..."}
 
-    Success response: {"To": ..., "SubmittedAt": ..., "MessageID": "...", "ErrorCode": 0, "Message": "OK"}
+    Success response: {"id": "<email_id>"}
+    Error response: {"statusCode": <int>, "name": "...", "message": "..."}
     """
 
-    def __init__(self, server_token: str, from_email: str = DEFAULT_FROM_EMAIL) -> None:
-        self.server_token = server_token
+    def __init__(self, api_key: str, from_email: str = DEFAULT_FROM_EMAIL) -> None:
+        self.api_key = api_key
         self.from_email = from_email
 
     async def send(
@@ -104,54 +115,51 @@ class PostmarkProvider(EmailProvider):
         recipients: list[str],
         sender: str = DEFAULT_FROM_EMAIL,
     ) -> str:
-        """Send via Postmark HTTP API. Returns MessageID."""
+        """Send via Resend HTTP API. Returns Resend email id."""
         from_email = sender or self.from_email
-        # Postmark accepts comma-separated recipients in the "To" field.
-        to_field = ",".join(recipients)
         payload = {
-            "From": from_email,
-            "To": to_field,
-            "Subject": subject,
-            "TextBody": body,
-            "MessageStream": "outbound",
+            "from": from_email,
+            "to": list(recipients),  # Resend expects JSON array, not comma-separated
+            "subject": subject,
+            "text": body,
         }
         headers = {
-            "Accept": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "X-Postmark-Server-Token": self.server_token,
         }
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(POSTMARK_API_URL, json=payload, headers=headers)
+                response = await client.post(RESEND_API_URL, json=payload, headers=headers)
         except (httpx.RequestError, httpx.TimeoutException) as exc:
             raise EmailTransientError(
-                message=f"Postmark network error: {exc}", retry_after_seconds=2.0
+                message=f"Resend network error: {exc}", retry_after_seconds=2.0
             ) from exc
 
-        if response.status_code == 200:
+        if response.status_code in (200, 201):
             data = response.json()
-            if data.get("ErrorCode", 0) == 0:
-                return str(data.get("MessageID", "unknown"))
-            # Postmark returns 200 even on logical errors with ErrorCode != 0.
+            email_id = data.get("id")
+            if email_id:
+                return str(email_id)
+            # 200 OK but no id field — unusual, treat as logical error.
             raise EmailDeliveryError(
-                code="POSTMARK_LOGICAL_ERROR",
-                message=f"Postmark ErrorCode {data.get('ErrorCode')}: {data.get('Message')}",
+                code="RESEND_LOGICAL_ERROR",
+                message=f"Resend 200 but no 'id' in response: {data}",
             )
 
-        # 5xx → transient (retry). 4xx → permanent.
-        if 500 <= response.status_code < 600:
+        # 5xx → transient (retry). 4xx (except 429) → permanent. 429 → transient.
+        if response.status_code == 429 or 500 <= response.status_code < 600:
             raise EmailTransientError(
-                message=f"Postmark 5xx: {response.status_code}",
+                message=f"Resend {response.status_code}: {response.text[:200]}",
                 retry_after_seconds=5.0,
             )
         raise EmailDeliveryError(
-            code="POSTMARK_CLIENT_ERROR",
-            message=f"Postmark {response.status_code}: {response.text[:200]}",
+            code="RESEND_CLIENT_ERROR",
+            message=f"Resend {response.status_code}: {response.text[:200]}",
         )
 
 
 class SMTPProvider(EmailProvider):
-    """SMTP fallback (Postmark outage or local dev).
+    """SMTP fallback (Resend outage or local dev).
 
     Uses aiosmtplib (if installed) or smtplib (sync). For cj-299 sprint scope,
     we use a minimal aiosmtplib-like wrapper that raises transient on
@@ -234,7 +242,7 @@ class SMTPProvider(EmailProvider):
 
 
 class LoggingProvider(EmailProvider):
-    """Default provider for local dev / Pilot launch pre-Postmark-config.
+    """Default provider for local dev / Pilot launch pre-Resend-config.
 
     Logs the email payload (no network). Returns a fake delivery_id.
     Use case: pre-Production environments where SMTP credentials aren't set.
@@ -262,18 +270,18 @@ class LoggingProvider(EmailProvider):
 
 
 def get_email_provider() -> EmailProvider:
-    """Factory: Postmark if POSTMARK_SERVER_TOKEN set, else SMTP if SMTP_HOST set, else LoggingProvider.
+    """Factory: Resend if RESEND_API_KEY set, else SMTP if SMTP_HOST set, else LoggingProvider.
 
     Priority (highest first):
-      1. POSTMARK_SERVER_TOKEN → PostmarkProvider
+      1. RESEND_API_KEY → ResendProvider (cj-305b 결정 wire v2 default)
       2. SMTP_HOST + SMTP_PORT + SMTP_USERNAME + SMTP_PASSWORD → SMTPProvider
       3. (else) → LoggingProvider (dev safe default — never raises)
     """
-    postmark_token = os.getenv("POSTMARK_SERVER_TOKEN")
-    if postmark_token:
-        from_email = os.getenv("POSTMARK_FROM_EMAIL", DEFAULT_FROM_EMAIL)
-        logger.info("Email provider: Postmark (from=%s)", from_email)
-        return PostmarkProvider(server_token=postmark_token, from_email=from_email)
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    if resend_api_key:
+        from_email = os.getenv("RESEND_FROM_EMAIL", DEFAULT_FROM_EMAIL)
+        logger.info("Email provider: Resend (from=%s)", from_email)
+        return ResendProvider(api_key=resend_api_key, from_email=from_email)
 
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = os.getenv("SMTP_PORT")
@@ -294,7 +302,7 @@ def get_email_provider() -> EmailProvider:
 
     logger.warning(
         "Email provider: LoggingProvider (dev default). "
-        "Set POSTMARK_SERVER_TOKEN or SMTP_HOST to enable real delivery."
+        "Set RESEND_API_KEY or SMTP_HOST to enable real delivery."
     )
     return LoggingProvider()
 
@@ -303,7 +311,7 @@ __all__ = [
     "EmailProvider",
     "EmailDeliveryError",
     "EmailTransientError",
-    "PostmarkProvider",
+    "ResendProvider",
     "SMTPProvider",
     "LoggingProvider",
     "get_email_provider",

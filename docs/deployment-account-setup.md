@@ -1,6 +1,6 @@
 # Costmgr Production Account Setup & Day-1 Deploy Runbook
 
-> **cj-305 production deploy day-1 wire (cj-style 254번째, 2026-09-08 KST)** — Pilot W1 launch prep. 4-service minimal viable scope, 6-day D-day countdown. **Why:** cj-304 prod deploy prep wire 결정 wire 4 critical gaps 의 env var/CLI scaffolding 활용, D-6 (2026-09-14 KST) launch 까지 smoke-testable production stack 구성. **How to apply:** Signup 4 services in parallel → capture tokens → wire Railway env vars → alembic migrate Supabase → deploy → smoke test → onboard 1 pilot tenant.
+> **cj-305 production deploy day-1 wire (cj-style 254번째, 2026-09-08 KST)** + **cj-305b Resend migration wire (cj-style 256번째, 2026-09-08 KST)** — Pilot W1 launch prep. 4-service minimal viable scope, 6-day D-day countdown. **Why:** cj-304 prod deploy prep wire 결정 wire 4 critical gaps 의 env var/CLI scaffolding 활용, D-6 (2026-09-14 KST) launch 까지 smoke-testable production stack 구성. Postmark 의 public-domain-email 가입 차단 이슈 → cj-305b 에서 Resend 로 swap 결정 wire 진입. **How to apply:** Signup 4 services (Resend + Supabase + Railway + Vercel) in parallel → capture tokens → wire Railway env vars → alembic migrate Supabase → deploy → smoke test → onboard 1 pilot tenant.
 
 ## 1. Goal & Timeline
 
@@ -20,7 +20,7 @@
 
 | # | Service | Tier | W1 필수? | Rationale |
 |---|---|---|---|---|
-| 1 | **Postmark** | Sandbox (free, 100 emails/mo) | ✅ HARD | cj-299 OQ 결정 wire 신규 active (transactional email HTTP API) |
+| 1 | **Resend** | Free (3,000 emails/mo, 100/day) | ✅ HARD | cj-305b OQ 결정 wire v2 신규 active (transactional email HTTP API, Postmark 의 public-email 차단 이슈 → swap) |
 | 2 | **Supabase** | Pro (~$25/mo) | ✅ HARD | Postgres for API runtime + alembic migrations |
 | 3 | **Railway** | Hobby (~$5/mo) | ✅ HARD | API backend deploy target, cj-303 uvicorn boot verified |
 | 4 | **Vercel** | Pro (~$20/mo) | ✅ HARD | Web frontend deploy target |
@@ -35,39 +35,41 @@
 ## 3. Signup Order (의존성 순)
 
 ```
-[Postmark]            ← ① instant (free), 1차 blocker
+[Resend]              ← ① instant (free), 1차 blocker (cj-305b 결정 wire v2)
 [Supabase]            ← ② DB, 이후 모든 deploy 의 의존
-[Railway] → wire env  ← ③ env vars fill (Supabase URL, Postmark token)
+[Railway] → wire env  ← ③ env vars fill (Supabase URL, Resend token)
 [Vercel]              ← ④ web deploy (Railway URL 필요)
 [Pilot tenant CLI]    ← ⑤ dry-run first, then real (Supabase URL 의존)
 ```
 
-**병렬 가능**: Postmark + Cloudflare DNS (defer) + Supabase 는 독립. Railway 는 Supabase 끝나야 시작. Vercel 은 Railway 끝나야 시작.
+**병렬 가능**: Resend + Cloudflare DNS (defer) + Supabase 는 독립. Railway 는 Supabase 끝나야 시작. Vercel 은 Railway 끝나야 시작.
 
 ## 4. Per-Service Signup Steps
 
-### 4.1 Postmark (cj-299 OQ 결정 wire 보존)
+### 4.1 Resend (cj-305b OQ 결정 wire v2 신규 active)
 
-**Signup URL**: https://postmarkapp.com/sign-up (또는 https://postmarkapp.com → Start free trial)
+> **cj-305b 결정 wire (cj-style 256번째, 2026-09-08 KST)**: cj-299 의 Postmark 결정 wire 에서 Resend 로 migration. 이유: Postmark 가 public-domain-email (Gmail/Yahoo) 가입을 차단 ("Sorry, we don't allow email addresses on public domains such as Gmail and Yahoo. Please use your work email on a private domain."). Resend 는 public email (GitHub OAuth or email signup) 허용 + W1 free tier 3,000 emails/month (Postmark sandbox 100/mo 대비 30×).
 
-**Tier**: Sandbox (free, 100 emails/month) — Pilot W1 에 충분.
+**Signup URL**: https://resend.com/signup (또는 https://resend.com → Start for free)
+
+**Tier**: Free (3,000 emails/month + 100 emails/day) — Pilot W1 에 충분.
 
 **Steps**:
-1. Email + password signup (browser, 5분)
-2. Email verification link 클릭
-3. Dashboard 진입 → Servers → "Create Server" → server name: `costmgr-pilot`
-4. Servers → costmgr-pilot → "API Tokens" tab → copy **Server Token**
-5. (Optional, post-W1) "Sender Signatures" → add `noreply@a-costmgr.com` → DNS verification
+1. GitHub OAuth signup (browser, 2분) **또는** email + password signup (public email 허용)
+2. Email verification link 클릭 (email signup 경로)
+3. Dashboard 진입 → "API Keys" → "Create API Key" → name: `costmgr-pilot-production` → Permission: "Full access" → "Add" → copy API key (한 번만 표시!)
+4. (Optional, post-W1) "Domains" → "Add Domain" → DNS verification (SPF + DKIM + Return-Path) → custom sender 도메인 등록
+5. Default sender (sandbox): `onboarding@resend.dev` — W1 발송 가능, 즉시 검증 (custom domain 등록 안 해도 됨)
 
 **Capture (1Password 또는 secure store, git 부 커밋)**:
 ```
-POSTMARK_SERVER_TOKEN=<token-from-step-4>
-POSTMARK_FROM_EMAIL=noreply@postmarkapp.com  # sandbox default (custom domain post-W1)
+RESEND_API_KEY=re_<token-from-step-3>
+RESEND_FROM_EMAIL=onboarding@resend.dev  # sandbox default (custom domain post-W1)
 ```
 
 **Target env var location**: `apps/api/.env.production` + Railway service Variables tab.
 
-**cj-304 wire EXTENSION 보존**: cj-304 wire 의 env.example + docs/deployment.md §5 의 POSTMARK_SERVER_TOKEN + POSTMARK_FROM_EMAIL row 매핑 그대로.
+**cj-305b wire EXTENSION 보존**: cj-305b 의 `apps/api/core/email_provider.py` ResendProvider 결정 wire + `apps/api/.env.example` RESEND_API_KEY + RESEND_FROM_EMAIL row 매핑 그대로.
 
 ### 4.2 Cloudflare DNS + 도메인 (DEFER to post-W1)
 
@@ -76,7 +78,7 @@ POSTMARK_FROM_EMAIL=noreply@postmarkapp.com  # sandbox default (custom domain po
 **Post-W1 task** (cj-305 wire scope 외):
 - Cloudflare Registrar (~$1/mo + ICANN fee ~$10/year)
 - 도메인 `a-costmgr.com` 등록
-- Postmark sender signature DNS 검증: SPF + DKIM + Return-Path CNAME
+- Resend sender signature DNS 검증: SPF + DKIM + Return-Path CNAME
 
 ### 4.3 Supabase Pro
 
@@ -126,8 +128,8 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 | Env Var | Value | Source |
 |---|---|---|
 | `DATABASE_URL` | `postgresql+asyncpg://postgres.<ref>:<password>@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres` | Supabase pooled URL |
-| `POSTMARK_SERVER_TOKEN` | `<token from 4.1>` | Postmark |
-| `POSTMARK_FROM_EMAIL` | `noreply@postmarkapp.com` | Postmark sandbox default |
+| `RESEND_API_KEY` | `<token from 4.1>` | Resend |
+| `RESEND_FROM_EMAIL` | `onboarding@resend.dev` | Resend sandbox default |
 | `TZ` | `Asia/Seoul` | cj-304 wire EXTENSION (APScheduler cron Railway 기본 UTC → 24h 오프셋 방지) |
 | `RETRY_BACKOFF_MINUTES` | `1,5,30` | cj-304 wire EXTENSION (cj-300 APScheduler retry policy) |
 | `APP_ENV` | `production` | runtime flag |
@@ -170,7 +172,7 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 
 ### Day 1 (2026-09-08, today, D-6) — Signup phase (2-3h)
 
-- [ ] **Postmark** signup → POSTMARK_SERVER_TOKEN capture
+- [ ] **Resend** signup → RESEND_API_KEY capture (cj-305b 결정 wire v2)
 - [ ] **Supabase** signup → DATABASE_URL (pooled + direct) capture
 - [ ] **Cloudflare DNS** ⏸️ DEFER
 - [ ] 위 token 들 1Password secure note 에 저장
@@ -187,7 +189,7 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 - [ ] **Vercel** signup + deploy
 - [ ] CORS env var update (Railway)
 - [ ] Browser smoke test: `https://costmgr-pilot.vercel.app` 로그인 → dashboard
-- [ ] Postmark test email: `uv run python apps/api/scripts/test_postmark_send.py` (or manual API call)
+- [ ] Resend test email: `uv run python apps/api/scripts/test_resend_send.py` (or manual API call)
 
 ### Day 4 (2026-09-11, D-3) — Pilot tenant onboarding (1h)
 
@@ -198,7 +200,7 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 ### Day 5 (2026-09-12, D-2) — Outreach (1h)
 
 - [ ] Pilot candidate list 작성 (B-1, 운영자 결정)
-- [ ] 초대 이메일 발송 (Postmark transactional template, cj-299 결정 wire 사용)
+- [ ] 초대 이메일 발송 (Resend transactional template, cj-305b 결정 wire 사용)
 - [ ] onboarding guide URL 전달
 
 ### Day 6 (2026-09-13, D-1) — Final verify (30min)
@@ -214,13 +216,14 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 ## 6. 결정 wire 적용 확인 (cj-305 wire EXTENSION 보존)
 
 - **cj-304 wire 4 critical gaps 결정 wire 보존**:
-  - ① POSTMARK_SERVER_TOKEN + POSTMARK_FROM_EMAIL (cj-299 Postmark 결정 wire 신규 active) → Railway env fill
+  - ① RESEND_API_KEY + RESEND_FROM_EMAIL (cj-305b Resend 결정 wire v2 신규 active, cj-299 Postmark → Resend swap) → Railway env fill
   - ② TZ=Asia/Seoul + RETRY_BACKOFF_MINUTES (cj-300 APScheduler 결정 wire 신규 active) → Railway env fill
   - ③ Pilot tenant onboarding CLI dry-run-first (capability matrix v1.54 EXTENSION preserved) → Day 4 dry-run → real
   - ④ Production seed plan (docs/deployment.md §4 Step 6 EXTENSION 보존) → alembic head 으로 일원화
 
 - **CR 11-3 honest-DEFER 254번째** cj-305 wire 진입 결정 wire (cj-304 close-out retro 의 253번째 → cj-305 wire 의 254번째)
-- **OQ 결정 wire 4/4 apply 보존** (reportlab + Postmark + APScheduler + matplotlib, cj-304 wire 의 보존 그대로)
+- **cj-305b Resend migration CR 11-3 honest-DEFER 256번째** 결정 wire 진입 (cj-305 wire 의 255번째 → cj-305b Resend migration 의 256번째)
+- **OQ 결정 wire 4/4 apply 보존** (reportlab + **Resend (cj-305b swap)** + APScheduler + matplotlib, cj-304 wire 의 보존 그대로)
 - **capability matrix v1.54 EXTENSION preserved** (Pilot CLI 의 capability_grants UPSERT 가 EXPORT_CSV/PDF/EMAIL/SCHEDULED 그대로)
 - **audit actions EXTENSION preserved** + 1 신규 (`pilot_tenant_provisioned`, cj-304 wire 결정 wire)
 
@@ -229,7 +232,7 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 - [ ] **Smoke Test 1**: `curl https://<service>.up.railway.app/health` → 200 + `{"status":"healthy"}`
 - [ ] **Smoke Test 2**: alembic migrate 성공 (Supabase `SELECT version FROM alembic_version` → latest revision)
 - [ ] **Smoke Test 3**: Vercel `https://costmgr-pilot.vercel.app` → 200 + login page render
-- [ ] **Smoke Test 4**: Postmark test email 발송 → 수신 확인 (sandbox sender OK)
+- [ ] **Smoke Test 4**: Resend test email 발송 → 수신 확인 (sandbox sender OK)
 - [ ] **Smoke Test 5**: Pilot tenant CLI dry-run → 4 planned actions JSON output
 - [ ] **Smoke Test 6**: Pilot tenant real onboarding → audit_logs INSERT 확인
 - [ ] **Smoke Test 7**: End-to-end browser test: Vercel login → Railway API call → Supabase query → response
@@ -248,7 +251,7 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 | DNS propagation delay (post-W1 only) | low | W1 uses default subdomains |
 | Supabase IP allowlist | low | Use pooled URL (port 6543) bypasses direct connection restrictions |
 | Railway free trial → paid transition surprise | medium | Set billing alert in Railway dashboard, $5/mo Hobby budget |
-| Postmark sandbox sender 100/mo limit | low | Pilot 5-10 users × ~5 emails = ~50/mo, fits comfortably |
+| Resend sandbox free tier 3,000/mo + 100/day limit | low | Pilot 5-10 users × ~5 emails = ~50/mo, fits comfortably |
 | Pilot candidate outreach 늦음 | **HIGH** | cj-305 task #10 별도 트랙, D-2 (2026-09-12) 까지 발송 필수 |
 
 ## 10. Cross-references
@@ -256,7 +259,7 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 - **cj-304 prod deploy prep wire** (`1fdb67d`): 4 critical gaps fix + Pilot tenant CLI (~280 LOC) + env.example + railway.toml + Dockerfile ENV TZ + docs/deployment.md EXTENSION
 - **cj-304 prod deploy prep retro** (`e7fb753`): 결정 wire 적용 확인, 33/33 cumulative 보존
 - **cj-303 uvicorn boot fix wire** (`ad7b91b`): AD-14 stack pin EXTENSION (apscheduler==3.10.4 + pytz==2024.1) + cj-300 wire 의 pytz unpinned 정직 회복
-- **cj-299 email delivery wire**: Postmark HTTP API 결정 wire, `apps/api/integrations/postmark.py` + ActionClass.REPORTS `export_email`
+- **cj-299 email delivery wire**: Postmark HTTP API 결정 wire (cj-305b 에서 Resend 로 swap 결정 wire), `apps/api/core/email_provider.py` ResendProvider + ActionClass.REPORTS `export_email`
 - **cj-300 scheduled reports wire**: APScheduler 4 cron + pytz KST + RETRY_BACKOFF_MINUTES=[1,5,30], `apps/api/jobs/scheduled_reports.py`
 - **cj-301 pilot outreach prep**: 5-10 SaaS 제조 스타트업 8-week 무료 pilot 결정 wire, 2026-09-14~11-09 KST
 
@@ -267,9 +270,9 @@ DATABASE_URL_DIRECT=postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0
 ---
 
 **다음 옵션** (운전자 결정 보류):
-- (a) **Postmark + Supabase signup 즉시 시작** (D-6 오늘, 병렬)
-- (b) cj-305 wire sprint commit 먼저 (본 runbook commit 후 signup 진행)
+- (a) **Resend + Supabase signup 즉시 시작** (D-6 오늘, 병렬, cj-305b 결정 wire v2)
+- (b) cj-305b Resend migration sprint commit 먼저 (본 runbook + source code Resend swap commit 후 signup 진행)
 - (c) Pilot candidate list (B-1) 먼저 작성 (cj-305 task #10)
 - (d) 다른 옵션
 
-추천: **(b) cj-305 wire sprint commit 먼저** → 본 runbook 이 audit trail 로 commit 된 후 signup 진행 (Postmark sandbox instant 이므로 commit 후 30분 내 signup 가능).
+추천: **(b) cj-305b sprint commit 먼저** → 본 runbook + source code 의 Resend swap 이 audit trail 로 commit 된 후 signup 진행 (Resend free tier instant 이므로 commit 후 30분 내 signup 가능).
