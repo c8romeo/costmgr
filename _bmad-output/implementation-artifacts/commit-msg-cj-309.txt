@@ -1,0 +1,45 @@
+docs(pilot-w1-d5): cj-309 Resend+Supabase signup live verify wire 결정 wire entry (cj-style 264번째, compressed entry+wire) — 4 verify gate 결정 wire + Operator Handoff Protocol 3-phase (CR 11-3 honest-DEFER 264번째)
+
+cj-308 Pilot W1 D-5 critical path 결정 wire entry (`07f06d0`) 의 옵션 (a-1, RECOMMENDED next) **cj-309 Resend + Supabase signup live verify wire** 결정 wire 진입. cj-308 의 Operator Action Checklist 5-step 의 **결과 wire** 결정 wire (cj-style 264th).
+
+**compressed entry+wire 결정 wire (cj-305 production deploy day-1 wire pattern mirror)**:
+- rationale 4종: ① cj-308 entry 의 옵션 (a) scope + 5-step 결정 wire 보존 → 별도 entry 중복 회피 ② operator action 결과 wire = docs-only atomic 가능 (코드 변경 0건) ③ 5일 D-day countdown 에서 ~30분 ceremony overhead 제거 ④ cj-style discipline 보존 (cj-308 직후 자연스러운 cj-309 wire)
+- cj-305 wire 의 "compressed entry+wire" 결정 wire verbatim mirror
+
+**sprint scope = docs-only atomic single sprint (compressed entry+wire)** — 4 files = 1 NEW content + 1 NEW meta + 2 MODIFIED meta atomic:
+- 1 NEW `_bmad-output/implementation-artifacts/phase-30-pilot-w1-d5-live-verify-wire-2026-09-09.md` ~150 LOC 7-section §1~§7
+- 1 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-309.txt` (this file)
+- 1 MODIFIED `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.80 → **v4.81 EXTENSION** (A725~A727 신규 block + last_updated_note_v4_81 신규 paragraph)
+- 1 MODIFIED `memory/MEMORY.md` hook EXTENSION (cj-309 entry hook 1-line + Active sprint state post cj-309 EXTENSION)
+
+**Live Verify Protocol (4 verify gate 결정 wire)**:
+- GV-1: Step 1 RESEND_API_KEY 캡처 → Web `.env.local` + Railway API env (production+preview) 모두 설정
+- GV-2: Step 2 SUPABASE_JWT_SECRET 캡처 → Railway API env (production) 설정
+- GV-3: Step 3 Supabase Auth dashboard 설정 (Email provider enabled + Confirm OFF + Site URL + 2+ Redirect URLs + MFA TOTP enabled)
+- GV-4: Step 4 Live signup smoke test (magic-link 수신 → click → /auth/callback → aal1 → dashboard 진입 + MFA listFactors verified=[] → /auth/2fa skip cj-307 fix + Resend API 200)
+
+**Operator Handoff Protocol 3-phase**:
+- Phase 1 Pre-execution (5min): sprint doc + handoff 검토 + Resend/Supabase/Railway 로그인 + Pilot candidate 1명 선정
+- Phase 2 Execution (60min): Step 1 (10min) + Step 2 (5min) + Step 3 (15min) + Step 4 (30min)
+- Phase 3 Result wire (cj-309 close-out, 다음 세션): 4 verify gate 결과 + verify_gate_results.md + cj-309 close-out retro 진입
+
+**risk profile LOW**: cj-308 의 5-step 모두 reversible (env var unset, dashboard revert). rollback protocol = Railway env dashboard Remove + Supabase Auth dashboard revert + Web `.env.local` variable unset.
+
+**carryover 보존** (cj-308 의 5-step 그대로):
+- cj-307 carryover 32 test failures + 22 errors + 3 collection errors + FastAPI @app.on_event deprecation (post-W1 honestly DEFER)
+- cj-303 carryover 4건 (post-W1 honestly DEFER)
+- PRE-EXISTING honestly DEFER 6건 (web-e2e Playwright + test-suite-measure 잔여 + web-test + lint-conventions + Sentry + custom DNS)
+
+**CR 11-3 honest-DEFER 264번째** (cj-308 entry 의 263번째 → **cj-309 live verify wire 의 264번째**) epic 연속 정직 회복:
+- cj-308 entry 의 "옵션 (a-1, RECOMMENDED next)" 의 결과 wire 결정 wire 진입
+- honest DEFER 보존: Step 5 Handoff 검증 + cj-309 close-out retro = 다음 세션 결정 wire 보류
+- honest DEFER 보존: Step 4 live signup 의 pilot candidate 1명 응답 = post-execution (out-of-session, operator 수행)
+- honest DEFER 보존: Step 4 의 network log / Supabase logs / Resend dashboard activity 캡처 = operator 수행 (automation 보류)
+
+**next (cj-310) 결정 wire 보류**:
+- 옵션 (a) cj-309 close-out retro (4 verify gate 결과 종합 + handoff)
+- 옵션 (b) cj-309b Pilot candidate list (B-1) 작성 wire — D-2 2026-09-12 KST 까지 발송 직결
+
+**결정 wire 일자**: 2026-09-09 (KST, D-5).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
