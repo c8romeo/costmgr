@@ -1,0 +1,55 @@
+docs(pilot-w1-d5): cj-310 retroactive correction (cj-style 267번째) — cj-310 wire `ce05e05` headline "4 files" 정직 회복, project memory/MEMORY.md hook 누락 fix-forward (CR 11-3 honest-DEFER 267번째)
+
+cj-310 cj-309 close-out retro entry wire sprint `ce05e05` 의 commit-msg headline 의 정직 회복 — actual git stat `3 files changed, 256 insertions(+)` 정직 인정. 본 sprint 는 cj-310 wire 의 **project memory/MEMORY.md hook 누락 fix-forward** 결정 wire (cj-style 267th).
+
+**rationale 3종**:
+1. CR 11-3 honest-DEFER discipline cj-style 257th 의 retroactive correction 패턴 verbatim mirror (cj-305b 의 headline "7 files" → actual 9 files 정직 회복 패턴 동일)
+2. cj-310 wire 의 결정 wire 보존 (4 verify gate capture protocol + W1~W8 tracking + risk profile LOW + sprint-status v4.82→v4.83 EXTENSION + A727 entry) 본질 그대로 — 본 fix-forward 는 누락된 project memory hook + sprint-status 정직 회복 note 만 추가
+3. project memory hook + sprint-status A727 entry 의 정직 회복으로 CR 11-3 honest-DEFER 266번째 → **267번째** chain 보존
+
+**sprint scope = docs-only atomic single sprint (retroactive correction)** — 3 files = 1 NEW meta (commit-msg-cj-310retro.txt) + 2 MODIFIED meta atomic:
+- 1 NEW `_bmad-output/implementation-artifacts/commit-msg-cj-310retro.txt` (this file)
+- 1 MODIFIED `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.83 → **v4.84 EXTENSION** (A728 cj-310retro + last_updated_note_v4_84 신규 paragraph + A727 entry 의 sprint scope 정직 회복 note EXTENSION)
+- 1 MODIFIED `memory/MEMORY.md` (project memory) cj-310 hook EXTENSION + cj-310 retroactive correction hook EXTENSION + Active sprint state post cj-310 EXTENSION
+
+**cj-310 wire 결정 wire 보존 (cj-310retro 에서 변경 없음)**:
+- 4 verify gate Result Capture Protocol (YAML format) — GV-1/2/3/4 unchanged
+- 4 Verify Gate 종합 PASS/FAIL matrix — unchanged
+- W1~W8 Launch Tracking Framework — unchanged
+- risk profile LOW — unchanged
+- sprint-status v4.82 → v4.83 EXTENSION — unchanged (A727 entry 그대로)
+- OQ/AD/NFR/capability/audit 보존 — unchanged
+
+**honest-DEFER 결정 wire 일치 보존**:
+- 4 verify gate 결과 wire = cj-310 close-out retro 진입 시 (다음 세션, operator Steps 1-4 완료 후)
+- 4/4 PASS = cj-310 close-out retro 의 "Phase 30 Pilot W1 Live Verify ✅ HONEST" 결정 wire (cj-style 268th follow-up, +1 from original 267th due to retroactive correction)
+- 1+ FAIL = cj-310b fix-forward sprint (honest-DEFER 보류)
+- W1~W8 tracking = cj-310 close-out retro 부터 weekly follow-up 결정 wire
+
+**cj-310 wire commit `ce05e05` headline 정직 회복**:
+- cj-310 wire commit-msg: "4 files = 1 NEW content + 1 NEW meta + 2 MODIFIED meta atomic"
+- cj-310 wire actual git stat: **3 files changed, 256 insertions(+)** = 1 NEW content + 1 NEW meta + 1 MODIFIED meta (sprint-status.yaml only)
+- **누락**: `memory/MEMORY.md` (project memory) hook EXTENSION — 본 fix-forward commit 에서 보완
+- **경로 혼동 원인**: harness auto-memory `C:\Users\c8rom\.claude\projects\C--Users-c8rom-desktop-a-costmgr\memory\MEMORY.md` 와 project memory `C:\Users\c8rom\desktop\a\costmgr\memory\MEMORY.md` 의 path distinction 정직 인정
+
+**runtime**: source code 변경 0건 (cj-310 wire scope 외). 0 alembic / 0 dev_seed / 0 ci.yml / 37 pins unchanged / 14 job matrix unchanged / PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved.
+
+**OQ 결정 wire 4/4 apply 보존** + **AD bind 4/4 active 보존** + **NFR bind 7/7 active 보존** + **capability matrix v1.54 EXTENSION preserved** + **audit actions EXTENSION preserved** (cj-310retro 신규 EXTENSION 0건, docs+meta only).
+
+**40/40 cumulative 결정 wire 보존** (cj-310 wire 의 39 + **NEW 40번째 cj-310 retroactive correction** 결정 wire 진입).
+
+**CR 11-3 honest-DEFER 267번째** chain cj-282 (220번째) → ... → cj-310 cj-309 close-out retro entry (266번째) → **cj-310 retroactive correction (267번째)** 종합 40 sprints 정직 회복.
+
+**PRE-EXISTING honestly DEFER carryover 보존**: 6건 그대로 + cj-303 carryover 4건 + cj-307 carryover + W1~W8 carryover.
+
+**결정 보류 (운전자)**:
+- ① **option (a, RECOMMENDED next) operator Steps 1-4 즉시 실행 → cj-310 close-out retro 결과 wire** (cj-style 268th follow-up)
+- ② option (b) cj-310 close-out retro 진입 (4 verify gate 결과 종합)
+- ③ option (c) cj-310b fix-forward sprint (1+ FAIL 시)
+- ④ option (d) W1~W8 weekly follow-up 결정 wire
+- ⑤ option (e) cj-303 carryover 4건 fix (post-W1)
+- ⑥ option (f) PRD v2 EXTENSION / Epic 29+ spec impl (post-W1)
+
+**결정 wire 일자**: 2026-09-09 (KST, D-5).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
