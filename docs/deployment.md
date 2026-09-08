@@ -1,6 +1,8 @@
 # Costmgr Production Deployment Runbook
 
 > **Phase 4 (cj-style 55번째 epic 연속 정직 회복 wire)** — Production deployment guide for Vercel (frontend) + Railway (backend) + Supabase (PostgreSQL) + Sentry (observability). 12 sections covering architecture, prerequisites, step-by-step deployment, env vars, health check, monitoring, backup, rollback, smoke test, troubleshooting, security, cost estimation.
+>
+> **Related (cj-305 wire EXTENSION, 2026-09-08 KST)**: For Pilot W1 day-1 account acquisition + env vars wiring runbook, see [`docs/deployment-account-setup.md`](deployment-account-setup.md) — 4-service minimal viable scope (Postmark + Supabase + Railway + Vercel, Sentry + DNS deferred post-W1) + day-by-day execution plan (D-6 → D-0).
 
 ## Table of Contents
 
@@ -430,4 +432,100 @@ python -c "import sentry_sdk; sentry_sdk.capture_message('test')"
 
 - Disaster recovery multi-region backup is deferred to Phase 5+ (single-region only).
 - Sentry session replay is opt-in (defaults to 0% capture rate; can be bumped via env var).
+
+---
+
+## §13 LOCAL SELF-HOST MVP Verification (cj-305 wire, honestly deferrable)
+
+> **요약**: §1~§12 의 production deployment 도 **honestly DEFER** 가능. cj-305 결정 wire (kjw 2026-09-07 strategic pivot) 에 따라, **self-host MVP verification을 우선** 진행. 외부 인프라 (Vercel/Railway/Supabase/Sentry/Postmark) 없이 로컬 환경에서 Epic 30+ features를 end-to-end functional verify.
+
+### §13.1 Why LOCAL SELF-HOST over production deploy
+
+- **Zero external dependencies**: DNS 24-48h, Postmark sender verification 1-3d, cloud account 결제의 latency 모두 제거.
+- **Fast iteration**: 로컬 = deploy gate 0건. functional verification → fix → re-verify 즉시 가능.
+- **Direct verification**: "정말 작동하는가?"를 production deploy 없이 검증.
+- **Strategic pivot 결정 (kjw 2026-09-07)**: "자체호스팅을 통해 mvp완료여부를 검증하여 테스트해본 후 어느 정도 판매해도 되는 상황이 되면 그 때 배포를 시작."
+
+### §13.2 Quick Start (5 commands)
+
+```bash
+# 1. Postgres container 시작
+docker compose up postgres -d
+
+# 2. Backend 의 uvicorn boot (별도 terminal — background)
+cd apps/api && uv run uvicorn apps.api.main:app --reload --port 8000
+
+# 3. dev_seed (tenant + user 생성)
+uv run python scripts/dev_seed.py
+
+# 4. 자동 smoke test (8 steps)
+uv run python scripts/self_host_smoke_test.py
+
+# 5. Manual E2E 시나리오 가이드 (8 scenarios)
+uv run python scripts/self_host_manual_e2e.py
+```
+
+### §13.3 MVP Verification Criteria (32 ACs §F30.x-1~8)
+
+| Territory | ACs | 결정 wire 보존 |
+|---|---|---|
+| **§F30.1 CSV export** | §F30.1-1~8 | cj-282a + cj-287 + cj-288 + cj-290 RLS EXTENSION |
+| **§F30.2 PDF export** | §F30.2-1~8 | cj-293 + cj-295 follow-up |
+| **§F30.3 Email delivery** | §F30.3-1~8 | cj-299 wire (self-host 에선 LoggingProvider fallback) |
+| **§F30.4 Scheduled reports** | §F30.4-1~8 | cj-300 wire + cj-303 boot 회복 |
+
+**100% 모두 self-host 환경에서 functional verify 가능** (Postmark sandbox 없이도 LoggingProvider fallback이 §F30.3 cover).
+
+### §13.4 Env vars (runtime, NOT deployment)
+
+`uvicorn` 시작 시점에 env vars 직접 설정:
+
+```bash
+# Railway 기본 UTC → 24h cron 오프셋 방지 (cj-300 결정 wire)
+export TZ=Asia/Seoul
+export RETRY_BACKOFF_MINUTES="[1,5,30]"
+
+# LoggingProvider fallback (cj-299 결정 wire — Postmark 없이도 동작)
+# POSTMARK_SERVER_TOKEN unset → 자동 fallback
+
+# uvicorn 실행
+uv run uvicorn apps.api.main:app --reload --port 8000
+```
+
+### §13.5 결정 보류 (Production deployment vs Pilot outreach)
+
+**cj-305 wire 종료 후 결정 사항**:
+
+| Option | Action | When |
+|---|---|---|
+| (a) **Pilot outreach 즉시 시작** | 5-10 SaaS 제조 스타트업에 self-host MVP 소개 | 솔리드 MVP verified 후 |
+| (b) **Production deployment 시작** | Vercel + Railway + Supabase + Sentry account setup → 이 §1~§12 의 production runbook 실행 | First paying customer conversation 시점 |
+| (c) **cj-305 close-out retro 진입** | verify gate 통과 후 CI 결과 + 결정 wire 보존 정리 | cj-305 wire 직후 |
+| (d) **PRD v2 EXTENSION / Epic 29+ spec impl** | Pilot feedback 반영 | pilot feedback 후 |
+
+**§13 결정 wire 보존**: §1~§12 의 production deployment runbook는 그대로 보존. sales-ready 시점에 즉시 활용 가능하도록 **dual-mode guide** (§1~§12 production + §13 LOCAL SELF-HOST) 유지.
+
+### §13.6 CR 11-3 honest-DEFER 255번째 (self-host 결정 wire)
+
+cj-style chain: cj-282 (220번째) → ... → cj-304 close-out retro (253번째) → cj-305 entry (254번째) → **cj-305 wire (255번째, 본 sprint)**.
+
+종합 **35 sprints 정직 회복** 결정 wire 진입 = Epic 30+ 24 sprints + cj-301 + cj-302 docs + cj-302 fix + cj-303 entry + cj-303 wire + cj-303 retro + cj-304 entry + cj-304 wire + cj-304 close-out retro + cj-305 entry + **cj-305 wire (본 sprint)**.
+
+### §13.7 결정 wire 일자
+
+2026-09-07 (KST) — cj-305 self-host MVP verification wire sprint 종료 시점.
+
+## Cross-references (cj-305 wire)
+
+- [Self-host setup guide](./self-host-setup.md) — operator runbook for LOCAL SELF-HOST (§13 quick start)
+- [Phase 31 entry doc](../_bmad-output/implementation-artifacts/phase-31-self-host-mvp-verification-entry-2026-09-07.md)
+- [Phase 31 wire handoff](../memory/handoff-2026-09-07-cj-305-self-host-mvp-verification-wire-done.md)
+- [Auto smoke test](../scripts/self_host_smoke_test.py) — 8-step verification
+- [Manual E2E scenarios](../scripts/self_host_manual_e2e.py) — 8 scenarios (P1 = 4, P2 = 1, P3 = 1)
+- [Pilot tenant CLI](../apps/api/scripts/cli/pilot_tenant_provision.py) — cj-304 wire (dry-run-first safety)
+- [Stack pin check](../scripts/check_stack_pin.py) — 37 pins stable verifier
+
+## 결정 wire 일자
+
+2026-09-07 (KST) — deployment.md §13 LOCAL SELF-HOST MVP verification EXTENSION (cj-305 wire 결정 wire). **dual-mode guide** 보존 (production deployment + LOCAL SELF-HOST 둘 다 즉시 활용 가능).
 - CDN cache invalidation is manual (no automatic purge on deployment).

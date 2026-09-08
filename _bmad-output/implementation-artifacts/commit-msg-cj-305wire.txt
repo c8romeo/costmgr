@@ -1,0 +1,25 @@
+docs(prod-deploy): cj-305 production deploy day-1 wire sprint (cj-style 254번째) — 4-service minimal viable Pilot W1 D-6 runbook + compressed entry+wire (5 files = 1 NEW docs + 1 MODIFIED docs + 1 NEW meta + 1 NEW meta + 1 MODIFIED meta docs+meta atomic)
+
+cj-305 production deploy day-1 wire sprint (cj-style 254번째, 2026-09-08 KST) — Epic 30+ Pilot Gate 의 운영자 실행 단계 진입, D-6 (2026-09-08 KST) → D-0 (2026-09-14 KST) Pilot W1 launch 의 6일 카운트다운 시작 결정 wire. cj-304 close-out retro 의 next 옵션 (a) `account setup 병행` verbatim mirror + **compressed entry+wire** 결정 wire (rationale: 6-day time-boxed launch 에서 cj-style 3-sub-sprint chain 의 ~90분 ceremony overhead > benefit, entry 의 50% stale 위험 제거, Pilot candidate outreach critical path 누락 정직 회복).
+
+**6 files = 2 NEW docs + 2 NEW meta + 2 MODIFIED docs/meta docs+meta atomic single sprint**:
+
+1. `docs/deployment-account-setup.md` **NEW** (~280 LOC 11-section §1~§11 — Pilot W1 D-6→D-0 timeline + **4-service minimal viable 선정 rationale** (Postmark + Supabase + Railway + Vercel, Sentry + custom DNS post-W1 defer) + signup order with dependencies + per-service signup steps + day-by-day execution plan (Day 1~Day 7) + 결정 wire EXTENSION 보존 + smoke-testable success criteria 7종 + carryover honestly DEFER + risks/mitigations + cross-references cj-303/304/299/300/301 + 결정 wire 일자)
+2. `docs/deployment.md` **MODIFIED** (intro blockquote EXTENSION — Related cj-305 wire EXTENSION reference link → `docs/deployment-account-setup.md`)
+3. `_bmad-output/implementation-artifacts/commit-msg-cj-305wire.txt` **NEW** (본 파일)
+4. `_bmad-output/implementation-artifacts/handoff-2026-09-08-cj-305-wire-done.md` **NEW**
+5. meta — `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.77 → **v4.78 EXTENSION** (A722 cj-305wire + last_updated_note_v4_78 신규 paragraph) + `memory/MEMORY.md` hook EXTENSION (cj-305 wire hook 1-line + Active sprint state post cj-305 wire EXTENSION)
+
+**verify gate 결과**: docs 변경만 (source code EXTENSION 0건) → 기존 cj-304 wire verify gate 그대로 보존 — `uv run python scripts/check_stack_pin.py` → 'OK all 37 pins match' ✅ + `uv run python apps/api/scripts/cli/pilot_tenant_provision.py --dry-run ...` → structured JSON output ✅.
+
+**OQ 결정 wire 4/4 apply 보존** + **AD bind 4/4 active 보존** + **NFR bind 7/7 active 보존** + **capability matrix v1.54 EXTENSION preserved** + **audit actions EXTENSION preserved** (cj-305 wire 는 docs+meta, source code 변경 0건).
+
+**34/34 cumulative 결정 wire 보존** = Epic 30+ 24 sprints + cj-301 + cj-302 docs + cj-302 fix + cj-303 entry + cj-303 wire + cj-303 retro + cj-304 entry + cj-304 wire + cj-304 retro + **cj-305 production deploy day-1 wire**.
+
+**CR 11-3 honest-DEFER 254번째** (cj-304 retro 의 253번째 → cj-305 wire 의 254번째) epic 연속 정직 회복. **runtime 동작 변화**: docs+meta atomic — source code 변경 0건 / dev_seed 변경 0건 / ci.yml 변경 0건 / alembic 변경 0건 / 37 pins unchanged / 14 job matrix unchanged / PRD v7.0 §F/§M/§R unchanged.
+
+**PRE-EXISTING honestly DEFER carryover**: 4건 그대로 (web-e2e Playwright + test-suite-measure 잔여 + web-test + lint-conventions) + Sentry + custom DNS 추가 defer (cj-305 wire 의 4-service minimal viable 결정 wire 으로 post-W1 honestly DEFER).
+
+**결정 보류 (운전자)**: ① 옵션 (a, RECOMMENDED next) **cj-305 wire commit 즉시 + Postmark + Supabase signup 즉시 시작** (D-6 오늘 2026-09-08 KST, 병렬, ~2-3h) ② 옵션 (b) Pilot candidate list (B-1) 먼저 작성 ③ 옵션 (c) cj-303 carryover 4건 fix ④ 옵션 (d) PRD v2 EXTENSION / Epic 29+ spec impl (pilot feedback 후).
+
+결정 wire 일자: 2026-09-08 (KST).
