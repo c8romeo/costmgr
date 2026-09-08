@@ -1,0 +1,13 @@
+docs(memory): cj-305b Resend migration wire — memory/MEMORY.md hook + retroactive correction note (cj-style 257번째 follow-up, CR 11-3 honest-DEFER 258번째)
+
+cj-305b Resend migration wire 의 commit `53b8bbf` + retroactive correction `c69dea5` 의 `memory/MEMORY.md` hook EXTENSION follow-up (cj-style 254 follow-up retroactive correction `0044799` + cj-305b retroactive correction `c69dea5` verbatim pattern 보존). 결정 wire 보존 + retroactive correction note 통합 (cj-305b 의 sprint scope 정직 회복 = **9 files**, initial commit `53b8bbf` 의 headline "7 files" 의 retroactive correction 적용 정직 회복).
+
+**1 file = 1 MODIFIED meta**: `memory/MEMORY.md` EXTENSION (cj-305b hook + Active sprint state post cj-305b EXTENSION + **retroactive correction (cj-style 257번째) note 신규 paragraph** — commit `53b8bbf` headline "7 files" 의 정직 회복 (실제 git stat 9 files = 4 MODIFIED source + 1 MODIFIED docs + 2 NEW meta + 2 MODIFIED meta). commit `c69dea5` 2 files = 1 NEW meta (commit-msg-cj-305bresend-correction.txt) + 1 MODIFIED meta (sprint-status.yaml A723 entry 정직 정정). CR 11-3 honest-DEFER 257번째. **36/36 cumulative 결정 wire 보존**).
+
+**sprint scope 정직 회복**: cj-305b Resend migration wire 의 결정 wire scope = **9 files = 4 MODIFIED source + 1 MODIFIED docs + 2 NEW meta + 2 MODIFIED meta** (initial commit `53b8bbf` 의 headline "7 files" 의 정직 회복 — meta 2 files EXTENSION 포함, retroactive correction `c69dea5` 의 sprint-status.yaml A723 entry 정직 정정 반영).
+
+**CR 11-3 honest-DEFER 258번째** chain cj-282 (220번째) → ... → cj-305 wire (254번째) → cj-305 wire memory follow-up (255번째) → cj-305b Resend migration wire (256번째) → cj-305b retroactive correction (257번째) → **cj-305b memory follow-up (258번째, 본 sprint)** 종합 37 sprints 정직 회복.
+
+**runtime**: source code 변경 0건 / dev_seed 변경 0건 / ci.yml 변경 0건 / alembic 변경 0건 / 37 pins unchanged / 14 job matrix unchanged / PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved.
+
+결정 wire 일자: 2026-09-08 (KST).
