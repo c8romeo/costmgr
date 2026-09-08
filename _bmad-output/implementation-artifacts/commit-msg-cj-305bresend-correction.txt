@@ -1,0 +1,24 @@
+docs(retro): cj-305b Resend migration wire — file count headline 정직 회복 (cj-style 257번째 retroactive correction, CR 11-3 honest-DEFER 257번째)
+
+cj-305b Resend migration wire 의 commit `53b8bbf` headline "7 files = 4 MODIFIED source + 1 MODIFIED docs + 2 NEW meta source+docs atomic" 가 실제 git stat "9 files changed, 295 insertions(+), 98 deletions(-)" 와 불일치 — meta EXTENSION (sprint-status.yaml + memory/MEMORY.md) 가 headline 에서 누락. CR 11-3 honest-DEFER 의 post-commit retroactive correction 결정 wire 적용 — meta 2 files 의 EXTENSION 별도 follow-up 으로 정직 회복 (commit history rewrite 회피, cj-style 254 follow-up retroactive correction `0044799` + cj-299fix chain `4cacd30`/`78a2803` + cj-300~304 chain 의 verbatim pattern 보존).
+
+**정직 회복 결정 wire**:
+
+1. **cj-305b commit `53b8bbf` 의 정직 file count = 9 files** (commit message body 의 "meta — sprint-status.yaml v4.78 → v4.79 EXTENSION + memory/MEMORY.md hook EXTENSION" verbatim 본문 그대로, headline 만 수정 필요). Breakdown:
+   - 4 MODIFIED source: `apps/api/core/email_provider.py` + `apps/api/modules/reports/email_routes.py` + `apps/api/main.py` + `apps/api/.env.example`
+   - 1 MODIFIED docs: `docs/deployment-account-setup.md`
+   - 2 NEW meta: `commit-msg-cj-305bresend.txt` + `handoff-2026-09-08-cj-305b-resend-migration-done.md`
+   - **2 MODIFIED meta**: `_bmad-output/implementation-artifacts/sprint-status.yaml` (v4.78 → v4.79 EXTENSION, A723 + last_updated_note_v4_79) + `memory/MEMORY.md` (cj-305b hook + Active sprint state post cj-305b EXTENSION)
+   - **Total: 9 files = 4 MODIFIED source + 1 MODIFIED docs + 2 NEW meta + 2 MODIFIED meta**
+
+2. **CR 11-3 honest-DEFER 257번째** chain cj-282 (220번째) → ... → cj-305 wire (254번째) → cj-305 wire memory follow-up (255번째) → **cj-305b Resend migration wire (256번째)** → **cj-305b retroactive correction (257번째)** 종합 36 sprints 정직 회복.
+
+3. **retroactive correction scope**: 본 follow-up commit 은 docs-only (commit message 자체의 정직 회복 file count + sprint-status A723 entry 의 "7 files" → "9 files" 정직 정정 + sprint status v4.79 last_updated_note 의 정직 회복) — **meta only**, source code 변경 0건, 37 pins unchanged, 14 job matrix unchanged, capability matrix v1.54 EXTENSION preserved, audit actions EXTENSION preserved.
+
+**runtime**: docs+meta atomic follow-up commit. **0 alembic 변경 / 0 dev_seed 변경 / 0 ci.yml 변경 / 0 source code 변경 / 37 pins unchanged / 14 job matrix unchanged / PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved**.
+
+**OQ 결정 wire v1 Postmark → v2 Resend swap 결정 wire 보존** + **AD bind 4/4 active 보존** + **NFR bind 7/7 active 보존** + **capability matrix v1.54 EXTENSION preserved** + **audit actions EXTENSION preserved**.
+
+**36/36 cumulative 결정 wire 보존** = Epic 30+ 24 sprints + cj-301 + cj-302 docs + cj-302 fix + cj-303 (entry + wire + retro) + cj-304 (entry + wire + retro) + cj-305 wire + cj-305b Resend migration wire + **cj-305b retroactive correction (본 sprint)**.
+
+결정 wire 일자: 2026-09-08 (KST).
