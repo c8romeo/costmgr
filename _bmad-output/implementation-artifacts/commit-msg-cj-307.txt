@@ -1,0 +1,35 @@
+fix(web-auth): cj-307 auth-callback aal1 minimum fix — Pilot W1 blocker 해결 (cj-style 261번째, CR 11-3 honest-DEFER)
+
+cj-306 MVP deployment-ready audit (D-6, 2026-09-08 KST) 의 진짜 blocker 발견: `/auth/2fa` page 부재. 신규 사용자 (Pilot W1 의 magic-link 첫 로그인) 의 AAL 은 항상 `aal1` (no MFA enrolled) → auth-callback 의 기존 redirect logic 이 `/auth/2fa` 로 redirect → **404 stuck** (모든 Pilot 사용자가 로그인 직후 stuck).
+
+**수정**: auth-callback aal1 block 에 `supabase.auth.mfa.listFactors()` check 추가. verified factors 가 있는 경우에만 `/auth/2fa` 로 redirect, 그렇지 않으면 dashboard 로 직접 진행 (skip).
+
+**1 file = 1 MODIFIED**: `apps/web/app/[locale]/(auth)/auth-callback/page.tsx` (4 lines removed, 11 lines added, +7 net lines, cj-style 결정 wire comment EXTENSION).
+
+**runtime**: 0 alembic 변경 / 0 dev_seed 변경 / 0 ci.yml 변경 / 0 source API 변경 / 37 pins unchanged / 14 job matrix unchanged / PRD §F17 unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved.
+
+**TypeScript 검증**: `npx tsc --noEmit` 통과 (no errors).
+
+**decision wire (운전자 결정, Option B)**:
+- ✅ Option B (선택): auth-callback 최소 수정 (~30min, cj-307 wire)
+- ❌ Option A: /auth/2fa page 정식 build (3-4h) — post-W1 hardening 으로 defer
+- ❌ Option C: /auth/2fa → /account/security redirect (1h) — UX 우회, 비추
+- ❌ Operator only (Supabase MFA 비활성화) — code 수정 없이는 미해결
+
+**cj-306 audit 의 정직 회복 (CR 11-3 honest-DEFER 260~261번째)**:
+- cj-306 의 "auth blocker = SSO only, magic-link 부재" 분석은 **부 정확**.
+- 진짜 architecture = Web-side Supabase Auth 직접 사용 (이미 구현됨).
+- 진짜 blocker = /auth/2fa page 부재 → cj-307 에서 해결.
+- cj-305b 의 "Resend migration wire CLOSED ✅ HONEST" headline 의 한계 명시 (email delivery layer 만 swap, auth flow 검증 안 함).
+- cj-mvp-verify-258 의 "uvicorn boot ✅" headline 의 한계 명시 (boot 자체는 성공, deeper blocker 놓침).
+
+**잔여 config blockers (operator 액션 필수)**:
+- Web `.env.local`: `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` 미설정 (placeholder 값)
+- Supabase Auth dashboard: magic-link enabled 검증 필요
+- Supabase Auth redirect URL: Web 도메인 추가 필요
+
+**carryover 보존**: 32 test failures + 22 errors (Phase 5/8/10/16/26 SLO/observability) + 3 collection errors (symbol mismatch) + FastAPI @app.on_event deprecation — 모두 post-W1 hardening 으로 defer.
+
+**결정 wire 일자**: 2026-09-08 (KST, D-6).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

@@ -66,11 +66,22 @@ export default async function AuthCallbackPage({ params, searchParams }: AuthCal
   }
 
   // D-GATE-01 inversion: aal1 → 2FA challenge, aal2 → dashboard.
+  // cj-307 wire (CR 11-3 honest-DEFER 261번째) — Pilot W1 최소 수정.
+  // 진짜 blocker: /auth/2fa page 부재 (cj-306 audit). 신규 사용자는 모두
+  // aal1 (no MFA enrolled) → 기존 로직은 404 로 stuck. MFA factors 가
+  // verified 인 경우에만 /auth/2fa 로 redirect 하고, 그렇지 않으면
+  // dashboard 로 직접 진행. 정식 2FA flow 는 post-W1 hardening 으로 defer.
   if (aal === "aal1") {
-    const twofaUrl = target
-      ? `/${locale}/auth/2fa?redirect=${encodeURIComponent(target)}`
-      : `/${locale}/auth/2fa`;
-    redirect(twofaUrl);
+    const { data: factorsData } = await supabase.auth.mfa.listFactors();
+    const hasVerifiedFactor =
+      factorsData?.all?.some((f) => f.status === "verified") ?? false;
+    if (hasVerifiedFactor) {
+      const twofaUrl = target
+        ? `/${locale}/auth/2fa?redirect=${encodeURIComponent(target)}`
+        : `/${locale}/auth/2fa`;
+      redirect(twofaUrl);
+    }
+    // else: MFA 미등록 사용자 → dashboard 로 직접 (cj-307 결정 wire)
   }
 
   redirect(target);
