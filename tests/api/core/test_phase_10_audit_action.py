@@ -10,8 +10,6 @@ from apps.api.core.audit_action import (
     ActionClass,
     AuditAction,
     SloEngineeringAction,
-    is_valid_audit_action,
-    normalize_audit_action,
 )
 
 

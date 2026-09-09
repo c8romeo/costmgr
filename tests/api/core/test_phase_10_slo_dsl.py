@@ -6,17 +6,16 @@
 # typed exception classes (SloDefinitionInvalidError + others) raise
 # with correct HTTP status codes and message_ko envelopes.
 import pytest
-from apps.api.core.errors import BadRequest, Conflict, UnprocessableEntity
+from apps.api.core.errors import BadRequestError, ConflictError, UnprocessableEntityError
 from apps.api.modules.slo.slo_dsl import (
     ALLOWED_STATE_TRANSITIONS,
-    BUDGET_POLICIES,
-    REGIONS,
-    SLI_TYPES,
-    WINDOWS,
+    VALID_BUDGET_POLICIES,
+    VALID_REGIONS,
+    VALID_SLI_TYPES,
+    VALID_WINDOWS,
     SloDefinition,
     SloDefinitionInvalidError,
     SloOverrideConflictError,
-    build_slo_definition,
     is_valid_state_transition,
     validate_slo_definition,
 )

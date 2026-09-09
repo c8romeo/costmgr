@@ -11,7 +11,7 @@ So all tests are `def test_*` (sync). For async code under test, we use
 `asyncio.run(coro())` to drive the event loop from a sync test function.
 
 Test classes:
-  - TestEmailProvider: 3 provider implementations (Postmark / SMTP / Logging)
+  - TestEmailProvider: 3 provider implementations (Resend / SMTP / Logging)
   - TestRedactPII: 6 tests (resident_id / phone / email / disabled / multi / no PII)
   - TestSendEmailWithRetry: 5 tests + constants test
   - TestGenerateEmailBody: 3 tests
@@ -19,7 +19,7 @@ Test classes:
   - TestBuildCsvBytesForEmail: 2 tests (mocked DB session)
   - TestEmailRoutes: 1 typed-exception test
 
-Total: ~30 tests, fast (no network — Postmark/SMTP mocked).
+Total: ~30 tests, fast (no network — Resend/SMTP mocked).
 
 CR 11-3 honest-DEFER 238번째 epic 연속 정직 회복.
 """
@@ -36,7 +36,7 @@ from apps.api.core.email_provider import (
     EmailProvider,
     EmailTransientError,
     LoggingProvider,
-    PostmarkProvider,
+    ResendProvider,
     SMTPProvider,
     get_email_provider,
 )
@@ -76,16 +76,12 @@ class TestEmailProvider:
         assert delivery_id.startswith("log-")
         assert len(delivery_id) > 4
 
-    def test_postmark_provider_uses_http_api(self) -> None:
-        """PostmarkProvider hits https://api.postmarkapp.com/email with correct headers."""
-        provider = PostmarkProvider(server_token="test-token-123")
+    def test_resend_provider_uses_http_api(self) -> None:
+        """ResendProvider hits Resend API URL with Bearer auth header (cj-305b swap 결정 wire)."""
+        provider = ResendProvider(api_key="test-api-key-123")
         mock_response = AsyncMock()
         mock_response.status_code = 200
-        mock_response.json = lambda: {
-            "MessageID": "msg-abc-123",
-            "ErrorCode": 0,
-            "Message": "OK",
-        }
+        mock_response.json = lambda: {"id": "msg-abc-123"}
         with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
             delivery_id = asyncio.run(
                 provider.send(
@@ -97,13 +93,14 @@ class TestEmailProvider:
             assert delivery_id == "msg-abc-123"
             mock_post.assert_called_once()
             call = mock_post.call_args
-            assert "api.postmarkapp.com/email" in str(call.args)
+            assert "api.resend.com/emails" in str(call)
             headers = call.kwargs["headers"]
-            assert headers["X-Postmark-Server-Token"] == "test-token-123"
+            assert headers["Authorization"] == "Bearer test-api-key-123"
+            assert headers["Content-Type"] == "application/json"
 
-    def test_postmark_provider_5xx_raises_transient(self) -> None:
-        """Postmark 5xx → EmailTransientError (caller retries)."""
-        provider = PostmarkProvider(server_token="test-token-123")
+    def test_resend_provider_5xx_raises_transient(self) -> None:
+        """Resend 5xx → EmailTransientError (caller retries)."""
+        provider = ResendProvider(api_key="test-api-key-123")
         mock_response = AsyncMock()
         mock_response.status_code = 503
         mock_response.text = "Service Unavailable"
@@ -117,9 +114,9 @@ class TestEmailProvider:
                     )
                 )
 
-    def test_postmark_provider_4xx_raises_permanent(self) -> None:
-        """Postmark 4xx → EmailDeliveryError permanent (caller does NOT retry)."""
-        provider = PostmarkProvider(server_token="test-token-123")
+    def test_resend_provider_4xx_raises_permanent(self) -> None:
+        """Resend 4xx → EmailDeliveryError permanent (caller does NOT retry)."""
+        provider = ResendProvider(api_key="test-api-key-123")
         mock_response = AsyncMock()
         mock_response.status_code = 422
         mock_response.text = "Invalid payload"
@@ -132,7 +129,7 @@ class TestEmailProvider:
                         recipients=["test@example.com"],
                     )
                 )
-            assert exc_info.value.code == "POSTMARK_CLIENT_ERROR"
+            assert exc_info.value.code == "RESEND_CLIENT_ERROR"
 
     def test_factory_returns_logging_provider_when_no_env(self) -> None:
         """get_email_provider() defaults to LoggingProvider when no env vars."""
@@ -140,16 +137,16 @@ class TestEmailProvider:
             provider = get_email_provider()
             assert isinstance(provider, LoggingProvider)
 
-    def test_factory_returns_postmark_when_token_set(self) -> None:
-        """get_email_provider() returns PostmarkProvider when POSTMARK_SERVER_TOKEN is set."""
+    def test_factory_returns_resend_when_api_key_set(self) -> None:
+        """get_email_provider() returns ResendProvider when RESEND_API_KEY is set (cj-305b swap 결정 wire)."""
         with patch.dict(
             "os.environ",
-            {"POSTMARK_SERVER_TOKEN": "test-token"},
+            {"RESEND_API_KEY": "re_test_abc123"},
             clear=True,
         ):
             provider = get_email_provider()
-            assert isinstance(provider, PostmarkProvider)
-            assert provider.server_token == "test-token"
+            assert isinstance(provider, ResendProvider)
+            assert provider.api_key == "re_test_abc123"
 
     def test_factory_returns_smtp_when_smtp_env_set(self) -> None:
         """get_email_provider() returns SMTPProvider when SMTP_* env vars are set."""

@@ -143,6 +143,18 @@ indent-style = "space"
 
 # ─────────────────────────────────────────────────────────
 # pytest — discover tests/cost_engine + tests/architecture + tests/rls
+#
+# Canonical invocation (cj-313 wire 결정 wire, 2026-09-09):
+#   `.venv\Scripts\python.exe -m pytest`  (project root)
+#
+# Why not `uv run pytest`? — uv trampoline on Windows env occasionally
+# returns "uv trampoline failed to canonicalize script path" for pytest
+# (uv 0.5.x Windows trampoline regression). Use the venv python directly.
+#
+# Why not `python -m pytest`? — bare `python` resolves to system Python
+# (3.14 on this dev box) which lacks asyncpg/pytest-asyncio and surfaces
+# false `ModuleNotFoundError: asyncpg` errors during collection. Always
+# invoke via `.venv\Scripts\python.exe` to pick up the workspace deps.
 # ─────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 minversion = "9.0"

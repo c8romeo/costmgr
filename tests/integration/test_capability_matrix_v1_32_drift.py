@@ -46,8 +46,8 @@ def test_capability_observability_metrics_exists() -> None:
     [
         Industry.MANUFACTURING,
         Industry.SERVICE,
-        Industry.MFG_AND_SERVICE,
-        Industry.MFG_AND_SERVICE_AND_OTHER,
+        Industry.MANUFACTURING_SERVICE,
+        Industry.MANUFACTURING_SERVICE_OTHER,
     ],
 )
 def test_all_industries_grant_observability_traces(industry: Industry) -> None:
@@ -61,8 +61,8 @@ def test_all_industries_grant_observability_traces(industry: Industry) -> None:
     [
         Industry.MANUFACTURING,
         Industry.SERVICE,
-        Industry.MFG_AND_SERVICE,
-        Industry.MFG_AND_SERVICE_AND_OTHER,
+        Industry.MANUFACTURING_SERVICE,
+        Industry.MANUFACTURING_SERVICE_OTHER,
     ],
 )
 def test_all_industries_grant_observability_metrics(industry: Industry) -> None:

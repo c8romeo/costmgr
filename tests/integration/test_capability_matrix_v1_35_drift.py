@@ -9,7 +9,7 @@ import pytest
 
 from apps.api.core.capability import (
     Capability,
-    INDUSTRY_CAPABILITIES,
+    _INDUSTRY_CAPABILITIES,
 )
 from apps.api.dependencies.capability import (
     require_slo_engineering,
@@ -32,7 +32,7 @@ def test_capability_slo_engineering_enum_exists():
 
 
 def test_all_four_industries_grant_slo_engineering():
-    for industry_key, capabilities in INDUSTRY_CAPABILITIES.items():
+    for industry_key, capabilities in _INDUSTRY_CAPABILITIES.items():
         assert Capability.SLO_ENGINEERING in capabilities, (
             f"Industry {industry_key} must grant Capability.SLO_ENGINEERING"
         )

@@ -53,11 +53,15 @@ from apps.api.jobs.errors import (
     ScheduledReportTenantNotFoundError,
     ScheduledReportTimezoneError,
 )
+from apps.api.jobs.scheduled_multi_cloud_dispatch_job import (
+    DISPATCH_CRON_EXPRESSIONS,
+)
+from apps.api.modules.reports.scheduled_serializers import (
+    ALL_REPORT_TYPES,
+)
 from apps.api.jobs.scheduled_reports import (
     ALL_DISPATCH_SCHEDULES,
     ALL_RECIPIENT_STRATEGIES,
-    ALL_REPORT_TYPES,
-    DISPATCH_CRON_EXPRESSIONS := __import__("apps.api.jobs.scheduled_reports", fromlist=["SCHEDULED_REPORTS_CRON_EXPRESSIONS"]).SCHEDULED_REPORTS_CRON_EXPRESSIONS,
     KST,
     MAX_RETRY_COUNT,
     PERIOD_KEY_FORMAT,

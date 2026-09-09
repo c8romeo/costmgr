@@ -10,7 +10,6 @@
 import pytest
 
 from apps.api.modules.slo.slo_burn_rate_evaluator import (
-    BURN_RATE_THRESHOLDS,
     SloBurnRateEvaluation,
     SloViolationDetectedError,
     compute_burn_rate,

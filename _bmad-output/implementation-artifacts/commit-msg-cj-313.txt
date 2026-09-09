@@ -1,0 +1,69 @@
+docs(phase-30): cj-313 pytest rootdir 정정 (cj-style 270번째) — 7 stale tests 정정 + pytest invocation docs (cj-312 audit finding 2.1 honest retroactive correction)
+
+cj-312 wire (`a0a27d1`) 의 audit finding 2.1 ("apps/api/tests/ 부재") 이 **WRONG** 정직 회복: 실제 root cause 는 pytest config (testpaths=["tests"]) 가 CORRECT 이고 5418 tests collect 성공 + .venv\Scripts\python.exe -m pytest 정상 동작. 실제 problem = **7 stale tests** (cj-305b Resend swap 정직 회복 안 됨 + capability matrix drift + SLO test + audit_action test + scheduled_reports syntax error).
+
+rationale 5종:
+① CR 11-3 honest-DEFER retroactive correction discipline (cj-style 257th + 267th 의 cj-305b/cj-310retro 패턴 verbatim mirror) — cj-312 audit finding 2.1 의 정직 회복
+② 실제 root cause 정직 회복: pytest config 는 CORRECT, 실제 problem 은 stale tests
+③ 7 stale tests 모두 fix: pytest collection 5418 + 7 errors → **5554 tests + 0 errors** (+136 tests net gain)
+④ 결정 wire 보존: cj-305b Resend swap (Postmark → Resend) decision wire 그대로 + capability matrix v1.54 EXTENSION preserved + audit_action EXTENSION preserved + SLO module EXTENSION preserved
+⑤ 0 source code 변경 (cj-313 는 tests only fix, decision wires 보존)
+
+7 stale tests 정정 내역:
+1. **tests/integration/test_phase_30_exports_email.py** — PostmarkProvider → ResendProvider swap (4 test methods: test_resend_provider_uses_http_api / test_resend_provider_5xx_raises_transient / test_resend_provider_4xx_raises_permanent / test_factory_returns_resend_when_api_key_set) + env var POSTMARK_SERVER_TOKEN → RESEND_API_KEY + error code POSTMARK_CLIENT_ERROR → RESEND_CLIENT_ERROR + URL api.postmarkapp.com/email → api.resend.com/emails + header X-Postmark-Server-Token → Authorization Bearer + comment "Postmark/SMTP mocked" → "Resend/SMTP mocked"
+2. **tests/api/core/test_phase_10_audit_action.py** — is_valid_audit_action + normalize_audit_action import 제거 (apps/api/core/audit_action.py 에 함수 부재, ActionClass enum + _ActionRegistry class 만 존재)
+3. **tests/api/core/test_phase_10_slo_burn_rate_evaluator.py** — BURN_RATE_THRESHOLDS import 제거 (apps/api/modules/slo/slo_burn_rate_evaluator.py 에 상수 부재, compute_burn_rate + evaluate_single_window + evaluate_all_windows 만 존재)
+4. **tests/api/core/test_phase_10_slo_dsl.py** — BadRequest → BadRequestError, Conflict → ConflictError, UnprocessableEntity → UnprocessableEntityError (apps/api/core/errors.py 의 typed exception class name 변경 반영) + SLI_TYPES → VALID_SLI_TYPES, WINDOWS → VALID_WINDOWS, BUDGET_POLICIES → VALID_BUDGET_POLICIES, REGIONS → VALID_REGIONS + build_slo_definition import 제거 (slo_dsl.py 에 함수 부재)
+5. **tests/integration/test_phase_30_scheduled_reports.py** — DISPATCH_CRON_EXPRESSIONS := __import__(...) syntax error 제거 (walrus operator 를 from-import 괄호 내에서 사용 불가, 분리하여 scheduled_multi_cloud_dispatch_job 에서 import) + ALL_REPORT_TYPES 를 scheduled_reports 가 아닌 scheduled_serializers 에서 import (cj-303 wire 의 정정 pattern 보존)
+6. **tests/integration/test_capability_matrix_v1_32_drift.py** — Industry.MFG_AND_SERVICE → Industry.MANUFACTURING_SERVICE + Industry.MFG_AND_SERVICE_AND_OTHER → Industry.MANUFACTURING_SERVICE_OTHER (packages/services/m0_onboarding/industry_menu.py 의 enum 이름 변경 반영, 2 occurrences)
+7. **tests/integration/test_capability_matrix_v1_35_drift.py** — INDUSTRY_CAPABILITIES → _INDUSTRY_CAPABILITIES (apps/api/core/capability.py:833 의 underscore-prefixed private 상수)
+
+추가 변경:
+- **pyproject.toml** — [tool.pytest.ini_options] 위에 canonical pytest invocation comment 추가: `.venv\Scripts\python.exe -m pytest` from project root (uv run pytest 의 Windows trampoline regression 회피 + bare `python` 의 system Python 3.14 module-not-found 회피)
+
+verify gate 결과 (cj-313 의 본질):
+- 7 stale tests → 0 stale tests
+- 5418 tests collected + 7 errors → **5554 tests collected + 0 errors** (+136 tests net gain)
+- 0 source code 변경 (apps/api/* 변경 0건, source code 결정 wire 보존)
+- 0 alembic / 0 dev_seed / 0 ci.yml 변경
+- 37 pins unchanged (cj-303 EXTENSION 보존, cj-313 신규 EXTENSION 0건)
+- 14 job matrix unchanged (cj-style baseline-green 보존)
+- PRD v7.0 §F/§M/§R unchanged
+- capability matrix v1.54 EXTENSION preserved
+- audit actions EXTENSION preserved
+
+cumulative 결정 wire 보존:
+- 42 (cj-282~cj-312) → +1 = **43/43** (cj-313 신규)
+- 결정 wire 보존: cj-309~cj-312 wire 결정 wire 그대로
+- sprint-status v4.86 → **v4.87 EXTENSION** 결정 wire (A731 cj-313 + last_updated_note_v4_87)
+
+CR 11-3 honest-DEFER 270번째 정직 회복:
+- cj-313 은 "compressed entry+wire" 결정 wire (cj-style 257th + 267th 패턴 verbatim mirror) — cj-312 audit finding 2.1 의 정직 회복을 본 sprint 의 본질로 삼음
+- chain: cj-282 (220번째) → ... → cj-312 wire (269번째) → **cj-313 (270번째, 본 sprint)** 종합 43 sprints 정직 회복
+- retroactive correction 정직 회복: cj-312 audit 의 "apps/api/tests/ 부재" finding 의 실체는 "stale tests 7건" 이었음 정직 인정
+
+13 files atomic single sprint:
+1 NEW content: `_bmad-output/implementation-artifacts/phase-30-cj-313-pytest-stale-tests-fix-wire-2026-09-09.md` (~300 LOC 8-section §1~§8)
+1 NEW commit-msg: 본 파일
+1 NEW handoff: `memory/handoff-2026-09-09-cj-313-pytest-stale-tests-fix-wire-done.md` (~150 LOC 7-section §1~§7)
+7 MODIFIED tests: tests/integration/test_phase_30_exports_email.py + tests/api/core/test_phase_10_audit_action.py + tests/api/core/test_phase_10_slo_burn_rate_evaluator.py + tests/api/core/test_phase_10_slo_dsl.py + tests/integration/test_phase_30_scheduled_reports.py + tests/integration/test_capability_matrix_v1_32_drift.py + tests/integration/test_capability_matrix_v1_35_drift.py
+1 MODIFIED meta: `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.86 → v4.87 EXTENSION (A731 + last_updated_note_v4_87)
+1 MODIFIED meta: `memory/MEMORY.md` cj-313 hook EXTENSION + Active sprint state post cj-313
+1 MODIFIED project: `pyproject.toml` canonical pytest invocation comment EXTENSION
+
+honestly DEFER 결정 wire 보존:
+- cj-314 cj-307 carryover fix (HIGH severity) — pytest collection 0 errors 회복으로 cj-307 carryover 의 32+22+3 failures 가 정확한지 triage 가능 (cj-314 sprint scope)
+- cj-316 FastAPI on_event → lifespan migration (HIGH severity) — pytest 실행 시 DeprecationWarning visible, 결정 wire 보존
+- 6 PRE-EXISTING honestly DEFER 보존 (web-e2e 23 skip + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS)
+- 비용 발생 항목 모두 honestly DEFER 보존 (사용자 결정 wire 2026-09-09)
+
+결정 보류 (운전자):
+① 옵션 (a, RECOMMENDED next) **cj-314 cj-307 carryover fix** (cj-style 271번째, ~2h, pytest collection 0 errors 회복 후 32+22+3 failures triage)
+② 옵션 (b) **cj-316 FastAPI on_event → lifespan migration** (cj-style 272번째, ~1-2h, source code migration)
+③ 옵션 (c) **cj-313 close-out retro** (cj-style 270th follow-up, ~30min, docs-only)
+④ 옵션 (d) PRD v2 EXTENSION 진입 (cj-314/cj-316 fix 후)
+⑤ 옵션 (e) carryover honestly DEFER 유지
+
+결정 wire 일자: 2026-09-09 KST (D-5)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
