@@ -1,0 +1,84 @@
+docs(phase-30): cj-314 cj-307 carryover fix entry (cj-style 271번째) — 66 failures + 22 errors triage (cj-312 wire "32 failures" estimate 2x underestimate honest retroactive correction)
+
+cj-313 wire (`cfe5eca`) 의 7 stale tests 정정 직후 pytest collection **5418 + 7 errors → 5554 + 0 errors** 회복했으나, 실제 surface 한 cj-307 carryover 의 failures 가 **cj-312 wire 가 추정한 "32 failures + 22 errors + 3 collection errors" 의 2x underestimate** 임을 발견: 실제 pytest 결과 = **66 failed + 22 errors + 5306 passed + 160 skipped = 5554** (cj-312 wire 의 "32 failures" 가 actual 66 failures 의 2x underestimate 정직 인정).
+
+rationale 5종:
+① CR 11-3 honest-DEFER retroactive correction discipline (cj-style 257th cj-305b + 267th cj-310retro + 270th cj-313 패턴 verbatim mirror) — cj-312 wire 의 "32 failures" estimate 의 정직 회복
+② cj-313 stale tests 정정이 collection errors 만 fix 했고, deeper test failures 66건은 surface 됨 — 실제 cj-307 carryover scope 는 cj-312 estimate 의 2배
+③ multi-sprint triage 결정 wire: 66 failures + 22 errors = 88 total items 를 단일 sprint (~2h) 로 fix 불가능, cj-314 wire 후속 multi-sub-sprint 진입 필요 (cj-314a/b/c/d)
+④ capability matrix v1.54 EXTENSION preserved + audit_action EXTENSION preserved + cj-305b Resend swap preserved + 모든 decision wires 보존
+⑤ 0 source code 변경 (cj-314 entry 는 docs-only atomic single sprint, 5 files = 1 NEW + 1 NEW meta + 1 NEW meta + 2 MODIFIED meta)
+
+cj-312 wire 의 "32 failures + 22 errors + 3 collection errors" 정직 회복:
+- **cj-312 audit estimate 의 "3 collection errors"**: cj-313 의 7 stale tests 정정으로 해소 (cj-style 270th 보존)
+- **cj-312 audit estimate 의 "22 errors"**: 실제 pytest 결과와 일치 (cj-312 audit 의 단일 정확 부분)
+- **cj-312 audit estimate 의 "32 failures"**: actual 66 failures = 2x underestimate ⚠️ — cj-312 wire 당시 pytest 가 collection error 로 surface 못 한 failures 들이 cj-313 정정 후 visible 해짐
+
+66 failures + 22 errors 카테고리별 분류 (cj-314 entry 의 본질):
+**A. Capability matrix drift (10 failures)**: test_capability_matrix_v1_21_drift / v1_25 / v1_26 / v1_28 / v1_29 / v1_30 / v1_31 / v1_39 / v1_51 / v1_52 = 각 capability matrix version drift test 가 docs/capability-matrix.md 의 특정 version reference 부재
+**B. Phase 10 SLO family (~30 failures)**: test_phase_10_audit_action (6) + test_phase_10_error_budget (6) + test_phase_10_governance (6) + test_phase_10_multi_region_aggregator (5) + test_phase_10_slo_burn_rate_evaluator (6) + test_phase_10_slo_dsl (5) — apps/api/modules/slo/ 의 typed exception class 이름 변경 + VALID_* prefix + 새 함수 미구현
+**C. Phase 8 ESLint/SLO/SLI (~9 failures)**: test_phase_8_p99_budget (5) + test_phase_8_slo_sli (4) — ESLint rule + SLO/SLI docs 부재
+**D. Phase 5/9/16/26/30 (~7 failures)**: test_phase_5_capability_integration (2) + test_phase_5_audit_log_verification (1) + test_phase_9_audit_action (1) + test_phase_16_scheduled_executive_dispatch (1) + test_phase_26_cost_anomaly_ml_prediction_audit_action (1) + test_phase_3_0_hook_migration (1) + test_phase_8_performance_audit_action (1)
+**E. Phase 30 scheduled reports (3 failures)**: test_idempotency_violation_raises + test_scheduled_report_persistence_error + test_schedule_report_invalid_strategy_raises — apps/api/modules/reports/scheduled_serializers 의 typed exception 미구현
+**F. Other consistency (~7 failures)**: test_commit_subject_story_key_matches_done_entry + test_conventions_lint + test_incomplete_bom_fallback_reason_parity + test_max_sdr_claim_matches_pytest_collection + test_no_legacy_emit_audit_call_sites + test_capability_matrix_phase_25_8_acs + test_phase_8_p99_budget
+**G. 22 errors (TBD detailed triage)**: test_epic_15_alembic_0037_external_identities (12 visible) + 10 more TBD — alembic migration shape + indexes + RLS policies + check constraints 의 drift test
+
+cj-314 entry sprint 의 결정 wire:
+- cj-314 wire 1 (capability matrix drift 10 fixes, ~1h)
+- cj-314 wire 2 (Phase 10 SLO family ~30 fixes, ~2-3h)
+- cj-314 wire 3 (Phase 8 ESLint/SLO/SLI 9 fixes, ~1h)
+- cj-314 wire 4 (Phase 5/9/16/26/30/Phase 30 + others ~10 fixes, ~1-2h)
+- cj-314 wire 5 (Epic 15 alembic 0037 12 errors triage, ~1h)
+- cj-314 wire 6 (errors TBD 10 fixes, ~1h)
+
+또는 batch approach:
+- cj-314 wire batch A (capability matrix + Phase 8 + consistency ~26 fixes, ~2-3h)
+- cj-314 wire batch B (Phase 10 SLO family + Phase 5/9/16/26/30 ~37 fixes, ~4-5h)
+- cj-314 wire batch C (Epic 15 alembic + errors TBD ~22 fixes, ~2h)
+
+각각의 sprint 가 자체 atomic single sprint (cj-style 271~276 번째) 로 결정 wire 진입.
+
+5 files atomic single sprint (cj-314 entry):
+1 NEW content: _bmad-output/implementation-artifacts/phase-30-cj-314-cj-307-carryover-fix-entry-2026-09-09.md (~350 LOC 9-section §1~§9)
+1 NEW commit-msg: 본 파일
+1 NEW handoff: memory/handoff-2026-09-09-cj-314-cj-307-carryover-fix-entry-done.md (~150 LOC 7-section §1~§7)
+1 MODIFIED meta: _bmad-output/implementation-artifacts/sprint-status.yaml v4.87 → v4.88 EXTENSION (A732 + last_updated_note_v4_88)
+1 MODIFIED meta: memory/MEMORY.md cj-314 hook EXTENSION + Active sprint state post cj-314 entry
+
+verify gate 결과 (cj-314 entry 의 본질):
+- pytest 재실행 결과 종합: 5554 tests collected, **66 failed + 22 errors = 88 items to fix**
+- cj-312 wire estimate "32 failures + 22 errors + 3 collection errors" 의 정직 회복: **actual = 66 + 22 + 0 = 88**
+- 0 source code 변경 (cj-314 entry 는 docs-only atomic single sprint, source code 변경 0건)
+- 37 pins unchanged (cj-303 EXTENSION 보존)
+- 14 job matrix unchanged (cj-style baseline-green 보존)
+- PRD v7.0 §F/§M/§R unchanged
+- capability matrix v1.54 EXTENSION preserved
+- audit actions EXTENSION preserved
+
+cumulative 결정 wire 보존:
+- 43 (cj-282~cj-313) → +1 = **44/44** (cj-314 entry 신규)
+- 결정 wire 보존: cj-309~cj-313 wire 결정 wire 그대로
+- sprint-status v4.87 → **v4.88 EXTENSION** 결정 wire (A732 cj-314 entry + last_updated_note_v4_88)
+
+CR 11-3 honest-DEFER 271번째 정직 회복:
+- cj-314 entry 는 "cj-312 wire 의 32 failures estimate 2x underestimate" 정직 회복을 본 sprint 의 본질로 삼음
+- chain: cj-282 (220번째) → ... → cj-313 wire (270번째) → **cj-314 entry (271번째, 본 sprint)** 종합 44 sprints 정직 회복
+- retroactive correction 정직 회복: cj-312 wire 의 "32 failures" 가 actual 66 failures 의 2x underestimate 정직 인정
+- CR 11-3 honest-DEFER discipline 의 271번째 연속 정직 회복 atomic single sprint
+
+honestly DEFER 결정 wire 보존:
+- cj-314 wire 1~6 또는 batch A/B/C 의 sub-sprint 진입 결정 wire 보류 (operator choice)
+- 6 PRE-EXISTING honestly DEFER 보존 (web-e2e + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS)
+- cj-316 FastAPI on_event → lifespan migration (HIGH severity) 결정 wire 보존
+- 비용 발생 항목 모두 honestly DEFER 보존 (사용자 결정 wire 2026-09-09)
+
+결정 보류 (운전자):
+① 옵션 (a, RECOMMENDED next) **cj-314 wire 1 — capability matrix drift 10 fixes** (~1h, atomic single sprint)
+② 옵션 (b) **cj-314 wire batch A** (capability matrix + Phase 8 + consistency ~26 fixes, ~2-3h)
+③ 옵션 (c) **cj-314 wire 2 — Phase 10 SLO family ~30 fixes** (~2-3h, atomic single sprint)
+④ 옵션 (d) **cj-316 FastAPI on_event → lifespan migration** (HIGH severity, cj-style 272번째, ~1-2h)
+⑤ 옵션 (e) carryover honestly DEFER 유지 (cj-314 wire 결정 보류, 0 effort)
+
+결정 wire 일자: 2026-09-09 KST (D-5)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
