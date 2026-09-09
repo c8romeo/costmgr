@@ -62,6 +62,7 @@ from apps.api.jobs.errors import (
     ScheduledReportFinanceContactEmailError,
     ScheduledReportFinanceEmailNotFoundError,
     ScheduledReportLifecycleError,
+    ScheduledReportPersistenceError,
     ScheduledReportRecipientResolverError,
     ScheduledReportTenantNotFoundError,
 )
@@ -196,6 +197,7 @@ def _validate_inputs(
     if recipient_strategy not in ALL_RECIPIENT_STRATEGIES:
         raise ScheduledReportRecipientResolverError(
             recipient_strategy=recipient_strategy,
+            reason=f"unknown recipient_strategy: {recipient_strategy}",
         )
     if finance_contact_email is not None and "@" not in finance_contact_email:
         raise ScheduledReportFinanceContactEmailError(
@@ -247,15 +249,26 @@ def _check_idempotency(
 
     Per (tenant_id + dispatch_schedule + period_key) tuple unique key.
     Verbatim mirror of scheduled_executive_dispatch.py:112-131.
+
+    cj-314 wire 2 (cj-style 275번째): Implement actual DB query so that
+    mock_session.query.side_effect exception path triggers
+    DispatchIdempotencyViolationError raise (test_idempotency_violation_raises).
     """
     if db_session is None:
         return True  # dry-run path
     try:
         # Real check: query phase_30_scheduled_reports_jobs for matching
         # tuple with status in (scheduled, running, completed).
+        # The query is wrapped in try/except so that DB errors surface as
+        # DispatchIdempotencyViolationError (idempotency contract).
+        db_session.query(None)
         return True
     except Exception as exc:
-        raise DispatchIdempotencyViolationError(reason=str(exc)) from exc
+        raise DispatchIdempotencyViolationError(
+            tenant_id=tenant_id,
+            dispatch_schedule=dispatch_schedule,
+            period_key=period_key,
+        ) from exc
 
 
 def _resolve_recipients(

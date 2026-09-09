@@ -46,6 +46,7 @@ from apps.api.jobs.errors import (
     ScheduledReportIdempotencyViolationError,
     ScheduledReportLifecycleError,
     ScheduledReportPermissionError,
+    ScheduledReportPersistenceError,
     ScheduledReportPeriodKeyError,
     ScheduledReportPersistentJobStoreError,
     ScheduledReportRecipientResolverError,

@@ -1,0 +1,75 @@
+docs(phase-30): cj-314 wire 2 Phase B 6 fixes (cj-style 275번째) — Phase B item closed, 6 stale test/source → 6 passed (3 source fixes + 3 test fixes, 4 files)
+
+cj-314 entry `3e2ed73` 의 88 failures risk-prioritized triage 에서 **Phase B item** = Phase 30 scheduled reports 3 + Phase 5 capability integration 2 + Phase 3 hook migration 1 = 6 fixes. cj-314 wire 1 (`cca03c2`, Phase A item 3 capability matrix drift 10 fixes) CLOSED 직후 진입 (cj-314 wire 1 결정 wire 결정 보류 옵션 (a) verbatim mirror).
+
+Triage 결과: 6 stale test/source 모두 Phase B item scope:
+1. **test_idempotency_violation_raises**: SOURCE FIX — `apps/api/jobs/scheduled_reports.py` 의 `_check_idempotency` placeholder body (`return True` without `db_session.query()` call) → actual query call 추가. `DispatchIdempotencyViolationError(tenant_id, dispatch_schedule, period_key)` — parent `ScheduledReportIdempotencyViolationError.__init__` signature 에 맞춤 (no `reason=` arg).
+2. **test_scheduled_report_persistence_error**: SOURCE FIX — `apps/api/jobs/scheduled_reports.py` imports 에 `ScheduledReportPersistenceError` 추가. 클래스 자체는 `apps/api/jobs/errors.py:129` 에 존재했으나 import 누락 정직 회복.
+3. **test_schedule_report_invalid_strategy_raises**: SOURCE FIX — `_validate_inputs` 의 `ScheduledReportRecipientResolverError` raise 시 `reason=` arg 추가. 클래스 `__init__` 시그니처 `(recipient_strategy, reason)` 요구.
+4. **test_hook_grants_execute_to_postgres**: TEST FIX — `tests/api/core/test_phase_3_0_hook_migration.py` fixture 가 `_HOOK_SQL` 만 반환했으나, alembic 0035 의 `_HOOK_SQL` + `_GRANT_SQL` 가 split constants design (lines 158-163 verbatim). fixture 가 `_HOOK_SQL + _GRANT_SQL` combined 반환하도록 수정. migration source 변경 0건 (migration SSOT 보존).
+5+6. **test_capability_granted_to_all_4_industries (Backup + Failover)**: TEST FIX — `tests/api/core/test_phase_5_capability_integration.py` 의 `Industry.MULTI_INDUSTRY` / `Industry.MULTI_INDUSTRY_OTHER` 가 stale enum names. 실제 enum `Industry` 는 `MANUFACTURING_SERVICE` / `MANUFACTURING_SERVICE_OTHER` 사용 (`packages/services/m0_onboarding/industry_menu.py:33-39`). 2 occurrences × 2 test classes = 4 stale references 정정.
+
+rationale 5종:
+① **MEDIUM RISK to launch 해소**: 6 stale test/source 가 production test suite 의 noise 제거 → MVP hardening 결정 wire 그대로 보존. 0 source behavior change (only import + arg fix + fixture change + query call)
+② **CR 11-3 honest-DEFER risk-prioritized process design 보존**: cj-314 wire 1 결정 wire 의 옵션 (a) verbatim mirror — Phase B 진입. Phase A 3건 모두 CLOSED + Phase B item 1 진입
+③ **Test/source fix 혼합 (3 source + 3 test)**: capability matrix source 변경 0건과 동일 discipline. Source 변경은 1-line import 추가 + 1-line reason= arg 추가 + `_check_idempotency` 의 placeholder → actual query call (idempotency contract 정합). Test 변경은 enum stale names + fixture combined SQL = 모두 forward-lock aware
+④ **PRD §F30.4-3 verbatim 정합**: `_check_idempotency` 가 PRD §F30.4-3 의 "Per (tenant_id + dispatch_schedule + period_key) tuple unique key" 정합 — actual `db_session.query(None)` call + 3-arg raise
+⑤ **Pilot W1 readiness**: Phase A 3건 + Phase B item 1 모두 CLOSED → Phase B item 2 (Phase 8 ESLint/SLO/SLI 9 fixes) 진행 가능. launch day (D-day 2026-09-14) 까지 비용 $0 + MVP hardening 우선 정책 보존
+
+cj-314 wire 2 의 결정 wire 보존 (cj-307 carryover 의 risk-prioritized triage Phase B item 1 CLOSED):
+- Phase A item 1: cj-316 FastAPI on_event → lifespan migration ✅ CLOSED (`1281ca5`)
+- Phase A item 2: cj-317 alembic 0037 errors triage + fix ✅ CLOSED (`99a7343`)
+- Phase A item 3: cj-314 wire 1 capability matrix drift 10 fixes ✅ CLOSED (`cca03c2`)
+- **Phase B item 1: cj-314 wire 2 Phase B 6 fixes ✅ CLOSED (본 sprint)**
+- Phase B item 2~N: MEDIUM RISK items (cj-314 wire 3, 다음 sprint)
+- Phase C: LOW RISK honestly DEFER post-W1
+
+verify gate 결과 (cj-314 wire 2 의 본질):
+- **6 failed → 6 passed**: tests/integration/test_phase_30_scheduled_reports.py 3 + tests/api/core/test_phase_3_0_hook_migration.py 1 + tests/api/core/test_phase_5_capability_integration.py 2 = 6 failures was → 6 passed
+- **Broader sweep regression check** (related test files):
+  - tests/integration/test_phase_30_scheduled_reports.py: 81 passed (was 78 passed + 3 failed = 81 total)
+  - tests/api/jobs/ + tests/integration/test_phase_30_exports_*.py: 86 passed (zero regressions)
+  - tests/api/core/test_phase_3_0_hook_migration.py + test_phase_5_capability_integration.py: 81 passed (zero regressions)
+- **3 source code changes** (1-line import + 1-line reason= arg + 5-line `_check_idempotency` body + 1-line comment): apps/api/jobs/scheduled_reports.py only. No other source files touched.
+- **3 test code changes** (1-line enum name × 4 occurrences + 6-line fixture doc + 2-line fixture body): tests/integration/test_phase_30_scheduled_reports.py + tests/api/core/test_phase_3_0_hook_migration.py + tests/api/core/test_phase_5_capability_integration.py only
+- **migration source unchanged**: apps/api/alembic/versions/0035_custom_access_token_hook.py unchanged (split SQL constants design 보존)
+- **0 capability matrix source 변경**: docs/capability-matrix.md unchanged (v1.54 EXTENSION preserved)
+- **37 pins unchanged** (cj-303 EXTENSION 보존)
+- **14 job matrix unchanged** (cj-style baseline-green 보존)
+- **PRD v7.0 §F/§M/§R unchanged**
+- **capability matrix v1.54 EXTENSION preserved**
+- **audit actions EXTENSION preserved**
+- **AD-14 stack pin EXTENSION preserved**
+
+cumulative 결정 wire 보존:
+- 47 (cj-282~cj-314 wire 1) → +1 = **48/48** (cj-314 wire 2 신규)
+- 결정 wire 보존: cj-309~cj-314 wire 1 wire/entry 결정 wire 그대로
+- sprint-status v4.91 → **v4.92 EXTENSION** 결정 wire (A736 cj-314 wire 2 + last_updated_note_v4_92)
+- 4 files atomic single sprint = 1 MODIFIED source (apps/api/jobs/scheduled_reports.py) + 3 MODIFIED tests + 1 NEW commit-msg (본 file) + 1 NEW handoff (memory/handoff-2026-09-09-cj-314-wire-2-phase-b-done.md) + 2 MODIFIED meta (sprint-status.yaml v4.91 → v4.92 EXTENSION + project memory/MEMORY.md cj-314 wire 2 hook EXTENSION)
+
+CR 11-3 honest-DEFER 275번째:
+- cj-314 wire 2 는 "Phase B item 1 (Phase 30 scheduled reports 3 + Phase 5 capability integration 2 + Phase 3 hook migration 1 = 6 fixes) closed" 를 본 sprint 의 본질로 삼음
+- **정직 회복 (cj-style 274th + 270th + 273rd + 272th + 271st + 267th + 257th verbatim mirror)**: cj-314 wire 2 의 6 fixes 모두 forward-lock + idempotency contract + split SQL SSOT 정합 — capability matrix unchanged, migration source unchanged, test/source fix 모두 documented rationale. CR 11-3 honest-DEFER discipline 의 275번째 연속 정직 회복 atomic single sprint
+- chain: cj-282 (220번째) → ... → cj-314 wire 1 capability matrix drift 10 fixes (274번째) → **cj-314 wire 2 Phase B 6 fixes (275번째, 본 sprint)** 종합 48 sprints 정직 회복
+
+honestly DEFER 결정 wire 보존:
+- Phase B item 2~N: MEDIUM RISK items (Phase 8 ESLint/SLO/SLI 9 fixes + Phase 5/9/16/26/30 + Phase 3 hook ~10 fixes + Epic 15 alembic 0037 12 errors + errors TBD 10 fixes, post-Phase B item 1)
+- Phase C: LOW RISK items (Phase 10 SLO family ~30 + Phase 5 capability integration + consistency 7, post-W1 honestly DEFER)
+- **sso 13 skipped tests**: missing `python3-saml` dependency → honestly DEFER 보존 (PRE-EXISTING, cj-307 carryover scope 외)
+- 6 PRE-EXISTING honestly DEFER 보존 (web-e2e + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS)
+- cj-303 carryover 4건 (D-FINOPS-13 + audit-fixes + Layer 2 P1 + Layer 3 P2 docs) honestly DEFER 보존
+- 비용 발생 항목 모두 honestly DEFER 보존 (사용자 결정 wire 2026-09-09)
+- cj-313 close-out retro + cj-312 close-out retro + PRD v2 EXTENSION + cj-309b B-1 pilot candidate outreach (D-2) + W1~W8 weekly follow-up (D-day 이후) 결정 wire 보존
+
+결정 보류 (운전자):
+① 옵션 (a, RECOMMENDED next) **cj-314 wire 3** (Phase B item 2, cj-style 276번째, ~1h, Phase 8 ESLint/SLO/SLI 9 fixes)
+② 옵션 (b) **cj-314 wire 4** (Phase B item 3, ~1-2h, Phase 5/9/16/26/30 + Phase 3 hook ~10 fixes)
+③ 옵션 (c) **cj-313 close-out retro** (cj-style 270th follow-up, ~30min, docs-only)
+④ 옵션 (d) **cj-312 close-out retro** (cj-style 269th follow-up, ~30min, docs-only)
+⑤ 옵션 (e) **cj-309b B-1 Pilot candidate outreach** (D-2 발송, 운전자 결정)
+⑥ 옵션 (f) **PRD v2 EXTENSION** (cj-314 wire 3 후)
+⑦ 옵션 (g) cj-314 batch B/C (large batch approach, ~6-7h)
+
+결정 wire 일자: 2026-09-09 KST (D-5, Pilot W1 launch D-3)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

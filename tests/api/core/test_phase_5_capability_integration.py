@@ -27,8 +27,8 @@ class TestMultiRegionBackupCapability:
         for industry in (
             Industry.MANUFACTURING,
             Industry.SERVICE,
-            Industry.MULTI_INDUSTRY,
-            Industry.MULTI_INDUSTRY_OTHER,
+            Industry.MANUFACTURING_SERVICE,
+            Industry.MANUFACTURING_SERVICE_OTHER,
         ):
             caps = _INDUSTRY_CAPABILITIES[industry]
             assert Capability.MULTI_REGION_BACKUP in caps, (
@@ -55,8 +55,8 @@ class TestMultiRegionFailoverCapability:
         for industry in (
             Industry.MANUFACTURING,
             Industry.SERVICE,
-            Industry.MULTI_INDUSTRY,
-            Industry.MULTI_INDUSTRY_OTHER,
+            Industry.MANUFACTURING_SERVICE,
+            Industry.MANUFACTURING_SERVICE_OTHER,
         ):
             caps = _INDUSTRY_CAPABILITIES[industry]
             assert Capability.MULTI_REGION_FAILOVER in caps, (

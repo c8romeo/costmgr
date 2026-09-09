@@ -40,9 +40,14 @@ _MIGRATION_PATH = (
 def hook_sql() -> str:
     """Read the CREATE OR REPLACE FUNCTION statement from alembic 0035.
 
-    Pulls the SQL out of the module-level `_HOOK_SQL` constant so we don't
-    have to maintain the expected string separately — the migration is
-    the single source of truth.
+    Pulls the SQL out of the module-level `_HOOK_SQL` constant and appends
+    the `_GRANT_SQL` (split per migration design — see 0035 line 158-163)
+    so that tests can verify the GRANT EXECUTE contract from a single
+    source of truth (the migration module).
+
+    cj-314 wire 2 (cj-style 275번째): fixture now returns combined SQL so
+    test_hook_grants_execute_to_postgres can verify the GRANT against the
+    migration's split SQL constants.
     """
     spec = importlib.util.spec_from_file_location(
         "alembic_0035", str(_MIGRATION_PATH)
@@ -52,7 +57,10 @@ def hook_sql() -> str:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     assert hasattr(module, "_HOOK_SQL"), "migration missing _HOOK_SQL constant"
-    return module._HOOK_SQL
+    sql = module._HOOK_SQL
+    if hasattr(module, "_GRANT_SQL"):
+        sql = sql + module._GRANT_SQL
+    return sql
 
 
 # ── 1. Function signature contract ────────────────────────────────
