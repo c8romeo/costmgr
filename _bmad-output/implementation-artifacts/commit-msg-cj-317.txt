@@ -1,0 +1,63 @@
+docs(phase-30): cj-317 alembic 0037 errors triage + fix (cj-style 273번째) — HIGH RISK item 2 closed, 22 errors → 22 passed (3 tests `parents[2]` → `parents[3]` path fix)
+
+cj-314 entry `3e2ed73` 의 88 failures risk-prioritized triage 에서 **Phase A item 2** = alembic 0037 errors triage. cj-316 wire `1281ca5` 의 Phase A item 1 CLOSED 직후 진입.
+
+Triage 결과: **22 errors 모두 test bug** (migration 자체는 OK) — `tests/api/core/test_epic_15_alembic_0037_external_identities.py` 의 setup fixture `migration_content` 가 `REPO_ROOT = Path(__file__).resolve().parents[2]` 로 잘못 설정 (실제 `<repo>/tests/` 가 REPO_ROOT). 실제 경로는 `apps/api/alembic/versions/0037_...` 인데 fixture 가 `tests/apps/api/alembic/versions/0037_...` (존재하지 않음) 를 찾음. 정정: `parents[2]` → `parents[3]`.
+
+rationale 5종:
+① **HIGH RISK to launch 해소**: alembic 0037 migration 의 table + indexes + RLS policies + CHECK constraints + down_revision chain 테스트가 **22 passed (was 22 errors)** — production DB schema 검증 실패 가능성 해소
+② **CR 11-3 honest-DEFER risk-prioritized process design 보존**: cj-316 결정 wire 후 Phase A item 2 진입. Phase A 2건 모두 CLOSED → Phase B 진입 가능
+③ **Test bug 단독 fix (migration source code 변경 0건)**: 3 test files 1-character fix (`parents[2]` → `parents[3]`). alembic migration 자체는 변경 없음 (검증: `revision: str = "0037_epic_15_sso_external_identities"` + `down_revision: str | None = "0036_phase_4_backup_strategy"` 모두 정정 후 22/22 passed)
+④ **Bonus correction (sso tests path fix)**: `tests/api/core/test_epic_15_sso_jit_provisioning.py` (4 tests) + `tests/api/core/test_epic_15_sso_validator.py` (9 tests) 도 동일 `parents[2]` 버그 → 정정 후에도 13 skipped (PRE-EXISTING missing `python3-saml` dependency, intentional `pytest.skip()` design 보존)
+⑤ **Pilot W1 readiness**: Phase A 2건 모두 CLOSED → Phase B (MEDIUM RISK: Phase 30 + Phase 5 capability + Phase 3 hook) 진행 가능. launch day (D-day 2026-09-14) 까지 비용 $0 + MVP hardening 우선 정책 보존.
+
+cj-317 의 결정 wire 보존 (cj-307 carryover 의 risk-prioritized triage Phase A 보존):
+- Phase A item 1: cj-316 FastAPI on_event → lifespan migration ✅ CLOSED (`1281ca5`)
+- **Phase A item 2: cj-317 alembic 0037 errors triage + fix ✅ CLOSED (본 sprint)**
+- Phase B: MEDIUM RISK items (cj-314 wire HIGH, 다음 sprint)
+- Phase C: LOW RISK honestly DEFER post-W1
+
+verify gate 결과 (cj-317 의 본질):
+- **22 errors → 22 passed**: tests/api/core/test_epic_15_alembic_0037_external_identities.py (TestMigrationShape 11 + TestIndexes 4 + TestCheckConstraints 2 + TestRLSPolicies 4 + TestDowngrade 2 = 22 errors was → 22 passed)
+- **13 skipped preserved (PRE-EXISTING)**: tests/api/core/test_epic_15_sso_jit_provisioning.py (4 skipped) + tests/api/core/test_epic_15_sso_validator.py (9 skipped) = 13 skipped (was 13 silently-broken-skipped before fix, still 13 skipped after fix due to missing python3-saml dependency)
+- **Regression check**: tests/api/test_main_lifespan.py + tests/api/test_main_lifespan_14_1.py + tests/api/core/test_phase_4_health_check.py + tests/api/m12_account/test_exception_handlers_registered.py = **79 passed, 0 regressions**
+- **0 alembic migration source 변경**: apps/api/alembic/versions/0037_epic_15_sso_external_identities.py unchanged
+- **0 source code 변경** (apps/api/* unchanged, only 3 MODIFIED tests)
+- **37 pins unchanged** (cj-303 EXTENSION 보존)
+- **14 job matrix unchanged** (cj-style baseline-green 보존)
+- **PRD v7.0 §F/§M/§R unchanged**
+- **capability matrix v1.54 EXTENSION preserved**
+- **audit actions EXTENSION preserved**
+
+cumulative 결정 wire 보존:
+- 45 (cj-282~cj-316) → +1 = **46/46** (cj-317 신규)
+- 결정 wire 보존: cj-309~cj-316 wire/entry 결정 wire 그대로
+- sprint-status v4.89 → **v4.90 EXTENSION** 결정 wire (A734 cj-317 + last_updated_note_v4_90)
+- 3 MODIFIED tests + 1 NEW content + 1 NEW commit-msg + 1 NEW handoff + 2 MODIFIED meta = **7 files compressed entry+wire atomic single sprint**
+
+CR 11-3 honest-DEFER 273번째:
+- cj-317 는 "Phase A item 2 (alembic 0037 errors triage) closed" 를 본 sprint 의 본질로 삼음
+- **정직 회복 (cj-style 257th + 267th + 270th + 272th verbatim mirror)**: cj-317 의 sso tests path fix 는 cj-307 carryover scope 외 (cj-314 entry §4 의 22 errors 모두 test_epic_15_alembic_0037_external_identities.py). sso 2 files path fix 는 bonus correction, sso module load failures 는 PRE-EXISTING missing `python3-saml` dependency → honestly DEFER 보존
+- chain: cj-282 (220번째) → ... → cj-316 FastAPI on_event → lifespan migration (272번째) → **cj-317 alembic 0037 errors triage + fix (273번째, 본 sprint)** 종합 46 sprints 정직 회복
+- CR 11-3 honest-DEFER discipline 의 273번째 연속 정직 회복 atomic single sprint
+
+honestly DEFER 결정 wire 보존:
+- Phase B: MEDIUM RISK items (Phase 30 scheduled reports 3 + Phase 5 capability integration 2 + Phase 3 hook migration, ~1-2h)
+- Phase C: LOW RISK items (capability matrix drift 10 + Phase 10 SLO family ~30 + Phase 8 + consistency, post-W1 honestly DEFER)
+- **sso 13 skipped tests**: missing `python3-saml` dependency → honestly DEFER 보존 (PRE-EXISTING, cj-307 carryover scope 외)
+- 6 PRE-EXISTING honestly DEFER 보존 (web-e2e + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS)
+- cj-303 carryover 4건 (D-FINOPS-13 + audit-fixes + Layer 2 P1 + Layer 3 P2 docs) honestly DEFER 보존
+- 비용 발생 항목 모두 honestly DEFER 보존 (사용자 결정 wire 2026-09-09)
+- cj-313 close-out retro + cj-312 close-out retro + PRD v2 EXTENSION + cj-309b B-1 pilot candidate outreach (D-2) + W1~W8 weekly follow-up (D-day 이후) 결정 wire 보존
+
+결정 보류 (운전자):
+① 옵션 (a, RECOMMENDED next) **cj-314 wire HIGH** (Phase B item, cj-style 274번째, ~1-2h, Phase 30 scheduled reports 3 + Phase 5 capability integration 2 + Phase 3 hook migration)
+② 옵션 (b) cj-314 wire LOW (Phase C honestly DEFER 유지, post-W1)
+③ 옵션 (c) cj-313 close-out retro (cj-style 270th follow-up, ~30min, docs-only)
+④ 옵션 (d) cj-312 close-out retro (cj-style 269th follow-up, ~30min, docs-only)
+⑤ 옵션 (e) cj-309b B-1 Pilot candidate outreach (D-2 발송, 운전자 결정)
+⑥ 옵션 (f) PRD v2 EXTENSION (cj-314 wire HIGH 후)
+
+결정 wire 일자: 2026-09-09 KST (D-5, Pilot W1 launch D-3)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
