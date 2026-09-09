@@ -43,7 +43,11 @@ EXPECTED_V128_NEW_ENUMS = ("TENANT_IDP_MANAGEMENT",)
 
 class TestCapabilityMatrixVersion:
     def test_matrix_at_v1_28(self, capability_matrix_version: str) -> None:
-        assert capability_matrix_version == "1.28"
+        # Forward-lock: matrix MUST be ≥ v1.28 (accept v1.54, etc.)
+        major, minor = capability_matrix_version.split(".")
+        assert (int(major), int(minor)) >= (1, 28), (
+            f"Capability matrix v{major}.{minor} is older than v1.28"
+        )
 
 
 class TestV128NewEnums:

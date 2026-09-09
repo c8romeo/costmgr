@@ -71,8 +71,17 @@ def test_capability_matrix_v1_21_title() -> None:
     text = _CAPABILITY_MATRIX_MD.read_text(encoding="utf-8")
 
     # Title must be ≥ v1.21 (forward-lock). Accept any newer pin.
-    assert "# Capability Matrix (v1.21)" in text or "# Capability Matrix (v1.22)" in text or "# Capability Matrix (v1.23)" in text or "# Capability Matrix (v1.24)" in text, (
-        "Capability matrix title is older than v1.21. "
+    title_match = re.search(
+        r"# Capability Matrix \(v(\d+)\.(\d+)\)", text
+    )
+    assert title_match is not None, (
+        "Capability matrix title not found. "
+        "Expected `# Capability Matrix (vX.Y)` as first heading."
+    )
+    title_major = int(title_match.group(1))
+    title_minor = int(title_match.group(2))
+    assert (title_major, title_minor) >= (1, 21), (
+        f"Capability matrix title v{title_major}.{title_minor} is older than v1.21. "
         "Expected `# Capability Matrix (v1.21)` or newer as first heading."
     )
 

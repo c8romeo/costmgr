@@ -53,7 +53,11 @@ EXPECTED_V126_NEW_ENUMS = (
 
 class TestCapabilityMatrixVersion:
     def test_matrix_at_v1_26(self, capability_matrix_version: str) -> None:
-        assert capability_matrix_version == "1.26"
+        # Forward-lock: matrix MUST be ≥ v1.26 (accept v1.54, etc.)
+        major, minor = capability_matrix_version.split(".")
+        assert (int(major), int(minor)) >= (1, 26), (
+            f"Capability matrix v{major}.{minor} is older than v1.26"
+        )
 
 
 class TestV126NewEnums:

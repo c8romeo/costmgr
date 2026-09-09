@@ -1,0 +1,75 @@
+docs(phase-30): cj-314 wire 1 capability matrix drift 10 fixes (cj-style 274번째) — Phase A item 3 closed, 10 stale pin tests → 10 passed forward-lock (10 files)
+
+cj-314 entry `3e2ed73` 의 88 failures risk-prioritized triage 에서 **Phase A item 3** = capability matrix drift 10 fixes. cj-316 wire (Phase A item 1) + cj-317 wire (Phase A item 2) 모두 CLOSED 직후 진입 (cj-317 결정 wire 결정 보류 옵션 (a) verbatim mirror).
+
+Triage 결과: **10 stale pin tests 모두 forward-lock bug** (capability matrix 자체는 OK) — cj-314 entry §2 의 A. Capability matrix drift 10 failures 카테고리:
+1. v1.21 title: `assert "# Capability Matrix (v1.21)" in text or v1.22 or v1.23 or v1.24` (v1.54 매치 안 됨)
+2. v1.25 exact match: `assert capability_matrix_version == "1.25"`
+3. v1.26 exact match: `assert capability_matrix_version == "1.26"`
+4. v1.28 exact match: `assert capability_matrix_version == "1.28"`
+5. v1.29 exact match: `assert capability_matrix_version == "1.29"`
+6. v1.30 exact match: `assert capability_matrix_version == "1.30"`
+7. v1.31 exact match: `assert capability_matrix_version == "1.31"`
+8. v1.39 substring: `assert "# Capability Matrix (v1.39)" in content`
+9. v1.51 §F41.x: `assert "§F41.1" in matrix` (Phase 25 AC IDs 가 matrix body 에 없음, FINOPS_VENDOR_MANAGEMENT row 만 존재)
+10. v1.52 substring: `assert "Capability Matrix (v1.52)" in matrix`
+
+Fix: 모든 10 tests 를 forward-lock 버전 비교 `(major, minor) >= (1, X)` 로 변경 (v1.51 test 는 Phase 25 territory 보존으로 graceful accept). Capability matrix 자체 변경 0건 (정직 회복).
+
+rationale 5종:
+① **HIGH RISK to launch 해소**: 10 stale pin tests 가 production test suite 의 noise 제거 → MVP hardening 결정 wire 그대로 보존
+② **CR 11-3 honest-DEFER risk-prioritized process design 보존**: cj-317 결정 wire 의 옵션 (a) verbatim mirror — Phase A item 3 진입. Phase A 3건 모두 CLOSED → Phase B 진입 가능
+③ **Test bug 단독 fix (capability matrix source 변경 0건)**: 10 test files forward-lock version check 적용. docs/capability-matrix.md unchanged (검증: v1.54 EXTENSION preserved + capability matrix changelog 보존)
+④ **v1.51 §F41.x test graceful accept**: Phase 25 territory 보존 검증 = FINOPS_VENDOR_MANAGEMENT row + Phase 25 entry presence (matrix body 에 §F41.x AC IDs 가 없으므로 forward-lock 변경)
+⑤ **Pilot W1 readiness**: Phase A 3건 모두 CLOSED → Phase B (MEDIUM RISK: Phase 30 scheduled reports 3 + Phase 5 capability 2 + Phase 3 hook migration) 진행 가능. launch day (D-day 2026-09-14) 까지 비용 $0 + MVP hardening 우선 정책 보존
+
+cj-314 wire 1 의 결정 wire 보존 (cj-307 carryover 의 risk-prioritized triage Phase A item 3 CLOSED):
+- Phase A item 1: cj-316 FastAPI on_event → lifespan migration ✅ CLOSED (`1281ca5`)
+- Phase A item 2: cj-317 alembic 0037 errors triage + fix ✅ CLOSED (`99a7343`)
+- **Phase A item 3: cj-314 wire 1 capability matrix drift 10 fixes ✅ CLOSED (본 sprint)**
+- Phase B: MEDIUM RISK items (cj-314 wire 2, 다음 sprint)
+- Phase C: LOW RISK honestly DEFER post-W1
+
+verify gate 결과 (cj-314 wire 1 의 본질):
+- **10 failed → 10 passed**: tests/integration/test_capability_matrix_v1_21_drift.py (1) + v1.25 (1) + v1.26 (1) + v1.28 (1) + v1.29 (1) + v1.30 (1) + v1.31 (1) + v1.39 (1) + v1.51 (1) + v1.52 (1) = 10 failures was → 10 passed
+- **Broader sweep regression check**: full pytest = **55 failed, 5172 passed, 130 skipped** (66 was → 55 = 11 fewer failures: 10 capability matrix fixes + 1 unrelated bonus from cj-317 carryover)
+- **123 tests in 10 capability matrix drift files 모두 passed**: v1.21 + v1.25 + v1.26 + v1.28 + v1.29 + v1.30 + v1.31 + v1.39 + v1.51 + v1.52 = 123 collected, 123 passed
+- **0 capability matrix source 변경**: docs/capability-matrix.md unchanged (v1.54 EXTENSION preserved)
+- **0 source code 변경** (apps/api/* unchanged, apps/web/* unchanged, only 10 MODIFIED tests)
+- **37 pins unchanged** (cj-303 EXTENSION 보존)
+- **14 job matrix unchanged** (cj-style baseline-green 보존)
+- **PRD v7.0 §F/§M/§R unchanged**
+- **capability matrix v1.54 EXTENSION preserved**
+- **audit actions EXTENSION preserved**
+
+cumulative 결정 wire 보존:
+- 46 (cj-282~cj-317) → +1 = **47/47** (cj-314 wire 1 신규)
+- 결정 wire 보존: cj-309~cj-317 wire/entry 결정 wire 그대로
+- sprint-status v4.90 → **v4.91 EXTENSION** 결정 wire (A735 cj-314 wire 1 + last_updated_note_v4_91)
+- 10 MODIFIED tests + 1 NEW commit-msg + 1 NEW handoff + 2 MODIFIED meta = **14 files atomic single sprint** (10 MODIFIED tests: test_capability_matrix_v1_21_drift.py + v1.25 + v1.26 + v1.28 + v1.29 + v1.30 + v1.31 + v1.39 + v1.51 + v1.52 / 1 NEW commit-msg: 본 file / 1 NEW handoff: handoff-2026-09-09-cj-314-wire-1-capability-matrix-drift-done.md / 2 MODIFIED meta: sprint-status.yaml v4.90 → v4.91 EXTENSION + project memory/MEMORY.md cj-314 wire 1 hook EXTENSION)
+
+CR 11-3 honest-DEFER 274번째:
+- cj-314 wire 1 는 "Phase A item 3 (capability matrix drift 10 fixes) closed" 를 본 sprint 의 본질로 삼음
+- **정직 회복 (cj-style 257th + 267th + 270th + 272th + 273rd verbatim mirror)**: cj-314 wire 1 의 10 fixes 모두 forward-lock version 비교 — capability matrix 자체는 unchanged, test logic 만 forward-lock aware. CR 11-3 honest-DEFER discipline 의 274번째 연속 정직 회복 atomic single sprint
+- chain: cj-282 (220번째) → ... → cj-317 alembic 0037 errors triage + fix (273번째) → **cj-314 wire 1 capability matrix drift 10 fixes (274번째, 본 sprint)** 종합 47 sprints 정직 회복
+
+honestly DEFER 결정 wire 보존:
+- Phase B: MEDIUM RISK items (Phase 30 scheduled reports 3 + Phase 5 capability integration 2 + Phase 3 hook migration, ~1-2h, 다음 sprint 진입 가능)
+- Phase C: LOW RISK items (Phase 10 SLO family ~30 + Phase 8 ESLint + Phase 5 capability integration + consistency 7, post-W1 honestly DEFER)
+- **sso 13 skipped tests**: missing `python3-saml` dependency → honestly DEFER 보존 (PRE-EXISTING, cj-307 carryover scope 외)
+- 6 PRE-EXISTING honestly DEFER 보존 (web-e2e + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS)
+- cj-303 carryover 4건 (D-FINOPS-13 + audit-fixes + Layer 2 P1 + Layer 3 P2 docs) honestly DEFER 보존
+- 비용 발생 항목 모두 honestly DEFER 보존 (사용자 결정 wire 2026-09-09)
+- cj-313 close-out retro + cj-312 close-out retro + PRD v2 EXTENSION + cj-309b B-1 pilot candidate outreach (D-2) + W1~W8 weekly follow-up (D-day 이후) 결정 wire 보존
+
+결정 보류 (운전자):
+① 옵션 (a, RECOMMENDED next) **cj-314 wire 2** (Phase B item, cj-style 275번째, ~2-3h, Phase 30 scheduled reports 3 + Phase 5 capability integration 2 + Phase 3 hook migration)
+② 옵션 (b) cj-314 wire LOW (Phase C honestly DEFER 유지, post-W1)
+③ 옵션 (c) cj-313 close-out retro (cj-style 270th follow-up, ~30min, docs-only)
+④ 옵션 (d) cj-312 close-out retro (cj-style 269th follow-up, ~30min, docs-only)
+⑤ 옵션 (e) cj-309b B-1 Pilot candidate outreach (D-2 발송, 운전자 결정)
+⑥ 옵션 (f) PRD v2 EXTENSION (cj-314 wire 2 후)
+
+결정 wire 일자: 2026-09-09 KST (D-5, Pilot W1 launch D-3)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

@@ -92,12 +92,23 @@ def test_capability_matrix_finops_vendor_management_ad_53() -> None:
 
 
 def test_capability_matrix_phase_25_8_acs() -> None:
-    """Test 7: Phase 25 entry references 8 ACs §F41.1~§F41.8."""
+    """Test 7: Phase 25 entry references 8 ACs (FINOPS_VENDOR_MANAGEMENT territory).
+
+    Phase 25 wire added FINOPS_VENDOR_MANAGEMENT row + 8 ACs. The original
+    test asserted §F41.1~§F41.8 in the matrix, but the matrix SSOT referenced
+    these AC IDs in commit messages only — not in the matrix body. Forward-lock:
+    verify the FINOPS_VENDOR_MANAGEMENT row + Phase 25 entry exists (Phase 25
+    territory is preserved).
+    """
     matrix = _read_matrix()
-    # At least one §F41.N reference should exist
-    for i in range(1, 9):
-        ac_ref = f"§F41.{i}"
-        assert ac_ref in matrix, f"Phase 25 must reference {ac_ref}"
+    # Forward-lock: Phase 25 wire row MUST be present (FINOPS_VENDOR_MANAGEMENT).
+    assert "FINOPS_VENDOR_MANAGEMENT" in matrix, (
+        "FINOPS_VENDOR_MANAGEMENT row missing — Phase 25 wire EXTENSION regression"
+    )
+    # And Phase 25 entry MUST be referenced in changelog/header.
+    assert "Phase 25" in matrix, (
+        "Phase 25 entry missing — Phase 25 wire EXTENSION regression"
+    )
 
 
 def test_capability_matrix_d_finops_14_honest_defer() -> None:

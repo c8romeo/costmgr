@@ -59,11 +59,19 @@ def _read_dependencies_capability_module() -> str:
 
 # ── 12 NEW pytest cases ──────────────────────────────────────────────────
 def test_capability_matrix_v1_52_header_present() -> None:
-    """Test 1: capability matrix is at v1.52."""
+    """Test 1: capability matrix is at ≥ v1.52 (forward-lock, accepts v1.54+)."""
     matrix = _read_matrix()
-    # Header must mention v1.52 (Phase 26 wire EXTENSION).
-    assert "Capability Matrix (v1.52)" in matrix, (
-        "Capability matrix header must be at v1.52 after Phase 26 wire"
+    # Header must mention ≥ v1.52 (Phase 26 wire EXTENSION + later sprints).
+    title_match = re.search(
+        r"Capability Matrix \(v(\d+)\.(\d+)\)", matrix
+    )
+    assert title_match is not None, (
+        "Capability matrix header not found"
+    )
+    title_major = int(title_match.group(1))
+    title_minor = int(title_match.group(2))
+    assert (title_major, title_minor) >= (1, 52), (
+        f"Capability matrix v{title_major}.{title_minor} is older than v1.52"
     )
 
 

@@ -24,9 +24,19 @@ CAPABILITY_MATRIX_PATH = REPO_ROOT / "docs" / "capability-matrix.md"
 
 # ── 4 NEW pytest cases ──────────────────────────────────────
 def test_capability_matrix_version_v1_39() -> None:
-    """Test 1: capability-matrix.md frontmatter shows v1.39."""
+    """Test 1: capability-matrix.md frontmatter shows ≥ v1.39 (forward-lock)."""
     content = CAPABILITY_MATRIX_PATH.read_text(encoding="utf-8")
-    assert "# Capability Matrix (v1.39)" in content
+    title_match = re.search(
+        r"# Capability Matrix \(v(\d+)\.(\d+)\)", content
+    )
+    assert title_match is not None, (
+        "Capability matrix title not found"
+    )
+    title_major = int(title_match.group(1))
+    title_minor = int(title_match.group(2))
+    assert (title_major, title_minor) >= (1, 39), (
+        f"Capability matrix v{title_major}.{title_minor} is older than v1.39"
+    )
 
 
 def test_capability_matrix_has_finops_forecasting_row() -> None:
