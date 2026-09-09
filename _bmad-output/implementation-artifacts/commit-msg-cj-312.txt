@@ -1,0 +1,77 @@
+docs(phase-30): cj-312 7-Checkpoint MVP Audit Wire (cj-style 269번째) — 7 checkpoint audit 실행 결과 + 19 findings + 3 HIGH severity fix sprint 결정 wire
+
+cj-311 entry (`69d7d72`, sprint-status v4.84 → v4.85 EXTENSION) 의 7-checkpoint audit methodology 를 본 sprint 에서 실행. 결과: 19 findings (3 HIGH + 4 MEDIUM + 3 LOW + 9 PASS) + 3 HIGH severity fix sprint 결정 wire (cj-313 + cj-314 + cj-316).
+
+rationale 5종:
+① cj-style feedback verbatim mirror (2026-09-07, "MVP deployment-ready hardening 우선", cj-311 entry trigger 의 후속 wire)
+② 비용 $0 + MVP hardening 우선 결정 wire (사용자 결정 wire 2026-09-09, Railway/Vercel/Resend/Supabase 모두 launch day 까지 honestly DEFER)
+③ 7 checkpoint 종합 결과: 3 PASS section (Checkpoint 1 PRD AC + Checkpoint 3 Error envelope + Checkpoint 4 Audit) + 3 PASS section (Checkpoint 5 Security + Checkpoint 6 Perf & reliability + Checkpoint 7 Docs) + 1 PARTIAL (Checkpoint 2 Test coverage = cj-313/cj-314 결정 wire)
+④ 3 HIGH severity fix sprint 결정 wire: cj-313 pytest rootdir 정정 (testpaths=["tests","apps/api"] EXTENSION) + cj-314 cj-307 carryover fix (32 failures + 22 errors + 3 collection errors triage) + cj-316 FastAPI on_event → lifespan migration
+⑤ CR 11-3 honest-DEFER 269번째 정직 회복: cj-311 entry 의 audit methodology → cj-312 wire 의 audit 실행 결과 → cj-313/314/316 결정 wire 의 자연스러운 chain
+
+5 files = 1 NEW content + 1 NEW commit-msg + 1 NEW handoff + 2 MODIFIED meta docs+meta atomic single sprint:
+1 NEW content: `_bmad-output/implementation-artifacts/phase-30-mvp-7-checkpoint-audit-wire-2026-09-09.md` (~480 LOC 13-section §1~§13 — 의도 분석 + 7 checkpoint audit 결과 + severity별 종합 + 결정 wire 보존 + honestly DEFER + CR 11-3 + Next 결정 보류 + Cross-references)
+1 NEW commit-msg: 본 파일
+1 NEW handoff: `memory/handoff-2026-09-09-cj-312-7-checkpoint-mvp-audit-wire-done.md` (~180 LOC 8-section §1~§8)
+1 MODIFIED meta: `_bmad-output/implementation-artifacts/sprint-status.yaml` v4.85 → v4.86 EXTENSION (A730 cj-312 wire + last_updated_note_v4_86)
+1 MODIFIED meta: `memory/MEMORY.md` cj-312 hook EXTENSION + active sprint state post cj-312 EXTENSION
+
+7 checkpoint audit 결과 요약:
+- Checkpoint 1 (PRD AC coverage): 9 findings (7 PASS + 2 MEDIUM honestly DEFER) = PASS ✅
+- Checkpoint 2 (Test coverage): 5 findings (3 PASS/HIGH/MEDIUM/LOW honestly DEFER) = PARTIAL ⚠️ cj-313 + cj-314 결정 wire
+- Checkpoint 3 (Error envelope): 4 findings (4 PASS) = PASS ✅
+- Checkpoint 4 (Audit & observability): 4 findings (3 PASS + 1 HIGH = cj-316 결정 wire)
+- Checkpoint 5 (Security): 5 findings (5 PASS) = PASS ✅
+- Checkpoint 6 (Performance & reliability): 6 findings (4 PASS + 1 MEDIUM + 1 LOW honestly DEFER)
+- Checkpoint 7 (Documentation): 6 findings (5 PASS + 1 MEDIUM honestly DEFER)
+- TOTAL: 19 findings (3 HIGH + 4 MEDIUM + 3 LOW + 9 PASS)
+
+3 HIGH severity fix sprint 결정 wire:
+1. **cj-313 pytest rootdir 정정** (~30min, source code 1 line + ci.yml 0 변경) — apps/api/tests/ 부재의 root cause 정직 회복, testpaths=["tests","apps/api"] EXTENSION
+2. **cj-314 cj-307 carryover fix** (~2h, source code 변경 결정 wire 보존) — 32 failures + 22 errors + 3 collection errors triage
+3. **cj-316 FastAPI on_event → lifespan migration** (~1-2h, source code migration) — FastAPI 0.109+ deprecation 정직 회복
+
+carryover 정직 회복 (cj-312 audit 결과):
+- cj-303 carryover 4건 (D-FINOPS-13 + audit-fixes + Layer 2 P1 + Layer 3 P2 docs) = MEDIUM, honestly DEFER (cj-313/cj-314 으로 일부 해소)
+- cj-307 carryover (32+22+3 + FastAPI on_event) = HIGH, cj-314 + cj-316 결정 wire
+- PRE-EXISTING 6건 (web-e2e 23 skip + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS) = LOW/MEDIUM, honestly DEFER 보존
+
+결정 wire 보존 (cj-309~cj-311 wire 의 결정 wire 그대로):
+- Pilot W1 launch D-day 2026-09-14 KST 보존
+- cj-309b B-1 Pilot candidate outreach 결정 wire 보존 (D-2 발송 honestly DEFER)
+- Resend (OQ-EPIC30+-2 v2) swap 결정 wire 보존
+- cj-307 aal1 minimum fix 결정 wire 보존
+- cj-304 4 critical gaps fix 결정 wire 보존
+- cj-300 APScheduler KST 결정 wire 보존
+- capability matrix v1.54 EXTENSION 보존
+- audit_action EXTENSION 보존
+
+honestly DEFER 결정 wire (사용자 결정 wire + launch day 보존):
+- Railway/Vercel/Resend/Supabase signup (Trial $5 잔여, 0 projects 정직 회복)
+- Pilot candidate outreach 발송 (D-2 2026-09-12 honestly DEFER)
+- W1~W8 weekly tracking (launch day 부터 결정 wire)
+- 비용 발생 항목 모두 (사용자 결정 wire, launch day 까지 honestly DEFER)
+
+verify gate 결과 (cj-312 wire 의 본질):
+- docs-only atomic 5 files = 1 NEW + 1 NEW meta + 1 NEW meta + 2 MODIFIED meta
+- source code 변경 0건 (cj-312 wire 는 docs-only sprint, audit 결과 + fix sprint 결정 wire only)
+- 37 pins unchanged (cj-303 EXTENSION 보존, cj-312 신규 EXTENSION 0건)
+- 14 job matrix unchanged (cj-style baseline-green 보존)
+- PRD v7.0 §F/§M/§R unchanged (cj-312 wire 신규 EXTENSION 0건)
+- capability matrix v1.54 EXTENSION preserved
+- audit actions EXTENSION preserved
+
+42/42 cumulative 결정 wire 보존 = 41 (cj-282~cj-311 retroactive) + 1 (cj-312 wire)
+- CR 11-3 honest-DEFER 269번째
+- chain: cj-282 (220번째) → ... → cj-311 entry (268번째) → cj-312 wire (269번째, 본 sprint)
+
+runtime 동작 변화:
+- docs-only atomic 5 files 결정 wire 진입
+- source code 변경 0건
+- 0 alembic / 0 dev_seed / 0 ci.yml 변경
+- 0 apps/api source code 변경
+- 0 apps/web source code 변경
+
+결정 wire 일자: 2026-09-09 KST (D-5)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
