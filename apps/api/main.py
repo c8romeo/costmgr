@@ -10,6 +10,8 @@ AD-1, AD-11 compliance:
 """
 
 import uuid as _uuid_mod
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -294,10 +296,30 @@ from packages.services.m12_account.two_factor_gate import (
     TwoFactorRequiredError,
 )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """FastAPI lifespan (cj-316) — replaces @app.on_event pattern.
+
+    Consolidates Story 0.2 + 13.1 + 14.1 startup/shutdown hooks into
+    a single async context manager (FastAPI 0.109+ recommended pattern;
+    @app.on_event was deprecated in FastAPI 0.109 and will be removed).
+
+    CR 11-3 honest-DEFER 보존: graceful degradation preserved — startup
+    failures are logged but not raised (single-process mode default).
+    """
+    # Startup
+    await _attach_tenant_listener()
+    await _start_cache_invalidation_listener(app)
+    yield
+    # Shutdown
+    await _stop_cache_invalidation_listener(app)
+
+
 app = FastAPI(
     title="bizup/costmgr API",
     version="0.1.0",
     description="원가 관리 SaaS — FastAPI modular monolith (AD-1)",
+    lifespan=lifespan,
 )
 
 # Phase 4 (cj-style 55번째 epic 연속 정직 회복 wire) — AD-27 verbatim +
@@ -3676,7 +3698,11 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "service": "costmgr-api", "version": "0.1.0"}
 
 
-@app.on_event("startup")
+# Story 0.2 — wire the SET LOCAL app.current_tenant_id listener.
+# cj-316: removed @app.on_event("startup") decorator; now invoked from
+# the module-level `lifespan` async context manager (FastAPI 0.109+
+# recommended pattern). Function signature unchanged — no `app` parameter
+# needed because tenant listener operates on the module-level engine.
 async def _attach_tenant_listener() -> None:
     """Story 0.2 — wire the SET LOCAL app.current_tenant_id listener.
 
@@ -3693,19 +3719,18 @@ async def _attach_tenant_listener() -> None:
 
 
 # Story 13.1 — LISTEN/NOTIFY Consume Trigger EXTENSION (A39/A51/A52 결정 wire).
+# cj-316: removed @app.on_event("startup") decorator; now invoked from
+# the module-level `lifespan` async context manager. Function signature
+# takes `app: FastAPI` parameter (was module-level `app` reference).
 # Cache invalidation LISTEN daemon startup hook. Imports lazily so test
 # environments without a real DB engine don't crash. Errors are logged
 # but the daemon starts in a degraded state (consume resumes on next
 # restart via the circuit breaker).
-@app.on_event("startup")
-async def _start_cache_invalidation_listener() -> None:
+async def _start_cache_invalidation_listener(app: FastAPI) -> None:
     """Start the CacheInvalidationListener (AD-25 consume trigger).
 
-    T3 wire: FastAPI lifespan EXTENSION (preserving the existing
-    `_attach_tenant_listener` on_event for backward compatibility —
-    full migration to `@asynccontextmanager` lifespan is deferred to
-    D-13-1-DEFER-4 (separate epic territory). For 13-1 we add the
-    listener as a parallel on_event handler.
+    cj-316: replaced @app.on_event decorator with explicit `app` parameter;
+    invoked from the lifespan context manager at startup.
 
     On startup failure, the daemon is in degraded state — the circuit
     breaker will retry. The CR 12-5 D-14 envelope is raised ONLY if
@@ -3729,7 +3754,7 @@ async def _start_cache_invalidation_listener() -> None:
         # (follower takeover loop). The listener already attempts leader
         # election internally during start(); here we wire the lifespan
         # extension that spawns the follower takeover loop.
-        await _start_leader_election()
+        await _start_leader_election(app)
     except ImportError:
         # Test environment without DB / adapter infrastructure.
         pass
@@ -3743,15 +3768,20 @@ async def _start_cache_invalidation_listener() -> None:
         )
 
 
-@app.on_event("shutdown")
-async def _stop_cache_invalidation_listener() -> None:
+# cj-316: removed @app.on_event("shutdown") decorator; now invoked from
+# the module-level `lifespan` async context manager. Function signature
+# takes `app: FastAPI` parameter (was module-level `app` reference).
+async def _stop_cache_invalidation_listener(app: FastAPI) -> None:
     """Stop the CacheInvalidationListener (T3 wire).
+
+    cj-316: replaced @app.on_event decorator with explicit `app` parameter;
+    invoked from the lifespan context manager at shutdown.
 
     Story 14.1 EXTENSION — also stops the leader election background
     task (follower takeover loop).
     """
     # Stop the leader election loop first (Story 14.1 T3 wire).
-    await _stop_leader_election()
+    await _stop_leader_election(app)
 
     listener = getattr(app.state, "cache_invalidation_listener", None)
     if listener is None:
@@ -3764,11 +3794,12 @@ async def _stop_cache_invalidation_listener() -> None:
         logging.getLogger(__name__).warning("CacheInvalidationListener stop failed: %s", exc)
 
 
-# Story 14.1 — T3 wire: FastAPI lifespan EXTENSION (leader election wiring).
+# Story 14.1 — T3 wire: leader election wiring.
 # Per F14.2 verbatim + CR 11-3 honest-DEFER 보존: leader election failures
 # are logged but not raised — graceful degradation (single-process
 # environment defaulting to leader = self).
-async def _start_leader_election() -> None:
+# cj-316: now takes `app: FastAPI` parameter (was module-level `app` reference).
+async def _start_leader_election(app: FastAPI) -> None:
     """Start leader election background task (Story 14.1 T3 wire).
 
     The CacheInvalidationListener already attempts leader election
@@ -3794,7 +3825,8 @@ async def _start_leader_election() -> None:
         )
 
 
-async def _stop_leader_election() -> None:
+# cj-316: now takes `app: FastAPI` parameter (was module-level `app` reference).
+async def _stop_leader_election(app: FastAPI) -> None:
     """Stop leader election background task (Story 14.1 T3 wire)."""
     listener = getattr(app.state, "cache_invalidation_listener", None)
     if listener is None:

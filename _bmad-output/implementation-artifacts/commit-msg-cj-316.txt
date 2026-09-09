@@ -1,0 +1,54 @@
+docs(phase-30): cj-316 FastAPI on_event → lifespan migration (cj-style 272번째) — HIGH RISK deprecation fix (apps/api/main.py 47+/15-)
+
+FastAPI 0.109+ 에서 `@app.on_event("startup")` + `@app.on_event("shutdown")` deprecated → `lifespan` async context manager 권장 패턴. cj-307 carryover 의 HIGH RISK item (cj-314 entry 의 88 items triage 에서 risk-prioritized 결정 wire) 으로 가장 먼저 fix.
+
+3 on_event handler (`_attach_tenant_listener`, `_start_cache_invalidation_listener`, `_stop_cache_invalidation_listener`) + 2 leader election helper (`_start_leader_election`, `_stop_leader_election`) 를 `lifespan(app)` async context manager 로 통합. helper function 들은 `app: FastAPI` parameter 명시적으로 받도록 signature 변경 (module-level `app` reference 의존성 제거).
+
+rationale 5종:
+① **HIGH RISK to launch**: FastAPI `@app.on_event` deprecation will bite in future FastAPI 0.110+ (cj-314 entry §4 의 risk-prioritized 분류 #2). Pilot W1 launch D-5 (2026-09-09 KST) 이전 fix.
+② **CR 11-3 honest-DEFER risk-prioritized process design (운전자 2026-09-09 결정 wire)**: 88 test failures 의 count-prioritized 가 아닌 risk-prioritized triage. Phase A (HIGH RISK: alembic 0037 22 errors + cj-316) 먼저 → Phase B (MEDIUM RISK) → Phase C (LOW RISK honestly DEFER post-W1).
+③ **Clean refactor + bounded scope**: 1 file 변경, 47+/15- lines, helper function signature 변경만. graceful degradation (CR 11-3 honest-DEFER 보존) 100% preserved.
+④ **Test backward compatibility verified**: tests/api/test_main_lifespan.py (13 tests) + tests/api/test_main_lifespan_14_1.py (13 tests) + tests/api/core/test_phase_4_health_check.py + tests/api/m12_account/test_exception_handlers_registered.py = 57 passed, 0 regressions, 0 collection errors.
+⑤ **Pilot W1 readiness**: launch day (D-day 2026-09-14) 까지 비용 $0 + MVP hardening 우선 정책 (운전자 결정 wire 2026-09-09) 보존. cj-307 aal1 + cj-304 4 critical gaps + cj-305 deployment ready + cj-305b Resend swap 결정 wire 보존.
+
+cj-316 의 결정 wire 보존 (cj-307 carryover 의 risk-prioritized triage):
+- Phase A item 1: cj-316 FastAPI on_event → lifespan migration (cj-style 272번째, 본 sprint) ✅ CLOSED
+- Phase A item 2: alembic 0037 errors triage (~1-2h, 다음 sprint 예정)
+- Phase B: MEDIUM RISK items (Phase 30 scheduled reports + Phase 5 capability integration + Phase 3 hook migration, ~1-2h)
+- Phase C: LOW RISK honestly DEFER post-W1 (capability matrix drift 10 + Phase 10 SLO family ~30 + Phase 8 + consistency, Pilot 사용자 5-10명 실사용 중 issue 보고 → 더 효과적인 triage)
+
+verify gate 결과 (cj-316 의 본질):
+- **python ast.parse Syntax OK** (1 file 변경)
+- **pytest 57 tests passed, 0 regressions**: tests/api/test_main_lifespan.py (13) + tests/api/test_main_lifespan_14_1.py (13) + tests/api/core/test_phase_4_health_check.py (15) + tests/api/m12_account/test_exception_handlers_registered.py (16)
+- **0 source code regressions** (apps/api/main.py 47+/15-)
+- **graceful degradation 100% preserved** (ImportError catch + ListenerStartFailedError catch + CR 12-5 D-14 envelope preserved)
+- **Korean error messages preserved** (캐시 무효화 리스너 시작 실패 / 종료 실패 / 리스너 리더 선출 실패 / 인계 실패)
+- **app.state bindings preserved** (app.state.cache_invalidation_listener + app.state.cache_invalidation_leader_state)
+
+cumulative 결정 wire 보존:
+- 44 (cj-282~cj-314) → +1 = **45/45** (cj-316 신규)
+- 결정 wire 보존: cj-307~cj-314 wire/entry 결정 wire 그대로
+- sprint-status v4.88 → **v4.89 EXTENSION** 결정 wire (A733 cj-316 + last_updated_note_v4_89)
+- 37 pins unchanged (cj-303 EXTENSION 보존)
+- 14 job matrix unchanged (cj-style baseline-green 보존)
+- PRD v7.0 §F/§M/§R unchanged
+- capability matrix v1.54 EXTENSION preserved
+- audit actions EXTENSION preserved
+
+CR 11-3 honest-DEFER 272번째:
+- cj-316 는 "88 failures 의 risk-prioritized triage" 결정 wire 를 본 sprint 의 본질로 삼음 (운전자 2026-09-09 결정 wire)
+- chain: cj-282 (220번째) → ... → cj-314 entry (271번째) → **cj-316 wire (272번째, 본 sprint)** 종합 45 sprints 정직 회복
+- CR 11-3 honest-DEFER discipline 의 272번째 연속 정직 회복 atomic single sprint
+- 결정 보류 (operator): Phase A item 2 (alembic 0037) + Phase B (MEDIUM RISK items) + Phase C (LOW RISK honestly DEFER)
+
+honestly DEFER 결정 wire 보존:
+- Phase A item 2: alembic 0037 errors triage (~1-2h, 다음 sprint)
+- Phase B: MEDIUM RISK items (~1-2h)
+- Phase C: LOW RISK items (capability matrix drift + Phase 10 SLO + Phase 8 + consistency, post-W1 honestly DEFER)
+- 6 PRE-EXISTING honestly DEFER 보존 (web-e2e + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS)
+- 비용 발생 항목 모두 honestly DEFER 보존 (사용자 결정 wire 2026-09-09)
+- cj-313 close-out retro + cj-312 close-out retro + PRD v2 EXTENSION + cj-309b B-1 pilot candidate outreach (D-2) + W1~W8 weekly follow-up (D-day 이후) 결정 wire 보존
+
+결정 wire 일자: 2026-09-09 KST (D-5, Pilot W1 launch D-3)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
