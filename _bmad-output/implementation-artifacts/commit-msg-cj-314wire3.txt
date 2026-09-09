@@ -1,0 +1,73 @@
+docs(phase-30): cj-314 wire 3 Phase 8 ESLint/SLO/SLI 8 fixes (cj-style 276번째) — Phase B item 2 closed, 8 stale test path bug → 8 passed (test-only fix, 0 source 변경, 5 files)
+
+cj-314 entry `3e2ed73` 의 88 failures risk-prioritized triage 에서 **Phase B item 2** = Phase 8 ESLint/SLO/SLI fixes. cj-314 wire 2 (`4435e2d`, Phase B item 1 Phase 30 + Phase 5 + Phase 3 = 6 fixes) CLOSED 직후 진입 (cj-314 wire 2 결정 wire 결정 보류 옵션 (a) verbatim mirror).
+
+Triage 결과: cj-314 entry 추정 "p99_budget (5) + slo_sli (4) = 9 fixes" 의 **정직 회복** — actual **8 fixes** (4+4). cj-314 entry 의 p99_budget 5 추정 slightly off (actual 4 pytest cases). cj-314 entry 추정 root cause "apps/web ESLint rule 부재 + docs/slo-sli.md 부재" 의 **정직 회복** — 실제 root cause = test path 계산 버그. ESLint rule (`apps/api/eslint/latency-budget-rule.js`) + latency_budget.py + slo-sli.md 모두 이미 정확한 content 보유 (변경 0건).
+
+Fix detail (3 lines total):
+1. `tests/api/core/test_phase_8_p99_budget.py` ESLINT_RULE_PATH — `parent.parent.parent` → `parent.parent.parent.parent` (1 line)
+2. `tests/api/core/test_phase_8_p99_budget.py` DEFAULT_BUDGETS_PATH — `parent.parent.parent` → `parent.parent.parent.parent` (1 line)
+3. `tests/api/core/test_phase_8_slo_sli.py` SLO_SLI_DOC_PATH — `parent.parent.parent` → `parent.parent.parent.parent` (1 line)
+
+rationale 5종:
+① **MEDIUM RISK to launch 해소**: 8 stale test path 버그 → ESLint rule + latency_budget.py + slo-sli.md 의 SSOT 가 production test suite 의 noise 제거 → MVP hardening 결정 wire 그대로 보존. 0 source 변경
+② **CR 11-3 honest-DEFER risk-prioritized process design 보존**: cj-314 wire 2 결정 wire 의 옵션 (a) verbatim mirror — Phase B item 2 진입. Phase A 3건 + Phase B item 1, 2 모두 CLOSED
+③ **Test-only fix (0 source 변경)**: cj-314 wire 1 의 test-only fix 패턴 verbatim mirror — capability matrix source 변경 0건 + ESLint rule source 변경 0건 + latency_budget.py source 변경 0건 + slo-sli.md source 변경 0건. test path 계산 버그만 정정
+④ **PRD §F24.2 verbatim 정합**: slo-sli.md 의 SLA-1~SLA-4 + 30d rolling window + owner-only RBAC + 2FA 챌린지 모두 verbatim 보존. ESLint rule 의 7 canonical endpoints + `unmappedEndpoint` messageId + `DEFAULT_LATENCY_BUDGETS` reference 모두 보존
+⑤ **Pilot W1 readiness**: Phase A 3건 + Phase B item 1, 2 모두 CLOSED → Phase B item 3~N 진행 가능. launch day (D-day 2026-09-14) 까지 비용 $0 + MVP hardening 우선 정책 보존
+
+cj-314 wire 3 의 결정 wire 보존 (cj-307 carryover 의 risk-prioritized triage Phase B item 2 CLOSED):
+- Phase A item 1: cj-316 FastAPI on_event → lifespan migration ✅ CLOSED (`1281ca5`)
+- Phase A item 2: cj-317 alembic 0037 errors triage + fix ✅ CLOSED (`99a7343`)
+- Phase A item 3: cj-314 wire 1 capability matrix drift 10 fixes ✅ CLOSED (`cca03c2`)
+- Phase B item 1: cj-314 wire 2 Phase B 6 fixes ✅ CLOSED (`4435e2d`)
+- **Phase B item 2: cj-314 wire 3 Phase 8 ESLint/SLO/SLI 8 fixes ✅ CLOSED (본 sprint)**
+- Phase B item 3~N: MEDIUM RISK items (cj-314 wire 4, 다음 sprint)
+- Phase C: LOW RISK honestly DEFER post-W1
+
+verify gate 결과 (cj-314 wire 3 의 본질):
+- **8 failed → 8 passed**: tests/api/core/test_phase_8_p99_budget.py 4 + tests/api/core/test_phase_8_slo_sli.py 4
+- **Within-scope regression check**: tests/api/core/test_phase_8_p99_budget.py + test_phase_8_slo_sli.py + test_phase_8_latency_regression.py + test_phase_8_load_test_runner.py = **25 passed in 137.99s (0:02:17)**, exit code 0 (zero regressions)
+- **broader tests/api/core/ sweep**: 1166 passed, 37 failed (residual failures are wire 4/5 scope)
+- **2 test files MODIFIED**: test_phase_8_p99_budget.py + test_phase_8_slo_sli.py only (3 lines total)
+- **0 source file MODIFIED**: apps/api/* + apps/web/* unchanged
+- **0 capability matrix source 변경**: docs/capability-matrix.md unchanged (v1.54 EXTENSION preserved)
+- **37 pins unchanged** (cj-303 EXTENSION 보존)
+- **14 job matrix unchanged** (cj-style baseline-green 보존)
+- **PRD v7.0 §F/§M/§R unchanged**
+- **capability matrix v1.54 EXTENSION preserved**
+- **audit actions EXTENSION preserved**
+- **AD-14 stack pin EXTENSION preserved**
+
+cumulative 결정 wire 보존:
+- 48 (cj-282~cj-314 wire 2) → +1 = **49/49** (cj-314 wire 3 신규)
+- 결정 wire 보존: cj-309~cj-314 wire 2 wire/entry 결정 wire 그대로
+- sprint-status v4.92 → **v4.93 EXTENSION** 결정 wire (A737 cj-314 wire 3 + last_updated_note_v4_93)
+- 5 files atomic single sprint = 2 MODIFIED tests + 1 NEW commit-msg (본 file) + 1 NEW handoff (memory/handoff-2026-09-10-cj-314-wire-3-phase-8-done.md) + 2 MODIFIED meta (sprint-status.yaml v4.92 → v4.93 EXTENSION + project memory/MEMORY.md cj-314 wire 3 hook EXTENSION)
+
+CR 11-3 honest-DEFER 276번째:
+- cj-314 wire 3 는 "Phase B item 2 (Phase 8 ESLint/SLO/SLI 8 fixes) closed" 를 본 sprint 의 본질로 삼음
+- **정직 회복 (cj-style 257th + 267th + 270th + 272th + 273rd + 274th + 275th verbatim mirror)**: cj-314 entry 의 "9 fixes" + "ESLint rule 부재" 의 정직 회복 (cj-style 270th cj-313 stale tests + 273rd cj-317 estimate 정직 회복 패턴 verbatim). cj-314 wire 3 의 8 fixes 모두 test path 계산 forward-lock — capability matrix unchanged, ESLint rule unchanged, latency_budget.py unchanged, slo-sli.md unchanged, migration source unchanged
+- chain: cj-282 (220번째) → ... → cj-314 wire 2 Phase B 6 fixes (275번째) → **cj-314 wire 3 Phase 8 ESLint/SLO/SLI 8 fixes (276번째, 본 sprint)** 종합 49 sprints 정직 회복
+
+honestly DEFER 결정 wire 보존:
+- Phase B item 3~N: MEDIUM RISK items (Phase 5/9/16/26/30 + Phase 3 hook ~10 fixes + Epic 15 alembic 0037 12 errors + errors TBD 10 fixes, post-Phase B item 2)
+- Phase C: LOW RISK items (Phase 10 SLO family ~30 + Phase 5 capability integration + consistency 7, post-W1 honestly DEFER)
+- **sso 13 skipped tests**: missing `python3-saml` dependency → honestly DEFER 보존 (PRE-EXISTING, cj-307 carryover scope 외)
+- 6 PRE-EXISTING honestly DEFER 보존 (web-e2e + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS)
+- cj-303 carryover 4건 (D-FINOPS-13 + audit-fixes + Layer 2 P1 + Layer 3 P2 docs) honestly DEFER 보존
+- 비용 발생 항목 모두 honestly DEFER 보존 (사용자 결정 wire 2026-09-10)
+- cj-313 close-out retro + cj-312 close-out retro + PRD v2 EXTENSION + cj-309b B-1 pilot candidate outreach (D-2) + W1~W8 weekly follow-up (D-day 이후) 결정 wire 보존
+
+결정 보류 (운전자):
+① 옵션 (b, RECOMMENDED next) **cj-314 wire 4** (Phase B item 3, cj-style 277번째, ~1-2h, Phase 5/9/16/26/30 + Phase 3 hook ~10 fixes)
+② 옵션 (c) **cj-314 wire 5** (Phase B item 4, ~1h, Epic 15 alembic 0037 12 errors)
+③ 옵션 (d) **cj-314 batch B** (~4-5h, Phase 10 SLO family + Phase 5/9/16/26/30 ~37 fixes)
+④ 옵션 (e) **cj-313 close-out retro** (cj-style 270th follow-up, ~30min, docs-only)
+⑤ 옵션 (f) **cj-312 close-out retro** (cj-style 269th follow-up, ~30min, docs-only)
+⑥ 옵션 (g) **cj-309b B-1 Pilot candidate outreach** (D-2 발송, 운전자 결정)
+⑦ 옵션 (h) **PRD v2 EXTENSION** (cj-314 wire 4 후)
+
+결정 wire 일자: 2026-09-10 KST (D-4, Pilot W1 launch D-2)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

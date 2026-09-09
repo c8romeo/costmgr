@@ -11,7 +11,7 @@ import pytest
 
 
 SLO_SLI_DOC_PATH = Path(
-    __file__).parent.parent.parent / "docs" / "slo-sli.md"
+    __file__).parent.parent.parent.parent / "docs" / "slo-sli.md"
 
 
 # ── 4 NEW pytest cases (Phase 8 T7.4) ──────────────────────────

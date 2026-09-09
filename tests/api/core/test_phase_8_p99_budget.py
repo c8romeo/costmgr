@@ -12,9 +12,9 @@ import pytest
 
 
 ESLINT_RULE_PATH = Path(
-    __file__).parent.parent.parent / "apps" / "api" / "eslint" / "latency-budget-rule.js"
+    __file__).parent.parent.parent.parent / "apps" / "api" / "eslint" / "latency-budget-rule.js"
 DEFAULT_BUDGETS_PATH = Path(
-    __file__).parent.parent.parent / "apps" / "api" / "core" / "latency_budget.py"
+    __file__).parent.parent.parent.parent / "apps" / "api" / "core" / "latency_budget.py"
 
 
 # ── 4 NEW pytest cases (Phase 8 T7.3) ──────────────────────────
