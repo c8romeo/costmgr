@@ -1,0 +1,41 @@
+docs(phase-30): cj-312 close-out retro (cj-style 281번째) — 3 atomic sub-sprint chain CLOSED ✅ HONEST (cj-311 entry cj-style 268th + cj-312 wire cj-style 269th + cj-312 close-out retro cj-style 281st) + cj-312 audit 19 findings 결정 wire 보존 (3 HIGH + 4 MEDIUM + 3 LOW + 9 PASS) + cj-312 audit 의 3 HIGH severity fix 모두 CLOSED ✅ HONEST 정직 회복 (cj-313 + cj-314 wire 1~4 + cj-316 chain 의 cj-style 270~277 종합) + Pilot W1 D-4 readiness 검증 + cumulative 53/53 결정 wire 보존 (cj-313 close-out retro 의 52 + NEW 53번째 cj-312 close-out retro) + CR 11-3 honest-DEFER 281번째
+
+cj-312 의 3 atomic sub-sprints (entry + wire + retro) chain CLOSED ✅ HONEST 진입 완료:
+- cj-311 entry (cj-style 268번째, `69d7d72`) — 7-Checkpoint MVP Audit methodology docs-only atomic 5 files
+- cj-312 wire (cj-style 269번째) — 19 findings + 3 HIGH fix sprint 결정 wire docs-only atomic 5 files
+- **cj-312 close-out retro (cj-style 281번째, 본 sprint)** — docs-only atomic 5 files: 3 atomic sub-sprint chain CLOSED ✅ HONEST + 누적 결정 wire 보존 + Pilot W1 D-4 readiness 검증
+
+verify gate 결과 (cj-312 wire 의 본질 + 본 retro 의 추가 검증):
+- 7-Checkpoint MVP Audit 결과: 19 findings 종합 (3 HIGH + 4 MEDIUM + 3 LOW + 9 PASS)
+  - Checkpoint 1: PRD AC coverage = 7 PASS + 2 MEDIUM honestly DEFER
+  - Checkpoint 2: Test coverage = PARTIAL ⚠️ (1 HIGH + 1 HIGH + 1 MEDIUM + 2 LOW)
+  - Checkpoint 3: Error envelope = 4 PASS
+  - Checkpoint 4: Audit & observability = 3 PASS + 1 HIGH
+  - Checkpoint 5: Security = 5 PASS
+  - Checkpoint 6: Performance & reliability = 4 PASS + 1 MEDIUM + 1 LOW
+  - Checkpoint 7: Documentation = 5 PASS + 1 MEDIUM
+- cj-312 audit 의 3 HIGH severity fix 모두 CLOSED ✅ HONEST (cj-313 + cj-314 wire 1~4 + cj-316 의 cj-style 270~277 chain)
+  - cj-313 pytest rootdir 정정 (cj-style 270th, +136 tests recovered)
+  - cj-314 cj-307 carryover fix (cj-style 274~277, HIGH 3 + MEDIUM 4 = 7 closed)
+  - cj-316 FastAPI lifespan migration (cj-style 272nd)
+- 4 MEDIUM findings honestly DEFER (cj-303 carryover 보존)
+- 3 LOW findings honestly DEFER (post-W1)
+- cj-307 carryover LOW RISK ~80건 Phase C honestly DEFER post-W1
+- runtime: source code 변경 0건 (cj-312 close-out retro docs-only sprint) + 37 pins unchanged + 14 job matrix unchanged + PRD v7.0 §F/§M/§R unchanged + capability matrix v1.54 EXTENSION preserved + audit actions EXTENSION preserved + AD-14 stack pin EXTENSION preserved
+
+5 files = 1 NEW content (phase-30-cj-312-close-out-retro-2026-09-10.md ~330 LOC 10-section §1~§10) + 1 NEW commit-msg (본 file) + 1 NEW handoff (handoff-2026-09-10-cj-312-close-out-retro-done.md ~180 LOC 8-section §1~§8) + 2 MODIFIED meta (sprint-status v4.96 → v4.97 EXTENSION + memory/MEMORY.md cj-312 close-out retro hook EXTENSION)
+
+rationale 5종:
+① cj-style discipline 회피 위험 방지: cj-313 close-out retro 의 cj-style 280번째 CLOSED ✅ HONEST 직후 진입, 본 sprint 진입 시점에서 cj-312 의 3 atomic sub-sprint chain 중 retro 만 CLOSED ✅ 미완 → cj-style 281번째 진입 자연스러움
+② cj-312 audit 의 19 findings 결정 wire 보존 verbatim mirror: 7-Checkpoint audit 결과 = 3 HIGH + 4 MEDIUM + 3 LOW + 9 PASS 그대로 보존. 3 HIGH severity fix 결정 wire (cj-313 + cj-314 + cj-316) 모두 CLOSED ✅ HONET 정직 회복. 4 MEDIUM + 3 LOW honestly DEFER 보존
+③ cj-312 audit 의 3 HIGH severity fix 종합 CLOSED ✅ HONEST 정직 회복: cj-313 pytest rootdir fix (+136 tests recovered) + cj-314 cj-307 carryover fix (HIGH 3 + MEDIUM 4 = 7 closed) + cj-316 FastAPI lifespan migration 모두 CLOSED → 코드 사이드 병목 해소 결정 wire 정합
+④ Pilot W1 D-4 readiness 검증: cj-312 audit 의 19 findings 모두 CLOSED ✅ 또는 honestly DEFER → Phase A ALL CLOSED + Phase B ALL CLOSED + Phase C honestly DEFER post-W1 결정 wire 정합. D-4 시점 (2026-09-10) 의 병목 = 운영자 액션 (cj-309b B-1 outreach D-2 발송 + deploy-blocking 4건)
+⑤ cumulative 53/53 결정 wire 보존: 52 (cj-313 close-out retro 의) + NEW 53번째 cj-312 close-out retro 결정 wire 진입. cj-282 (220번째) 부터 종합 53 sprints 의 정직 회복 chain 의 한 단계로 안전하게 합류
+
+CR 11-3 honest-DEFER 281번째 chain cj-282 (220번째) → ... → cj-313 close-out retro (280번째) → **cj-312 close-out retro (281번째, 본 sprint)** 종합 53 sprints 정직 회복
+
+PRE-EXISTING honestly DEFER carryover 보존: cj-303 4건 + PRE-EXISTING 6건 + cj-307 carryover LOW RISK (~80건, Phase C honestly DEFER post-W1) + sso 13 skipped tests (missing python3-saml) + W1~W8 carryover + cj-314 wire 5 (Phase C) + epics.md triage + PRD v2 EXTENSION
+
+결정 보류 (운전자, D-4 시점 최우선): ① 옵션 (a, RECOMMENDED next) operator 즉시 실행 (cj-309b B-1 outreach Step 1~2, ~2-3h) ② 옵션 (b) cj-309b B-1 retroactive correction (운전자 network 결정) ③ 옵션 (c) 운영자 액션 4건 실행 (deploy-blocking) ④ 옵션 (d) PRD v2 EXTENSION (W8 close-out 후) ⑤ 옵션 (e) epics.md triage (별도 sprint) ⑥ 옵션 (f) cj-314 wire 5 Phase C (~2-3h, post-W1 honestly DEFER 권장)
+
+결정 wire 일자: 2026-09-10 (KST, D-4, Pilot W1 launch D-day 2026-09-14 KST)
