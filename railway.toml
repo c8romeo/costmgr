@@ -28,11 +28,20 @@ SUPABASE_SERVICE_ROLE_KEY = "${SUPABASE_SERVICE_ROLE_KEY}"
 SUPABASE_JWT_SECRET = "${SUPABASE_JWT_SECRET}"
 # Required: Sentry observability (server side)
 SENTRY_DSN = "${SENTRY_DSN}"
-# cj-304 wire sprint — Email delivery (cj-299 OQ-EPIC30+-2 Postmark 결정 wire).
-# POSTMARK_SERVER_TOKEN mandatory for production email dispatch.
-# POSTMARK_FROM_EMAIL 운영자 override 가능 (default: noreply@costmgr.bizup.io).
-POSTMARK_SERVER_TOKEN = "${POSTMARK_SERVER_TOKEN}"
-POSTMARK_FROM_EMAIL = "${POSTMARK_FROM_EMAIL}"
+# cj-319 A-0 wire — Email delivery (cj-305b OQ-EPIC30+-2 결정 wire **v2 = Resend**).
+# cj-304 wire 의 POSTMARK_SERVER_TOKEN / POSTMARK_FROM_EMAIL 는 cj-305b 의
+# Postmark → Resend swap 후에도 갱신되지 않은 stale 계약이었음 (cj-318 Track A
+# 진입 시 정직 인정). apps/api/core/email_provider.py::get_email_provider 는
+# RESEND_API_KEY 만 읽으므로, 아래 행이 없으면 운영자가 Track A-1 에서 캡처한
+# API key 가 컨테이너에 도달하지 못하고 LoggingProvider 로 조용히 fallback
+# (= 파일럿 이메일 미발송) 한다.
+# RESEND_FROM_EMAIL 운영자 override 가능 (default: onboarding@resend.dev, W1 sandbox).
+RESEND_API_KEY = "${RESEND_API_KEY}"
+RESEND_FROM_EMAIL = "${RESEND_FROM_EMAIL}"
+# cj-319 A-0 wire — CORS allowlist (apps/api/main.py CORSMiddleware 와 1:1 계약).
+# Vercel(web) → Railway(API) 브라우저 직접 cross-origin 호출 전제.
+# 미설정 시 localhost 만 허용 = fail-closed → 파일럿 프론트엔드 전 API 호출 차단.
+CORS_ORIGINS = "${CORS_ORIGINS}"
 # cj-304 wire sprint — Scheduled reports (cj-300 OQ-EPIC30+-3 APScheduler 결정 wire).
 # TZ=Asia/Seoul mandatory (Railway 기본 UTC → 24h cron 오프셋 방지).
 # RETRY_BACKOFF_MINUTES exponential backoff (1min → 5min → 30min, 3 retries).

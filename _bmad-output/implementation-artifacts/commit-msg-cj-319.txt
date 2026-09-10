@@ -1,0 +1,107 @@
+fix(phase-30): cj-319 Track A-0 deploy-blocking wire (cj-style 285번째) — cj-318 Track A 진입 시 A-1~A-4 가 100% 운영자 대시보드 액션임을 정직 인정 + 그 **선행 조건 deploy-blocking 드리프트 4건 정직 회복** (F1 railway.toml Postmark stale 계약 → Resend swap + F2 CORSMiddleware 전무 → fail-closed wire + F3 NEXT_PUBLIC_API_URL env.example 누락 + F4 cj-318 §2 서버 시크릿 위치 오지시 정정) + 10 files source+tests+docs atomic (2 MODIFIED source + 2 MODIFIED env surface + 1 NEW tests 15 cases + 1 MODIFIED docs + 1 NEW commit-msg + 1 NEW handoff + 2 MODIFIED meta) + regression 0건 + 0 alembic 변경 + 0 PRD 변경 + 0 capability matrix 변경 + 0 migration source 변경 + cumulative 56/56 → **57/57** 결정 wire 보존 + sprint-status v4.100 → **v4.101 EXTENSION** A745
+
+## 배경 — Track A 실행 가능성 정직 분리
+
+운전자 결정 wire = "옵션 (a) Track A 즉시 실행 진입" (cj-318 §7.1 옵션 8건 중 (a)).
+
+진입 직후 정직 인정: **cj-318 §2 의 A-1~A-4 는 100% 운영자 대시보드 액션**
+(Resend / Supabase / Railway / Vercel 로그인 필요) → Claude 대행 불가.
+따라서 Track A 를 2층으로 분리하고, A-1~A-4 를 **성립시키는 코드 측 선행 조건**을
+A-0 로 신규 정의 → 본 wire.
+
+## 발견 4건 (전부 deploy-blocking) + 회복
+
+### F1 🔴 railway.toml Postmark → Resend stale 계약
+- `[env]` 가 POSTMARK_SERVER_TOKEN / POSTMARK_FROM_EMAIL 선언 유지.
+  cj-305b (`53b8bbf`) 가 **코드만** swap 하고 railway.toml 미갱신 정직 인정.
+- `email_provider.py::get_email_provider` 는 RESEND_API_KEY 만 읽음 (line 280) →
+  계약 행 부재 시 **Track A-1 캡처 key 가 컨테이너에 도달하지 못하고**
+  LoggingProvider 로 **조용히** fallback (line 305) = 파일럿 이메일 미발송.
+- 회복: RESEND_API_KEY / RESEND_FROM_EMAIL swap + CORS_ORIGINS 행 EXTENSION.
+
+### F2 🔴 apps/api/main.py CORSMiddleware 전무
+- repo 전체 `CORSMiddleware` 참조 **0건** (등록 미들웨어 = TraceContext + LatencyBudget 뿐).
+- `vercel.json` CSP `connect-src ... https://*.railway.app` 는 브라우저의
+  Vercel(web) → Railway(API) **직접 cross-origin 호출**을 전제 →
+  CORS 부재 시 파일럿 프론트 전 API 호출 차단 = **Track A-4 smoke test 실패 확정**.
+- **정직 인정**: `docs/deployment-account-setup.md` §4.4 (line 138) 에 CORS_ORIGINS
+  env var row 가 **이미 존재**했음 = **docs 는 옳고 소스가 틀림**. 운영자가 Railway 에
+  CORS_ORIGINS 를 채워도 무효인 상태였음.
+- 회복: `parse_cors_origins()` 순수 함수 + CORSMiddleware 등록
+  · **fail-closed** (미설정/공백/`,,` → localhost:3000 만)
+  · **wildcard 거부** (`allow_credentials=True` 병용 불가 + AD-10 최소권한)
+  · **최외곽 등록** (OPTIONS preflight + 4xx/5xx 응답에도 Access-Control-* 부착)
+  · **expose_headers=[X-Trace-Id]** (Phase 7 tracing 결정 wire 보존)
+
+### F3 🟡 apps/web/.env.example NEXT_PUBLIC_API_URL 누락
+- `apps/web/lib/**` 의 `apiBaseUrl()` 이 읽는 유일한 API origin.
+  미설정 시 코드 기본값 `http://localhost:8765` 폴백 →
+  production 미설정이면 **파일럿 프론트가 localhost 호출**.
+- docs §4.5 (line 164) 에는 존재했으나 env.example 누락 드리프트 정직 회복.
+- **의도적 미조치**: docs §4.5 의 `NEXT_PUBLIC_APP_URL` 은 apps/web 소스 참조 0건
+  (grep verified) → **계약 날조 회피**, 추가하지 않음. 별도 triage honestly DEFER.
+
+### F4 🟡 cj-318 §2 서버 전용 시크릿 위치 오지시
+- A-1 step5 / A-2 step4 의 "Web `.env.local` 에 RESEND_API_KEY / SUPABASE_JWT_SECRET"
+  는 틀렸음 정직 인정 — apps/web 소스 참조 **0건** (grep verified).
+  무의미할 뿐 아니라 `NEXT_PUBLIC_` 접두사 실수 시 **클라이언트 번들 시크릿 노출** 위험.
+- 올바른 위치 = **Railway service Variables + apps/api/.env (local dev only)**.
+- cj-318 handoff §2 상단 정정 note EXTENSION (append-only fix-forward,
+  `git commit --amend` 0건 — cj-style 257th/267th/279th/281st/283rd verbatim mirror).
+
+## 변경 파일 10건 (source + tests + docs atomic)
+
+- 2 MODIFIED source: `apps/api/main.py` + `railway.toml`
+- 2 MODIFIED env surface: `apps/api/.env.example` + `apps/web/.env.example`
+- 1 NEW tests: `tests/api/test_cj_319_cors_middleware.py` (**15 cases**)
+- 1 MODIFIED docs: `memory/handoff-2026-09-10-cj-318-...md` (§2 F4 정정 note)
+- 1 NEW commit-msg + 1 NEW handoff
+- 2 MODIFIED meta: sprint-status A745 (v4.100 → v4.101) + `memory/MEMORY.md` hook
+
+## Verify gate
+
+- GV-1 신규 테스트: **15 passed** ✅
+- GV-2 fail-closed 기본값: CORS_ORIGINS 미설정 → `['http://localhost:3000']` ✅
+- GV-3 최외곽 배치: `['CORSMiddleware', 'LatencyBudgetMiddleware', 'TraceContextMiddleware']` ✅
+- GV-4 preflight: allowed → 200 + allow-origin ✅ / denied → 400 + allow-origin **없음** ✅
+- GV-5 오류 응답: 404/401 에도 allow-origin + expose=X-Trace-Id ✅
+- GV-6 광역 회귀: `pytest tests/api -q` → **2322 passed / 32 failed / 117 skipped**
+- GV-7 회귀 귀속: 32 failures 는 Phase 10 SLO family 6 files (TestClient / apps.api.main
+  import **0건**), `git stash` 대조로 **PRE-EXISTING 재현 확인** → **regression 0건** ✅
+  (cj-307 carryover LOW RISK Phase 10 SLO family ~30건, Phase C honestly DEFER 와 일치)
+
+## 신규 발견 (scope 외, honestly DEFER)
+
+- N-1: `sprint-status.yaml` line 536 **YAML 파서 오류 PRE-EXISTING** (git stash 대조 확인).
+  append 한 A745 블록 자체는 단독 파싱 정상.
+- N-2: docs §4.5 `NEXT_PUBLIC_APP_URL` = 소스 참조 0건 유령 계약.
+- N-3: `/api/v1/health` TestClient 기본 모드 `'dict' object has no attribute 'encode'`
+  (PRE-EXISTING, CORS 무관).
+- N-4: `apps/web/.env.local` (git-ignored 운영자 실사용 파일) **의도적 미변경**.
+
+## 운영자 잔여 액션 (Track A-1~A-4, 선행 조건 해소됨)
+
+| 값 | 투입 위치 (F4 정정 반영) |
+|---|---|
+| RESEND_API_KEY / RESEND_FROM_EMAIL | Railway Variables ✅ (~~web .env.local~~ ❌) |
+| SUPABASE_JWT_SECRET | Railway Variables ✅ (~~web .env.local~~ ❌) |
+| **CORS_ORIGINS** (신규) | Railway Variables — 미설정 시 프론트 전 API 호출 차단 |
+| **NEXT_PUBLIC_API_URL** (신규) | Vercel Env Vars — 미설정 시 localhost 호출 |
+
+→ **A-4 는 CORS_ORIGINS + NEXT_PUBLIC_API_URL 양쪽이 채워진 뒤에만 통과 가능.**
+
+## 결정 wire 보존
+
+- cj-318 entry (`241fd3a`, 284th) 3-track 구조 보존 (§2 만 F4 정정 EXTENSION)
+- cj-305b Postmark → Resend swap (`53b8bbf` + `c69dea5`, 256+257th) **정합 회복**
+- cj-304 4 critical gaps (`1fdb67d`, 252nd) 보존 (TZ / RETRY_BACKOFF_MINUTES 무변경)
+- cj-307 aal1 minimum fix (`a1cb7ad`, 261st) 보존
+- Phase 7 tracing X-Trace-Id 결정 wire 보존 / AD-10 최소권한 보존
+- Pilot W1 launch D-day 2026-09-14 KST 보존
+- 37 pins unchanged + 14 job matrix unchanged + PRD v7.0 §F/§M/§R unchanged
+
+**57/57 cumulative 결정 wire 보존** (cj-318 entry 의 56 + NEW 57번째 cj-319)
+
+**CR 11-3 honest-DEFER 285번째 chain: cj-282 (220번째) → ... → cj-318 entry (284번째) → cj-319 Track A-0 wire (285번째, 본 sprint)**
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

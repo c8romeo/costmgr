@@ -9,12 +9,14 @@ AD-1, AD-11 compliance:
   - It MAY import packages.cost_engine.ports (via apps.api.core.ports_bridge — added in later stories)
 """
 
+import os
 import uuid as _uuid_mod
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from apps.api.core.alerting import AlertWebhookPayloadInvalidError
@@ -351,6 +353,48 @@ app.add_middleware(TraceContextMiddleware)
 from apps.api.core.latency_budget import LatencyBudgetMiddleware  # noqa: E402
 
 app.add_middleware(LatencyBudgetMiddleware)
+
+# cj-319 A-0 wire (Track A F2 정직 회복) — CORS middleware.
+# `vercel.json` CSP 의 `connect-src ... https://*.railway.app` 는 브라우저가
+# Vercel(web) origin 에서 Railway(API) origin 으로 **직접 cross-origin 호출**
+# 하는 구조를 전제한다. `docs/deployment-account-setup.md` §4.4 에 CORS_ORIGINS
+# env var row 는 존재했으나 소스 wiring 이 부재했음 → 운영자가 Railway 에
+# CORS_ORIGINS 를 채워도 무효 + Track A-4 live signup smoke test 실패 확정.
+# cj-318 Track A 진입 시 정직 인정 → 본 wire 로 회복.
+#
+# CORS_ORIGINS: comma-separated allowlist (예: "https://costmgr-pilot.vercel.app").
+# 미설정 시 local dev origin 만 허용 = fail-closed (wildcard 금지, AD-10 최소권한).
+_cors_origins_raw = os.getenv("CORS_ORIGINS", "")
+DEFAULT_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+
+
+def parse_cors_origins(raw: str | None) -> list[str]:
+    """CORS_ORIGINS env 문자열 → origin allowlist.
+
+    빈 값 / None / 공백만 → `DEFAULT_CORS_ORIGINS` (fail-closed).
+    wildcard `*` 는 허용하지 않는다: `allow_credentials=True` 와 병용 불가 +
+    AD-10 최소권한. `*` 는 무시하고, 남는 origin 이 없으면 default 로 떨어진다.
+    """
+    if not raw:
+        return list(DEFAULT_CORS_ORIGINS)
+    origins = [o.strip() for o in raw.split(",") if o.strip() and o.strip() != "*"]
+    return origins or list(DEFAULT_CORS_ORIGINS)
+
+
+CORS_ALLOWED_ORIGINS: list[str] = parse_cors_origins(_cors_origins_raw)
+
+# CORS 는 **마지막에 등록** → Starlette middleware stack 최외곽 배치.
+# 그래야 OPTIONS preflight 와 4xx/5xx 응답에도 Access-Control-* 헤더가 붙는다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Trace-Id", "X-Request-Id"],
+    # Phase 7 tracing 이 응답에 싣는 X-Trace-Id 를 브라우저 JS 가 읽을 수 있게 노출.
+    expose_headers=["X-Trace-Id"],
+    max_age=600,
+)
 
 # Story 1.1 — M0 onboarding (industry selector + menu auto-toggle)
 app.include_router(m0_onboarding_router)

@@ -39,6 +39,15 @@ metadata:
 
 ## §2 Track A: 4 Deploy-Blocking Actions (D-3 deadline)
 
+> ⚠️ **cj-319 A-0 wire 정정 (2026-09-10 KST, cj-style 285번째)** — 본 §2 의 A-1 step 5 와
+> A-2 step 4 는 **틀렸다**. `apps/web` 소스 전체에서 `RESEND_API_KEY` / `SUPABASE_JWT_SECRET`
+> 참조는 **0건**이다 (grep verified). 두 값은 **서버 전용 시크릿**이며 Next.js web 의
+> `.env.local` 에 넣으면 무의미할 뿐 아니라, 접두사 실수 시 클라이언트 번들 노출 위험이 있다.
+> **올바른 위치**: Railway service Variables (production) + `apps/api/.env` (local dev only).
+> 상세 = `memory/handoff-2026-09-10-cj-319-track-a0-deploy-blocking-wire-done.md`.
+> 아울러 cj-319 wire 로 **A-1/A-4 의 선행 조건 3건**이 회복되었다 (railway.toml Resend 계약 /
+> API CORSMiddleware / web `.env.example` NEXT_PUBLIC_API_URL).
+
 ### A-1 RESEND_API_KEY 캡처 (~5분)
 
 **현황**: Resend 계정 생성 완료 (cj-305b wire), API key 미캡처.
