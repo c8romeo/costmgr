@@ -1,0 +1,76 @@
+fix(phase-30): cj-314 wire 4 Phase B item 3 5 fixes (cj-style 277번째) — Phase B item 3 closed, 미커밋 in-flight 작업 정직 회복 + 2 missing import fix (2 source + 3 test, 7 files, meta 미포함)
+
+cj-314 entry `3e2ed73` 의 88 failures risk-prioritized triage 에서 **Phase B item 3** = Phase 5/9/16/26 fixes. cj-314 wire 3 (`34e92aa`, Phase B item 2 Phase 8 ESLint/SLO/SLI 8 fixes) CLOSED 직후 진입 (cj-314 wire 3 결정 wire 결정 보류 옵션 (b) verbatim mirror).
+
+**정직 회복 ① — in-flight 미커밋 작업 발견 (cj-style 257th + 267th + 270th + 273rd + 276th verbatim mirror)**:
+본 sprint 진입 시점에 wire 4 작업 5 files 가 **이미 working tree 에 미커밋 상태로 존재**함을 발견. 직전 세션이 wire 4 소스/테스트 수정을 수행했으나 커밋하지 않았고, 그 상태로 **2 tests 가 broken** 이었음 (`NameError: name 'AuditAction' is not defined`). 미커밋 방치 시 유실 위험 + 다음 sprint 진입 시 baseline 오염 위험. 본 sprint 는 해당 in-flight 작업을 **완결 + 커밋**하는 것을 본질로 삼음.
+
+**정직 회복 ② — cj-314 entry 추정 "~10 fixes" 의 정직 회복**:
+cj-314 entry 추정 "Phase 5/9/16/26/30 + Phase 3 hook ~10 fixes" → actual **5 fixes** (2 source + 3 test). Phase 30 + Phase 3 hook 은 cj-314 wire 2 (`4435e2d`) 에서 이미 CLOSED 되어 wire 4 scope 에서 제외됨 (entry 추정 시점의 scope 중복 정직 인정).
+
+Fix detail (5 fixes):
+1. `apps/api/jobs/dr_drill.py` (SOURCE) — audit-first INSERT 순서 교정. `emit_audit_typed()` 가 drill row UPDATE **이후**에 호출되던 것을 **이전**으로 이동 (CR 1-1 audit-first INSERT verbatim 준수). `status` 계산을 audit emit 이전으로 선행 (22+/20-)
+2. `apps/api/jobs/scheduled_executive_dispatch.py` (SOURCE) — `_validate_inputs()` 의 unknown `dispatch_schedule` 분기가 `CronExpressionInvalidError(cron_expression=...)` 를 raise 하던 것을 `ScheduledDispatchError(reason=..., tenant_id=...)` 로 교정 (typed envelope 정합, 3+/2-)
+3. `tests/api/core/test_phase_26_cost_anomaly_ml_prediction_audit_action.py` (TEST) — `ActionClass` enum count `== 49` hard pin → `>= 49` forward-lock (Phase 28 InteractiveDashboardAction + Epic 30+ ReportsAction EXTENSION 으로 actual count > 49, cj-314 wire 1 forward-lock 패턴 verbatim mirror, 8+/4-)
+4. `tests/api/core/test_phase_8_performance_audit_action.py` (TEST) — ① `AuditAction.__args__` 직접 문자열 비교 (nested `Literal` 이라 항상 False) → `typing.get_args` 재귀 평탄화 `_flatten_literals()` 로 교정 ② **`AuditAction` top-level import 누락 fix (본 sprint 신규, 1 line)** — 직전 세션이 함수 내부 local import 를 제거하면서 top-level import 추가를 누락 (22+/4-)
+5. `tests/api/core/test_phase_9_audit_action.py` (TEST) — 위 4번과 동일 2건 (`_flatten_literals` 교정 + **`AuditAction` import 누락 fix, 1 line**, 18+/4-)
+
+rationale 5종:
+① **MEDIUM RISK to launch 해소**: dr_drill 의 audit-first INSERT 순서 위반은 **실제 소스 버그** — drill row mutation 이 audit 기록보다 선행되면 감사 추적 공백 발생 (CR 1-1 위반). production DR drill 경로의 정합성 회복
+② **CR 11-3 honest-DEFER risk-prioritized process design 보존**: cj-314 wire 3 결정 wire 의 옵션 (b) verbatim mirror — Phase B item 3 진입. Phase A 3건 + Phase B item 1, 2, 3 모두 CLOSED
+③ **미커밋 in-flight 작업 완결 (baseline 오염 방지)**: 2 missing import 만이 blocker 였음. import 2 lines 추가로 broken 2 tests → passed. 나머지 3 fixes 는 직전 세션 작업 그대로 보존 (재작성 0건)
+④ **0 capability matrix 변경 + 0 migration source 변경**: cj-314 wire 1~3 의 scope discipline verbatim 보존. ActionClass enum 자체 변경 0건 (test 측 forward-lock 만), alembic migration 변경 0건, PRD §F/§M/§R 변경 0건
+⑤ **Pilot W1 readiness (D-4)**: Phase B item 3 CLOSED → 잔여 실패 **32건 전부 Phase C (`test_phase_10_*` SLO family)** 로 수렴 확인. launch day (D-day 2026-09-14) 까지 비용 $0 + MVP hardening 우선 정책 보존
+
+verify gate 결과 (cj-314 wire 4 의 본질):
+- 직접 수정 3 test files: **24 passed** (was 2 failed + 22 passed)
+- 소스 수정 2 files 의 커버 테스트 (`test_phase_5_dr_drill.py` + `test_phase_16_scheduled_executive_dispatch.py`): **25 passed**
+- broader `tests/api/core/` sweep: **32 failed, 1171 passed, 16 skipped** (진입 시점 34 failed / 1169 passed 대비 **2 fewer failures**)
+- wire 3 커밋 시점 37 failed → wire 4 완결 후 **32 failed** (5 fewer, wire 4 5 fixes 와 정확히 일치)
+- **잔여 32 failures 전량 `test_phase_10_*` 6 files** (governance 6 + audit_action 6 + slo_dsl 5 + slo_burn_rate_evaluator 5 + multi_region_aggregator 5 + error_budget 5) = **Phase C LOW RISK honestly DEFER territory 와 정확히 일치**. Phase B 잔여 0건
+
+cj-314 wire 4 의 결정 wire 보존 (cj-307 carryover 의 risk-prioritized triage Phase B item 3 CLOSED):
+- Phase A item 1: cj-316 FastAPI on_event → lifespan migration ✅ CLOSED (`1281ca5`)
+- Phase A item 2: cj-317 alembic 0037 errors triage + fix ✅ CLOSED (`99a7343`)
+- Phase A item 3: cj-314 wire 1 capability matrix drift 10 fixes ✅ CLOSED (`cca03c2`)
+- Phase B item 1: cj-314 wire 2 Phase 30 + Phase 5 + Phase 3 6 fixes ✅ CLOSED (`4435e2d`)
+- Phase B item 2: cj-314 wire 3 Phase 8 ESLint/SLO/SLI 8 fixes ✅ CLOSED (`34e92aa`)
+- **Phase B item 3: cj-314 wire 4 Phase 5/9/16/26 5 fixes ✅ CLOSED (본 sprint)**
+- Phase C: LOW RISK items (`test_phase_10_*` SLO family 32건) post-W1 honestly DEFER
+
+**본 커밋 파일 구성 정직 명시 (cj-305b 257th + cj-310 267th retroactive correction 재발 방지)**:
+- 2 MODIFIED source: `apps/api/jobs/dr_drill.py` + `apps/api/jobs/scheduled_executive_dispatch.py`
+- 3 MODIFIED tests: `test_phase_8_performance_audit_action.py` + `test_phase_9_audit_action.py` + `test_phase_26_cost_anomaly_ml_prediction_audit_action.py`
+- 1 NEW commit-msg: 본 file
+- 1 MODIFIED commit-msg (carried): `commit-msg-cj-317.txt` — 직전 세션의 미커밋 retroactive file-count 정정 ("7 files" → "8 files"). 별도 sprint 산출물이나 dangling 방지 위해 동반 커밋, 본 sprint scope 아님을 정직 명시
+- = **7 files**
+- **meta 미포함 정직 명시**: sprint-status.yaml (v4.93 → v4.94 EXTENSION A738) + project `memory/MEMORY.md` cj-314 wire 4 hook + `handoff-2026-09-10-cj-314-wire-4-phase-b-item-3-done.md` **본 커밋에 미포함**. 운전자 승인 scope (import fix → test verify → commit) 준수. meta 3건은 후속 sprint 로 honestly DEFER
+- **EXCLUDED**: `_bmad-output/planning-artifacts/epics.md` (458+/1020- bizup → costmgr Epic 29+ 재작성) — 본 sprint scope 무관 대형 변경, 미커밋 보존
+
+honestly DEFER 결정 wire 보존:
+- **cj-314 wire 4 meta 3건** (sprint-status v4.94 + MEMORY.md hook + handoff) — 후속 sprint
+- Phase C: `test_phase_10_*` SLO family 32건 (governance 6 + audit_action 6 + slo_dsl 5 + slo_burn_rate 5 + multi_region 5 + error_budget 5) post-W1 honestly DEFER
+- **sso 13 skipped tests**: missing `python3-saml` dependency → honestly DEFER 보존 (PRE-EXISTING)
+- 6 PRE-EXISTING honestly DEFER 보존 (web-e2e + test-suite-measure + web-test + lint-conventions + Sentry + custom DNS)
+- cj-303 carryover 4건 (D-FINOPS-13 + audit-fixes + Layer 2 P1 + Layer 3 P2 docs) honestly DEFER 보존
+- 비용 발생 항목 모두 honestly DEFER 보존 (Railway $5 + Vercel $20 + Resend $20 + Supabase $25 + Custom DNS + Sentry, launch day 결정 wire)
+- 운영자 액션 4건 OPEN 보존 (RESEND_API_KEY 캡처 + SUPABASE_JWT_SECRET 캡처 + Supabase Auth dashboard live verify + live signup smoke test)
+- cj-313 close-out retro + cj-312 close-out retro + PRD v2 EXTENSION + cj-309b B-1 pilot candidate outreach (D-2) + W1~W8 weekly follow-up 결정 wire 보존
+
+CR 11-3 honest-DEFER 277번째:
+- cj-314 wire 4 는 "Phase B item 3 closed + 미커밋 in-flight 작업 정직 회복" 을 본 sprint 의 본질로 삼음
+- **정직 회복 (cj-style 257th + 267th + 270th + 273rd + 276th verbatim mirror)**: ① 직전 세션 미커밋 작업 발견 + 2 broken tests 정직 인정 ② cj-314 entry "~10 fixes" 추정 → actual 5 fixes 정직 회복 ③ 본 커밋 meta 3건 미포함 정직 명시 (headline 과 actual file 구성 일치)
+- chain: cj-282 (220번째) → ... → cj-314 wire 3 Phase 8 8 fixes (276번째) → **cj-314 wire 4 Phase B item 3 5 fixes (277번째, 본 sprint)** 종합 50 sprints 정직 회복
+
+결정 보류 (운전자):
+① 옵션 (a, RECOMMENDED next) **cj-314 wire 4 meta 마감** (sprint-status v4.94 A738 + MEMORY.md hook + handoff, ~20min, docs-only)
+② 옵션 (b) **cj-309b B-1 Pilot candidate outreach** (D-2 2026-09-12 발송, 운전자 network 결정 — D-4 시점 최우선 운영자 액션)
+③ 옵션 (c) **운영자 액션 4건 실행** (RESEND_API_KEY + SUPABASE_JWT_SECRET 캡처 + Supabase Auth live verify + signup smoke test, deploy-blocking)
+④ 옵션 (d) **cj-314 wire 5** (Phase C 진입, `test_phase_10_*` 32건, ~2-3h — post-W1 honestly DEFER 권장)
+⑤ 옵션 (e) **cj-313 close-out retro** (~30min, docs-only)
+⑥ 옵션 (f) **cj-312 close-out retro** (~30min, docs-only)
+⑦ 옵션 (g) **epics.md 미커밋 대형 변경 triage** (458+/1020-, 별도 sprint)
+
+결정 wire 일자: 2026-09-10 KST (D-4, Pilot W1 launch)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

@@ -336,8 +336,29 @@ async def run_drill(
         # Execute drill steps (raises on failure).
         rpo, rto, error_message = await _execute_drill_steps(trace_id)
 
-        # Update drill row to passed or failed.
+        # Compute status BEFORE audit emit (audit-first INSERT CR 1-1).
         status = "failed" if error_message else "passed"
+
+        # Audit-first INSERT (CR 1-1 verbatim) — MUST come BEFORE row mutation.
+        await emit_audit_typed(
+            session,
+            action_class=ActionClass.INFRA,
+            action="dr_drill_completed",
+            actor_id=actor_id,
+            target_id=None,
+            tenant_id=None,
+            payload={
+                "drill_quarter": drill_quarter,
+                "drill_status": status,
+                "rpo_seconds": rpo,
+                "rto_seconds": rto,
+                "rpo_sla_met": rpo <= RPO_SLA_SECONDS,
+                "rto_sla_met": rto <= RTO_SLA_SECONDS,
+                "error_message": error_message,
+            },
+        )
+
+        # Update drill row to passed or failed (AFTER audit-first INSERT).
         await session.execute(
             text(
                 """
@@ -357,25 +378,6 @@ async def run_drill(
                 "rto": rto,
                 "error_message": error_message,
                 "drill_quarter": drill_quarter,
-            },
-        )
-
-        # Audit-first INSERT (CR 1-1 verbatim).
-        await emit_audit_typed(
-            session,
-            action_class=ActionClass.INFRA,
-            action="dr_drill_completed",
-            actor_id=actor_id,
-            target_id=None,
-            tenant_id=None,
-            payload={
-                "drill_quarter": drill_quarter,
-                "drill_status": status,
-                "rpo_seconds": rpo,
-                "rto_seconds": rto,
-                "rpo_sla_met": rpo <= RPO_SLA_SECONDS,
-                "rto_sla_met": rto <= RTO_SLA_SECONDS,
-                "error_message": error_message,
             },
         )
         await session.commit()

@@ -9,6 +9,7 @@ import pytest
 
 from apps.api.core.audit_action import (
     ActionClass,
+    AuditAction,
     ObservabilityAction,
     PerformanceTestAction,
     _ActionRegistry,
@@ -66,10 +67,24 @@ def test_action_registry_rejects_unknown_action_for_performance_test() -> None:
 
 
 def test_audit_action_union_includes_performance_test_action() -> None:
-    """AuditAction Union EXTENSION preserves PerformanceTestAction + ObservabilityAction."""
-    from apps.api.core.audit_action import AuditAction
+    """AuditAction Union EXTENSION preserves PerformanceTestAction + ObservabilityAction.
 
-    union_args = set(AuditAction.__args__)
+    Flattens the union recursively via typing.get_args to extract all
+    concrete string literals — comparing strings directly against
+    `AuditAction.__args__` (Literal types) is always False.
+    """
+    import typing
+
+    def _flatten_literals(tp: object) -> set[str]:
+        out: set[str] = set()
+        for arg in typing.get_args(tp):
+            if isinstance(arg, str):
+                out.add(arg)
+            else:
+                out.update(_flatten_literals(arg))
+        return out
+
+    union_args = _flatten_literals(AuditAction)
     # Spot-check: PerformanceTestAction literal values are reachable.
     expected_literals = {
         "performance_test_started",

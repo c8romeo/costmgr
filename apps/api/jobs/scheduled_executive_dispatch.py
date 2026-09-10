@@ -83,8 +83,9 @@ def _validate_inputs(
             tenant_id=tenant_id,
         )
     if dispatch_schedule not in ALL_DISPATCH_SCHEDULES:
-        raise CronExpressionInvalidError(
-            cron_expression=dispatch_schedule,
+        raise ScheduledDispatchError(
+            reason=f"unknown dispatch_schedule: {dispatch_schedule}",
+            tenant_id=tenant_id,
         )
     if not cron_expression:
         raise CronExpressionInvalidError(

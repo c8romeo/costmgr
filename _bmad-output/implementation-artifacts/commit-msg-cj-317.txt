@@ -1,4 +1,4 @@
-docs(phase-30): cj-317 alembic 0037 errors triage + fix (cj-style 273번째) — HIGH RISK item 2 closed, 22 errors → 22 passed (3 tests `parents[2]` → `parents[3]` path fix)
+docs(phase-30): cj-317 alembic 0037 errors triage + fix (cj-style 273번째) — HIGH RISK item 2 closed, 22 errors → 22 passed (3 tests `parents[2]` → `parents[3]` path fix, 8 files)
 
 cj-314 entry `3e2ed73` 의 88 failures risk-prioritized triage 에서 **Phase A item 2** = alembic 0037 errors triage. cj-316 wire `1281ca5` 의 Phase A item 1 CLOSED 직후 진입.
 
@@ -33,7 +33,7 @@ cumulative 결정 wire 보존:
 - 45 (cj-282~cj-316) → +1 = **46/46** (cj-317 신규)
 - 결정 wire 보존: cj-309~cj-316 wire/entry 결정 wire 그대로
 - sprint-status v4.89 → **v4.90 EXTENSION** 결정 wire (A734 cj-317 + last_updated_note_v4_90)
-- 3 MODIFIED tests + 1 NEW content + 1 NEW commit-msg + 1 NEW handoff + 2 MODIFIED meta = **7 files compressed entry+wire atomic single sprint**
+- 3 MODIFIED tests + 1 NEW content + 1 NEW commit-msg + 1 NEW handoff + 2 MODIFIED meta = **8 files compressed entry+wire atomic single sprint** (3 MODIFIED tests: test_epic_15_alembic_0037_external_identities.py + test_epic_15_sso_jit_provisioning.py + test_epic_15_sso_validator.py / 1 NEW content: phase-30-cj-317-alembic-0037-errors-triage-entry-2026-09-09.md / 1 NEW commit-msg: 본 file / 1 NEW handoff: handoff-2026-09-09-cj-317-alembic-0037-errors-triage-done.md / 2 MODIFIED meta: sprint-status.yaml v4.89 → v4.90 EXTENSION + project memory/MEMORY.md cj-317 hook EXTENSION)
 
 CR 11-3 honest-DEFER 273번째:
 - cj-317 는 "Phase A item 2 (alembic 0037 errors triage) closed" 를 본 sprint 의 본질로 삼음
