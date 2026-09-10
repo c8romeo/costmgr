@@ -1,0 +1,26 @@
+docs(phase-30): cj-314 wire 5 Phase C retroactive close-out (cj-style 282번째) — cj-307 carryover 의 Epic 15 alembic 0037 12 errors scope 가 cj-317 wire (99a7343) 으로 preemptive closed 정직 인정 + 결정 wire 보존 (5 files docs-only atomic, 0 source 변경 + 0 test 변경 + 0 alembic 변경 + 0 PRD 변경 + 0 capability matrix 변경) + cj-314 entry 의 6 sub-sprint approach wire 1~4 모두 CLOSED + wire 5 = Phase C retroactive close-out 진입 + CR 11-3 honest-DEFER 282번째 chain cj-style 257th (cj-305b retroactive) + 267th (cj-310 retroactive) + 270th (cj-313 retroactive) + 272nd (cj-316 retroactive) 패턴 verbatim mirror + cumulative 52/52 → 53/53 결정 wire 보존 + Pilot W1 D-4 readiness 검증 (D-day 2026-09-14 KST) + sprint-status v4.97 → v4.98 EXTENSION A739 + last_updated_note_v4_98 EXTENSION 결정 wire
+
+CR 11-3 honest-DEFER retroactive correction discipline:
+- cj-314 entry §3 Option 1 의 "cj-314 wire 5 | Epic 15 alembic 0037 12 errors | ~1h" original scope = cj-317 wire (99a7343, 2026-09-09 KST) 의 `parents[2]` → `parents[3]` 1-character fix in 3 test files 으로 **22 errors → 22 passed** (was 22 errors in 0.40s → 22 passed in 2.05s, 검증: .venv/Scripts/python.exe -m pytest tests/api/core/test_epic_15_alembic_0037_external_identities.py = 22 passed in 0.17s)
+- 0 source code 변경 (sprint form = docs-only atomic single sprint)
+- 0 test 변경 (cj-317 의 fix preserved, 재-fix 시도 ❌)
+- 0 alembic 변경 (apps/api/alembic/versions/0037_epic_15_sso_external_identities.py unchanged, 8380 bytes verified)
+- 0 PRD 변경 (PRD v7.0 §F/§M/§R unchanged)
+- 0 capability matrix 변경 (cj-314 wire 1 의 10 fixes preserved)
+
+Test verification (.venv/Scripts/python.exe -m pytest tests/api/core/test_epic_15_alembic_0037_external_identities.py -v):
+- TestMigrationShape: 10/10 PASSED (revision_id + down_revision_chain + table_creation + 7 columns + metadata_jsonb)
+- TestIndexes: 4/4 PASSED (provider_puid_unique + user_provider + tenant_provider + last_used_at_desc)
+- TestCheckConstraints: 2/2 PASSED (provider_check + puid_not_empty_check)
+- TestRLSPolicies: 4/4 PASSED (rls_enabled + tenant_isolation + service_role_bypass + anon_block)
+- TestDowngrade: 2/2 PASSED (drop_table + drop_rls)
+- TOTAL: 22/22 PASSED in 0.17s
+
+5 files = 1 NEW content + 1 NEW commit-msg + 1 NEW handoff + 1 MODIFIED sprint-status + 1 MODIFIED memory/MEMORY.md:
+1. NEW _bmad-output/implementation-artifacts/phase-30-cj-314-wire-5-phase-c-entry-2026-09-10.md ~280 LOC 10-section §1~§10
+2. NEW _bmad-output/implementation-artifacts/commit-msg-cj-314wire5.txt (본 commit-msg)
+3. NEW memory/handoff-2026-09-10-cj-314-wire-5-phase-c-entry-done.md ~150 LOC 7-section §1~§7
+4. MODIFIED _bmad-output/implementation-artifacts/sprint-status.yaml v4.97 → v4.98 EXTENSION A742 + last_updated_note_v4_98
+5. MODIFIED memory/MEMORY.md +cj-314 wire 5 retroactive close-out hook +active sprint state EXTENSION
+
+Co-Authored-By: Claude (operator = kjw) <noreply@anthropic.com>
