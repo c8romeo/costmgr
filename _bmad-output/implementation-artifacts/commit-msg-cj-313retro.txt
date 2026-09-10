@@ -1,0 +1,36 @@
+docs(phase-30): cj-313 close-out retro (cj-style 280번째) — 4 atomic sub-sprint chain CLOSED ✅ HONEST (cj-311 entry cj-style 268th + cj-312 wire cj-style 269th + cj-313 wire cj-style 270th + cj-313 close-out retro cj-style 280th) + cj-313 wire 의 7 stale tests fix 결정 wire 보존 + cj-312 audit finding 2.1 WRONG claim 정직 회복 verbatim mirror + pyproject.toml canonical invocation EXTENSION 보존 + Pilot W1 D-4 readiness 검증 + cumulative 52/52 결정 wire 보존 (cj-315 의 51 + NEW 52번째 cj-313 close-out retro) + CR 11-3 honest-DEFER 280번째
+
+cj-313 의 4 atomic sub-sprints (entry + wire + retro) chain CLOSED ✅ HONEST 진입 완료:
+- cj-311 entry (cj-style 268번째, `69d7d72`) — 7-Checkpoint MVP Audit methodology docs-only atomic 5 files
+- cj-312 wire (cj-style 269번째) — 19 findings + 3 HIGH fix sprint 결정 wire docs-only atomic 5 files
+- cj-313 wire (cj-style 270번째) — compressed entry+wire 13 files: 7 stale tests fix (5418 + 7 errors → 5554 + 0 errors, +136 tests recovered) + pyproject.toml canonical invocation EXTENSION (.venv\Scripts\python.exe -m pytest) + cj-305b Resend swap 정직 회복 + cj-312 audit finding 2.1 WRONG claim 정직 회복
+- **cj-313 close-out retro (cj-style 280번째, 본 sprint)** — docs-only atomic 5 files: 4 atomic sub-sprint chain CLOSED ✅ HONEST + 누적 결정 wire 보존 + Pilot W1 D-4 readiness 검증
+
+verify gate 결과 (cj-313 wire 의 본질 + 본 retro 의 추가 검증):
+- 7 stale tests fix: 5418 tests + 7 errors → 5554 tests + 0 errors (+136 tests recovered)
+  - test_phase_30_exports_email.py: 0 → 32 tests (PostmarkProvider → ResendProvider cj-305b swap 정직 회복)
+  - test_phase_10_audit_action.py: 1 → 0 errors (is_valid_audit_action + normalize_audit_action import 제거)
+  - test_phase_10_slo_burn_rate_evaluator.py: 1 → 0 errors (BURN_RATE_THRESHOLDS import 제거)
+  - test_phase_10_slo_dsl.py: 1 → 0 errors (BadRequest/Conflict/UnprocessableEntity + VALID_* prefix + build_slo_definition import 정정)
+  - test_phase_30_scheduled_reports.py: 2 → 0 errors (DISPATCH_CRON_EXPRESSIONS syntax + ALL_REPORT_TYPES path 정정)
+  - test_capability_matrix_v1_32_drift.py: 1 → 0 errors (Industry.MFG_AND_SERVICE → MANUFACTURING_SERVICE)
+  - test_capability_matrix_v1_35_drift.py: 1 → 0 errors (INDUSTRY_CAPABILITIES → _INDUSTRY_CAPABILITIES)
+- pyproject.toml [tool.pytest.ini_options] canonical invocation EXTENSION: +12 LOC comment (uv trampoline + system Python invocation 문제 정직 회복)
+- runtime: source code 변경 0건 / 37 pins unchanged / 14 job matrix unchanged / PRD v7.0 §F/§M/§R unchanged / capability matrix v1.54 EXTENSION preserved / audit actions EXTENSION preserved / AD-14 stack pin EXTENSION preserved
+
+5 files = 1 NEW content (phase-30-cj-313-close-out-retro-2026-09-10.md ~330 LOC 10-section §1~§10) + 1 NEW commit-msg (본 file) + 1 NEW handoff (handoff-2026-09-10-cj-313-close-out-retro-done.md ~180 LOC 8-section) + 2 MODIFIED meta (sprint-status v4.95 → v4.96 EXTENSION + memory/MEMORY.md cj-313 close-out retro hook EXTENSION)
+
+rationale 5종:
+① cj-style discipline 회피 위험 방지: cj-313 wire 의 cj-style 270번째 진입 직후 cj-314 wire 1~4 + cj-315 + cj-315 retroactive correction 의 cj-style 271~279 chain 모두 CLOSED → 본 sprint 진입 시점에서 cj-313 의 4 atomic sub-sprint chain 중 retro 만 CLOSED ✅ 미완 → cj-style 280번째 진입 자연스러움
+② cj-313 wire 의 정직 회복 보존 verbatim mirror: cj-313 wire 의 CRITICAL 발견 (apps/api/tests/ 부재의 root cause 가 pytest config 가 아니라 7 stale tests 의 import errors) verbatim 보존. cj-312 audit claim WRONG 정직 인정
+③ pyproject.toml canonical invocation EXTENSION 보존: .venv\Scripts\python.exe -m pytest 결정 wire 그대로 보존. uv run pytest (Windows uv trampoline 실패) + python -m pytest (system Python 3.14 lacks asyncpg) 의 invocation pattern 문제 정직 회복
+④ Pilot W1 D-4 readiness 검증: cj-313 wire 의 +136 tests recovered 가 MVP hardening 의 결정 wire. 본 retro 시점에서 pytest 가 정상적으로 모든 tests/ scan 가능 → Phase B 잔여 0건 + Phase C honestly DEFER post-W1 결정 wire 정합
+⑤ cumulative 52/52 결정 wire 보존: 51 (cj-315 의) + NEW 52번째 cj-313 close-out retro 결정 wire 진입. cj-282 (220번째) 부터 종합 52 sprints 의 정직 회복 chain 의 한 단계로 안전하게 합류
+
+CR 11-3 honest-DEFER 280번째 chain cj-282 (220번째) → ... → cj-315 retroactive correction (279번째) → **cj-313 close-out retro (280번째, 본 sprint)** 종합 52 sprints 정직 회복
+
+PRE-EXISTING honestly DEFER carryover 보존: cj-303 4건 + PRE-EXISTING 6건 + cj-307 carryover LOW RISK (~80건, Phase C honestly DEFER post-W1) + sso 13 skipped tests (missing python3-saml) + W1~W8 carryover + **cj-312 close-out retro (cj-style 281번째, 다음 sprint 가능)** + cj-314 wire 5 (Phase C) + epics.md triage + PRD v2 EXTENSION
+
+결정 보류 (운전자, D-4 시점 최우선): ① 옵션 (a, RECOMMENDED next) operator 즉시 실행 (cj-309b B-1 outreach Step 1~2, ~2-3h) ② 옵션 (b) cj-309b B-1 retroactive correction (운전자 network 결정) ③ 옵션 (c) 운영자 액션 4건 실행 (deploy-blocking) ④ 옵션 (d) cj-312 close-out retro (~30min, docs-only) ⑤ 옵션 (e) PRD v2 EXTENSION (W8 close-out 후) ⑥ 옵션 (f) epics.md triage (별도 sprint) ⑦ 옵션 (g) cj-314 wire 5 Phase C (~2-3h, post-W1 honestly DEFER 권장)
+
+결정 wire 일자: 2026-09-10 (KST, D-4, Pilot W1 launch D-day 2026-09-14 KST)
