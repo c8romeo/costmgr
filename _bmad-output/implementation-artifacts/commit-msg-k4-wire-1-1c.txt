@@ -1,0 +1,134 @@
+docs(phase-30): K-4 wire 1.1c runtime pytest after uv sync DONE (cj-style 297번째)
+
+사용자 2026-09-11 결정 wire verbatim mirror ("uv sync로 진행해줘") + K-4 chain Step 2.6
+(K-4 wire 1.1b 의 blocker surface B1~B4 의 후속 fix) 결정 wire 진입. **uv sync
+--all-packages --all-groups** 으로 host venv mismatch 일괄 fix (B1~B4 cascading
+transitive deps) + 27 cases runtime pytest 재실행 + blocker surface capture.
+
+**rationale 5종**:
+
+① **사용자 결정 wire verbatim mirror** — `uv sync` 진입 결정 + K-4 wire 1.1c =
+runtime pytest + blocker surface (K-4 wire 1.1b 후속, source 변경 0건)
+
+② **`uv sync --all-packages --all-groups` = 단순 `uv sync` 와 차이** — root project
+만 sync 하면 workspace member deps 미설치. `--all-packages --all-groups` 가
+apps/api + packages/cost_engine + packages/services + packages/ports + dev
+groups 전부 sync. **91 packages installed** (B1~B4 fix path 일괄 fix)
+
+③ **27 cases runtime pytest 결과 = 3 PASS + 24 FAIL, 0 ERROR matrix** —
+**3 PASS**: `test_m0_onboarding_signup_response_model_exists` (pure schema import)
++ `test_m3_calculate_dual_route_capability_support` (pure Capability enum import)
++ `test_mvp_critical_health_endpoint_exists` (single endpoint check) = K-4 wire 1.1
+의 static verification 결과 cross-validate / **24 FAIL at route check** = SINGLE
+root cause (test helper bug, NOT source bug) = `_routes_with_prefix` 가
+`_IncludedRouter` 안 recurse 안 함 (top-level routes only) = **0 ERROR** (이전
+sprint 25 ERROR → 0 ERROR 정직 회복) / **0 source code blocker**
+
+④ **App boot 검증 = source code 100% 정상** — `len(app.routes)` = 41 (1 APIRoute
+for /health + 5 default Route for /docs, /openapi.json, etc. + 36 _IncludedRouter
+objects) / `app.openapi()` = **203 paths** ✅ / TestClient `GET /health` = 200
+`{'status': 'ok', 'service': 'costmgr-api', 'version': '0.1.0'}` ✅ / TestClient
+`GET /openapi.json` = 200, paths: 203 ✅. 실제 server boot 시 모든 endpoint 정상
+노출 확인.
+
+⑤ **Blocker surface (B-TEST-1) capture + 결정 wire 보존** — **B-TEST-1**: test
+helper `_routes_with_prefix` (conftest.py:33-35) 가 `_IncludedRouter` 안 recurse
+안 함 → fix path = (a) `app.openapi()` 사용 또는 (b) `_IncludedRouter.routes`
+recursion. **Type = TEST helper bug, NOT source bug**. 결정 wire 보존: K-4 wire
+1.2+ (option γ scoped test helper fix) 결정 보류 (운전자)
+
+**verify gate**:
+- 0 source 변경 (uv sync 만 실행, source file 미수정)
+- 0 test 변경 (K-4 wire 1 의 27 cases 그대로 사용, B-TEST-1 fix 는 후속 wire)
+- 0 alembic 변경
+- 0 PRD 변경
+- 0 capability matrix 변경 (의존: K-4 wire 1.2+ 의 B-TEST-1 fix 결과)
+- 0 migration source 변경
+- 37 pins unchanged (pyproject.toml + uv.lock unchanged — `uv sync` 는 lockfile
+    보존 + transitive deps 일괄 정합)
+- 14 job matrix unchanged
+- PRD v7.0 §F/§M/§R unchanged
+- capability matrix v1.54 EXTENSION preserved
+- audit actions EXTENSION preserved
+- AD-14 stack pin EXTENSION preserved (apscheduler==3.10.4 + pytz==2024.1)
+- cj-303 stack pin EXTENSION preserved
+
+**3 files docs-only atomic**:
+- 1 NEW handoff (`memory/handoff-2026-09-11-k4-wire-1-1c-runtime-pytest-after-uv-sync-done.md`
+  ~280 LOC8-section §1~§8)
+- 1 NEW commit-msg (본 file)
+- 1 MODIFIED sprint-status (`_bmad-output/implementation-artifacts/sprint-status.yaml`
+  v4.112 → **v4.113 EXTENSION** A757 + `last_updated_note_v4_113`)
+- 1 MODIFIED meta (`memory/MEMORY.md` K-4 wire 1.1c hook + Active sprint state post
+  K-4 wire 1.1c EXTENSION)
+
+**cumulative 69/69 결정 wire 보존** (K-4 wire 1.1b 의 68 + **NEW 69번째 K-4 wire 1.1c**)
+
+**CR 11-3 honest-DEFER 297번째** chain cj-282 (220번째) → ... → K-4 wire 1.1b
+runtime pytest + blocker surface (296번째) → **K-4 wire 1.1c runtime pytest after
+uv sync (297번째, 본 sprint)** 종합 69 sprints 정직 회복.
+
+**결정 wire 보존**: K-4 wire 1.1 (cj-style 295th, `7a59f4e`) + K-4 wire 1
+(cj-style 294th, `337cca2`) + K-4 entry (cj-style 293rd, `23ece93`) + K-3 chunk 5
+(`f568bd9`) + K-3 chunk 4 + K-3 chunk 3 (`ab31195`) + K-3 chunk 2 (`3ebd493`) +
+K-3 chunk 1 (`9842dc7`) + K-4 description update (`00c49df`) + K-3 (`cc84b0e`) +
+cj-319 (`2249fec`) + cj-318 + cj-314 wire 5 retroactive correction + cj-314 wire 5
+retroactive close-out + cj-312 retro + cj-313 retro + cj-315 wire + retroactive
+correction + cj-314 wire 4 + cj-314 wire 3 (`34e92aa`) + cj-314 wire 2 + cj-314
+wire 1 (`cca03c2`) + cj-317 + cj-316 + cj-314 entry + cj-313 wire + cj-312 wire +
+cj-310 retroactive correction + cj-309b + cj-309 + cj-310 + cj-308 + cj-307 +
+cj-305b + cj-305 + cj-304 + cj-303 + cj-301 + cj-300 + cj-299 + cj-298 + cj-297 +
+cj-282 결정 wire 보존 + Pilot W1 launch D-day 2026-09-14 KST 보존 + MVP-verification
+우선 (사용자 2026-09-10 결정 wire) 보존 +
+`memory/project-2026-09-10-k4-mvp-verification-scope.md` (K-4 정의 결정 wire 보존,
+parent 결정 wire) +
+`memory/project-2026-09-10-pilot-launch-date-rationale-audit.md` (OQ-3 정직 검증 결과
+반영) +
+`memory/feedback-2026-09-10-mvp-verification-over-pilot-deployment.md` (사용자
+2026-09-10 결정 wire 보존) +
+`memory/handoff-2026-09-11-k3-decision-wire-done.md` (K-3 정의 결정 wire,
+commit `cc84b0e`) +
+`memory/handoff-2026-09-11-k3-chunk1-uj-verification-done.md` +
+`memory/handoff-2026-09-11-k3-chunk2-m0-m12-verification-done.md` +
+`memory/handoff-2026-09-11-k3-chunk3-f-section-verification-done.md` +
+`memory/handoff-2026-09-11-k3-chunk4-ads-nfr-verification-done.md` +
+`memory/handoff-2026-09-11-k3-chunk5-ui-verification-done.md` +
+`memory/handoff-2026-09-11-k4-description-update-done.md` +
+`memory/handoff-2026-09-11-k4-entry-decision-wire-done.md` +
+`memory/handoff-2026-09-11-k4-wire-1-smoke-test-entry-done.md` +
+`memory/handoff-2026-09-11-k4-wire-1-1-static-route-verification-done.md` +
+`memory/handoff-2026-09-11-k4-wire-1-1b-runtime-pytest-blocker-surface-done.md` +
+**`memory/handoff-2026-09-11-k4-wire-1-1c-runtime-pytest-after-uv-sync-done.md`** (K-4
+wire 1.1c, 본 sprint).
+
+**PRE-EXISTING honestly DEFER carryover 보존**: cj-303 4건 + PRE-EXISTING 6건 +
+cj-307 carryover LOW RISK ~30건 + sso 13 skipped tests (이제 fix 가능, 다음 sprint)
++ W1~W8 carryover + epics.md triage + PRD v2 EXTENSION + 비용 발생 항목 모두 (사용자
+2026-09-10 결정 wire verbatim "배포작업 안 함 / RESEND·RAILWAY 등 지금 단계 X") +
+**신규 honestly DEFER (K-4 chain 보존)**:
+- K-4 wire 1.2+ B-TEST-1 test helper fix (option γ scoped, ~30min, 27 cases 모두 PASS
+  expected)
+- capability matrix v1.55 EXTENSION (K-4 wire 1.2+ 결과 의존)
+- K-4 wire 2+ smoke test 확장 (27 → 50-100 cases, K-4 wire 1.2+ 결과 의존)
+- 옵션 β·γ 전체 진입 결정 (K-4 wire 1.2+ 의존)
+- 디자인가이드 진입 (K-4 외부 별도 epic territory)
+
+**결정 보류 (운전자, 본 sprint 후속)**:
+① K-4 wire 1.2+ B-TEST-1 fix 진입 결정 보류 — test helper (`_routes_with_prefix`) 를
+  (a) `app.openapi()` 사용 또는 (b) `_IncludedRouter.routes` recursion 으로 fix
+② capability matrix v1.55 EXTENSION 결정 보류 — K-4 wire 1.2+ 의 B-TEST-1 fix 후
+  actual runtime PASS matrix 분석 의존
+③ K-4 wire 2+ smoke test 확장 결정 보류 — 27 → 50-100 cases 확장 시점, K-4 wire
+  1.2+ 결과 의존
+④ 옵션 β docs+test 전체 결정 wire 진입 결정 보류 — K-4 wire 1.2+ 의 capability
+  matrix EXTENSION 추가 의존
+⑤ 옵션 γ source 변경 결정 wire 진입 결정 보류 — K-4 wire 1.2+ 의 B-TEST-1 fix 외
+  source 변경은 blocker 발견 시에만 scoped
+⑥ 디자인가이드 진입 결정 보류 — K-4 외부 별도 epic territory (옵션 f)
+⑦ operator 환경 runtime verification 결정 보류 — 본 sprint 의 host venv activation
+  결정 wire 완료, 추후 environment-specific verification 결정 wire 보류
+
+**결정 wire 일자**: 2026-09-11 (KST, D-3, Pilot W1 launch D-day 2026-09-14 KST Mon
+까지 3일)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
