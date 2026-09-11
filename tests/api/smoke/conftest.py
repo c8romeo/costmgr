@@ -21,6 +21,17 @@ runtime test 실행 (pytest) 은 operator 환경에서 실행 결정 wire 보류
 
 from __future__ import annotations
 
+# IMPORTANT: OTEL_SDK_DISABLED must be set BEFORE `from apps.api.main import app`
+# because apps.api.main calls init_tracing() at module level (main.py:338), which
+# reads os.environ["OTEL_SDK_DISABLED"] at import time (tracing.py:66). Without
+# this env var, init_tracing() tries to import opentelemetry.exporter.otlp.* and
+# crashes with ModuleNotFoundError on host venv (B1 blocker from K-4 wire 1.1b,
+# same root cause as cj-303 stack pin EXTENSION scope: tracing.py lazy imports).
+import os
+
+if "OTEL_SDK_DISABLED" not in os.environ:
+    os.environ["OTEL_SDK_DISABLED"] = "true"
+
 from typing import Iterator
 
 import pytest
