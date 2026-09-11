@@ -1,0 +1,146 @@
+docs(phase-30): K-4 wire 2 entry decision wire DONE (cj-style 299번째)
+
+사용자 2026-09-11 결정 wire verbatim mirror (K-4 chain parent 결정 wire 보존 +
+2026-09-11 KST D-3 replay) — "내가 얻고자 하는 최종 결과물이 무엇인지를 다시 한 번
+고민" + "리스크 최소화 + 전체적인 프로세스 설계의 관점에서 최적의 대안" + "가장
+합리적이고 효과적인 것부터 실행" + **K-4 chain 의 Step 2 (K-4 wire 2 = actual HTTP
+request/response runtime smoke) 의 entry 결정 wire 진입**.
+
+**rationale 5종**:
+
+① **사용자 결정 wire verbatim mirror** — K-4 chain parent 결정 wire verbatim 보존
++ 2026-09-11 KST D-3 의 K-4 wire 1.2+ 후속 옵션 ① capability matrix v1.55
+EXTENSION vs ② K-4 wire 2+ smoke test 확장 선택 결정. 4 ideas 평가 종합.
+
+② **4 ideas → goal alignment + risk 분석** — ① capability matrix v1.55 EXTENSION
+(MEDIUM/LOW/LOW-MED, docs-level 만, runtime assurance 와 direct connection 약함) /
+**② K-4 wire 2 main (HIGH/MEDIUM/HIGH, runtime-level = "확실한 MVP 기능 갖춘
+프로그램" 가장 직접 layer 정합) ★★★ RECOMMENDED** / ③ K-4 wire 2 + business
+logic full (HIGH/HIGH/HIGH, scope 큼, K-4 wire 2.5+ 로 분할) / ④ 옵션 γ source
+변경 (LOW/HIGH/LOW-MED, K-4 wire 1.x 의 source 변경 blocker 발견 시에만 scoped)
+
+③ **K-4 wire 2 의 scope 결정** — MVP-critical 10 flows × ~5-10 cases each =
+~50-70 cases (50-100 range 의 lower end, MEDIUM risk minimization). env
+dependencies honestly 분석 — TestClient + minimal mock (user fixture + schema
+validation, K-4 wire 1 의 app fixture 보존) 가능 / DB (Supabase PostgreSQL) +
+full SSO (Epic 12 sso 13 skipped tests, python3-saml missing) + external
+services (Sentry, Resend, APScheduler) = honestly DEFER (operator 환경 의존)
+
+④ **3-step verification method 보존** — option α docs-only entry (본 sprint
+CLOSED ✅, K-4 chain parent 결정 wire pattern verbatim mirror) → option β
+runtime smoke test (K-4 wire 2 main, 다음 sprint 결정 보류) → option γ
+blocker-fix-only (K-4 wire 2.2+, 후속 결정 보류, blocker 발견 시에만 scoped).
+**Risk minimization 4-discipline**: (a) Narrow scope = MVP-critical 10 flows
+× ~5-10 cases each = ~50-70 cases (b) Verify-first = docs-only → runtime →
+blocker-fix (c) Env honestly-DEFER = DB + full SSO + external services =
+operator 환경 의존, mock 가능 cases 우선 검증 (d) Iterative verification =
+첫 시도 → blocker surface capture → fix → 두번째 시도
+
+⑤ **K-4 wire 1 chain COMPLETE ✅ HONEST** + K-4 wire 2 의 후속 결정 wire 보존
+— K-4 wire 1 (cj-style 294th `337cca2`, smoke test entry) + K-4 wire 1.1
+(cj-style 295th `7a59f4e`, static verification 27/27 정합) + K-4 wire 1.1b
+(cj-style 296th, runtime 2/27 PASS + 25/27 ERROR) + K-4 wire 1.1c
+(cj-style 297th, uv sync + 3/27 PASS + 24/27 FAIL) + **K-4 wire 1.2+
+B-TEST-1 fix (cj-style 298th `ba841f8`, 27/27 PASS ✅ HONEST)** 종합 5 sprints
+K-4 wire 1 chain COMPLETE. 결정 보류: ① K-4 wire 2 main (option β runtime smoke,
+~2-3h, ~50-70 cases) ② capability matrix v1.55 EXTENSION (K-4 wire 2 main 결과
+의존) ③ K-4 wire 2.2+ blocker-fix (K-4 wire 2 main 결과 의존) ④ K-4 wire 2.5+
+DB-backed integration test (operator 환경 의존) ⑤ K-4 wire 3 business logic +
+auth/tenant context (longer-term honestly DEFER) ⑥ 디자인가이드 / M10~M12
+(Non-MVP, K-4 외부)
+
+**verify gate**:
+- PROD source 변경 **0건** (apps/api/main.py + tracing.py + pdf_generator.py +
+  scheduled_reports.py + metrics.py + alembic 모두 unchanged, K-4 wire 1 의 source
+  변경 0건 보존)
+- Test 변경 **0건** (K-4 wire 2 main 의 test 작성은 option β runtime smoke 의 sprint
+  deliverable, 본 sprint 는 docs-only entry decision wire = K-4 wire 2 의 scope +
+  3-step method + env honestly-DEFER 분석)
+- PRD 변경 **0건**
+- Capability matrix 변경 **0건** (v1.54 EXTENSION preserved, capability matrix
+  v1.55 EXTENSION 은 K-4 wire 2 main 결과 분석 후 결정 wire 보류)
+- Alembic 변경 **0건**
+- Migration source 변경 **0건**
+- 37 pins unchanged (pyproject.toml + uv.lock unchanged)
+- 14 job matrix unchanged
+- PRD v7.0 §F/§M/§R unchanged
+- capability matrix v1.54 EXTENSION preserved
+- audit actions EXTENSION preserved
+- AD-14 stack pin EXTENSION preserved (apscheduler==3.10.4 + pytz==2024.1)
+- cj-303 stack pin EXTENSION preserved
+- K-4 wire 1 chain COMPLETE 보존 (5 sprints 종합, K-4 wire 1.2+ 의 27/27 PASS ✅
+  HONEST 정직 회복 보존)
+- K-4 chain parent 결정 wire 보존 (cj-style 293rd `23ece93`, 4 ideas 평가 +
+  Narrow scope + Verify-first + Blocker-fix-only 3-discipline)
+
+**4 files docs-only atomic**:
+- 1 NEW handoff (`memory/handoff-2026-09-11-k4-wire-2-entry-decision-wire-done.md`
+  ~290 LOC 9-section §1~§9)
+- 1 NEW commit-msg (본 file)
+- 1 MODIFIED sprint-status (`_bmad-output/implementation-artifacts/sprint-status.yaml`
+  v4.114 → **v4.115 EXTENSION** A759 + `last_updated_note_v4_115`)
+- 1 MODIFIED meta (`memory/MEMORY.md` K-4 wire 2 entry hook + Active sprint state
+  post K-4 wire 2 entry EXTENSION)
+
+**71/71 cumulative 결정 wire 보존** (K-4 wire 1.2+ 의 70 + **NEW 71번째 K-4 wire 2
+entry decision wire**)
+
+**CR 11-3 honest-DEFER 299번째** chain cj-282 (220번째) → ... → K-4 wire 1.2+
+B-TEST-1 fix (298번째, commit `ba841f8`) → **K-4 wire 2 entry decision wire
+(299번째, 본 sprint)** 종합 71 sprints 정직 회복.
+
+**결정 wire 보존**: K-4 wire 1.2+ B-TEST-1 fix (cj-style 298th `ba841f8`) + K-4
+wire 1.1c runtime pytest after uv sync (cj-style 297th) + K-4 wire 1.1b runtime
+pytest + blocker surface (cj-style 296th) + K-4 wire 1.1 static route verification
+entry (`7a59f4e`, cj-style 295th) + K-4 wire 1 smoke test entry (`337cca2`,
+cj-style 294th) + K-4 entry decision wire (`23ece93`, cj-style 293rd) + K-3 chunk 5
+검증 결정 wire (`f568bd9`, cj-style 292nd) + K-3 chunk 4 검증 결정 wire (cj-style
+291st) + K-3 chunk 3 검증 결정 wire (`ab31195`, cj-style 290th) + K-3 chunk 2 검증
+결정 wire (`3ebd493`, cj-style 289th) + K-3 chunk 1 검증 결정 wire (`9842dc7`,
+cj-style 287th) + K-4 메모리 description update 결정 wire (`00c49df`, cj-style
+288th) + K-3 결정 wire (`cc84b0e`, cj-style 286th) + cj-319 (`2249fec`, cj-style
+285th Track A-0 deploy-blocking wire) + cj-318 + cj-314 wire 5 retroactive
+correction + cj-314 wire 5 retroactive close-out + cj-312 retro + cj-313 retro +
+cj-315 wire + retroactive correction + cj-314 wire 4 + cj-314 wire 3 (`34e92aa`)
++ cj-314 wire 2 + cj-314 wire 1 (`cca03c2`) + cj-317 + cj-316 + cj-314 entry +
+cj-313 wire + cj-312 wire + cj-311 + cj-310 retroactive correction + cj-309b +
+cj-309 + cj-310 + cj-308 + cj-307 + cj-305b + cj-305 + cj-304 + cj-303 + cj-301
++ cj-300 + cj-299 + cj-298 + cj-297 + cj-282 결정 wire 보존 + Pilot W1 launch
+D-day 2026-09-14 KST 보존 + MVP-verification 우선 (사용자 2026-09-10 결정 wire)
+보존 + `memory/project-2026-09-10-k4-mvp-verification-scope.md` (K-4 정의 결정
+wire 보존, parent 결정 wire) + `memory/project-2026-09-10-pilot-launch-date-
+rationale-audit.md` (OQ-3 정직 검증 결과 반영) + `memory/feedback-2026-09-10-mvp-
+verification-over-pilot-deployment.md` (사용자 2026-09-10 결정 wire 보존) +
+`memory/handoff-2026-09-11-k3-decision-wire-done.md` (K-3 정의 결정 wire, commit
+`cc84b0e`) + K-3 chain 1~5 handoffs + K-4 description update + K-4 entry + K-4
+wire 1 + K-4 wire 1.1 + K-4 wire 1.1b + K-4 wire 1.1c + K-4 wire 1.2+ +
+**`memory/handoff-2026-09-11-k4-wire-2-entry-decision-wire-done.md`** (K-4 wire 2
+entry decision wire, 본 sprint)
+
+**PRE-EXISTING honestly DEFER carryover 보존**: cj-303 4건 + PRE-EXISTING 6건 +
+cj-307 carryover LOW RISK ~30건 + sso 13 skipped tests + W1~W8 carryover +
+epics.md triage + PRD v2 EXTENSION + 비용 발생 항목 모두 (사용자 2026-09-10 결정
+wire verbatim "배포작업 안 함 / RESEND·RAILWAY 등 지금 단계 X") + **신규 honestly
+DEFER (K-4 wire 2 chain 보존, 본 sprint 후속)**: K-4 wire 2 main (option β runtime
+smoke, ~50-70 cases) + capability matrix v1.55 EXTENSION (K-4 wire 2 main 결과
+의존) + K-4 wire 2.2+ blocker-fix (K-4 wire 2 main 결과 의존) + K-4 wire 2.5+
+DB-backed integration test (operator 환경 의존) + K-4 wire 3 business logic +
+auth/tenant context (longer-term honestly DEFER) + 디자인가이드 / M10~M12 (Non-MVP,
+K-4 외부)
+
+**결정 보류 (운전자, 본 sprint 후속)**:
+① K-4 wire 2 main 진입 결정 보류 — option β runtime smoke test sprint (~2-3h,
+  ~50-70 cases 작성 + pytest 실행 + first-pass blocker surface capture)
+② capability matrix v1.55 EXTENSION 결정 보류 — K-4 wire 2 main 결과 분석 후 결정
+③ K-4 wire 2.2+ blocker-fix 결정 보류 — K-4 wire 2 main 의 first-pass 결과 의존,
+  option γ scoped source 변경 (blocker 발견 시에만)
+④ K-4 wire 2.5+ DB-backed integration test 결정 보류 — Supabase local emulator
+  환경 준비 결정 wire 보류 (operator 환경 의존)
+⑤ K-4 wire 3 business logic + auth/tenant context 결정 보류 — K-4 chain 의 Step 3
+  longer-term, ~100-200 cases, Supabase + full SSO 환경 의존
+⑥ 디자인가이드 / M10~M12 진입 결정 보류 — Non-MVP, K-4 외부 별도 epic territory
+
+**결정 wire 일자**: 2026-09-11 (KST, D-3, Pilot W1 launch D-day 2026-09-14 KST
+Mon 까지 3일)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
