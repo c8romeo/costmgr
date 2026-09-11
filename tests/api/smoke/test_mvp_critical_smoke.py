@@ -37,6 +37,8 @@ from tests.api.smoke.conftest import (
     _count_routes_with_prefix,
     _find_route,
     _routes_with_prefix,
+    _routes_with_prefix_and_method,
+    _total_route_paths,
 )
 
 
@@ -77,8 +79,7 @@ def test_m0_onboarding_tenant_settings_router_registered(app: FastAPI) -> None:
 
 def test_m0_onboarding_has_post_endpoints(app: FastAPI) -> None:
     """M0 onboarding 에는 최소 1개 POST endpoint 가 있어야 한다."""
-    posts = [r for r in app.routes if hasattr(r, "path") and hasattr(r, "methods")
-             and "/tenant-settings" in r.path and "POST" in r.methods]
+    posts = _routes_with_prefix_and_method(app, "/tenant-settings", "POST")
     assert len(posts) > 0, "M0 onboarding has no POST endpoints"
 
 
@@ -105,10 +106,8 @@ def test_m1_baseline_router_registered(app: FastAPI) -> None:
 
 def test_m1_baseline_endpoints_have_crud_methods(app: FastAPI) -> None:
     """M1 baseline 엔드포인트들이 GET + POST 를 갖추고 있다 (CRUD 검증)."""
-    gets = [r for r in app.routes if hasattr(r, "path") and hasattr(r, "methods")
-            and "/baseline" in r.path and "GET" in r.methods]
-    posts = [r for r in app.routes if hasattr(r, "path") and hasattr(r, "methods")
-             and "/baseline" in r.path and "POST" in r.methods]
+    gets = _routes_with_prefix_and_method(app, "/baseline", "GET")
+    posts = _routes_with_prefix_and_method(app, "/baseline", "POST")
     assert len(gets) > 0, "M1 baseline has no GET endpoints"
     assert len(posts) > 0, "M1 baseline has no POST endpoints"
 
@@ -126,8 +125,7 @@ def test_m2_input_router_registered(app: FastAPI) -> None:
 
 def test_m2_input_has_endpoints(app: FastAPI) -> None:
     """M2 input 엔드포인트들이 등록되어 있다."""
-    gets = [r for r in app.routes if hasattr(r, "path") and hasattr(r, "methods")
-            and "/monthly-input" in r.path and "GET" in r.methods]
+    gets = _routes_with_prefix_and_method(app, "/monthly-input", "GET")
     assert len(gets) > 0, "M2 input has no GET endpoints"
 
 
@@ -163,8 +161,7 @@ def test_m5_reports_router_registered(app: FastAPI) -> None:
 
 def test_m5_reports_has_get_endpoints(app: FastAPI) -> None:
     """M5 reports 에 GET 엔드포인트가 있다 (조회)."""
-    gets = [r for r in app.routes if hasattr(r, "path") and hasattr(r, "methods")
-            and "/reports" in r.path and "GET" in r.methods]
+    gets = _routes_with_prefix_and_method(app, "/reports", "GET")
     assert len(gets) > 0, "M5 reports has no GET endpoints"
 
 
@@ -187,8 +184,7 @@ def test_m8_budget_variance_router_registered(app: FastAPI) -> None:
 
 def test_m8_budget_has_post_endpoints(app: FastAPI) -> None:
     """M8 budget 에 POST endpoint 가 있다 (시나리오 생성)."""
-    posts = [r for r in app.routes if hasattr(r, "path") and hasattr(r, "methods")
-             and "/budget/" in r.path and "POST" in r.methods]
+    posts = _routes_with_prefix_and_method(app, "/budget/", "POST")
     assert len(posts) > 0, "M8 budget has no POST endpoints"
 
 
@@ -205,8 +201,7 @@ def test_m9_abc_router_registered(app: FastAPI) -> None:
 
 def test_m9_abc_has_endpoints(app: FastAPI) -> None:
     """M9 ABC 엔드포인트들이 등록되어 있다."""
-    gets = [r for r in app.routes if hasattr(r, "path") and hasattr(r, "methods")
-            and "/abc" in r.path and "GET" in r.methods]
+    gets = _routes_with_prefix_and_method(app, "/abc", "GET")
     assert len(gets) > 0, "M9 ABC has no GET endpoints"
 
 
@@ -304,7 +299,7 @@ def test_mvp_critical_total_routes_baseline(app: FastAPI) -> None:
     K-3 chain 5/5 DONE 시점 baseline = ~50+ routes (10 flows × ~5 routes 평균).
     본 test 는 regression detection 용도 (baseline drift 추적).
     """
-    total_routes = sum(1 for r in app.routes if hasattr(r, "path"))
+    total_routes = _total_route_paths(app)
     assert total_routes >= 40, (
         f"Total routes ({total_routes}) below baseline (40). "
         f"Possible MVP-critical router missing or main.py regression."
