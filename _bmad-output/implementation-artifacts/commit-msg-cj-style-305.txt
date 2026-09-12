@@ -1,0 +1,82 @@
+docs(phase-30): cj-style 305 retroactive correction — cj-313 close-out retro handoff commit hash 정직 회복
+
+cj-313 close-out retro handoff 의 commit hash placeholder (`cca5c40`)
+→ actual amended commit hash (`a14e95d`) 정직 회복 결정 wire 진입
+(cj-style 305th atomic single sprint).
+
+CR 11-3 honest-DEFER retroactive correction discipline verbatim mirror
+(cj-style 257th 의 cj-305b retroactive correction + cj-style 267th 의
+cj-310 retroactive correction + cj-style 304th 의 K-4 wire 3 honest-
+DEFER guard 패턴):
+- cj-313 close-out retro wire commit hash 가 cca5c40 으로 commit
+  되었으나, 추후 handoff commit hash placeholder recovery 를 위해
+  a14e95d 로 amended 됨
+- 본 sprint = handoff file 4 lines 정직 회복 (2 places × 2 lines)
+- cj-style 305th = retroactive correction discipline chain 의 305번째
+  적용
+
+rationale 5종:
+① CR 11-3 honest-DEFER retroactive correction discipline 정합 (cj-
+   305b / cj-310 / K-4 wire 3 honest-DEFER guard 패턴 verbatim mirror)
+② 결정 wire 보존 (cja-style 304th 의 K-4 wire 3 honest-DEFER guard
+   76번째 결정 wire + cj-style 305th 의 77번째 결정 wire = 77/77
+   cumulative)
+③ Operator out-of-session 정직 인정 (amend 결정 wire 는 운전자
+   결정, 본 sprint 는 그 결과 정직 반영)
+④ sprint-status v4.120 → v4.121 EXTENSION + A765 신규 결정 wire
+⑤ pre-existing 4 lines 결정 = 가장 낮은 리스크 + 가장 큰 효과
+
+verify gate:
+- **PROD source 변경 0건** (apps/api/* unchanged)
+- **Test 변경 0건** (cj-style 304th 와 동일 — pytest 변경 없음)
+- **handoff 1 file MODIFIED 4 lines** (memory/handoff-2026-09-10-
+  cj-313-close-out-retro-done.md: cca5c40 → a14e95d 2 places ×
+  2 lines)
+- **PRD 변경 0건** (PRD v7.0 §F/§M/§R unchanged)
+- **Capability matrix source 변경 0건** (v1.54 EXTENSION preserved)
+- **37 pins unchanged** + **14 job matrix unchanged**
+
+**5 files atomic** = 1 MODIFIED handoff
+(`memory/handoff-2026-09-10-cj-313-close-out-retro-done.md` 4 lines
+정직 회복: commit: cca5c40 → a14e95d 2 places) + 1 NEW handoff
+(`memory/handoff-2026-09-13-cj-style-305-retroactive-correction-done.md`
+8-section §1~§8) + 1 NEW commit-msg (본 file with Co-Authored-By) +
+1 MODIFIED sprint-status (v4.120 → **v4.121 EXTENSION** A765 +
+last_updated_note_v4_121) + 1 MODIFIED meta (`memory/MEMORY.md`
+cj-style 305th hook EXTENSION).
+
+**77/77 cumulative 결정 wire 보존** (K-4 wire 3 honest-DEFER guard 의
+76 + **NEW 77번째 cj-style 305th retroactive correction**).
+
+**CR 11-3 honest-DEFER 305번째** chain cj-282 (220번째) → ... → K-4
+wire 3 honest-DEFER guard (`f248014`, cj-style 304th) → **cj-style
+305th retroactive correction (305번째, 본 sprint)** 종합 86 sprints
+정직 회복.
+
+**PRE-EXISTING honestly DEFER carryover 보존** (cj-303 4건 + PRE-
+EXISTING 6건 + cj-307 carryover LOW RISK ~30건 + sso 13 skipped tests +
+W1~W8 carryover + epics.md triage + PRD v2 EXTENSION + 비용 발생 항목
+모두) + **신규 honestly DEFER (cj-style 305th chain 보존, 본 sprint
+후속)**: capability matrix v1.55 EXTENSION (urgency 낮음) + K-4 wire 3
+main runtime execution 결정 보류 (operator 환경 의존) + K-4 wire 3.2+
+blocker-fix 결정 보류 + K-4 wire 3.5+ DB-backed integration full 결정
+보류 + 디자인가이드 / M10~M12 (Non-MVP) + cj-314 wire 2~6 + batch A/B/C
++ Pilot W1 outreach + W1~W8 carryover + 운영 cleanup 6건 + CI/web-e2e
+환경 + Phase C 잔여 ~30 + 화면정의 회귀 + **epics.md triage (1478
+lines uncommitted change)**.
+
+**결정 보류 (운전자, 본 sprint 후속)**: ① **K-4 wire 3 main runtime
+execution** (operator 환경 의존) ② K-4 wire 3.2+ blocker-fix ③ K-4
+wire 3.5+ DB-backed integration full ④ capability matrix v1.55 EXTENSION
+⑤ 디자인가이드 ⑥ 운영 cleanup 6건 ⑦ CI/web-e2e 환경 ⑧ Phase C 잔여
+~30 ⑨ **epics.md triage (1478 lines uncommitted change)** ⑩ 화면정의
+회귀 ⑪ Pilot W1 outreach + W1~W8 carryover (honestly-DEFER 권장) ⑫
+PRD v2 EXTENSION ⑬ M10~M12.
+
+결정 wire 일자: 2026-09-13 (KST, D-1, Pilot W1 launch D-day 2026-09-14
+KST Mon 까지 1일).
+
+후속 마감 = 본 commit (sprint-status A765 + MEMORY.md hook + handoff +
+commit-msg + cj-313 handoff = 5 files atomic single sprint).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

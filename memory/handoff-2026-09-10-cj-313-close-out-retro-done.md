@@ -12,7 +12,7 @@ metadata:
 > **Territory**: cj-313 (Phase A item 2 = pytest stale tests fix) close-out retro
 > **Author**: Claude (operator = kjw)
 > **Sprint form**: close-out retro (cj-style 280th, post cj-315 retroactive correction 279th 결정 wire 진입)
-> **commit**: `cca5c40` (단일 sprint, 5 files changed, 540 insertions(+))
+> **commit**: `a14e95d` (단일 sprint, 5 files changed, 540 insertions(+), amended from `cca5c40` to include handoff commit hash placeholder recovery)
 
 ---
 
@@ -170,7 +170,7 @@ metadata:
 
 ### 결정 wire 일자
 - 2026-09-10 (KST, D-4, Pilot W1 launch D-day 2026-09-14 KST)
-- commit hash: `cca5c40` (단일 sprint, 5 files changed, 540 insertions(+))
+- commit hash: `a14e95d` (amended from `cca5c40`, 단일 sprint, 5 files changed, 540 insertions(+))
 
 ### Cross-references
 - cj-313 wire handoff: `memory/handoff-2026-09-09-cj-313-pytest-stale-tests-fix-wire-done.md` (cj-style 270번째)
