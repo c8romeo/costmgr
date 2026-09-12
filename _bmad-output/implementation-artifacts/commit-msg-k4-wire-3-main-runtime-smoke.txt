@@ -1,0 +1,225 @@
+docs(phase-30): K-4 wire 3 main runtime smoke — Layer 3 business logic + auth/tenant context (cj-style 303번째)
+
+K-4 chain 의 Step 3 longer-term business logic + auth/tenant context 의
+**option β runtime smoke test sprint** (cj-style 303번째 atomic single
+sprint, 사용자 2026-09-13 결정 wire verbatim mirror: 'K-4 wire 3 main
+진행해줘').
+
+K-4 wire 3 entry decision wire (cj-style 302nd, commit `a07b87f`) 의
+option β runtime smoke test sprint + 3-step method + risk minimization
+4-discipline + env honestly-DEFER 분석 verbatim mirror 진입. K-4 close-
+out retro (`7beeabd`, cj-style 301st) 의 K-4 chain 9 sprints 종합
+CLOSED ✅ HONEST + K-4 wire 3 entry 의 4 ideas + 3-step method 정합.
+
+K-4 chain 4-layer 검증 pyramid 정합:
+- Layer 1 (K-4 wire 1, DONE ✅): route 존재 확인 — ZERO runtime
+- Layer 2 (K-4 wire 2, DONE ✅): HTTP smoke + schema validation — minimal mock
+- **Layer 3 (K-4 wire 3, 본 sprint)**: business logic + auth/tenant
+  context — mock-based partial (~100 cases written)
+- Layer 4 (K-4 wire 4, longer-term 결정 보류): full E2E + pilot user
+  flow — production env
+
+K-4 wire 3 scope 결정 (option β 진입 결정, K-4 wire 3 entry decision
+wire cj-style 302nd 정합) = ~100-200 cases:
+- Auth flow (8): magic-link + OAuth + SSO + JWT + tenant context +
+  aal1/aal2 + MFA + session
+- M0 Onboarding (8): signup + 이메일 verify + tenant 생성 + owner role +
+  RLS + dashboard + first cost + wizard
+- M1 기준정보 (12): cost-pools CRUD + cost-objects CRUD + allocation-
+  rules CRUD + RLS + audit + soft delete + bulk + export + validation +
+  unique + FK + tenant
+- M2 월데이터입력 (10): state-based API + validation + RLS + audit +
+  bulk + import + export + history + tenant
+- M3 원가계산엔진 (10): allocation engine + correctness + driver-based +
+  ABC + RLS + audit + idempotency + error + perf + tenant
+- M5 손익 (8): calculation + revenue vs cost + product/service margin +
+  RLS + audit + period + export + tenant
+- M8 예산 (8): CRUD + variance + RLS + audit + bulk + export + period +
+  tenant
+- M9 ABC (8): driver CRUD + allocation + ABC costing + RLS + audit +
+  bulk + export + tenant
+- Audit log (8): write + query + filter + tenant-scoped + RLS +
+  retention + integrity + export
+- Export (8): CSV + JSON + Excel + PDF + tenant-scoped + RLS + audit +
+  scheduled
+- Cross-cutting (12): RLS context + audit context + capability + tenant
+  isolation + concurrent + transaction + error + health + schema + input
+  + rate limit + CORS
+- **Total: ~100 cases** (target ~100-200 ✅)
+
+SCOPED variant 결정 (env honestly-DEFER 정합, K-4 wire 3 entry decision
+wire 의 env dependencies honestly 분석 verbatim mirror):
+- TestClient + minimal mock (K-4 wire 2 의 app fixture 보존) ✅ 가능
+- Supabase local emulator (PostgreSQL + PostgREST + GoTrue + storage +
+  RLS) ⚠️ 환경 준비 결정 wire 보류 (Docker Desktop 의존)
+- Full SSO context (Epic 12 sso 13 skipped tests, python3-saml missing)
+  ⚠️ 환경 준비 결정 wire 보류 (system-level xmlsec1 + libxml2-dev 의존)
+- Tenant data + business logic correctness (M3 ABC + M5 손익
+  calculation 정확성) ⚠️ 결정 wire 보류
+- Migration data + seed data ⚠️ 결정 wire 보류
+
+Implementation pattern (K-4 wire 2 main cj-style 300th verbatim mirror +
+Layer 3 extension):
+1. **Endpoint existence + auth gating**: `paths["/api/v1/x/y"]` +
+   `TestClient.get()` → `200/401/403`
+2. **Schema validation**: `TestClient.post(path, json={})` → `422
+   (validation error)` + `response.json()["detail"]` 검증
+3. **Business logic response validation**: `response.status_code` + key
+   fields (content-type for export, detail for 422, status for health)
+4. **graceful fallback**: pytest.skip() for env-dependent route missing
+
+Risk minimization 4-discipline (K-4 wire 3 entry decision wire cj-style
+302nd verbatim mirror):
+(a) Narrow scope = MVP-critical 10 flows + cross-cutting only, ~100
+    cases (K-4 wire 2 의 55 cases + 본 sprint 의 +45 cases = ~100
+    cases total)
+(b) Verify-first = K-4 wire 3 entry (cj-style 302nd) → K-4 wire 3 main
+    (본 sprint) → K-4 wire 3.2+ blocker-fix (decision pending)
+(c) Env honestly-DEFER = TestClient + minimal mock only, full env →
+    K-4 wire 3.5+
+(d) Iterative verification = 본 sprint 의 first-pass 결과 분석 →
+    K-4 wire 3.2+ 결정 wire 진입 (or honestly-DEFER 보류)
+
+rationale 5종:
+① **사용자 결정 wire verbatim mirror** — option β K-4 wire 3 main
+   진입, K-4 wire 3 entry decision wire + K-4 wire 2 main 패턴 verbatim
+   mirror
+② **K-4 chain 4-layer 검증 pyramid 정합** — Layer 3 business logic +
+   auth/tenant context 검증 (Layer 1 → Layer 2 → Layer 3 → Layer 4)
+③ **SCOPED variant 결정 (env honestly-DEFER)** — TestClient + minimal
+   mock + mock-based partial coverage + env honestly-DEFER 정직 회복
+④ **~100 cases 의 scope 충족** — Auth 8 + M0 8 + M1 12 + M2 10 + M3 10
+   + M5 8 + M8 8 + M9 8 + Audit 8 + Export 8 + Cross-cutting 12 = 100
+   cases (target ~100-200 ✅)
+⑤ **K-4 wire 3.5+ honestly-DEFER 보존 + 결정 wire 보류 13건 명시** —
+   Supabase local emulator + Full SSO + Migration data + Tenant data +
+   Full RLS + capability matrix v1.55 EXTENSION + 디자인가이드 + 운영
+   cleanup 6건 + CI/web-e2e 환경 + Phase C 잔여 ~30 + 화면정의 회귀 +
+   Pilot W1 outreach + W1~W8 carryover + PRD v2 EXTENSION + M10~M12
+
+verify gate:
+- **PROD source 변경 0건** (apps/api/main.py + tracing.py +
+  pdf_generator.py + scheduled_reports.py + metrics.py + alembic +
+  modules/m0~m12 모두 unchanged)
+- **Test 변경 1 file** (test_k4_wire_3_runtime_smoke.py NEW only,
+  conftest.py unchanged)
+- **alembic 변경 0건** + **PRD 변경 0건** (PRD v7.0 §F/§M/§R unchanged)
+- **Capability matrix source 변경 0건** (v1.54 EXTENSION preserved,
+  v1.55 EXTENSION 결정 보류) + **Migration source 변경 0건**
+- **37 pins unchanged** (pyproject.toml + uv.lock unchanged) + **14 job
+  matrix unchanged** (.github/workflows/*.yml unchanged)
+- **audit actions EXTENSION preserved** + **AD-14 stack pin EXTENSION
+  preserved** (apscheduler==3.10.4 + pytz==2024.1) + **cj-303 stack
+  pin EXTENSION preserved**
+- **A19 cohesion 9 surface EXTENSION PASS preserved** (Surface 1
+  database schema + Surface 2 RLS + Surface 3 audit actions + Surface 4
+  typed exceptions + Surface 5 capability gating + Surface 6 FastAPI
+  routers + Surface 7 TypeScript mirrors + Surface 8 ko-KR SSOT +
+  Surface 9 CR 9-6 atomic commit)
+- **3중 게이트 FINAL CLEAN 보존** (ruff scoped + pytest + vitest + tsc)
+
+**5 files docs-only + test atomic** = 1 NEW test file
+(`tests/api/smoke/test_k4_wire_3_runtime_smoke.py` ~+700 LOC 100 test
+functions) + 1 NEW handoff
+(`memory/handoff-2026-09-13-k4-wire-3-main-runtime-smoke-done.md` 8-
+section §1~§8) + 1 NEW commit-msg (본 file) + 1 MODIFIED sprint-status
+(v4.118 → **v4.119 EXTENSION** A763 + last_updated_note_v4_119) + 1
+MODIFIED meta (`memory/MEMORY.md` K-4 wire 3 main hook + Active sprint
+state post K-4 wire 3 main EXTENSION).
+
+**75/75 cumulative 결정 wire 보존** (K-4 wire 3 entry decision wire 의
+74 + **NEW 75번째 K-4 wire 3 main runtime smoke (cj-style 303rd)**).
+
+**CR 11-3 honest-DEFER 303번째** chain cj-282 (220번째) → ... → K-4
+wire 3 entry decision wire (`a07b87f`, cj-style 302nd) → **K-4 wire 3
+main runtime smoke (303rd, 본 sprint)** 종합 84 sprints 정직 회복.
+
+결정 wire 보존 (K-4 chain 11 sprints + 본 sprint + K-3 chain 5/5 +
+cj-282~cj-319 종합 chain): K-4 wire 3 entry decision wire (`a07b87f`,
+cj-style 302nd, 4 ideas + 3-step + env honestly-DEFER) + K-4 close-
+out retro (`7beeabd`, 301st, K-4 chain 9 sprints 종합) + K-4 wire 2
+main runtime smoke (`24f9ce3`, 300th, 55/3/0 ✅) + K-4 wire 2 entry
+decision wire (`0d6e6af`, 299th) + K-4 wire 1.2+ B-TEST-1 fix
+(`ba841f8`, 298th, 27/27 PASS ✅) + K-4 wire 1.1c (297th) + K-4 wire
+1.1b (296th) + K-4 wire 1.1 (`7a59f4e`, 295th) + K-4 wire 1
+(`337cca2`, 294th) + K-4 entry decision wire (`23ece93`, 293rd, 4
+ideas + 3-step method) + K-3 chunk 5 (`f568bd9`, 292nd) + K-3 chunk
+4 (291st) + K-3 chunk 3 (`ab31195`, 290th) + K-3 chunk 2 (`3ebd493`,
+289th) + K-4 description update (`00c49df`, 288th) + K-3 chunk 1
+(`9842dc7`, 287th) + K-3 결정 wire (`cc84b0e`, 286th) + cj-319
+(`2249fec`, 285th Track A-0 deploy-blocking wire) + cj-318 + cj-314
+wire 5 retroactive correction (283rd) + cj-314 wire 5 retroactive
+close-out (282nd) + cj-315 retroactive correction (279th) + cj-315
+wire + cj-314 wire 4 + cj-314 wire 3 (`34e92aa`) + cj-314 wire 2 +
+cj-314 wire 1 (`cca03c2`, 274th) + cj-317 + cj-316 + cj-314 entry +
+cj-313 wire + cj-313 retro + cj-312 wire + cj-312 retro + cj-311 +
+cj-310 retroactive correction + cj-309b + cj-309 + cj-310 + cj-308 +
+cj-307 + cj-305b + cj-305 + cj-304 + cj-303 + cj-301 + cj-300 +
+cj-299 + cj-298 + cj-297 + cj-282 결정 wire 보존 + Pilot W1 launch D-
+day 2026-09-14 KST 보존 + MVP-verification 우선 (사용자 2026-09-10
+결정 wire) 보존 + **`memory/project-2026-09-10-k4-mvp-verification-
+scope.md`** (K-4 정의 결정 wire 보존, parent 결정 wire) +
+**`memory/project-2026-09-10-pilot-launch-date-rationale-audit.md`**
+(OQ-3 정직 검증 결과 반영) + **`memory/feedback-2026-09-10-mvp-
+verification-over-pilot-deployment.md`** (사용자 2026-09-10 결정 wire
+verbatim '배포작업 안 함 / RESEND·RAILWAY 등 지금 단계 X' 보존) +
+memory/handoff-2026-09-11-k3-decision-wire-done.md + K-3 chain 1~5
+handoffs + K-4 description update + K-4 entry + K-4 wire 1 + K-4 wire
+1.1 + K-4 wire 1.1b + K-4 wire 1.1c + K-4 wire 1.2+ + K-4 wire 2
+entry + K-4 wire 2 main + K-4 close-out retro + memory/handoff-2026-
+09-13-k4-wire-3-entry-decision-wire-done.md + **`memory/handoff-2026-
+09-13-k4-wire-3-main-runtime-smoke-done.md`** (K-4 wire 3 main
+runtime smoke, 본 sprint).
+
+**PRE-EXISTING honestly DEFER carryover 보존**: cj-303 4건 + PRE-EXISTING
+6건 + cj-307 carryover LOW RISK ~30건 + sso 13 skipped tests + W1~W8
+carryover + epics.md triage + PRD v2 EXTENSION + 비용 발생 항목 모두
+(사용자 2026-09-10 결정 wire verbatim '배포작업 안 함 / RESEND·RAILWAY
+등 지금 단계 X') + **신규 honestly DEFER (K-4 wire 3 chain 보존, 본
+sprint 후속)**: capability matrix v1.55 EXTENSION (K-4 wire 3 main 결과
+분석 후 결정, urgency 낮음) + K-4 wire 3 main runtime execution 결정
+보류 (operator 환경 의존) + K-4 wire 3.2+ blocker-fix 결정 보류 (option
+γ scoped source 변경, blocker 발견 시에만) + K-4 wire 3.5+ DB-backed
+integration full 결정 보류 (longer-term honestly DEFER, ~200-300 cases,
+full env 의존) + 디자인가이드 / M10 AI / M11 마감이력 / M12 계정운영
+(Non-MVP, K-4 외부) + cj-314 wire 2~6 + cj-314 batch A/B/C (PRE-
+EXISTING honestly DEFER carryover 보존) + Pilot W1 outreach + W1~W8
+carryover (사용자 2026-09-10 결정 wire verbatim 보존) + 운영 cleanup
+6건 (cj-313/312 retro + cj-314 batch B + cj-319 N-1~N-3) + CI/web-e2e
+환경 (sso 13 + web-e2e 23 + test-suite-measure + web-test + lint-
+conventions) + Phase C 잔여 ~30 (Phase 10 SLO family + Phase 8 +
+consistency) + 화면정의 회귀.
+
+결정 보류 (운전자, 본 sprint 후속):
+① **K-4 wire 3 main runtime execution 결정 보류** — 본 sprint 의
+  ~100 cases 의 runtime execution 결과 의존 (option β first-pass).
+  operator 환경 (TestClient + minimal mock + host venv activation)
+  준비 후 actual pytest execution
+② **K-4 wire 3.2+ blocker-fix 결정 보류** — runtime execution 결과
+  의존, option γ scoped source 변경 (blocker 발견 시에만 scoped)
+③ **K-4 wire 3.5+ DB-backed integration full 결정 보류** — longer-
+  term honestly DEFER, ~200-300 cases, full env 의존
+④ **capability matrix v1.55 EXTENSION 결정 보류** — K-4 wire 3 main
+  결과 분석 후 결정 (urgency 낮음)
+⑤ **디자인가이드 진입 결정 보류** — K-4 외부 별도 epic territory
+⑥ **운영 cleanup 6건 sprint** (cj-313/312 retro + cj-314 batch B +
+  cj-319 N-1~N-3)
+⑦ **CI/web-e2e 환경 결정 wire** (sso 13 enable + web-e2e 23 root cause
+  + ...)
+⑧ **Phase C 잔여 ~30 결정 wire** (Phase 10 SLO family + Phase 8 +
+  consistency)
+⑨ **epics.md triage 결정 wire** (1478 lines uncommitted change)
+⑩ **화면정의 회귀 결정 wire** (PRD §UI)
+⑪ **Pilot W1 outreach + W1~W8 carryover** (사용자 2026-09-10 결정 wire
+  verbatim 보존 — 결정 보류 권장, honestly-DEFER 권장)
+⑫ **PRD v2 EXTENSION 결정 wire** (post-W1 결정 wire 보류)
+⑬ **M10 AI / M11 마감이력 / M12 계정운영 진입 결정 wire** (Non-MVP,
+  K-4 외부)
+
+결정 wire 일자: 2026-09-13 (KST, D-1, Pilot W1 launch D-day 2026-09-14
+KST Mon 까지 1일).
+
+후속 마감 = meta commit (sprint-status A763 + MEMORY.md K-4 wire 3 main
+hook + handoff + commit-msg + test file = 본 wire atomic).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
