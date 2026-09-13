@@ -1,0 +1,63 @@
+docs(phase-30): cj-style N+4 K-4 wire 3 main runtime execution entry decision wire — DATABASE_URL env 의존 결정 wire + env-ready 시점 결정 보존
+
+3 files atomic single sprint (cj-style N+4 K-4 wire 3 main runtime execution entry decision wire, cj-style N+3 Track A-1~A-4 운영자 체크리스트 chain 후속):
+
+- memory/handoff-2026-09-13-cj-style-n-4-k4-wire-3-main-runtime-execution-entry-done.md — N+4 entry decision wire handoff (NEW)
+- memory/MEMORY.md — N+4 결정 wire hook EXTENSION (project-level active state section)
+- _bmad-output/implementation-artifacts/commit-msg-cj-style-n-4.txt — commit message (NEW)
+
+cj-style N+4 K-4 wire 3 main runtime execution entry decision wire (cj-style N+3 Track A-1~A-4 운영자 체크리스트 의 후속):
+
+의도 분석:
+- 결정 보류 1번 verbatim: "K-4 wire 3 main runtime execution (DATABASE_URL 환경 의존, RECOMMENDED next)"
+- cj-style 302nd K-4 wire 3 entry decision wire (`a07b87f`) + cj-style 303rd K-4 wire 3 main runtime smoke (`b62b7ea`) + cj-style 304th K-4 wire 3 honest-DEFER guard (`f248014`) 의 후속
+- cj-304 honest-DEFER guard 가 env 미준비 시 skipif guard 정상
+- 본 sprint = env-free entry decision wire + DATABASE_URL env 의존 결정 wire + env-ready 시점 결정 보존
+
+env-ready 시점 결정 보류 4가지:
+① 즉시 — Track A-1~A-4 운영자 실행 후 Railway Variables (production) 의 DATABASE_URL 입력 시
+② D-0 (2026-09-14 KST Mon) — Pilot W1 launch 후 production DATABASE_URL 확보 시
+③ post-W1 — 운영 안정화 후 staging DATABASE_URL 확보 시
+④ Local dev — Local Postgres DATABASE_URL 환경 시 (운전자 결정)
+
+본 sprint 의 결정 wire (env-free):
+- K-4 wire 3 main runtime execution actual scope (DATABASE_URL env 의존 부분) 결정 보류
+- Env-ready 시점 = 사용자 (운전자) 결정 보존
+- 본 sprint (cj-style N+4) = entry decision wire + 결정 wire 보존 + 결정 보류 (env-free 부분 만)
+- 결정 보류 2번 (K-4 wire 3.2+ blocker-fix option γ scoped source 변경) + 결정 보류 3번 (K-4 wire 3.5+ DB-backed integration full longer-term ~200-300 cases) 모두 본 sprint 의 후속
+
+rationale 5종 (D-1 시간 + 리스크 최소화 + env-free discipline 보존):
+① DATABASE_URL env 의존 결정 wire 정직 기록 (CR 11-3 verbatim mirror)
+② cj-304 honest-DEFER guard 의 skipif guard 정상 보존 (env-ready 시 skipif guard 해제 결정 보류)
+③ K-4 chain (cj-293~304) 결정 wire 보존 (12 sprints 종합)
+④ D-1 시간 (~12-24시간) 압박 하 env-free 부분 만 진입 (env 의존 부분 결정 보류)
+⑤ Pilot W1 launch D-day 2026-09-14 KST 무관 (K-4 wire 3 main scope = runtime verification, launch 후 가능)
+
+CJ-N+3 Track A-1~A-4 운영자 체크리스트 (`ef3326f`, cj-style N+3rd) 결정 wire 보존
+CJ-N+2 PRE-EXISTING honestly DEFR carryover (`63fea86`, cj-style N+2nd) 결정 wire 보존
+CJ-N+1 fix-forward (`a820ac0`, cj-style N+1st) 결정 wire 보존
+CJ-N-1 mojibake honestly DEFR (`1a2a927`, cj-style N-1st) 결정 wire 보존
+CJ-307 source health 갭 회복 wire (`0e090c8`, cj-style 307th) 결정 wire 보존
+CJ-306 MVP scope failures 정직 회복 wire (`f77836e`, cj-style 306th) 결정 wire 보존
+CJ-305 retroactive correction (`afc0d5d`, cj-style 305th) 결정 wire 보존
+CJ-304 K-4 wire 3 honest-DEFER guard (`f248014`, cj-style 304th) 결정 wire 보존
+CJ-303 K-4 wire 3 main runtime smoke (`b62b7ea`, cj-style 303rd) 결정 wire 보존
+CJ-302 K-4 wire 3 entry decision wire (`a07b87f`, cj-style 302nd) 결정 wire 보존
+
+84/84 cumulative 결정 wire 보존 (cj-style N+3 의 83 + NEW 84번째 K-4 wire 3 main runtime execution entry decision wire)
+CR 11-3 honest-DEFER discipline verbatim mirror (cj-style 257/267/279/281/283/285/304/305/306/307 + N-1 + N+1 + N+2 + N+3 + N+4 chain)
+
+결정 보류 11건 (운전자):
+① K-4 wire 3 main runtime execution actual scope (DATABASE_URL env-ready 시점 결정 보류, env 의존 part 1)
+② K-4 wire 3.2+ blocker-fix (option γ scoped source 변경, env 의존 part 2)
+③ K-4 wire 3.5+ DB-backed integration full (longer-term, full env 의존, post-W1 권장)
+④ Track A-1~A-4 실제 실행 (~37-52분, 운전자 dashboard 액션, D-day 직결)
+⑤ Track B Pilot outreach (~4h, launch 후 자연스럽게)
+⑥ Track C D-1 사전 verify (현재 FINAL CLEAN, 부분 회복됨)
+⑦ cj-314 batch B (post-W1)
+⑧ PRD v2 EXTENSION (post-W1)
+⑨ N-1 mojibake triage (post-W1)
+⑩ epics.md 1478 lines triage (post-W1)
+⑪ cj-275 chain retroactive commit 진입 (post-W1)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
