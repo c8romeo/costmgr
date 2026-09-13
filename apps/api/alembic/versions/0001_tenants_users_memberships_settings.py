@@ -41,8 +41,19 @@ _INDUSTRY_VALUES = ("manufacturing", "manufacturing_retail", "service", "mixed")
 
 
 def upgrade() -> None:
-    # pgcrypto for gen_random_uuid() — portable across Supabase + raw Postgres
-    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
+    # NOTE: original line "CREATE EXTENSION IF NOT EXISTS pgcrypto" removed.
+    # Sprint 0 (cj-style N+7, 2026-09-13 KST, D-1) — embedded-postgres 18.6 binary
+    # does NOT include pgcrypto.so. The CREATE EXTENSION statement, when run
+    # inside an alembic transaction, aborts the entire transaction on failure,
+    # which then breaks every subsequent DDL statement in this upgrade().
+    # PostgreSQL 13+ ships `gen_random_uuid()` as built-in (no pgcrypto needed)
+    # so the embedded-postgres test path falls through.
+    # Production Supabase has pgcrypto pre-installed, and the database already
+    # had pgcrypto before this migration ran in production → no behavior change
+    # in production. For audit digest() in 0040_phase_6_audit_retention the
+    # production DB still has pgcrypto available (pre-existing).
+    # See sprint-status v4.124 + cj-style N+7 handoff for context.
+    pass
 
     # ── tenants ────────────────────────────────────────────
     op.execute(
