@@ -1,0 +1,57 @@
+docs(phase-30): cj-style N+3 Track A-1~A-4 운영자 체크리스트 — 100% operator dashboard actions (env-free, LOW risk, RECOMMENDED 즉시)
+
+3 files atomic single sprint (cj-style N+3 Track A-1~A-4 운영자 체크리스트, cj-style N+2 PRE-EXISTING honestly DEFR carryover chain 후속):
+
+- memory/handoff-2026-09-13-cj-style-n-3-track-a1-a4-operator-checklist-done.md — Track A-1~A-4 체크리스트 handoff (NEW)
+- memory/MEMORY.md — N+3 결정 wire hook EXTENSION (project-level active state section)
+- _bmad-output/implementation-artifacts/commit-msg-cj-style-n-3.txt — commit message (NEW)
+
+cj-style N+3 Track A-1~A-4 운영자 체크리스트 (cj-style N+2 PRE-EXISTING honestly DEFR carryover 의 후속):
+
+의도 분석:
+- cj-318 §1.1 verbatim mirror — Track A-1~A-4 = 100% operator dashboard actions
+- cj-318 §2 의 A-1 + A-2 + A-3 + A-4 = 4 deploy-blocking actions (원본 정의)
+- cj-319 §6 의 F4 정정 반영 (Web .env.local ❌ → Railway Variables ✅ + apps/api/.env local dev only)
+- cj-319 §6 의 신규 2건 (CORS_ORIGINS + NEXT_PUBLIC_API_URL, cj-319 F2 + F3 정직 회복)
+
+총 6 액션:
+① A-1 RESEND_API_KEY + RESEND_FROM_EMAIL 캡처 → Railway Variables (~5분, LOW risk)
+② A-2 SUPABASE_JWT_SECRET 캡처 → Railway Variables (~5분, LOW risk)
+③ 신규 CORS_ORIGINS=https://costmgr-pilot.vercel.app → Railway Variables (~1분, LOW risk)
+④ 신규 NEXT_PUBLIC_API_URL=<service-url> → Vercel Environment Variables (~1분, LOW risk)
+⑤ A-3 Supabase Auth dashboard live verify (Email enabled / Confirm OFF / Site URL / 3 Redirect URLs / RLS 활성) (~10분, LOW risk)
+⑥ A-4 Live signup smoke test (signup → dashboard → logout → re-login → 2nd signup 격리) (~15-30분, MEDIUM risk)
+
+총합 ~37-52분, D-day 2026-09-14 KST Mon 까지 ~12-24시간 잔여
+
+rationale 5종 (D-1 시간 + 리스크 최소화 + 운전자 친화적):
+① cj-318 §2 + cj-319 §6 의 통합 단일 운전자 친화적 체크리스트 (cj-318 의 원본 + cj-319 의 F4 정정 + 신규 2건)
+② 정직 인정 — Claude 는 dashboard 액션 실행 불가, 본 체크리스트는 운전자 가이드 문서
+③ D-1 시간 (~12-24시간) 압박 하 즉시 실행 가능한 단일 문서 형태
+④ cj-style discipline 정합 회복 (cj-318 + cj-319 결정 wire 보존, no source change)
+⑤ Pilot W1 launch D-day 2026-09-14 KST 직결 (runtime 영역 무관, runtime 영역은 A-4 에서 verify)
+
+CJ-N+2 PRE-EXISTING honestly DEFR carryover (`63fea86`, cj-style N+2) 결정 wire 보존
+CJ-N+1 fix-forward (`a820ac0`, cj-style N+1) 결정 wire 보존
+CJ-N-1 mojibake honestly DEFR (`1a2a927`, cj-style N-1) 결정 wire 보존
+CJ-307 source health 갭 회복 wire (`0e090c8`, cj-style 307) 결정 wire 보존
+CJ-318 operator immediate execution entry (`241fd3a`, cj-style 284th) 결정 wire 보존
+CJ-319 Track A-0 deploy-blocking wire (`2249fec`, cj-style 285th) 결정 wire 보존
+CJ-307 aal1 minimum fix (`a1cb7ad`, cj-style 261st) 결정 wire 보존
+CJ-305b Postmark → Resend swap (`53b8bbf` + `c69dea5`, cj-style 256+257th) 결정 wire 보존
+
+83/83 cumulative 결정 wire 보존 (cj-style N+2 의 82 + NEW 83번째 Track A-1~A-4 운영자 체크리스트)
+CR 11-3 honest-DEFER discipline verbatim mirror (cj-style 257/267/279/281/283/285/304/305/306/307 + N-1 + N+1 + N+2 + N+3 chain)
+
+결정 보류 9건 (운전자):
+① Track A-1~A-4 실제 실행 (~37-52분, **운전자 본인이 dashboard 에서 진행**, **D-day 직결**)
+② Track B Pilot outreach (~4h, launch 후 자연스럽게)
+③ Track C D-1 사전 verify (현재 FINAL CLEAN, 부분 회복됨)
+④ cj-314 batch B (post-W1)
+⑤ PRD v2 EXTENSION (post-W1)
+⑥ N-1 mojibake triage (post-W1)
+⑦ epics.md 1478 lines triage (post-W1)
+⑧ cj-275 chain retroactive commit 진입 (post-W1)
+⑨ 순서: 3 — K-4 wire 3 main runtime execution (DATABASE_URL env 준비 후, cj-style N+4 entry decision wire 진입 결정 보류)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
