@@ -1,0 +1,50 @@
+docs(phase-30): cj-style N+2 PRE-EXISTING honestly DEFER carryover 정직 기록 — epics.md 1478 lines carryover triage (cj-275 overwrite, post-W1 honestly DEFER)
+
+3 files atomic single sprint (cj-style N+2 PRE-EXISTING honestly DEFR carryover 정직 기록, cj-style N+1 fix-forward chain 후속):
+
+- memory/handoff-2026-09-13-cj-style-n-2-pre-existing-honestly-defer-carryover-done.md — N+2 결정 wire handoff (NEW)
+- memory/MEMORY.md — N+1 + N+2 결정 wire hook EXTENSION (project-level active state section)
+- memory/MEMORY.md (harness-level, C:\Users\c8rom\.claude\projects\...) — N+1 + N+2 결정 wire hook EXTENSION (auto-memory)
+
+cj-style N+2 PRE-EXISTING honestly DEFR carryover 정직 기록 (cj-style N+1 fix-forward 의 후속):
+
+정직 triage 결과:
+- epics.md 1478 lines uncommitted change (bizup → costmgr Epic 29+ overwrite)
+  -562 net lines (458 insertions + 1020 deletions), last commit `c48b30e` (Story 1.2, 매우 오래됨)
+- 출처 추적: cj-275 Epic 29+ PRD entry 결정 wire (handoff 보존, 미실행) 의 20 files atomic 중 1 MODIFIED = epics.md overwrite
+- 영향 분석 (정직):
+  ① cj-style discipline 영향 0 (sprint-status 의 cj-style 결정 wire 영역 정상, A767 entry 정상)
+  ② runtime 영향 0 (epics.md 는 planning artifact, runtime API 영역 무관)
+  ③ Pilot W1 launch 영향 0 (D-day launch = runtime API + Web 서비스)
+  ④ PRE-EXISTING honestly DEFR carryover 1건 추가 (총 N-1 mojibake + epics.md = 2건)
+
+rationale 5종 (D-1 시간 + 리스크 최소화 + 정직 baseline 확보):
+① PRE-EXISTING honestly DEFR carryover 의 정직 기록 (CR 11-3 verbatim mirror)
+② D-1 시간 (~12-24시간) 압박 하 MEDIUM regression risk 회피
+③ cj-style discipline 정합 회복 (cj-style chain 보존, no source change)
+④ Pilot W1 launch D-day 2026-09-14 KST 무관 (runtime 영역 무관)
+⑤ post-W1 honestly DEFER 진입 결정 wire 보존 (cj-style N+3+ 진입 시 triage 결정)
+
+CJ-N+1 fix-forward (`a820ac0`) 결정 wire 보존
+CJ-N-1 mojibake honestly DEFR (`1a2a927`) 결정 wire 보존
+CJ-307 source health 갭 회복 wire (`0e090c8`) 결정 wire 보존
+CJ-306 MVP scope failures 정직 회복 wire (`f77836e`) 결정 wire 보존
+CJ-305 retroactive correction (`afc0d5d`) 결정 wire 보존
+K-4 wire 3 honest-DEFER guard (`f248014`, cj-style 304) 결정 wire 보존
+cj-275 Epic 29+ PRD entry 결정 wire (handoff 보존, 미실행) 보존
+
+82/82 cumulative 결정 wire 보존 (cj-style N+1 의 81 + NEW 82번째 N+2 PRE-EXISTING honestly DEFR carryover 정직 기록)
+CR 11-3 honest-DEFER discipline verbatim mirror (cj-style 257/267/279/281/283/285/304/305/306/307 + N-1 + N+1 + N+2 chain)
+PRE-EXISTING honestly DEFR carryover chain 보존 (6건 + cj-303 4건 + cj-307 LOW RISK ~30건 + N-1 mojibake 1건 + epics.md 1478 lines 1건)
+
+결정 보류 8건 (운전자, post-W1 권장):
+① Track A-1~A-4 운영자 실행 (D-day 직결, **운전자 액션 필수**, RECOMMENDED 즉시)
+② Track B Pilot outreach
+③ Track C D-1 사전 verify
+④ cj-314 batch B
+⑤ PRD v2 EXTENSION
+⑥ N-1 mojibake triage
+⑦ epics.md 1478 lines triage
+⑧ cj-275 chain retroactive commit 진입
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
