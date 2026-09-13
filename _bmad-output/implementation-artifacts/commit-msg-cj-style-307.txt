@@ -1,0 +1,70 @@
+docs(phase-30): cj-style 307 Source health 갭 회복 wire — M0 +4 tests, M6 router decision, M1/M3/M7 module-scoped (env-free, LOW risk, MEDIUM effect)
+
+9 files atomic single sprint:
+- tests/api/m0_onboarding/test_phase_3_0_settings_and_menu.py — M0 +4 tests (NEW)
+  - test_get_menu_4_industries_all_non_empty_no_orphan_menu_items
+    (PRD §4.1 + §8.M0(a) menu mapping + orphan drift-detector)
+  - test_industry_change_grace_period_boundary_decisions
+    (PRD §8.M0 + AD-23 + A7 grace period 0/N-1/N boundary)
+  - test_industry_label_ko_drift_detection_keys_and_values
+    (PRD §4.1 INDUSTRY_LABEL_KO ↔ Industry enum drift 0)
+  - test_compute_completion_incomplete_then_complete_transition
+    (PRD §8.M0(b) settings 미완료 → 모두 set complete transition)
+- tests/api/m1_baseline/test_m1_schemas_and_helpers.py — M1 7 tests (NEW directory)
+  - test_product_type_enum_5_members_with_prefix_label_drift_free
+  - test_product_code_generate_parse_round_trip
+  - test_product_code_parse_rejects_invalid_inputs
+  - test_product_code_is_valid_code_format_soft_check
+  - test_bom_target_total_and_sum_ratios_invariant
+    (PRD §6.1 + A6 axiom 100.0000% + AD-8 ROUND_HALF_EVEN)
+  - test_money_krw_usd_wrappers_enforce_non_negative_and_precision
+  - test_account_classification_request_extra_forbid_and_field_types
+- tests/api/m3_calculate/test_m3_schemas_and_rules.py — M3 8 tests (NEW directory)
+  - test_calc_request_period_key_yyyy_mm_format_enforced (AD-24)
+  - test_calc_request_period_key_invalid_patterns
+  - test_verification_item_code_status_literal_enforcement
+    (PRD §11 V1/V4/V7/V8 codes + passed/failed status enum)
+  - test_verdict_envelope_top_failure_invariant (AD-20)
+  - test_calc_response_state_always_verified_and_result_hash_pattern
+    (AD-22 + EP-IC-1 64-char hex SHA-256)
+  - test_calc_abc_response_engine_type_discriminator (Story 9.3 A29)
+  - test_m3_services_exports_verification_runner_and_orchestrator
+  - test_v_rule_modules_v1_v3_v4_v7_v8_all_present
+- tests/api/m6_verification/test_router_disposition_and_service.py — M6 7 tests (NEW directory)
+  - test_m6_verification_init_does_not_export_router
+    (router decision: M6 folded into Epic 4, no router)
+  - test_m6_verification_init_docstring_states_folded_decision
+  - test_m6_verification_no_router_include_in_main_py (drift-detector)
+  - test_m6_verification_exception_only_imported_in_main_py
+  - test_closing_period_snapshot_verifier_class_exports
+  - test_closing_period_snapshot_verifier_init_signature
+  - test_closing_period_snapshot_inconsistency_error_attributes
+- tests/api/m7_simulation/test_schemas_and_exceptions.py — M7 7 tests (NEW directory)
+  - test_cvp_simulation_request_period_key_yyyy_mm_validation (AD-24)
+  - test_cvp_simulation_request_extra_forbid_and_frozen
+  - test_cvp_delta_request_4_fields_decimal_string_validation (AD-8)
+  - test_projection_inputs_request_4_fields_decimal_validation (PRD §F7.2)
+  - test_projection_compute_request_period_key_and_projection_month_validation
+  - test_m7_typed_exceptions_and_korean_message_constants (CR 12-5 D-14)
+  - test_cvp_baseline_not_found_error_attributes_preserved
+- meta: commit-msg-cj-style-307.txt + handoff memory + sprint-status.yaml v4.122 → v4.123 EXTENSION (A767 entry) + MEMORY.md update
+
+CR 11-3 honest-DEFER 257번째 (cj-style 307번째). K-4 chain continuation:
+- cj-style 305 retroactive correction (afc0d5d)
+- cj-style 306 MVP scope failures 정직 회복 wire (f77836e)
+- cj-style 307 source health 갭 회복 wire (본 sprint)
+
+Strategic pivot (kjw 2026-09-13 결정, 순서 2): 사용자 지시 "Source health 갭 회복
+(M0 +4 tests, M6 router decision, M1/M3/M7 module-scoped)" 정직 검증
+→ 5 module × 33 NEW tests atomic 결정 wire 진입
+→ env-free test fix only, LOW risk, MEDIUM effect (drift gate 정확)
+
+Verify 결과: pytest 33 NEW passed (5 files) + 기존 baseline 21 passed = 54 passed (M0/M1/M3/M6/M7 module)
+ruff .venv check apps packages → exit 0
+
+M6 router decision (NEW): M6 Verification module 은 dedicated router 가지지 않음 —
+Epic 4 (M3 + M4 territory) 의 closing_period_service 안으로 fold.
+검증: m6_verification/__init__.py line 1 docstring + main.py router include 0건
++ ClosingPeriodSnapshotVerifier → M4_inventory.ClosingPeriodService dispatch.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
