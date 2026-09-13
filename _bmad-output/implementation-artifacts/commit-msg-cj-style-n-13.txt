@@ -1,0 +1,105 @@
+feat(mvp): cj-style N+13 P-2 Track C D-1 사전 verify — Surface 1+2 Claude scope ✅ PASS (1836 passed + 1 skipped) + Surface 5+6 Operator scope honestly DEFER
+
+cj-style N+13 P-2 결정 wire 진입 (cj-style N+13번째 atomic single sprint, cj-style N+10 §7.3 + cj-style N+11 §6 + cj-style N+12 §6.1 결정 보류 ② P-2 해소).
+
+**의도 분석** (cj-style N+13th atomic single sprint):
+- **cj-style N+10 §7.3 의 결정 보류 ② P-2 해소**: Track C D-1 사전 verify — Surface 1+2+5+6 4-surface verify (~15분, **Track A 완료 후 즉시**)
+- **Surface 1+2 Claude scope env-free verify 실행 결정 wire 보존**: Surface 1 (kernel, Pydantic schema) + Surface 2 (service layer, business logic) 모두 env-free unit tests
+- **Surface 5+6 Operator scope honestly DEFER 보존**: Surface 5 (handler, Railway hosting) + Surface 6 (envelope, live endpoint verify) 모두 operator scope (cj-style N+9 결정 보류 #7 verbatim, 사용자 2026-09-10 결정 wire verbatim '배포작업 안 함 / RESEND·RAILWAY 등 지금 단계 X')
+
+**Surface 구분 결정 wire 보존** (cj-style discipline A19 cohesion 9 surface EXTENSION taxonomy 정합):
+- Surface 1 (kernel) = Pydantic schema, validator, parser → ✅ Claude scope env-free
+- Surface 2 (service) = business logic, pure functions → ✅ Claude scope env-free
+- Surface 3 (call sites) = API client invocations → N/A
+- Surface 4 (utils) = helpers, decorators → N/A
+- Surface 5 (handler) = request/response, route handlers → ❌ Operator (Railway hosting)
+- Surface 6 (envelope) = response format, ko-KR CR 12-5 D-14 → ❌ Operator (live endpoint verify)
+
+**Surface 2 cost_engine env-free unit verification 결과 (verbatim)**:
+```bash
+.venv/Scripts/python.exe -m pytest tests/cost_engine/ -q --tb=no --no-header
+→ 577 passed, 1 skipped in 2.82s
+```
+**cj-style N+6 baseline verbatim reproduction**: cj-style N+6 (K-4 wire 3 main runtime smoke honestly DEFER post-W1) 의 cost_engine 결과 = 577 passed + 1 skipped 동일. 1 skipped = `tests/cost_engine/test_verification_rules.py:496` 의 `V4 MVP always passes (qty=produced=sold → mc=0). Story 4.4 refines.` — legitimate MVP skip (codepage + intentional MVP skip verbatim). **Surface 2 Claude scope 판정**: ✅ PASS (577/578 = 99.83%)
+
+**Surface 1+2 services + core env-free unit verification 결과 (verbatim)**:
+```bash
+.venv/Scripts/python.exe -m pytest tests/services/ tests/core/ -q --tb=no --no-header
+→ 1259 passed in 17.84s
+```
+**Surface 1 (kernel, Pydantic schema 일체) + Surface 2 (service layer 일체) 100% PASS**: 1259 passed = 100% pass rate (env-free, DATABASE_URL 무관, pure Python unit tests). 0 failures, 0 skipped. **Surface 1+2 합산 판정**: ✅ PASS
+
+**Surface 5+6 Operator scope honestly DEFER 결정 wire 보존**:
+- ① Surface 5 (handler) verify = Railway Variables + DATABASE_URL + live API deployment 필요 → operator scope, honestly DEFER
+- ② Surface 6 (envelope) verify = response envelope `{code, message_ko, details, trace_id}` CR 12-5 D-14 verbatim 정합 → live endpoint 의 curl response 확인 필요 → operator scope, honestly DEFER
+- **degraded verify gate 패턴 적용** (cj-style N+10 §4 verbatim mirror): Surface 5+6 verify 모두 404 → DEGRADED PASS (honestly DEFER 인정) / 일부 200 + 일부 404 → PARTIAL PASS / 모두 200 → PASS / 그 외 에러 → FAIL
+
+**종합 판정 결정 wire 보존** (cj-style N+12 §5.2 framework 적용):
+- **Claude scope (Surface 1+2)**: ✅ PASS (1836/1837 = 99.95%)
+- **Operator scope (Surface 5+6)**: ⏳ OPERATOR-DEFERRED (cj-style N+9 결정 보류 #7 verbatim)
+- **Track C D-1 사전 verify 종합**: ⏳ DEGRADED PASS (Claude scope 99.95% PASS + Operator scope honestly DEFER, cj-style discipline 정합)
+
+**변경 verbatim** (5 files atomic single sprint, docs-only no source change):
+
+| # | File | 변경 | 비고 |
+|---|---|---|---|
+| 1 | `memory/handoff-2026-09-14-cj-style-n-13-p2-track-c-d1-pre-verify-done.md` | **NEW** | 10-section handoff §1~§10 |
+| 2 | `_bmad-output/implementation-artifacts/commit-msg-cj-style-n-13.txt` | **NEW** | 본 파일 with Co-Authored-By |
+| 3 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | **MODIFIED** | v4.128 → **v4.129 EXTENSION** A775 + last_updated_note_v4_129 |
+| 4 | `memory/MEMORY.md` | **MODIFIED** | cj-style N+13 hook EXTENSION + 95/95 cumulative 결정 wire |
+| 5 | `_bmad-output/implementation-artifacts/cj-style-n-13-summary.md` | **NEW** | atomic single sprint summary |
+
+**rationale 5종**:
+① cj-style N+10 §7.3 의 결정 보류 ② P-2 해소 — 본 sprint 의 primary objective
+② cj-style discipline 의 Surface taxonomy 적용 (cj-style N+6 + N+11 honest-DEFER 패턴 + Surface taxonomy 결정 wire)
+③ cj-style N+6 의 577+1 cost_engine verbatim reproduction — 동일 결과 결정 wire 보존
+④ 사용자 2026-09-10 결정 wire verbatim '배포작업 안 함 / RESEND·RAILWAY 등 지금 단계 X' 정합 — Surface 5+6 Operator scope honestly DEFER 보존
+⑤ cj-style discipline 5 files atomic 단일 sprint — 비정상 종료 대비 안전 저장 + 결정 wire 보존
+
+**verify gate** (CLI-only verify sprint):
+- PROD source 변경 0건
+- Test 변경 0건
+- alembic 변경 0건
+- PRD 변경 0건 (PRD v7.0 §F/§M/§R unchanged)
+- Capability matrix source 변경 0건 (v1.54 EXTENSION preserved)
+- Migration source 변경 0건
+- 37 pins unchanged
+- 14 job matrix unchanged
+- AD-14 stack pin EXTENSION preserved (apscheduler==3.10.4 + pytz==2024.1)
+- A19 cohesion 9 surface EXTENSION PASS preserved
+- 3중 게이트 FINAL CLEAN 보존 (pytest + ruff + tsc 변경 없음)
+
+**5 files atomic single sprint**:
+1. 1 NEW handoff (memory/handoff-2026-09-14-cj-style-n-13-p2-track-c-d1-pre-verify-done.md 10-section §1~§10)
+2. 1 NEW commit-msg (본 파일 with Co-Authored-By)
+3. 1 MODIFIED sprint-status (v4.128 → **v4.129 EXTENSION** A775 + last_updated_note_v4_129)
+4. 1 MODIFIED meta (memory/MEMORY.md cj-style N+13 hook EXTENSION + 95/95 cumulative 결정 wire)
+5. 1 NEW atomic single sprint summary (cj-style-n-13-summary.md)
+
+**95/95 cumulative 결정 wire 보존** (cj-style N+12 의 94 + **NEW 95번째 P-2 Track C D-1 사전 verify**).
+
+**CR 11-3 honest-DEFER 270번째** chain cj-style 257 → 267 → 279 → 281 → 283 → 285 → 304 → 305 → 306 → 307 + N-1 + N+1 + N+2 + N+3 + N+4 + N+5 + N+6 + N+7 + N+8 + fix(seed) + N+9 + N+10 + N+11 + N+12 + **N+13** verbatim mirror.
+
+**PRE-EXISTING honestly DEFER carryover 보존** (cj-style N+12 chain verbatim):
+- cj-303 4건 + PRE-EXISTING 6건 + cj-307 carryover LOW RISK ~30건
+- sso 13 skipped tests + epics.md 1478 lines uncommitted change
+- W1~W8 carryover + PRD v2 EXTENSION
+- 비용 발생 항목 모두 (사용자 2026-09-10 결정 wire verbatim '배포작업 안 함 / RESEND·RAILWAY 등 지금 단계 X')
+
+**신규 honestly DEFER (cj-style N+13 chain 보존, 본 sprint 후속)**:
+- §5 Surface 5+6 Operator scope honestly DEFER (Railway hosting + live endpoint verify → operator scope)
+- §5.3 degraded verify gate 패턴 적용 결정 보류 (cj-style N+10 §4 verbatim)
+- cj-style N+14+: §5.2 final 종합 판정 commit 시 Surface 5+6 operator self-fill 결정 보류
+- cj-style N+15+: §4.1 Option A 또는 Option B 결정 보류 (Sprint 1 actual run 활성화 시점)
+- capability matrix v1.55 EXTENSION + 디자인가이드 / M10~M12 + cj-314 wire 2~6 + batch A/B/C + 운영 cleanup 6건 + CI/web-e2e 환경 + Phase C 잔여 ~30 + 화면정의 + PRD v2 EXTENSION
+
+**결정 보류 (운전자, P-2 Track C D-1 사전 verify 후속)**:
+① **P-3** (cj-style N+10 §7.4): Sprint 1 actual run entry 결정 (~10분, **Track A + Track C 완료 후**)
+② **P-4** (cj-style N+12 §6.1): §3 운영자 self-fill + §5.2 최종 종합 판정 + cj-style N+13+ 결정 (self-fill 완료 후 즉시)
+③ 결정 보류 11건 honestly DEFER post-MVP + Surface 5+6 Operator scope honest DEFER + §4.1 Option A/B 결정 보류
+
+**결정 wire 일자**: 2026-09-14 (KST, **D-Day Pilot W1 launch**, cj-style N+12 의 D-Day 후속)
+
+**비정상 종료 대비**: 매 단계 commit 으로 git history 안전 저장, 사용자가 재개 시 `git log` 로 진행 상황 확인 가능. 본 sprint 의 5 files atomic 단일 sprint 으로 §9 의 5 files 모두 문서/메타 파일 (no source change) → 비정상 종료 시에도 손실 위험 최소.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
