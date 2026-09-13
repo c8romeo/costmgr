@@ -1,0 +1,78 @@
+feat(mvp): cj-style N+10 Track A-1~A-4 운영자 실행 prep 확장 — D-Day 운영자 dashboard 액션 5-NEW 섹션 (Pre-flight verify + endpoint 부재 영향 degraded verify gate + Evidence capture templates + Emergency rollback + Post-Track-A 후속)
+
+cj-style N+10 Track A-1~A-4 운영자 실행 prep 확장 결정 wire 진입 (cj-style N+10번째 atomic single sprint, cj-style N+3 의 6 액션 verbatim mirror + 5개 NEW 섹션 통합).
+
+**의도 (cj-style N+3 → N+10 갭 분석)**:
+- **Pre-flight verify 갭** (§2 NEW): N+3 는 §2 step 1 부터 즉시 진입 → dashboard access 미보유 / service 미배포 시 fail + 비정상 종료 위험. 5 항목 Pre-flight (~3-5분) 추가.
+- **Track A-4 endpoint 부재 영향 미반영** (§4 NEW): cj-style N+6 (K-4 wire 3 main runtime smoke honestly DEFER post-W1) 결과 54 cases 모두 404 Not Found. Track A-4 §3 A-4 step 4 의 "CSV 업로드 또는 report 생성" 일부 404 가능. 운영자가 "Track A 실패" 로 오인할 위험 → **degraded verify gate** 명시.
+- **Evidence capture 형식 미정의** (§5 NEW): N+3 의 "Dashboard screenshot capture (GV-3)" / "Verify-gate-results capture (GV-5)" 형식 미정의 → 운영자 모호. **GV-3 파일명/경로 + GV-5 템플릿 (markdown)** 명시.
+- **Emergency rollback 미정의** (§6 NEW): N+3 §5.3 은 단순 fallback 만 있고, **Railway service 잘못 배포 / Vercel 빌드 실패 / Supabase RLS 비활성화 / Vercel 도메인 404** 4 시나리오 미커버 → 4 시나리오 × 즉시 회복 절차.
+- **Post-Track-A 후속 미정의** (§7 NEW): Track A 완료 후 다음 1시간 이내 무엇을 해야 하는지 미정의 → **P-1 GV-5 commit (~5분) + P-2 Track C Surface 1+2+5+6 (~15분) + P-3 Sprint 1 actual run entry 결정 (~10분)** 3 액션.
+
+**변경 verbatim** (5 files atomic single sprint, docs-only no source change):
+
+| # | File | 변경 | 비고 |
+|---|---|---|---|
+| 1 | `memory/handoff-2026-09-14-cj-style-n-10-track-a-1-a-4-detailed-prep-done.md` | **NEW** | 11-section §1~§11 (~590 LOC) |
+| 2 | `_bmad-output/implementation-artifacts/commit-msg-cj-style-n-10.txt` | **NEW** | 본 파일 with Co-Authored-By |
+| 3 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | **MODIFIED** | v4.125 → **v4.126 EXTENSION** + A772 신규 결정 wire + last_updated_note_v4_126 |
+| 4 | `memory/MEMORY.md` | **MODIFIED** | cj-style N+10 hook EXTENSION + 92/92 cumulative 결정 wire + 결정 보류 업데이트 |
+| 5 | `_bmad-output/implementation-artifacts/cj-style-n-10-summary.md` | **NEW** | atomic single sprint summary (cj-style N+9 의 close-out meta 패턴 mirror) |
+
+**rationale 5종**:
+1. cj-style N+3 의 6 액션 verbatim mirror 보존 (N+3 자체는 운영자 친화적 + 결정 wire 검증된 handoff)
+2. cj-style N+6 honestly DEFER 결과 반영 — Track A-4 의 endpoint 부재 영향 §4 degraded verify gate 명시
+3. cj-style N+7+N+9 env-free 검증 결과 반영 — §7.4 의 Sprint 1 actual run entry 결정 wire 의 DATABASE_URL env-free 결정 기반
+4. 운영자 D-Day 시간 제약 (~37-52분 Track A + ~30분 Track C + Sprint 1 entry) 반영 — §7 Post-Track-A 3 액션 (~30분) 으로 1시간 내 마무리
+5. cj-style N+9 의 "비정상 종료 대비 매 단계 commit" 패턴 verbatim mirror — §11 의 5 files atomic 단일 sprint 으로 안전 저장
+
+**verify gate** (docs-only sprint):
+- PROD source 변경 0건
+- Test 변경 0건
+- alembic 변경 0건
+- PRD 변경 0건 (PRD v7.0 §F/§M/§R unchanged)
+- Capability matrix source 변경 0건 (v1.54 EXTENSION preserved)
+- Migration source 변경 0건
+- 37 pins unchanged
+- 14 job matrix unchanged
+- AD-14 stack pin EXTENSION preserved (apscheduler==3.10.4 + pytz==2024.1)
+- A19 cohesion 9 surface EXTENSION PASS preserved
+- 3중 게이트 FINAL CLEAN 보존 (pytest + ruff + tsc 변경 없음)
+
+**5 files atomic single sprint**:
+1. 1 NEW handoff (memory/handoff-2026-09-14-cj-style-n-10-track-a-1-a-4-detailed-prep-done.md 11-section §1~§11)
+2. 1 NEW commit-msg (본 파일 with Co-Authored-By)
+3. 1 MODIFIED sprint-status (sprint-status.yaml v4.125 → **v4.126 EXTENSION** A772 + last_updated_note_v4_126)
+4. 1 MODIFIED meta (memory/MEMORY.md cj-style N+10 hook EXTENSION + 92/92 cumulative 결정 wire)
+5. 1 NEW atomic single sprint summary (cj-style-n-10-summary.md)
+
+**92/92 cumulative 결정 wire 보존** (cj-style N+9 의 91 + **NEW 92번째 Track A-1~A-4 운영자 실행 prep 확장**).
+
+**CR 11-3 honest-DEFER 267번째** chain cj-style 257 → 267 → 279 → 281 → 283 → 285 → 304 → 305 → 306 → 307 + N-1 + N+1 + N+2 + N+3 + N+4 + N+5 + N+6 + N+7 + N+8 + fix(seed) + N+9 + **N+10** verbatim mirror.
+
+**PRE-EXISTING honestly DEFER carryover 보존** (cj-style N+9 chain verbatim mirror):
+- cj-303 4건 + PRE-EXISTING 6건 + cj-307 carryover LOW RISK ~30건
+- sso 13 skipped tests + epics.md 1478 lines uncommitted change
+- W1~W8 carryover + PRD v2 EXTENSION
+- 비용 발생 항목 모두 (사용자 2026-09-10 결정 wire verbatim '배포작업 안 함 / RESEND·RAILWAY 등 지금 단계 X')
+
+**신규 honestly DEFER (cj-style N+10 chain 보존, 본 sprint 후속)**:
+- §4 endpoint 부재 54건 회복 (Track A-4 step 4 DEGRADED PASS 시 Sprint 2 에서 회복)
+- §5 Evidence capture 자동화 (스크립트화, 운영자 수작업 → 자동)
+- §6 Emergency rollback 자동화 (Railway CLI / Vercel CLI / Supabase CLI 통합 스크립트)
+- §7 P-2 Track C 의 Surface 5+6 verify 시 §4 degraded verify gate 적용 가능
+- cj-style N+11+ (Sprint 1 actual run) — §7.4 의 entry 결정 후 cj-style discipline 으로 진행
+- capability matrix v1.55 EXTENSION + 디자인가이드 / M10~M12 + cj-314 wire 2~6 + batch A/B/C
+- 운영 cleanup 6건 + CI/web-e2e 환경 + Phase C 잔여 ~30 + 화면정의 + PRD v2 EXTENSION
+
+**결정 보류 (운전자, Track A-1~A-4 prep 확장 후속)**:
+① **P-1** (§7.2): §5.2 GV-5 verify-gate-results 최종 commit + 본 handoff 결정 보류 §9 업데이트 (~5분, Track A 완료 즉시)
+② **P-2** (§7.3): Track C D-1 사전 verify — Surface 1+2+5+6 4-surface verify (~15분, Track A 완료 후 즉시)
+③ **P-3** (§7.4): Sprint 1 actual run entry 결정 (cj-style N+4 entry decision wire 진입, ~10분, Track A + Track C 완료 후)
+④ 결정 보류 11건 honestly DEFER post-MVP
+
+**결정 wire 일자**: 2026-09-14 (KST, **D-Day Pilot W1 launch**, cj-style N+9 의 D-1 후속)
+
+**비정상 종료 대비**: 매 단계 commit 으로 git history 안전 저장, 사용자가 재개 시 `git log` 로 진행 상황 확인 가능. 본 sprint 의 5 files atomic 단일 sprint 으로 §11 의 5 files 모두 문서/메타 파일 (no source change) → 비정상 종료 시에도 손실 위험 최소.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
