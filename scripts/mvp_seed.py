@@ -1,17 +1,16 @@
-"""scripts.mvp_seed — MVP 로컬 시연용 seed data.
+"""scripts.mvp_seed — MVP 로컬 시연용 seed data (실제 schema 매칭).
 
 사용법:
     uv run python scripts/mvp_seed.py
     (DATABASE_URL 환경변수 또는 .mvp_local_db_url 파일에서 자동 로드)
 
 생성 데이터:
-    - 1 tenant (id=11111111-1111-1111-1111-111111111111)
-    - 1 owner user (auth_user_id placeholder, since local stub)
-    - 5 products (item_master)
-    - 1 BOM (bom_matrix)
-    - 1 month data (monthly_input)
+    - 1 tenant + 1 owner user (tenant_memberships owner role)
+    - 5 products (raw_material + sub_assembly + finished_good)
+    - 2 bom_lines (parent=PROD-005, child=PROD-004/PROD-003)
+    - 1 monthly_input_period (2026-08) + 2 monthly_input_rows
 
-Sprint 0 (cj-style N+7, 2026-09-13 KST, D-1).
+Sprint 0 (cj-style N+8, 2026-09-13 KST, D-1) — actual alembic schema 적용 후.
 """
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ from pathlib import Path
 
 TENANT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 OWNER_USER_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
+PERIOD_KEY = "2026-08"
 
 
 def _database_url() -> str:
@@ -34,7 +34,7 @@ def _database_url() -> str:
     dburl_file = project_root / ".mvp_local_db_url"
     if dburl_file.exists():
         return dburl_file.read_text().strip()
-    print("[mvp_seed] ERROR: DATABASE_URL not set and .mvp_local_db_url missing")
+    print("[mvp_seed] ERROR: DATABASE_URL not set")
     sys.exit(1)
 
 
@@ -46,132 +46,203 @@ async def main() -> int:
 
     conn = await asyncpg.connect(sync_url)
     try:
+        # Sprint 0 (cj-style N+8) — RLS bypass via SET LOCAL service_role.
+        # Production Supabase also routes admin operations via service_role.
+        await conn.execute("SET LOCAL ROLE service_role")
+
         # 1. Tenant
         print("[mvp_seed] creating tenant...")
         await conn.execute(
             """
-            INSERT INTO tenants (id, name, industry, slug, created_at)
-            VALUES ($1, $2, $3, $4, now())
+            INSERT INTO tenants (id, name, industry, slug, status, created_at)
+            VALUES ($1, $2, $3, $4, $5, now())
             ON CONFLICT (id) DO NOTHING
             """,
             TENANT_ID,
             "Demo Manufacturing Co.",
             "manufacturing",
             "demo",
+            "active",
         )
 
-        # 2. Owner user (users table)
+        # 2. Owner user (no display_name column)
         print("[mvp_seed] creating owner user...")
         await conn.execute(
             """
-            INSERT INTO users (id, email, display_name, created_at)
-            VALUES ($1, $2, $3, now())
+            INSERT INTO users (id, tenant_id, email, role, twofa_enabled, created_at)
+            VALUES ($1, $2, $3, $4, $5, now())
             ON CONFLICT (id) DO NOTHING
             """,
             OWNER_USER_ID,
+            TENANT_ID,
             "demo@costmgr.local",
-            "Demo Owner",
+            "owner",
+            False,
         )
 
-        # 3. Membership (tenant_users)
+        # 3. Membership (tenant_memberships) — idempotent
         print("[mvp_seed] creating owner membership...")
         await conn.execute(
             """
-            INSERT INTO tenant_users (tenant_id, user_id, role, created_at)
-            VALUES ($1, $2, $3, now())
+            INSERT INTO tenant_memberships (id, tenant_id, user_id, role, joined_at)
+            VALUES ($1, $2, $3, $4, now())
             ON CONFLICT (tenant_id, user_id) DO NOTHING
             """,
+            uuid.uuid4(),
             TENANT_ID,
             OWNER_USER_ID,
             "owner",
         )
 
-        # 4. Products (item_master)
-        print("[mvp_seed] creating 5 products...")
+        # 4. Products (5) — idempotent
+        print("[mvp_seed] upserting 5 products...")
+        # product_type CHECK constraint: product/semi_product/material/goods/service
         products = [
-            ("PROD-001", "Steel Sheet A", "raw_material", 1000),
-            ("PROD-002", "Aluminum Bar B", "raw_material", 500),
-            ("PROD-003", "Bolt M8", "sub_assembly", 50),
-            ("PROD-004", "Housing Unit", "sub_assembly", 200),
-            ("PROD-005", "Final Widget", "finished_good", 5000),
+            ("PROD-001", "Steel Sheet A",        "material",      1000),
+            ("PROD-002", "Aluminum Bar B",       "material",       500),
+            ("PROD-003", "Bolt M8",              "semi_product",    50),
+            ("PROD-004", "Housing Unit",         "semi_product",   200),
+            ("PROD-005", "Final Widget",         "goods",         5000),
         ]
         for code, name, ptype, unit_cost in products:
             await conn.execute(
                 """
-                INSERT INTO item_master (id, tenant_id, code, name, type, unit_cost, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6, now())
-                ON CONFLICT (tenant_id, code) DO NOTHING
+                INSERT INTO products (id, tenant_id, product_type, code, name, unit, unit_cost_krw, is_active, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, true, now())
+                ON CONFLICT (tenant_id, code) DO UPDATE SET updated_at = now()
                 """,
                 uuid.uuid4(),
                 TENANT_ID,
+                ptype,
                 code,
                 name,
-                ptype,
+                "EA",
                 unit_cost,
             )
+        # Re-fetch by code (idempotent: returns existing ids on re-run)
+        product_ids: dict[str, uuid.UUID] = {}
+        rows = await conn.fetch(
+            "SELECT code, id FROM products WHERE tenant_id = $1", TENANT_ID
+        )
+        for r in rows:
+            product_ids[r["code"]] = r["id"]
+        print(f"[mvp_seed] product_ids: {product_ids}")
 
-        # 5. BOM (one BOM for Final Widget using sub-assemblies)
-        print("[mvp_seed] creating BOM for Final Widget...")
+        # 5. Monthly input period — unique (tenant_id, period_key, baseline_revision)
+        print(f"[mvp_seed] creating monthly input period {PERIOD_KEY}...")
+        period_id = uuid.uuid4()
         await conn.execute(
             """
-            INSERT INTO bom_matrix (id, tenant_id, parent_product_code, child_product_code, quantity, created_at)
-            VALUES ($1, $2, $3, $4, $5, now())
-            ON CONFLICT (tenant_id, parent_product_code, child_product_code) DO NOTHING
+            INSERT INTO monthly_input_periods (period_id, tenant_id, period_key, mode, status, baseline_revision, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, now())
+            ON CONFLICT (tenant_id, period_key, baseline_revision) DO NOTHING
+            """,
+            period_id,
+            TENANT_ID,
+            PERIOD_KEY,
+            "month_total",
+            "open",
+            1,
+        )
+        # Re-fetch actual period_id (idempotent)
+        actual_period_id = await conn.fetchval(
+            "SELECT period_id FROM monthly_input_periods WHERE tenant_id=$1 AND period_key=$2 LIMIT 1",
+            TENANT_ID, PERIOD_KEY,
+        )
+        if actual_period_id is None:
+            raise RuntimeError("period not found after upsert")
+        period_id = actual_period_id
+
+        # 6. Monthly input rows (2 rows for raw materials)
+        # Idempotent via uq_monthly_input_rows_natural (tenant_id, period_id, stream, product_id, day_no)
+        # day_no NULL → COALESCE(0). delete-then-insert is simpler and matches seed intent.
+        await conn.execute(
+            "DELETE FROM monthly_input_rows WHERE tenant_id=$1 AND period_id=$2",
+            TENANT_ID, period_id,
+        )
+        print("[mvp_seed] creating monthly input rows...")
+        await conn.execute(
+            """
+            INSERT INTO monthly_input_rows (row_id, tenant_id, period_id, stream, product_id, qty, unit_price_krw, amount_krw, created_via, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
             """,
             uuid.uuid4(),
             TENANT_ID,
-            "PROD-005",
-            "PROD-004",
+            period_id,
+            "purchases",
+            product_ids["PROD-001"],
+            100,
+            1000,
+            100000,
+            "manual",
+        )
+        await conn.execute(
+            """
+            INSERT INTO monthly_input_rows (row_id, tenant_id, period_id, stream, product_id, qty, unit_price_krw, amount_krw, created_via, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+            """,
+            uuid.uuid4(),
+            TENANT_ID,
+            period_id,
+            "purchases",
+            product_ids["PROD-002"],
+            200,
+            500,
+            100000,
+            "manual",
+        )
+
+        # 7. BOM lines (PROD-005 = PROD-004 * 1 + PROD-003 * 4)
+        # Idempotent: delete existing then insert
+        await conn.execute(
+            "DELETE FROM bom_lines WHERE tenant_id=$1 AND parent_product_id=$2",
+            TENANT_ID, product_ids["PROD-005"],
+        )
+        print("[mvp_seed] creating BOM lines...")
+        await conn.execute(
+            """
+            INSERT INTO bom_lines (id, tenant_id, parent_product_id, child_product_id, ratio, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, now(), now())
+            """,
+            uuid.uuid4(),
+            TENANT_ID,
+            product_ids["PROD-005"],
+            product_ids["PROD-004"],
             1,
         )
         await conn.execute(
             """
-            INSERT INTO bom_matrix (id, tenant_id, parent_product_code, child_product_code, quantity, created_at)
-            VALUES ($1, $2, $3, $4, $5, now())
-            ON CONFLICT (tenant_id, parent_product_code, child_product_code) DO NOTHING
+            INSERT INTO bom_lines (id, tenant_id, parent_product_id, child_product_id, ratio, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, now(), now())
             """,
             uuid.uuid4(),
             TENANT_ID,
-            "PROD-005",
-            "PROD-003",
+            product_ids["PROD-005"],
+            product_ids["PROD-003"],
             4,
         )
 
-        # 6. Monthly input (1 month of demo data)
-        print("[mvp_seed] creating monthly input for 2026-08...")
-        await conn.execute(
-            """
-            INSERT INTO monthly_input (id, tenant_id, period, product_code, quantity, unit_cost, total_cost, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, now())
-            ON CONFLICT (tenant_id, period, product_code) DO NOTHING
-            """,
-            uuid.uuid4(),
-            TENANT_ID,
-            "2026-08",
-            "PROD-001",
-            100,
-            1000,
-            100000,
-        )
-        await conn.execute(
-            """
-            INSERT INTO monthly_input (id, tenant_id, period, product_code, quantity, unit_cost, total_cost, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, now())
-            ON CONFLICT (tenant_id, period, product_code) DO NOTHING
-            """,
-            uuid.uuid4(),
-            TENANT_ID,
-            "2026-08",
-            "PROD-002",
-            200,
-            500,
-            100000,
-        )
+        # Verify
+        tenant_count = await conn.fetchval("SELECT COUNT(*) FROM tenants WHERE id = $1", TENANT_ID)
+        product_count = await conn.fetchval("SELECT COUNT(*) FROM products WHERE tenant_id = $1", TENANT_ID)
+        row_count = await conn.fetchval("SELECT COUNT(*) FROM monthly_input_rows WHERE tenant_id = $1", TENANT_ID)
+        bom_count = await conn.fetchval("SELECT COUNT(*) FROM bom_lines WHERE tenant_id = $1", TENANT_ID)
+        member_count = await conn.fetchval("SELECT COUNT(*) FROM tenant_memberships WHERE tenant_id = $1", TENANT_ID)
 
-        print("[mvp_seed] DONE — 1 tenant + 1 owner + 5 products + 1 BOM + 1 month data")
+        print("[mvp_seed] DONE - verify:")
+        print(f"  tenants: {tenant_count}")
+        print(f"  users: {member_count}")
+        print(f"  products: {product_count}")
+        print(f"  bom_lines: {bom_count}")
+        print(f"  monthly_input_rows: {row_count}")
         print(f"[mvp_seed] TENANT_ID = {TENANT_ID}")
         print(f"[mvp_seed] OWNER_EMAIL = demo@costmgr.local")
         return 0
+    except Exception as e:
+        print(f"[mvp_seed] FAILED: {e!r}")
+        import traceback
+        traceback.print_exc()
+        return 1
     finally:
         await conn.close()
 
