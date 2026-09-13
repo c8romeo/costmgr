@@ -886,3 +886,4 @@ cj-style Phase 18 close-out retro (cj-style 136번째) 정직 회복: creates th
 - 결정 보류 (운전자, K-4 wire 3 chain 보존): ① **K-4 wire 3 main runtime execution** (operator 환경 의존, option β first-pass) ② K-4 wire 3.2+ blocker-fix (option γ scoped) ③ K-4 wire 3.5+ DB-backed integration full (longer-term honestly DEFER) ④ capability matrix v1.55 EXTENSION (urgency 낮음) ⑤ 디자인가이드 / M10~M12 ⑥ cj-314 wire 2~6 + batch A/B/C ⑦ Pilot W1 outreach + W1~W8 carryover ⑧ 운영 cleanup 6건 ⑨ CI/web-e2e 환경 ⑩ Phase C 잔여 ~30 ⑪ 화면정의 회귀 ⑫ epics.md triage ⑬ PRD v2 EXTENSION.
 - PRE-EXISTING honestly DEFER carryover 보존: cj-303 4건 + PRE-EXISTING 6건 + cj-307 LOW RISK ~30건 + sso 13 skipped tests + W1~W8 carryover + epics.md triage + PRD v2 EXTENSION + 비용 발생 항목 모두 (Railway/Vercel/Resend/Supabase + Custom DNS + Sentry, 사용자 2026-09-10 결정 wire verbatim 보존).
 - 결정 wire 일자: 2026-09-13 (KST, D-1, Pilot W1 launch D-day 2026-09-14 KST Mon 까지 1일).
+
