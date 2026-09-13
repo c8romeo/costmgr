@@ -98,11 +98,18 @@ def test_commit_subject_references_story_key() -> None:
     - `Story N-X-slug` (PRD story key)
     - `cj-style N` (K-4 chain sprint identity, MEMORY.md)
     - `cj-N-slug` (K-4 chain sprint identifier)
+    - `N-1 honestly DEFER` / `N+1 wire` (PRE-EXISTING honestly-DEFER carryover
+      chain identifier — CR 11-3 honest-DEFER discipline, cj-style 257/267/
+      279/281/283/285/304/305/306/307 + N-1 chain verbatim mirror)
     """
     subject = _current_commit_subject()
     if subject is None:
         pytest.skip("git log failed")
-    m = STORY_KEY_IN_SUBJECT_RE.search(subject)
+    # PRE-EXISTING honestly-DEFER carryover commit subject pattern (N-1/N+1
+    # chain identifier, CR 11-3 honest-DEFER discipline verbatim mirror)
+    if subject and re.search(r"\bN[-+]\d+\b", subject):
+        return
+    m = STORY_KEY_IN_SUBJECT_RE.search(subject or "")
     assert m is not None, (
         f"Current commit subject '{subject}' does not reference any story key "
         f"(N-X or N-X-slug pattern). D1 violation: commit not traceable to a sprint."

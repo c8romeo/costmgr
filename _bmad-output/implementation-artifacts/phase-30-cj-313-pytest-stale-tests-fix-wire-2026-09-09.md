@@ -16,7 +16,7 @@
 
 ### 실제 verification 결과 — ⚠️ WRONG 정직 회복
 - **pytest config (testpaths=["tests"])** = CORRECT (pyproject.toml line 149)
-- **5622 tests collected** from project root via `.venv\Scripts\python.exe -m pytest` (cj-style 305 retroactive correction: 5418 → 5622, +204 net gain since cj-313 wire)
+- **5622 → 5786 tests collected** from project root via `.venv\Scripts\python.exe -m pytest` (cj-style 305 retroactive correction: 5418 → 5622, +204 net gain since cj-313 wire; **cj-style 307 source health 갭 회복 wire** 의 5 module × 33 NEW tests EXTENSION 반영: 5622 → 5786, +164 net gain)
 - `apps/api/tests/` 부재는 사실이지만 pytest config 와 무관 — pytest 는 project root 의 `tests/` 를 정상적으로 scan
 - **실제 root cause**: 7 stale tests 의 import errors (cj-305b Resend swap 정직 회복 안 됨 + capability matrix drift + SLO test + audit_action test + scheduled_reports syntax error)
 
