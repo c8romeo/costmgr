@@ -11,8 +11,8 @@ AD-1, AD-11 compliance:
 
 import os
 import uuid as _uuid_mod
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -297,6 +297,7 @@ from packages.services.m12_account.two_factor_gate import (
 from packages.services.m12_account.two_factor_gate import (
     TwoFactorRequiredError,
 )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -719,10 +720,6 @@ app.include_router(email_export_router)
 # ScheduledReportTimezoneError / ScheduledReportPeriodKeyError /
 # ScheduledReportDispatchError / ScheduledReportRecipientResolverError.
 # Spec: tests/integration/test_phase_30_scheduled_reports.py.
-from apps.api.modules.reports.scheduled_routes import (  # noqa: E402
-    router as scheduled_reports_router,
-)
-
 # cj-300 (cj-style 302번째) — 16 NEW typed exception imports (CR 12-5 D-14
 # envelope verbatim). Imports below ensure `@app.exception_handler` lookups
 # resolve the symbol table at startup (FastAPI inspects the module namespace).
@@ -737,15 +734,16 @@ from apps.api.jobs.errors import (  # noqa: E402
     ScheduledReportLifecycleError,
     ScheduledReportPeriodKeyError,
     ScheduledReportPermissionError,
+    ScheduledReportPersistenceError,  # noqa: E402,F401
     ScheduledReportPersistentJobStoreError,
     ScheduledReportRecipientResolverError,
     ScheduledReportRetryExhaustedError,
     ScheduledReportTenantNotFoundError,
     ScheduledReportTimezoneError,
-    # ScheduledReportPersistenceError  # F401: imported below for handler.
 )
-
-from apps.api.jobs.errors import ScheduledReportPersistenceError  # noqa: E402,F401
+from apps.api.modules.reports.scheduled_routes import (  # noqa: E402
+    router as scheduled_reports_router,
+)
 
 app.include_router(scheduled_reports_router)
 

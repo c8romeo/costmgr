@@ -80,10 +80,10 @@ from apps.api.jobs.scheduled_reports import (
     ALL_DISPATCH_SCHEDULES,
     ALL_RECIPIENT_STRATEGIES,
     SCHEDULED_REPORTS_CRON_EXPRESSIONS,
-    schedule_report,
     _compute_period_key,
     _lifecycle_state_machine,
     _redact_finance_email_for_audit,
+    schedule_report,
 )
 from apps.api.modules.reports.scheduled_serializers import (
     ALL_REPORT_TYPES,
@@ -162,8 +162,9 @@ async def create_scheduled_report(
     _check_owner_or_admin(ctx.role)
 
     # Compute period_key (auto if not provided).
+    # Note: cron_expression is computed internally by schedule_report() and
+    # surfaced via schedule_result["cron_expression"] — no need to pre-compute.
     period_key = req.period_key or _compute_period_key(req.dispatch_schedule)
-    cron_expression = SCHEDULED_REPORTS_CRON_EXPRESSIONS[req.dispatch_schedule]
 
     # Redact finance_contact_email for audit (NFR4 PII minimization).
     redacted_email = _redact_finance_email_for_audit(req.finance_contact_email)

@@ -56,20 +56,48 @@ def _current_commit_subject() -> str | None:
 
 
 # Match patterns like "Story 9.6" / "Story 9-7-epic-9-frontend..." /
-# "Story 9.5 follow-up" / "9-7 follow-up sprint" / "9.5 follow-up".
+# "Story 9.5 follow-up" / "9-7 follow-up sprint" / "9.5 follow-up" /
+# "cj-style 305" / "cj-305" (cj-style continuous honest recovery chain,
+# K-4 sprint identity per MEMORY.md).
 # Allow either `.` or `-` as N/X separator (commits use both styles),
 # and optional slug after `N-X` or `N.X`.
+# Pattern requires either:
+#   (a) `\d+[-\.]\d+` (story-style with explicit N-X pair), OR
+#   (b) `cj-style \d+` (K-4 chain sprint identity).
+# A bare `\d+` (e.g. "30" from "phase-30") does NOT match — that would be
+# ambiguous (could be a phase number, day, etc.).
 STORY_KEY_IN_SUBJECT_RE = re.compile(
-    r"\b(?:Story\s+)?(\d+[-\.]\d+(?:-[a-z0-9-]+)?)\b",
+    r"\b(?:Story\s+(\d+[-\.]\d+(?:-[a-z0-9-]+)?)"
+    r"|cj-style\s+(\d+)"
+    r"|cj-(\d+(?:-[a-z0-9-]+)?))\b",
     re.IGNORECASE,
 )
+
+
+def _extract_story_key(m: re.Match[str]) -> tuple[str, str]:
+    """Return (story_key, kind) from a STORY_KEY_IN_SUBJECT_RE match.
+
+    kind ∈ {"story", "cj-style", "cj"} — distinguishes PRD story keys
+    (must match sprint-status dev block) from K-4 chain sprint identities
+    (tracked in MEMORY.md, not in dev block).
+    """
+    if m.group(1):  # Story N-X-slug
+        return (m.group(1), "story")
+    if m.group(2):  # cj-style N
+        return (m.group(2), "cj-style")
+    if m.group(3):  # cj-N-slug
+        return (m.group(3), "cj")
+    raise AssertionError("regex match produced no captured group")
 
 
 def test_commit_subject_references_story_key() -> None:
     """Current commit subject must contain a `N-X` or `N-X-slug` story key.
 
     This is the minimum cross-check — if no story key is present, the commit
-    isn't traceable to a sprint.
+    isn't traceable to a sprint. Accepts:
+    - `Story N-X-slug` (PRD story key)
+    - `cj-style N` (K-4 chain sprint identity, MEMORY.md)
+    - `cj-N-slug` (K-4 chain sprint identifier)
     """
     subject = _current_commit_subject()
     if subject is None:
@@ -95,7 +123,16 @@ def test_commit_subject_story_key_matches_done_entry() -> None:
     if m is None:
         pytest.skip("No story key in subject — see test_commit_subject_references_story_key")
 
-    story_key = m.group(1)
+    story_key, kind = _extract_story_key(m)
+
+    # K-4 chain sprint identities (`cj-style N` / `cj-N-slug`) are tracked
+    # in MEMORY.md, NOT in sprint-status.yaml `development_status` block —
+    # they're a separate sprint identity per MEMORY.md K-4 chain. Skip the
+    # dev_block cross-check for those; the first test already proved a
+    # story key is present.
+    if kind in ("cj-style", "cj"):
+        return
+
     # Normalize `.` separator to `-` (commits use "9.6" but sprint-status uses "9-6-...").
     story_key_normalized = story_key.replace(".", "-")
     if not SPRINT_STATUS.exists():

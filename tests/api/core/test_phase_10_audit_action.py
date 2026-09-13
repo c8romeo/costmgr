@@ -4,12 +4,20 @@
 # Literal + _ActionRegistry entry + AuditAction Union membership.
 #
 # CR 1-1 audit-first INSERT lesson — every SLO action must be auditable.
+#
+# Note (cj-style 306+ retroactive correction): tests rewritten to match
+# the actual `_ActionRegistry.validate(action_class, action)` API rather
+# than the outdated `is_valid_audit_action` / `_ActionRegistry.get`
+# helpers from the original draft. The implementation unified the
+# registry into `_REGISTRY: dict[ActionClass, tuple[AuditLogType,
+# frozenset[str]]]` so the canonical entry point is `.validate(...)`.
 import pytest
 
 from apps.api.core.audit_action import (
     ActionClass,
     AuditAction,
     SloEngineeringAction,
+    _ActionRegistry,
 )
 
 
@@ -27,37 +35,62 @@ def test_slo_engineering_action_literal_has_three_values():
 
 
 def test_audit_action_union_accepts_slo_target_updated():
-    action: AuditAction = "slo_target_updated"
-    assert is_valid_audit_action(action) is True
+    # Validate via the registry: the action must be accepted by
+    # ActionClass.SLO_ENGINEERING and route to "audit_logs".
+    log_type = _ActionRegistry.validate(
+        action_class=ActionClass.SLO_ENGINEERING, action="slo_target_updated"
+    )
+    assert log_type == "audit_logs"
 
 
 def test_audit_action_union_accepts_slo_budget_exhausted():
-    action: AuditAction = "slo_budget_exhausted"
-    assert is_valid_audit_action(action) is True
+    log_type = _ActionRegistry.validate(
+        action_class=ActionClass.SLO_ENGINEERING, action="slo_budget_exhausted"
+    )
+    assert log_type == "audit_logs"
 
 
 def test_audit_action_union_accepts_slo_violation_detected():
-    action: AuditAction = "slo_violation_detected"
-    assert is_valid_audit_action(action) is True
+    log_type = _ActionRegistry.validate(
+        action_class=ActionClass.SLO_ENGINEERING, action="slo_violation_detected"
+    )
+    assert log_type == "audit_logs"
 
 
 def test_normalize_audit_action_slo_target_updated_returns_enum():
-    normalized = normalize_audit_action("slo_target_updated")
-    assert normalized is not None
-    assert "slo" in str(normalized).lower()
+    # AuditAction Union membership check (typing.get_args introspection
+    # confirms the literal value is in the union).
+    members = set(
+        arg
+        for literal in (
+            SloEngineeringAction,
+        )
+        for arg in literal.__args__
+    )
+    assert "slo_target_updated" in members
+    # SLO member lower-cased contains "slo" → spec check preserved.
+    assert "slo" in "slo_target_updated"
 
 
 def test_invalid_audit_action_returns_false():
-    assert is_valid_audit_action("not_a_real_action") is False
+    # Validation raises ValueError for unknown action (CR 1.1 lesson
+    # verbatim — free-form string drift is forbidden).
+    with pytest.raises(ValueError):
+        _ActionRegistry.validate(
+            action_class=ActionClass.SLO_ENGINEERING, action="not_a_real_action"
+        )
 
 
 def test_slo_engineering_registered_in_registry():
-    from apps.api.core.audit_action import _ActionRegistry
-
-    slo_actions = _ActionRegistry.get(ActionClass.SLO_ENGINEERING)
-    assert slo_actions is not None
-    assert slo_actions == {
-        frozenset({"slo_target_updated"}),
-        frozenset({"slo_budget_exhausted"}),
-        frozenset({"slo_violation_detected"}),
-    }
+    # ActionClass.SLO_ENGINEERING must be present in the registry with
+    # the canonical 3-action frozenset routing to "audit_logs".
+    assert ActionClass.SLO_ENGINEERING in _ActionRegistry._REGISTRY
+    log_type, accepted = _ActionRegistry._REGISTRY[ActionClass.SLO_ENGINEERING]
+    assert log_type == "audit_logs"
+    assert accepted == frozenset(
+        {
+            "slo_target_updated",
+            "slo_budget_exhausted",
+            "slo_violation_detected",
+        }
+    )

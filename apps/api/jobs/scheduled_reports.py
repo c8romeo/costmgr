@@ -54,15 +54,11 @@ from typing import Any
 import pytz
 
 from apps.api.jobs.errors import (
-    CronExpressionInvalidError,
     DispatchIdempotencyViolationError,
-    RecipientResolverError,
     ScheduledReportCronInvalidError,
-    ScheduledReportError,
     ScheduledReportFinanceContactEmailError,
     ScheduledReportFinanceEmailNotFoundError,
     ScheduledReportLifecycleError,
-    ScheduledReportPersistenceError,
     ScheduledReportRecipientResolverError,
     ScheduledReportTenantNotFoundError,
 )
@@ -284,9 +280,10 @@ def _resolve_recipients(
     """
     recipients: list[str] = []
     if finance_contact_email:
-        if recipient_strategy == RECIPIENT_STRATEGY_FINANCE_ONLY:
-            recipients = [finance_contact_email]
-        elif recipient_strategy == RECIPIENT_STRATEGY_FINANCE_AND_ADMIN:
+        if recipient_strategy in (
+            RECIPIENT_STRATEGY_FINANCE_ONLY,
+            RECIPIENT_STRATEGY_FINANCE_AND_ADMIN,
+        ):
             recipients = [finance_contact_email]
         else:  # admin_fallback
             recipients = []
@@ -312,10 +309,7 @@ def _redact_finance_email_for_audit(finance_contact_email: str | None) -> str | 
     if not finance_contact_email or "@" not in finance_contact_email:
         return None
     local, domain = finance_contact_email.split("@", 1)
-    if len(local) <= 2:
-        masked_local = "**"
-    else:
-        masked_local = local[:2] + "***"
+    masked_local = "**" if len(local) <= 2 else f"{local[:2]}***"
     return f"{masked_local}@{domain}"
 
 

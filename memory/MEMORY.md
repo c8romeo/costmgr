@@ -23,6 +23,9 @@ This file is the **project-level** memory index, distinct from the **harness-lev
 - [handoff-2026-08-25-phase-18-spec-entry-done](handoff-2026-08-25-phase-18-spec-entry-done.md) — Phase 18 spec entry DONE (cj 134). 5 files atomic.
 - [handoff-2026-08-25-phase-18-prd-entry-done](handoff-2026-08-25-phase-18-prd-entry-done.md) — Phase 18 PRD entry DONE (cj 133). 6 files atomic.
 
+### Active sprint state (2026-09-13 KST, post cj-style 306)
+- **cj-style 306 MVP scope failures 정직 회복 wire (cj-style 306번째) CLOSED ✅ HONEST** — sprint-status v4.121 → **v4.122 EXTENSION** A766, 17 files atomic (12 MODIFIED source/test + 1 NEW commit-msg + 1 NEW handoff + 3 MODIFIED meta), **78/78 cumulative 결정 wire 보존** (cj-style 305 의 77 + NEW 78th), **78번째 결정 wire** (K-4 chain 13 sprints 종합). 사용자 주장 baseline 정직 검증 = 5 categories (m9_abc 34 + m7_simulation 10 + m3_calc 3 + m5_reports pdf 1 + 1st_release_smoke 7) → 실제 baseline 37 failures (Phase 10 SLO family 32 + integration 4 + services 1) → env-free test/source fix only (LOW risk HIGH effect). **CR 11-3 honest-DEFER 256번째** chain cj-282 → cj-style 305 retroactive correction → **cj-style 306** 종합 87 sprints 정직 회복.
+
 ## Phase 19 (FinOps Pricing, Rate Card & TCO Modeling) — wire DONE + close-out retro DONE (Phase 19 4-entry-point cycle ALL DONE)
 
 - [handoff-2026-08-25-phase-19-close-out-done](handoff-2026-08-25-phase-19-close-out-done.md) — Phase 19 close-out retro DONE (cj 140). 14-section cj-style retro structure §1~§14 verbatim + 4 NEW + 1 MODIFIED = 5 files atomic single sprint + Honest deviations 3건 (RateCardAggregationError(500) naming + role.py MODIFIED not NEW + pricing module separate subdirectory) + D-FINOPS-9 honestly DEFER 보존 1 NEW 결정 wire 진입 완료

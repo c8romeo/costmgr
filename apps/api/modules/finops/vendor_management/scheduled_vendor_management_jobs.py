@@ -86,21 +86,38 @@ def daily_vendor_lifecycle_job() -> dict[str, Any]:
     """
     now_iso = datetime.now(UTC).isoformat()
 
-    # Audit-first INSERT for job execution
+    # Audit-first INSERT for job execution (CR 1-1 verbatim + ActionClass.
+    # FINOPS_VENDOR_MANAGEMENT — `vendor_status_changed` is a registered
+    # action per apps/api/core/audit_action.py registry).
     try:
-        from apps.api.core.audit import emit_audit  # type: ignore[import-not-found]
+        import asyncio
 
-        emit_audit(
-            tenant_id="system",
-            action="vendor_status_changed",
-            target_id="daily_lifecycle_job",
-            payload={
-                "job_name": "daily_vendor_lifecycle_job",
-                "executed_at": now_iso,
-                "model_version": VENDOR_MANAGEMENT_ENGINE_MODEL_VERSION,
-            },
-        )
-    except ImportError:
+        from apps.api.core.audit_action import ActionClass, emit_audit_typed
+
+        async def _emit_system_audit() -> None:
+            from uuid import UUID
+
+            from apps.api.core.database import async_session_maker
+
+            async with async_session_maker() as session:
+                await emit_audit_typed(
+                    session,
+                    action_class=ActionClass.FINOPS_VENDOR_MANAGEMENT,
+                    action="vendor_status_changed",
+                    actor_id=UUID(int=0),  # system actor
+                    target_id=UUID(int=0),
+                    payload={
+                        "job_name": "daily_vendor_lifecycle_job",
+                        "executed_at": now_iso,
+                        "model_version": VENDOR_MANAGEMENT_ENGINE_MODEL_VERSION,
+                    },
+                )
+
+        asyncio.run(_emit_system_audit())
+    except Exception:  # noqa: BLE001
+        # Audit emission is best-effort for system jobs; job continues even
+        # if audit write fails (CR 1-1 invariant: insert-first, but failure
+        # must not break the scheduled job lifecycle).
         pass
 
     logger.info("daily_vendor_lifecycle_job executed at %s", now_iso)

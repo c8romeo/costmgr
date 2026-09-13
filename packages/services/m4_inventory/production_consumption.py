@@ -39,9 +39,7 @@ from packages.services.m2_input.inventory_math import QTY_QUANTUM
 # the drift-detector regex `INCOMPLETE_BOM_FALLBACK_REASON_KO: Final[str]
 # = "([^"]+)"` (test_production_consumption_label_consistency.py)
 # can extract the literal without multi-line stripping.
-INCOMPLETE_BOM_FALLBACK_REASON_KO: Final[str] = (
-    "BOM 미정의 또는 부분 정의 — material consumption 기록 보류"
-)
+INCOMPLETE_BOM_FALLBACK_REASON_KO: Final[str] = "BOM 미정의 또는 부분 정의 — material consumption 기록 보류"
 
 # Event_type discriminators (5-2 wire — 11-value whitelist).
 EVENT_TYPE_PRODUCTION_OUTPUT_INBOUND: Final[str] = "production_output_inbound"
