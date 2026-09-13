@@ -7,12 +7,19 @@
     uv run python scripts/mvp_local_db.py wait       # DB 살아있는 동안 대기 (별도 터미널)
 
 환경:
-    - fixed port 54329 (사용자가 검증하는 동안 안정적으로 접속 가능)
-    - DATABASE_URL 자동 export (subprocess 용)
-    - PID file: .mvp_local_db.pid
+    - port auto-allocated by embedded-postgres (pgdata in user %TEMP%)
+    - DATABASE_URL 자동 export (.mvp_local_db_url 파일)
+    - PID file: .mvp_local_db.pid (postgres master PID)
 
 K-4 wire 3 main runtime execution 의 env-free local dev 진입로.
 cj-style N+7 Sprint 0 환경 준비 + TO-DO D (alembic) + TO-DO E (seed) 통합.
+
+Sprint 0 (cj-style N+9) env-free fix-forward:
+- LC_ALL=C / LANG=C / LC_COLLATE=C / LC_CTYPE=C 자동 설정 (Windows Korean 949
+  codepage 의 initdb text-search config 부재 회피)
+- TMPDIR unset (비표준 ESTsoft/CreatorTemp override 회피)
+- mkdtemp(prefix='pgdata_mvp_local_') for fresh pgdata per invocation
+  (cj-style N+7 conftest.py verbatim mirror)
 """
 
 from __future__ import annotations
@@ -20,6 +27,18 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+
+# Sprint 0 (cj-style N+9) — env-free execution prerequisite.
+# ① Windows Korean locale (Korean_Korea.949) has no PostgreSQL text search
+#   configuration for initdb. Setting LC_ALL=C (and friends) before importing
+#   embedded_postgres makes initdb happy without operator-side setup.
+# ② TMPDIR may be set to non-standard paths (e.g. /c/Users/Public/Documents/
+#   ESTsoft/CreatorTemp from ALZip/ESTsoft). Unset so tempfile.gettempdir()
+#   falls back to %TEMP% (user's writable TEMP).
+os.environ.pop("TMPDIR", None)
+for _lc in ("LC_ALL", "LANG", "LC_COLLATE", "LC_CTYPE"):
+    os.environ.setdefault(_lc, "C")
+
 import shutil
 import signal
 import subprocess
@@ -83,7 +102,16 @@ def _project_root() -> Path:
 
 
 def _pgdata_dir() -> Path:
-    return Path(tempfile.gettempdir()) / DATA_DIR_NAME
+    """Allocate a fresh pgdata directory under the user TEMP.
+
+    Sprint 0 (cj-style N+9): use mkdtemp for env-free uniqueness.
+    cj-style N+7 conftest.py `tempfile.mkdtemp(prefix='pgdata_mvp_')`
+    pattern verbatim mirror. Replaces cj-style N+8 fixed-dir
+    (`tempfile.gettempdir() / DATA_DIR_NAME`) which conflicted with
+    non-standard TMPDIR paths (e.g. ESTsoft/CreatorTemp) and rmtree's
+    `ignore_errors=True` silently swallowed permission/IO failures.
+    """
+    return Path(tempfile.mkdtemp(prefix="pgdata_mvp_local_"))
 
 
 def _build_database_url() -> str:
@@ -97,9 +125,7 @@ def cmd_up() -> int:
         return 0
 
     pgdata = _pgdata_dir()
-    if pgdata.exists():
-        print(f"[mvp_local_db] removing stale pgdata: {pgdata}")
-        shutil.rmtree(pgdata, ignore_errors=True)
+    print(f"[mvp_local_db] pgdata (fresh, mkdtemp) = {pgdata}")
 
     print(f"[mvp_local_db] starting embedded-postgres")
     import embedded_postgres
@@ -180,11 +206,12 @@ def cmd_up() -> int:
     dburl_file = project_root / ".mvp_local_db_url"
     dburl_file.write_text(database_url)
 
-    # Record PID (parent process that will wait)
-    _write_pid(os.getpid())
+    # Record postgres master PID (not parent python PID) so `mvp_local_db.py down`
+    # kills the actual server, not the wait-loop parent.
+    _write_pid(info.pid)
 
     print(f"[mvp_local_db] ready. DATABASE_URL={database_url}")
-    print(f"[mvp_local_db] PID={os.getpid()} recorded in {PID_FILE}")
+    print(f"[mvp_local_db] postgres master PID={info.pid} recorded in {PID_FILE}")
     print("[mvp_local_db] next steps:")
     print("  1. open a NEW terminal and run seed:")
     print(f'     set DATABASE_URL={database_url}')
@@ -242,6 +269,11 @@ def cmd_down() -> int:
     else:
         os.kill(pid, signal.SIGTERM)
     PID_FILE.unlink(missing_ok=True)
+    # Sprint 0 (cj-style N+9): also clean up .mvp_local_db_url that cmd_up writes.
+    # taskkill /F bypasses the KeyboardInterrupt-triggered _cleanup(), so we
+    # explicitly unlink the URL file here. pgdata dirs (mkdtemp under %TEMP%)
+    # are left for OS temp cleanup; cj-style N+9 close-out scope decision.
+    (_project_root() / ".mvp_local_db_url").unlink(missing_ok=True)
     print("[mvp_local_db] down")
     return 0
 
