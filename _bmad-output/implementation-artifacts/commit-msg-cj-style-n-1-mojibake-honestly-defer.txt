@@ -1,0 +1,32 @@
+docs(phase-30): N-1 sprint-status YAML mojibake honestly DEFER 결정 wire — cj-style chain 보존 + post-W1 honestly DEFER
+
+2 files atomic single sprint:
+- memory/handoff-2026-09-13-n-1-sprint-status-yaml-mojibake-honestly-defer-done.md — N-1 결정 wire handoff (NEW)
+- memory/MEMORY.md — N-1 결정 wire hook EXTENSION (project-level active state section)
+
+cj-style N-1 honestly DEFER 결정 wire (cj-style 307 source health 갭 회복 wire 의 후속):
+
+정직 triage 결과:
+- sprint-status.yaml line 536+ 영역 (~6224 lines, Phase 4~26 historical notes)
+  한글 UTF-8 인코딩 손실 영역 (PRE-EXISTING)
+- 영향: YAML parser 가 line 536 부터 parse failure
+- 영향 영역은 historical last_updated notes 이며 cj-style 결정 wire 영역
+  (Phase 27~30, line 6760+) 과 분리됨
+- cj-style 307 commit `0e090c8` 정상 commit 완료 — discipline 영역 영향 없음
+
+rationale 5종 (D-1 시간 압박 + cj-style discipline 보존):
+① PRE-EXISTING honestly DEFR carryover 의 정직 기록 (CR 11-3 verbatim mirror)
+② D-1 시간 (~18-30시간) 압박 하 MEDIUM regression risk 회피
+③ cj-style discipline 영역 정상 commit 보존 (cj-style 307 chain intact)
+④ Pilot W1 launch D-day 2026-09-14 KST 무관 (runtime 영역 무관)
+⑤ post-W1 honestly DEFER 진입 결정 wire 보존 (cj-style N+1 진입 시 결정)
+
+CJ-307 정상 commit `0e090c8` 결정 wire 보존
+CJ-306 wire (`f77836e`) 결정 wire 보존
+CJ-305 retroactive (`afc0d5d`) 결정 wire 보존
+K-4 wire 3 honest-DEFER guard (`f248014`, cj-style 304) 결정 wire 보존
+
+80/80 cumulative 결정 wire 보존 (cj-style 307 의 79 + NEW 80번째)
+CR 11-3 honest-DEFER discipline verbatim mirror (cj-style 257/267/279/281/283/285/304/305/306/307 chain)
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
