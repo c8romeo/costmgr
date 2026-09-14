@@ -24,15 +24,16 @@
  * fix: prior eval()-hidden path also hid the module from webpack's lazy
  * context, yielding MODULE_NOT_FOUND at dev-server boot.)
  *
- * **cj-style N+7 admin 시점 verification gate fix (2026-09-14 KST, D-Day)**:
- * webpack still resolves `await import('./instrumentation-node')` for
- * the Node.js bundle even when the runtime call returns early. When
- * `@opentelemetry/exporter-jaeger` (and other transitive deps) is not
- * installed in pnpm node_modules, the build emits `Module not found`
- * and dev-server returns 500 on first request. The `webpackIgnore: true`
- * magic comment tells webpack to skip static analysis — Node runtime
- * still loads the module at runtime via fs.require. 결정 wire 보존:
- * env-free local dev only, LOW risk (single comment).
+ * **cj-style N+14 (D-Day MVP demo, 2026-09-14 KST)**: the prior
+ * `webpackIgnore: true` magic comment (cj-style N+7) made webpack skip
+ * static analysis of `await import('./instrumentation-node')`, but
+ * Node's runtime loader still tries to resolve the path at boot via
+ * fs — and after a fresh `.next` build there is no bundled artifact
+ * to find, yielding `ERR_MODULE_NOT_FOUND` at startup. Reverted to the
+ * plain dynamic import: with `OTEL_SDK_DISABLED=true` in `.env.local`,
+ * the function returns before reaching the import, so the unresolved
+ * module is never actually loaded in dev. Production deploys without
+ * `OTEL_SDK_DISABLED=true` and webpack bundles it normally.
  */
 export async function register(): Promise<void> {
   if (typeof window === 'undefined') {
@@ -43,10 +44,7 @@ export async function register(): Promise<void> {
         // Dev / CI short-circuit. Skip server OTel init.
         return;
       }
-      // cj-style N+7: webpackIgnore prevents webpack from statically
-      // resolving instrumentation-node.ts and its transitive OTel deps
-      // (which may not be installed). Node runtime loads via fs at runtime.
-      await import(/* webpackIgnore: true */ './instrumentation-node');
+      await import('./instrumentation-node');
     }
     return;
   }

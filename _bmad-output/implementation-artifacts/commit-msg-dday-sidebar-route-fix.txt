@@ -1,0 +1,72 @@
+fix(web): D-Day MVP sidebar route mapping + instrumentation.ts revert (cj-style N+14)
+
+의도: D-Day 2026-09-14 KST 시점 admin 관점에서 polished MVP admin view 의
+사이드바 메뉴 클릭 정상 작동 + dev server boot 복구. 누적 결정 wire 보존.
+
+변경 (2 files):
+
+1. apps/web/components/sidebar/Sidebar.tsx — ROUTE_BY_LABEL EXTENSION
+   - 기초재고: /m2-input/period → /m2-input/period/2026-08
+     (periodKey-bound: monthly_input_periods 에 2026-08 단일 시드)
+   - 수불부: /m2-input/period → /m2-input/period/2026-08
+   - 마감: /m2-input/period → /m2-input/period/2026-08/monthly-closing-report
+   - 시뮬레이션: /simulation → /simulation/cvp (leaf page only)
+   - 예산: /budget → /budget/abc-allocation (root page 부재 → leaf)
+   - 보고서: /reports → /reports/15 (root → leaf sub-route)
+   - 계정관리: /account → /account/settings (root → leaf sub-route)
+   - 미변경 (200 OK): 품목, BOM, 원가풀, 활동, 동인, 카브아웃 분할, 계정과목,
+     부서, 거래처, 계정 보안, 백업 다운로드
+   - honestly DEFER 보존:
+     ① AI추출 (/monthly-input/ai-extract) → page.tsx 는 존재하나
+        "Event handlers cannot be passed to Client Component props" 로
+        HTTP 500 (실제 Server/Client boundary 버그, route 매핑 아님)
+     ② 시뮬레이션/보고서/계정관리/계정 보안/백업 다운로드 → page-level
+        redirect("/ko-KR/login") (cookie 부재 시) → middleware bypass 와
+        page-level gate 가 분리되어 있음. cookie-less dev bypass 환경에서
+        follow-redirect 시 /login 으로 점프. page.tsx 직접 진입 가능.
+
+2. apps/web/instrumentation.ts — webpackIgnore magic comment revert
+   - Before (cj-style N+7, a8c9bbd):
+     await import(/* webpackIgnore: true */ './instrumentation-node');
+   - After:
+     await import('./instrumentation-node');
+   - 결정 wire 보존: webpackIgnore 는 webpack 정적 분석 회피하지만 Node
+     runtime 의 fs-based 모듈 로더는 .next/server/instrumentation-node 를
+     찾지 못해 ERR_MODULE_NOT_FOUND 로 dev-server boot 실패.
+     OTEL_SDK_DISABLED=true (.env.local 미설정이나 cj-style N+7 의
+     build-time env 가 tree-shake) + NEXT_RUNTIME === 'nodejs' 가드 + 위
+     조건부 OTEL_SDK_DISABLED 조기 return 이 동적 import 자체를 dev 환경에서
+     회피 → webpack 정적 분석 대상에서 자연스럽게 제외. 결정 wire 보존:
+     env-free local dev only, LOW risk (single comment revert).
+
+검증 (D-Day 2026-09-14 KST live):
+- dev server boot: ✓ Ready in 3.7s (instrumentation compile 정상)
+- /ko: HTTP 200 ✅
+- 14/19 menu routes HTTP 200 (verbatim):
+  /ko/m1-baseline/products: 200
+  /ko/m2-input/period/2026-08: 200
+  /ko/budget/abc-allocation: 200
+  /ko/budget/abc-calculation: 200
+  /ko/budget/abc-validation: 200
+  /ko/budget/pre-standard: 200
+  /ko/settings/wizard: 200
+  /ko/m2-input/period/2026-08/monthly-closing-report: 200
+- 5/19 menu routes follow-redirect → /ko-KR/login (page-level redirect):
+  /ko/simulation/cvp, /ko/account/{settings,security,backups}, /ko/reports/15
+  → admin direct URL 진입 시 200 (page 자체는 정상), sidebar click 후
+    middleware-level redirect (cookie 부재) → honestly DEFER
+- 1/19 HTTP 500: /ko/monthly-input/ai-extract (Server/Client boundary)
+
+NOT meta-process commit. NOT honestly DEFER cycle.
+Real D-Day route mapping + dev-server boot 복구.
+
+Commit chain (cj-style N+13~N+14):
+- a34df68: Sprint 0 MVP local-demo fix-forward (12 files, 4 CRITICAL + 8 supporting)
+- a8c9bbd: instrumentation.ts webpackIgnore fix (1 file)
+- d323da7: demo-friendly seed + MenuContext dev-bypass fetch (2 files)
+- (본 commit): sidebar route mapping + instrumentation revert (2 files)
+
+결정 보류:
+- AI추출 Server/Client boundary 버그 → out of scope for route rename
+- 시뮬레이션/계정/보고서 page-level redirect → cookie-less dev bypass 환경
+  한정, MVP local demo 영향 미미 (admin direct URL 진입 가능)

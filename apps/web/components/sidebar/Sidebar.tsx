@@ -30,23 +30,34 @@ import { useMenuContext } from "./MenuContext";
 import { SidebarItem } from "./SidebarItem";
 
 const ROUTE_BY_LABEL: Record<string, string> = {
-  품목: "/dashboard/products",
-  BOM: "/dashboard/bom",
-  기초재고: "/dashboard/opening-inventory",
-  수불부: "/dashboard/inventory-ledger",
-  원가풀: "/dashboard/cost-pool",
-  활동: "/dashboard/activity",
-  동인: "/dashboard/driver",
-  "카브아웃 분할": "/dashboard/segment-split",
-  계정과목: "/dashboard/accounts",
-  부서: "/dashboard/departments",
-  거래처: "/dashboard/customers",
-  AI추출: "/dashboard/ai-extract",
-  시뮬레이션: "/dashboard/simulation",
-  예산: "/dashboard/budget",
-  보고서: "/dashboard/reports",
-  마감: "/dashboard/close",
-  계정관리: "/dashboard/account",
+  // cj-style N+13 + N+14 (D-Day MVP demo, 2026-09-14 KST) — ROUTE_BY_LABEL
+  // updated to match the actual Next.js app/ routes. Manufacturing route
+  // group uses `/(dashboard)/` so the group prefix doesn't appear in the
+  // URL. Routes below are leaf paths with valid page.tsx (no synthetic
+  // placeholder routes). 결정 wire 보존: env-free local dev only, LOW risk
+  // (data table update only). `monthly_input_periods` has only one seeded
+  // period (2026-08), so periodKey-bound routes hard-code that key.
+  품목: "/m1-baseline/products",
+  BOM: "/m1-baseline/products",
+  기초재고: "/m2-input/period/2026-08",
+  수불부: "/m2-input/period/2026-08",
+  원가풀: "/budget/abc-allocation",
+  활동: "/budget/abc-calculation",
+  동인: "/budget/abc-validation",
+  "카브아웃 분할": "/budget/pre-standard",
+  계정과목: "/settings/wizard",
+  부서: "/settings/wizard",
+  거래처: "/settings/wizard",
+  // AI추출 — page exists at /monthly-input/ai-extract but renders HTTP 500
+  // (Server Component passes onClose event handler to Client Component —
+  // real Next.js boundary bug, out of scope for route-rename edit).
+  // Honestly DEFERRED — admin can navigate via direct URL.
+  AI추출: "/monthly-input/ai-extract",
+  시뮬레이션: "/simulation/cvp",
+  예산: "/budget/abc-allocation",
+  보고서: "/reports/15",
+  마감: "/m2-input/period/2026-08/monthly-closing-report",
+  계정관리: "/account/settings",
   // Story 12.5 — 2FA self-service UI (industry-agnostic security baseline)
   "계정 보안": "/account/security",
   // Story 12.2 — daily backup download UI (industry-agnostic security baseline)
@@ -54,8 +65,8 @@ const ROUTE_BY_LABEL: Record<string, string> = {
 };
 
 /** F-11: path is active iff it equals `href` exactly or begins with
- *  `${href}/` (so segment boundaries are honoured and `/dashboard/accounts`
- *  does NOT light up `/dashboard/account`). */
+ *  `${href}/` (so segment boundaries are honoured and e.g.
+ *  `/m2-input/period` does NOT light up `/m2-input/period/[periodKey]`). */
 function isActivePath(pathname: string, href: string): boolean {
   if (pathname === href) return true;
   return pathname.startsWith(`${href}/`);
