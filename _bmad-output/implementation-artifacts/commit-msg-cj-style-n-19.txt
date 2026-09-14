@@ -1,0 +1,60 @@
+feat(web): D-Day+1 dashboard reinforcement A — KPI 4 카드 + 빠른 진입 3 (cj-style N+19)
+
+cj-style N+19 (2026-09-15 KST, D-Day+1) — 사용자 D-Day Dashboard 보강 결정
+보류 → Option A 진입 결정 wire 해소:
+
+* KPI 카드 4개: 매출(sales) · 원가(orders+production+purchases+expenses+labor)
+  · 마진 · 마진율 (PRD §8.M2(b) 6-stream 분류, sales=revenue, 나머지 5 stream=cost).
+  데이터 부재 시 "—" placeholder (fail-closed UI).
+* 빠른 진입 3개: M1 (품목/BOM /m1-baseline/products) · M2 (수불부
+  /m2-input/period/2026-08) · M3 (원가풀 /budget/abc-allocation).
+  라우트는 Sidebar.tsx::ROUTE_BY_LABEL 결정 verbatim mirror.
+* RSC server-side fetch 변환: `"use client"` + useMenuContext → async RSC,
+  `fetchMonthlyInputStateServerSide` (server-api.ts:177) +
+  `fetchTenantSettingsServerSide` (server-api.ts:463) 로 industry + KPI
+  동시 fetch (F-20 race-free pattern). Backend 부재 시 try/catch best-effort.
+* 결정 wire 보존: Option B/C honestly DEFER post-MVP (memory/project-dday-
+  dashboard-reinforcement.md verbatim), seed 확장 결정 보류 (현재 시드는
+  purchases 2행 200K KRW만 → 데모 KPI: 매출 0 / 원가 200K / 마진 -200K /
+  마진율 "— (매출 0)"), 3중 게이트 FINAL CLEAN 보존 (PRD/메뉴/capability/
+  alembic/backend source 0건 변경).
+
+Files atomic (7 = 3 source + 4 meta):
+* modified apps/web/app/[locale]/(dashboard)/page.tsx (32 → ~120 LOC,
+  RSC 변환 + KPI/QuickAccess render)
+* new apps/web/components/dashboard/KpiCard.tsx (~25 LOC, KPI 단일 카드)
+* new apps/web/components/dashboard/QuickAccessCard.tsx (~40 LOC,
+  1-click 진입 카드 + 4px blue accent bar)
+* new memory/handoff-2026-09-15-cj-style-n-19-dashboard-reinforcement-a-
+  kpi-quick-access-done.md (§10-section)
+* new _bmad-output/implementation-artifacts/commit-msg-cj-style-n-19.txt
+  (본 파일)
+* modified _bmad-output/implementation-artifacts/sprint-status.yaml
+  (v4.134 → v4.135 EXTENSION A781 + last_updated_note_v4_135)
+* modified MEMORY.md (cj-style N+19 hook EXTENSION + 101/101 cumulative
+  결정 wire)
+
+Verify gate:
+* tsc: PASS (npm run lint:tsc — apps/web)
+* ESLint: 0 new errors (pre-existing 4 errors in layout.tsx +
+  ScheduledJobsList.tsx unrelated)
+* vitest: 백그라운드 task b3l1z9jnk (180s timeout — 기존 dashboard
+  테스트 미존재 → 영향 무)
+* 3중 게이트 FINAL CLEAN preserved (PROD source 변경 0건 + alembic 0건 +
+  PRD 0건 + Capability matrix v1.54 EXTENSION preserved + 37 pins
+  unchanged + 14 job matrix unchanged + AD-14 stack pin EXTENSION
+  preserved + A19 cohesion 9 surface EXTENSION PASS preserved)
+
+Cx-style invariants 보존:
+* PRD §F parity 직접 변경 0건 (UI polish only)
+* §8.M2(b) 6-stream 분류 verbatim (sales=revenue, 나머지 5 stream=cost)
+* periodKey-bound 2026-08 결정 (cj-style N+14 의 Sidebar ROUTE_BY_LABEL
+  결정 verbatim mirror)
+* AD-8 deferred (display-only 합계; KRW BIGINT <2^53 가정)
+
+Refs: memory/project-dday-dashboard-reinforcement.md,
+apps/web/components/sidebar/Sidebar.tsx, apps/web/lib/server-api.ts,
+apps/api/modules/m2_input/handlers.py, cj-style N+12 결정 보류 §6.1 해소,
+결정 보류 11건 honestly DEFER post-MVP (verbatim 보존).
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
