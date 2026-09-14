@@ -79,13 +79,14 @@ export function MenuProvider({ children, accessToken }: MenuProviderProps) {
   }, [accessToken]);
 
   useEffect(() => {
-    if (accessToken === undefined) {
-      // No token yet — leave defaults; provider is data-ready.
-      setIsLoading(false);
-      return;
-    }
+    // cj-style N+13 (D-Day MVP demo) — always fetch, even without
+    // accessToken. Backend dev bypass (MVP_DEV_BYPASS=true) handles
+    // missing Authorization header by falling back to the first
+    // tenant_memberships owner. Production-disabled by APP_ENV=production
+    // or MVP_DEV_BYPASS=false, so prod behavior is preserved (no token
+    // → 401 → user is redirected to /login by upstream middleware).
     refresh();
-  }, [accessToken, refresh]);
+  }, [refresh]);
 
   const setIndustry = useCallback(
     (next: Industry, nextMenu: readonly string[]) => {

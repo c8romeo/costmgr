@@ -222,12 +222,50 @@ async def main() -> int:
             4,
         )
 
+        # 8. tenant_settings — D-Day MVP demo seed (cj-style N+13)
+        # Insert with onboarding.industry = "manufacturing" so the dashboard
+        # renders the populated industry menu (15 items for manufacturing per
+        # packages/services/m0_onboarding/industry_menu.py). Without this row,
+        # the dev bypass synthesizes a response with settings_version=0, but
+        # the frontend MenuContext also requires accessToken to fetch — see
+        # cj-style N+13 frontend fix.
+        print("[mvp_seed] creating tenant_settings (manufacturing)...")
+        await conn.execute(
+            """
+            INSERT INTO tenant_settings (
+                tenant_id, settings_version, onboarding, baseline, abc, ai, payroll, updated_at
+            )
+            VALUES (
+                $1, 1,
+                jsonb_build_object(
+                    'industry', 'manufacturing',
+                    'selected_at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+                    'is_initial', true
+                ),
+                '{}'::jsonb,
+                '{}'::jsonb,
+                '{}'::jsonb,
+                '{}'::jsonb,
+                now()
+            )
+            ON CONFLICT (tenant_id) DO UPDATE SET
+                settings_version = EXCLUDED.settings_version + 1,
+                onboarding = EXCLUDED.onboarding,
+                updated_at = now()
+            """,
+            TENANT_ID,
+        )
+
         # Verify
         tenant_count = await conn.fetchval("SELECT COUNT(*) FROM tenants WHERE id = $1", TENANT_ID)
         product_count = await conn.fetchval("SELECT COUNT(*) FROM products WHERE tenant_id = $1", TENANT_ID)
         row_count = await conn.fetchval("SELECT COUNT(*) FROM monthly_input_rows WHERE tenant_id = $1", TENANT_ID)
         bom_count = await conn.fetchval("SELECT COUNT(*) FROM bom_lines WHERE tenant_id = $1", TENANT_ID)
         member_count = await conn.fetchval("SELECT COUNT(*) FROM tenant_memberships WHERE tenant_id = $1", TENANT_ID)
+        settings_count = await conn.fetchval("SELECT COUNT(*) FROM tenant_settings WHERE tenant_id = $1", TENANT_ID)
+        settings_industry = await conn.fetchval(
+            "SELECT onboarding->>'industry' FROM tenant_settings WHERE tenant_id = $1", TENANT_ID
+        )
 
         print("[mvp_seed] DONE - verify:")
         print(f"  tenants: {tenant_count}")
@@ -235,8 +273,9 @@ async def main() -> int:
         print(f"  products: {product_count}")
         print(f"  bom_lines: {bom_count}")
         print(f"  monthly_input_rows: {row_count}")
+        print(f"  tenant_settings: {settings_count} (industry={settings_industry})")
         print(f"[mvp_seed] TENANT_ID = {TENANT_ID}")
-        print(f"[mvp_seed] OWNER_EMAIL = demo@costmgr.local")
+        print("[mvp_seed] OWNER_EMAIL = demo@costmgr.local")
         return 0
     except Exception as e:
         print(f"[mvp_seed] FAILED: {e!r}")
