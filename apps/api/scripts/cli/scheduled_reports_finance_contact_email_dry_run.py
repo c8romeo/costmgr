@@ -19,13 +19,11 @@ CR 11-3 honest-DEFER 244번째.
 from __future__ import annotations
 
 import argparse
-import asyncio
 import sys
 
 from apps.api.jobs.scheduled_reports import _redact_finance_email_for_audit
 from apps.api.modules.reports.scheduled_serializers import (
     EMAIL_REGEX,
-    PERIOD_KEY_REGEX,
     ScheduledJobCreate,
 )
 
@@ -71,20 +69,20 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    print(f"[dry-run] finance_contact_email_dry_run start")
+    print("[dry-run] finance_contact_email_dry_run start")
     print(f"[dry-run] tenant_id={args.tenant_id}")
     print(f"[dry-run] finance_contact_email={args.finance_contact_email}")
 
     # 1. Validate email format.
     if not EMAIL_REGEX.match(args.finance_contact_email):
-        print(f"[dry-run] FAIL: Invalid email format", file=sys.stderr)
+        print("[dry-run] FAIL: Invalid email format", file=sys.stderr)
         return 1
-    print(f"[dry-run] email format OK")
+    print("[dry-run] email format OK")
 
     # 2. PII redact pattern test.
     redacted = _redact_finance_email_for_audit(args.finance_contact_email)
     if redacted is None:
-        print(f"[dry-run] FAIL: Redact pattern returned None", file=sys.stderr)
+        print("[dry-run] FAIL: Redact pattern returned None", file=sys.stderr)
         return 1
     print(f"[dry-run] redact OK: {args.finance_contact_email} → {redacted}")
 
@@ -102,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[dry-run] FAIL: Pydantic validation: {exc}", file=sys.stderr)
         return 1
 
-    print(f"[dry-run] OK: All validations passed")
+    print("[dry-run] OK: All validations passed")
     return 0
 
 

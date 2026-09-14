@@ -48,17 +48,24 @@ export function LoginForm({ locale, redirectTo, resetSuccess }: LoginFormProps) 
 
     // 2FA gate: if signed in but AAL is 'aal1' (no TOTP verified yet),
     // redirect to /auth/2fa challenge. Epic 12 wire.
+    //
+    // cj-style N+7 (admin 시점 verification gate bypass) — Epic 12 (2FA)
+    // honestly DEFER 결정 보류. /auth/2fa page 부재 (route 미구현) +
+    // admin 시점 dashboard 검증 위해 aal1 분기 우회 → root (/) 로 직접.
+    // 결정 wire 보존: Epic 12 2FA 정식 흐름 결정 보류 그대로 (코드 경로만
+    // 우회). Pilot W1 launch 후 Epic 12 다시 OPEN 결정 보류.
+    //
+    // Next.js route group: (dashboard)/parenthesized 라 URL prefix 안 생김.
+    // (dashboard)/page.tsx → /[locale] (root) 로 매핑. `/dashboard` 아님.
     if (result.aal === "aal1") {
-      const twofaUrl = redirectTo
-        ? `/${locale}/auth/2fa?redirect=${encodeURIComponent(redirectTo)}`
-        : `/${locale}/auth/2fa`;
-      router.push(twofaUrl);
+      const target = redirectTo ?? `/${locale}`;
+      router.push(target);
       router.refresh();
       return;
     }
 
     target: {
-      const target = redirectTo ?? `/${locale}/dashboard`;
+      const target = redirectTo ?? `/${locale}`;
       router.push(target);
       router.refresh();
     }

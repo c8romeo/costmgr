@@ -31,11 +31,40 @@ import { Sidebar } from "@/components/sidebar/Sidebar";
 
 export const dynamic = "force-dynamic";
 
+var NEXT_PUBLIC_SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  // F-1 + F-38: read the access token once and pass the STRING (not a function).
-  // This is serializable across the RSC boundary.
+  // cj-style N+7 (admin 시점 verification gate fix) — Supabase 의
+  // `@supabase/ssr` 가 cookie 에 저장하는 이름은
+  // `sb-<project-ref>-auth-token` (예: `sb-zlluqhjywodsnmsiccuk-auth-token`)
+  // 이며, 값은 base64(JSON) 안에 `access_token` 을 보관. 직접 cookie
+  // name 으로 read + base64 decode 가 가장 확실. `auth.getSession()`
+  // 은 Next.js 15 + react 19 환경에서 가끔 throw → fallback 으로
+  // 진짜 cookie 에서 직접 추출.
+  let accessToken: string | undefined;
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("sb-access-token")?.value;
+  const allCookies = cookieStore.getAll();
+  const cookieList = Array.isArray(allCookies)
+    ? allCookies
+    : Object.entries(allCookies).map(([name, value]) => ({
+        name,
+        value: typeof value === "string" ? value : (value as { value: string }).value,
+      }));
+  for (const { name, value: raw } of cookieList) {
+    if (name.endsWith("-auth-token")) {
+      try {
+        const decoded = Buffer.from(raw, "base64").toString("utf8");
+        const parsed = JSON.parse(decoded) as { access_token?: string };
+        if (parsed.access_token) {
+          accessToken = parsed.access_token;
+          break;
+        }
+      } catch {
+        // skip non-JSON cookies (anon-key, etc.)
+      }
+    }
+  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>

@@ -15,7 +15,6 @@ CR 11-3 honest-DEFER 244번째.
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import json
 import sys
@@ -35,7 +34,7 @@ async def main_async(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    print(f"[dry-run] scheduled_reports_dry_run start")
+    print("[dry-run] scheduled_reports_dry_run start")
     print(f"[dry-run] tenant_id={args.tenant_id}")
     print(f"[dry-run] dispatch_schedule={args.dispatch_schedule}")
     print(f"[dry-run] recipient_strategy={args.recipient_strategy}")

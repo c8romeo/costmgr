@@ -14,16 +14,25 @@ Other modules receive the loaded Settings object via FastAPI dependency injectio
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# cj-style N+7 (admin 시점 verification gate fix) — `env_file=".env"` 는
+# 상대경로 → uvicorn 시작 cwd 에 의존. 어느 shell 에서 시작해도 항상
+# `apps/api/.env` 를 읽도록 절대경로로 고정. 결정 wire 보존: env-free
+# local dev only, LOW risk (config 1 attr).
+# `apps/api/core/settings.py` → parents[0]=core/ [1]=api/ [2]=apps/api/.
+_BACKEND_ROOT = Path(__file__).resolve().parents[1]  # apps/api/
+_ENV_FILE = _BACKEND_ROOT / ".env"
 
 
 class Settings(BaseSettings):
     """Application settings — values read from environment or .env file."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

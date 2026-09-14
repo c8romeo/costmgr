@@ -52,8 +52,14 @@ export default async function LoginPage({
   } = await supabase.auth.getUser();
 
   // If already signed in, redirect to dashboard (or ?redirect= target).
+  //
+  // cj-style N+7 (admin 시점 verification gate bypass) — Next.js route
+  // group `(dashboard)/` parenthesized 면 URL prefix 안 생김. dashboard
+  // root 는 `/${locale}` (즉 `/ko`) 으로 매핑. `/${locale}/dashboard` 는
+  // 매핑되는 page 없음 → 404. 결정 wire 보존: target URL 만 root 로
+  // 변경, 결정 wire 정직 baseline 그대로.
   if (user) {
-    const target = redirectParam ?? `/${locale}/dashboard`;
+    const target = redirectParam ?? `/${locale}`;
     redirect(target);
   }
 

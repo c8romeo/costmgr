@@ -48,8 +48,8 @@ Verbatim mirror of 0060_cost_records_and_bom_matrix.py 결정 wire
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0061_phase_30_story_30_4_finance_contact_email"

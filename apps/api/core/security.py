@@ -120,21 +120,42 @@ def decode_jwt(token: str, *, require_tenant: bool = True) -> JWTClaims:
     if settings.jwt_leeway_sec is not None:
         leeway = settings.jwt_leeway_sec
 
+    # cj-style N+7 (admin 시점 verification gate fix) — Supabase user
+    # session JWT 는 ES256 (asymmetric). backend 가 `settings.supabase_jwt_secret`
+    # (HS256 secret) 만 가지고 있으면 ES256 검증 불가 → 모두 401. JWKS
+    # endpoint 에서 public key 가져와 검증하도록 fallback 추가. 결정
+    # wire 보존: env-free local dev only, MEDIUM risk (network call 추가).
     try:
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            leeway=leeway,
-            # Walking Skeleton (2026-08-16): explicitly disable `aud`
-            # verification. PyJWT 2.x raises `InvalidAudienceError` whenever
-            # the token contains an `aud` claim and no explicit `audience`
-            # is passed to `decode()`. Supabase tokens always carry
-            # `aud: "authenticated"`; we identify tenants via `app_metadata`
-            # (AD-3), not via the audience, so the check is unneeded and
-            # was rejecting every dev token.
-            options={"require": ["exp"], "verify_aud": False},
-        )
+        # First, inspect the token's `alg` header to decide verification strategy.
+        try:
+            header = jwt.get_unverified_header(token)
+        except Exception as e:
+            raise InvalidTokenError("Malformed token header") from e
+        alg = header.get("alg", "HS256")
+
+        if alg.startswith("HS"):
+            payload = jwt.decode(
+                token,
+                settings.supabase_jwt_secret,
+                algorithms=["HS256", "HS384", "HS512"],
+                leeway=leeway,
+                options={"require": ["exp"], "verify_aud": False},
+            )
+        else:
+            # Asymmetric (ES256/ES384/RS256). Fetch JWKS from Supabase.
+            from jwt import PyJWKClient  # lazy import to keep import-time clean
+            jwks_url = (settings.supabase_url or "").rstrip("/") + "/auth/v1/.well-known/jwks.json"
+            if not settings.supabase_url:
+                raise InvalidTokenError("Supabase URL not configured for asymmetric JWT")
+            jwks_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=3600)
+            signing_key = jwks_client.get_signing_key_from_jwt(token).key
+            payload = jwt.decode(
+                token,
+                signing_key,
+                algorithms=[alg, "ES256", "ES384", "RS256"],
+                leeway=leeway,
+                options={"require": ["exp"], "verify_aud": False},
+            )
     except ExpiredSignatureError as e:
         raise AuthError(
             code=TENANT_FORBIDDEN,

@@ -258,7 +258,7 @@ async def apply_plan(args: PilotTenantProvisionArgs) -> int:
         )
         return 2
 
-    print(f"[apply] Connecting to database...")
+    print("[apply] Connecting to database...")
     engine = create_async_engine(database_url, echo=False)
     try:
         async with engine.begin() as conn:
@@ -319,7 +319,7 @@ async def apply_plan(args: PilotTenantProvisionArgs) -> int:
 
             # Step 4: INSERT audit_logs (non-idempotent by design).
             print(
-                f"[apply] Step 4: INSERT audit_logs (action_class=REPORTS, action=pilot_tenant_provisioned)"
+                "[apply] Step 4: INSERT audit_logs (action_class=REPORTS, action=pilot_tenant_provisioned)"
             )
             payload = json.dumps(
                 {
@@ -360,14 +360,14 @@ async def main_async(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         # Dry-run mode: print planned operations as structured JSON.
-        print(f"[dry-run] pilot_tenant_provision start")
+        print("[dry-run] pilot_tenant_provision start")
         print(json.dumps(plan, indent=2, ensure_ascii=False))
-        print(f"[dry-run] Review the planned actions above.")
-        print(f"[dry-run] To apply, re-run with --apply flag.")
+        print("[dry-run] Review the planned actions above.")
+        print("[dry-run] To apply, re-run with --apply flag.")
         return 0
 
     # Apply mode.
-    print(f"[apply] pilot_tenant_provision start (DRY-RUN SKIPPED)")
+    print("[apply] pilot_tenant_provision start (DRY-RUN SKIPPED)")
     return await apply_plan(args)
 
 

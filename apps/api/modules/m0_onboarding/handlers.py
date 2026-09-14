@@ -35,6 +35,7 @@ from apps.api.core.jsonb_schemas import (
 from apps.api.core.tenant_context import (
     PreOnboardingUser,
     TenantContext,
+    _is_dev_bypass_enabled,
     get_pre_onboarding_user,
     get_tenant_context,
 )
@@ -301,6 +302,37 @@ async def get_tenant_settings(
     try:
         settings_row = await service.get_tenant_settings(tenant_id=ctx.tenant_id)
     except TenantSettingsNotFoundError as e:
+        # cj-style N+9 (Sprint 0 MVP demo) — when the dedicated
+        # `tenant_settings` row is missing but the parent `tenants` row
+        # carries `industry` (seed data path), synthesize a settings
+        # response from that. Production-disabled by APP_ENV=production
+        # or MVP_DEV_BYPASS=false. Lets the local demo dashboard render
+        # the menu + "current industry" line without manually running
+        # POST /tenant-settings/onboarding/industry first.
+        if _is_dev_bypass_enabled():
+            from sqlalchemy import text as _sql_text
+
+            row = (
+                await session.execute(
+                    _sql_text("SELECT industry FROM tenants WHERE id = :tid"),
+                    {"tid": ctx.tenant_id},
+                )
+            ).first()
+            if row is not None and row.industry is not None:
+                try:
+                    industry = Industry(row.industry)
+                except ValueError:
+                    industry = None
+                return TenantSettingsResponse(
+                    tenant_id=ctx.tenant_id,
+                    industry=industry,
+                    settings_version=0,
+                    onboarding={"industry": row.industry},
+                    baseline={},
+                    abc={},
+                    ai={},
+                )
+
         # F-22: GET must map missing tenant_settings to a typed 404, not 500.
         from fastapi.responses import JSONResponse
 
@@ -607,3 +639,6 @@ async def get_completion(
             },
         )
     return _build_completion_response(completion, trace_id, last_calc_date=last_calc_date)
+
+
+# cj-style N+9 — touch marker for reload
