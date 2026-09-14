@@ -2,6 +2,14 @@
 // Story 0.5 — T1.5/T1.6 (AC #1) — Pretendard next/font/local + Tailwind globals.css
 //                  T3.3 (AC #3) — sonner <Toaster /> wired
 // Resolves Story 0.1 L4 (Pretendard CDN without SRI) + Story 0.4 design tokens.
+//
+// cj-style N+17 (D-Day MVP demo, 2026-09-14 KST): suppressHydrationWarning
+// on <body> to silence the React hydration mismatch caused by browser
+// extensions (Naver SmartConverter, Papago, etc.) injecting
+// data-smart-converter-loaded="true" attribute on the body element post-
+// SSR. The mismatch is benign (extension behavior) but pollutes the
+// browser console and trips Next.js dev overlay. Production behavior
+// unchanged.
 
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
@@ -38,7 +46,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko" className={pretendard.variable}>
-      <body className="bg-background text-foreground font-sans antialiased">
+      <body
+        className="bg-background text-foreground font-sans antialiased"
+        suppressHydrationWarning
+      >
         {children}
         <Toaster />
       </body>

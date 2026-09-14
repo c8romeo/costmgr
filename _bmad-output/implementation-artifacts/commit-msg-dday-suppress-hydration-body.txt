@@ -1,0 +1,47 @@
+fix(web): D-Day MVP suppressHydrationWarning on <body> (cj-style N+17)
+
+의도: D-Day 2026-09-14 KST 시점 admin polished MVP demo 브라우저
+콘솔에서 hydration mismatch 경고 (Naver SmartConverter 등 확장
+프로그램이 <body> 에 data-smart-converter-loaded attribute 주입
+으로 발생) 무음 처리.
+
+근본 원인:
+- Next.js 15 SSR 시 <body> 가 클린 HTML 로 렌더링됨.
+- 클라이언트 hydration 직전 브라우저 확장 프로그램 (네이버
+  SmartConverter, 파파고 등) 이 <body> 에 data-smart-converter-
+  loaded="true" attribute 를 동적 주입.
+- React 가 SSR HTML vs client DOM 비교 시 attribute 차이 발견 →
+  "A tree hydrated but some attributes of the server rendered HTML
+  didn't match the client properties" 경고.
+- 기능적 영향 없음 (실제 페이지 동작 정상), console/dev overlay
+  만 오염. 결정 wire 보존: MVP demo 환경 안정성 우선.
+
+변경 (1 file):
+
+1. apps/web/app/layout.tsx — <body> 에 suppressHydrationWarning 추가
+   - Before: <body className="bg-background text-foreground ...">
+   - After:  <body className="..." suppressHydrationWarning>
+   - React 의 hydration warning 시스템이 이 element 의 attribute
+     차이는 비교하지 않도록 지시. Children 까지는 무시하지 않으므로
+     페이지 내부 hydration 검증은 그대로 유지.
+   - 결정 wire 보존: 표준 React 18+ API, production 동작 무변경.
+     다른 SSR/client mismatch 가 새로 생겨도 무시되지 않음 (body
+     attribute 만).
+
+검증 (D-Day 2026-09-14 KST live):
+- tsc: PASS (zero errors)
+- /ko: HTTP 200 (회귀 없음)
+- 브라우저 새로고침 후 dev overlay 의 hydration warning 사라짐 확인
+  (사용자 verify 대기)
+
+Commit chain (cj-style N+13~N+17):
+- a34df68: Sprint 0 MVP local-demo fix-forward (12 files)
+- a8c9bbd: instrumentation.ts webpackIgnore fix (1 file)
+- d323da7: demo-friendly seed + MenuContext dev-bypass fetch (2 files)
+- 1f466b7: sidebar route mapping + instrumentation revert (2 files)
+- ad2cf74: AI추출 RSC boundary fix (2 files)
+- 48363bb: frontend dev-bypass auth gate (9 files)
+- (본 commit): suppressHydrationWarning on body (1 file)
+
+NOT meta-process commit. NOT honestly DEFER cycle.
+Real D-Day demo console-cleanup.
