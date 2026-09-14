@@ -1,0 +1,79 @@
+fix(web): D-Day MVP frontend layout-level auth gate dev-bypass (cj-style N+16)
+
+의도: D-Day 2026-09-14 KST 시점 admin polished MVP demo 에서 사이드바
+클릭 → 307 redirect 로 모든 보호 라우트가 /login 으로 점프하는 문제 해소.
+누적 결정 wire 보존.
+
+근본 원인:
+- 백엔드 (FastAPI) 에는 MVP_DEV_BYPASS=true 시 first tenant_memberships
+  owner 로 auto-authenticate 하는 dev bypass 가 활성화되어 있었음
+  (cj-style N+7, a34df68 commit).
+- 프론트엔드 (Next.js) 의 (dashboard) layout/page 들은 독립적으로
+  `sb-access-token` 쿠키 존재 여부만 검사 → 쿠키 없으면
+  `redirect("/ko-KR/login")` → HTTP 307.
+- 결과: 백엔드 bypass 가 작동해도 프론트엔드 gate 가 먼저 catch.
+- 결정 wire 보존: cookie-less dev bypass 환경에서 페이지 단위 gate 가
+  SPA 동작을 차단. Production 안전은 백엔드 APP_ENV=production 가드와
+  frontend NEXT_PUBLIC_MVP_DEV_BYPASS 미설정 두 곳에서 보장.
+
+변경 (9 files):
+
+1. apps/web/.env.local (git-ignored, LOCAL DEV ONLY)
+   - EXTENSION: NEXT_PUBLIC_MVP_DEV_BYPASS=true 추가
+   - 결정 wire 보존: NEXT_PUBLIC_ prefix 로 server + client 양쪽 사용.
+     .env.example 에는 포함 안 함 → production env 에는 전파 안 됨.
+     Backend 의 MVP_DEV_BYPASS 와 독립적으로 toggle.
+
+2. apps/web/lib/auth/dev-bypass.ts (NEW)
+   - isDevBypassActive() 헬퍼 (process.env.NEXT_PUBLIC_MVP_DEV_BYPASS
+     === "true" 체크) — 모든 layout/page 의 단일 source of truth.
+
+3. apps/web/app/[locale]/(dashboard)/account/{settings,security,backups}/layout.tsx
+   - import { isDevBypassActive } 추가
+   - if (isDevBypassActive()) return children; 가드 함수 최상단 추가
+   - 결정 wire 보존: 기존 cookie check / redirect 로직은 그대로 유지
+     (production 시 bypass false → 정상 gate 작동)
+
+4. apps/web/app/[locale]/(dashboard)/simulation/cvp/layout.tsx
+5. apps/web/app/[locale]/(dashboard)/reports/layout.tsx
+6. apps/web/app/[locale]/(dashboard)/audit-log/layout.tsx
+7. apps/web/app/[locale]/(dashboard)/activity/layout.tsx
+   - 동일 패턴 EXTENSION (cj-style N+16)
+
+검증 (D-Day 2026-09-14 KST live):
+- tsc: PASS (zero errors, 9 files 변경)
+- 전체 라우트 회귀 검증 (17 routes, 모두 200 OK):
+  /ko: 200 ✅
+  /ko/m1-baseline/products: 200 ✅
+  /ko/m2-input/period/2026-08: 200 ✅
+  /ko/budget/abc-allocation: 200 ✅
+  /ko/budget/abc-calculation: 200 ✅
+  /ko/budget/abc-validation: 200 ✅
+  /ko/budget/pre-standard: 200 ✅
+  /ko/simulation/cvp: 200 ✅ (이전: 307)
+  /ko/settings/wizard: 200 ✅
+  /ko/account/settings: 200 ✅ (이전: 307)
+  /ko/account/security: 200 ✅ (이전: 307)
+  /ko/account/backups: 200 ✅ (이전: 307)
+  /ko/m2-input/period/2026-08/monthly-closing-report: 200 ✅
+  /ko/reports/15: 200 ✅ (이전: 307)
+  /ko/monthly-input/ai-extract: 200 ✅
+  /ko/audit-log: 200 ✅ (이전: 307)
+  /ko/activity: 200 ✅ (이전: 307)
+- 백엔드 (port 8000, FastAPI) 정상 동작 (변경 없음, MVP_DEV_BYPASS=true 보존)
+- 결정 wire 보존: 변경 없음 — middleware.ts 무수정
+  (apps/web/middleware.ts routeGuard isDashboardPath 는 /dashboard/* 만
+  매치하므로 m1-baseline/products 등은 이미 middleware 통과, page-level
+  gate 만 손보면 됨)
+
+Commit chain (cj-style N+13~N+16):
+- a34df68: Sprint 0 MVP local-demo fix-forward (12 files)
+- a8c9bbd: instrumentation.ts webpackIgnore fix (1 file)
+- d323da7: demo-friendly seed + MenuContext dev-bypass fetch (2 files)
+- 1f466b7: sidebar route mapping + instrumentation revert (2 files)
+- ad2cf74: AI추출 RSC boundary fix (2 files)
+- (본 commit): frontend dev-bypass auth gate (9 files)
+
+Admin polished MVP demo 최종 상태:
+- 모든 사이드바 클릭 200 OK ✅
+- D-Day 데모 가능 상태 완료

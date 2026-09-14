@@ -11,10 +11,15 @@
  *
  * Layout-level auth check matches the (dashboard)/audit-log/ layout
  * pattern (Epic 17 T2 wire verbatim).
+ *
+ * cj-style N+16 (D-Day MVP demo): MVP dev bypass — skip redirect when
+ * `NEXT_PUBLIC_MVP_DEV_BYPASS=true` (mirrors backend `MVP_DEV_BYPASS`).
  */
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+
+import { isDevBypassActive } from "@/lib/auth/dev-bypass";
 
 interface ActivityLayoutProps {
   children: ReactNode;
@@ -23,6 +28,9 @@ interface ActivityLayoutProps {
 export default async function ActivityLayout({
   children,
 }: ActivityLayoutProps): Promise<ReactNode> {
+  if (isDevBypassActive()) {
+    return children;
+  }
   const cookieStore = await cookies();
   const hasSession = cookieStore.get("sb-access-token")?.value;
   if (!hasSession) {

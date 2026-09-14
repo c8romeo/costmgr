@@ -20,6 +20,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { isDevBypassActive } from "@/lib/auth/dev-bypass";
+
 interface ReportsLayoutProps {
   children: ReactNode;
 }
@@ -27,6 +29,11 @@ interface ReportsLayoutProps {
 export default async function ReportsLayout({
   children,
 }: ReportsLayoutProps): Promise<ReactNode> {
+  // cj-style N+16 (D-Day MVP demo): MVP dev bypass — skip redirect when
+  // NEXT_PUBLIC_MVP_DEV_BYPASS=true (mirrors backend MVP_DEV_BYPASS).
+  if (isDevBypassActive()) {
+    return children;
+  }
   const cookieStore = await cookies();
   const hasSession = cookieStore.get("sb-access-token")?.value;
   if (!hasSession) {
