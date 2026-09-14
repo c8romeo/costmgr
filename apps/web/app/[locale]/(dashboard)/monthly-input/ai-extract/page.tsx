@@ -4,11 +4,12 @@
  * Story 10.1 (Monthly AI Document Extraction) RSC mount page.
  *
  * Per AC #1 (Sprint 10.5 T1):
- *  - Server-side render: pass accessToken + defaultPeriodKey to the
- *    `<AiExtractModal>` (Client Component) which handles AI extraction
- *    form + draft display.
+ *  - Server-side render: pass accessToken + defaultPeriodKey to a Client
+ *    Component wrapper, which in turn mounts `<AiExtractModal>` with the
+ *    close handler (RSC cannot serialize event-handler functions).
  *  - CR 11-4 D-001: page MUST actually mount the JSX (not just create
- *    file or placeholder stub). Mount MUST be `<AiExtractModal .../>`.
+ *    file or placeholder stub). Mount MUST be `<AiExtractPageClient .../>`
+ *    which renders `<AiExtractModal .../>`.
  *
  * Inherits the `(dashboard)` layout → Sidebar + MenuProvider.
  * The capability gate (AI_INSIGHT) is enforced server-side at the
@@ -20,11 +21,19 @@
  *
  * AD-15 parity SSOT: POST /api/v1/ai/extract-monthly endpoint mirrors
  * `apps/api/modules/m10_ai/schemas.py` `MonthlyExtractRequest` body shape.
+ *
+ * cj-style N+15 (D-Day MVP demo, 2026-09-14 KST): prior implementation
+ * passed `onClose={() => window.history.back()}` directly from RSC to
+ * `<AiExtractModal>` — this violated the RSC boundary
+ * ("Event handlers cannot be passed to Client Component props") and
+ * yielded HTTP 500 on the sidebar route. Moved the close handler into
+ * a thin Client Component wrapper (`AiExtractPageClient`) so all
+ * serialized props cross the boundary cleanly.
  */
 
 import { cookies } from "next/headers";
 
-import { AiExtractModal } from "@/components/m10-ai";
+import { AiExtractPageClient } from "./AiExtractPageClient";
 
 export const dynamic = "force-dynamic";
 
@@ -41,15 +50,8 @@ export default async function AiExtractPage({
   const accessToken = cookieStore.get("sb-access-token")?.value;
 
   return (
-    <AiExtractModal
+    <AiExtractPageClient
       accessToken={accessToken}
-      isOpen={true}
-      onClose={(): void => {
-        // RSC doesn't support client-side navigation here; this page is a
-        // dedicated mount entry point. Closing returns the user to the
-        // monthly-input shell via standard browser back.
-        if (typeof window !== "undefined") window.history.back();
-      }}
       defaultPeriodKey={new Date().toISOString().slice(0, 7)}
     />
   );

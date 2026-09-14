@@ -1,0 +1,59 @@
+fix(web): D-Day MVP AI추출 RSC boundary fix — HTTP 500 해소 (cj-style N+15)
+
+의도: D-Day 2026-09-14 KST 시점 admin 관점에서 polished MVP admin view 의
+마지막 1개 미작동 메뉴 (AI추출) 정상화. 누적 결정 wire 보존.
+
+변경 (2 files):
+
+1. apps/web/app/[locale]/(dashboard)/monthly-input/ai-extract/page.tsx
+   - Before: <AiExtractModal ... onClose={() => window.history.back()} />
+     → RSC → Client Component boundary 에 event handler function 전달
+     → Next.js 15 "Event handlers cannot be passed to Client Component
+       props" 에러 → HTTP 500 (digest: 1566976456)
+   - After: <AiExtractPageClient accessToken={...} defaultPeriodKey={...} />
+     → RSC 는 직렬화 가능한 prop (string | undefined) 만 전달
+     → Client wrapper 가 onClose 핸들러 소유
+   - 결정 wire 보존: AD-7 verbatim display-only semantics unchanged.
+     monthly_input_rows 직접 쓰기 금지 / /ai/promote 라우트 경유 보존.
+
+2. apps/web/app/[locale]/(dashboard)/monthly-input/ai-extract/AiExtractPageClient.tsx
+   - NEW thin Client Component wrapper ("use client").
+   - useRouter() + window.history.back() fallback 으로 onClose 핸들러 제공.
+   - 결정 wire 보존: AiExtractModal 의 onClose 시그니처/동작 그대로 유지.
+     AiDraftCard, validation, extractMonthlyAiDraft 호출 경로 무변경.
+
+근본 원인:
+- RSC (Server Component) 는 JSON 으로 직렬화 가능한 prop 만 Client
+  Component 에 전달 가능. 함수는 직렬화 불가 → React 가 런타임에 거부.
+- Story 10.1 의 원본 구현은 "RSC 가 mount point 역할만 하고 실제 UI 로직은
+  Client Component 가 담당" 하는 표준 패턴이었으나, onClose 핸들러를
+  page.tsx (RSC) 가 직접 만들어서 넘기는 부분만 위반.
+- AiExtractModal 자체는 정상 ("use client" + close 버튼 onClick={onClose}).
+
+검증 (D-Day 2026-09-14 KST live):
+- tsc: PASS (zero errors)
+- /ko/monthly-input/ai-extract: HTTP 200 ✅ (이전: HTTP 500)
+- Modal DOM 검증 (curl HTML grep):
+  - "AI 월별 추출" 타이틀 ✅
+  - data-testid="ai-extract-modal" ✅
+  - "기간 (YYYY-MM)" 라벨 ✅
+  - "PDF 또는 Excel" 업로드 라벨 ✅
+- 회귀 검증 (다른 14개 라우트 동일):
+  /ko, /ko/m1-baseline/products, /ko/m2-input/period/2026-08,
+  /ko/budget/abc-{allocation,calculation,validation},
+  /ko/budget/pre-standard, /ko/settings/wizard,
+  /ko/m2-input/period/2026-08/monthly-closing-report → 200 ✅
+  /ko/simulation/cvp, /ko/account/{settings,security,backups},
+  /ko/reports/15 → 307 (page-level redirect, honestly DEFER 보존)
+
+Commit chain (cj-style N+13~N+15):
+- a34df68: Sprint 0 MVP local-demo fix-forward (12 files)
+- a8c9bbd: instrumentation.ts webpackIgnore fix (1 file)
+- d323da7: demo-friendly seed + MenuContext dev-bypass fetch (2 files)
+- 1f466b7: sidebar route mapping + instrumentation revert (2 files)
+- (본 commit): AI추출 RSC boundary fix (2 files — 1 MOD + 1 NEW)
+
+Admin polished MVP demo 최종 상태:
+- Dashboard 진입 ✅
+- 14/19 sidebar 메뉴 200 OK (이전 13/19) — AI추출 포함
+- 5/19 sidebar 메뉴 307 redirect — honestly DEFER (직접 URL 진입 가능)
