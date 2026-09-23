@@ -22,7 +22,7 @@
 ARG TARGETPLATFORM=linux/amd64
 
 # ── Stage 1: frontend build (Next.js) ──────────────────────────────────────
-FROM node:24.18.0-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd AS frontend-builder
+FROM node:26.9.0-alpine@sha256:dbaa92e5758cbbcf85d65d5403fdb530fe3442cbe8c6dbfb7ef23365450d5070 AS frontend-builder
 WORKDIR /repo
 
 # Copy only manifests first for layer caching
